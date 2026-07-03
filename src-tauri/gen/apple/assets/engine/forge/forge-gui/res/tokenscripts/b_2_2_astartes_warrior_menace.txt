@@ -1,0 +1,7 @@
+Name:Astartes Warrior Token
+ManaCost:no cost
+Colors:black
+Types:Creature Astartes Warrior
+PT:2/2
+K:Menace
+Oracle:Menace

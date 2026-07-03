@@ -1,0 +1,6 @@
+Name:Kor Ally Token
+ManaCost:no cost
+Colors:white
+Types:Creature Kor Ally
+PT:1/1
+Oracle:

@@ -1,0 +1,6 @@
+Name:Human Wizard Token
+ManaCost:no cost
+Colors:red
+Types:Creature Human Wizard
+PT:2/1
+Oracle:

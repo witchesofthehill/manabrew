@@ -1,0 +1,26 @@
+[metadata]
+Code=PW24
+Date=2024-01-01
+Name=Wizards Play Network 2024
+Type=Promo
+ScryfallCode=PW24
+
+[cards]
+1 R Serra Angel @Jodie Muir
+2 R Lord of Atlantis @Billy Christian
+3 R Zombie Master @Igor Krstic
+4 R Goblin King @Joshua Cairos
+5 R Gaea's Liege @Jodie Muir
+7 R Chaos Warp @Volkan Baǵa
+8 R Commander's Sphere @Andrea Radeck
+9 R Underworld Connections @Yeong-Hao Han
+10 R Rogue's Passage @Christine Choi
+11 M Transmutation Font @José Parodi
+12 M Oltec Matterweaver @Borja Pindado
+13 R Diabolic Tutor @Greg Staples
+14 R Costly Plunder @Ben Maier
+15 R Ravenous Squirrel @Dan Murayama Scott
+16 R Heirloom Blade @Carmen Sinek
+17 R Crippling Fear @Néstor Ossandón Leal
+18 R Night's Whisper @John Severin Brassell
+19 M Darksteel Colossus @Loïc Canavaggia

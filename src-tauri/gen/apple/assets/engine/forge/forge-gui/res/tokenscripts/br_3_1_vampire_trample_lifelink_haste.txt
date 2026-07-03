@@ -1,0 +1,9 @@
+Name:Vampire Token
+ManaCost:no cost
+Colors:black,red
+Types:Creature Vampire
+PT:3/1
+K:Trample
+K:Lifelink
+K:Haste
+Oracle:Trample, lifelink, haste

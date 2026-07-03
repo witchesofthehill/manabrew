@@ -1,0 +1,6 @@
+Name:Zombie Token
+ManaCost:no cost
+Colors:black
+Types:Enchantment Creature Zombie
+PT:2/2
+Oracle:

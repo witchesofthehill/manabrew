@@ -1,0 +1,8 @@
+Name:Angel Warrior Token
+ManaCost:no cost
+Colors:white
+Types:Creature Angel Warrior
+PT:4/4
+K:Flying
+K:Vigilance
+Oracle:Flying\nVigilance

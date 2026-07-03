@@ -1,0 +1,27 @@
+[metadata]
+Code=PPRO
+Date=2007-02-09
+Name=Pro Tour Promos
+Type=Promo
+ScryfallCode=PPRO
+
+[cards]
+2007 R Eternal Dragon @Adam Rex
+2008 R Mirari's Wake @Volkan Baǵa
+2009 R Treva, the Renewer @Jean-Sébastien Rossbach
+2010 R Avatar of Woe @rk post
+2011 M Ajani Goldmane @Christopher Moeller
+2015 M Liliana of the Veil @Steve Argyle
+2016 M Snapcaster Mage @Joseph Meehan
+2017 M Emrakul, the Aeons Torn @Vincent Proce
+2018 R Noble Hierarch @Matt Stewart
+2019 R Arcbound Ravager @Chase Stone
+2020-1 R Cryptic Command @Jason Rainville
+2020-2 R Surgical Extraction @Steven Belledin
+2020-3 R Aether Vial @Billy Christian
+2022-1 R Lava Spike @Igor Kieryluk
+2022-2 M Teferi, Hero of Dominaria @Chris Rallis
+2022-3 R Nykthos, Shrine to Nyx @Alayna Danner
+2025-1 M Cloud, Midgar Mercenary @Tetsuya Nomura
+2025-3 R Aerith Gainsborough @Susumu Kuroi
+2026-1 R Quicksilver, Brash Blur @Junggeun Yoon

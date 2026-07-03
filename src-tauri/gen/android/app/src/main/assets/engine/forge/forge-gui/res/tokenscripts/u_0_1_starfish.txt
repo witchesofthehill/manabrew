@@ -1,0 +1,6 @@
+Name:Starfish Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Starfish
+PT:0/1
+Oracle:

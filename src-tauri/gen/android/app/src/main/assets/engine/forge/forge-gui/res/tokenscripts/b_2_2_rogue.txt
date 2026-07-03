@@ -1,0 +1,6 @@
+Name:Rogue Token
+ManaCost:no cost
+Colors:black
+Types:Creature Rogue
+PT:2/2
+Oracle:

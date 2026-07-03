@@ -1,0 +1,6 @@
+Name:Serf Token
+ManaCost:no cost
+Colors:black
+Types:Creature Serf
+PT:0/1
+Oracle:

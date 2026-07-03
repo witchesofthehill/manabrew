@@ -1,0 +1,7 @@
+Name:Demon Berserker Token
+ManaCost:no cost
+Colors:red
+Types:Creature Demon Berserker
+PT:2/3
+K:Menace
+Oracle:Menace

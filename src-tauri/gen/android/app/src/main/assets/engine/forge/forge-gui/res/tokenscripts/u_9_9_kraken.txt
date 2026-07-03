@@ -1,0 +1,6 @@
+Name:Kraken Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Kraken
+PT:9/9
+Oracle:

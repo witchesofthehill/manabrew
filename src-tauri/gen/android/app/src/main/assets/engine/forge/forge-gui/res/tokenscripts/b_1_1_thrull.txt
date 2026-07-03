@@ -1,0 +1,6 @@
+Name:Thrull Token
+ManaCost:no cost
+Colors:black
+Types:Creature Thrull
+PT:1/1
+Oracle:

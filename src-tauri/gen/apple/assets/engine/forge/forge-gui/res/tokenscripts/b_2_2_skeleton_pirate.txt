@@ -1,0 +1,6 @@
+Name:Skeleton Pirate Token
+ManaCost:no cost
+Colors:black
+Types:Creature Skeleton Pirate
+PT:2/2
+Oracle:

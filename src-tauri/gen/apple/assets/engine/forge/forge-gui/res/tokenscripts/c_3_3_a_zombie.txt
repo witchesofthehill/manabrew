@@ -1,0 +1,5 @@
+Name:Zombie Token
+ManaCost:no cost
+Types:Artifact Creature Zombie
+PT:3/3
+Oracle:

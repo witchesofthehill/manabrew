@@ -1,0 +1,6 @@
+Name:Citizen Token
+ManaCost:no cost
+Colors:green,white
+Types:Creature Citizen
+PT:1/1
+Oracle:

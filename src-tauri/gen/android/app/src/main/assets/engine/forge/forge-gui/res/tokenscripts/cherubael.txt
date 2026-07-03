@@ -1,0 +1,7 @@
+Name:Cherubael
+ManaCost:no cost
+Colors:black
+Types:Legendary Creature Demon
+PT:4/4
+K:Flying
+Oracle:Flying

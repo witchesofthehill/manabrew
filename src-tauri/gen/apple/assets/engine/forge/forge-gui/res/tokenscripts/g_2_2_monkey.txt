@@ -1,0 +1,6 @@
+Name:Monkey Token
+ManaCost:no cost
+Colors:green
+Types:Creature Monkey
+PT:2/2
+Oracle:

@@ -1,0 +1,7 @@
+Name:Kelp
+ManaCost:no cost
+Colors:blue
+Types:Creature Plant Wall
+PT:0/1
+K:Defender
+Oracle:Defender

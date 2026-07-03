@@ -1,0 +1,6 @@
+Name:Weird Token
+ManaCost:no cost
+Colors:blue,red
+Types:Creature Weird
+PT:*/*
+Oracle:

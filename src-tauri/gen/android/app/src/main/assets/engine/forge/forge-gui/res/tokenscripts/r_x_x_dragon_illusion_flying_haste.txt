@@ -1,0 +1,8 @@
+Name:Dragon Illusion Token
+ManaCost:no cost
+Colors:red
+Types:Creature Dragon Illusion
+PT:*/*
+K:Flying
+K:Haste
+Oracle:Flying, haste

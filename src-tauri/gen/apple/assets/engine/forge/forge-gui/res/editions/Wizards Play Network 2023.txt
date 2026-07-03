@@ -1,0 +1,19 @@
+[metadata]
+Code=PW23
+Date=2023-01-01
+Name=Wizards Play Network 2023
+Type=Promo
+ScryfallCode=PW23
+
+[cards]
+1 R Norn's Annex @James Paick
+2 R Lifecrafter's Bestiary @Izzy
+3 R Beast Within @Dave Allsop
+4 R Drown in the Loch @John Stanko
+5 R Syr Konrad, the Grim @Anna Steinbauer
+6 R Cultivate @Néstor Ossandón Leal
+7 R Ice Out @Takuma Ebisu
+8 R Pyroblast @Takuma Ebisu
+9 R Rampant Growth @Lorenzo Lanfranconi
+10 R Ravenous Chupacabra @Daarken
+11 R Unclaimed Territory @Dimitar Marinski

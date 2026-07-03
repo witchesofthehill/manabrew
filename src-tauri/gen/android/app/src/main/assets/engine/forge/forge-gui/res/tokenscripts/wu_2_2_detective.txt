@@ -1,0 +1,6 @@
+Name:Detective Token
+ManaCost:no cost
+Colors:white,blue
+Types:Creature Detective
+PT:2/2
+Oracle:

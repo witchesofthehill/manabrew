@@ -1,0 +1,6 @@
+Name:Camarid Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Camarid
+PT:1/1
+Oracle:

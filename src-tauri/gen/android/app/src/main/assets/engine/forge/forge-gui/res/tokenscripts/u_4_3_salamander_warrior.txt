@@ -1,0 +1,6 @@
+Name:Salamander Warrior Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Salamander Warrior
+PT:4/3
+Oracle:

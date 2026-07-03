@@ -1,0 +1,5 @@
+Name:Pest Token
+ManaCost:no cost
+Types:Artifact Creature Pest
+PT:0/1
+Oracle:

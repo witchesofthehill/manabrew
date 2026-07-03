@@ -1,0 +1,7 @@
+Name:Spider Token
+ManaCost:no cost
+Colors:black
+Types:Creature Spider
+PT:2/4
+K:Reach
+Oracle:Reach

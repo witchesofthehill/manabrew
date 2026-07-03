@@ -1,0 +1,7 @@
+Name:MTGO Legacy Cube
+DeckFile:MTGO Legacy Cube
+Singleton:True
+
+Booster: 15 Any
+NumPacks: 3
+NumPlayers: 8

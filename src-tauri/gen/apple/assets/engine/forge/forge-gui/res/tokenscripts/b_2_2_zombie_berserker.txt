@@ -1,0 +1,6 @@
+Name:Zombie Berserker Token
+ManaCost:no cost
+Colors:black
+Types:Creature Zombie Berserker
+PT:2/2
+Oracle:

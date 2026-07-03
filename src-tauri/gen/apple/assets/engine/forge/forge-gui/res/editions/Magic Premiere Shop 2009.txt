@@ -1,0 +1,14 @@
+[metadata]
+Code=PMPS09
+Date=2009-01-01
+Name=Magic Premiere Shop 2009
+Type=Promo
+CardLang=ja
+ScryfallCode=PMPS09
+
+[cards]
+1 L Plains @Rob Alexander
+2 L Island @Rob Alexander
+3 L Swamp @Rob Alexander
+4 L Mountain @Rob Alexander
+5 L Forest @Rob Alexander

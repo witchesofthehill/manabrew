@@ -1,0 +1,6 @@
+Name:Dinosaur Egg Token
+ManaCost:no cost
+Colors:green
+Types:Creature Dinosaur Egg
+PT:0/1
+Oracle:

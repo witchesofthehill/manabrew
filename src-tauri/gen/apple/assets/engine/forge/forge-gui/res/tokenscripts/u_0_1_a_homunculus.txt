@@ -1,0 +1,6 @@
+Name:Homunculus Token
+ManaCost:no cost
+Colors:blue
+Types:Artifact Creature Homunculus
+PT:0/1
+Oracle:

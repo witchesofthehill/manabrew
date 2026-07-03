@@ -1,0 +1,7 @@
+Name:Shark Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Shark
+PT:*/*
+K:Flying
+Oracle:Flying

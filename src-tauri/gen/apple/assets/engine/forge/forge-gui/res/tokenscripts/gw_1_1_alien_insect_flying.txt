@@ -1,0 +1,7 @@
+Name:Alien Insect Token
+ManaCost:no cost
+Colors:green,white
+Types:Creature Alien Insect
+PT:1/1
+K:Flying
+Oracle:Flying

@@ -1,0 +1,272 @@
+//Rank|Name|Rarity|Set
+#1|Valley Questcaller|R|BLB
+#2|Maha, Its Feathers Night|M|BLB
+#3|Season of Loss|M|BLB
+#4|Dreamdew Entrancer|R|BLB
+#5|Fecund Greenshell|R|BLB
+#6|Sword of Fire and Ice|M|SPG
+#7|Warren Warleader|M|BLB
+#8|Mabel, Heir to Cragflame|R|BLB
+#9|Ygra, Eater of All|M|BLB
+#10|Innkeeper's Talent|R|BLB
+#11|Beza, the Bounding Spring|M|BLB
+#12|Manifold Mouse|R|BLB
+#13|Glarb, Calamity's Augur|M|BLB
+#14|Vinereap Mentor|U|BLB
+#15|Dragonhawk, Fate's Tempest|M|BLB
+#16|Hunter's Talent|U|BLB
+#17|Camellia, the Seedmiser|R|BLB
+#18|Zoraline, Cosmos Caller|R|BLB
+#19|Vren, the Relentless|R|BLB
+#20|Season of Gathering|M|BLB
+#21|Burrowguard Mentor|U|BLB
+#22|Thought-Stalker Warlock|U|BLB
+#23|Wick's Patrol|U|BLB
+#24|Season of Weaving|M|BLB
+#25|Tender Wildguide|R|BLB
+#26|Season of the Burrow|M|BLB
+#27|Valley Mightcaller|R|BLB
+#28|Gev, Scaled Scorch|R|BLB
+#29|Shoreline Looter|U|BLB
+#30|Fell|U|BLB
+#31|Lumra, Bellow of the Woods|M|BLB
+#32|Downwind Ambusher|U|BLB
+#33|Pawpatch Recruit|R|BLB
+#34|Swords to Plowshares|M|SPG
+#35|Osteomancer Adept|R|BLB
+#36|Finneas, Ace Archer|R|BLB
+#37|Harvestrite Host|U|BLB
+#38|Darkstar Augur|R|BLB
+#39|Patchwork Banner|U|BLB
+#40|Carrot Cake|C|BLB
+#41|Hop to It|U|BLB
+#42|Consumed by Greed|U|BLB
+#43|Thornvault Forager|R|BLB
+#44|Wandertale Mentor|U|BLB
+#45|Rottenmouth Viper|M|BLB
+#46|Hired Claw|R|BLB
+#47|Feed the Cycle|U|BLB
+#48|Keen-Eyed Curator|R|BLB
+#49|Ledger Shredder|M|SPG
+#50|Toski, Bearer of Secrets|M|SPG
+#51|Savor|C|BLB
+#52|Iridescent Vinelasher|R|BLB
+#53|Valley Rotcaller|R|BLB
+#54|Cache Grab|C|BLB
+#55|Overprotect|U|BLB
+#56|Caretaker's Talent|R|BLB
+#57|Azure Beastbinder|R|BLB
+#58|Rabid Gnaw|U|BLB
+#59|Intrepid Rabbit|C|BLB
+#60|Brightblade Stoat|U|BLB
+#61|Galewind Moose|U|BLB
+#62|Clement, the Worrywort|R|BLB
+#63|Fireglass Mentor|U|BLB
+#64|Lilysplash Mentor|U|BLB
+#65|Muerra, Trash Tactician|R|BLB
+#66|Scales of Shale|C|BLB
+#67|Emberheart Challenger|R|BLB
+#68|Mistbreath Elder|R|BLB
+#69|Stormchaser's Talent|R|BLB
+#70|Bakersbane Duo|C|BLB
+#71|Repel Calamity|U|BLB
+#72|Thundertrap Trainer|R|BLB
+#73|Ruthless Negotiation|U|BLB
+#74|Hugs, Grisly Guardian|M|BLB
+#75|Ral, Crackling Wit|M|BLB
+#76|Mudflat Village|U|BLB
+#77|Hivespine Wolverine|U|BLB
+#78|Dour Port-Mage|R|BLB
+#79|Scrapshooter|R|BLB
+#80|Treeguard Duo|C|BLB
+#81|Head of the Homestead|C|BLB
+#82|Pond Prophet|C|BLB
+#83|Driftgloom Coyote|U|BLB
+#84|Feather of Flight|U|BLB
+#85|Splash Lasher|U|BLB
+#86|Bonecache Overseer|U|BLB
+#87|Seasoned Warrenguard|U|BLB
+#88|Mindwhisker|U|BLB
+#89|Glidedive Duo|C|BLB
+#90|Three Tree Scribe|U|BLB
+#91|Essence Channeler|R|BLB
+#92|Nocturnal Hunger|C|BLB
+#93|Valley Flamecaller|R|BLB
+#94|Salvation Swan|R|BLB
+#95|Plumecreed Mentor|U|BLB
+#96|Tidecaller Mentor|U|BLB
+#97|Lupinflower Village|U|BLB
+#98|Starfall Invocation|R|BLB
+#99|Moonstone Harbinger|U|BLB
+#100|Byway Barterer|R|BLB
+#101|Bark-Knuckle Boxer|U|BLB
+#102|Jackdaw Savior|R|BLB
+#103|Warren Elder|C|BLB
+#104|Kitsa, Otterball Elite|M|BLB
+#105|Take Out the Trash|C|BLB
+#106|Bushy Bodyguard|U|BLB
+#107|Polliwallop|C|BLB
+#108|Builder's Talent|U|BLB
+#109|Crumb and Get It|C|BLB
+#110|Kitnap|R|BLB
+#111|Heartfire Hero|U|BLB
+#112|Brambleguard Veteran|U|BLB
+#113|Kastral, the Windcrested|R|BLB
+#114|Long River Lurker|U|BLB
+#115|Longstalk Brawl|C|BLB
+#116|Daring Waverider|U|BLB
+#117|Hazel's Nocturne|U|BLB
+#118|Persistent Marshstalker|U|BLB
+#119|Pawpatch Formation|U|BLB
+#120|Scavenger's Talent|R|BLB
+#121|Starscape Cleric|U|BLB
+#122|Flamecache Gecko|U|BLB
+#123|Stickytongue Sentinel|C|BLB
+#124|Daggerfang Duo|C|BLB
+#125|Quaketusk Boar|U|BLB
+#126|Sunshower Druid|C|BLB
+#127|Starseer Mentor|U|BLB
+#128|Whiskervale Forerunner|R|BLB
+#129|Calamitous Tide|U|BLB
+#130|Plumecreed Escort|U|BLB
+#131|Curious Forager|U|BLB
+#132|Fabled Passage|R|BLB
+#133|Banishing Light|C|BLB
+#134|Sonar Strike|C|BLB
+#135|Dire Downdraft|C|BLB
+#136|Bonebind Orator|C|BLB
+#137|Ravine Raider|C|BLB
+#138|Moonrise Cleric|C|BLB
+#139|Oakhollow Village|U|BLB
+#140|Lifecreed Duo|C|BLB
+#141|Treetop Sentries|C|BLB
+#142|Into the Flood Maw|U|BLB
+#143|Mockingbird|R|BLB
+#144|Rust-Shield Rampager|C|BLB
+#145|Rabbit Response|C|BLB
+#146|Agate-Blade Assassin|C|BLB
+#147|Honored Dreyleader|U|BLB
+#148|Rat Colony|M|SPG
+#149|Three Tree Rootweaver|C|BLB
+#150|Fountainport|R|BLB
+#151|Flowerfoot Swordmaster|U|BLB
+#152|Shrike Force|U|BLB
+#153|Sugar Coat|U|BLB
+#154|Brazen Collector|U|BLB
+#155|Stargaze|U|BLB
+#156|Nettle Guard|C|BLB
+#157|Lightshell Duo|C|BLB
+#158|Thornplate Intimidator|C|BLB
+#159|Hidden Grotto|C|BLB
+#160|Blacksmith's Talent|U|BLB
+#161|Dazzling Denial|C|BLB
+#162|High Stride|C|BLB
+#163|Jolly Gerbils|U|BLB
+#164|Pearl of Wisdom|C|BLB
+#165|Valley Floodcaller|R|BLB
+#166|Brambleguard Captain|U|BLB
+#167|Corpseberry Cultivator|C|BLB
+#168|Star Charter|U|BLB
+#169|Diresight|C|BLB
+#170|Huskburster Swarm|U|BLB
+#171|Knightfisher|U|BLB
+#172|Splash Portal|U|BLB
+#173|Wick, the Whorled Mind|R|BLB
+#174|Eddymurk Crab|U|BLB
+#175|Coiling Rebirth|R|BLB
+#176|Teapot Slinger|U|BLB
+#177|Druid of the Spade|C|BLB
+#178|Parting Gust|U|BLB
+#179|Early Winter|C|BLB
+#180|Cindering Cutthroat|C|BLB
+#181|Seedglaive Mentor|U|BLB
+#182|Rockface Village|U|BLB
+#183|The Infamous Cruelclaw|M|BLB
+#184|Pileated Provisioner|C|BLB
+#185|Wax-Wane Witness|C|BLB
+#186|Bandit's Talent|U|BLB
+#187|Hearthborn Battler|R|BLB
+#188|Clifftop Lookout|U|BLB
+#189|Fountainport Bell|C|BLB
+#190|Uncharted Haven|C|BLB
+#191|Spellgyre|U|BLB
+#192|Agate Assault|C|BLB
+#193|Alania's Pathmaker|C|BLB
+#194|Blooming Blast|U|BLB
+#195|Shore Up|C|BLB
+#196|Mabel's Mettle|U|BLB
+#197|Season of the Bold|M|BLB
+#198|Lilypad Village|U|BLB
+#199|Coruscation Mage|U|BLB
+#200|Long River's Pull|U|BLB
+#201|Mind Spiral|C|BLB
+#202|Reptilian Recruiter|U|BLB
+#203|Helga, Skittish Seer|M|BLB
+#204|Bellowing Crier|C|BLB
+#205|Eluge, the Shoreless Sea|M|BLB
+#206|Playful Shove|U|BLB
+#207|Wildfire Howl|U|BLB
+#208|Skyskipper Duo|C|BLB
+#209|Roughshod Duo|C|BLB
+#210|Heaped Harvest|C|BLB
+#211|Short Bow|U|BLB
+#212|Junkblade Bruiser|C|BLB
+#213|Seedpod Squire|C|BLB
+#214|Veteran Guardmouse|C|BLB
+#215|Thistledown Players|C|BLB
+#216|Cruelclaw's Heist|R|BLB
+#217|Psychic Whorl|C|BLB
+#218|Three Tree Mascot|C|BLB
+#219|Tangle Tumbler|U|BLB
+#220|Brave-Kin Duo|C|BLB
+#221|Run Away Together|C|BLB
+#222|Might of the Meek|C|BLB
+#223|Steampath Charger|C|BLB
+#224|Barkform Harvester|C|BLB
+#225|Baylen, the Haymaker|R|BLB
+#226|Lunar Convocation|R|BLB
+#227|Heirloom Epic|U|BLB
+#228|Whiskerquill Scribe|C|BLB
+#229|Sunspine Lynx|R|BLB
+#230|Valley Rally|U|BLB
+#231|Mind Drill Assailant|C|BLB
+#232|Stormcatch Mentor|U|BLB
+#233|Conduct Electricity|C|BLB
+#234|Otterball Antics|U|BLB
+#235|Waterspout Warden|C|BLB
+#236|Sinister Monolith|U|BLB
+#237|Starlit Soothsayer|C|BLB
+#238|Frilled Sparkshooter|C|BLB
+#239|Hazardroot Herbalist|U|BLB
+#240|Peerless Recycling|U|BLB
+#241|Bumbleflower's Sharepot|C|BLB
+#242|Portent of Calamity|R|BLB
+#243|Raccoon Rallier|C|BLB
+#244|Three Tree City|R|BLB
+#245|Finch Formation|C|BLB
+#246|Thought Shucker|C|BLB
+#247|Mouse Trapper|U|BLB
+#248|Wishing Well|R|BLB
+#249|Nightwhorl Hermit|C|BLB
+#250|Kindred Charge|M|SPG
+#251|Dewdrop Cure|U|BLB
+#252|Sylvan Tutor|M|SPG
+#253|Artist's Talent|R|BLB
+#254|Wear Down|U|BLB
+#255|Alania, Divergent Storm|R|BLB
+#256|Tempest Angler|C|BLB
+#257|Dawn's Truce|R|BLB
+#258|Harnesser of Storms|U|BLB
+#259|Gossip's Talent|U|BLB
+#260|Kindlespark Duo|C|BLB
+#261|War Squeak|C|BLB
+#262|For the Common Good|R|BLB
+#263|Festival of Embers|R|BLB
+#264|Hoarder's Overflow|U|BLB
+#265|Stormsplitter|M|BLB
+#266|Stocking the Pantry|U|BLB
+#267|Sazacap's Brew|C|BLB
+#268|Starforged Sword|U|BLB
+#269|Relentless Rats|M|SPG
+#270|Frogmite|M|SPG
+#271|Secluded Courtyard|M|SPG

@@ -1,0 +1,6 @@
+Name:Worm Token
+ManaCost:no cost
+Colors:black,green
+Types:Creature Worm
+PT:1/1
+Oracle:

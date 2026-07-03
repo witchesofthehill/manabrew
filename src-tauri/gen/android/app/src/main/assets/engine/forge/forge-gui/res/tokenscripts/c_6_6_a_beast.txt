@@ -1,0 +1,5 @@
+Name:Beast Token
+ManaCost:no cost
+Types:Artifact Creature Beast
+PT:6/6
+Oracle:

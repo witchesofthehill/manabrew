@@ -1,0 +1,6 @@
+Name:Giant Wizard Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Giant Wizard
+PT:4/4
+Oracle:

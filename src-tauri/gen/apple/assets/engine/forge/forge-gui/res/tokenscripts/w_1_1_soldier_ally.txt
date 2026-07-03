@@ -1,0 +1,6 @@
+Name:Soldier Ally Token
+ManaCost:no cost
+Colors:white
+Types:Creature Soldier Ally
+PT:1/1
+Oracle:

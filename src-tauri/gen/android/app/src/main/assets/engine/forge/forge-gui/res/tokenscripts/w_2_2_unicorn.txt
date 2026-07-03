@@ -1,0 +1,6 @@
+Name:Unicorn Token
+ManaCost:no cost
+Colors:white
+Types:Creature Unicorn
+PT:2/2
+Oracle:

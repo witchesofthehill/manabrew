@@ -1,0 +1,5 @@
+Name:Eldrazi Token
+ManaCost:no cost
+Types:Creature Eldrazi
+PT:10/10
+Oracle:

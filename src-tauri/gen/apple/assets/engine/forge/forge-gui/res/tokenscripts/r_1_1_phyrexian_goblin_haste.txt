@@ -1,0 +1,7 @@
+Name:Phyrexian Goblin Token
+ManaCost:no cost
+Colors:red
+Types:Creature Phyrexian Goblin
+PT:1/1
+K:Haste
+Oracle:Haste

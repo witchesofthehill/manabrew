@@ -1,0 +1,8 @@
+Name:Phyrexian Horror Token
+ManaCost:no cost
+Colors:red
+Types:Creature Phyrexian Horror
+PT:*/1
+K:Trample
+K:Haste
+Oracle:Trample, haste

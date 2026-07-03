@@ -1,0 +1,41 @@
+[metadata]
+Code=BOT
+Date=2022-11-18
+Name=Transformers
+Type=Promo
+ScryfallCode=BOT
+
+[cards]
+1 M Prowl, Stoic Strategist @Volta Creation
+2 M Ratchet, Field Medic @Volta Creation
+3 M Jetfire, Ingenious Scientist @Volta Creation
+4 M Blitzwing, Cruel Tormentor @Volta Creation
+5 M Starscream, Power Hungry @Volta Creation
+6 M Slicer, Hired Muscle @Volta Creation
+7 M Arcee, Sharpshooter @Volta Creation
+8 M Blaster, Combat DJ @Volta Creation
+9 M Cyclonus, the Saboteur @Volta Creation
+10 M Flamewar, Brash Veteran @Volta Creation
+11 M Goldbug, Humanity's Ally @Volta Creation
+12 M Megatron, Tyrant @Volta Creation
+13 M Optimus Prime, Hero @Volta Creation
+14 M Soundwave, Sonic Spy @Volta Creation
+15 M Ultra Magnus, Tactician @Volta Creation
+16 M Prowl, Stoic Strategist @Volta Creation
+17 M Ratchet, Field Medic @Volta Creation
+18 M Jetfire, Ingenious Scientist @Volta Creation
+19 M Blitzwing, Cruel Tormentor @Volta Creation
+20 M Starscream, Power Hungry @Volta Creation
+21 M Slicer, Hired Muscle @Volta Creation
+22 M Blaster, Combat DJ @Volta Creation
+23 M Cyclonus, the Saboteur @Volta Creation
+24 M Flamewar, Brash Veteran @Volta Creation
+25 M Goldbug, Humanity's Ally @Volta Creation
+26 M Megatron, Tyrant @Volta Creation
+27 M Optimus Prime, Hero @Volta Creation
+28 M Soundwave, Sonic Spy @Volta Creation
+29 M Ultra Magnus, Tactician @Volta Creation
+
+[tokens]
+1 laserbeak @Volta Creation
+2 ravage @Volta Creation

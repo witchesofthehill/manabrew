@@ -1,0 +1,7 @@
+Name:Rat Token
+ManaCost:no cost
+Colors:black
+Types:Creature Rat
+PT:1/1
+K:Deathtouch
+Oracle:Deathtouch

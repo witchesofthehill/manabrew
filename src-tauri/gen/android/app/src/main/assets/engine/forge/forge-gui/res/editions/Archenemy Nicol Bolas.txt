@@ -1,0 +1,121 @@
+[metadata]
+Code=E01
+Date=2017-06-16
+Name=Archenemy: Nicol Bolas
+Type=Multiplayer
+ScryfallCode=E01
+
+[cards]
+1 R Aegis Angel @Aleksi Briclot
+2 U Aerial Responder @Raoul Vitale
+3 U Anointer of Champions @Anna Steinbauer
+4 C Doomed Traveler @Lars Grant-West
+5 C Excoriate @Johann Bodin
+6 C Expedition Raptor @Johann Bodin
+7 U Fencing Ace @David Rapoza
+8 R Fiendslayer Paladin @Wesley Burt
+9 U Flickerwisp @Jeremy Enecio
+10 M Gideon Jura @Chris Rahn
+11 C Gideon's Lawkeeper @Steve Prescott
+12 R Grand Abolisher @Eric Deschamps
+13 C Grasp of the Hieromancer @Igor Kieryluk
+14 R Lightwielder Paladin @D. Alexander Gregory
+15 R Mentor of the Meek @Jana Schirmer & Johannes Voss
+16 C Moment of Heroism @Christopher Moeller
+17 R Odric, Master Tactician @Michael Komarck
+18 R Precinct Captain @Steve Prescott
+19 U Relief Captain @Anastasia Ovchinnikova
+20 C Shoulder to Shoulder @Chris Rallis
+21 M Sun Titan @Todd Lockwood
+22 C Youthful Knight @Rebecca Guay
+23 C Compulsive Research @Sara Winters
+24 R Icefall Regent @David Gaillet
+25 C Ior Ruin Expedition @Chris Rahn
+26 R Prognostic Sphinx @Steve Prescott
+27 U Reckless Scholar @Steve Prescott
+28 R Sphinx of Jwar Isle @Justin Sweet
+29 C Vision Skeins @Aleksi Briclot
+30 C Windrider Eel @Austin Hsu
+31 R Archfiend of Depravity @Daarken
+32 R Deathbringer Regent @Adam Paquette
+33 U Doom Blade @Chippy
+34 R Harvester of Souls @Slawomir Maniak
+35 C Nightscape Familiar @Jeff Easley
+36 R Overseer of the Damned @rk post
+37 U Reckless Spite @Karl Kopinski
+38 U Vampire Nighthawk @Jason Chan
+39 R Avatar of Fury @rk post
+40 C Battle-Rattle Shaman @Warren Mahy
+41 C Blood Ogre @Christopher Moeller
+42 M Chandra, Pyromaster @Chris Rahn
+43 C Chandra's Outrage @Christopher Moeller
+44 R Chandra's Phoenix @Aleksi Briclot
+45 U Coordinated Assault @John Severin Brassell
+46 R Dualcaster Mage @Matt Stewart
+47 C Fiery Fall @Daarken
+48 U Flametongue Kavu @Slawomir Maniak
+49 C Gorehorn Minotaurs @Wayne Reynolds
+50 R Grim Lavamancer @Michael Sutfin
+51 U Guttersnipe @Steve Prescott
+52 C Hammerhand @Tomasz Jedruszek
+53 M Inferno Titan @Kev Walker
+54 U Lightning Bolt @Christopher Moeller
+55 M Obsidian Fireheart @Raymond Swanland
+56 C Searing Spear @Chris Rahn
+57 U Skarrgan Firebird @Kev Walker
+58 U Stormblood Berserker @Min Yum
+59 R Sudden Demise @Dan Murayama Scott
+60 R Torchling @rk post
+61 U Volcanic Geyser @Clint Cearley
+62 C Cultivate @Anthony Palumbo
+63 C Explore @John Avon
+64 C Fertilid @Wayne Reynolds
+65 R Forgotten Ancient @Mark Tedin
+66 R Hunter's Prowess @Greg Staples
+67 C Khalni Heart Expedition @Jason Chan
+68 M Nissa, Worldwaker @Chris Rahn
+69 R Oran-Rief Hydra @Chris Rahn
+70 U Press the Advantage @Marco Nelor
+71 M Rampaging Baloths @Steve Prescott
+72 U Retreat to Kazandu @Kieran Yanner
+73 R Scute Mob @Zoltan Boros & Gabor Szikszai
+74 C Sylvan Bounty @Chris Rahn
+75 R Thragtusk @Nils Hamm
+76 U Turntimber Basilisk @Goran Josic
+77 C Vastwood Zendikon @Rob Alexander
+78 C Vines of the Recluse @Dan Murayama Scott
+79 U Woodborn Behemoth @Matt Stewart
+80 U Baleful Strix @Nils Hamm
+81 R Blood Tyrant @Karl Kopinski
+82 R Cruel Ultimatum @Todd Lockwood
+83 R Dreadbore @Wayne Reynolds
+84 U Extract from Darkness @Dallas Williams
+85 M Nicol Bolas, Planeswalker @Chris Rahn
+86 U Slave of Bolas @Steve Argyle
+87 U Soul Ransom @Steve Argyle
+88 C Obelisk of Grixis @Nils Hamm
+89 R Sword of the Animist @Daniel Ljunggren
+90 U Talisman of Dominance @Mike Dringenberg
+91 U Talisman of Indulgence @Mike Dringenberg
+92 U Crumbling Necropolis @Dave Kendall
+93 R Dragonskull Summit @Jon Foster
+94 R Drowned Catacomb @Dave Kendall
+95 C Grixis Panorama @Nils Hamm
+96 C Smoldering Spires @Rob Alexander
+97 L Plains @Christine Choi
+98 L Island @Christine Choi
+99 L Swamp @Christine Choi
+100 L Mountain @Christine Choi
+101 L Forest @Christine Choi
+102 L Plains @Christine Choi
+103 L Island @Christine Choi
+104 L Swamp @Christine Choi
+105 L Mountain @Christine Choi
+106 L Forest @Christine Choi
+
+[tokens]
+1 w_1_1_soldier @Steve Prescott
+2 w_1_1_spirit_flying @Ryan Yee
+3 b_3_3_horror @Grzegorz Rutkowski
+4 g_3_3_beast @John Donahue
+5 g_4_4_beast @Steve Prescott

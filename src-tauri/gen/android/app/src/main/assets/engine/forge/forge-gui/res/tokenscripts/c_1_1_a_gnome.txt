@@ -1,0 +1,5 @@
+Name:Gnome Token
+ManaCost:no cost
+Types:Artifact Creature Gnome
+PT:1/1
+Oracle:

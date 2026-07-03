@@ -1,0 +1,7 @@
+Name:Griffin Token
+ManaCost:no cost
+Colors:white
+Types:Creature Griffin
+PT:2/2
+K:Flying
+Oracle:Flying

@@ -1,0 +1,6 @@
+Name:Wolf Token
+ManaCost:no cost
+Colors:red
+Types:Creature Wolf
+PT:3/2
+Oracle:

@@ -1,0 +1,6 @@
+Name:Demon Token
+ManaCost:no cost
+Colors:black
+Types:Creature Demon
+PT:3/3
+Oracle:

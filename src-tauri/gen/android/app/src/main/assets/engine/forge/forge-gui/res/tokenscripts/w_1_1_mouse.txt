@@ -1,0 +1,6 @@
+Name:Mouse Token
+ManaCost:no cost
+Colors:white
+Types:Creature Mouse
+PT:1/1
+Oracle:

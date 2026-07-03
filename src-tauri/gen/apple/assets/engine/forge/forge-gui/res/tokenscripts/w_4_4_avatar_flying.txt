@@ -1,0 +1,7 @@
+Name:Avatar Token
+ManaCost:no cost
+Colors:white
+Types:Creature Avatar
+PT:4/4
+K:Flying
+Oracle:Flying

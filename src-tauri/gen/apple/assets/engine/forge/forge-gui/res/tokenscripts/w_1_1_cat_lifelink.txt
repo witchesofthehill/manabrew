@@ -1,0 +1,7 @@
+Name:Cat Token
+ManaCost:no cost
+Colors:white
+Types:Creature Cat
+PT:1/1
+K:Lifelink
+Oracle:Lifelink

@@ -1,0 +1,173 @@
+[metadata]
+Code=SPG
+Date=2023-11-17
+Name=Special Guests
+Type=Collector_Edition
+ScryfallCode=SPG
+
+[cards]
+1 R Lord of Atlantis @Syd Mills
+2 U Malcolm, Keen-Eyed Navigator @Julie Dillon
+3 R Bridge from Below @Yeong-Hao Han
+4 R Mephidross Vampire @Samuel Araya
+5 U Pitiless Plunderer @Johan Grenier
+6 U Breeches, Brazen Plunderer @Filip Burburan
+7 U Dargo, the Shipwrecker @Kai Carpenter
+8 R Rampaging Ferocidon @Dan Murayama Scott
+9 R Underworld Breach @Piotr Dura
+10 M Carnage Tyrant @Monztre
+11 R Ghalta, Primal Hunger @Joshua Raphael
+12 M Polyraptor @Yeong-Hao Han
+13 M Kalamax, the Stormsire @Sam Burley
+14 M Lord Windgrace @April Prime
+15 M Mirri, Weatherlight Duelist @Michele Giorgi
+16 R Thrasios, Triton Hero @Caroline Gariba
+17 M Mana Crypt @Dominik Mayer
+17a M Mana Crypt @Dominik Mayer
+17b M Mana Crypt @Dominik Mayer
+17c M Mana Crypt @Dominik Mayer
+17d M Mana Crypt @Dominik Mayer
+17e M Mana Crypt @Dominik Mayer
+17f M Mana Crypt @Dominik Mayer
+18 U Star Compass @Alix Branwyn
+19 M Ghostly Prison @Volkan Baǵa
+20 M Fabricate @Fajareka Setiawan
+21 M Show and Tell @Donato Giancola
+22 M Tragic Slip @Scott M. Fischer
+23 M Victimize @Kekai Kotaki
+24 M Gamble @Jason A. Engle
+25 M Crashing Footfalls @Uriah Voth
+26 M Tireless Tracker @Donato Giancola
+27 M Drown in the Loch @Chris Seaman
+28 M Field of the Dead @Ralph Horsley
+29 M Stoneforge Mystic @Livia Prima
+30 M Brazen Borrower @Jesper Ejsing
+31 M Desertion @Donato Giancola
+32 M Morbid Opportunist @Chris Seaman
+33 M Port Razer @Zoltan Boros
+34 M Scapeshift @Joseph Meehan
+35 M Mystic Snake @Svetlin Velinov
+36 M Notion Thief @Alix Branwyn
+37 M Desert @Lucas Graciano
+38 M Prismatic Vista @Sam Burley
+39 M Thought-Knot Seer @Antonio José Manzanedo
+40 M Prismatic Ending @Dominik Mayer
+41 M Dismember @Martin de Diego Sádaba
+42 M Persist @Jarel Threat
+43 M Expressive Iteration @Kai Carpenter
+44 M Solitude @Campbell White
+45 M Subtlety @Campbell White
+46 M Grief @Campbell White
+47 M Fury @Campbell White
+48 M Endurance @Campbell White
+49 M Solitude @Campbell White
+50 M Subtlety @Campbell White
+51 M Grief @Campbell White
+52 M Fury @Campbell White
+53 M Endurance @Campbell White
+54 M Swords to Plowshares @Izzy
+55 M Ledger Shredder @Volkan Baǵa
+56 M Rat Colony @Mark Zug
+57 M Relentless Rats @Mathias Kollros
+58 M Kindred Charge @Milivoj Ćeran
+59 M Sylvan Tutor @Scott M. Fischer
+60 M Toski, Bearer of Secrets @Lucas Graciano
+61 M Frogmite @Mike Sass
+62 M Sword of Fire and Ice @Volkan Baǵa
+63 M Secluded Courtyard @Dan Murayama Scott
+64 M Hallowed Haunting @Mila Pesic
+65 M Soul Warden @Joshua Cairos
+66 M Expropriate @Borja Pindado
+67 M Phantasmal Image @Darren Tan
+68 M Damnation @Masahiro Ito
+69 M Sacrifice @David Palumbo
+70 M Maddening Hex @Javier Charro
+71 M Unholy Heat @Josh Hass
+72 M Collected Company @Borja Pindado
+73 M Noxious Revival @Javier Charro
+74 M Condemn @Rovina Cai
+75 M Sphinx's Tutelage @Jason A. Engle
+76 M Grim Tutor @DZO
+77 M Embercleave @Wylie Beckert
+78 M Goblin Bushwhacker @Dominik Mayer
+79 M Bloom Tender @Julie Dillon
+80 M Paradise Druid @Alex Dos Diaz
+81 M Akroma's Memorial @Carly Mazur
+82 M Temporal Manipulation @Raita Kazama
+83 M Fiend Artisan @Carl Critchlow
+84 M Cavalier of Dawn @Femke Hiemstra
+85 M Thoughtcast @Lucie Louxor
+86 M Whir of Invention @Brian Chippendale
+87 M Bone Miser @Jay Howell
+88 M Lord of the Undead @Skinner
+89 M Chandra's Ignition @Tsubonari
+90 M Galvanic Blast @Laura Plansker
+91 M Pathbreaker Ibex @Rocodrilo
+92 M Chrome Mox @Princess Hidir
+93 M Skysovereign, Consul Flagship @Imiri Sakabashira
+94 M Cavalier of Dawn @Femke Hiemstra
+95 M Thoughtcast @Lucie Louxor
+96 M Whir of Invention @Brian Chippendale
+97 M Bone Miser @Jay Howell
+98 M Lord of the Undead @Skinner
+99 M Chandra's Ignition @Tsubonari
+100 M Galvanic Blast @Laura Plansker
+101 M Pathbreaker Ibex @Rocodrilo
+102 M Chrome Mox @Princess Hidir
+103 M Skysovereign, Consul Flagship @Imiri Sakabashira
+104 M Eerie Ultimatum @Dominik Mayer
+105 M Emergent Ultimatum @Dominik Mayer
+106 M Genesis Ultimatum @Dominik Mayer
+107 M Inspired Ultimatum @Dominik Mayer
+108 M Ruinous Ultimatum @Dominik Mayer
+109 M Arid Mesa @Adam Paquette
+110 M Marsh Flats @Adam Paquette
+111 M Misty Rainforest @Adam Paquette
+112 M Scalding Tarn @Adam Paquette
+113 M Verdant Catacombs @Adam Paquette
+114 M Arid Mesa @Constantin Marin
+115 M Marsh Flats @Valera Lutfullina
+116 M Misty Rainforest @Livia Prima
+117 M Scalding Tarn @Marco Gorlei
+118 M Verdant Catacombs @Johannes Voss
+119 M Warping Wail @Alex Horley-Orlandelli
+120 M Deafening Silence @Skinnyelbows
+121 M Robe of Stars @Stephen Andrade
+122 M Nexus of Fate @Gaboleps
+123 M Paradox Haze @Stephen Andrade
+124 M Darkness @Wojtek Łebski
+125 M Magus of the Moon @David Robert Hovey
+126 M Burgeoning @Stephen Andrade
+127 M Green Sun's Zenith @Warren Mahy
+128 M Sliver Overlord @James Bousema
+129 M Idyllic Tutor @Ryan Riller
+130 M Kinsbaile Cavalier @Nathanna Erica
+131 M Mistbind Clique @Justin Hernandez & Alexis Hernandez
+132 M Wanderwine Prophets @Nathanna Erica
+133 M Bitterblossom @Harry Conway
+134 M Faerie Macabre @Nathanna Erica
+135 M Goblin Chieftain @Nathanna Erica
+136 M Goblin Sharpshooter @Harry Conway
+137 M Heat Shimmer @Justin Hernandez & Alexis Hernandez
+138 M Devoted Druid @Ryan Riller
+139 M Helix Pinnacle @Nathanna Erica
+140 M Leaf-Crowned Visionary @Ryan Riller
+141 M Regal Force @Nathanna Erica
+142 M Manamorphose @Harry Conway
+143 M Risen Reef @Nathanna Erica
+144 M Slippery Bogle @Raphael Oda
+145 M Dolmen Gate @Justin Hernandez & Alexis Hernandez
+146 M Door of Destinies @Serena Malyon
+147 M Painter's Servant @Ryan Riller
+148 M Thousand-Year Elixir @Raphael Oda
+149 M Archaeomancer @Aurore Folny
+150 M Archmage Emeritus @Valera Lutfullina
+151 M Murmuring Mystic @Marta Nael
+152 M Grim Haruspex @Jason Rainville
+153 M Dualcaster Mage @Zara Alfonso
+154 M Magus of the Library @Christina Kraus
+155 M Sylvan Library @Ekaterina Burmak
+156 M Adrix and Nev, Twincasters @Anna Steinbauer
+157 M Codie, Vociferous Codex @Andreia Ugrai
+158 M Library of Leng @Cynthia Sheppard
+158a M Library of Alexandria @Bruce Brenneise

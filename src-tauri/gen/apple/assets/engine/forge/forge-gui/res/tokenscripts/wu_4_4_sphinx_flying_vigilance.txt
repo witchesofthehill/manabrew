@@ -1,0 +1,8 @@
+Name:Sphinx Token
+ManaCost:no cost
+Colors:white,blue
+Types:Creature Sphinx
+PT:4/4
+K:Flying
+K:Vigilance
+Oracle:Flying\nVigilance

@@ -1,0 +1,6 @@
+Name:Kavu Token
+ManaCost:no cost
+Colors:black
+Types:Creature Kavu
+PT:3/3
+Oracle:

@@ -1,0 +1,12 @@
+[metadata]
+Code=PW11
+Date=2011-01-01
+Name=Wizards Play Network 2011
+Code2=PWP11
+Type=Promo
+ScryfallCode=PW11
+
+[cards]
+80 R Curse of the Bloody Tome @John Stanko
+83 R Bloodcrazed Neonate @Dave Kendall
+84 R Boneyard Wurm @Austin Hsu

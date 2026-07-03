@@ -1,0 +1,7 @@
+Name:The Atropal
+ManaCost:no cost
+Colors:black
+Types:Legendary Creature God Horror
+PT:4/4
+K:Deathtouch
+Oracle:Deathtouch

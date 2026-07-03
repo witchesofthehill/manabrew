@@ -1,0 +1,77 @@
+Against the Odds | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/againsttheodds.zip
+An Uncommon Budget | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/uncommonbudget.zip
+Arena Championship | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/arenachampionship.zip
+Breaking Through | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/breakingthrough.zip
+Brewer's Kitchen | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/brewerskitchen.zip
+Brewing on a Budget | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/brewingonabudget.zip
+Budget Magic | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/budgetmagic.zip
+Budget Modern Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/budgetmodernmetagame.zip
+Building on a Budget | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/buildingonabudget.zip
+Card Preview | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/cardpreview.zip
+Community Cup | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/communitycup.zip
+Current Alchemy Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentalchemymetagame.zip
+Current Historic Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currenthistoricmetagame.zip
+Current Legacy Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentlegacymetagame.zip
+Current Modern Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentmodernmetagame.zip
+Current Pauper Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentpaupermetagame.zip
+Current Penny Dreadful Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentpennydreadfulmetagame.zip
+Current Pioneer Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentpioneermetagame.zip
+Current Premodern Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentpremodernmetagame.zip
+Current Standard Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentstandardmetagame.zip
+Current Standard-BO1 Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentstandardbo1metagame.zip
+Current Timeless Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currenttimelessmetagame.zip
+Current Vintage Metagame | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/currentvintagemetagame.zip
+Daily Deck List | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/dailydecks.zip
+Daily Magic Update | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/dailymagicupdate.zip
+Dear Azami | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/dearazami-standard.zip
+Deconstructing Famous | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/dfd.zip
+EDHREC Columns | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/edhrec-constructed.zip
+Feature Article | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/feature.zip
+Fish 5-0 | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/fish50.zip
+From the Lab | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/fromthelab.zip
+Genetic Algorithm AI Decks | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/geneticalgorithmdecks.zip
+Going Rogue | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/goingrogue.zip
+Grand Prix Lincoln 2012 | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/gplincoln2012.zip
+Historic 101 | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/historic101.zip
+House of Cards | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/houseofcards.zip
+How to Build | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/howtobuild.zip
+Instant Deck Tech | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/instantdecktech.zip
+Into the AEther | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/intotheaether.zip
+Latest Developments | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/latestdevelopments.zip
+Learning Curve | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/learningcurve.zip
+Level One | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/levelone.zip
+MTG Deck Clusters | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/mtgdeckclusters.zip
+Magic Invitational | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/invitational.zip
+MagicTheGathering.Combos | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/combos.zip
+Meme or Dream? | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/memeordream.zip
+Metagame Mentor | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/metagamementor.zip
+Modern Mayhem | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/modernmayhem.zip
+Modern on a Budget | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/modernonabudget.zip
+Much Abrew About Nothing | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/muchabrewaboutnothing.zip
+Mythic Championship | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/mythicchampionship.zip
+Mythic Invitational| https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/mythicinvitational.zip
+Online Tech | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/onlinetech.zip
+Online and Enjoying It | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/onlineandenjoyingit.zip
+Perilous Research | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/perilousresearch.zip
+Pioneer Peak | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/pioneerpeak.zip
+Play Design | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/playdesign.zip
+Players Championship 2012 | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/magicplayerschampionship.zip
+Playing Pauper | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/playingpauper.zip
+Pro Tour | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/protour.zip
+ReConstructed | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/recon.zip
+Serious Fun | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/seriousfun.zip
+Single Card Strategy | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/singlecardstrategy.zip
+Single Scoop | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/singlescoop.zip
+Squandered Resources | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/squanderedresources.zip
+Swimming with Sharks | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/swimmingwithsharks.zip
+The Command Zone | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/commandzone-constructed.zip
+The Fish Tank | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/fishtank.zip
+The Week That Was | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/theweekthatwas.zip
+Thirty Casual Decks under $20 | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/30casual20.zip
+Top Decks | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/topdecks.zip
+Uncommon Knowledge | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/uncommonknowledge.zip
+Ways to Play | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/waystoplay.zip
+Week in Review | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/weekinreview.zip
+Woo Brews | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/woobrews.zip
+World Championship | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/worldchampion.zip
+WotC Preconstructed | https://github.com/Card-Forge/forge-extras/raw/refs/heads/main/decks/precon.zip

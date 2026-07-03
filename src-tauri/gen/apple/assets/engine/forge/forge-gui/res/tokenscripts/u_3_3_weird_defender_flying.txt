@@ -1,0 +1,8 @@
+Name:Weird Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Weird
+PT:3/3
+K:Defender
+K:Flying
+Oracle:Defender, flying

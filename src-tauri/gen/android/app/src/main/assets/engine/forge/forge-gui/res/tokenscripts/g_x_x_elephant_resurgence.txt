@@ -1,0 +1,8 @@
+Name:Elephant Token
+ManaCost:no cost
+Colors:green
+Types:Creature Elephant
+PT:*/*
+S:Mode$ Continuous | SetPower$ ResurgenceX | SetToughness$ ResurgenceX | EffectZone$ Battlefield | CharacteristicDefining$ True | Description$ CARDNAME's power and toughness are each equal to the number of creature cards in its controller's graveyard.
+SVar:ResurgenceX:Count$ValidGraveyard Creature.YouOwn
+Oracle:This creature's power and toughness are each equal to the number of creature cards in its controller's graveyard.

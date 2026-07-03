@@ -1,0 +1,58 @@
+[metadata]
+Code=SCH
+Date=2022-07-09
+Name=Store Championships
+Type=Promo
+ScryfallCode=SCH
+
+[cards]
+1 R Flame Slash @Antonio José Manzanedo
+2 R Archmage's Charm @Hector Ortiz
+3 R Dark Confidant @Livia Prima
+4 R Spell Pierce @Andrew Mar
+5 R Gilded Goose @Chris Seaman
+6 M Omnath, Locus of Creation @John Tedrick
+7 R Annex Sentry @Sam Guay
+8 R Memory Deluge @Sam Guay
+9 R Koth, Fire of Resistance @Kieran Yanner
+10 R Strangle @Sidharth Chaturvedi
+11 R Aether Channeler @Olivier Bernard
+12 M Thalia and The Gitrog Monster @PINDURSKI
+13 R Gifted Aetherborn @Lie Setiawan
+14 R Eidolon of the Great Revel @Yigit Koroglu
+15 R Tail Swipe @Edgar Sánchez Hidalgo
+16 R Transcendent Message @Miranda Meeks
+17 M Moonshaker Cavalry @Awanqi (Angela Wang)
+18 R Cauldron Familiar @Edgar Sánchez Hidalgo
+19 R Dark Petition @Julia Metzger
+20 R Lier, Disciple of the Drowned @Heonhwa
+21 R Mortify @Andreia Ugrai
+22 R Angel of Despair @Andreia Ugrai
+23e R Dauthi Voidwalker @Andreia Ugrai
+24 R Blazing Rootwalla @Brian Valeza
+25 R Hollow One @Adam Volker
+26 R Vengevine @Brian Valeza
+27 R Monastery Swiftspear @Francisco Miyara
+28 R Shark Typhoon @Carlos Palma Cruchaga
+29 R Urza's Saga @Eytan Zana
+30 R Chromatic Sphere @Lorenzo Lanfranconi
+31 R Reality Smasher @Michal Ivan
+32 R Void Winnower @Joshua Raphael
+33 R Deep-Cavern Bat @Maxime Minard
+34 R Preacher of the Schism @Zara Alfonso
+35 M Virtue of Persistence @Lorenzo Lanfranconi
+36 R Gleeful Demolition @Vincent Proce
+37 R Charming Scoundrel @Fariba Khamseh
+38 R Goddric, Cloaked Reveler @Irvin Rodriguez
+39 R Preordain @Takayama Toshiaki ${"flavorName": "Prophetic Beginning"}
+40 R Death's Shadow @Nottsuo ${"flavorName": "Diabolos, Guardian Force"}
+41 R City of Brass @Yo Shimizu ${"flavorName": "Bhujerba, Floating City"}
+42 R Bitter Triumph @Aaron J. Riley
+43 R Slickshot Show-Off @Wayne Reynolds
+44 R Fable of the Mirror-Breaker @Warren Mahy
+45 R Goblin Bombardment @Jeff Laubenstein
+46 R Guide of Souls @Alexandr Leskinen
+47 R Ocelot Pride @Rhonda Libbey
+48 R Unearth @Ron Spencer
+49 R Psychic Frog @Gaboleps
+50 R Abhorrent Oculus @Diana Franco

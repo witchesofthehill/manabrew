@@ -1,0 +1,8 @@
+Name:Boo
+ManaCost:no cost
+Colors:red
+Types:Legendary Creature Hamster
+PT:1/1
+K:Trample
+K:Haste
+Oracle:Trample, haste

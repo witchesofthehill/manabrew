@@ -1,0 +1,6 @@
+Name:Phyrexian Horror Token
+ManaCost:no cost
+Colors:green
+Types:Creature Phyrexian Horror
+PT:*/*
+Oracle:

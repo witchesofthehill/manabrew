@@ -1,0 +1,6 @@
+Name:Phyrexian Saproling Token
+ManaCost:no cost
+Colors:green
+Types:Creature Phyrexian Saproling
+PT:1/1
+Oracle:

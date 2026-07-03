@@ -1,0 +1,7 @@
+Name:Spawn of Azar
+ManaCost:no cost
+Colors:black
+Types:Creature Spawn
+PT:*/*
+K:Landwalk:Swamp
+Oracle:Swampwalk

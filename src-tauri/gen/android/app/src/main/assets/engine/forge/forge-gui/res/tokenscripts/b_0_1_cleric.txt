@@ -1,0 +1,6 @@
+Name:Cleric Token
+ManaCost:no cost
+Colors:black
+Types:Creature Cleric
+PT:0/1
+Oracle:

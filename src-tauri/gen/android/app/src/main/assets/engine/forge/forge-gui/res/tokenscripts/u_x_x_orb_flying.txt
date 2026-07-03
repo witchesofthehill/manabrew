@@ -1,0 +1,7 @@
+Name:Orb Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Orb
+PT:*/*
+K:Flying
+Oracle:Flying

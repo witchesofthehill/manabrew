@@ -1,0 +1,95 @@
+[metadata]
+Code=ATH
+Date=1998-11-01
+Name=Anthologies
+Type=Boxed_Set
+Border=White
+Foil=NotSupported
+ScryfallCode=ATH
+
+[cards]
+1 R Armageddon @Jesper Myrfors
+2 C Armored Pegasus @Andrew Robinson
+3 C Benalish Knight @Zina Saunders
+4 C Combat Medic @Liz Danforth
+5 C Disenchant @Amy Weber
+6 C Freewind Falcon @Una Fricker
+7 C Icatian Javelineers @Edward P. Beard, Jr.
+8 C Infantry Veteran @Christopher Rush
+9 U Order of the White Shield @Ruth Thompson
+10 C Pacifism @Robert Bliss
+11 C Pegasus Charger @Val Mayerik
+12 U Pegasus Stampede @Mark Zug
+13 R Sacred Mesa @Margaret Organ-Kean
+14 C Samite Healer @Tom Wänerstrand
+15 U Serra Angel @Douglas Shuler
+16 U Swords to Plowshares @Jeff A. Menges
+17 C Warrior's Honor @D. Alexander Gregory
+18 U White Knight @Daniel Gelon
+19 C Youthful Knight @Rebecca Guay
+20 U Black Knight @Adrian Smith
+21 C Cuombajj Witches @Kaja Foglio
+22 C Feast of the Unicorn @Dennis Detwiller
+23 C Hymn to Tourach @Liz Danforth
+24 U Hypnotic Specter @Douglas Shuler
+25 U Ihsan's Shade @Christopher Rush
+26 U Knight of Stromgald @Mark Poole
+27 C Terror @Ron Spencer
+28 C Unholy Strength @Douglas Shuler
+29 C Fireball @Mark Tedin
+30 C Goblin Balloon Brigade @Andi Rusu
+31 C Goblin Digging Team @Phil Foglio
+32 C Goblin Grenade @Ron Spencer
+33 C Goblin Hero @Pete Venters
+34 R Goblin King @Jesper Myrfors
+35 U Goblin Matron @Daniel Gelon
+36 U Goblin Mutant @Daniel Gelon
+37 U Goblin Offensive @Carl Critchlow
+38 U Goblin Recruiter @Scott Kirschner
+39 U Goblin Snowman @Daniel Gelon
+40 C Goblin Tinkerer @Hannibal King
+41 C Goblin Vandal @Franz Vohwinkel
+42 R Goblin Warrens @Dan Frazier
+43 C Lightning Bolt @Christopher Rush
+44 C Mogg Fanatic @Brom
+45 C Mogg Flunkies @Brom
+46 C Mogg Raider @Brian Snõddy
+47 U Pyrokinesis @Ron Spencer
+48 C Pyrotechnics @Anson Maddocks
+49 U Raging Goblin @Brian Snõddy
+50 U Uthden Troll @Douglas Shuler
+51 R Volcanic Dragon @Janine Johnston
+52 C Canopy Spider @Christopher Rush
+53 C Carnivorous Plant @Quinton Hoover
+54 U Erhnam Djinn @Ken Meyer, Jr.
+55 C Giant Growth @Sandra Everingham
+56 C Giant Spider @Sandra Everingham
+57 C Gorilla Chieftain @Quinton Hoover
+58 U Hurricane @Cornelius Brudi
+59 C Llanowar Elves @Anson Maddocks
+60 R Mirri, Cat Warrior @Daren Bader
+61 U Overrun @Jeff Miracola
+62 C Scavenger Folk @Dennis Detwiller
+63 U Spectral Bears @Pat Lewis
+64 C Woolly Spider @Daniel Gelon
+65 U Lady Orca @Sandra Everingham
+66 U Ranger en-Vec @Randy Elliott
+67 C Aesthir Glider @Ruth Thompson
+68 U Jalum Tome @Tom Wänerstrand
+69 R Nevinyrral's Disk @Mark Tedin
+70 C Serrated Arrows @David A. Cherry
+71 R Brushland @Bryon Wackwitz
+72 C Drifting Meadow @Bob Eggleton
+73 U Pendelhaven @Bryon Wackwitz
+74 C Polluted Mire @Stephen Daniele
+75 C Slippery Karst @Stephen Daniele
+76 C Smoldering Crater @Mark Tedin
+77 R Strip Mine @Daniel Gelon
+78 L Plains @Tom Wänerstrand
+79 L Plains @Douglas Shuler
+80 L Swamp @Douglas Shuler
+81 L Swamp @Brom
+82 L Mountain @Douglas Shuler
+83 L Mountain @John Avon
+84 L Forest @Tony Roberts
+85 L Forest @Quinton Hoover

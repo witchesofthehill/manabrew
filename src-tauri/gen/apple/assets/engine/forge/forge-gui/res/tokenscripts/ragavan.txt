@@ -1,0 +1,6 @@
+Name:Ragavan
+ManaCost:no cost
+Colors:red
+Types:Legendary Creature Monkey
+PT:2/1
+Oracle:

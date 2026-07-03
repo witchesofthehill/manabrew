@@ -1,0 +1,7 @@
+Name:Goblin Token
+ManaCost:no cost
+Colors:red
+Types:Creature Goblin
+PT:1/1
+S:Mode$ CantBlock | ValidCard$ Creature.Self | Description$ CARDNAME can't block.
+Oracle:This creature can't block.

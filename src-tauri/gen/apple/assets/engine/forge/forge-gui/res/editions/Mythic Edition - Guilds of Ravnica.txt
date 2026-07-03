@@ -1,0 +1,28 @@
+[metadata]
+Code=MPS_GRN
+Date=2018-10-05
+Name=Mythic Edition - Guilds of Ravnica
+Type=Collector_Edition
+ScryfallCode=MED
+
+[cards]
+GR1 M Elspeth, Knight-Errant @Zack Stella
+GR2 M Liliana, the Last Hope @Kieran Yanner
+GR3 M Daretti, Ingenious Iconoclast @Svetlin Velinov
+GR4 M Nicol Bolas, Planeswalker @Slawomir Maniak
+GR5 M Ral, Izzet Viceroy @Daniel Ljunggren
+GR6 M Teferi, Hero of Dominaria @Yongjae Choi
+GR7 M Tezzeret, Agent of Bolas @Aleksi Briclot
+GR8 M Vraska, Golgari Queen @Livia Prima
+
+[tokens]
+G1 w_1_1_soldier @Goran Josic
+G2 b_2_2_zombie @Anna Steinbauer
+G3 c_1_1_a_construct_defender @Victor Adame Minguez
+
+[other]
+G4 emblem_elspeth_knight_errant @Zack Stella
+G5 emblem_liliana_the_last_hope @Kieran Yanner
+G6 emblem_ral_izzet_viceroy @Daniel Ljunggren
+G7 emblem_teferi_hero_of_dominaria @Yongjae Choi
+G8 emblem_vraska_golgari_queen @Livia Prima

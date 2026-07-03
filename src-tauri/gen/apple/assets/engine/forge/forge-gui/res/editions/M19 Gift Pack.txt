@@ -1,0 +1,13 @@
+[metadata]
+Code=G18
+Date=2018-11-16
+Name=M19 Gift Pack
+Type=Promo
+ScryfallCode=G18
+
+[cards]
+GP1 R Angelic Guardian @Sara Winters
+GP2 R Angler Turtle @Alex Konstad
+GP3 R Vengeant Vampire @Mitchell Malloy
+GP4 R Immortal Phoenix @Daarken
+GP5 R Rampaging Brontodon @Lars Grant-West

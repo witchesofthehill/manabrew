@@ -1,0 +1,7 @@
+Name:Tombspawn
+ManaCost:no cost
+Colors:black
+Types:Creature Zombie
+PT:2/2
+K:Haste
+Oracle:Haste

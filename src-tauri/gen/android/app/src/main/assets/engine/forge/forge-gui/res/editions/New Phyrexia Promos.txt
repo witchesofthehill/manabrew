@@ -1,0 +1,12 @@
+[metadata]
+Code=PNPH
+Date=2011-05-12
+Name=New Phyrexia Promos
+Type=Promo
+ScryfallCode=PNPH
+
+[cards]
+42★ R Phyrexian Metamorph @Jung Park
+73★ M Sheoldred, Whispering One @Jason Felix
+74★ R Surgical Extraction @Greg Staples
+151 C Pristine Talisman @Matt Cavotta

@@ -1,0 +1,6 @@
+Name:Skeleton Token
+ManaCost:no cost
+Colors:black
+Types:Creature Skeleton
+PT:1/1
+Oracle:

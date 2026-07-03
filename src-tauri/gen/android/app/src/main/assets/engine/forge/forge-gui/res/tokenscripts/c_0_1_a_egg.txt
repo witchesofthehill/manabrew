@@ -1,0 +1,5 @@
+Name:Egg Token
+ManaCost:no cost
+Types:Artifact Creature Egg
+PT:0/1
+Oracle:

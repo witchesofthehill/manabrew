@@ -1,0 +1,8 @@
+Name:Avatar Token
+ManaCost:no cost
+Colors:white
+Types:Creature Avatar
+PT:*/*
+S:Mode$ Continuous | SetPower$ X | SetToughness$ X | CharacteristicDefining$ True | Description$ This creature's power and toughness are each equal to your life total.
+SVar:X:Count$YourLifeTotal
+Oracle:This creature's power and toughness are each equal to your life total.

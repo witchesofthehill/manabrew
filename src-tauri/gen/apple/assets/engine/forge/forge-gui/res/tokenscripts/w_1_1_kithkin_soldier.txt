@@ -1,0 +1,6 @@
+Name:Kithkin Soldier Token
+ManaCost:no cost
+Colors:white
+Types:Creature Kithkin Soldier
+PT:1/1
+Oracle:

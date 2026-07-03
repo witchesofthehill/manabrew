@@ -1,0 +1,7 @@
+Name:Wall Token
+ManaCost:no cost
+Colors:blue
+Types:Creature Wall
+PT:5/5
+K:Defender
+Oracle:Defender

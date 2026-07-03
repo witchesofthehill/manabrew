@@ -1,0 +1,6 @@
+Name:Reflection Token
+ManaCost:no cost
+Colors:white
+Types:Creature Reflection
+PT:*/*
+Oracle:

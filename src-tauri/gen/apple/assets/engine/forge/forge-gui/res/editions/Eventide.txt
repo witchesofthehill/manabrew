@@ -1,0 +1,203 @@
+[metadata]
+Code=EVE
+Date=2008-07-25
+Name=Eventide
+Alias=EVT
+Type=Expansion
+BoosterCovers=3
+Booster=11 Common, 3 Uncommon, 1 Rare
+FatPack=8
+FatPackExtraSlots=40 BasicLands SHM
+ScryfallCode=EVE
+TokenFallbackCode=SHM
+
+[cards]
+1 R Archon of Justice @Jason Chan
+2 C Ballynock Trapper @Randy Gallegos
+3 C Cenn's Enlistment @Matt Cavotta
+4 R Endless Horizons @Joshua Hagler
+5 U Endure @Ralph Horsley
+6 U Flickerwisp @Jeremy Enecio
+7 R Hallowed Burial @Dave Kendall
+8 C Kithkin Spellduster @Trevor Hairsine
+9 C Kithkin Zealot @Scott Altmann
+10 R Light from Within @Aleksi Briclot
+11 U Loyal Gyrfalcon @Darrell Riche
+12 U Patrol Signaler @Steve Prescott
+13 C Recumbent Bliss @Todd Lockwood
+14 R Spirit of the Hearth @Jason Chan
+15 U Springjack Shepherd @Thomas Denmark
+16 U Suture Spirit @Larry MacDougall
+17 C Banishing Knack @Howard Lyon
+18 U Cache Raiders @Pete Venters
+19 U Dream Fracture @Howard Lyon
+20 C Dream Thief @Howard Lyon
+21 R Glamerdye @Ralph Horsley
+22 R Glen Elendra Archmage @Warren Mahy
+23 U Idle Thoughts @Steven Belledin
+24 U Indigo Faerie @Steve Prescott
+25 R Inundate @Mark Zug
+26 C Merrow Levitator @Jim Pavelec
+27 C Oona's Grace @Rebecca Guay
+28 U Razorfin Abolisher @William O'Connor
+29 R Sanity Grinding @Lars Grant-West
+30 U Talonrend @Nils Hamm
+31 R Wake Thrasher @Jesper Ejsing
+32 C Wilderness Hypnotist @Rebecca Guay
+33 R Ashling, the Extinguisher @Wayne Reynolds
+34 U Creakwood Ghoul @Thomas M. Baxa
+35 U Crumbling Ashes @Chuck Lukacs
+36 U Lingering Tormentor @Joshua Hagler
+37 C Merrow Bonegnawer @Jim Nelson
+38 R Necroskitter @Jaime Jones
+39 R Needle Specter @Christopher Moeller
+40 R Nightmare Incursion @Chuck Lukacs
+41 C Raven's Crime @Warren Mahy
+42 C Smoldering Butcher @Zoltan Boros & Gabor Szikszai
+43 U Soot Imp @Jesper Ejsing
+44 C Soul Reap @Izzy
+45 U Soul Snuffers @Izzy
+46 U Syphon Life @Dan Seagrave
+47 C Talara's Bane @Joshua Hagler
+48 R Umbra Stalker @Daarken
+49 U Chaotic Backlash @Carl Frank
+50 C Cinder Pyromancer @Greg Staples
+51 U Duergar Cave-Guard @Dave Allsop
+52 R Fiery Bombardment @Nils Hamm
+53 C Flame Jab @rk post
+54 U Hatchet Bully @Paul Bonner
+55 R Hateflayer @Thomas M. Baxa
+56 C Heartlash Cinder @Steve Prescott
+57 C Hotheaded Giant @Fred Harper
+58 U Impelled Giant @Mark Zug
+59 U Outrage Shaman @Cole Eastburn
+60 C Puncture Blast @Carl Critchlow
+61 R Rekindled Flame @Zoltan Boros & Gabor Szikszai
+62 R Stigma Lasher @Aleksi Briclot
+63 R Thunderblust @Dan Murayama Scott
+64 U Unwilling Recruit @Dave Allsop
+65 C Aerie Ouphes @Jesper Ejsing
+66 R Bloom Tender @Chippy
+67 U Duskdale Wurm @Dan Dos Santos
+68 R Helix Pinnacle @Dan Murayama Scott
+69 U Marshdrinker Giant @Daarken
+70 C Monstrify @Lars Grant-West
+71 C Nettle Sentinel @Kev Walker
+72 U Phosphorescent Feast @Ron Spencer
+73 R Primalcrux @Wayne Reynolds
+74 R Regal Force @Brandon Kitkouski
+75 U Savage Conception @William O'Connor
+76 U Swirling Spriggan @Thomas M. Baxa
+77 R Talara's Battalion @Todd Lockwood
+78 C Tilling Treefolk @rk post
+79 U Twinblade Slasher @Trevor Hairsine
+80 C Wickerbough Elder @Jesper Ejsing
+81 U Batwing Brume @Richard Kane Ferguson
+82 C Beckon Apparition @Larry MacDougall
+83 U Bloodied Ghost @Mike Dringenberg
+84 U Cauldron Haze @Brandon Kitkouski
+85 R Deathbringer Liege @Drew Tucker
+86 R Divinity of Pride @Greg Staples
+87 C Edge of the Divinity @Dan Murayama Scott
+88 R Evershrike @Dan Dos Santos
+89 U Gwyllion Hedge-Mage @Todd Lockwood
+90 C Harvest Gwyllion @Nils Hamm
+91 C Nightsky Mimic @Franz Vohwinkel
+92 C Nip Gwyllion @Alex Horley-Orlandelli
+93 R Pyrrhic Revival @Richard Kane Ferguson
+94 U Restless Apparition @Jeff Easley
+95 R Stillmoon Cavalier @Christopher Moeller
+96 C Unmake @Steven Belledin
+97 U Voracious Hatchling @Jeremy Enecio
+98 R Call the Skybreaker @Randy Gallegos
+99 C Clout of the Dominus @Jaime Jones
+100 R Crackleburr @Mike Dringenberg
+101 U Crag Puca @John Franklin Howe
+102 R Dominus of Fealty @Kev Walker
+103 C Inside Out @Zoltan Boros & Gabor Szikszai
+104 R Mindwrack Liege @Richard Whitters
+105 R Mirror Sheen @John Avon
+106 C Noggle Bandit @Thomas Denmark
+107 C Noggle Bridgebreaker @Thomas M. Baxa
+108 U Noggle Hedge-Mage @Larry MacDougall
+109 U Noggle Ransacker @Alex Horley-Orlandelli
+110 U Nucklavee @Trevor Hairsine
+111 C Riverfall Mimic @Franz Vohwinkel
+112 U Shrewd Hatchling @Carl Frank
+113 C Stream Hopper @Dave Allsop
+114 U Unnerving Assault @Ron Spencer
+115 U Canker Abomination @Brandon Kitkouski
+116 U Cankerous Thirst @Carl Frank
+117 R Creakwood Liege @Cole Eastburn
+118 R Deity of Scars @Steve Prescott
+119 C Desecrator Hag @Fred Harper
+120 R Doomgape @Dave Allsop
+121 C Drain the Well @Warren Mahy
+122 C Gift of the Deity @Steve Prescott
+123 U Hag Hedge-Mage @Scott Altmann
+124 U Noxious Hatchling @Nils Hamm
+125 C Odious Trow @Warren Mahy
+126 U Quillspike @Carl Critchlow
+127 C Rendclaw Trow @Warren Mahy
+128 R Sapling of Colfenor @John Avon
+129 U Stalker Hag @Dave Kendall
+130 C Woodlurker Mimic @Franz Vohwinkel
+131 R Worm Harvest @Chuck Lukacs
+132 R Balefire Liege @Ralph Horsley
+133 C Battlegate Mimic @Franz Vohwinkel
+134 U Belligerent Hatchling @Steve Prescott
+135 C Double Cleave @rk post
+136 C Duergar Assailant @Paul Bonner
+137 U Duergar Hedge-Mage @Dave Allsop
+138 U Duergar Mine-Captain @Matt Cavotta
+139 R Figure of Destiny @Scott M. Fischer
+140 C Fire at Will @Pete Venters
+141 U Hearthfire Hobgoblin @Steven Belledin
+142 C Hobgoblin Dragoon @Matt Cavotta
+143 U Moonhold @Mike Dringenberg
+144 R Nobilis of War @Christopher Moeller
+145 R Rise of the Hobgoblins @Jeff Miracola
+146 C Scourge of the Nobilis @Dan Murayama Scott
+147 U Spitemare @Matt Cavotta
+148 R Waves of Aggression @Jim Pavelec
+149 R Cold-Eyed Selkie @Jaime Jones
+150 R Fable of Wolf and Owl @Heather Hudson
+151 C Favor of the Overbeing @Chippy
+152 U Gilder Bairn @Nils Hamm
+153 C Grazing Kelpie @Drew Tucker
+154 U Groundling Pouncer @Richard Whitters
+155 U Invert the Skies @Randy Gallegos
+156 R Murkfiend Liege @Carl Critchlow
+157 R Overbeing of Myth @Chippy
+158 U Selkie Hedge-Mage @Larry MacDougall
+159 C Shorecrasher Mimic @Franz Vohwinkel
+160 C Slippery Bogle @Dave Allsop
+161 C Snakeform @Jim Nelson
+162 R Spitting Image @Jim Nelson
+163 U Sturdy Hatchling @Darrell Riche
+164 C Trapjaw Kelpie @Lars Grant-West
+165 U Wistful Selkie @Mark Tedin
+166 R Altar Golem @Rob Alexander
+167 C Antler Skulkin @Dave Kendall
+168 C Fang Skulkin @Ron Brown
+169 C Hoof Skulkin @Joshua Hagler
+170 C Jawbone Skulkin @Jeff Easley
+171 R Leering Emblem @Ron Brown
+172 R Scarecrone @Jesper Ejsing
+173 C Shell Skulkin @Cole Eastburn
+174 R Ward of Bones @David Martin
+175 R Cascade Bluffs @Brandon Kitkouski
+176 R Fetid Heath @Daarken
+177 R Flooded Grove @Dave Kendall
+178 R Rugged Prairie @Fred Fields
+179 R Springjack Pasture @Terese Nielsen
+180 R Twilight Mire @Rob Alexander
+
+[tokens]
+1 w_0_1_goat @Terese Nielsen
+2 u_1_1_bird_flying @Heather Hudson
+3 g_3_3_beast @William O'Connor
+4 wb_1_1_spirit_flying @Larry MacDougall
+5 ur_5_5_elemental_flying @Randy Gallegos
+6 bg_1_1_worm @Chuck Lukacs
+7 rw_1_1_goblin_soldier @Jeff Miracola

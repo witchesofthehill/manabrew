@@ -1,0 +1,7 @@
+Name:Zombie Warrior Token
+ManaCost:no cost
+Colors:black
+Types:Creature Zombie Warrior
+PT:4/4
+K:Vigilance
+Oracle:Vigilance

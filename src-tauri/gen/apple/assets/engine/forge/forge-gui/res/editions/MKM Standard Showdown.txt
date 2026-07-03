@@ -1,0 +1,13 @@
+[metadata]
+Code=PSS4
+Date=2024-02-10
+Name=MKM Standard Showdown
+Type=Promo
+ScryfallCode=PSS4
+
+[cards]
+1 R Plains @Lucas Graciano
+2 R Island @Piotr Dura
+3 R Swamp @Alexander Forssberg
+4 R Mountain @Alayna Danner
+5 R Forest @Samuele Bandini

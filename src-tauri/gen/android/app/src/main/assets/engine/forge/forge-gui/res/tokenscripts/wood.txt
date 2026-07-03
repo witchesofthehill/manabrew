@@ -1,0 +1,7 @@
+Name:Wood
+ManaCost:no cost
+Colors:green
+Types:Creature Wall
+PT:0/1
+K:Defender
+Oracle:Defender

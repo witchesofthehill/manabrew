@@ -1,0 +1,6 @@
+Name:Gremlin Token
+ManaCost:no cost
+Colors:red
+Types:Artifact Creature Gremlin
+PT:0/0
+Oracle:

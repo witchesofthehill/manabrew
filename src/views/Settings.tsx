@@ -1098,7 +1098,7 @@ export default function Settings() {
                       </svg>
                     </button>
                     {presetOpen && (
-                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-[min(16rem,50dvh)] overflow-y-auto">
                         {THEME_PRESETS.map((preset) => (
                           <button
                             key={preset.id}

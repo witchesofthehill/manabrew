@@ -615,7 +615,7 @@ export default function Lobby() {
 
       {myUsername && !isDesktop && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-72 max-w-[80vw] p-0">
             <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}

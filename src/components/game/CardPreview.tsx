@@ -315,7 +315,7 @@ export function CardPreview({
         onSelectAction!(actions![num - 1]);
       }
     }
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       const target = e.target as HTMLElement;
       if (!target.closest("[data-card-preview]")) {
         onDismiss!();
@@ -324,13 +324,13 @@ export function CardPreview({
     window.addEventListener("keydown", handleKey);
     const timer = setTimeout(() => {
       if (isSticky) {
-        window.addEventListener("mousedown", handleClick);
+        window.addEventListener("pointerdown", handleClick);
       }
     }, 100);
     return () => {
       window.removeEventListener("keydown", handleKey);
       clearTimeout(timer);
-      window.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("pointerdown", handleClick);
     };
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 

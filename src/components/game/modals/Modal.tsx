@@ -12,7 +12,7 @@ interface ModalProps {
   onClose?: () => void;
   /** Max width class for the modal panel (default: "max-w-2xl") */
   maxWidth?: string;
-  /** Max height class for the modal panel (default: "max-h-[80vh]") */
+  /** Max height class for the modal panel (default: "max-h-[85dvh]") */
   maxHeight?: string;
   /** Additional className for the modal panel */
   className?: string;
@@ -33,7 +33,7 @@ export function Modal({
   children,
   onClose,
   maxWidth = "max-w-2xl",
-  maxHeight = "max-h-[80vh]",
+  maxHeight = "max-h-[85dvh]",
   className,
   backdropClassName,
 }: ModalProps) {
@@ -75,7 +75,7 @@ export function Modal({
       >
         {promptChrome.showMinimize && promptChrome.onMinimize && (
           <button
-            className="absolute -top-3 -right-3 z-10 rounded-full border border-border bg-card p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.35)] hover:bg-muted transition-colors"
+            className="absolute -top-3 -right-3 z-10 rounded-full border border-border bg-card p-1.5 shadow-[0_8px_20px_rgba(0,0,0,0.35)] hover:bg-muted transition-colors before:absolute before:-inset-2.5 before:content-['']"
             onClick={promptChrome.onMinimize}
             title="Minimize prompt"
             type="button"

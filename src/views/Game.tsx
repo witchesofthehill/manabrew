@@ -10,6 +10,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto, StackObjectDto } from "@/protocol/game";
 import { GameModals } from "@/components/game/GameModals";
+import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
@@ -1454,6 +1455,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         } as React.CSSProperties
       }
     >
+      <LandscapeGate />
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
           boardSceneRef={boardSceneRef}

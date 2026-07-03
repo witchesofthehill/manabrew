@@ -27,7 +27,7 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppShell />,
     errorElement: (
-      <div className="flex items-center justify-center h-screen text-destructive">
+      <div className="flex items-center justify-center h-[100dvh] text-destructive">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Page Not Found</h1>
           <p className="mt-2 text-muted-foreground">The page you're looking for doesn't exist.</p>

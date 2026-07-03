@@ -94,7 +94,7 @@ export function CardHoverOverlay({
   return (
     <div
       className={cn(
-        "absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 pointer-events-none group-hover:pointer-events-auto",
+        "absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto",
         rounded,
       )}
       onMouseEnter={onMouseEnter}

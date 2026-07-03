@@ -26,7 +26,7 @@ function SelectableCard({
     <div
       onClick={disabled ? undefined : onClick}
       className={cn(
-        "w-[150px] shrink-0 rounded transition-all",
+        "w-[94px] sm:w-[150px] shrink-0 rounded transition-all",
         disabled ? "cursor-not-allowed opacity-30" : "cursor-pointer",
         selected && "ring-2 ring-primary",
       )}
@@ -93,15 +93,15 @@ export function ChooseCardsModal({
 
       <div
         className={cn(
-          "mb-4 flex gap-3 px-5 pt-2 pb-4",
+          "mb-4 flex gap-2 sm:gap-3 px-3 sm:px-5 pt-2 pb-4",
           cards.length > 9
-            ? "max-h-[60vh] flex-wrap justify-center overflow-y-auto"
+            ? "max-h-[60dvh] flex-wrap justify-center overflow-y-auto"
             : "always-scrollbar scrollbar-inset-x flex-nowrap overflow-x-auto",
         )}
       >
         {cards.map((c) =>
           reveal ? (
-            <div key={c.id} className="w-[150px] shrink-0">
+            <div key={c.id} className="w-[94px] sm:w-[150px] shrink-0">
               <Card card={c} className="w-full" />
             </div>
           ) : (

@@ -40,7 +40,7 @@ export function SpellStackModal({
   const displayStack = [...stack].reverse();
 
   return (
-    <Modal onClose={onCancel} maxWidth="max-w-3xl" maxHeight="max-h-[85vh]">
+    <Modal onClose={onCancel} maxWidth="max-w-3xl">
       <Modal.Header>
         <div className="flex items-center justify-between">
           <div>
@@ -65,7 +65,7 @@ export function SpellStackModal({
         {stack.length === 0 ? (
           <Modal.EmptyState message="The stack is empty." />
         ) : (
-          <div className="flex flex-wrap gap-6 content-start justify-center">
+          <div className="flex flex-wrap gap-2 sm:gap-6 content-start justify-center">
             {displayStack.map((obj, idx) => {
               const isValid = validSpellIds.includes(obj.id);
               const cardStub = stackObjectToCardStub(obj);

@@ -556,7 +556,10 @@ export function BoardCanvas({
 
   return (
     <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
-      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }}
+      />
       {showHandFlip && (
         <div
           className="pointer-events-none absolute flex justify-end p-1.5"

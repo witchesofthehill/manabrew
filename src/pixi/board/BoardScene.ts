@@ -100,7 +100,11 @@ export interface BoardPlayerSpec {
  *  at which the ease finishes and pins to the target. */
 const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
-const GRIP_HIT_WIDTH_PX = 16;
+const COARSE_POINTER =
+  typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+const GRIP_HIT_WIDTH_PX = COARSE_POINTER ? 32 : 16;
+const LONG_PRESS_PREVIEW_MS = 450;
+const LONG_PRESS_CANCEL_DIST_SQ = 100;
 const ATTACK_ARROW_LANE_PX = 18;
 /** Extra px around a planeswalker/battle card that still counts as targeting it
  *  while dragging an attacker — makes small opponent permanents easy to hit. */
@@ -177,6 +181,16 @@ export class BoardScene {
   // The legal attacker under a pointer-down, armed into an attack drag only once
   // the pointer actually moves — so a plain tap still reaches the click handler.
   private attackDragCandidate: string | null = null;
+  // Pointer that owns the current gesture (drag / marquee / grip / un-declare).
+  // Moves and ups from any other pointer are ignored while it's set, so a second
+  // finger on a touch screen can't hijack or end an in-progress drag.
+  private activeGesturePointerId: number | null = null;
+  // Touch has no hover: holding a finger still on a card for LONG_PRESS_PREVIEW_MS
+  // shows the hover preview instead, and the release-tap is swallowed so the hold
+  // doesn't also trigger the card's tap action.
+  private longPressTimer: number | null = null;
+  private longPressStart: { x: number; y: number } | null = null;
+  private longPressCardId: string | null = null;
   private attackDragAttackerId: string | null = null;
   private attackDragTargetId: string | null = null;
   // Dragging one of our own already-declared attackers (staged as a guest in an
@@ -242,7 +256,7 @@ export class BoardScene {
   private cursorListener: (e: MouseEvent) => void;
   private canvasLeaveListener: () => void;
   private onStageMove = (e: FederatedPointerEvent): void => this.onGlobalMove(e);
-  private onStageUp = (): void => this.onGlobalUp();
+  private onStageUp = (e: FederatedPointerEvent): void => this.onGlobalUp(e);
 
   constructor(app: Application, callbacks: GameCanvasCallbacks) {
     this.app = app;
@@ -329,7 +343,7 @@ export class BoardScene {
       const rect = this.app.canvas.getBoundingClientRect();
       this.updateHoveredOpponent(e.clientX - rect.left, e.clientY - rect.top);
     };
-    window.addEventListener("mousemove", this.cursorListener);
+    window.addEventListener("pointermove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();
     this.app.canvas.addEventListener("pointerleave", this.canvasLeaveListener);
 
@@ -671,6 +685,7 @@ export class BoardScene {
       handle.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         this.draggingDelim = i;
+        this.activeGesturePointerId = e.pointerId;
       });
       this.gripLayer.addChild(handle);
       this.gripHandles.push(handle);
@@ -769,6 +784,7 @@ export class BoardScene {
     // Don't clear on press — endMarquee handles it on release, so a stray press
     // doesn't wipe the current selection before any movement.
     selection.startMarquee(pos.x, pos.y, e.shiftKey);
+    this.activeGesturePointerId = e.pointerId;
   }
 
   private positionPhaseStrip(layout: BoardLayout): void {
@@ -1271,23 +1287,28 @@ export class BoardScene {
     if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
+        this.startLongPressPreview(region, sprite, e);
         this.onBattlefieldCardDown(sprite, e);
       });
       sprite.on("pointertap", () => {
         if (this.dragHandler.justDraggedCardIds.has(sprite.card.id)) return;
+        if (this.consumeLongPressTap(sprite.card.id)) return;
         this.overlay?.handleCardTap(sprite.card);
       });
     } else {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
+        this.startLongPressPreview(region, sprite, e);
         // Grab our own declared attacker (staged in this opponent's band) to
         // drag it back and un-declare it.
         if (this.declareAttackers && sprite.card.controllerId === this.localPlayerId && region) {
           e.stopPropagation();
           this.callbacks.onDismissHoverPreview?.();
           this.unassignDrag = { cardId: sprite.card.id, region, overOwn: false };
+          this.activeGesturePointerId = e.pointerId;
         }
       });
       sprite.on("pointertap", () => {
+        if (this.consumeLongPressTap(sprite.card.id)) return;
         if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
           this.callbacks.onAttackerClick?.(sprite.card);
         } else {
@@ -1308,6 +1329,35 @@ export class BoardScene {
       if (region) this.setBattlefieldCardHovered(region, sprite);
     });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
+  }
+
+  private startLongPressPreview(
+    region: BoardRegion | undefined,
+    sprite: CardSprite,
+    e: FederatedPointerEvent,
+  ): void {
+    if (e.pointerType !== "touch" || !region) return;
+    this.cancelLongPressPreview();
+    this.longPressStart = { x: e.global.x, y: e.global.y };
+    this.longPressTimer = window.setTimeout(() => {
+      this.longPressTimer = null;
+      this.longPressCardId = sprite.card.id;
+      this.setBattlefieldCardHovered(region, sprite);
+    }, LONG_PRESS_PREVIEW_MS);
+  }
+
+  private cancelLongPressPreview(): void {
+    if (this.longPressTimer !== null) {
+      window.clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    this.longPressStart = null;
+  }
+
+  private consumeLongPressTap(cardId: string): boolean {
+    if (this.longPressCardId !== cardId) return false;
+    this.longPressCardId = null;
+    return true;
   }
 
   private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite): void {
@@ -1387,6 +1437,14 @@ export class BoardScene {
 
   private onGlobalMove(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    if (this.activeGesturePointerId !== null && e.pointerId !== this.activeGesturePointerId) {
+      return;
+    }
+    if (this.longPressTimer !== null && this.longPressStart) {
+      const dx = e.global.x - this.longPressStart.x;
+      const dy = e.global.y - this.longPressStart.y;
+      if (dx * dx + dy * dy > LONG_PRESS_CANCEL_DIST_SQ) this.cancelLongPressPreview();
+    }
     const pos = this.root.toLocal(e.global);
     this.updateHoveredOpponent(pos.x, pos.y);
     if (this.unassignDrag) {
@@ -1471,9 +1529,25 @@ export class BoardScene {
     local.drawGridSkeleton(draggingIds, this.hoveredCell, this.stackTargetId);
   }
 
-  private onGlobalUp(): void {
+  private onGlobalUp(e?: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    if (
+      this.activeGesturePointerId !== null &&
+      e !== undefined &&
+      e.pointerId !== this.activeGesturePointerId
+    ) {
+      return;
+    }
+    this.activeGesturePointerId = null;
     this.attackDragCandidate = null;
+    this.cancelLongPressPreview();
+    if (this.longPressCardId !== null) {
+      // The suppressed tap fires synchronously right after this up event; clear
+      // the marker on the next tick so it can't leak into a later tap.
+      window.setTimeout(() => {
+        this.longPressCardId = null;
+      }, 0);
+    }
     if (this.unassignDrag) {
       const ud = this.unassignDrag;
       this.unassignDrag = null;
@@ -1823,7 +1897,8 @@ export class BoardScene {
     this.destroyed = true;
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
-    window.removeEventListener("mousemove", this.cursorListener);
+    window.removeEventListener("pointermove", this.cursorListener);
+    this.cancelLongPressPreview();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);
     this.app.stage.off("pointermove", this.onStageMove);

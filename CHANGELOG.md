@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0](https://github.com/witchesofthehill/manabrew/compare/v0.5.2...v0.6.0) (2026-07-03)
+
+
+### Features
+
+* **ui:** multiplayer battlefield accordion scaffold (behind flag) ([#280](https://github.com/witchesofthehill/manabrew/issues/280)) ([17f8d25](https://github.com/witchesofthehill/manabrew/commit/17f8d25652425a1b2bcf5fa247b05d77ee6a0220))
+* **ui:** playmat zoom + crop and a sizing info tooltip ([#283](https://github.com/witchesofthehill/manabrew/issues/283)) ([8487bac](https://github.com/witchesofthehill/manabrew/commit/8487bac0ea1f5ae9f355235811f422e156d5df64))
+
+
+### Fixes
+
+* change fetch strategy on pixi canvas ([#284](https://github.com/witchesofthehill/manabrew/issues/284)) ([39418f2](https://github.com/witchesofthehill/manabrew/commit/39418f23c188943d9f290da372ca385321e5fc70))
+* **dev:** harden vite file watching ([#259](https://github.com/witchesofthehill/manabrew/issues/259)) ([0119df8](https://github.com/witchesofthehill/manabrew/commit/0119df892b2119c26a6f96787dcea9c0f1664dc3))
+* import deck clarity ([#298](https://github.com/witchesofthehill/manabrew/issues/298)) ([2d8ec33](https://github.com/witchesofthehill/manabrew/commit/2d8ec3361b87a43e30271bc0b92ca2b971ab35ab))
+* **ui:** allow targeting opponent public zones ([#282](https://github.com/witchesofthehill/manabrew/issues/282)) ([0b3e092](https://github.com/witchesofthehill/manabrew/commit/0b3e092eaf77b8d39809a8f379812bb0bb516a82))
+
 ## [0.5.2](https://github.com/witchesofthehill/manabrew/compare/v0.5.1...v0.5.2) (2026-06-24)
 
 ### Fixes

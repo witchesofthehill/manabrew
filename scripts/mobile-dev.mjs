@@ -89,7 +89,12 @@ async function pickIosSimulator() {
     (a, b) =>
       b.os.localeCompare(a.os, undefined, { numeric: true }) || a.name.localeCompare(b.name),
   );
-  if (!process.stdin.isTTY) return devices.find((d) => d.state === "Booted") ?? null;
+  const booted = devices.find((d) => d.state === "Booted");
+  if (booted) {
+    console.log(`[mobile-dev] using booted simulator: ${booted.name} (${booted.os})`);
+    return booted;
+  }
+  if (!process.stdin.isTTY) return null;
 
   console.log("Available simulators:");
   devices.forEach((d, i) => {

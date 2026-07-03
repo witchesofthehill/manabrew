@@ -167,6 +167,7 @@ export function MainActionOverlay({
       data-action-cluster
       className={cn(
         "absolute bottom-0 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden rounded-t-lg border border-b-0 border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
+        "[@media(max-height:520px)]:bottom-[150px] [@media(max-height:520px)]:right-1.5 [@media(max-height:520px)]:w-[230px] [@media(max-height:520px)]:rounded-lg [@media(max-height:520px)]:border-b",
         hasAction && "action-overlay-glow",
       )}
       style={

@@ -3634,6 +3634,7 @@ dependencies = [
  "forge-limited",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-server",
  "memmap2",
  "rand 0.8.6",
  "self-hosted-node",

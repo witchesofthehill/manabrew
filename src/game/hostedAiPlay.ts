@@ -1,5 +1,6 @@
 import { getPlatform } from "@/platform";
 import { getHostedAiServerConnectionDefaults } from "@/config/webRuntimeConfig";
+import type { ServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -43,7 +44,9 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
 // The Tauri (graalvm) build has no pool of self-hosted rooms to discover: the
 // desktop app hosts its own Forge room locally via `start_forge_host`
 // (createRoom with engine "Forge"), then joins it and spawns the bot through
-// the same relay handshake the web flow runs against a shared node.
+// the same relay handshake the web flow runs against a shared node. The relay
+// itself is an in-process loopback server (`start_local_relay`) so no external
+// relay is needed; if it can't start, the baked-in relay is used instead.
 export async function startTauriForgeAiGame(
   request: HostedAiGameRequest,
 ): Promise<HostedAiGameLaunch> {
@@ -52,7 +55,7 @@ export async function startTauriForgeAiGame(
     throw new Error("Forge play vs AI requires a multiplayer server.");
   }
 
-  await ensureServerConnection();
+  await ensureServerConnection(await startLocalRelay());
   const username = useServerStore.getState().username;
   if (!username) throw new Error("Forge play vs AI requires a server username.");
 
@@ -138,7 +141,21 @@ async function joinHostedRoomAndPlay(
   };
 }
 
-async function ensureServerConnection(): Promise<void> {
+async function startLocalRelay(): Promise<ServerConnectionDefaults | null> {
+  const platform = getPlatform();
+  if (useServerStore.getState().connected) return null;
+  try {
+    const relay = await platform.invoke<{ host: string; port: number; password: string }>(
+      "start_local_relay",
+    );
+    return { host: relay.host, port: relay.port, username: "", password: relay.password };
+  } catch (error) {
+    console.warn("[hostedAiPlay] local relay unavailable; using the external relay:", error);
+    return null;
+  }
+}
+
+async function ensureServerConnection(localRelay?: ServerConnectionDefaults | null): Promise<void> {
   const server = getPlatform().server;
   if (!server) throw new Error("Hosted AI play requires a multiplayer server.");
 
@@ -146,14 +163,14 @@ async function ensureServerConnection(): Promise<void> {
   if (state.connected) return;
 
   const prefs = usePreferencesStore.getState();
-  const serverDefaults = getHostedAiServerConnectionDefaults();
+  const serverDefaults = localRelay ?? getHostedAiServerConnectionDefaults();
   const username = prefs.serverUsername || serverDefaults.username || defaultHostedUsername();
   const auth = waitForEvent<{ success: boolean; error: string | null }>("server:auth_result");
   await server.connect({
     host: serverDefaults.host,
     port: serverDefaults.port,
     username,
-    password: prefs.serverPassword || serverDefaults.password,
+    password: localRelay ? localRelay.password : prefs.serverPassword || serverDefaults.password,
   });
   const result = await auth;
   if (!result.success) {

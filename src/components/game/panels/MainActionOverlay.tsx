@@ -7,6 +7,8 @@ import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { SHORT_SCREEN_QUERY } from "@/hooks/useHandScale";
 import { cn } from "@/lib/utils";
 
 const NO_ACTION_VIEWS: PromptActionViewKey[] = ["noAction"];
@@ -152,6 +154,8 @@ export function MainActionOverlay({
     return () => window.removeEventListener(ACTION_DRAWER_BUMP_EVENT, bump);
   }, []);
 
+  const compact = useMediaQuery(SHORT_SCREEN_QUERY);
+
   if (!isRenderable) return null;
 
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
@@ -166,8 +170,10 @@ export function MainActionOverlay({
       ref={containerRef}
       data-action-cluster
       className={cn(
-        "absolute bottom-0 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden rounded-t-lg border border-b-0 border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
-        "[@media(max-height:520px)]:bottom-[150px] [@media(max-height:520px)]:right-1.5 [@media(max-height:520px)]:w-[230px] [@media(max-height:520px)]:rounded-lg [@media(max-height:520px)]:border-b",
+        "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
+        compact
+          ? "bottom-[118px] right-1.5 w-[230px] rounded-lg"
+          : "bottom-0 right-3 w-[300px] rounded-t-lg border-b-0",
         hasAction && "action-overlay-glow",
       )}
       style={

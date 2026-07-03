@@ -1,4 +1,11 @@
-import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from "pixi.js";
+import {
+  Container,
+  Graphics,
+  Point as PixiPoint,
+  Sprite,
+  Text,
+  type FederatedPointerEvent,
+} from "pixi.js";
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
@@ -355,12 +362,16 @@ export class BoardRegion {
     this.container.position.set(0, 0);
   }
 
+  // Through the full transform chain (not just position) so board zoom — a
+  // scale on the scene root — keeps canvas-space math correct.
   private localToCanvas(x: number, y: number): ScreenPos {
-    return { x: this.container.position.x + x, y: this.container.position.y + y };
+    const p = this.container.toGlobal(new PixiPoint(x, y));
+    return { x: p.x, y: p.y };
   }
 
   private canvasToLocal(x: number, y: number): ScreenPos {
-    return { x: x - this.container.position.x, y: y - this.container.position.y };
+    const p = this.container.toLocal(new PixiPoint(x, y));
+    return { x: p.x, y: p.y };
   }
 
   private collectLocalBlockers(): BlockingRect[] {

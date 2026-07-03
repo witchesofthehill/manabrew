@@ -3,6 +3,7 @@ import {
   Container,
   FillGradient,
   Graphics,
+  Point,
   Rectangle,
   Text,
   type FederatedPointerEvent,
@@ -105,6 +106,8 @@ const COARSE_POINTER =
 const GRIP_HIT_WIDTH_PX = COARSE_POINTER ? 32 : 16;
 const LONG_PRESS_PREVIEW_MS = 450;
 const LONG_PRESS_CANCEL_DIST_SQ = 100;
+const BOARD_ZOOM_MAX = 2.25;
+const BOARD_ZOOM_SNAP_BACK = 1.05;
 const ATTACK_ARROW_LANE_PX = 18;
 /** Extra px around a planeswalker/battle card that still counts as targeting it
  *  while dragging an attacker — makes small opponent permanents easy to hit. */
@@ -191,6 +194,17 @@ export class BoardScene {
   private longPressTimer: number | null = null;
   private longPressStart: { x: number; y: number } | null = null;
   private longPressCardId: string | null = null;
+  // Two-finger pinch zooms the scene root (arrows and DOM overlays stay put —
+  // sprite positions resolve through the transform chain so they track).
+  private pinchPointers = new Map<number, { x: number; y: number }>();
+  private pinchStart: {
+    dist: number;
+    scale: number;
+    world: { x: number; y: number };
+  } | null = null;
+  private pinchDownListener: (e: PointerEvent) => void;
+  private pinchMoveListener: (e: PointerEvent) => void;
+  private pinchUpListener: (e: PointerEvent) => void;
   private attackDragAttackerId: string | null = null;
   private attackDragTargetId: string | null = null;
   // Dragging one of our own already-declared attackers (staged as a guest in an
@@ -346,6 +360,27 @@ export class BoardScene {
     window.addEventListener("pointermove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();
     this.app.canvas.addEventListener("pointerleave", this.canvasLeaveListener);
+
+    this.pinchDownListener = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      const rect = this.app.canvas.getBoundingClientRect();
+      this.pinchPointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+      if (this.pinchPointers.size === 2) this.beginPinch();
+    };
+    this.pinchMoveListener = (e: PointerEvent) => {
+      if (!this.pinchPointers.has(e.pointerId)) return;
+      const rect = this.app.canvas.getBoundingClientRect();
+      this.pinchPointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+      if (this.pinchStart) this.updatePinch();
+    };
+    this.pinchUpListener = (e: PointerEvent) => {
+      if (!this.pinchPointers.delete(e.pointerId)) return;
+      if (this.pinchPointers.size < 2) this.endPinch();
+    };
+    this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);
+    window.addEventListener("pointermove", this.pinchMoveListener);
+    window.addEventListener("pointerup", this.pinchUpListener);
+    window.addEventListener("pointercancel", this.pinchUpListener);
 
     app.ticker.add(this.tick, this);
     prewarmManaSymbols();
@@ -734,7 +769,88 @@ export class BoardScene {
     return !!b && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
   }
 
-  private updateHoveredOpponent(localX: number, localY: number): void {
+  private beginPinch(): void {
+    const pts = [...this.pinchPointers.values()];
+    const a = pts[0]!;
+    const b = pts[1]!;
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    if (dist <= 0) return;
+    this.abortActiveGesture();
+    const scale = this.root.scale.x;
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    this.pinchStart = {
+      dist,
+      scale,
+      world: {
+        x: (mid.x - this.root.position.x) / scale,
+        y: (mid.y - this.root.position.y) / scale,
+      },
+    };
+  }
+
+  private updatePinch(): void {
+    if (!this.pinchStart) return;
+    const pts = [...this.pinchPointers.values()];
+    const a = pts[0]!;
+    const b = pts[1]!;
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    const s = Math.min(
+      BOARD_ZOOM_MAX,
+      Math.max(1, this.pinchStart.scale * (dist / this.pinchStart.dist)),
+    );
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    this.root.scale.set(s);
+    this.root.position.set(
+      Math.min(0, Math.max(this.canvasW * (1 - s), mid.x - this.pinchStart.world.x * s)),
+      Math.min(0, Math.max(this.canvasH * (1 - s), mid.y - this.pinchStart.world.y * s)),
+    );
+  }
+
+  private endPinch(): void {
+    if (!this.pinchStart) return;
+    this.pinchStart = null;
+    if (this.root.scale.x < BOARD_ZOOM_SNAP_BACK) this.resetBoardZoom();
+  }
+
+  private resetBoardZoom(): void {
+    this.pinchStart = null;
+    this.root.scale.set(1);
+    this.root.position.set(0, 0);
+  }
+
+  /** A second finger landed mid-gesture: cleanly discard whatever the first
+   *  finger was doing (drag / marquee / grip / combat drags) before pinching,
+   *  so no half-finished gesture commits or dangles when the pinch ends. */
+  private abortActiveGesture(): void {
+    const local = this.localRegion();
+    if (this.dragHandler.isDragging) {
+      this.dragHandler.end();
+      local?.hideGridSkeleton();
+    }
+    if (this.selection?.isMarqueeActive() && local) {
+      this.selection.endMarquee(local.snapshotCurrentPositions());
+    }
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      this.unassignDrag = null;
+      const st = ud.region.getLastState();
+      if (st) ud.region.updateBattlefield(st);
+    }
+    this.draggingDelim = null;
+    this.setBlockDragId(null);
+    this.setAttackDragId(null);
+    this.attackDragCandidate = null;
+    this.activeGesturePointerId = null;
+    this.cancelLongPressPreview();
+    const state = local?.getLastState();
+    if (local && state) local.updateBattlefield(state);
+  }
+
+  private updateHoveredOpponent(canvasX: number, canvasY: number): void {
+    if (this.pinchStart) return;
+    const local = this.root.toLocal(new Point(canvasX, canvasY));
+    const localX = local.x;
+    const localY = local.y;
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     let hovered: string | null = null;
@@ -743,7 +859,7 @@ export class BoardScene {
       W > 0 &&
       localY >= 0 &&
       localY <= this.topHeight &&
-      !this.isOverStack(localX, localY)
+      !this.isOverStack(canvasX, canvasY)
     ) {
       for (let i = 0; i < n; i++) {
         const left = (i === 0 ? 0 : this.delimCurrent[i - 1]!) * W;
@@ -1107,6 +1223,8 @@ export class BoardScene {
     this.playerBars.setViewport(width, height);
     this.canvasW = width;
     this.canvasH = height;
+    this.pinchPointers.clear();
+    this.resetBoardZoom();
     this.drawBaseBg();
   }
 
@@ -1437,6 +1555,7 @@ export class BoardScene {
 
   private onGlobalMove(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    if (this.pinchStart) return;
     if (this.activeGesturePointerId !== null && e.pointerId !== this.activeGesturePointerId) {
       return;
     }
@@ -1446,7 +1565,7 @@ export class BoardScene {
       if (dx * dx + dy * dy > LONG_PRESS_CANCEL_DIST_SQ) this.cancelLongPressPreview();
     }
     const pos = this.root.toLocal(e.global);
-    this.updateHoveredOpponent(pos.x, pos.y);
+    this.updateHoveredOpponent(e.global.x, e.global.y);
     if (this.unassignDrag) {
       const ud = this.unassignDrag;
       const entry = ud.region.getEntries().get(ud.cardId);
@@ -1531,6 +1650,7 @@ export class BoardScene {
 
   private onGlobalUp(e?: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    if (this.pinchStart) return;
     if (
       this.activeGesturePointerId !== null &&
       e !== undefined &&
@@ -1898,6 +2018,10 @@ export class BoardScene {
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
+    this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
+    window.removeEventListener("pointermove", this.pinchMoveListener);
+    window.removeEventListener("pointerup", this.pinchUpListener);
+    window.removeEventListener("pointercancel", this.pinchUpListener);
     this.cancelLongPressPreview();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);

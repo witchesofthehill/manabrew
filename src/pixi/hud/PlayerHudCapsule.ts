@@ -137,6 +137,7 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
+  private tapTooltipTimer: number | null = null;
   private combatPulse: gsap.core.Tween | null = null;
   private combatActive = false;
   private combatLethalActive = false;
@@ -553,6 +554,18 @@ export class PlayerHudCapsule {
         this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
       });
       sprite.on("pointerout", () => this.onHover(null));
+      // Touch has no hover: a tap re-shows the tooltip and lets it linger briefly
+      // (pointerout fires on lift, which would hide it immediately otherwise).
+      sprite.on("pointertap", (e) => {
+        if (e.pointerType === "mouse") return;
+        const s = sprite.height;
+        this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
+        if (this.tapTooltipTimer !== null) window.clearTimeout(this.tapTooltipTimer);
+        this.tapTooltipTimer = window.setTimeout(() => {
+          this.tapTooltipTimer = null;
+          this.onHover(null);
+        }, 2500);
+      });
       this.chips.push(chip);
     }
     for (let i = n; i < this.chips.length; i++) {
@@ -1097,6 +1110,7 @@ export class PlayerHudCapsule {
   }
 
   destroy(): void {
+    if (this.tapTooltipTimer !== null) window.clearTimeout(this.tapTooltipTimer);
     this.pulse?.kill();
     this.combatPulse?.kill();
     this.targetTween?.kill();

@@ -47,7 +47,7 @@ export function ChooseAttackers({
           disabled={isWaitingForResponse}
         />
         <PromptActionButton
-          label={attackCount > 0 ? `Attack (${attackCount})` : "Attack"}
+          label={!minimal && attackCount > 0 ? `Attack (${attackCount})` : "Attack"}
           icon={<Sword className="h-3.5 w-3.5" />}
           baseColor={promptActionColors.attackAction}
           badge={minimal && attackCount > 0 ? String(attackCount) : undefined}

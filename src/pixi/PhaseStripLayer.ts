@@ -729,8 +729,10 @@ export class PhaseStripLayer {
       this.collapse();
     }
 
-    // Draw indicators every frame
-    for (let ci = 0; ci < this.cells.length; ci++) {
+    const showPill = this.compact && !this.expanded;
+    // Draw indicators every frame — skipped while the collapsed pill hides the
+    // whole cells container, so no invisible geometry is rebuilt each frame.
+    for (let ci = 0; ci < this.cells.length && !showPill; ci++) {
       const cell = this.cells[ci]!;
       const d = cell._indData;
       if (!d) continue;

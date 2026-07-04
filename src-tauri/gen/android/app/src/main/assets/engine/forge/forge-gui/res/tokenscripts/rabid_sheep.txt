@@ -1,6 +1,0 @@
-Name:Rabid Sheep
-ManaCost:no cost
-Colors:green
-Types:Creature Sheep
-PT:2/2
-Oracle:

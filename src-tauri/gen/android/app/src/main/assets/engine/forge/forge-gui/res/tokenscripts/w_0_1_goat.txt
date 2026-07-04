@@ -1,6 +1,0 @@
-Name:Goat Token
-ManaCost:no cost
-Colors:white
-Types:Creature Goat
-PT:0/1
-Oracle:

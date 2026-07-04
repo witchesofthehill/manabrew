@@ -1,6 +1,0 @@
-Name:Plaguebearer of Nurgle
-ManaCost:no cost
-Colors:black
-Types:Creature Demon
-PT:1/3
-Oracle:

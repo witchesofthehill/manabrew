@@ -1,6 +1,0 @@
-Name:Beeble Token
-ManaCost:no cost
-Colors:blue
-Types:Creature Beeble
-PT:1/1
-Oracle:

@@ -1,6 +1,0 @@
-Name:Treefolk Token
-ManaCost:no cost
-Colors:green
-Types:Creature Treefolk
-PT:*/*
-Oracle:

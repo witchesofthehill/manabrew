@@ -1,6 +1,0 @@
-[format]
-Name:Lorwyn-Shadowmoor Block
-Type:Archived
-Subtype:Block
-Order:123
-Sets:EVE, SHM, MOR, LRW

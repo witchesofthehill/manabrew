@@ -1,6 +1,0 @@
-[format]
-Name:Ravnica Block
-Type:Archived
-Subtype:Block
-Order:125
-Sets:DIS, GPT, RAV

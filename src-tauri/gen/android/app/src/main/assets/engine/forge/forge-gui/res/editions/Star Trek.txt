@@ -1,8 +1,0 @@
-[metadata]
-Code=TRK
-Date=2026-11-20
-Name=Star Trek
-Type=Expansion
-ScryfallCode=TRK
-
-[cards]

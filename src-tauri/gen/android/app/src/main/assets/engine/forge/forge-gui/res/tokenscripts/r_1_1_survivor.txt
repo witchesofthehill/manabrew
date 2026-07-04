@@ -1,6 +1,0 @@
-Name:Survivor Token
-ManaCost:no cost
-Colors:red
-Types:Creature Survivor
-PT:1/1
-Oracle:

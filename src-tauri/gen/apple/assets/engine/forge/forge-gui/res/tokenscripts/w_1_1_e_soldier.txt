@@ -1,6 +1,0 @@
-Name:Soldier Token
-ManaCost:no cost
-Colors:white
-Types:Enchantment Creature Soldier
-PT:1/1
-Oracle:

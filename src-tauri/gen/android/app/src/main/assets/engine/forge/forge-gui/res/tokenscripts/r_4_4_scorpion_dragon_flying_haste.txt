@@ -1,8 +1,0 @@
-Name:Scorpion Dragon Token
-ManaCost:no cost
-Colors:red
-Types:Creature Scorpion Dragon
-PT:4/4
-K:Flying
-K:Haste
-Oracle:Flying, haste

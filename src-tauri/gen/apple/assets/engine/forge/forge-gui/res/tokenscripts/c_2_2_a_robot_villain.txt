@@ -1,5 +1,0 @@
-Name:Robot Villain Token
-ManaCost:no cost
-Types:Artifact Creature Robot Villain
-PT:2/2
-Oracle:

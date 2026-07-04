@@ -1,7 +1,0 @@
-Name:Vampire Knight Token
-ManaCost:no cost
-Colors:black
-Types:Creature Vampire Knight
-PT:1/1
-K:Lifelink
-Oracle:Lifelink

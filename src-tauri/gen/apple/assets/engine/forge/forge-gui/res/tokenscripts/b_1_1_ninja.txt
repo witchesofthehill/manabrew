@@ -1,6 +1,0 @@
-Name:Ninja Token
-ManaCost:no cost
-Colors:black
-Types:Creature Ninja
-PT:1/1
-Oracle:

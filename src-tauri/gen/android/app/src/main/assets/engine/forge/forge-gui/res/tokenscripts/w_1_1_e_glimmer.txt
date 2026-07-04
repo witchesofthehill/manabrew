@@ -1,6 +1,0 @@
-Name:Glimmer Token
-ManaCost:no cost
-PT:1/1
-Colors:white
-Types:Enchantment Creature Glimmer
-Oracle:

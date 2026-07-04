@@ -1,5 +1,0 @@
-Name:Scarecrow Token
-ManaCost:no cost
-Types:Artifact Creature Scarecrow
-PT:2/2
-Oracle:

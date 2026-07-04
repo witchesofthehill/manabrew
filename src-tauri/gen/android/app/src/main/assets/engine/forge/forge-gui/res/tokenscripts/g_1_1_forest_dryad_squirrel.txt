@@ -1,6 +1,0 @@
-Name:Forest Dryad Squirrel Token
-ManaCost:no cost
-Colors:green
-Types:Land Creature Forest Dryad Squirrel
-PT:1/1
-Oracle:({T}: Add {G}.)

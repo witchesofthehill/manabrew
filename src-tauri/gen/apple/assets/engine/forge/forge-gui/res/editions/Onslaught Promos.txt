@@ -1,9 +1,0 @@
-[metadata]
-Code=PONS
-Date=2002-09-28
-Name=Onslaught Promos
-Type=Promo
-ScryfallCode=PONS
-
-[cards]
-169 R Silent Specter @Daren Bader

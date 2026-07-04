@@ -9,6 +9,7 @@ import { StackLayer } from "./stack/StackLayer";
 import type { StackSpec } from "./stack/stack.types";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import { PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
@@ -54,7 +55,9 @@ export function BoardOverlayCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.min(2, window.devicePixelRatio || 1),
+        // Touch devices cap at native density (GPU budget); desktops keep the
+        // pre-phone-support 2x supersampling for crisp arrows/stack on 1x displays.
+        resolution: isCoarsePointer() ? Math.min(2, window.devicePixelRatio || 1) : 2,
       })
       .then(() => {
         if (!active || !app.renderer) {

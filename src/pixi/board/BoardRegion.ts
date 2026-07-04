@@ -297,9 +297,12 @@ export class BoardRegion {
       return { col, row, x, y, cx: x + grid.cardW / 2, cy, blocked: false };
     };
 
-    const gridRows = this.mirrored
-      ? Array.from({ length: grid.rows }, (_, r) => r)
-      : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
+    // Compact local fields fill top-down: the bottom-left corner is where the
+    // HUD capsule and the hand fan live, so the column pins to the divider edge.
+    const gridRows =
+      this.mirrored || this.compactZones
+        ? Array.from({ length: grid.rows }, (_, r) => r)
+        : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
     const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
     const nextDefaultCell = (): GridCell | null => {
       for (let col = 0; col < grid.cols; col++) {

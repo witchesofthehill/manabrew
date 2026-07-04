@@ -16,6 +16,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
 import {
   BATTLEFIELD_CARD_SCALE_FLOOR,
+  BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT,
   BATTLEFIELD_MIN_ROWS,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
@@ -341,16 +342,29 @@ export function BoardCanvas({
     // the roomier opponent fields wasted space. Self follows the card-scale
     // preference; opponents lock to 3 rows beneath the always-reserved combat
     // band (two passes: the band height depends on the scale it reserves).
+    const scaleFloor = compact
+      ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
+      : BATTLEFIELD_CARD_SCALE_FLOOR;
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    const selfBand = combatRowReserve(battlefieldFillScale(selfUsable, fraction));
-    const selfScale = battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
+    // Compact ignores the card-scale preference and locks the self field to the
+    // 3-row scale (like opponents) — the desktop floor would otherwise pin the
+    // scale so high that only 1-2 rows fit a phone-height field.
+    const selfBand = compact
+      ? combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS))
+      : combatRowReserve(battlefieldFillScale(selfUsable, fraction));
+    const selfScale = compact
+      ? Math.max(
+          scaleFloor,
+          maxScaleForRows(Math.max(1, selfUsable - selfBand), BATTLEFIELD_MIN_ROWS),
+        )
+      : battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
     // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
     // the full field height (the avatar's top-left cells are blocked instead).
     const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height));
     const oppUsable = oppHeights.length ? Math.min(...oppHeights) : selfUsable;
     const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
     const oppScale = Math.max(
-      BATTLEFIELD_CARD_SCALE_FLOOR,
+      scaleFloor,
       maxScaleForRows(Math.max(1, oppUsable - band), BATTLEFIELD_MIN_ROWS),
     );
     s.configure(players, layout, { self: selfScale, opponent: oppScale });

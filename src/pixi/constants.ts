@@ -14,6 +14,9 @@ export const MAX_GRID_SLOTS = 200;
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
 // Absolute floor so cards never go microscopic on very short displays.
 export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
+// Compact viewports trade card size for row count: the desktop floor would pin
+// the scale so high that a phone-height field fits only 1-2 rows.
+export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.32;
 export const BATTLEFIELD_MIN_ROWS = 3;
 export const BATTLEFIELD_MAX_ROWS = 4;
 // Panel wider than this fraction of the canvas reserves the whole top row.

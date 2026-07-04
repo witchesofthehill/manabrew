@@ -62,6 +62,7 @@ export function useHandDrag({
 
     const handlePointerMove = (pe: PointerEvent) => {
       if (pe.pointerId !== start.pointerId) return;
+      longPress.move(pe.clientX, pe.clientY);
       if (!moved) {
         const dx = pe.clientX - start.clientX;
         const dy = pe.clientY - start.clientY;

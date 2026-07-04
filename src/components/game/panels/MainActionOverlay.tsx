@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { getPromptContextLines } from "./promptContextHints";
 import { DynamicTextRender } from "../DynamicTextRender";
+import { TouchHintPopover } from "../TouchHintPopover";
 import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
@@ -317,43 +317,34 @@ export function MainActionOverlay({
           </section>
         </div>
       </div>
-      {minimal &&
-        contextRect &&
-        createPortal(
-          <div
-            className="pointer-events-none fixed z-[9000] flex max-h-[55dvh] max-w-[16rem] flex-col gap-1.5 overflow-hidden rounded-lg border border-border/70 bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
-            style={{
-              right: Math.max(8, window.innerWidth - contextRect.right),
-              bottom: Math.min(window.innerHeight - 8, window.innerHeight - contextRect.top + 8),
-            }}
-          >
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90">
-              {title}
+      {minimal && contextRect && (
+        <TouchHintPopover anchorRect={contextRect}>
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90">
+            {title}
+          </p>
+          {getPromptContextLines(promptType, {
+            mulliganCount,
+            mustAttackHint,
+            blockRestrictionHint,
+            payManaCostInfo,
+            mulliganPutBackCount,
+            mulliganSelectedCount,
+          }).map((line) => (
+            <p key={line} className="text-[11px] text-muted-foreground">
+              <DynamicTextRender className="align-middle" text={line} />
             </p>
-            {getPromptContextLines(promptType, {
-              mulliganCount,
-              mustAttackHint,
-              blockRestrictionHint,
-              payManaCostInfo,
-              mulliganPutBackCount,
-              mulliganSelectedCount,
-            }).map((line) => (
-              <p key={line} className="text-[11px] text-muted-foreground">
-                <DynamicTextRender className="align-middle" text={line} />
-              </p>
-            ))}
-            <CombatInfo
-              promptType={promptType}
-              attackerIds={attackerIds}
-              pendingAttackers={pendingAttackers}
-              blockAssignments={blockAssignments}
-              combatPairings={combatPairings}
-              resolveCardName={resolveCardName}
-              resolveCard={resolveCard}
-            />
-          </div>,
-          document.body,
-        )}
+          ))}
+          <CombatInfo
+            promptType={promptType}
+            attackerIds={attackerIds}
+            pendingAttackers={pendingAttackers}
+            blockAssignments={blockAssignments}
+            combatPairings={combatPairings}
+            resolveCardName={resolveCardName}
+            resolveCard={resolveCard}
+          />
+        </TouchHintPopover>
+      )}
     </div>
   );
 }

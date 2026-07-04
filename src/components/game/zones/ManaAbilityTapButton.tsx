@@ -1,8 +1,8 @@
 import { memo, useState } from "react";
-import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { extractManaLetters } from "@/components/game/manaUtils";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+import { TouchHintPopover } from "@/components/game/TouchHintPopover";
 import { withAlpha, type ManaLetter } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
@@ -74,19 +74,11 @@ export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
           </span>
         )}
       </div>
-      {hintRect &&
-        createPortal(
-          <div
-            className="pointer-events-none fixed z-[9000] max-w-[14rem] whitespace-nowrap rounded-lg border border-border/70 bg-card/95 px-2.5 py-1.5 text-[11px] text-foreground shadow-lg backdrop-blur-sm"
-            style={{
-              left: Math.max(8, Math.min(hintRect.left, window.innerWidth - 160)),
-              top: Math.max(8, hintRect.top - 40),
-            }}
-          >
-            <DynamicTextRender className="align-middle" text={`Tap: ${description}`} />
-          </div>,
-          document.body,
-        )}
+      {hintRect && (
+        <TouchHintPopover anchorRect={hintRect} className="whitespace-nowrap text-[11px]">
+          <DynamicTextRender className="align-middle" text={`Tap: ${description}`} />
+        </TouchHintPopover>
+      )}
     </button>
   );
 });

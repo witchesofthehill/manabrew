@@ -595,7 +595,7 @@ fn handle_client_message(
                 password,
                 reconnect_timeout_s,
             ) {
-                Ok(info) => {
+                Ok((info, resume_token)) => {
                     info!(
                         "[lobby] room created: {} (id={})",
                         info.room_name,
@@ -606,6 +606,7 @@ fn handle_client_message(
                         &ServerMessage::RoomCreated {
                             room_id: info.room_id.clone(),
                             room_name: info.room_name.clone(),
+                            resume_token: Some(resume_token),
                         },
                     );
                     send_msg(sender, &ServerMessage::RoomUpdate { room: info });
@@ -637,22 +638,89 @@ fn handle_client_message(
                 as_bot
             );
             match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot, password) {
-                Ok(info) => {
-                    info!("[lobby] '{}' joined room '{}'", username, info.room_name);
-                    if !observe {
-                        broadcast_to_room(
+                Ok((info, rejoined)) => {
+                    if rejoined {
+                        info!(
+                            "[lobby] '{}' rejoined in-game room '{}'",
+                            username, info.room_name
+                        );
+                        broadcast_to_room_except(
                             state,
+                            player_id,
                             &room_id,
-                            &ServerMessage::PlayerJoined {
-                                room_id: room_id.clone(),
+                            &ServerMessage::PlayerConnected {
                                 username: username.to_string(),
                             },
                         );
+                    } else {
+                        info!("[lobby] '{}' joined room '{}'", username, info.room_name);
+                        if !observe {
+                            broadcast_to_room(
+                                state,
+                                &room_id,
+                                &ServerMessage::PlayerJoined {
+                                    room_id: room_id.clone(),
+                                    username: username.to_string(),
+                                },
+                            );
+                        }
                     }
                     broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' join room failed: {}", username, e);
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: e.code().into(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
+        ClientMessage::ResumeRoom(request) => {
+            let room_id = request.room_id.clone();
+            info!(
+                "[lobby] '{}' resuming room {} (hosted={}, players={:?})",
+                username,
+                &room_id[..8.min(room_id.len())],
+                request.hosted,
+                request.player_order,
+            );
+            match lobby::resume_room_sync(state, player_id, request) {
+                Ok(resumed) => {
+                    info!(
+                        "[lobby] room {} resumed by '{}' ({} seats awaiting rejoin)",
+                        &room_id[..8],
+                        username,
+                        resumed.awaiting_rejoin.len()
+                    );
+                    send_msg(
+                        sender,
+                        &ServerMessage::RoomResumed {
+                            room: resumed.room_info.clone(),
+                        },
+                    );
+                    broadcast_to_room_except(
+                        state,
+                        player_id,
+                        &room_id,
+                        &ServerMessage::RoomUpdate {
+                            room: resumed.room_info,
+                        },
+                    );
+                    for seat in resumed.awaiting_rejoin {
+                        crate::cleanup::schedule_seat_rejoin_abort(
+                            state.clone(),
+                            room_id.clone(),
+                            seat,
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("[lobby] '{}' resume room failed: {}", username, e);
                     send_msg(
                         sender,
                         &ServerMessage::Error {
@@ -1036,6 +1104,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::RoomList { .. } => "RoomList",
         ServerMessage::PlayerList { .. } => "PlayerList",
         ServerMessage::RoomCreated { .. } => "RoomCreated",
+        ServerMessage::RoomResumed { .. } => "RoomResumed",
         ServerMessage::PlayerJoined { .. } => "PlayerJoined",
         ServerMessage::PlayerLeft { .. } => "PlayerLeft",
         ServerMessage::PlayerConnected { .. } => "PlayerConnected",
@@ -1059,6 +1128,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::ListPlayers => "ListPlayers",
         ClientMessage::CreateRoom { .. } => "CreateRoom",
         ClientMessage::JoinRoom { .. } => "JoinRoom",
+        ClientMessage::ResumeRoom { .. } => "ResumeRoom",
         ClientMessage::LeaveRoom => "LeaveRoom",
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",

@@ -14,7 +14,7 @@ import type {
   SealedConfig,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
-import type { Prompt, PromptOutput } from "@/protocol";
+import type { Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
 
 // ============================================================================
 // Game API Types
@@ -73,6 +73,9 @@ export interface JoinRoomParams {
   observe?: boolean;
   password?: string;
 }
+
+/** The wire request minus the token, which the transport holds from `RoomCreated`. */
+export type ResumeRoomParams = Omit<ResumeRoomRequest, "resume_token">;
 
 export interface SetReadyParams {
   ready: boolean;
@@ -150,6 +153,8 @@ export interface IServerApi {
   createRoom(params: CreateRoomParams): Promise<string | null>;
   stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;
+  /** Re-register a room after the relay lost it (relay restart). Web-host only. */
+  resumeRoom?(params: ResumeRoomParams): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(params: SetReadyParams): Promise<void>;
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;

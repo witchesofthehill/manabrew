@@ -256,6 +256,15 @@ docker compose -f manabrew-rs/crates/manabrew-server/compose.yml build --no-cach
 docker compose -f manabrew-rs/crates/manabrew-server/compose.yml exec parity-dashboard sqlite3 /app/data/parity.db ".tables"
 ```
 
+### When the relay does restart
+
+Live games survive a relay restart as long as the game hosts stay up. On
+`SIGTERM` the relay broadcasts `ServerShuttingDown` and drains for 10s; after
+the restart, hosts (self-hosted nodes and web-hosting browsers) re-register
+their rooms via `ResumeRoom` using the `resume_token` from `RoomCreated`, and
+guests rejoin their seats and resync. The token guards rooms the relay still
+holds; a room the restarted relay has forgotten is resurrected on first claim.
+
 ## Investigating relay disconnects
 
 `manabrew-server` exposes a healthcheck on port 9444 (`/health`), and every

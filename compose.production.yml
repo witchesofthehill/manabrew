@@ -20,6 +20,7 @@ services:
       - "443:443"
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ops/status.json:/srv/manabrew/status.json:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

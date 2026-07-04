@@ -12,6 +12,8 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
+import { StatusBanner } from "./StatusBanner";
+import { useStatusBanner } from "@/hooks/useStatusBanner";
 
 // Tailwind's default `md` breakpoint. Kept in sync with utility classes
 // like `md:hidden` / `hidden md:flex` so the JS gate matches the CSS.
@@ -55,6 +57,7 @@ export function AppShell() {
   }, [setupListeners]);
 
   useGameSessionResume();
+  useStatusBanner();
 
   function toggleSidebar() {
     setSidebarCollapsed((v) => !v);
@@ -98,6 +101,7 @@ export function AppShell() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col">
+      <StatusBanner />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {!isDesktop && (
         <>

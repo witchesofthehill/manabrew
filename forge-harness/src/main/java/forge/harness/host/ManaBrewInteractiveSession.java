@@ -690,7 +690,7 @@ public final class ManaBrewInteractiveSession {
     boolean awaitMulliganDecision(final int playerId, final int cardsToReturn) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(
-                game.getPlayers().get(playerId).getCardsIn(forge.game.zone.ZoneType.Hand));
+                game.getRegisteredPlayers().get(playerId).getCardsIn(forge.game.zone.ZoneType.Hand));
         publishCardChoicePrompt("mulligan", playerId, cards, 0, 0, cardsToReturn);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
@@ -1957,7 +1957,7 @@ public final class ManaBrewInteractiveSession {
             final Map<Card, List<Card>> validBlockersByAttacker,
             final String error
     ) {
-        final Player defendingPlayer = game.getPlayers().get(playerId);
+        final Player defendingPlayer = game.getRegisteredPlayers().get(playerId);
         final List<BlockableAttackerDto> attackerOptions = new java.util.ArrayList<>();
         for (final Card attacker : attackers) {
             final List<String> validBlockerIds = new java.util.ArrayList<>();

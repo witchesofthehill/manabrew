@@ -3635,6 +3635,7 @@ dependencies = [
  "manabrew-agent-interface",
  "manabrew-engine",
  "manabrew-protocol",
+ "manabrew-server",
  "memmap2",
  "rand 0.8.6",
  "self-hosted-node",

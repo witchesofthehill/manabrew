@@ -5,6 +5,8 @@ commands.allow = [
   "is_card_supported",
   "start_forge_host",
   "stop_forge_host",
+  "start_local_relay",
+  "stop_local_relay",
   "limited_start_sealed",
   "limited_get_sealed_pool",
   "limited_get_edition_info",

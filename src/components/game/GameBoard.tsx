@@ -1182,7 +1182,12 @@ export function GameBoard({
   // cluster. (Player panels no longer reserve space — the Pixi HUD sits in the
   // playmat's own margin.)
   const lastPanelBlockersRef = useRef<string>("");
+  // `opponents` gets a fresh identity on every engine snapshot; the effect only
+  // cares about the seat ids, so key it on those to keep the old "measure on
+  // prompt/layout changes" cadence.
+  const opponentIdsKey = opponents.map((op) => op.id).join(",");
   useLayoutEffect(() => {
+    const opponentIds = opponentIdsKey ? opponentIdsKey.split(",") : [];
     const measure = () => {
       const board = boardRef.current;
       const scene = sceneRef.current;
@@ -1200,7 +1205,7 @@ export function GameBoard({
           // The divider-anchored cluster straddles into the opponent fields —
           // reserve its footprint there too so their cards never underlap it.
           const full = { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
-          for (const op of opponents) next[op.id] = [full];
+          for (const id of opponentIds) next[id] = [full];
         }
       }
       const json = JSON.stringify(next);
@@ -1215,7 +1220,7 @@ export function GameBoard({
     const ro = new ResizeObserver(measure);
     ro.observe(actionEl);
     return () => ro.disconnect();
-  }, [sceneRef, me.id, opponents, unifiedLayout, promptType, compactBoard]);
+  }, [sceneRef, me.id, opponentIdsKey, unifiedLayout, promptType, compactBoard]);
 
   const sheetSpec = sheetPlayerId
     ? (playerBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)

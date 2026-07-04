@@ -1,8 +1,7 @@
-import { LONG_PRESS_CANCEL_DIST_SQ, LONG_PRESS_PREVIEW_MS } from "@/lib/responsive";
+import { LongPressTimer } from "@/lib/longPress";
 
 export class LongPressGesture {
-  private timer: number | null = null;
-  private origin: { x: number; y: number } | null = null;
+  private timer = new LongPressTimer();
   private firedKey: string | null = null;
 
   start(
@@ -11,28 +10,18 @@ export class LongPressGesture {
     onFire: () => void,
   ): void {
     if (e.pointerType !== "touch") return;
-    this.cancel();
-    this.origin = { x: e.global.x, y: e.global.y };
-    this.timer = window.setTimeout(() => {
-      this.timer = null;
+    this.timer.start(e.global.x, e.global.y, () => {
       this.firedKey = key;
       onFire();
-    }, LONG_PRESS_PREVIEW_MS);
+    });
   }
 
   move(x: number, y: number): void {
-    if (this.timer === null || !this.origin) return;
-    const dx = x - this.origin.x;
-    const dy = y - this.origin.y;
-    if (dx * dx + dy * dy > LONG_PRESS_CANCEL_DIST_SQ) this.cancel();
+    this.timer.move(x, y);
   }
 
   cancel(): void {
-    if (this.timer !== null) {
-      window.clearTimeout(this.timer);
-      this.timer = null;
-    }
-    this.origin = null;
+    this.timer.cancel();
   }
 
   /** Abort path (pinch takeover, gesture cancel): also disarm the tap

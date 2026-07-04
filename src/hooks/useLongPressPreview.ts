@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { LONG_PRESS_CANCEL_DIST_SQ, LONG_PRESS_PREVIEW_MS } from "@/lib/responsive";
+import { LongPressTimer } from "@/lib/longPress";
 
 interface LongPressPreviewOptions<T> {
   resolve: (e: React.PointerEvent) => { item: T; anchor: HTMLElement } | null;
@@ -8,18 +8,13 @@ interface LongPressPreviewOptions<T> {
 }
 
 export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreviewOptions<T>) {
-  const timerRef = useRef<number | null>(null);
-  const startRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const timerRef = useRef<LongPressTimer | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
   const firedRef = useRef(false);
 
-  const cancelTimer = () => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
+  const timer = (): LongPressTimer => (timerRef.current ??= new LongPressTimer());
 
-  useEffect(() => cancelTimer, []);
+  useEffect(() => () => timerRef.current?.cancel(), []);
 
   const onPointerDown = (e: React.PointerEvent) => {
     // The compat click after a long-press is not guaranteed (iOS often skips it
@@ -29,38 +24,31 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
     if (e.pointerType !== "touch") return;
     const hit = resolve(e);
     if (!hit) return;
-    cancelTimer();
-    startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
+    pointerIdRef.current = e.pointerId;
+    timer().start(e.clientX, e.clientY, () => {
       firedRef.current = true;
       show(hit.item, hit.anchor.getBoundingClientRect());
-    }, LONG_PRESS_PREVIEW_MS);
+    });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    if (!start || e.pointerId !== start.pointerId) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (dx * dx + dy * dy > LONG_PRESS_CANCEL_DIST_SQ) cancelTimer();
+    if (pointerIdRef.current !== e.pointerId) return;
+    timer().move(e.clientX, e.clientY);
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    if (!start || e.pointerId !== start.pointerId) return;
-    cancelTimer();
-    startRef.current = null;
+    if (pointerIdRef.current !== e.pointerId) return;
+    timer().cancel();
+    pointerIdRef.current = null;
     // firedRef stays set until the compat click arrives so onClickCapture
     // can swallow the tap that would otherwise trigger the item's action.
     if (firedRef.current) hide();
   };
 
   const onPointerCancel = (e: React.PointerEvent) => {
-    const start = startRef.current;
-    if (!start || e.pointerId !== start.pointerId) return;
-    cancelTimer();
-    startRef.current = null;
+    if (pointerIdRef.current !== e.pointerId) return;
+    timer().cancel();
+    pointerIdRef.current = null;
     if (firedRef.current) {
       hide();
       firedRef.current = false;
@@ -75,7 +63,7 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
   };
 
   const onContextMenu = (e: React.MouseEvent) => {
-    if (startRef.current || firedRef.current) e.preventDefault();
+    if (pointerIdRef.current !== null || firedRef.current) e.preventDefault();
   };
 
   return {

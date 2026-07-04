@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CardDto } from "@/protocol/game";
-import { LONG_PRESS_CANCEL_DIST_SQ, LONG_PRESS_PREVIEW_MS } from "@/lib/responsive";
+import { LONG_PRESS_CANCEL_DIST_SQ } from "@/lib/responsive";
+import { LongPressTimer } from "@/lib/longPress";
 
 export interface HandDragStart {
   clientX: number;
@@ -43,7 +44,7 @@ export function useHandDrag({
     const isTouch = start.pointerType === "touch";
     const deadZoneSq = isTouch ? LONG_PRESS_CANCEL_DIST_SQ : 25;
     let moved = false;
-    let longPressTimer: number | undefined;
+    const longPress = new LongPressTimer();
 
     const reset = () => {
       setDraggingHandCard(null);
@@ -55,7 +56,7 @@ export function useHandDrag({
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);
       document.removeEventListener("pointercancel", handlePointerCancel);
-      if (longPressTimer !== undefined) window.clearTimeout(longPressTimer);
+      longPress.cancel();
       teardownRef.current = null;
     };
 
@@ -66,10 +67,7 @@ export function useHandDrag({
         const dy = pe.clientY - start.clientY;
         if (dx * dx + dy * dy < deadZoneSq) return;
         moved = true;
-        if (longPressTimer !== undefined) {
-          window.clearTimeout(longPressTimer);
-          longPressTimer = undefined;
-        }
+        longPress.cancel();
         setDraggingHandCard(card);
       }
       // Hard-disable hover preview during drag; hover timers can be re-armed by
@@ -109,11 +107,11 @@ export function useHandDrag({
     };
 
     if (isTouch && onLongPress) {
-      longPressTimer = window.setTimeout(() => {
+      longPress.start(start.clientX, start.clientY, () => {
         teardown();
         reset();
         onLongPress(card, { x: start.clientX, y: start.clientY });
-      }, LONG_PRESS_PREVIEW_MS);
+      });
     }
 
     document.addEventListener("pointermove", handlePointerMove);

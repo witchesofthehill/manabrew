@@ -285,7 +285,8 @@ export class BoardRegion {
     const isFree = (cell: GridCell | null): cell is GridCell =>
       !!cell &&
       !taken.has(cellKey(cell.col, cell.row)) &&
-      (ignoreBlockers || (!cell.blocked && !occupied.has(cellKey(cell.col, cell.row))));
+      !occupied.has(cellKey(cell.col, cell.row)) &&
+      (ignoreBlockers || !cell.blocked);
 
     const attackBandRow = grid.rows;
     const resolveCell = (col: number, row: number): GridCell | null => {

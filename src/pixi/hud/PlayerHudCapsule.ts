@@ -556,11 +556,12 @@ export class PlayerHudCapsule {
         this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
       });
       sprite.on("pointerout", (e) => {
-        if (e.pointerType !== "mouse") return;
+        if (e.pointerType !== "mouse" && this.tapTooltipTimer !== null) return;
         this.onHover(null);
       });
       // Touch has no hover: a tap re-shows the tooltip and lets it linger briefly
-      // (the trailing pointerout on lift is ignored above — the timer hides it).
+      // (the trailing pointerout on lift is ignored above while the timer is
+      // armed; a slide-off without a tap still hides immediately).
       sprite.on("pointertap", (e) => {
         if (e.pointerType === "mouse") return;
         const s = sprite.height;

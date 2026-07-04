@@ -399,6 +399,7 @@ export class BoardScene {
     };
     window.addEventListener("pointercancel", this.gestureCancelListener);
     this.stripOutsideListener = (e: PointerEvent) => {
+      if (!this.phaseStrip.isCompactExpanded()) return;
       const rect = this.app.canvas.getBoundingClientRect();
       const p = this.phaseStrip.container.toLocal(
         new Point(e.clientX - rect.left, e.clientY - rect.top),

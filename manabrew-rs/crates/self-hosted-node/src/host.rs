@@ -13,8 +13,8 @@ use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope,
+    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
+    ServerMessage, StateEnvelope,
 };
 use manabrew_engine::game::TypeRegistry;
 use manabrew_protocol::deck_dto::Deck;
@@ -85,8 +85,33 @@ struct DisconnectTracker {
 
 type SharedDisconnectTracker = Arc<Mutex<DisconnectTracker>>;
 
-const DISCONNECT_GRACE_SECS: u64 = 30;
+const DISCONNECT_GRACE_MARGIN_SECS: u64 = 5;
 type SharedBotState = Arc<Mutex<BotState>>;
+
+#[derive(Clone)]
+struct GameStart {
+    player_order: Vec<String>,
+    player_decks: Vec<PlayerDeckInfo>,
+    starting_life: i32,
+}
+
+#[derive(Default)]
+struct HostSnapshot {
+    room_info: Option<RoomInfo>,
+    resume_token: Option<String>,
+    game: Option<GameStart>,
+    last_state: Option<Value>,
+    pending_prompts: HashMap<String, Value>,
+}
+
+type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
+
+const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+
+enum LoopExit {
+    Cancelled,
+    Disconnected,
+}
 
 pub async fn cli_entry() {
     tracing_subscriber::fmt()
@@ -279,73 +304,252 @@ async fn host_one_room(
         "starting room host"
     );
 
+    let snapshot: SharedHostSnapshot = Arc::new(Mutex::new(HostSnapshot::default()));
+    let engine_session: SharedEngineSession = Arc::new(Mutex::new(None));
+    let bot_state: SharedBotState = Arc::new(Mutex::new(BotState::default()));
+    let (outbound_tx, mut outbound_rx) = tokio_mpsc::unbounded_channel::<ClientMessage>();
+
     let mut host =
         RelayClient::connect(&config.relay_url, &config.username, &config.password).await?;
-
-    let room_id = if let Some(room_id) = &config.room_id {
-        host.send(&ClientMessage::JoinRoom {
-            room_id: room_id.clone(),
-            observe: !config.host_plays,
-            as_bot: false,
-            password: config.room_password.clone(),
-        })
-        .await?;
-        info!(room_id, "joining configured room");
-        room_id.clone()
-    } else {
-        let engine = if matches!(config.backend, EngineBackendKind::Forge) {
-            EngineKind::Forge
-        } else {
-            EngineKind::Manabrew
-        };
-        host.send(&ClientMessage::CreateRoom {
-            room_name: config.room_name.clone(),
-            max_players: config.max_players,
-            format: config.format.clone(),
-            hosted: !config.host_plays,
-            engine,
-            draft_config: None,
-            sealed_config: None,
-            official_key: config.official_key.clone(),
-            password: config.room_password.clone(),
-            reconnect_timeout_s: None,
-        })
-        .await?;
-        info!(room_name = %config.room_name, "creating room");
-        wait_for_host_room(&mut host, &config).await?
-    };
+    let mut room_id = establish_room(&mut host, &config, &snapshot).await?;
 
     if let Some(ready) = ready {
         let _ = ready.send(room_id.clone());
     }
 
+    if config.bot_enabled {
+        spawn_bot(&config, &config.bot_deck, room_id.clone(), &bot_state);
+    }
+
+    loop {
+        let exit = run_client_loop(
+            &mut host,
+            &config,
+            &room_id,
+            &engine_session,
+            &snapshot,
+            &bot_state,
+            &outbound_tx,
+            &mut outbound_rx,
+            &cancel,
+        )
+        .await;
+        if matches!(exit, LoopExit::Cancelled) {
+            return Ok(());
+        }
+
+        let mut attempt: usize = 0;
+        host = loop {
+            let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
+            tokio::select! {
+                _ = cancel.notified() => {
+                    info!(username = %config.username, "room host cancelled while reconnecting");
+                    cancel_engine(&engine_session);
+                    return Ok(());
+                }
+                _ = time::sleep(Duration::from_secs(delay)) => {}
+            }
+            attempt += 1;
+            let mut client =
+                match RelayClient::connect(&config.relay_url, &config.username, &config.password)
+                    .await
+                {
+                    Ok(client) => client,
+                    Err(error) => {
+                        warn!(%error, attempt, "relay reconnect failed");
+                        continue;
+                    }
+                };
+            match reestablish_room(&mut client, &config, &engine_session, &snapshot).await {
+                Ok(new_room_id) => {
+                    if new_room_id != room_id {
+                        stop_bot(&bot_state);
+                        if config.bot_enabled {
+                            spawn_bot(&config, &config.bot_deck, new_room_id.clone(), &bot_state);
+                        }
+                        room_id = new_room_id;
+                    }
+                    break client;
+                }
+                Err(error) => {
+                    warn!(%error, attempt, "failed to re-establish room; retrying");
+                }
+            }
+        };
+        info!(username = %config.username, room_id, "relay connection re-established");
+    }
+}
+
+async fn establish_room(
+    client: &mut RelayClient,
+    config: &Config,
+    snapshot: &SharedHostSnapshot,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let room_id = if let Some(room_id) = &config.room_id {
+        client
+            .send(&ClientMessage::JoinRoom {
+                room_id: room_id.clone(),
+                observe: !config.host_plays,
+                as_bot: false,
+                password: config.room_password.clone(),
+            })
+            .await?;
+        info!(room_id, "joining configured room");
+        room_id.clone()
+    } else {
+        client
+            .send(&ClientMessage::CreateRoom {
+                room_name: config.room_name.clone(),
+                max_players: config.max_players,
+                format: config.format.clone(),
+                hosted: !config.host_plays,
+                engine: engine_kind(config),
+                draft_config: None,
+                sealed_config: None,
+                official_key: config.official_key.clone(),
+                password: config.room_password.clone(),
+                reconnect_timeout_s: None,
+            })
+            .await?;
+        info!(room_name = %config.room_name, "creating room");
+        wait_for_host_room(client, config, snapshot).await?
+    };
+
     if config.host_plays {
-        seat_client(&mut host, &config.host_deck).await?;
+        seat_client(client, &config.host_deck).await?;
     } else {
         info!(
             username = %config.username,
             "hosting room without occupying a player seat"
         );
     }
+    Ok(room_id)
+}
 
-    let bot_state: SharedBotState = Arc::new(Mutex::new(BotState::default()));
-    if config.bot_enabled {
-        spawn_bot(&config, &config.bot_deck, room_id.clone(), &bot_state);
+async fn reestablish_room(
+    client: &mut RelayClient,
+    config: &Config,
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    let resume = {
+        let snap = snapshot.lock().map_err(|error| error.to_string())?;
+        match (&snap.resume_token, &snap.game, &snap.room_info) {
+            (Some(token), Some(game), Some(room_info)) => {
+                Some(resume_room_request(config, token, game, room_info))
+            }
+            _ => None,
+        }
+    };
+    let game_active = engine_session
+        .lock()
+        .map(|guard| guard.is_some())
+        .unwrap_or(false);
+
+    if let (Some(request), true) = (resume, game_active) {
+        let room_id = request.room_id.clone();
+        client.send(&ClientMessage::ResumeRoom(request)).await?;
+        match wait_for_room_resumed(client).await? {
+            Some(room) => {
+                let (last_state, prompts) = {
+                    let mut snap = snapshot.lock().map_err(|error| error.to_string())?;
+                    snap.room_info = Some(room);
+                    (
+                        snap.last_state.clone(),
+                        snap.pending_prompts.values().cloned().collect::<Vec<_>>(),
+                    )
+                };
+                if let Some(state) = last_state {
+                    client
+                        .send(&ClientMessage::BroadcastState { state })
+                        .await?;
+                }
+                for prompt in prompts {
+                    client
+                        .send(&ClientMessage::BroadcastState { state: prompt })
+                        .await?;
+                }
+                info!(room_id, "room resumed; snapshot re-broadcast");
+                return Ok(room_id);
+            }
+            None => {
+                warn!(room_id, "room resume rejected; abandoning hosted game");
+                abort_engine_session(engine_session);
+            }
+        }
     }
 
-    let engine_session: SharedEngineSession = Arc::new(Mutex::new(None));
-    let (outbound_tx, outbound_rx) = tokio_mpsc::unbounded_channel::<ClientMessage>();
-    run_client_loop(
-        host,
-        config,
-        room_id,
-        engine_session,
-        bot_state,
-        outbound_tx,
-        outbound_rx,
-        cancel,
-    )
-    .await
+    establish_room(client, config, snapshot).await
+}
+
+fn engine_kind(config: &Config) -> EngineKind {
+    if matches!(config.backend, EngineBackendKind::Forge) {
+        EngineKind::Forge
+    } else {
+        EngineKind::Manabrew
+    }
+}
+
+fn resume_room_request(
+    config: &Config,
+    token: &str,
+    game: &GameStart,
+    room_info: &RoomInfo,
+) -> ResumeRoomRequest {
+    ResumeRoomRequest {
+        room_id: room_info.room_id.clone(),
+        resume_token: token.to_string(),
+        room_name: room_info.room_name.clone(),
+        max_players: room_info.max_players,
+        format: room_info.format.clone(),
+        hosted: !config.host_plays,
+        engine: engine_kind(config),
+        official_key: config.official_key.clone(),
+        password: config.room_password.clone(),
+        reconnect_timeout_s: Some(room_info.reconnect_timeout_s),
+        draft_config: room_info.draft_config.clone(),
+        sealed_config: room_info.sealed_config.clone(),
+        player_order: game.player_order.clone(),
+        player_decks: game.player_decks.clone(),
+        starting_life: game.starting_life,
+        bot_players: room_info
+            .players
+            .iter()
+            .filter(|player| player.is_bot)
+            .map(|player| player.username.clone())
+            .collect(),
+    }
+}
+
+async fn wait_for_room_resumed(
+    client: &mut RelayClient,
+) -> Result<Option<RoomInfo>, Box<dyn std::error::Error + Send + Sync>> {
+    loop {
+        match client.recv().await? {
+            Some(ServerMessage::RoomResumed { room }) => return Ok(Some(room)),
+            Some(ServerMessage::Error { code, message }) => {
+                warn!(code, message, "resume rejected by relay");
+                return Ok(None);
+            }
+            Some(other) => debug!(?other, "ignored message while waiting for room resume"),
+            None => return Err("relay closed while waiting for room resume".into()),
+        }
+    }
+}
+
+fn cancel_engine(engine_session: &SharedEngineSession) {
+    if let Ok(guard) = engine_session.lock() {
+        if let Some(EngineSession::Forge { cancel, .. }) = guard.as_ref() {
+            cancel.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+fn abort_engine_session(engine_session: &SharedEngineSession) {
+    cancel_engine(engine_session);
+    // Dropping the response channels makes the Manabrew backend's transports
+    // observe a disconnect and concede, which ends the engine thread.
+    clear_engine_session(engine_session);
 }
 
 fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: &SharedBotState) {
@@ -397,11 +601,19 @@ fn load_type_registry() {
 async fn wait_for_host_room(
     client: &mut RelayClient,
     config: &Config,
+    snapshot: &SharedHostSnapshot,
 ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     loop {
         match client.recv().await? {
-            Some(ServerMessage::RoomCreated { room_id, room_name }) => {
+            Some(ServerMessage::RoomCreated {
+                room_id,
+                room_name,
+                resume_token,
+            }) => {
                 info!(room_id, room_name, "room created");
+                if let Ok(mut snap) = snapshot.lock() {
+                    snap.resume_token = resume_token;
+                }
                 return Ok(room_id);
             }
             Some(ServerMessage::RoomUpdate { room }) if room.host == config.username => {
@@ -447,15 +659,16 @@ async fn seat_client(
 }
 
 async fn run_client_loop(
-    mut client: RelayClient,
-    config: Config,
-    room_id: String,
-    engine_session: SharedEngineSession,
-    bot_state: SharedBotState,
-    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    mut outbound_rx: tokio_mpsc::UnboundedReceiver<ClientMessage>,
-    cancel: RoomCancel,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    client: &mut RelayClient,
+    config: &Config,
+    room_id: &str,
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+    bot_state: &SharedBotState,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    outbound_rx: &mut tokio_mpsc::UnboundedReceiver<ClientMessage>,
+    cancel: &RoomCancel,
+) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
     let disconnect_tracker: SharedDisconnectTracker =
@@ -466,43 +679,56 @@ async fn run_client_loop(
         tokio::select! {
             _ = cancel.notified() => {
                 info!(username = %client.username, "room host cancelled; shutting down");
-                if let Ok(guard) = engine_session.lock() {
-                    if let Some(EngineSession::Forge { cancel, .. }) = guard.as_ref() {
-                        cancel.store(true, Ordering::Relaxed);
-                    }
-                }
-                return Ok(());
+                cancel_engine(engine_session);
+                return LoopExit::Cancelled;
             }
             _ = heartbeat.tick() => {
-                client.broadcast_room_message(SELF_HOSTED_NODE_PROTOCOL, json!({
+                if let Err(error) = client.broadcast_room_message(SELF_HOSTED_NODE_PROTOCOL, json!({
                     "type": "heartbeat",
                     "node": client.username,
                     "capacity": config.max_games,
-                })).await?;
+                })).await {
+                    warn!(%error, username = %client.username, "relay send failed");
+                    return LoopExit::Disconnected;
+                }
             }
             outbound = outbound_rx.recv() => {
                 let Some(outbound) = outbound else {
                     warn!(username = %client.username, "outbound channel closed");
-                    return Ok(());
+                    return LoopExit::Cancelled;
                 };
-                client.send(&outbound).await?;
+                if let Err(error) = client.send(&outbound).await {
+                    warn!(%error, username = %client.username, "relay send failed");
+                    return LoopExit::Disconnected;
+                }
             }
             message = client.recv() => {
-                let Some(message) = message? else {
-                    warn!(username = %client.username, "relay websocket closed");
-                    return Ok(());
+                let message = match message {
+                    Ok(Some(message)) => message,
+                    Ok(None) => {
+                        warn!(username = %client.username, "relay websocket closed");
+                        return LoopExit::Disconnected;
+                    }
+                    Err(error) => {
+                        warn!(%error, username = %client.username, "relay receive failed");
+                        return LoopExit::Disconnected;
+                    }
                 };
-                handle_server_message(
-                    &mut client,
-                    &config,
-                    &room_id,
-                    &engine_session,
-                    &bot_state,
-                    &outbound_tx,
+                if let Err(error) = handle_server_message(
+                    client,
+                    config,
+                    room_id,
+                    engine_session,
+                    snapshot,
+                    bot_state,
+                    outbound_tx,
                     &disconnect_tracker,
                     &mut bot_usernames,
                     message,
-                ).await?;
+                ).await {
+                    warn!(%error, username = %client.username, "relay send failed");
+                    return LoopExit::Disconnected;
+                }
             }
         }
     }
@@ -513,6 +739,7 @@ async fn handle_server_message(
     config: &Config,
     room_id: &str,
     engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     disconnect_tracker: &SharedDisconnectTracker,
@@ -521,6 +748,9 @@ async fn handle_server_message(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
         ServerMessage::RoomUpdate { room } => {
+            if let Ok(mut snap) = snapshot.lock() {
+                snap.room_info = Some(room.clone());
+            }
             *bot_usernames = room
                 .players
                 .iter()
@@ -537,6 +767,7 @@ async fn handle_server_message(
                 config,
                 room_id,
                 engine_session,
+                snapshot,
                 bot_state,
                 from_player,
                 state,
@@ -560,15 +791,28 @@ async fn handle_server_message(
             starting_life,
         } => {
             info!(room_id, ?player_order, observer = %client.username, "game started");
+            if let Ok(mut snap) = snapshot.lock() {
+                snap.game = Some(GameStart {
+                    player_order: player_order.clone(),
+                    player_decks: player_decks.clone(),
+                    starting_life,
+                });
+                snap.last_state = None;
+                snap.pending_prompts.clear();
+            }
             maybe_start_hosted_engine(
                 config,
                 engine_session,
+                snapshot,
                 outbound_tx,
                 player_order,
                 player_decks,
                 starting_life,
                 bot_usernames,
             );
+        }
+        ServerMessage::ServerShuttingDown { reconnect_in_s } => {
+            info!(reconnect_in_s, observer = %client.username, "relay is restarting");
         }
         ServerMessage::Error { code, message } => {
             warn!(code, message, observer = %client.username, "server error");
@@ -586,6 +830,7 @@ async fn handle_state_update(
     config: &Config,
     room_id: &str,
     engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
     bot_state: &SharedBotState,
     from_player: String,
     state: Value,
@@ -597,7 +842,7 @@ async fn handle_state_update(
 
     match envelope {
         StateEnvelope::Response { .. } => {
-            route_remote_response(engine_session, &state);
+            route_remote_response(engine_session, snapshot, &state);
             Ok(())
         }
         StateEnvelope::RoomRelay {
@@ -719,6 +964,7 @@ fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
 fn maybe_start_hosted_engine(
     config: &Config,
     engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     player_order: Vec<String>,
     player_decks: Vec<PlayerDeckInfo>,
@@ -825,10 +1071,11 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
+            spawn_remote_prompt_forwarder(outbound_tx.clone(), snapshot.clone(), remote_prompt_rx);
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             let outbound_tx = outbound_tx.clone();
+            let snapshot = snapshot.clone();
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -850,7 +1097,7 @@ fn maybe_start_hosted_engine(
                         game_over_tx,
                     )
                 }));
-                finish_hosted_engine(result, &outbound_tx, &session_handle);
+                finish_hosted_engine(result, &outbound_tx, &session_handle, &snapshot);
             });
         }
         EngineBackendKind::Forge => {
@@ -872,10 +1119,11 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
+            spawn_remote_prompt_forwarder(outbound_tx.clone(), snapshot.clone(), remote_prompt_rx);
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             let outbound_tx = outbound_tx.clone();
+            let snapshot = snapshot.clone();
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -899,7 +1147,7 @@ fn maybe_start_hosted_engine(
                         cancel,
                     )
                 }));
-                finish_hosted_engine(result, &outbound_tx, &session_handle);
+                finish_hosted_engine(result, &outbound_tx, &session_handle, &snapshot);
             });
         }
     }
@@ -936,8 +1184,12 @@ fn handle_disconnect_grace(
             tracker.grace = Some(token.clone());
             let engine_session = engine_session.clone();
             let outbound_tx = outbound_tx.clone();
+            // Stay aligned with the relay's reconnect window: the relay aborts
+            // the room reconnect_timeout_s after the disconnect, so the node
+            // must not concede the seat earlier than that.
+            let grace_secs = room.reconnect_timeout_s as u64 + DISCONNECT_GRACE_MARGIN_SECS;
             tokio::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(DISCONNECT_GRACE_SECS)).await;
+                tokio::time::sleep(Duration::from_secs(grace_secs)).await;
                 if token.load(Ordering::Relaxed) {
                     info!("player did not reconnect within grace; ending hosted game");
                     end_hosted_game_on_abandon(&engine_session, &outbound_tx);
@@ -976,6 +1228,7 @@ fn finish_hosted_engine(
     result: std::thread::Result<Result<(), String>>,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     session_handle: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
 ) {
     let fatal = match result {
         Ok(Ok(())) => {
@@ -1004,10 +1257,19 @@ fn finish_hosted_engine(
         }
         let _ = outbound_tx.send(ClientMessage::EndGame);
     }
+    if let Ok(mut snap) = snapshot.lock() {
+        snap.game = None;
+        snap.last_state = None;
+        snap.pending_prompts.clear();
+    }
     clear_engine_session(session_handle);
 }
 
-fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
+fn route_remote_response(
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+    state: &Value,
+) {
     let envelope: StateEnvelope = match serde_json::from_value(state.clone()) {
         Ok(envelope) => envelope,
         Err(error) => {
@@ -1023,6 +1285,9 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
         warn!(state = %state, "expected response envelope");
         return;
     };
+    if let Ok(mut snap) = snapshot.lock() {
+        snap.pending_prompts.remove(&from_player);
+    }
     let Some(player_index) = parse_player_slot(&from_player) else {
         warn!(from_player, "relay response has invalid player slot");
         return;
@@ -1086,6 +1351,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
 
 fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
+    snapshot: SharedHostSnapshot,
     remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
 ) {
     thread::spawn(move || {
@@ -1095,7 +1361,8 @@ fn spawn_remote_prompt_forwarder(
         let mut last_state: Option<Value> = None;
         let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
-            let envelope = StateEnvelope::for_agent_message(player_slot(player_index), &message);
+            let slot = player_slot(player_index);
+            let envelope = StateEnvelope::for_agent_message(slot.clone(), &message);
             let Ok(state) = serde_json::to_value(envelope) else {
                 continue;
             };
@@ -1105,6 +1372,15 @@ fn spawn_remote_prompt_forwarder(
                 AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
                 AgentMessage::Display(_) => last_display = Some(state.clone()),
                 AgentMessage::Prompt(_) => {}
+            }
+            if let Ok(mut snap) = snapshot.lock() {
+                match &message {
+                    AgentMessage::State(_) => snap.last_state = Some(state.clone()),
+                    AgentMessage::Prompt(_) => {
+                        snap.pending_prompts.insert(slot, state.clone());
+                    }
+                    AgentMessage::Display(_) => {}
+                }
             }
             if outbound_tx
                 .send(ClientMessage::BroadcastState { state })

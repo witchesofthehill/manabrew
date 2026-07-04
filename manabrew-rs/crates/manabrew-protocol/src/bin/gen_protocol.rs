@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
+use manabrew_protocol::protocol::ResumeRoomRequest;
 use manabrew_protocol::transport::{AgentPrompt, StateUpdate};
 use ts_rs::TS;
 
@@ -71,6 +72,7 @@ fn main() {
     StateUpdate::export_all_to(&out).expect("export StateUpdate");
     DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     Deck::export_all_to(&out).expect("export Deck");
+    ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
 
     let prompts_dir = out.join("prompts");
     let mut prompts_index = String::from(HEADER);
@@ -101,7 +103,7 @@ fn main() {
     fs::write(
         out.join("index.ts"),
         format!(
-            "{HEADER}export * from \"./prompts\";\nexport * from \"./transport\";\nexport type * from \"./display\";\nexport type * from \"./game\";\nexport type * from \"./deck\";\nexport * from \"./version\";\n"
+            "{HEADER}export * from \"./prompts\";\nexport * from \"./transport\";\nexport type * from \"./display\";\nexport type * from \"./game\";\nexport type * from \"./deck\";\nexport type * from \"./lobby\";\nexport * from \"./version\";\n"
         ),
     )
     .expect("write index.ts");

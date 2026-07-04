@@ -7,7 +7,9 @@ import {
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
-import { clearActiveGameSession } from "@/lib/activeGameSession";
+import { useServerStore } from "@/stores/useServerStore";
+import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
+import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
@@ -41,6 +43,60 @@ function normalizeEnginePrompt(prompt: unknown): Prompt | null {
 }
 
 const { setState, getState } = useGameStore;
+
+const REJOIN_RETRY_DELAY_MS = 2000;
+let rejoinInFlight = false;
+
+function setReconnectPhase(phase: "reconnecting" | "idle") {
+  useServerStore.setState({
+    reconnect:
+      phase === "reconnecting"
+        ? { phase, attempt: 1, reason: "network" }
+        : { phase: "idle", attempt: 0 },
+  });
+}
+
+async function rejoinAfterRelayRestart() {
+  // Hold the interruption overlay up until the seat is re-established — the
+  // socket being open again is not enough, and answering a stale prompt while
+  // seatless gets the client force-ended with `not_in_room`.
+  setReconnectPhase("reconnecting");
+  if (rejoinInFlight) return;
+  rejoinInFlight = true;
+  try {
+    const server = useServerStore.getState();
+    const roomId = server.currentRoom?.room_id ?? peekActiveGameSession()?.roomId;
+    if (!roomId) {
+      setReconnectPhase("idle");
+      return;
+    }
+    const deadline = Date.now() + SELF_RECONNECT_WINDOW_S * 1000;
+    while (Date.now() < deadline) {
+      if (!getState().isGameActive) {
+        setReconnectPhase("idle");
+        return;
+      }
+      try {
+        await useServerStore
+          .getState()
+          .joinRoom(roomId, useServerStore.getState().roomPassword ?? undefined);
+        void getPlatform().server?.requestResync();
+        setReconnectPhase("idle");
+        return;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, REJOIN_RETRY_DELAY_MS));
+      }
+    }
+    setReconnectPhase("idle");
+    if (getState().isGameActive) {
+      clearActiveGameSession();
+      toast.error("Game could not be resumed — the room did not come back.");
+      void useGameStore.getState().endGame();
+    }
+  } finally {
+    rejoinInFlight = false;
+  }
+}
 
 function toastOpponentPublicAction(entry: GameLogEntry) {
   if (!entry.playerId) return;
@@ -172,14 +228,15 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
           const state = getState();
-          if (
-            payload.success &&
-            payload.reconnected &&
-            state.isMultiplayer &&
-            !state.isHost &&
-            state.isGameActive
-          ) {
-            void platform.server?.requestResync();
+          if (!payload.success || !state.isMultiplayer || !state.isGameActive) return;
+          if (payload.reconnected) {
+            if (!state.isHost) void platform.server?.requestResync();
+            return;
+          }
+          if (state.isHost) {
+            void useServerStore.getState().resumeRoomAfterRestart();
+          } else {
+            void rejoinAfterRelayRestart();
           }
         }),
       );

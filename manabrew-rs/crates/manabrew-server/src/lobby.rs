@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use crate::error::ServerError;
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
+    SealedConfig,
 };
 use crate::replay::GameReplayCache;
-use crate::room::Room;
+use crate::room::{Room, RoomSlot};
 use crate::state::ServerState;
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::PlaymatSettings;
@@ -28,7 +29,7 @@ pub fn create_room_sync(
     official_key: Option<String>,
     password: Option<String>,
     reconnect_timeout_s: Option<u32>,
-) -> Result<RoomInfo, ServerError> {
+) -> Result<(RoomInfo, String), ServerError> {
     if let Some(cfg) = &draft_config {
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
             (Some(_), Some(_)) => {
@@ -71,7 +72,7 @@ pub fn create_room_sync(
     };
 
     let room_id = uuid::Uuid::new_v4().to_string();
-    let room = Room::new(
+    let mut room = Room::new(
         room_id.clone(),
         room_name,
         player_id.to_string(),
@@ -88,7 +89,9 @@ pub fn create_room_sync(
             .unwrap_or(DEFAULT_RECONNECT_TIMEOUT_S)
             .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
     );
+    room.resume_token = uuid::Uuid::new_v4().to_string();
     let info = room.to_room_info();
+    let resume_token = room.resume_token.clone();
 
     state.rooms.insert(room_id.clone(), room);
 
@@ -96,7 +99,152 @@ pub fn create_room_sync(
         player.room_id = Some(room_id);
     }
 
-    Ok(info)
+    Ok((info, resume_token))
+}
+
+pub struct ResumedRoom {
+    pub room_info: RoomInfo,
+    pub awaiting_rejoin: Vec<String>,
+}
+
+pub fn resume_room_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    spec: ResumeRoomRequest,
+) -> Result<ResumedRoom, ServerError> {
+    let username = {
+        let player = state
+            .players
+            .get(player_id)
+            .ok_or_else(|| ServerError::AuthFailed("Player not found".into()))?;
+        if let Some(rid) = &player.room_id {
+            if rid != &spec.room_id {
+                return Err(ServerError::AlreadyInRoom(rid.clone()));
+            }
+        }
+        player.username.clone()
+    };
+
+    if let Some(mut room) = state.rooms.get_mut(&spec.room_id) {
+        if room.resume_token != spec.resume_token {
+            return Err(ServerError::InvalidResumeToken);
+        }
+
+        let old_host_pid = room.host_player_id.clone();
+        room.host_player_id = player_id.to_string();
+        room.host_username = username.clone();
+        if room.hosted {
+            room.remove_observer(&old_host_pid);
+            let _ = room.add_observer(player_id.to_string(), username.clone());
+            room.set_connected(player_id, true);
+        } else if let Some(slot) = room
+            .players
+            .iter_mut()
+            .find(|slot| slot.username == username)
+        {
+            slot.player_id = player_id.to_string();
+            slot.connected = true;
+        }
+        let resumed = ResumedRoom {
+            room_info: room.to_room_info(),
+            awaiting_rejoin: awaiting_rejoin(&room),
+        };
+        drop(room);
+
+        if old_host_pid != player_id {
+            state.players.remove(&old_host_pid);
+        }
+        if let Some(mut player) = state.players.get_mut(player_id) {
+            player.room_id = Some(spec.room_id);
+        }
+        return Ok(resumed);
+    }
+
+    // Unknown room: the relay restarted and forgot it. The claim is taken on
+    // trust — the presented token is stored so later duplicate claims must
+    // match, but there is nothing left server-side to verify the first one
+    // against, and squatting a UUID room id inside the reconnect window is
+    // not a realistic threat.
+    if state.rooms.len() >= state.max_rooms {
+        return Err(ServerError::RoomFull("Server room limit reached".into()));
+    }
+
+    let official = match &state.official_key {
+        Some(key) => spec.official_key.as_deref() == Some(key.as_str()),
+        None => false,
+    };
+
+    let mut room = Room::new(
+        spec.room_id.clone(),
+        spec.room_name,
+        player_id.to_string(),
+        username.clone(),
+        spec.max_players,
+        spec.format,
+        spec.engine,
+        !spec.hosted,
+        spec.draft_config,
+        spec.sealed_config,
+        official,
+        spec.password.filter(|value| !value.is_empty()),
+        spec.reconnect_timeout_s
+            .unwrap_or(DEFAULT_RECONNECT_TIMEOUT_S)
+            .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
+    );
+    room.resume_token = spec.resume_token;
+    room.status = RoomStatus::InGame;
+    room.players = spec
+        .player_order
+        .iter()
+        .map(|seat_username| {
+            let deck = spec
+                .player_decks
+                .iter()
+                .find(|deck| &deck.username == seat_username);
+            let is_bot = spec.bot_players.contains(seat_username);
+            let is_requester = !spec.hosted && seat_username == &username;
+            RoomSlot {
+                player_id: if is_requester {
+                    player_id.to_string()
+                } else {
+                    format!("pending-rejoin-{}", uuid::Uuid::new_v4())
+                },
+                username: seat_username.clone(),
+                ready: true,
+                connected: is_requester || is_bot,
+                is_bot,
+                selected_deck_name: deck.map(|d| d.deck_name.clone()),
+                selected_deck: deck.map(|d| d.deck.clone()),
+                selected_commander_name: deck.and_then(|d| d.commander_name.clone()),
+                avatar: deck.and_then(|d| d.avatar.clone()),
+            }
+        })
+        .collect();
+    room.replay = Some(GameReplayCache::new(
+        spec.player_order,
+        spec.player_decks,
+        spec.starting_life,
+    ));
+
+    let resumed = ResumedRoom {
+        room_info: room.to_room_info(),
+        awaiting_rejoin: awaiting_rejoin(&room),
+    };
+
+    state.rooms.insert(spec.room_id.clone(), room);
+    if let Some(mut player) = state.players.get_mut(player_id) {
+        player.room_id = Some(spec.room_id);
+    }
+
+    Ok(resumed)
+}
+
+fn awaiting_rejoin(room: &Room) -> Vec<String> {
+    room.players
+        .iter()
+        .filter(|slot| !slot.connected && !slot.is_bot)
+        .map(|slot| slot.username.clone())
+        .collect()
 }
 
 pub fn join_room_sync(
@@ -106,7 +254,7 @@ pub fn join_room_sync(
     observe: bool,
     as_bot: bool,
     password: Option<String>,
-) -> Result<RoomInfo, ServerError> {
+) -> Result<(RoomInfo, bool), ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
             if let Some(rid) = &player.room_id {
@@ -123,15 +271,11 @@ pub fn join_room_sync(
         .map(|p| p.username.clone())
         .unwrap_or_default();
 
-    let info = {
+    let (info, rejoined) = {
         let mut room = state
             .rooms
             .get_mut(room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.to_string()))?;
-
-        if room.status != RoomStatus::Lobby {
-            return Err(ServerError::GameAlreadyStarted);
-        }
 
         if let Some(required) = &room.password {
             if password.as_deref() != Some(required.as_str()) {
@@ -139,28 +283,41 @@ pub fn join_room_sync(
             }
         }
 
-        if observe {
-            room.add_observer(player_id.to_string(), username)
-                .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
+        if room.status != RoomStatus::Lobby {
+            if observe || as_bot {
+                return Err(ServerError::GameAlreadyStarted);
+            }
+            let slot = room
+                .players
+                .iter_mut()
+                .find(|slot| slot.username == username && !slot.is_bot && !slot.connected)
+                .ok_or(ServerError::GameAlreadyStarted)?;
+            slot.player_id = player_id.to_string();
+            slot.connected = true;
+            (room.to_room_info(), true)
         } else {
-            room.add_player(player_id.to_string(), username, as_bot)
-                .map_err(|msg| {
-                    if msg.contains("full") {
-                        ServerError::RoomFull(room_id.to_string())
-                    } else {
-                        ServerError::AlreadyInRoom(room_id.to_string())
-                    }
-                })?;
+            if observe {
+                room.add_observer(player_id.to_string(), username)
+                    .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
+            } else {
+                room.add_player(player_id.to_string(), username, as_bot)
+                    .map_err(|msg| {
+                        if msg.contains("full") {
+                            ServerError::RoomFull(room_id.to_string())
+                        } else {
+                            ServerError::AlreadyInRoom(room_id.to_string())
+                        }
+                    })?;
+            }
+            (room.to_room_info(), false)
         }
-
-        room.to_room_info()
     };
 
     if let Some(mut player) = state.players.get_mut(player_id) {
         player.room_id = Some(room_id.to_string());
     }
 
-    Ok(info)
+    Ok((info, rejoined))
 }
 
 pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), ServerError> {

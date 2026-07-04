@@ -47,6 +47,8 @@ src-tauri/target/
 **/.env.*
 !**/.env.example
 
+public/status.json
+
 # Parity database & cache
 parity.db
 .parity-cache/

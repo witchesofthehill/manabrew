@@ -43,6 +43,7 @@ pub struct Room {
     pub sealed_config: Option<SealedConfig>,
     pub reconnect_timeout_s: u32,
     pub replay: Option<GameReplayCache>,
+    pub resume_token: String,
 }
 
 impl Room {
@@ -104,6 +105,7 @@ impl Room {
             sealed_config,
             reconnect_timeout_s,
             replay: None,
+            resume_token: String::new(),
         }
     }
 

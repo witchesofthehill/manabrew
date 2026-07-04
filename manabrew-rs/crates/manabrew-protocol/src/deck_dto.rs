@@ -93,7 +93,7 @@ pub struct CardPart {
 }
 
 /// Mirror of `manabrew.ts:DeckCard`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]
 pub struct DeckCard {
@@ -106,6 +106,46 @@ pub struct DeckCard {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub all_parts: Option<Vec<CardPart>>,
+}
+
+// Clients ≤ v0.5.2 serialize the identity fields flattened onto the card.
+// Their gameplay wire (game view, prompts) has drifted too, so the legacy
+// shape is detected and rejected with an actionable message rather than
+// accepted into a game the client could not parse.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeckCardWire {
+    #[serde(default)]
+    identity: Option<DeckCardIdentity>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(flatten)]
+    rules: CardRulesSummary,
+    #[serde(default)]
+    uris: CardImageUris,
+    #[serde(default)]
+    all_parts: Option<Vec<CardPart>>,
+}
+
+impl<'de> Deserialize<'de> for DeckCard {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = DeckCardWire::deserialize(deserializer)?;
+        let identity = match wire.identity {
+            Some(identity) => identity,
+            None if wire.name.is_some() => {
+                return Err(serde::de::Error::custom(
+                    "this app version is out of date — download the latest release at manabrew.app to play online",
+                ));
+            }
+            None => return Err(serde::de::Error::missing_field("identity")),
+        };
+        Ok(DeckCard {
+            identity,
+            rules: wire.rules,
+            uris: wire.uris,
+            all_parts: wire.all_parts,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

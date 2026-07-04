@@ -30,7 +30,6 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
     const hit = resolve(e);
     if (!hit) return;
     cancelTimer();
-    firedRef.current = false;
     startRef.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;

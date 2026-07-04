@@ -11,9 +11,12 @@ concurrency:
 
 jobs:
   deploy:
-    # Skip the push from semantic-release's own release commit: web already
-    # deployed on the feature merge, and this avoids a redundant redeploy.
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    # Deploy the web build together with each release: on manual dispatch, and
+    # on push only for semantic-release's `chore(release):` commit — that commit
+    # carries the version bump the web build stamps into __APP_VERSION__, and
+    # keying off it means one deploy per merge instead of one on the feature
+    # merge plus a redundant one on the release commit.
+    if: ${{ github.event_name != 'push' || startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

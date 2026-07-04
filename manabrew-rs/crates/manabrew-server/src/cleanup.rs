@@ -117,6 +117,86 @@ pub fn schedule_reconnect_abort(state: Arc<ServerState>, room_id: String, player
     });
 }
 
+pub fn schedule_seat_rejoin_abort(state: Arc<ServerState>, room_id: String, username: String) {
+    let Some(timeout_s) = state
+        .rooms
+        .get(&room_id)
+        .map(|room| room.reconnect_timeout_s)
+    else {
+        return;
+    };
+    let timeout = Duration::from_secs(timeout_s as u64);
+
+    tokio::spawn(async move {
+        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
+
+        let seat_expired = state
+            .rooms
+            .get(&room_id)
+            .map(|room| {
+                room.status == RoomStatus::InGame
+                    && room
+                        .players
+                        .iter()
+                        .any(|slot| slot.username == username && !slot.connected && !slot.is_bot)
+            })
+            .unwrap_or(false);
+        if !seat_expired {
+            return;
+        }
+
+        abort_in_game_room(&state, &room_id);
+    });
+}
+
+pub fn schedule_host_resume_abort(
+    state: Arc<ServerState>,
+    room_id: String,
+    host_player_id: String,
+) {
+    let Some(timeout_s) = state
+        .rooms
+        .get(&room_id)
+        .map(|room| room.reconnect_timeout_s)
+    else {
+        return;
+    };
+    let timeout = Duration::from_secs(timeout_s as u64);
+
+    tokio::spawn(async move {
+        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
+
+        // ResumeRoom rotates host_player_id and session reclaim flips the
+        // player back to connected; either one disarms this abort.
+        let host_still_gone = state
+            .rooms
+            .get(&room_id)
+            .map(|room| room.status == RoomStatus::InGame && room.host_player_id == host_player_id)
+            .unwrap_or(false)
+            && state
+                .players
+                .get(&host_player_id)
+                .map(|player| !player.connected)
+                .unwrap_or(true);
+        if !host_still_gone {
+            return;
+        }
+
+        info!(
+            "[cleanup] hosted in-game room {} host never resumed -- removing",
+            &room_id[..8.min(room_id.len())]
+        );
+        broadcast_to_room(
+            &state,
+            &room_id,
+            &ServerMessage::GameAborted {
+                room_id: room_id.clone(),
+            },
+        );
+        remove_room_and_clear_sessions(&state, &room_id);
+    });
+}
+
 fn abort_in_game_room(state: &Arc<ServerState>, room_id: &str) {
     info!(
         "[cleanup] aborting in-game room {} (reconnect timeout)",
@@ -198,11 +278,26 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
                     .map(|room| room.is_host(player_id) && !room.host_is_player())
                     .unwrap_or(false);
                 if host_without_player {
+                    // Give the host the same reconnect grace as a player: it can
+                    // come back via session reclaim or ResumeRoom. Killing the
+                    // room here would abort every guest's game on a host blip.
+                    if let Some(mut room) = state.rooms.get_mut(rid) {
+                        room.set_connected(player_id, false);
+                    } else {
+                        return;
+                    }
                     info!(
-                        "[cleanup] hosted in-game room {} lost its non-playing host -- removing",
+                        "[disconnect] hosted in-game room {} lost its non-playing host -- awaiting resume",
                         &rid[..8]
                     );
-                    remove_room_and_clear_sessions(state, rid);
+                    broadcast_to_room(
+                        state,
+                        rid,
+                        &ServerMessage::PlayerDisconnected {
+                            username: username.clone(),
+                        },
+                    );
+                    schedule_host_resume_abort(state.clone(), rid.clone(), player_id.to_string());
                     return;
                 }
 

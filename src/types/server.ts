@@ -1,20 +1,16 @@
-import type { Deck } from "@/protocol/deck";
-import type { Prompt, PromptOutput, StateUpdate } from "@/protocol";
+import type {
+  DraftConfig,
+  EngineKind,
+  GameFormat,
+  PlayerDeckInfo,
+  Prompt,
+  PromptOutput,
+  SealedConfig,
+  StateUpdate,
+} from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 
-export type GameFormat =
-  | "Any"
-  | "Standard"
-  | "Pioneer"
-  | "Modern"
-  | "Legacy"
-  | "Vintage"
-  | "Pauper"
-  | "Commander"
-  | "Brawl"
-  | "Oathbreaker"
-  | "Draft"
-  | "Sealed";
+export type { DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, SealedConfig } from "@/protocol";
 
 /** Which pile a card lives in inside a `Deck`. Used by the deck
  *  builder's section validators (`lib/formats.ts`) — NOT a wire field.
@@ -47,38 +43,12 @@ export interface RoomInfo {
   sealed_config?: SealedConfig;
 }
 
-export type EngineKind = "Manabrew" | "Forge";
-
-export interface SealedConfig {
-  set_code: string;
-  num_boosters: number;
-  base_seed?: number;
-}
-
-export interface DraftConfig {
-  set_code?: string;
-  cube_id?: string;
-  cube_name?: string;
-  rounds: number;
-  picks_per_pass: number;
-  seed?: number;
-  fill_with_bots: boolean;
-}
-
 export interface RoomPlayerInfo {
   username: string;
   ready: boolean;
   connected: boolean;
   is_bot?: boolean;
   selected_deck_name?: string;
-}
-
-export interface PlayerDeckInfo {
-  username: string;
-  deck_name: string;
-  deck: Deck;
-  commander_name?: string;
-  avatar?: string;
 }
 
 export interface PlayerInfo {

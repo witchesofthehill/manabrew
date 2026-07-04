@@ -20,12 +20,16 @@ services:
       - "443:443"
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ops/status.json:/srv/manabrew/status.json:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
       - manabrew-server
 
   manabrew-server:
+    # Explicit tag so deploy.sh can address the freshly built image when it
+    # compares binaries to decide whether a restart is needed.
+    image: manabrew-server:production
     build:
       context: .
       dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile

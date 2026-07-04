@@ -1,14 +1,18 @@
 pub use crate::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
 pub struct PlayerDeckInfo {
     pub username: String,
     pub deck_name: String,
     pub deck: Deck,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub commander_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub avatar: Option<String>,
 }
 
@@ -57,6 +61,8 @@ pub enum ClientMessage {
         #[serde(default)]
         password: Option<String>,
     },
+
+    ResumeRoom(ResumeRoomRequest),
 
     LeaveRoom,
 
@@ -120,6 +126,12 @@ pub enum ServerMessage {
     RoomCreated {
         room_id: String,
         room_name: String,
+        #[serde(default)]
+        resume_token: Option<String>,
+    },
+
+    RoomResumed {
+        room: RoomInfo,
     },
 
     PlayerJoined {
@@ -181,6 +193,40 @@ pub enum ServerMessage {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
+pub struct ResumeRoomRequest {
+    pub room_id: String,
+    pub resume_token: String,
+    pub room_name: String,
+    pub max_players: u8,
+    pub format: GameFormat,
+    #[serde(default)]
+    pub hosted: bool,
+    #[serde(default)]
+    pub engine: EngineKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub official_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub password: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reconnect_timeout_s: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub draft_config: Option<DraftConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sealed_config: Option<SealedConfig>,
+    pub player_order: Vec<String>,
+    pub player_decks: Vec<PlayerDeckInfo>,
+    pub starting_life: i32,
+    #[serde(default)]
+    pub bot_players: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomInfo {
     pub room_id: String,
@@ -212,25 +258,32 @@ fn default_reconnect_timeout_s() -> u32 {
     DEFAULT_RECONNECT_TIMEOUT_S
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
 pub struct SealedConfig {
     pub set_code: String,
     pub num_boosters: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
     pub base_seed: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
 pub struct DraftConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub set_code: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub cube_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub cube_name: Option<String>,
     pub rounds: u8,
     pub picks_per_pass: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
     pub seed: Option<u64>,
     pub fill_with_bots: bool,
 }
@@ -261,7 +314,8 @@ pub enum RoomStatus {
     InGame,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
 pub enum GameFormat {
     Any,
     Standard,
@@ -277,7 +331,8 @@ pub enum GameFormat {
     Sealed,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
+#[ts(export, export_to = "lobby/index.ts")]
 pub enum EngineKind {
     #[default]
     Manabrew,

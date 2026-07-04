@@ -34,9 +34,10 @@ import {
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { DeckListControls } from "@/components/deck/DeckListControls";
 import { cn } from "@/lib/utils";
-import { Plus, Download } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
+import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
@@ -83,6 +84,7 @@ export default function DeckEditor() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
 
   useKeybindings({
     "card-search-focus": () => {
@@ -429,7 +431,7 @@ export default function DeckEditor() {
                 <div className="group relative">
                   <button
                     type="button"
-                    onClick={handleNewDeck}
+                    onClick={() => setChoiceDialogOpen(true)}
                     className={cn(
                       "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
                       "flex flex-col items-center justify-center gap-1.5",
@@ -438,19 +440,7 @@ export default function DeckEditor() {
                     )}
                   >
                     <Plus className="h-6 w-6" />
-                    <span className="text-xs font-medium">New deck</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImportDialogOpen(true)}
-                    className={cn(
-                      "absolute bottom-2 left-1/2 -translate-x-1/2",
-                      "flex items-center gap-1 rounded-md px-2 py-1 text-[11px]",
-                      "text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground",
-                    )}
-                  >
-                    <Download className="h-3" />
-                    Import
+                    <span className="text-xs font-medium">Add deck</span>
                   </button>
                 </div>
 
@@ -528,6 +518,19 @@ export default function DeckEditor() {
             </div>
           </ScrollArea>
         </div>
+
+        <NewDeckChoiceDialog
+          open={choiceDialogOpen}
+          onOpenChange={setChoiceDialogOpen}
+          onImport={() => {
+            setChoiceDialogOpen(false);
+            setImportDialogOpen(true);
+          }}
+          onFromScratch={() => {
+            setChoiceDialogOpen(false);
+            handleNewDeck();
+          }}
+        />
 
         <ImportDeckTextDialog
           open={importDialogOpen}

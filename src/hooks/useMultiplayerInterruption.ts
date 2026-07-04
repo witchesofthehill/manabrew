@@ -5,6 +5,12 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 
+// When it's our own connection that dropped (relay restart/deploy included),
+// give the full 120s the engine allows before auto-passing prompts, instead of
+// the room's opponent-facing reconnect window. The post-restart rejoin loop
+// shares this deadline.
+export const SELF_RECONNECT_WINDOW_S = 120;
+
 export interface MultiplayerInterruption {
   waiting: boolean;
   reason: "self" | "opponent";
@@ -32,7 +38,9 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
     !gameOver &&
     !gameOverPrompt &&
     (selfDisconnected || disconnectedNames.length > 0);
-  const timeoutS = currentRoom?.reconnect_timeout_s ?? DEFAULT_RECONNECT_TIMEOUT_S;
+  const timeoutS = selfDisconnected
+    ? SELF_RECONNECT_WINDOW_S
+    : (currentRoom?.reconnect_timeout_s ?? DEFAULT_RECONNECT_TIMEOUT_S);
 
   const deadlineRef = useRef<number | null>(null);
   const expiredRef = useRef(false);

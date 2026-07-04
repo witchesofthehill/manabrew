@@ -31,6 +31,7 @@ export const STORAGE_KEYS = {
   PREFERENCES: "manabrew-preferences",
   COMPANION: "manabrew-companion",
   KEYBINDINGS: "manabrew-keybindings",
+  STATUS_BANNER: "manabrew-status-banner",
 } as const;
 
 // ─── Deck Defaults ───────────────────────────────────────────────────────────

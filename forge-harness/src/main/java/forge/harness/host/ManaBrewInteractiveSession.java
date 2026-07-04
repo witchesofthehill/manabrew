@@ -230,6 +230,29 @@ public final class ManaBrewInteractiveSession {
                 Thread.currentThread().interrupt();
                 return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
             }
+            try {
+                return interpretPriorityAction(action, actionsForPrompt, untappableCards);
+            } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
+                System.err.println("[mana-brew] ignoring invalid priority answer: " + invalid
+                        + " | playerId=" + playerId
+                        + " options=" + actionsForPrompt.size()
+                        + " untappable=" + untappableCards.size()
+                        + " phase=" + game.getPhaseHandler().getPhase()
+                        + " turn=" + game.getPhaseHandler().getTurn()
+                        + " action=" + action);
+                invalid.printStackTrace(System.err);
+                publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
+            }
+        }
+        return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
+    }
+
+    private PriorityChoice interpretPriorityAction(
+            final JsonObject action,
+            final List<SpellAbility> actionsForPrompt,
+            final List<Card> untappableCards
+    ) {
+        {
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(kind) || "pass_priority".equals(kind)) {
                 final JsonObject until = action.has("until") && action.get("until").isJsonObject()
@@ -267,7 +290,6 @@ public final class ManaBrewInteractiveSession {
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
-        return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
     }
 
     enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL, DELVE, UNDELVE }
@@ -354,6 +376,34 @@ public final class ManaBrewInteractiveSession {
                 Thread.currentThread().interrupt();
                 return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
             }
+            try {
+                return interpretManaPaymentChoice(
+                        action, tappableSources, untappableCards, convokeSources, delveSources);
+            } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
+                System.err.println("[mana-brew] ignoring invalid mana-payment answer: " + invalid
+                        + " | playerId=" + playerId
+                        + " payingFor=" + (payingFor != null ? payingFor.getName() : "null")
+                        + " remainingCost=" + remainingCost
+                        + " tappable=" + tappableSources.size()
+                        + " canConfirm=" + canConfirm + " canCancel=" + canCancel
+                        + " action=" + action);
+                invalid.printStackTrace(System.err);
+                publishManaPaymentPrompt(
+                        playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
+                        delveSources, delvedCards, canConfirm, canCancel, canPayLife, lifeToPay);
+            }
+        }
+        return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
+    }
+
+    private ManaPaymentChoice interpretManaPaymentChoice(
+            final JsonObject action,
+            final List<SpellAbility> tappableSources,
+            final List<Card> untappableCards,
+            final List<Card> convokeSources,
+            final List<Card> delveSources
+    ) {
+        {
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             switch (kind) {
                 case "tap_land": {
@@ -402,7 +452,6 @@ public final class ManaBrewInteractiveSession {
                     throw new UnsupportedOperationException("unsupported mana-payment action kind: " + kind);
             }
         }
-        return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
     }
 
     private SpellAbility resolveTapSource(final JsonObject action, final List<SpellAbility> tappableSources) {
@@ -641,7 +690,7 @@ public final class ManaBrewInteractiveSession {
     boolean awaitMulliganDecision(final int playerId, final int cardsToReturn) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(
-                game.getPlayers().get(playerId).getCardsIn(forge.game.zone.ZoneType.Hand));
+                game.getRegisteredPlayers().get(playerId).getCardsIn(forge.game.zone.ZoneType.Hand));
         publishCardChoicePrompt("mulligan", playerId, cards, 0, 0, cardsToReturn);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
@@ -1908,7 +1957,7 @@ public final class ManaBrewInteractiveSession {
             final Map<Card, List<Card>> validBlockersByAttacker,
             final String error
     ) {
-        final Player defendingPlayer = game.getPlayers().get(playerId);
+        final Player defendingPlayer = game.getRegisteredPlayers().get(playerId);
         final List<BlockableAttackerDto> attackerOptions = new java.util.ArrayList<>();
         for (final Card attacker : attackers) {
             final List<String> validBlockerIds = new java.util.ArrayList<>();

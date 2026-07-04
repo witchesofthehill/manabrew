@@ -230,6 +230,16 @@ The script will:
 - Only rebuild if Java/Rust/infra files changed
 - Restart the container
 
+`manabrew-server` (the relay) gets extra protection because restarting it
+kills every live game: after a rebuild, the script compares the
+`manabrew-server` binary inside the fresh image (`manabrew-server:production`)
+against the one in the running container and skips the restart when they are
+identical. Root `Cargo.lock`/`Cargo.toml` churn (release bumps, Tauri/UI
+dependency updates) therefore no longer bounces the relay. Changes to the
+relay's Dockerfile, any compose file, `.dockerignore`, or `deploy.sh` itself
+always rebuild with `--no-cache` and restart, since those can change the
+container beyond the binary.
+
 ## Useful Commands
 
 ```bash
@@ -245,6 +255,15 @@ docker compose -f manabrew-rs/crates/manabrew-server/compose.yml build --no-cach
 # Check parity database
 docker compose -f manabrew-rs/crates/manabrew-server/compose.yml exec parity-dashboard sqlite3 /app/data/parity.db ".tables"
 ```
+
+### When the relay does restart
+
+Live games survive a relay restart as long as the game hosts stay up. On
+`SIGTERM` the relay broadcasts `ServerShuttingDown` and drains for 10s; after
+the restart, hosts (self-hosted nodes and web-hosting browsers) re-register
+their rooms via `ResumeRoom` using the `resume_token` from `RoomCreated`, and
+guests rejoin their seats and resync. The token guards rooms the relay still
+holds; a room the restarted relay has forgotten is resurrected on first claim.
 
 ## Investigating relay disconnects
 

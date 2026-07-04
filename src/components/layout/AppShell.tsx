@@ -13,6 +13,8 @@ import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { DESKTOP_QUERY } from "@/lib/responsive";
+import { StatusBanner } from "./StatusBanner";
+import { useStatusBanner } from "@/hooks/useStatusBanner";
 
 // Order mirrors the primary nav in Sidebar; drives prev/next page shortcuts.
 const NAV_ROUTES = [
@@ -52,6 +54,7 @@ export function AppShell() {
   }, [setupListeners]);
 
   useGameSessionResume();
+  useStatusBanner();
 
   function toggleSidebar() {
     setSidebarCollapsed((v) => !v);
@@ -95,6 +98,7 @@ export function AppShell() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col">
+      <StatusBanner />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {!isDesktop && (
         <>

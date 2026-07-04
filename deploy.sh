@@ -98,11 +98,13 @@ INFRA_CHANGED=false
 # would otherwise be classified JAVA_CHANGED and skip the web rebuild — leaving
 # the deployed archive stale (missing newly-added sets).
 CARDDATA_CHANGED=false
-# manabrew-server (the relay) is rebuilt/restarted only when its own dep closure
-# changes — restarting it bounces the relay and interrupts live games. Since the
-# manabrew-protocol split, that closure is just manabrew-server + manabrew-protocol (it no
-# longer compiles the engine), so a change anywhere else under manabrew-engine/ must
-# NOT redeploy it.
+# manabrew-server (the relay) — restarting it kills every live game, so this
+# flag only decides whether to REBUILD its image. The restart itself is gated
+# further down on whether the binary inside the fresh image actually differs
+# from the one in the running container: the path filter over-triggers
+# constantly (root Cargo.lock churns with release bumps and tauri/UI dep
+# updates that are outside the relay's dep closure of manabrew-server +
+# manabrew-protocol).
 FORGE_SERVER_CHANGED=false
 # The Caddyfile is volume-mounted into the manabrew container, not baked into
 # the image, and caddy does not watch its config file. Rebuilding the image
@@ -166,7 +168,9 @@ else
     echo "Parity dashboard skipped (COMPOSE_PROFILES does not include 'parity')" >> "$RAW_LOG"
 fi
 
-# -- manabrew-server (relay; rebuilt only when its own dep closure changes) --
+# -- manabrew-server (relay; restarted only when the shipped binary differs) --
+RELAY_IMAGE="manabrew-server:production"
+RELAY_UNCHANGED=false
 if $INFRA_CHANGED; then
     echo "Building manabrew-server (full)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache manabrew-server >> "$RAW_LOG" 2>&1
@@ -174,7 +178,24 @@ if $INFRA_CHANGED; then
 elif $FORGE_SERVER_CHANGED; then
     echo "Building manabrew-server (cached)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain manabrew-server >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
+    # Dockerfile/compose changes take the INFRA branch above, so on this branch
+    # an identical binary means the deployment is identical: skip the restart
+    # and point the tag back at the running image so `up -d` (here or manual)
+    # keeps considering the container up to date.
+    RELAY_CID=$(docker compose -f "$COMPOSE_FILE" ps -q manabrew-server)
+    if [ -n "$RELAY_CID" ]; then
+        RELAY_OLD_IMAGE=$(docker inspect --format '{{.Image}}' "$RELAY_CID")
+        OLD_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_OLD_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
+        NEW_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
+        if [ -n "$OLD_SHA" ] && [ "$OLD_SHA" = "$NEW_SHA" ]; then
+            docker tag "$RELAY_OLD_IMAGE" "$RELAY_IMAGE" >> "$RAW_LOG" 2>&1
+            RELAY_UNCHANGED=true
+            echo "manabrew-server binary unchanged (${NEW_SHA:0:12}) — relay not restarted" >> "$RAW_LOG"
+        fi
+    fi
+    if ! $RELAY_UNCHANGED; then
+        SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
+    fi
 fi
 
 # -- manabrew (WASM + React static site served via caddy) --
@@ -189,7 +210,11 @@ elif $WEB_CHANGED || $RUST_CHANGED || $CARDDATA_CHANGED; then
 fi
 
 if [ -z "$SERVICES_TO_RESTART" ] && ! $CADDYFILE_CHANGED; then
-    echo "🧹 No Java/Rust/infra changes — skipping build."
+    if $RELAY_UNCHANGED; then
+        echo "🧹 Relay rebuilt but binary unchanged — nothing to restart."
+    else
+        echo "🧹 No Java/Rust/infra changes — skipping build."
+    fi
     exit 0
 fi
 
@@ -218,6 +243,11 @@ BUILD_DURATION=$(( BUILD_END - BUILD_START ))
 # ── Pretty summary for Discord ───────────────────────────────────────
 SERVICES_FMT=$(echo "$SERVICES_TO_RESTART" | xargs -n1 | sed 's/^/  - /' | tr '\n' '\n')
 
+RELAY_NOTE=""
+if $RELAY_UNCHANGED; then
+    RELAY_NOTE=$'🛡️ **Relay:** binary unchanged — not restarted, live games preserved\n'
+fi
+
 # Build change flags string (with per-stack emoji)
 CHANGES=""
 $JAVA_CHANGED      && CHANGES="${CHANGES} ☕ Java"
@@ -236,7 +266,7 @@ cat <<EOF
 📦 **Changed:** ${CHANGES}
 🔁 **Services rebuilt:**
 ${SERVICES_FMT}
-⏱️ **Build time:** ${BUILD_DURATION}s
+${RELAY_NOTE}⏱️ **Build time:** ${BUILD_DURATION}s
 📄 **Log:** \`${RAW_LOG}\`
 
 📝 **Changelog:**

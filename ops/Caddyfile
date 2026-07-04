@@ -80,6 +80,16 @@ play.manabrew.app {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    # Status banner (ops/status.json, bind-mounted). Open CORS so desktop and
+    # off-origin web builds read this one canonical file.
+    handle /status.json {
+        header {
+            Access-Control-Allow-Origin "*"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

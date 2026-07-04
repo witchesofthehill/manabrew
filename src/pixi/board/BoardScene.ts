@@ -375,7 +375,8 @@ export class BoardScene {
       if (e.pointerType !== "touch") return;
       const rect = this.app.canvas.getBoundingClientRect();
       this.pinchPointers.set(e.pointerId, { x: e.clientX - rect.left, y: e.clientY - rect.top });
-      if (this.pinchPointers.size === 2) this.beginPinch();
+      if (this.pinchStart) this.tapSuppressedPointers.add(e.pointerId);
+      else if (this.pinchPointers.size === 2) this.beginPinch();
     };
     this.pinchMoveListener = (e: PointerEvent) => {
       if (!this.pinchPointers.has(e.pointerId)) return;

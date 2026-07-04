@@ -35,6 +35,13 @@ export class LongPressGesture {
     this.origin = null;
   }
 
+  /** Abort path (pinch takeover, gesture cancel): also disarm the tap
+   *  suppression, or the next plain tap on the same key would be eaten. */
+  reset(): void {
+    this.cancel();
+    this.firedKey = null;
+  }
+
   /** The suppressed tap fires synchronously right after the up event; clear
    *  the marker on the next tick so it can't leak into a later tap. */
   releaseFired(): void {

@@ -873,7 +873,7 @@ export class BoardScene {
     this.setAttackDragId(null);
     this.attackDragCandidate = null;
     this.activeGesturePointerId = null;
-    this.longPress.cancel();
+    this.longPress.reset();
     const state = local?.getLastState();
     if (local && state) local.updateBattlefield(state);
   }

@@ -109,7 +109,9 @@ export default function Play() {
             if (getPlatform().type === "web") {
               setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
             } else {
-              startGame(playerDeck, formatId, commanderName, opponentDeck, "Manabrew");
+              // Tauri (graalvm build) defaults to the bundled Forge engine; the
+              // store falls back to Manabrew if the local Forge host can't start.
+              startGame(playerDeck, formatId, commanderName, opponentDeck, "Forge");
             }
           }}
         />

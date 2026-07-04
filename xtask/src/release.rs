@@ -98,13 +98,21 @@ pub fn release(ws: &Workspace, root: &Path, dry_run: bool) -> Result<()> {
         )?;
     }
 
+    // GitHub suppresses workflow events for a push carrying more than three
+    // tags, so the app's v* tag — the one publish.yml triggers on — gets a
+    // push of its own. Crate tags drive no workflows and ride with main.
     let mut push_args: Vec<&str> = vec!["push", "origin", "HEAD:main"];
     for e in &entries {
-        push_args.push(&e.tag);
+        if app.map(|a| a.tag != e.tag).unwrap_or(true) {
+            push_args.push(&e.tag);
+        }
     }
     run_inherit(root, "git", &push_args)?;
+    if let Some(app) = app {
+        run_inherit(root, "git", &["push", "origin", &app.tag])?;
+    }
 
-    // The GitHub Release must exist with notes before release-artifacts.yml
+    // The GitHub Release must exist with notes before publish.yml
     // (triggered by the tag push) attaches installers to it.
     if let (Some(app), Some(notes)) = (app, &notes) {
         let notes_path = root.join("target/release-notes.md");

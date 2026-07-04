@@ -7,10 +7,12 @@ name: Release
 # straight to main, tags each released crate (`<crate>-vX.Y.Z`; the desktop
 # app owns plain `vX.Y.Z`), and creates the GitHub Release with notes.
 #
-# The push uses RELEASE_TOKEN — a fine-grained PAT of a repository ADMIN
-# (admins bypass the "Main protection" ruleset; GITHUB_TOKEN cannot push to
-# main). Because it is a real PAT, the pushes fire normal events: the v* tag
-# push triggers publish.yml, which builds the installers, attaches
+# Auth is the release GitHub App: create-github-app-token mints a short-lived
+# installation token from RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (an app
+# private key never expires — nothing to rotate). The app sits on the "Main
+# protection" ruleset bypass list (GITHUB_TOKEN cannot push to main), and
+# because it is not the Actions token, its pushes fire normal events: the
+# v* tag push triggers publish.yml, which builds the installers, attaches
 # them + the updater manifest (tauri.json) to the Release this job already
 # created, and finishes by deploying production. Main pushes trigger nothing
 # else — this workflow is the only thing that runs on a main commit.
@@ -41,13 +43,19 @@ jobs:
       (github.event_name == 'workflow_dispatch' ||
        !startsWith(github.event.head_commit.message, 'chore(release):'))
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           # Full history + tags: git-cliff walks commits since each crate's
-          # last release tag. The token is what lets the push bypass main's
-          # branch protection.
+          # last release tag. The app token is what lets the push bypass
+          # main's branch protection.
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -64,7 +72,7 @@ jobs:
 
       - name: Compute bumps, commit to main, tag, create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: cargo xtask release
 
       # Publishes every publishable crate whose version is not on crates.io

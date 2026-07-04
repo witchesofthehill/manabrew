@@ -1,5 +1,19 @@
 import { useCallback, useSyncExternalStore } from "react";
 
+// One MediaQueryList per query string for the app's lifetime — `getSnapshot`
+// runs on every render of every consumer (each prompt pill calls the breakpoint
+// hooks), and constructing a fresh list forces a style-media evaluation.
+const mqlCache = new Map<string, MediaQueryList>();
+
+function mediaQueryList(query: string): MediaQueryList {
+  let mq = mqlCache.get(query);
+  if (!mq) {
+    mq = window.matchMedia(query);
+    mqlCache.set(query, mq);
+  }
+  return mq;
+}
+
 /**
  * Subscribe to a CSS media query and re-render when it flips.
  *
@@ -16,13 +30,13 @@ import { useCallback, useSyncExternalStore } from "react";
 export function useMediaQuery(query: string): boolean {
   const subscribe = useCallback(
     (onChange: () => void) => {
-      const mq = window.matchMedia(query);
+      const mq = mediaQueryList(query);
       mq.addEventListener("change", onChange);
       return () => mq.removeEventListener("change", onChange);
     },
     [query],
   );
-  const getSnapshot = useCallback(() => window.matchMedia(query).matches, [query]);
+  const getSnapshot = useCallback(() => mediaQueryList(query).matches, [query]);
   const getServerSnapshot = () => false;
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

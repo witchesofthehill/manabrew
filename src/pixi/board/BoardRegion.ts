@@ -100,6 +100,10 @@ const COMBAT_ROW_AVATAR_D = 24;
  *  same objects (resize, blockers, combat staging) hit the cache. */
 const stackKeyCache = new WeakMap<CardDto, string>();
 
+// Reused for the per-frame local<->canvas conversions (one per card per tick) —
+// allocating a Point each call is measurable GC churn on low-end mobile GPUs.
+const SCRATCH_POINT = new PixiPoint();
+
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
  *  every property the engine reports splits the stack automatically. Only `id`
  *  (always unique) is excluded. */
@@ -401,12 +405,14 @@ export class BoardRegion {
   // Through the full transform chain (not just position) so board zoom — a
   // scale on the scene root — keeps canvas-space math correct.
   private localToCanvas(x: number, y: number): ScreenPos {
-    const p = this.container.toGlobal(new PixiPoint(x, y));
+    SCRATCH_POINT.set(x, y);
+    const p = this.container.toGlobal(SCRATCH_POINT, SCRATCH_POINT);
     return { x: p.x, y: p.y };
   }
 
   private canvasToLocal(x: number, y: number): ScreenPos {
-    const p = this.container.toLocal(new PixiPoint(x, y));
+    SCRATCH_POINT.set(x, y);
+    const p = this.container.toLocal(SCRATCH_POINT, undefined, SCRATCH_POINT);
     return { x: p.x, y: p.y };
   }
 

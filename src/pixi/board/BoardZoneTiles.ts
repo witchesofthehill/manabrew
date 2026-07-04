@@ -101,6 +101,7 @@ export class BoardZoneTiles {
     grabY: number;
     moved: boolean;
   } | null = null;
+  private cancelledDragPointerId: number | null = null;
   private longPress = new LongPressGesture();
 
   constructor(theme: Theme, host: ZoneTileHost) {
@@ -228,6 +229,11 @@ export class BoardZoneTiles {
     });
     const end = (e: FederatedPointerEvent) => {
       if (this.drag?.tile === tile && this.drag.pointerId !== e.pointerId) return;
+      if (this.cancelledDragPointerId === e.pointerId) {
+        this.cancelledDragPointerId = null;
+        this.longPress.cancel();
+        return;
+      }
       this.longPress.cancel();
       const heldForPreview = this.longPress.consumeTap(tile.spec.key);
       if (heldForPreview) this.host.onPreview(null);
@@ -442,9 +448,14 @@ export class BoardZoneTiles {
 
   cancelDrag(): void {
     if (!this.drag) return;
+    this.cancelledDragPointerId = this.drag.pointerId;
     this.drag.tile.container.zIndex = 0;
     this.drag = null;
     this.host.onDragEnd();
+  }
+
+  cancelDragForPointer(pointerId: number): void {
+    if (this.drag?.pointerId === pointerId) this.cancelDrag();
   }
 
   destroy(): void {

@@ -394,6 +394,7 @@ export class BoardScene {
     // OS-cancelled touch (edge swipe, notification shade) would leave a dead
     // activeGesturePointerId that filters out all future input.
     this.gestureCancelListener = (e: PointerEvent) => {
+      this.localRegion()?.cancelZoneTileDragForPointer(e.pointerId);
       if (this.activeGesturePointerId === e.pointerId) this.abortActiveGesture();
     };
     window.addEventListener("pointercancel", this.gestureCancelListener);

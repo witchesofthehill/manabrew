@@ -249,6 +249,10 @@ export class BoardRegion {
     this.zoneTiles.cancelDrag();
   }
 
+  cancelZoneTileDragForPointer(pointerId: number): void {
+    this.zoneTiles.cancelDragForPointer(pointerId);
+  }
+
   private freshGrid(): GridLayoutInfo {
     return computeGridLayout(
       this.playArea(),

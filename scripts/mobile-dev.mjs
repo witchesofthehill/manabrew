@@ -113,6 +113,12 @@ async function pickIosSimulator() {
   return devices[idx - 1];
 }
 
-const yarn = platform() === "win32" ? "yarn.cmd" : "yarn";
-const res = spawnSync(yarn, ["tauri", target, ...args], { stdio: "inherit", env });
+// Node >=18.20 refuses to spawn .cmd shims without a shell (CVE-2024-27980);
+// the EINVAL lands in res.error with a null status, so surface it.
+const res = spawnSync("yarn", ["tauri", target, ...args], {
+  stdio: "inherit",
+  env,
+  shell: platform() === "win32",
+});
+if (res.error) console.error(`[mobile-dev] ${res.error.message}`);
 process.exit(res.status ?? 1);

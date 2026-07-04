@@ -146,14 +146,20 @@ jobs:
         run: ./forge-harness/build-native.sh
 
       - name: Tauri build (macOS)
-        run: yarn tauri -- build --features forge-room
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: yarn tauri -- build --features forge-room --config src-tauri/updater.conf.json
 
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg-${{ github.sha }}
           # Cargo workspace lives at repo root; target/ is there, not in src-tauri/.
-          path: target/release/bundle/dmg/*.dmg
+          path: |
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/macos/*.app.tar.gz
+            target/release/bundle/macos/*.app.tar.gz.sig
           if-no-files-found: error
           retention-days: 30
 
@@ -347,7 +353,10 @@ jobs:
         shell: pwsh
 
       - name: Tauri build (Windows)
-        run: yarn tauri -- build --features forge-room
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: yarn tauri -- build --features forge-room --config src-tauri/updater.conf.json
 
       - name: Upload .exe
         uses: actions/upload-artifact@v4
@@ -357,6 +366,7 @@ jobs:
           # NSIS produces the self-installing .exe, WiX produces the .msi.
           path: |
             target/release/bundle/nsis/*.exe
+            target/release/bundle/nsis/*.exe.sig
             target/release/bundle/msi/*.msi
           if-no-files-found: error
           retention-days: 30
@@ -522,6 +532,9 @@ jobs:
           name: windows-exe-${{ github.sha }}
           path: release-assets/windows
 
+      - name: Generate updater manifest (tauri.json)
+        run: node scripts/gen-updater-manifest.mjs --tag "${{ github.ref_name }}" --assets release-assets --out release-assets/tauri.json
+
       # Attach artifacts to the release release-please already created from
       # CHANGELOG.md. Omitting `body` makes softprops/action-gh-release leave
       # the existing release notes untouched.
@@ -534,8 +547,12 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
             release-assets/macos/**/*.dmg
+            release-assets/macos/**/*.app.tar.gz
+            release-assets/macos/**/*.app.tar.gz.sig
             release-assets/windows/**/*.exe
+            release-assets/windows/**/*.exe.sig
             release-assets/windows/**/*.msi
+            release-assets/tauri.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -13,13 +13,19 @@
 // origin. The `remote` block alone grants nothing — it only scopes which origin
 // the listed permissions apply to.
 //
-// Returns None in dev (no embedded assets → Tauri uses the vite devUrl) and on
-// bind failure, so the window falls back to the default URL. The port is fixed
+// Returns None in dev and on bind failure, so the window falls back to the
+// default URL (the vite devUrl). The dev gate must be explicit: in dev the
+// asset resolver reads `frontendDist` (../dist) straight from disk, so a stale
+// `dist/` left by an earlier `vite build` would otherwise hijack `tauri dev`
+// and silently serve that old bundle instead of vite. The port is fixed
 // so capabilities/default.json can list an exact `http://localhost:9527` origin.
 const ASSET_SERVER_PORT: u16 = 9527;
 
 #[cfg(not(target_os = "windows"))]
 fn start_asset_server(app: &tauri::AppHandle) -> Option<u16> {
+    if tauri::is_dev() {
+        return None;
+    }
     let resolver = app.asset_resolver();
     resolver.get("index.html".into())?;
 

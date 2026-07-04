@@ -1,6 +1,6 @@
 {
   "productName": "Manabrew",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "identifier": "com.manabrew.app",
   "build": {
     "frontendDist": "../dist",
@@ -16,6 +16,12 @@
         "Cross-Origin-Opener-Policy": "same-origin",
         "Cross-Origin-Embedder-Policy": "require-corp"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://play.manabrew.app/tauri.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1OUFFMThDMDA1NzdBNkIKUldScmVsY0FqT0dhMWI2QThlNlNNV1dFamNaOU90MXBZak5nVTd1QlRoUHAwdFBOdnVzN2NFcUQK"
     }
   },
   "bundle": {

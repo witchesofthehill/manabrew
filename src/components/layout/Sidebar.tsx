@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { ManaBrewLogo } from "./ManaBrewLogo";
+import { SidebarUpdate } from "./SidebarUpdate";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   onNavigate?: () => void;
@@ -178,6 +179,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </div>
       </div>
+      <SidebarUpdate />
       <div className="mt-auto flex w-full flex-col gap-1.5 px-4 py-4 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Get in touch

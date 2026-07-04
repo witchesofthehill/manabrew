@@ -282,11 +282,13 @@ export class PlayerHudCapsule {
     localTop: number,
     localBottom: number,
   ): void {
+    const sx = this.container.scale.x;
+    const sy = this.container.scale.y;
     this.onHover(
       content,
-      this.container.x + localCx,
-      this.container.y + localTop,
-      this.container.y + localBottom,
+      this.container.x + localCx * sx,
+      this.container.y + localTop * sy,
+      this.container.y + localBottom * sy,
     );
   }
 
@@ -553,9 +555,12 @@ export class PlayerHudCapsule {
         const s = sprite.height;
         this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
       });
-      sprite.on("pointerout", () => this.onHover(null));
+      sprite.on("pointerout", (e) => {
+        if (e.pointerType !== "mouse") return;
+        this.onHover(null);
+      });
       // Touch has no hover: a tap re-shows the tooltip and lets it linger briefly
-      // (pointerout fires on lift, which would hide it immediately otherwise).
+      // (the trailing pointerout on lift is ignored above — the timer hides it).
       sprite.on("pointertap", (e) => {
         if (e.pointerType === "mouse") return;
         const s = sprite.height;

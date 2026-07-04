@@ -323,7 +323,7 @@ export function MainActionOverlay({
         contextRect &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[9000] flex max-w-[16rem] flex-col gap-1.5 rounded-lg border border-border/70 bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+            className="pointer-events-none fixed z-[9000] flex max-h-[55dvh] max-w-[16rem] flex-col gap-1.5 overflow-hidden rounded-lg border border-border/70 bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
             style={{
               right: Math.max(8, window.innerWidth - contextRect.right),
               bottom: Math.min(window.innerHeight - 8, window.innerHeight - contextRect.top + 8),

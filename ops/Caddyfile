@@ -90,6 +90,16 @@ play.manabrew.app {
         file_server
     }
 
+    # Per-package version manifest (ops/manifest.json, bind-mounted). Self-hosted
+    # nodes and the desktop app poll this to detect they are behind the release.
+    handle /manifest.json {
+        header {
+            Access-Control-Allow-Origin "*"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

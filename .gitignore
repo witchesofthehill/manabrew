@@ -90,3 +90,4 @@ forge-harness/native/gen-config/
 .vscode/
 
 src/components/prompts/dev/
+push.sh

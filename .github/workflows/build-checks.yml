@@ -356,3 +356,18 @@ jobs:
 
       - name: Build tauri crate with forge-room feature
         run: cargo build --release -p manabrew --features forge-room
+
+  # Every PR must run `yarn bump`, which increments the top-level version in
+  # ops/manifest.json. Fails if that version is not ahead of the base branch.
+  bump-check:
+    name: Version bump
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch base branch
+        run: git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
+
+      - name: Check manifest version is ahead of base
+        run: node scripts/check-bump.mjs "origin/${{ github.event.pull_request.base.ref }}"

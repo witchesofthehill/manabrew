@@ -92,6 +92,9 @@ interface BoardCanvasProps {
   /** Fraction of usable height for the local player's bottom region; defaults to
    *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
+  /** Compact (touch + short-screen) mode: thinner strip band, phase strip
+   *  collapses to a tap-to-expand pill. */
+  compact?: boolean;
   /** The opponent whose field auto-expands (their turn), or `null` for an even
    *  split (our turn). The scene owns + eases the delimiters; this sets the
    *  target. */
@@ -141,6 +144,7 @@ export function BoardCanvas({
   phaseStrip,
   phaseStripCallbacks,
   selfHeightFraction,
+  compact,
   focusedOpponentId,
   combatFocusIds,
   manualFocusId,
@@ -330,7 +334,8 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction);
+    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction, compact ?? false);
+    s.setCompactStrip(compact ?? false);
     // Each region is scaled to fill its OWN height — a single shared scale let
     // the tightest field (self, after the hand-fan reserve) shrink everyone, so
     // the roomier opponent fields wasted space. Self follows the card-scale
@@ -362,7 +367,7 @@ export function BoardCanvas({
     latestLayoutRef.current = next;
     onLayoutRef.current?.(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, fraction, selfHeightFraction, selfBottomReserve, showPlayerBars]);
+  }, [playersKey, fraction, selfHeightFraction, compact, selfBottomReserve, showPlayerBars]);
 
   useEffect(() => {
     reconfigure();

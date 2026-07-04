@@ -1,6 +1,7 @@
 import { Ban, Sword, Swords } from "lucide-react";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import type { ChooseAttackersProps } from "./internal/types";
 
 export function ChooseAttackers({
@@ -17,6 +18,7 @@ export function ChooseAttackers({
   onSubmitAttack,
 }: ChooseAttackersProps) {
   const promptActionColors = usePromptActionColors();
+  const minimal = useIsMobileGame();
 
   const attackAllClick = multipleDefenders
     ? () => onBeginAttackTargetPick(availableAttackerIds)
@@ -26,14 +28,16 @@ export function ChooseAttackers({
 
   return (
     <div className="flex flex-col items-center gap-1.5">
-      {mustAttackHint && (
+      {!minimal && mustAttackHint && (
         <p className="text-center text-[11px] font-medium text-muted-foreground">
           {mustAttackHint}
         </p>
       )}
-      <p className="text-center text-[11px] text-muted-foreground/70">
-        Drag a creature onto a target — or tap the creature, then its target — to attack.
-      </p>
+      {!minimal && (
+        <p className="text-center text-[11px] text-muted-foreground/70">
+          Drag a creature onto a target — or tap the creature, then its target — to attack.
+        </p>
+      )}
       <div className="flex flex-row items-center justify-center gap-1.5">
         <PromptActionButton
           label="Attack All"
@@ -46,6 +50,7 @@ export function ChooseAttackers({
           label={attackCount > 0 ? `Attack (${attackCount})` : "Attack"}
           icon={<Sword className="h-3.5 w-3.5" />}
           baseColor={promptActionColors.attackAction}
+          badge={minimal && attackCount > 0 ? String(attackCount) : undefined}
           onClick={attackClick}
           disabled={isWaitingForResponse || attackCount === 0}
         />

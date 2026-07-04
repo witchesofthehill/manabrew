@@ -25,10 +25,16 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ZONE_TILE_KEY } from "@/components/game/game.constants";
-import { GAP, HAND_RESERVE_TRIM } from "@/pixi/constants";
+import {
+  GAP,
+  HAND_BOTTOM_SINK_FRAC,
+  HAND_BOTTOM_SINK_FRAC_COMPACT,
+  HAND_RESERVE_TRIM,
+} from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 
@@ -225,9 +231,12 @@ export function GameBoard({
   const toggleSelfStop = usePhaseStopStore((s) => s.toggleSelfStop);
 
   const vScale = useHandScale();
+  const compactBoard = useIsMobileGame();
 
+  const handVisibleFrac =
+    1 - (compactBoard ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC);
   const selfBottomReserve = Math.round(
-    (0.55 * HAND_CARD_BASE.cardH * vScale + GAP) * HAND_RESERVE_TRIM,
+    (handVisibleFrac * HAND_CARD_BASE.cardH * vScale + GAP) * HAND_RESERVE_TRIM,
   );
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
@@ -1165,22 +1174,33 @@ export function GameBoard({
   // playmat's own margin.)
   const lastPanelBlockersRef = useRef<string>("");
   useLayoutEffect(() => {
-    const board = boardRef.current;
-    const scene = sceneRef.current;
-    if (!board || !scene) return;
-    const b = board.getBoundingClientRect();
+    const measure = () => {
+      const board = boardRef.current;
+      const scene = sceneRef.current;
+      if (!board || !scene) return;
+      const b = board.getBoundingClientRect();
+      const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
+      const next: Record<string, BlockingRect[]> = {};
+      if (actionEl) {
+        const r = actionEl.getBoundingClientRect();
+        const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
+        next[me.id] = [
+          { x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height },
+        ];
+      }
+      const json = JSON.stringify(next);
+      if (json === lastPanelBlockersRef.current) return;
+      lastPanelBlockersRef.current = json;
+      scene.setPlayerBlockers(new Map(Object.entries(next)));
+    };
+    measure();
+    if (!compactBoard) return;
     const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-    const next: Record<string, BlockingRect[]> = {};
-    if (actionEl) {
-      const r = actionEl.getBoundingClientRect();
-      const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
-      next[me.id] = [{ x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height }];
-    }
-    const json = JSON.stringify(next);
-    if (json === lastPanelBlockersRef.current) return;
-    lastPanelBlockersRef.current = json;
-    scene.setPlayerBlockers(new Map(Object.entries(next)));
-  }, [sceneRef, me.id, unifiedLayout, promptType]);
+    if (!actionEl) return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(actionEl);
+    return () => ro.disconnect();
+  }, [sceneRef, me.id, unifiedLayout, promptType, compactBoard]);
 
   const sheetSpec = sheetPlayerId
     ? (playerBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
@@ -1253,6 +1273,7 @@ export function GameBoard({
           attackerOptions={chooseAttackersPrompt?.input.attackers ?? []}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
+          compact={compactBoard}
           focusedOpponentId={focusedOpponentId}
           combatFocusIds={combatFocusIds}
           manualFocusId={manualFocusId}

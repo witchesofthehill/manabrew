@@ -13,6 +13,7 @@ interface PromptActionButtonProps {
   variant?: "default" | "outline" | "secondary";
   baseColor?: string;
   style?: CSSProperties;
+  badge?: string;
 }
 
 export function PromptActionButton({
@@ -25,6 +26,7 @@ export function PromptActionButton({
   variant = "default",
   baseColor,
   style,
+  badge,
 }: PromptActionButtonProps) {
   const promptActionColors = usePromptActionColors();
   const resolvedBaseColor = baseColor ?? promptActionColors.passAction;
@@ -39,7 +41,7 @@ export function PromptActionButton({
         size="icon"
         variant={variant}
         className={cn(
-          "!h-9 !w-9 min-h-9 min-w-9 rounded-lg p-0 shrink-0 !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105",
+          "min-h-9 min-w-9 pointer-coarse:min-h-10 pointer-coarse:min-w-10 rounded-lg p-0 shrink-0 !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105",
           className,
         )}
         onClick={onClick}
@@ -49,6 +51,11 @@ export function PromptActionButton({
       >
         {icon}
       </Button>
+      {badge != null && (
+        <span className="pointer-events-none absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-black/80 px-1 text-[9px] font-bold text-white">
+          {badge}
+        </span>
+      )}
       <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-7 whitespace-nowrap rounded bg-black/80 px-2 py-0.5 text-[10px] font-semibold text-white opacity-0 group-hover/action:opacity-100 transition-opacity">
         {label}
       </span>

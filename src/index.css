@@ -470,7 +470,37 @@
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
+    /* Native-app tap feel: no gray tap flash on touch. */
+    -webkit-tap-highlight-color: transparent;
   }
+  /* Kill the double-tap-to-zoom delay heuristic on everything tappable while
+     keeping pan/pinch available elsewhere. */
+  button,
+  a,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
+  }
+}
+
+/* Applied to the game view root (`Game.tsx`). Long-press is a gesture in-game
+   (preview / context), so the browser's text selection, image callout, and
+   drag ghosts must never fire; inputs keep text selection for editing. */
+.game-touch-surface {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.game-touch-surface input,
+.game-touch-surface textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.game-touch-surface img {
+  -webkit-user-drag: none;
 }
 
 .font-game {

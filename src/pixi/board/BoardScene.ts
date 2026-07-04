@@ -200,6 +200,7 @@ export class BoardScene {
     world: { x: number; y: number };
   } | null = null;
   private pinchDownListener: (e: PointerEvent) => void;
+  private stripOutsideListener: (e: PointerEvent) => void;
   private pinchMoveListener: (e: PointerEvent) => void;
   private pinchUpListener: (e: PointerEvent) => void;
   private attackDragAttackerId: string | null = null;
@@ -208,6 +209,8 @@ export class BoardScene {
   // opponent's band) back toward our field to un-declare it.
   private unassignDrag: { cardId: string; region: BoardRegion; overOwn: boolean } | null = null;
   private phaseStripAlphaTarget = 1;
+  private stripBandPx = STRIP_BAND_PX;
+  private compactMode = false;
 
   private hand: HandController | null = null;
   private selection: SelectionController | null = null;
@@ -332,6 +335,7 @@ export class BoardScene {
 
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
+    this.phaseStrip.onExpandedChange = () => this.refreshPhaseStripDim();
     this.root.addChild(this.phaseStrip.container);
 
     this.combatGuestLayer = new Container();
@@ -374,6 +378,14 @@ export class BoardScene {
       if (!this.pinchPointers.delete(e.pointerId)) return;
       if (this.pinchPointers.size < 2) this.endPinch();
     };
+    this.stripOutsideListener = (e: PointerEvent) => {
+      const rect = this.app.canvas.getBoundingClientRect();
+      this.phaseStrip.handleOutsidePointerDown(
+        e.clientX - rect.left - this.phaseStrip.container.x,
+        e.clientY - rect.top - this.phaseStrip.container.y,
+      );
+    };
+    this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);
     window.addEventListener("pointermove", this.pinchMoveListener);
     window.addEventListener("pointerup", this.pinchUpListener);
@@ -572,7 +584,7 @@ export class BoardScene {
           Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
         );
         if (frac > 0.001) {
-          this.collapseVeil.rect(left, 0, bandW, this.topHeight + STRIP_BAND_PX / 2);
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight + this.stripBandPx / 2);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }
         // A field clipped down to (about) its banner width → collapsed column;
@@ -651,7 +663,7 @@ export class BoardScene {
     if (n <= 1 || W <= 0) return;
     // Reach the middle horizontal line; the phase strip (drawn on top) hides the
     // end so it tucks under the phase bar.
-    const h = this.topHeight + STRIP_BAND_PX / 2;
+    const h = this.topHeight + this.stripBandPx / 2;
     const C = COLLAPSED_OPPONENT_WIDTH_PX;
     const leftEdge = (i: number) => Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
     const rightEdge = (i: number) => Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
@@ -727,7 +739,7 @@ export class BoardScene {
   private layoutGripHandles(): void {
     const W = this.boardWidth;
     // Reach the middle horizontal line and tuck under the phase bar.
-    const h = this.topHeight + STRIP_BAND_PX / 2;
+    const h = this.topHeight + this.stripBandPx / 2;
     const color = hexToNum(this.dividerColor());
     for (let i = 0; i < this.gripHandles.length; i++) {
       const handle = this.gripHandles[i]!;
@@ -883,6 +895,7 @@ export class BoardScene {
 
   private setupLocalControllers(region: BoardRegion): void {
     this.hand = new HandController(this.makeHandHost(), this.root);
+    this.hand.setCompact(this.compactMode);
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
     region.enableFeltMarquee((e) => this.onFeltDown(e));
@@ -902,17 +915,18 @@ export class BoardScene {
 
   private positionPhaseStrip(layout: BoardLayout): void {
     this.lastLayout = layout;
+    this.stripBandPx = layout.stripBandPx;
     this.phaseStrip.container.x = layout.self.x;
-    this.phaseStrip.container.y = layout.dividerY - STRIP_BAND_PX / 2;
-    this.phaseStrip.resize(layout.self.width, STRIP_BAND_PX);
+    this.phaseStrip.container.y = layout.dividerY - this.stripBandPx / 2;
+    this.phaseStrip.resize(layout.self.width, this.stripBandPx);
     this.drawStripBackground(layout);
   }
 
   private drawStripBackground(layout: BoardLayout): void {
     const g = this.stripBackgroundGfx;
     g.clear();
-    const y = layout.dividerY - STRIP_BAND_PX / 2;
-    g.roundRect(layout.self.x, y, layout.self.width, STRIP_BAND_PX, TABLE_RADIUS);
+    const y = layout.dividerY - this.stripBandPx / 2;
+    g.roundRect(layout.self.x, y, layout.self.width, this.stripBandPx, TABLE_RADIUS);
     g.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: BG_ALPHA_IDLE });
   }
 
@@ -947,7 +961,8 @@ export class BoardScene {
         break;
       }
     }
-    this.phaseStripAlphaTarget = active ? PHASE_STRIP_COMBAT_ALPHA : 1;
+    this.phaseStripAlphaTarget =
+      active && !this.phaseStrip.isCompactExpanded() ? PHASE_STRIP_COMBAT_ALPHA : 1;
     for (const rec of this.regions.values()) rec.region.setCombatDim(active);
   }
 
@@ -1140,6 +1155,12 @@ export class BoardScene {
 
   setPhaseStripCallbacks(cb: PhaseStripCallbacks): void {
     this.phaseStrip.setCallbacks(cb);
+  }
+
+  setCompactStrip(compact: boolean): void {
+    this.compactMode = compact;
+    this.phaseStrip.setCompact(compact);
+    this.hand?.setCompact(compact);
   }
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {
@@ -2001,6 +2022,7 @@ export class BoardScene {
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
+    this.app.canvas.removeEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
     window.removeEventListener("pointermove", this.pinchMoveListener);
     window.removeEventListener("pointerup", this.pinchUpListener);

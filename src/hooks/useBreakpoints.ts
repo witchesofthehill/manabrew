@@ -12,3 +12,9 @@ export function useIsDesktop(): boolean {
 export function useIsShortScreen(): boolean {
   return useMediaQuery(SHORT_SCREEN_QUERY);
 }
+
+export function useIsMobileGame(): boolean {
+  const shortScreen = useIsShortScreen();
+  const touch = useIsTouch();
+  return shortScreen && touch;
+}

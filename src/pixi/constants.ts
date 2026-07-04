@@ -86,6 +86,11 @@ export const COMBAT_ROW_PAD_Y = 8;
 // bottom row can grow down behind the hand. The action overlay keeps the full
 // reserve so it never sits under the hand.
 export const HAND_RESERVE_TRIM = 0.65;
+// Fraction of a hand card's height that hangs below the canvas bottom edge.
+// Compact (touch + short) viewports sink the fan further so the battlefield
+// keeps more of the scarce vertical space; tap/hover still lifts the card up.
+export const HAND_BOTTOM_SINK_FRAC = 0.45;
+export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
 // Extra upward tilt for the local player's staged creatures — the self region
 // sits right at the bar, so its creatures can come up a touch further.
 export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
@@ -97,6 +102,8 @@ export const Z_STAGED_REGION = 8000;
 // across the board into a collapsed defender's row instead of popping in.
 export const Z_COMBAT_GUEST = 8500;
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
+export const STRIP_COMPACT_EXPAND_TIMEOUT_MS = 5000;
+export const STRIP_EXPANDED_BG_ALPHA = 0.92;
 export const COMBAT_DIM_ALPHA = 0.3;
 // Tint rather than alpha so overlapping stacked cards don't show through each
 // other; 1 = full color.

@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
+import { getPromptContextLines } from "./promptContextHints";
+import { DynamicTextRender } from "../DynamicTextRender";
 import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
 import { cn } from "@/lib/utils";
 
@@ -99,12 +104,29 @@ export function MainActionOverlay({
     setCollapsed(false);
   }
 
+  const minimal = useIsMobileGame();
+  const [contextRect, setContextRect] = useState<DOMRect | null>(null);
+  const contextKey = `${promptType ?? ""}:${minimal}`;
+  const [prevContextKey, setPrevContextKey] = useState(contextKey);
+  if (contextKey !== prevContextKey) {
+    setPrevContextKey(contextKey);
+    setContextRect(null);
+  }
+  const longPress = useLongPressPreview<string>({
+    resolve: () =>
+      minimal && containerRef.current
+        ? { item: promptType ?? "", anchor: containerRef.current }
+        : null,
+    show: (_item, anchorRect) => setContextRect(anchorRect),
+    hide: () => setContextRect(null),
+  });
+
   const isNoActionView = promptActionOverride
     ? NO_ACTION_VIEWS.includes(promptActionOverride)
     : !promptType || isWaitingForOthers;
   const hasAction = !isNoActionView;
   const title = hasAction ? (PROMPT_TITLES[promptType ?? ""] ?? "Action Required") : "Waiting";
-  const effectiveCollapsed = hasAction && collapsed;
+  const effectiveCollapsed = !minimal && hasAction && collapsed;
   const isRenderable =
     promptType !== "gameOver" && !!selfClusterMaxHeight && selfClusterMaxHeight > 0;
 
@@ -169,11 +191,14 @@ export function MainActionOverlay({
     <div
       ref={containerRef}
       data-action-cluster
+      {...(minimal ? longPress : {})}
       className={cn(
         "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
-        compact
-          ? "bottom-[7.375rem] right-1.5 w-[14.375rem] rounded-lg"
-          : "bottom-0 right-3 w-[18.75rem] rounded-t-lg border-b-0",
+        minimal
+          ? "bottom-20 right-1.5 w-auto rounded-2xl"
+          : compact
+            ? "bottom-[7.375rem] right-1.5 w-[14.375rem] rounded-lg"
+            : "bottom-0 right-3 w-[18.75rem] rounded-t-lg border-b-0",
         hasAction && "action-overlay-glow",
       )}
       style={
@@ -191,42 +216,51 @@ export function MainActionOverlay({
     >
       <div ref={bodyRef} className="overflow-hidden">
         <div ref={contentRef}>
-          <div
-            ref={headerRef}
-            className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/70"
-          >
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90 truncate">
-              {title}
-            </span>
-            <button
-              type="button"
-              onClick={() => setCollapsed((c) => !c)}
-              className={cn(
-                "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
-                !hasAction && "invisible",
-              )}
-              title={collapsed ? "Expand" : "Collapse"}
-              aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
-              aria-expanded={!collapsed}
-              tabIndex={hasAction ? 0 : -1}
+          {!minimal && (
+            <div
+              ref={headerRef}
+              className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/70"
             >
-              {collapsed ? (
-                <ChevronUp className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
-              )}
-            </button>
-          </div>
-          <section className="flex w-full flex-col gap-2 px-2 pt-2 pb-2">
-            <CombatInfo
-              promptType={promptType}
-              attackerIds={attackerIds}
-              pendingAttackers={pendingAttackers}
-              blockAssignments={blockAssignments}
-              combatPairings={combatPairings}
-              resolveCardName={resolveCardName}
-              resolveCard={resolveCard}
-            />
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90 truncate">
+                {title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCollapsed((c) => !c)}
+                className={cn(
+                  "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
+                  !hasAction && "invisible",
+                )}
+                title={collapsed ? "Expand" : "Collapse"}
+                aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
+                aria-expanded={!collapsed}
+                tabIndex={hasAction ? 0 : -1}
+              >
+                {collapsed ? (
+                  <ChevronUp className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+          )}
+          <section
+            className={cn(
+              "flex w-full flex-col",
+              minimal ? "gap-1 px-1.5 py-1" : "gap-2 px-2 pt-2 pb-2",
+            )}
+          >
+            {!minimal && (
+              <CombatInfo
+                promptType={promptType}
+                attackerIds={attackerIds}
+                pendingAttackers={pendingAttackers}
+                blockAssignments={blockAssignments}
+                combatPairings={combatPairings}
+                resolveCardName={resolveCardName}
+                resolveCard={resolveCard}
+              />
+            )}
             <div
               className="flex flex-col items-center w-full [&_button]:mx-0"
               onKeyDownCapture={(e) => {
@@ -281,6 +315,43 @@ export function MainActionOverlay({
           </section>
         </div>
       </div>
+      {minimal &&
+        contextRect &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[9000] flex max-w-[16rem] flex-col gap-1.5 rounded-lg border border-border/70 bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+            style={{
+              right: Math.max(8, window.innerWidth - contextRect.right),
+              bottom: Math.min(window.innerHeight - 8, window.innerHeight - contextRect.top + 8),
+            }}
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90">
+              {title}
+            </p>
+            {getPromptContextLines(promptType, {
+              mulliganCount,
+              mustAttackHint,
+              blockRestrictionHint,
+              payManaCostInfo,
+              mulliganPutBackCount,
+              mulliganSelectedCount,
+            }).map((line) => (
+              <p key={line} className="text-[11px] text-muted-foreground">
+                <DynamicTextRender className="align-middle" text={line} />
+              </p>
+            ))}
+            <CombatInfo
+              promptType={promptType}
+              attackerIds={attackerIds}
+              pendingAttackers={pendingAttackers}
+              blockAssignments={blockAssignments}
+              combatPairings={combatPairings}
+              resolveCardName={resolveCardName}
+              resolveCard={resolveCard}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

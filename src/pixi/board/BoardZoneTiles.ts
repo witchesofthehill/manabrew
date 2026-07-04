@@ -216,14 +216,8 @@ export class BoardZoneTiles {
     });
     const end = () => {
       this.longPress.cancel();
-      if (this.longPress.consumeTap(tile.spec.key)) {
-        this.host.onPreview(null);
-        if (this.drag?.tile === tile) {
-          this.drag = null;
-          container.zIndex = 0;
-        }
-        return;
-      }
+      const heldForPreview = this.longPress.consumeTap(tile.spec.key);
+      if (heldForPreview) this.host.onPreview(null);
       if (this.drag?.tile === tile) {
         const { moved } = this.drag;
         this.drag = null;
@@ -238,7 +232,7 @@ export class BoardZoneTiles {
           return;
         }
       }
-      tile.spec.onOpen?.();
+      if (!heldForPreview) tile.spec.onOpen?.();
     };
     container.on("pointerup", end);
     container.on("pointerupoutside", end);

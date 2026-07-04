@@ -10,10 +10,8 @@ import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsMobileGame, useIsShortScreen } from "@/hooks/useBreakpoints";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
-import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
 import { cn } from "@/lib/utils";
 
 const NO_ACTION_VIEWS: PromptActionViewKey[] = ["noAction"];
@@ -177,7 +175,7 @@ export function MainActionOverlay({
     return () => window.removeEventListener(ACTION_DRAWER_BUMP_EVENT, bump);
   }, []);
 
-  const compact = useMediaQuery(SHORT_SCREEN_QUERY);
+  const compact = useIsShortScreen();
 
   if (!isRenderable) return null;
 

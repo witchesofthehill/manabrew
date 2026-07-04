@@ -49,6 +49,8 @@ import {
   COMBAT_ROW_STEP_FRAC,
   COMBAT_STAGE_FAN_FRAC,
   GRID_SKELETON_FILL_ALPHA,
+  GRID_SKELETON_FILL_ALPHA_COMPACT,
+  GRID_SKELETON_STROKE_ALPHA_COMPACT,
   GRID_SKELETON_HOVER_ALPHA,
   GRID_SKELETON_STACK_ALPHA,
   GRID_SKELETON_STACK_FILL_ALPHA,
@@ -1826,18 +1828,24 @@ export class BoardRegion {
       const isStack = key === stackKey;
       const isHover = key === hoveredKey && !isStack;
       const isOccupied = occupied.has(key) && !isStack;
+      const baseStroke = this.compactZones
+        ? GRID_SKELETON_STROKE_ALPHA_COMPACT
+        : GRID_SKELETON_STROKE_ALPHA;
+      const baseFill = this.compactZones
+        ? GRID_SKELETON_FILL_ALPHA_COMPACT
+        : GRID_SKELETON_FILL_ALPHA;
       const strokeAlpha = isStack
         ? GRID_SKELETON_STACK_ALPHA
         : isHover
           ? GRID_SKELETON_HOVER_ALPHA
-          : GRID_SKELETON_STROKE_ALPHA;
+          : baseStroke;
       const fillAlpha = isStack
         ? GRID_SKELETON_STACK_FILL_ALPHA
         : isHover
           ? GRID_SKELETON_FILL_ALPHA * 4
           : isOccupied
             ? 0
-            : GRID_SKELETON_FILL_ALPHA;
+            : baseFill;
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
       if (fillAlpha > 0) gfx.fill({ color, alpha: fillAlpha });
       gfx.stroke({ color, width: isStack || isHover ? 2 : 1, alpha: strokeAlpha });
@@ -1868,11 +1876,22 @@ export class BoardRegion {
       const key = cellKey(cell.col, cell.row);
       const isHover = key === hoveredKey;
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-      gfx.fill({ color, alpha: isHover ? GRID_SKELETON_FILL_ALPHA * 5 : GRID_SKELETON_FILL_ALPHA });
+      gfx.fill({
+        color,
+        alpha: isHover
+          ? GRID_SKELETON_FILL_ALPHA * 5
+          : this.compactZones
+            ? GRID_SKELETON_FILL_ALPHA_COMPACT
+            : GRID_SKELETON_FILL_ALPHA,
+      });
       gfx.stroke({
         color,
         width: isHover ? 2 : 1,
-        alpha: isHover ? GRID_SKELETON_HOVER_ALPHA : GRID_SKELETON_STROKE_ALPHA,
+        alpha: isHover
+          ? GRID_SKELETON_HOVER_ALPHA
+          : this.compactZones
+            ? GRID_SKELETON_STROKE_ALPHA_COMPACT
+            : GRID_SKELETON_STROKE_ALPHA,
       });
     }
     gfx.visible = true;

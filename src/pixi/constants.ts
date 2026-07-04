@@ -24,6 +24,10 @@ export const GRID_SKELETON_HOVER_ALPHA = 0.9;
 export const GRID_SKELETON_STACK_ALPHA = 0.85;
 export const GRID_SKELETON_FILL_ALPHA = 0.04;
 export const GRID_SKELETON_STACK_FILL_ALPHA = 0.22;
+// Compact viewports: cells are tiny and sit over busy playmat art, so the
+// 0.25-alpha hairline grid reads as invisible — draw it stronger there.
+export const GRID_SKELETON_STROKE_ALPHA_COMPACT = 0.6;
+export const GRID_SKELETON_FILL_ALPHA_COMPACT = 0.1;
 // Under all battlefield cards (whose targetZIndex is >= 1) so dragged sprites
 // stay visible on top of it.
 export const Z_GRID_SKELETON = -1;

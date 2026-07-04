@@ -21,6 +21,7 @@ services:
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./ops/status.json:/srv/manabrew/status.json:ro
+      - ./ops/manifest.json:/srv/manabrew/manifest.json:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

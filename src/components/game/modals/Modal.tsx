@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { PromptModalChromeContext } from "./promptModalChrome.context";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useIsTouch } from "@/hooks/useBreakpoints";
+import { useGameStore } from "@/stores/useGameStore";
 
 interface ModalProps {
   children: React.ReactNode;
@@ -39,7 +40,11 @@ export function Modal({
   backdropClassName,
 }: ModalProps) {
   const promptChrome = useContext(PromptModalChromeContext);
-  const minimal = useIsMobileGame();
+  // Long-press is a gesture on any in-game touch surface (incl. tablets), so
+  // suppress selection/callout there; editor modals keep selectable text.
+  const isTouch = useIsTouch();
+  const isGameActive = useGameStore((s) => s.isGameActive);
+  const touchGameSurface = isTouch && isGameActive;
 
   useEffect(() => {
     if (!onClose) return;
@@ -54,7 +59,7 @@ export function Modal({
     <div
       className={cn(
         "fixed inset-0 z-[9000] flex items-center justify-center bg-black/60 backdrop-blur-sm",
-        minimal && "game-touch-surface",
+        touchGameSurface && "game-touch-surface",
         backdropClassName,
       )}
       onClick={onClose}

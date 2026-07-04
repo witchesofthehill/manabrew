@@ -80,6 +80,7 @@ export class StackLayer implements StackAnchorProvider {
   private peeking = false;
   private peekTimer: gsap.core.Tween | null = null;
   private prevCardIds = new Set<string>();
+  private builtCardWidth = CARD_WIDTH;
   private prevFanOut: boolean | null = null;
 
   // Width shrinks on short viewports so a stack card (plus hover zoom) never
@@ -130,6 +131,16 @@ export class StackLayer implements StackAnchorProvider {
     if (this.viewW === width && this.viewH === height) return;
     this.viewW = width;
     this.viewH = height;
+    // Sprites bake their width at construction; when the viewport cap changes
+    // the card width, rebuild them or the pile geometry and the sprites drift.
+    if (this.sprites.size > 0 && this.cardWidth() !== this.builtCardWidth) {
+      for (const sprite of this.sprites.values()) sprite.destroy();
+      this.sprites.clear();
+      this.hoveredId = null;
+      this.prevCardIds = new Set();
+      this.setSpec(this.spec);
+      return;
+    }
     this.layout();
   }
 
@@ -155,10 +166,11 @@ export class StackLayer implements StackAnchorProvider {
           reused.setSpec(card);
           continue;
         }
+        this.builtCardWidth = this.cardWidth();
         sprite = new StackCardSprite(
           this.theme,
           card,
-          this.cardWidth(),
+          this.builtCardWidth,
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),

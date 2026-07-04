@@ -17,6 +17,7 @@ COPY manabrew-rs/ manabrew-rs/
 COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
 RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
+COPY xtask/ xtask/
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \

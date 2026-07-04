@@ -35,32 +35,27 @@ export async function installDesktopUpdate() {
   }
 }
 
-export function useDesktopUpdater() {
-  const setAvailable = useDesktopUpdateStore((s) => s.setAvailable);
+export async function checkForDesktopUpdate(): Promise<boolean> {
+  if (pendingUpdate) return true;
+  const updater = await import("@tauri-apps/plugin-updater");
+  const update = await updater.check();
+  if (!update) return false;
+  if (!pendingUpdate) {
+    pendingUpdate = update;
+    useDesktopUpdateStore.getState().setAvailable(update.version);
+  }
+  return true;
+}
 
+export function useDesktopUpdater() {
   useEffect(() => {
     if (getPlatformType() !== "tauri") return;
 
-    let cancelled = false;
-
-    async function check() {
-      if (pendingUpdate) return;
-      try {
-        const updater = await import("@tauri-apps/plugin-updater");
-        const update = await updater.check();
-        if (cancelled || pendingUpdate || !update) return;
-        pendingUpdate = update;
-        setAvailable(update.version);
-      } catch (err) {
-        console.warn("[Updater] check failed", err);
-      }
-    }
+    const check = () =>
+      checkForDesktopUpdate().catch((err) => console.warn("[Updater] check failed", err));
 
     void check();
     const timer = setInterval(() => void check(), CHECK_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [setAvailable]);
+    return () => clearInterval(timer);
+  }, []);
 }

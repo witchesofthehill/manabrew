@@ -36,6 +36,7 @@ COPY manabrew-rs/ ./manabrew-rs/
 # tree-sitter-forge-card-script is also a workspace member (declared at the
 # repo root, not under manabrew-engine/) so cargo metadata fails without it.
 COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
+COPY xtask/ ./xtask/
 COPY scripts/ ./scripts/
 COPY src/ ./src/
 COPY public/ ./public/

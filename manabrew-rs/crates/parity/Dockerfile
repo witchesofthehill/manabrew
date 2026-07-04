@@ -13,6 +13,7 @@ COPY manabrew-rs/ manabrew-rs/
 COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
 RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
+COPY xtask/ xtask/
 COPY scripts/gen-harness-prompts.mjs scripts/gen-harness-prompts.mjs
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -89,6 +90,7 @@ RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && tou
 # tree-sitter-forge-card-script is also a workspace member (declared at the
 # repo root, not under manabrew-engine/) so cargo metadata fails without it.
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
+COPY xtask/ xtask/
 
 # Card / token / edition / block data — inputs to the cardset rkyv archive
 # that the parity binary loads at startup. Without this archive the binary

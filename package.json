@@ -5,6 +5,9 @@
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
+    "bump": "node scripts/bump.mjs",
+    "check:bump": "node scripts/check-bump.mjs",
+    "gen:manifest": "node scripts/gen-manifest.mjs",
     "tauri": "tauri",
     "dev": "tauri dev",
     "dev:relay": "cargo run --release -p manabrew-server",

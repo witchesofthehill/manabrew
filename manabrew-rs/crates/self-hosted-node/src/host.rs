@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
+use crate::updater::{run_stale_monitor, StaleConfig};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabot::{run_bot, AgentKind, BotConfig};
@@ -77,6 +78,18 @@ struct SpawnBotDeckPayload {
 }
 
 type SharedEngineSession = Arc<Mutex<Option<EngineSession>>>;
+type SessionRegistry = Arc<Mutex<Vec<SharedEngineSession>>>;
+
+fn registry_idle(registry: &SessionRegistry) -> bool {
+    registry
+        .lock()
+        .map(|sessions| {
+            sessions
+                .iter()
+                .all(|session| session.lock().map(|guard| guard.is_none()).unwrap_or(false))
+        })
+        .unwrap_or(false)
+}
 
 #[derive(Default)]
 struct DisconnectTracker {
@@ -239,19 +252,40 @@ pub async fn host_room(
     ready: tokio::sync::oneshot::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ensure_engine_ready(&config)?;
-    host_one_room(config, None, cancel, Some(ready)).await
+    host_one_room(config, None, cancel, Some(ready), None).await
 }
 
 async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ensure_engine_ready(&config)?;
 
+    let registry: SessionRegistry = Arc::new(Mutex::new(Vec::new()));
+    let monitor_registry = registry.clone();
+    tokio::spawn(run_stale_monitor(
+        StaleConfig::from_env_and_args(),
+        move || registry_idle(&monitor_registry),
+    ));
+
     if config.room_id.is_some() {
-        return host_one_room(config, None, Arc::new(tokio::sync::Notify::new()), None).await;
+        return host_one_room(
+            config,
+            None,
+            Arc::new(tokio::sync::Notify::new()),
+            None,
+            Some(registry),
+        )
+        .await;
     }
 
     let slots = config.max_games.max(1);
     if slots <= 1 {
-        return host_one_room(config, None, Arc::new(tokio::sync::Notify::new()), None).await;
+        return host_one_room(
+            config,
+            None,
+            Arc::new(tokio::sync::Notify::new()),
+            None,
+            Some(registry),
+        )
+        .await;
     }
 
     config.format = GameFormat::Any;
@@ -262,12 +296,14 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     info!(rooms = hosts.len(), "hosting multiple rooms on one node");
     let mut handles = Vec::with_capacity(hosts.len());
     for (cfg, label) in hosts {
+        let registry = registry.clone();
         handles.push(tokio::spawn(async move {
             if let Err(error) = host_one_room(
                 cfg,
                 Some(label.clone()),
                 Arc::new(tokio::sync::Notify::new()),
                 None,
+                Some(registry),
             )
             .await
             {
@@ -286,6 +322,7 @@ async fn host_one_room(
     label: Option<String>,
     cancel: RoomCancel,
     ready: Option<tokio::sync::oneshot::Sender<String>>,
+    sessions: Option<SessionRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(label) = &label {
         config.username = format!("{}-{label}", config.username);
@@ -306,6 +343,11 @@ async fn host_one_room(
 
     let snapshot: SharedHostSnapshot = Arc::new(Mutex::new(HostSnapshot::default()));
     let engine_session: SharedEngineSession = Arc::new(Mutex::new(None));
+    if let Some(sessions) = &sessions {
+        if let Ok(mut registered) = sessions.lock() {
+            registered.push(engine_session.clone());
+        }
+    }
     let bot_state: SharedBotState = Arc::new(Mutex::new(BotState::default()));
     let (outbound_tx, mut outbound_rx) = tokio_mpsc::unbounded_channel::<ClientMessage>();
 

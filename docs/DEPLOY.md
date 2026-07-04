@@ -230,6 +230,16 @@ The script will:
 - Only rebuild if Java/Rust/infra files changed
 - Restart the container
 
+`manabrew-server` (the relay) gets extra protection because restarting it
+kills every live game: after a rebuild, the script compares the
+`manabrew-server` binary inside the fresh image (`manabrew-server:production`)
+against the one in the running container and skips the restart when they are
+identical. Root `Cargo.lock`/`Cargo.toml` churn (release bumps, Tauri/UI
+dependency updates) therefore no longer bounces the relay. Changes to the
+relay's Dockerfile, any compose file, `.dockerignore`, or `deploy.sh` itself
+always rebuild with `--no-cache` and restart, since those can change the
+container beyond the binary.
+
 ## Useful Commands
 
 ```bash

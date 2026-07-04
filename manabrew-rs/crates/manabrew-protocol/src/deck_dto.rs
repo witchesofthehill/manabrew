@@ -108,23 +108,17 @@ pub struct DeckCard {
     pub all_parts: Option<Vec<CardPart>>,
 }
 
-// Wire-compat: clients ≤ v0.5.2 serialize the identity fields flattened onto
-// the card instead of nested under `identity`.
+// Clients ≤ v0.5.2 serialize the identity fields flattened onto the card.
+// Their gameplay wire (game view, prompts) has drifted too, so the legacy
+// shape is detected and rejected with an actionable message rather than
+// accepted into a game the client could not parse.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DeckCardWire {
     #[serde(default)]
     identity: Option<DeckCardIdentity>,
     #[serde(default)]
-    id: String,
-    #[serde(default)]
     name: Option<String>,
-    #[serde(default)]
-    set_code: Option<String>,
-    #[serde(default)]
-    card_number: Option<String>,
-    #[serde(default)]
-    foil: Option<bool>,
     #[serde(flatten)]
     rules: CardRulesSummary,
     #[serde(default)]
@@ -138,15 +132,12 @@ impl<'de> Deserialize<'de> for DeckCard {
         let wire = DeckCardWire::deserialize(deserializer)?;
         let identity = match wire.identity {
             Some(identity) => identity,
-            None => DeckCardIdentity {
-                id: wire.id,
-                name: wire
-                    .name
-                    .ok_or_else(|| serde::de::Error::missing_field("identity"))?,
-                set_code: wire.set_code.unwrap_or_default(),
-                card_number: wire.card_number.unwrap_or_default(),
-                foil: wire.foil,
-            },
+            None if wire.name.is_some() => {
+                return Err(serde::de::Error::custom(
+                    "this app version is out of date — download the latest release at manabrew.app to play online",
+                ));
+            }
+            None => return Err(serde::de::Error::missing_field("identity")),
         };
         Ok(DeckCard {
             identity,
@@ -269,14 +260,12 @@ mod wire_compat_tests {
     }
 
     #[test]
-    fn legacy_flattened_identity_parses() {
-        let card: DeckCard = serde_json::from_str(
+    fn legacy_flattened_identity_is_rejected_with_update_nudge() {
+        let err = serde_json::from_str::<DeckCard>(
             r#"{"id":"x","name":"Plains","setCode":"m21","cardNumber":"260","foil":false,"cmc":0,"types":["Land"],"text":"({T}: Add {W}.)"}"#,
-        ).unwrap();
-        assert_eq!(card.identity.name, "Plains");
-        assert_eq!(card.identity.set_code, "m21");
-        assert_eq!(card.identity.id, "x");
-        assert_eq!(card.rules.types, vec!["Land"]);
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("out of date"));
     }
 
     #[test]

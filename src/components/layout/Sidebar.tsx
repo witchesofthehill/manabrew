@@ -60,7 +60,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   className="w-full justify-start whitespace-nowrap"
                 >
                   <Home className="mr-2 h-4 w-4 shrink-0" />
-                  Lobby
+                  Online
                 </Button>
               )}
             </NavLink>

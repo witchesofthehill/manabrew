@@ -213,6 +213,7 @@ export class BoardScene {
   private phaseStripAlphaTarget = 1;
   private stripBandPx = STRIP_BAND_PX;
   private compactMode = false;
+  private tapSuppressedPointers = new Set<number>();
 
   private hand: HandController | null = null;
   private selection: SelectionController | null = null;
@@ -383,6 +384,9 @@ export class BoardScene {
       if (this.pinchStart) this.updatePinch();
     };
     this.pinchUpListener = (e: PointerEvent) => {
+      if (this.tapSuppressedPointers.has(e.pointerId)) {
+        window.setTimeout(() => this.tapSuppressedPointers.delete(e.pointerId), 0);
+      }
       if (!this.pinchPointers.delete(e.pointerId)) return;
       if (this.pinchPointers.size < 2) this.endPinch();
     };
@@ -806,6 +810,9 @@ export class BoardScene {
     const b = pts[1]!;
     const dist = Math.hypot(b.x - a.x, b.y - a.y);
     if (dist <= 0) return;
+    // A finger that joined a pinch must never resolve to a card tap on release
+    // (e.g. a long-press-preview hold that turned into a zoom).
+    for (const id of this.pinchPointers.keys()) this.tapSuppressedPointers.add(id);
     this.abortActiveGesture();
     const scale = this.root.scale.x;
     const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -1475,7 +1482,8 @@ export class BoardScene {
         }
         this.onBattlefieldCardDown(sprite, e);
       });
-      sprite.on("pointertap", () => {
+      sprite.on("pointertap", (e: FederatedPointerEvent) => {
+        if (this.tapSuppressedPointers.has(e.pointerId)) return;
         if (this.dragHandler.justDraggedCardIds.has(sprite.card.id)) return;
         if (this.longPress.consumeTap(sprite.card.id)) return;
         this.overlay?.handleCardTap(sprite.card);
@@ -1494,7 +1502,8 @@ export class BoardScene {
           this.activeGesturePointerId = e.pointerId;
         }
       });
-      sprite.on("pointertap", () => {
+      sprite.on("pointertap", (e: FederatedPointerEvent) => {
+        if (this.tapSuppressedPointers.has(e.pointerId)) return;
         if (this.longPress.consumeTap(sprite.card.id)) return;
         if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
           this.callbacks.onAttackerClick?.(sprite.card);

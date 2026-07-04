@@ -230,6 +230,22 @@ public final class ManaBrewInteractiveSession {
                 Thread.currentThread().interrupt();
                 return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
             }
+            try {
+                return interpretPriorityAction(action, actionsForPrompt, untappableCards);
+            } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
+                System.err.println("[mana-brew] ignoring invalid priority answer: " + invalid);
+                publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
+            }
+        }
+        return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
+    }
+
+    private PriorityChoice interpretPriorityAction(
+            final JsonObject action,
+            final List<SpellAbility> actionsForPrompt,
+            final List<Card> untappableCards
+    ) {
+        {
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(kind) || "pass_priority".equals(kind)) {
                 final JsonObject until = action.has("until") && action.get("until").isJsonObject()
@@ -267,7 +283,6 @@ public final class ManaBrewInteractiveSession {
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
-        return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
     }
 
     enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL, DELVE, UNDELVE }
@@ -354,6 +369,27 @@ public final class ManaBrewInteractiveSession {
                 Thread.currentThread().interrupt();
                 return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
             }
+            try {
+                return interpretManaPaymentChoice(
+                        action, tappableSources, untappableCards, convokeSources, delveSources);
+            } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
+                System.err.println("[mana-brew] ignoring invalid mana-payment answer: " + invalid);
+                publishManaPaymentPrompt(
+                        playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
+                        delveSources, delvedCards, canConfirm, canCancel, canPayLife, lifeToPay);
+            }
+        }
+        return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
+    }
+
+    private ManaPaymentChoice interpretManaPaymentChoice(
+            final JsonObject action,
+            final List<SpellAbility> tappableSources,
+            final List<Card> untappableCards,
+            final List<Card> convokeSources,
+            final List<Card> delveSources
+    ) {
+        {
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             switch (kind) {
                 case "tap_land": {
@@ -402,7 +438,6 @@ public final class ManaBrewInteractiveSession {
                     throw new UnsupportedOperationException("unsupported mana-payment action kind: " + kind);
             }
         }
-        return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
     }
 
     private SpellAbility resolveTapSource(final JsonObject action, final List<SpellAbility> tappableSources) {

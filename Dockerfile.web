@@ -39,8 +39,9 @@ COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
 COPY scripts/ ./scripts/
 COPY src/ ./src/
 COPY public/ ./public/
-# .release-please-manifest.json is read by vite.config.ts to stamp the app version.
-COPY index.html tsconfig*.json vite.config.ts .release-please-manifest.json ./
+# ops/manifest.json is read by vite.config.ts to stamp the app version.
+COPY index.html tsconfig*.json vite.config.ts ./
+COPY ops/manifest.json ./ops/manifest.json
 # These four dirs feed the rkyv cardset archive build — keep in sync with the
 # source list in `scripts/build-wasm.mjs`. Omitting `editions`/`blockdata` is
 # silent: the archive builder emits an empty editions vec for a missing dir, so

@@ -395,10 +395,10 @@ export class BoardScene {
     window.addEventListener("pointercancel", this.gestureCancelListener);
     this.stripOutsideListener = (e: PointerEvent) => {
       const rect = this.app.canvas.getBoundingClientRect();
-      this.phaseStrip.handleOutsidePointerDown(
-        e.clientX - rect.left - this.phaseStrip.container.x,
-        e.clientY - rect.top - this.phaseStrip.container.y,
+      const p = this.phaseStrip.container.toLocal(
+        new Point(e.clientX - rect.left, e.clientY - rect.top),
       );
+      this.phaseStrip.handleOutsidePointerDown(p.x, p.y);
     };
     this.app.canvas.addEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.addEventListener("pointerdown", this.pinchDownListener);

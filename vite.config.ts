@@ -8,15 +8,14 @@ import Icons from "unplugin-icons/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
-// release-please's authoritative version. It bumps this manifest plus the
-// extra-files (package.json, src-tauri/tauri.conf.json, Cargo.toml) in the
-// same release commit, then tags vX.Y.Z — so the manifest always matches the
-// shipped release tag, even if package.json is hand-edited out of sync.
+// semantic-release bumps package.json (via scripts/set-version.mjs) in the
+// same release commit it tags vX.Y.Z, so this version always matches the
+// shipped release tag.
 const appVersion = (
-  JSON.parse(readFileSync(path.resolve(__dirname, ".release-please-manifest.json"), "utf-8")) as {
-    ".": string;
+  JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf-8")) as {
+    version: string;
   }
-)["."];
+).version;
 
 const COEP = process.env.TAURI_ENV_PLATFORM ? "require-corp" : "credentialless";
 

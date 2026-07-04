@@ -1,11 +1,22 @@
 name: Release
 
-# Watches `main` for Conventional Commits, opens/updates a "Release PR" that
-# bumps the version in package.json, src-tauri/tauri.conf.json and
-# src-tauri/Cargo.toml plus regenerates CHANGELOG.md. Merging that PR creates
-# a `vX.Y.Z` tag + GitHub Release; the existing `release-artifacts.yml`
-# workflow then builds the macOS .dmg / Windows .exe and attaches them to
-# that same release.
+# Continuous deployment: every push to `main` runs semantic-release, which
+# analyses Conventional Commits, bumps the version across package.json /
+# src-tauri/tauri.conf.json / src-tauri/Cargo.toml / Cargo.lock (via
+# scripts/set-version.mjs), regenerates CHANGELOG.md, commits that back to
+# `main`, and cuts a `vX.Y.Z` tag + GitHub Release. The tag is pushed with
+# RELEASE_PAT_TOKEN (a fine-grained PAT) so it cascades to
+# release-artifacts.yml, which builds the macOS .dmg / Windows .exe and
+# attaches them to the release. That PAT needs Contents: read/write and must
+# be allowed to bypass branch protection on `main` (it pushes the release
+# commit directly). The default GITHUB_TOKEN can't stand in here: tags it
+# pushes do not trigger downstream workflows, and it can't push to protected
+# `main`.
+#
+# The `if` guard skips the run triggered by semantic-release's own
+# `chore(release):` commit. We deliberately do NOT put `[skip ci]` in that
+# commit message: the new tag points at that commit, so `[skip ci]` would also
+# suppress the tag-triggered installer builds in release-artifacts.yml.
 
 on:
   push:
@@ -14,44 +25,33 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
-  actions: write
 
 concurrency:
-  group: release-please-${{ github.ref }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release-please:
-    name: Run release-please
-    # Lightweight GitHub-API job; keep it off the self-hosted runner so it does
-    # not compete with deploys/builds on that box (a likely cause of flaky
-    # "Error creating commit" failures).
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.rp.outputs.release_created }}
-      tag_name: ${{ steps.rp.outputs.tag_name }}
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: rp
-        with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  # release-please pushes the vX.Y.Z tag using GITHUB_TOKEN, which by design
-  # does not trigger downstream workflows. Dispatch release-artifacts.yml
-  # explicitly on the new tag ref so the macOS/Windows builds + Discord
-  # release notification fire.
-  dispatch-artifacts:
-    name: Dispatch release-artifacts on new tag
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+  release:
+    name: semantic-release
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Trigger release-artifacts workflow
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.RELEASE_PAT_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - name: semantic-release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
-        run: gh workflow run release-artifacts.yml --ref "$TAG"
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT_TOKEN }}
+        run: npx semantic-release

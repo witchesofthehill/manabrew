@@ -109,7 +109,7 @@ chore: bump prettier
 perf(carddb): avoid re-parsing SVars on card load
 ```
 
-The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan`, `Build artifacts` in that order. Tick `Build macOS .dmg` / `Build Windows .exe` only when the PR should produce installers on merge.
+The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan`, `Build artifacts` in that order. Every merge to `main` now cuts a release via semantic-release (`.github/workflows/release.yml`) and builds both installers from the release tag, so the `Build macOS .dmg` / `Build Windows .exe` checkboxes are optional — they only force an extra installer build on the merge commit itself before the release tag.
 
 ## Workflow rules
 

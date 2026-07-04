@@ -1196,6 +1196,12 @@ export function GameBoard({
         next[me.id] = [
           { x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height },
         ];
+        if (compactBoard) {
+          // The divider-anchored cluster straddles into the opponent fields —
+          // reserve its footprint there too so their cards never underlap it.
+          const full = { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
+          for (const op of opponents) next[op.id] = [full];
+        }
       }
       const json = JSON.stringify(next);
       if (json === lastPanelBlockersRef.current) return;
@@ -1209,7 +1215,7 @@ export function GameBoard({
     const ro = new ResizeObserver(measure);
     ro.observe(actionEl);
     return () => ro.disconnect();
-  }, [sceneRef, me.id, unifiedLayout, promptType, compactBoard]);
+  }, [sceneRef, me.id, opponents, unifiedLayout, promptType, compactBoard]);
 
   const sheetSpec = sheetPlayerId
     ? (playerBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)

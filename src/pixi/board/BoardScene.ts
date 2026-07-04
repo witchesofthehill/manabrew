@@ -1317,17 +1317,9 @@ export class BoardScene {
           this.callbacks.onHoverCard?.(null);
           return;
         }
-        const canvasRect = this.app.canvas.getBoundingClientRect();
-        this.callbacks.onHoverCard?.(
-          card,
-          bounds && {
-            x: bounds.x + canvasRect.left,
-            y: bounds.y + canvasRect.top,
-            width: bounds.width,
-            height: bounds.height,
-          },
-          { useAnchor: true },
-        );
+        this.callbacks.onHoverCard?.(card, bounds && this.toViewportBounds(bounds), {
+          useAnchor: true,
+        });
       },
       isDestroyed: () => this.destroyed,
     };
@@ -1539,16 +1531,24 @@ export class BoardScene {
     return right - left <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
   }
 
+  private toViewportBounds(bounds: { x: number; y: number; width: number; height: number }): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } {
+    const canvasRect = this.app.canvas.getBoundingClientRect();
+    return {
+      x: bounds.x + canvasRect.left,
+      y: bounds.y + canvasRect.top,
+      width: bounds.width,
+      height: bounds.height,
+    };
+  }
+
   private fireLongPressPreview(region: BoardRegion, sprite: CardSprite): void {
     if (this.callbacks.onLongPressCard) {
-      const bounds = sprite.getBounds();
-      const canvasRect = this.app.canvas.getBoundingClientRect();
-      this.callbacks.onLongPressCard(sprite.card, {
-        x: bounds.x + canvasRect.left,
-        y: bounds.y + canvasRect.top,
-        width: bounds.width,
-        height: bounds.height,
-      });
+      this.callbacks.onLongPressCard(sprite.card, this.toViewportBounds(sprite.getBounds()));
       return;
     }
     this.setBattlefieldCardHovered(region, sprite, true);
@@ -1564,18 +1564,9 @@ export class BoardScene {
     this.hoveredCardId = sprite.card.id;
     region.setHoveredCard(sprite.card.id);
 
-    const bounds = sprite.getBounds();
-    const canvasRect = this.app.canvas.getBoundingClientRect();
-    this.callbacks.onHoverCard?.(
-      sprite.card,
-      {
-        x: bounds.x + canvasRect.left,
-        y: bounds.y + canvasRect.top,
-        width: bounds.width,
-        height: bounds.height,
-      },
-      { useAnchor: true },
-    );
+    this.callbacks.onHoverCard?.(sprite.card, this.toViewportBounds(sprite.getBounds()), {
+      useAnchor: true,
+    });
   }
 
   private scheduleHoverClear(cardId: string): void {

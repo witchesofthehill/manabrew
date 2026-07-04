@@ -1,3 +1,6 @@
+export const ATTACK_DRAG_HINT =
+  "Drag a creature onto a target — or tap the creature, then its target — to attack.";
+
 export interface PromptContextInfo {
   mulliganCount?: number;
   mustAttackHint?: string | null;
@@ -28,9 +31,7 @@ export function getPromptContextLines(
     case "chooseAction":
       return ["Tap PASS to pass priority."];
     case "chooseAttackers": {
-      const lines = [
-        "Drag a creature onto a target — or tap the creature, then its target — to attack.",
-      ];
+      const lines = [ATTACK_DRAG_HINT];
       if (info.mustAttackHint) lines.unshift(info.mustAttackHint);
       return lines;
     }

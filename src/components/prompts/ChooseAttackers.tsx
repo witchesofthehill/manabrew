@@ -2,6 +2,7 @@ import { Ban, Sword, Swords } from "lucide-react";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { ATTACK_DRAG_HINT } from "@/components/game/panels/promptContextHints";
 import type { ChooseAttackersProps } from "./internal/types";
 
 export function ChooseAttackers({
@@ -34,9 +35,7 @@ export function ChooseAttackers({
         </p>
       )}
       {!minimal && (
-        <p className="text-center text-[11px] text-muted-foreground/70">
-          Drag a creature onto a target — or tap the creature, then its target — to attack.
-        </p>
+        <p className="text-center text-[11px] text-muted-foreground/70">{ATTACK_DRAG_HINT}</p>
       )}
       <div className="flex flex-row items-center justify-center gap-1.5">
         <PromptActionButton

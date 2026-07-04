@@ -578,6 +578,7 @@ export function BoardCanvas({
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }}
+        onContextMenu={(e) => e.preventDefault()}
       />
       {showHandFlip && (
         <div

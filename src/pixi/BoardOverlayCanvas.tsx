@@ -173,6 +173,7 @@ export function BoardOverlayCanvas({
       ref={canvasRef}
       className={className}
       style={{ width: "100%", height: "100%", display: "block", pointerEvents: "none" }}
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
 }

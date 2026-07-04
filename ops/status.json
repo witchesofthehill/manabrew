@@ -1,0 +1,7 @@
+{
+  "id": "example-2026-07-04",
+  "active": false,
+  "severity": "info",
+  "message": "Example notice. Set active to true and bump id to show a new banner.",
+  "link": { "label": "Details", "url": "https://manabrew.app" }
+}

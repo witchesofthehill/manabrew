@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_SCRYFALL_SYMBOL_BASE?: string;
   readonly VITE_HOSTED_AI_ENABLED?: string;
+  readonly VITE_STATUS_BANNER_URL?: string;
 }
 
 interface ImportMeta {

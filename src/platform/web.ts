@@ -19,6 +19,7 @@ import type {
   ServerConnectParams,
   CreateRoomParams,
   JoinRoomParams,
+  ResumeRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
   StartServerGameParams,
@@ -597,6 +598,8 @@ class WebServerApi implements IServerApi {
   // poll relays a copy, so coalesce consecutive-identical ones to one broadcast.
   private lastRelayState: string | null = null;
   private lastRelayDisplay: string | null = null;
+  private resumeToken: string | null = null;
+  private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -614,7 +617,9 @@ class WebServerApi implements IServerApi {
         this.lastRelayDisplay = json;
         this.broadcastState({ kind: "display", event: msg.event });
       } else if (msg.kind === "prompt") {
-        this.broadcastState({ kind: "prompt", forPlayer, prompt: msg.prompt });
+        const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
+        this.pendingRelayPrompts.set(forPlayer, envelope);
+        this.broadcastState(envelope);
       }
     });
   }
@@ -833,6 +838,14 @@ class WebServerApi implements IServerApi {
     });
   }
 
+  async resumeRoom(params: ResumeRoomParams): Promise<void> {
+    if (!this.resumeToken) {
+      console.warn("[WebServerApi] Cannot resume room: no resume token");
+      return;
+    }
+    this.send({ type: "ResumeRoom", ...params, resume_token: this.resumeToken });
+  }
+
   async leaveRoom(): Promise<void> {
     this.send({ type: "LeaveRoom" });
   }
@@ -970,6 +983,7 @@ class WebServerApi implements IServerApi {
       const envelope = msg.state as StateEnvelope;
       switch (envelope.kind) {
         case "response":
+          this.pendingRelayPrompts.delete(envelope.fromPlayer);
           this.eventBus.emit("server:state_update", {
             from_player: msg.from_player,
             state: envelope,
@@ -1007,6 +1021,27 @@ class WebServerApi implements IServerApi {
         reason: SERVER_ERROR_CODE.NotInRoom,
         message: msg.message,
       });
+    }
+
+    if (type === "RoomCreated") {
+      this.resumeToken = typeof msg.resume_token === "string" ? msg.resume_token : null;
+    }
+
+    if (type === "GameStarted") {
+      this.lastRelayState = null;
+      this.lastRelayDisplay = null;
+      this.pendingRelayPrompts.clear();
+    }
+
+    if (type === "RoomResumed") {
+      if (this.lastRelayState !== null) {
+        void this.broadcastState({ kind: "state", state: JSON.parse(this.lastRelayState) });
+      }
+      for (const envelope of this.pendingRelayPrompts.values()) {
+        void this.broadcastState(envelope);
+      }
+      this.eventBus.emit("server:room_update", { room: msg.room });
+      return;
     }
 
     // Map server message type to event name and payload

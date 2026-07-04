@@ -73,6 +73,7 @@ interface ServerState {
     password?: string,
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
+  resumeRoomAfterRestart(): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
@@ -211,6 +212,28 @@ export const useServerStore = create<ServerState>()(
             timer,
             settle: (error) => (error ? reject(error) : resolve()),
           };
+        });
+      },
+
+      async resumeRoomAfterRestart() {
+        const platform = getPlatform();
+        const { currentRoom, playerOrder, playerDecks, startingLife, roomPassword } = get();
+        if (!platform.server?.resumeRoom || !currentRoom || playerOrder.length === 0) return;
+        await platform.server.resumeRoom({
+          room_id: currentRoom.room_id,
+          room_name: currentRoom.room_name,
+          max_players: currentRoom.max_players,
+          format: currentRoom.format,
+          hosted: currentRoom.hosted,
+          engine: "Manabrew",
+          password: roomPassword ?? undefined,
+          reconnect_timeout_s: currentRoom.reconnect_timeout_s,
+          draft_config: currentRoom.draft_config,
+          sealed_config: currentRoom.sealed_config,
+          player_order: playerOrder,
+          player_decks: playerDecks,
+          starting_life: startingLife,
+          bot_players: currentRoom.players.filter((p) => p.is_bot).map((p) => p.username),
         });
       },
 
@@ -417,6 +440,13 @@ export const useServerStore = create<ServerState>()(
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
             if (payload.code === SERVER_ERROR_CODE.IncorrectPassword) {
               settlePendingJoin(new Error(SERVER_ERROR_CODE.IncorrectPassword));
+              return;
+            }
+            // Settle immediately instead of letting the join confirm time out:
+            // the post-restart rejoin loop retries until the host resurrects
+            // the room, and each retry must fail fast, not wait 7s.
+            if (payload.code === SERVER_ERROR_CODE.RoomNotFound) {
+              settlePendingJoin(new Error(SERVER_ERROR_CODE.RoomNotFound));
               return;
             }
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {

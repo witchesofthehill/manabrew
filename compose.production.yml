@@ -26,6 +26,9 @@ services:
       - manabrew-server
 
   manabrew-server:
+    # Explicit tag so deploy.sh can address the freshly built image when it
+    # compares binaries to decide whether a restart is needed.
+    image: manabrew-server:production
     build:
       context: .
       dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile

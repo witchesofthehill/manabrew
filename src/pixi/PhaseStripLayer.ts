@@ -720,19 +720,8 @@ export class PhaseStripLayer {
     }
   }
 
-  tick(): void {
-    if (
-      this.compact &&
-      this.expanded &&
-      performance.now() - this.expandedAt > STRIP_COMPACT_EXPAND_TIMEOUT_MS
-    ) {
-      this.collapse();
-    }
-
-    const showPill = this.compact && !this.expanded;
-    // Draw indicators every frame — skipped while the collapsed pill hides the
-    // whole cells container, so no invisible geometry is rebuilt each frame.
-    for (let ci = 0; ci < this.cells.length && !showPill; ci++) {
+  private drawIndicators(): void {
+    for (let ci = 0; ci < this.cells.length; ci++) {
       const cell = this.cells[ci]!;
       const d = cell._indData;
       if (!d) continue;
@@ -779,6 +768,20 @@ export class PhaseStripLayer {
         drawShape(cell.oppIndicators, "circle", shapeX, d.oppCy, sz, color, enabled, true);
       }
     }
+  }
+
+  tick(): void {
+    if (
+      this.compact &&
+      this.expanded &&
+      performance.now() - this.expandedAt > STRIP_COMPACT_EXPAND_TIMEOUT_MS
+    ) {
+      this.collapse();
+    }
+
+    // Indicators redraw every frame — skipped while the collapsed pill hides
+    // the whole cells container, so no invisible geometry is rebuilt.
+    if (!(this.compact && !this.expanded)) this.drawIndicators();
 
     // Flash animation
     const now = performance.now();

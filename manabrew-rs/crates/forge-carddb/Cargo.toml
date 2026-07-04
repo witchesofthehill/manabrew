@@ -2,11 +2,13 @@
 name = "forge-carddb"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
+description = "Card database for the manabrew engine: parses Forge card scripts into CardRules"
 
 [dependencies]
-forge-foundation = { path = "../forge-foundation" }
-forge-card-script = { path = "../forge-card-script" }
-forge-cardset-archive = { path = "../forge-cardset-archive" }
+forge-foundation = { path = "../forge-foundation", version = "0.1.0" }
+forge-card-script = { path = "../forge-card-script", version = "0.1.0" }
+forge-cardset-archive = { path = "../forge-cardset-archive", version = "0.1.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 deunicode = { workspace = true }

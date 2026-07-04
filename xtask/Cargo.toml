@@ -1,0 +1,15 @@
+[package]
+name = "xtask"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license.workspace = true
+description = "Release automation for the manabrew workspace (cargo xtask)"
+
+[dependencies]
+anyhow = "1"
+lexopt = "0.3"
+semver = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml_edit = "0.22"

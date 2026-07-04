@@ -7,7 +7,6 @@ import {
   Github,
   Globe,
   HeartPulse,
-  Home,
   Gamepad2,
   Hand,
   Info,
@@ -59,7 +58,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   variant={isActive ? "secondary" : "ghost"}
                   className="w-full justify-start whitespace-nowrap"
                 >
-                  <Home className="mr-2 h-4 w-4 shrink-0" />
+                  <Globe className="mr-2 h-4 w-4 shrink-0" />
                   Online
                 </Button>
               )}

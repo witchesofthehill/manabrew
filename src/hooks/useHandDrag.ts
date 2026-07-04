@@ -119,7 +119,12 @@ export function useHandDrag({
     document.addEventListener("pointermove", handlePointerMove);
     document.addEventListener("pointerup", handlePointerUp);
     document.addEventListener("pointercancel", handlePointerCancel);
-    teardownRef.current = teardown;
+    // Pre-empting teardown (a second pointer starting a new drag, or unmount)
+    // must also clear the drag state, or the previous ghost freezes on screen.
+    teardownRef.current = () => {
+      teardown();
+      reset();
+    };
   }
 
   return { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag };

@@ -202,6 +202,7 @@ export class BoardScene {
   } | null = null;
   private pinchDownListener: (e: PointerEvent) => void;
   private stripOutsideListener: (e: PointerEvent) => void;
+  private gestureCancelListener: (e: PointerEvent) => void;
   private pinchMoveListener: (e: PointerEvent) => void;
   private pinchUpListener: (e: PointerEvent) => void;
   private attackDragAttackerId: string | null = null;
@@ -385,6 +386,13 @@ export class BoardScene {
       if (!this.pinchPointers.delete(e.pointerId)) return;
       if (this.pinchPointers.size < 2) this.endPinch();
     };
+    // Pixi v8's EventSystem never forwards pointercancel to the stage, so an
+    // OS-cancelled touch (edge swipe, notification shade) would leave a dead
+    // activeGesturePointerId that filters out all future input.
+    this.gestureCancelListener = (e: PointerEvent) => {
+      if (this.activeGesturePointerId === e.pointerId) this.abortActiveGesture();
+    };
+    window.addEventListener("pointercancel", this.gestureCancelListener);
     this.stripOutsideListener = (e: PointerEvent) => {
       const rect = this.app.canvas.getBoundingClientRect();
       this.phaseStrip.handleOutsidePointerDown(
@@ -2064,6 +2072,7 @@ export class BoardScene {
     if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("pointermove", this.cursorListener);
+    window.removeEventListener("pointercancel", this.gestureCancelListener);
     this.app.canvas.removeEventListener("pointerdown", this.stripOutsideListener);
     this.app.canvas.removeEventListener("pointerdown", this.pinchDownListener);
     window.removeEventListener("pointermove", this.pinchMoveListener);

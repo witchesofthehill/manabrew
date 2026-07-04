@@ -233,7 +233,14 @@ public final class ManaBrewInteractiveSession {
             try {
                 return interpretPriorityAction(action, actionsForPrompt, untappableCards);
             } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
-                System.err.println("[mana-brew] ignoring invalid priority answer: " + invalid);
+                System.err.println("[mana-brew] ignoring invalid priority answer: " + invalid
+                        + " | playerId=" + playerId
+                        + " options=" + actionsForPrompt.size()
+                        + " untappable=" + untappableCards.size()
+                        + " phase=" + game.getPhaseHandler().getPhase()
+                        + " turn=" + game.getPhaseHandler().getTurn()
+                        + " action=" + action);
+                invalid.printStackTrace(System.err);
                 publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
             }
         }
@@ -373,7 +380,14 @@ public final class ManaBrewInteractiveSession {
                 return interpretManaPaymentChoice(
                         action, tappableSources, untappableCards, convokeSources, delveSources);
             } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
-                System.err.println("[mana-brew] ignoring invalid mana-payment answer: " + invalid);
+                System.err.println("[mana-brew] ignoring invalid mana-payment answer: " + invalid
+                        + " | playerId=" + playerId
+                        + " payingFor=" + (payingFor != null ? payingFor.getName() : "null")
+                        + " remainingCost=" + remainingCost
+                        + " tappable=" + tappableSources.size()
+                        + " canConfirm=" + canConfirm + " canCancel=" + canCancel
+                        + " action=" + action);
+                invalid.printStackTrace(System.err);
                 publishManaPaymentPrompt(
                         playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
                         delveSources, delvedCards, canConfirm, canCancel, canPayLife, lifeToPay);

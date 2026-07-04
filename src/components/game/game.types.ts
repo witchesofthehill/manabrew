@@ -109,4 +109,5 @@ export interface MainActionOverlayProps {
   mulliganSelectedCount?: number;
   onMulliganPutBackConfirm?: () => void;
   selfClusterMaxHeight?: number;
+  dividerY?: number;
 }

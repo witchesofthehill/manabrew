@@ -64,6 +64,7 @@ import {
   PlayerHudLayer,
   PLAYER_HUD_HEIGHT_PX as PLAYER_BAR_HEIGHT_PX,
   SELF_PLAYER_HUD_HEIGHT_PX as SELF_PLAYER_BAR_HEIGHT_PX,
+  SELF_PLAYER_HUD_COMPACT_SCALE,
   PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
   PLAYER_HUD_SIDE_MARGIN_PX as PLAYER_BAR_SIDE_MARGIN_PX,
   PLAYER_HUD_MAX_WIDTH_PX as PLAYER_BAR_MAX_WIDTH_PX,
@@ -614,15 +615,17 @@ export class BoardScene {
     const zone = this.localZone();
     if (!zone) return;
     const pad = 8;
+    const scale = this.compactMode ? SELF_PLAYER_HUD_COMPACT_SCALE : 1;
     const width = Math.min(Math.max(0, zone.width - pad * 2), PLAYER_BAR_MAX_WIDTH_PX);
     this.playerBars.setRect(
       this.localPlayerId,
       zone.x + pad,
-      zone.y + zone.height - SELF_PLAYER_BAR_HEIGHT_PX - pad,
+      zone.y + zone.height - SELF_PLAYER_BAR_HEIGHT_PX * scale - pad,
       width,
       SELF_PLAYER_BAR_HEIGHT_PX,
       false,
     );
+    this.playerBars.setCapsuleScale(this.localPlayerId, scale);
   }
 
   /** Set the opponent player bars (thin Pixi panels over the top of each field)
@@ -1158,9 +1161,14 @@ export class BoardScene {
   }
 
   setCompactStrip(compact: boolean): void {
+    if (this.compactMode === compact) {
+      this.phaseStrip.setCompact(compact);
+      return;
+    }
     this.compactMode = compact;
     this.phaseStrip.setCompact(compact);
     this.hand?.setCompact(compact);
+    this.layoutSelfBar();
   }
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {

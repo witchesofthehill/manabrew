@@ -1689,6 +1689,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 mulliganSelectedCount={mulliganPutBack.selected.size}
                 onMulliganPutBackConfirm={mulliganPutBack.confirm}
                 selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
+                dividerY={boardLayout?.dividerY}
               />
               <MiddleBarDock
                 open={boardMenuOpen}

@@ -87,6 +87,7 @@ export function MainActionOverlay({
   mulliganSelectedCount,
   onMulliganPutBackConfirm,
   selfClusterMaxHeight,
+  dividerY,
 }: MainActionOverlayProps) {
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
   const themeColors = useTheme().gameTheme;
@@ -195,7 +196,9 @@ export function MainActionOverlay({
       className={cn(
         "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
         minimal
-          ? "bottom-20 right-1.5 w-auto rounded-2xl"
+          ? dividerY != null
+            ? "right-1.5 w-auto -translate-y-1/2 rounded-2xl"
+            : "bottom-20 right-1.5 w-auto rounded-2xl"
           : compact
             ? "bottom-[7.375rem] right-1.5 w-[14.375rem] rounded-lg"
             : "bottom-0 right-3 w-[18.75rem] rounded-t-lg border-b-0",
@@ -203,6 +206,7 @@ export function MainActionOverlay({
       )}
       style={
         {
+          ...(minimal && dividerY != null ? { top: dividerY } : {}),
           ...(hasAction
             ? {
                 "--action-glow-ring": withAlpha(glow, 0.75),

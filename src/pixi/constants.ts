@@ -114,6 +114,9 @@ export const Z_COMBAT_STAGED = 400;
 export const Z_PLACEMENT_GHOST = 500;
 export const Z_PLACEMENT_GHOST_TEXT = 501;
 export const Z_HAND_CONTAINER = 5000;
+// Compact viewports lift the hand above the player HUD (5600) and the phase
+// strip (7000) so the fan is never occluded on the crowded small board.
+export const Z_HAND_CONTAINER_COMPACT = 7500;
 export const Z_HAND_HOVERED = 100;
 export const Z_OVERLAY_OFFSET = 100;
 export const Z_SELECTION_BADGE = 9500;

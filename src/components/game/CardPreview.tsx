@@ -22,6 +22,7 @@ import { useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface CardPreviewProps {
@@ -254,6 +255,7 @@ export function CardPreview({
   imageSize = "large",
 }: CardPreviewProps) {
   const hasActions = actions && actions.length > 0 && onSelectAction;
+  const minimal = useIsMobileGame();
   const showSidePanel = hasActions;
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
@@ -303,12 +305,13 @@ export function CardPreview({
   });
 
   useEffect(() => {
-    if (!hasActions || !onDismiss) return;
+    if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         onDismiss!();
         return;
       }
+      if (!hasActions) return;
       const num = parseInt(e.key);
       if (num >= 1 && num <= actions!.length) {
         e.preventDefault();
@@ -335,8 +338,9 @@ export function CardPreview({
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
   const horizontal = horizontalCard && !orientationFlipped;
-  const cardWidth = horizontal ? CARD_H : CARD_W;
-  const cardHeight = horizontal ? CARD_W : CARD_H;
+  const previewScale = minimal ? Math.min(1, (window.innerHeight - 16) / CARD_H) : 1;
+  const cardWidth = (horizontal ? CARD_H : CARD_W) * previewScale;
+  const cardHeight = (horizontal ? CARD_W : CARD_H) * previewScale;
 
   let cardLeft: number;
   let top: number;

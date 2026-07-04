@@ -101,6 +101,7 @@ interface GameBoardProps {
     options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
   ) => void;
   onDismissHoverPreview?: () => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (action: HandActionOption) => void;
   onFlipCard: () => void;
@@ -193,6 +194,7 @@ export function GameBoard({
   onHandCardClick,
   onHoverCard,
   onDismissHoverPreview,
+  onLongPressCard,
   getHandActions,
   onSelectHandAction,
   onFlipCard,
@@ -507,6 +509,11 @@ export function GameBoard({
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
       onShowBoardMenu,
+      onFocusOpponentField: setManualFocusId,
+      onLongPressCard: onLongPressCard
+        ? (card, bounds) =>
+            onLongPressCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
+        : undefined,
     }),
     [
       promptType,
@@ -534,7 +541,9 @@ export function GameBoard({
       setDragAttackerId,
       setSheetPlayerId,
       setStickyOpponentId,
+      setManualFocusId,
       isSelfTurn,
+      onLongPressCard,
     ],
   );
 

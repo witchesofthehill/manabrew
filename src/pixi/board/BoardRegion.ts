@@ -125,6 +125,7 @@ export class BoardRegion {
   private gridSkeletonGfx: Graphics;
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
+  private compactZones = false;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
@@ -230,6 +231,13 @@ export class BoardRegion {
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
+  setCompactZones(compact: boolean): void {
+    if (this.compactZones === compact) return;
+    this.compactZones = compact;
+    if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
+
   private freshGrid(): GridLayoutInfo {
     return computeGridLayout(
       this.playArea(),
@@ -250,11 +258,17 @@ export class BoardRegion {
   private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
+    // Compact viewports: the local field's keep-out blockers (hand fan, action
+    // cluster) can leave no run of adjacent free cells, scattering the tiles
+    // across the field. Keep the group contiguous at the near-left corner
+    // instead — cards still avoid the reserved cells, and only the fan may
+    // partially overlap the column. Mirrored opponents keep honoring blockers:
+    // their HUD capsule reserves the top-left cells that way.
+    const ignoreBlockers = this.compactZones && !this.mirrored;
     const isFree = (cell: GridCell | null): cell is GridCell =>
       !!cell &&
-      !cell.blocked &&
       !taken.has(cellKey(cell.col, cell.row)) &&
-      !occupied.has(cellKey(cell.col, cell.row));
+      (ignoreBlockers || (!cell.blocked && !occupied.has(cellKey(cell.col, cell.row))));
 
     const attackBandRow = grid.rows;
     const resolveCell = (col: number, row: number): GridCell | null => {
@@ -281,11 +295,11 @@ export class BoardRegion {
     };
 
     for (const key of this.zoneTileKeys) {
-      const slot = this.zoneSlots.get(key);
+      const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       if (!cell) continue;
-      this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+      if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });

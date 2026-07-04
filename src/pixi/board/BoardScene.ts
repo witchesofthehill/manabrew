@@ -323,7 +323,13 @@ export class BoardScene {
     this.playerBars = new PlayerHudLayer(
       this.theme,
       (id) => this.callbacks.onTargetPlayer?.(id),
-      (id) => this.callbacks.onShowPlayerSheet?.(id),
+      (id) => {
+        if (this.compactMode && this.isCollapsedOpponentBand(id)) {
+          this.callbacks.onFocusOpponentField?.(id);
+          return;
+        }
+        this.callbacks.onShowPlayerSheet?.(id);
+      },
       () => this.callbacks.onShowBoardMenu?.(),
     );
     this.playerBars.container.zIndex = 5600;
@@ -443,6 +449,7 @@ export class BoardScene {
       region.setPlaymat(spec.playmat);
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
+      region.setCompactZones(this.compactMode);
       region.setSkeletonDebug(this.gridSkeletonDebug);
       region.setAttackRowDebug(this.attackRowDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
@@ -599,6 +606,10 @@ export class BoardScene {
         const barX = column ? left : left + PLAYER_BAR_SIDE_MARGIN_PX;
         const barY = column ? 0 : PLAYER_BAR_TOP_MARGIN_PX;
         this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
+        this.playerBars.setCapsuleScale(
+          this.opponentIds[i]!,
+          !column && this.compactMode ? SELF_PLAYER_HUD_COMPACT_SCALE : 1,
+        );
       }
     }
     this.drawDelimiterFog();
@@ -1168,6 +1179,7 @@ export class BoardScene {
     this.compactMode = compact;
     this.phaseStrip.setCompact(compact);
     this.hand?.setCompact(compact);
+    for (const rec of this.regions.values()) rec.region.setCompactZones(compact);
     this.layoutSelfBar();
   }
 
@@ -1419,6 +1431,7 @@ export class BoardScene {
       getEntries: () => region.getEntries(),
       applyRing: (sprite) => region.applyBaseRing(sprite),
       canRefreshRings: () => region.hasLastState(),
+      isCompact: () => this.compactMode,
     };
   }
 
@@ -1449,9 +1462,7 @@ export class BoardScene {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         if (region) {
-          this.longPress.start(e, sprite.card.id, () =>
-            this.setBattlefieldCardHovered(region, sprite),
-          );
+          this.longPress.start(e, sprite.card.id, () => this.fireLongPressPreview(region, sprite));
         }
         this.onBattlefieldCardDown(sprite, e);
       });
@@ -1463,9 +1474,7 @@ export class BoardScene {
     } else {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         if (region) {
-          this.longPress.start(e, sprite.card.id, () =>
-            this.setBattlefieldCardHovered(region, sprite),
-          );
+          this.longPress.start(e, sprite.card.id, () => this.fireLongPressPreview(region, sprite));
         }
         // Grab our own declared attacker (staged in this opponent's band) to
         // drag it back and un-declare it.
@@ -1500,10 +1509,35 @@ export class BoardScene {
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
   }
 
-  private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite): void {
+  private isCollapsedOpponentBand(playerId: string): boolean {
+    const n = this.opponentIds.length;
+    const i = this.opponentIds.indexOf(playerId);
+    const W = this.boardWidth;
+    if (i < 0 || n <= 1 || W <= 0) return false;
+    const left = Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
+    const right = Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
+    return right - left <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
+  }
+
+  private fireLongPressPreview(region: BoardRegion, sprite: CardSprite): void {
+    if (this.callbacks.onLongPressCard) {
+      const bounds = sprite.getBounds();
+      const canvasRect = this.app.canvas.getBoundingClientRect();
+      this.callbacks.onLongPressCard(sprite.card, {
+        x: bounds.x + canvasRect.left,
+        y: bounds.y + canvasRect.top,
+        width: bounds.width,
+        height: bounds.height,
+      });
+      return;
+    }
+    this.setBattlefieldCardHovered(region, sprite, true);
+  }
+
+  private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite, force = false): void {
     if (this.hand?.hasActiveHover()) return;
     this.cancelHoverClear();
-    if (this.hoveredCardId === sprite.card.id) return;
+    if (!force && this.hoveredCardId === sprite.card.id) return;
     const prevRegion = this.hoveredRegionRef;
     if (prevRegion && prevRegion !== region) prevRegion.setHoveredCard(null);
     this.hoveredRegionRef = region;

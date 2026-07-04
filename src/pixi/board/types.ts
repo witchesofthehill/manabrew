@@ -154,6 +154,7 @@ export interface SelectionHost {
   getEntries(): ReadonlyMap<string, SpriteEntry>;
   applyRing(sprite: CardSprite): void;
   canRefreshRings(): boolean;
+  isCompact(): boolean;
 }
 
 /** Narrow seam the `HandController` uses to read scene geometry/state and

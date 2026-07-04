@@ -1516,6 +1516,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           onHandCardClick={handleHandCardAction}
           onHoverCard={handleHoverCardGuarded}
           onDismissHoverPreview={preview.dismiss}
+          onLongPressCard={(card, rect) =>
+            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
+          }
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
           onFlipCard={preview.flipCard}

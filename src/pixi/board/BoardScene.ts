@@ -1590,6 +1590,9 @@ export class BoardScene {
 
   private onBattlefieldCardDown(sprite: CardSprite, e: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    // During a pinch the matching onGlobalUp is discarded, so a claim here
+    // would never be released — and no drag should start mid-pinch anyway.
+    if (this.pinchStart) return;
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;

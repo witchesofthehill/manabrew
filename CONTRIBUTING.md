@@ -128,6 +128,43 @@ Keep the PR reviewable:
 - Mention any known limitations or follow-up work.
 - Do not mix unrelated cleanup with a bug fix.
 
+## Releasing
+
+Releases are continuous and automatic — there is no release branch, release
+PR, or manual bump step. On every merge to `main`, CI (`release.yml`) runs
+`cargo xtask release`, which:
+
+1. Computes a bump for **each crate independently** (non-lockstep) from the
+   conventional commits since that crate's last release tag, parsed by
+   [git-cliff](https://git-cliff.org). A commit counts for every crate whose
+   files it touches: breaking (`!` or `BREAKING CHANGE:`) → major (pre-1.0
+   crates bump 0.x → 0.x+1, cargo's incompatibility boundary), `feat` →
+   minor, `fix`/`perf`/`refactor`/`revert` and unconventional messages →
+   patch, `docs`/`style`/`chore`/`test`/`build`/`ci` → no bump. Crates that
+   depend on a released crate get at least a patch.
+2. Commits `chore(release): …` straight to `main` with the new versions
+   (Cargo.tomls, `package.json`/`tauri.conf.json` mirrors, `Cargo.lock`,
+   `CHANGELOG.md`, `ops/manifest.json`).
+3. Tags each released crate (`<crate>-vX.Y.Z`; the desktop app owns the plain
+   `vX.Y.Z` tags), creates the GitHub Release with notes, and lets the tag
+   push kick off the installer builds while the manifest deploys to
+   `play.manabrew.app/manifest.json` for the auto-updaters.
+4. Publishes pending crates to crates.io (idempotent, allowlisted by
+   `publish` flags in each Cargo.toml).
+
+What this means for your PR:
+
+- **The squash-merge title is the commit that drives versioning** — write it
+  as a proper conventional commit. A breaking change bumps major on _every_
+  crate the PR touches; if that's too broad, split the PR. For per-commit
+  granularity, use a merge commit instead of squashing.
+- The **Release plan** check on the PR shows exactly what would be released
+  on merge.
+- To force a specific version (e.g. cutting a milestone), hand-set it in the
+  crate's `Cargo.toml` in the PR: the release run honors any version ahead of
+  the last tag. Preview locally with `cargo xtask plan` (needs `git-cliff` on
+  PATH: `brew install git-cliff`).
+
 ## What not to include
 
 - Card images.

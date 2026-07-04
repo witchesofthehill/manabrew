@@ -2,6 +2,8 @@
 name = "manabrew-engine-macros"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
+description = "Proc macros for the manabrew rules engine"
 
 [lib]
 proc-macro = true

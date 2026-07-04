@@ -439,11 +439,11 @@ Section "Next steps"
 Write-Host @"
 1. The runner service now runs as .\Administrator with PATH including
    cargo + wasm-pack. Trigger a build via workflow_dispatch on the
-   Release artifacts workflow, or push a tag like v0.0.1-test.
+   Publish workflow, or push a tag like v0.0.1-test.
 2. Confirm the service identity from a fresh shell if needed:
      (Get-WmiObject Win32_Service -Filter "Name LIKE 'actions.runner%'").StartName
    Should print '.\Administrator'.
-3. The release-artifacts workflow uses ilammy/msvc-dev-cmd@v1 to load MSVC
+3. The publish workflow uses ilammy/msvc-dev-cmd@v1 to load MSVC
    env per run, so link.exe does NOT need to be on system PATH.
 4. If you ever change the Administrator password, re-run this script so
    the service gets the new password (services keep cached credentials

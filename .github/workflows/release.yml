@@ -10,9 +10,10 @@ name: Release
 # The push uses RELEASE_TOKEN — a fine-grained PAT of a repository ADMIN
 # (admins bypass the "Main protection" ruleset; GITHUB_TOKEN cannot push to
 # main). Because it is a real PAT, the pushes fire normal events: the v* tag
-# push triggers release-artifacts.yml (installers attach to the Release this
-# job already created) and the main push triggers deploy.yml (ships the
-# updated manifest to play.manabrew.app for the auto-updaters).
+# push triggers publish.yml, which builds the installers, attaches
+# them + the updater manifest (tauri.json) to the Release this job already
+# created, and finishes by deploying production. Main pushes trigger nothing
+# else — this workflow is the only thing that runs on a main commit.
 #
 # Loop guard: the release commit itself starts with `chore(release):`, which
 # the job-level `if` skips. Concurrent merges serialize via the concurrency

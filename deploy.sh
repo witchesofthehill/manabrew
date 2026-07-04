@@ -2,9 +2,9 @@
 # deploy.sh — Smart rebuild of the Wasm/web stack on the production host.
 # Scope: builds manabrew (Wasm + React, served by caddy), manabrew-server, and
 # optionally parity-dashboard. Native Tauri installers (.dmg / .exe) are
-# built separately by .github/workflows/release-artifacts.yml.
-# Triggered by .github/workflows/deploy.yml (the "Wasm deploy" workflow)
-# via SSH from GitHub Actions on push to main.
+# built separately by .github/workflows/publish.yml.
+# Triggered by the final `deploy` job of .github/workflows/publish.yml
+# via SSH on every release tag (or a manual dispatch with `deploy` ticked).
 # Docker BuildKit layer caching handles unchanged layers within each build.
 #
 # stdout = clean summary (captured by the workflow and posted to Discord).

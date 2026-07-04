@@ -35,6 +35,8 @@ manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interf
 manabrew-protocol = { path = "../manabrew-rs/crates/manabrew-protocol" }
 forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
 tauri-plugin-http = "2.5.9"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
 ], optional = true }

@@ -1,5 +1,5 @@
 {
-  "version": 0,
+  "version": 2,
   "packages": {
     "forge-card-script": "0.1.0",
     "forge-card-script-lsp": "0.1.0",
@@ -17,7 +17,7 @@
     "manabrew_game_runtime": "0.1.0",
     "parity": "0.1.0",
     "parity-debugger": "0.1.0",
-    "self-hosted-node": "0.1.0",
+    "self-hosted-node": "0.1.2",
     "tree-sitter-forge-card-script": "0.1.0",
     "wasm": "0.1.0"
   }

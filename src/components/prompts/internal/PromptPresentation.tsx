@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { PROMPT_SOURCE_CARD_SIZE } from "@/components/game/game.styles";
 import { cn } from "@/lib/utils";
 import { useResolveDeckCard } from "./usePromptSourceCard";
 import { PromptTargets } from "./PromptTargets";
@@ -52,7 +53,10 @@ export function PromptPresentation({
             <ScryfallImg
               src={sourceCard.uris.normal}
               alt={sourceCard.identity.name}
-              className="w-[110px] h-auto object-contain rounded-xl shadow-lg shrink-0"
+              className={cn(
+                PROMPT_SOURCE_CARD_SIZE.verticalCompact,
+                "h-auto object-contain rounded-xl shadow-lg shrink-0",
+              )}
             />
           )}
           <div className="flex w-full flex-col gap-2 text-left">{body}</div>
@@ -69,7 +73,10 @@ export function PromptPresentation({
           <ScryfallImg
             src={sourceCard.uris.normal}
             alt={sourceCard.identity.name}
-            className="w-[200px] h-auto self-center object-contain rounded-xl shadow-lg"
+            className={cn(
+              PROMPT_SOURCE_CARD_SIZE.vertical,
+              "h-auto self-center object-contain rounded-xl shadow-lg",
+            )}
           />
         )}
         <div className="flex w-full flex-col gap-2 text-left">{body}</div>
@@ -86,7 +93,9 @@ export function PromptPresentation({
           alt={sourceCard.identity.name}
           className={cn(
             "h-auto self-start object-contain rounded-xl shadow-lg shrink-0",
-            minimal ? "w-[120px]" : "w-[220px]",
+            minimal
+              ? PROMPT_SOURCE_CARD_SIZE.horizontalCompact
+              : PROMPT_SOURCE_CARD_SIZE.horizontal,
           )}
         />
       )}

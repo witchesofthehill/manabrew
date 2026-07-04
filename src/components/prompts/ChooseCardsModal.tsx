@@ -4,6 +4,7 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
 import { stackObjectToCardStub } from "@/components/game/game.utils";
+import { CHOOSE_CARD_TILE_SIZE } from "@/components/game/game.styles";
 import { useGameStore } from "@/stores/useGameStore";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,8 @@ function SelectableCard({
     <div
       onClick={disabled ? undefined : onClick}
       className={cn(
-        "w-[94px] sm:w-[150px] shrink-0 rounded transition-all",
+        CHOOSE_CARD_TILE_SIZE,
+        "shrink-0 rounded transition-all",
         disabled ? "cursor-not-allowed opacity-30" : "cursor-pointer",
         selected && "ring-2 ring-primary",
       )}
@@ -101,7 +103,7 @@ export function ChooseCardsModal({
       >
         {cards.map((c) =>
           reveal ? (
-            <div key={c.id} className="w-[94px] sm:w-[150px] shrink-0">
+            <div key={c.id} className={cn(CHOOSE_CARD_TILE_SIZE, "shrink-0")}>
               <Card card={c} className="w-full" />
             </div>
           ) : (

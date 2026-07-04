@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { PromptModalChromeContext } from "./promptModalChrome.context";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 
 interface ModalProps {
   children: React.ReactNode;
@@ -38,6 +39,7 @@ export function Modal({
   backdropClassName,
 }: ModalProps) {
   const promptChrome = useContext(PromptModalChromeContext);
+  const minimal = useIsMobileGame();
 
   useEffect(() => {
     if (!onClose) return;
@@ -51,7 +53,8 @@ export function Modal({
   return createPortal(
     <div
       className={cn(
-        "game-touch-surface fixed inset-0 z-[9000] flex items-center justify-center bg-black/60 backdrop-blur-sm",
+        "fixed inset-0 z-[9000] flex items-center justify-center bg-black/60 backdrop-blur-sm",
+        minimal && "game-touch-surface",
         backdropClassName,
       )}
       onClick={onClose}

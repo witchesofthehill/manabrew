@@ -93,7 +93,7 @@ pub struct CardPart {
 }
 
 /// Mirror of `manabrew.ts:DeckCard`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]
 pub struct DeckCard {
@@ -106,6 +106,55 @@ pub struct DeckCard {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub all_parts: Option<Vec<CardPart>>,
+}
+
+// Wire-compat: clients ≤ v0.5.2 serialize the identity fields flattened onto
+// the card instead of nested under `identity`.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeckCardWire {
+    #[serde(default)]
+    identity: Option<DeckCardIdentity>,
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    set_code: Option<String>,
+    #[serde(default)]
+    card_number: Option<String>,
+    #[serde(default)]
+    foil: Option<bool>,
+    #[serde(flatten)]
+    rules: CardRulesSummary,
+    #[serde(default)]
+    uris: CardImageUris,
+    #[serde(default)]
+    all_parts: Option<Vec<CardPart>>,
+}
+
+impl<'de> Deserialize<'de> for DeckCard {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = DeckCardWire::deserialize(deserializer)?;
+        let identity = match wire.identity {
+            Some(identity) => identity,
+            None => DeckCardIdentity {
+                id: wire.id,
+                name: wire
+                    .name
+                    .ok_or_else(|| serde::de::Error::missing_field("identity"))?,
+                set_code: wire.set_code.unwrap_or_default(),
+                card_number: wire.card_number.unwrap_or_default(),
+                foil: wire.foil,
+            },
+        };
+        Ok(DeckCard {
+            identity,
+            rules: wire.rules,
+            uris: wire.uris,
+            all_parts: wire.all_parts,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -204,4 +253,49 @@ pub struct Deck {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub tokens: Option<Vec<DeckCard>>,
+}
+
+#[cfg(test)]
+mod wire_compat_tests {
+    use super::*;
+
+    #[test]
+    fn nested_identity_parses() {
+        let card: DeckCard = serde_json::from_str(
+            r#"{"identity":{"name":"Plains","setCode":"m21","cardNumber":"260"},"cmc":0,"types":["Land"]}"#,
+        ).unwrap();
+        assert_eq!(card.identity.name, "Plains");
+        assert_eq!(card.identity.set_code, "m21");
+    }
+
+    #[test]
+    fn legacy_flattened_identity_parses() {
+        let card: DeckCard = serde_json::from_str(
+            r#"{"id":"x","name":"Plains","setCode":"m21","cardNumber":"260","foil":false,"cmc":0,"types":["Land"],"text":"({T}: Add {W}.)"}"#,
+        ).unwrap();
+        assert_eq!(card.identity.name, "Plains");
+        assert_eq!(card.identity.set_code, "m21");
+        assert_eq!(card.identity.id, "x");
+        assert_eq!(card.rules.types, vec!["Land"]);
+    }
+
+    #[test]
+    fn missing_both_fails_with_identity_error() {
+        let err = serde_json::from_str::<DeckCard>(r#"{"cmc":0}"#).unwrap_err();
+        assert!(err.to_string().contains("identity"));
+    }
+
+    #[test]
+    fn serialize_stays_nested() {
+        let card = DeckCard {
+            identity: DeckCardIdentity {
+                name: "Plains".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let json = serde_json::to_value(&card).unwrap();
+        assert!(json.get("identity").is_some());
+        assert!(json.get("name").is_none());
+    }
 }

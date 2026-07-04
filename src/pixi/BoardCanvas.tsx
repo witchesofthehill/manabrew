@@ -336,7 +336,7 @@ export function BoardCanvas({
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
     const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction, compact ?? false);
-    s.setCompactStrip(compact ?? false);
+    s.setCompactMode(compact ?? false);
     // Each region is scaled to fill its OWN height — a single shared scale let
     // the tightest field (self, after the hand-fan reserve) shrink everyone, so
     // the roomier opponent fields wasted space. Self follows the card-scale

@@ -1189,11 +1189,8 @@ export class BoardScene {
     this.phaseStrip.setCallbacks(cb);
   }
 
-  setCompactStrip(compact: boolean): void {
-    if (this.compactMode === compact) {
-      this.phaseStrip.setCompact(compact);
-      return;
-    }
+  setCompactMode(compact: boolean): void {
+    if (this.compactMode === compact) return;
     this.compactMode = compact;
     this.phaseStrip.setCompact(compact);
     this.hand?.setCompact(compact);

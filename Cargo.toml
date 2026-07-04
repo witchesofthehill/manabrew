@@ -20,6 +20,7 @@ members = [
     "manabrew-rs/crates/forge-cardset-archive",
     "manabrew-rs/crates/forge-limited",
     "manabrew-rs/crates/manabot",
+    "xtask",
 ]
 exclude = [
     "packages/core",

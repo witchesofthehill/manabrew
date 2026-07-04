@@ -2,6 +2,7 @@
 name = "forge-limited"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
 forge-foundation = { path = "../forge-foundation" }

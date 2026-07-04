@@ -1,10 +1,11 @@
 [package]
 name = "manabrew"
-version = "0.6.2"
+version = "1.0.0"
 edition = "2021"
+publish = false
 
 [features]
-forge-room = ["dep:self-hosted-node"]
+forge-room = ["dep:self-hosted-node", "dep:manabrew-server"]
 
 [lib]
 name = "manabrew_lib"
@@ -29,7 +30,7 @@ forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive" }
 memmap2 = "0.9"
 rand = "0.8"
 tiny_http = "0.12"
-tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
+tokio = { version = "1", features = ["rt", "sync", "macros", "time", "net"] }
 manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interface" }
 manabrew-protocol = { path = "../manabrew-rs/crates/manabrew-protocol" }
 forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
@@ -39,3 +40,4 @@ tauri-plugin-process = "2"
 self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
     "graal-forge",
 ], optional = true }
+manabrew-server = { path = "../manabrew-rs/crates/manabrew-server", optional = true }

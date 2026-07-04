@@ -2,6 +2,8 @@
 name = "self-hosted-node"
 version = "0.1.2"
 edition = "2021"
+license.workspace = true
+description = "Headless manabrew engine node for hosting AI games"
 
 [features]
 java-forge = []
@@ -15,19 +17,14 @@ path = "src/lib.rs"
 name = "self-hosted-node"
 path = "src/main.rs"
 
-[[example]]
-name = "graal_smoke"
-path = "examples/graal_smoke.rs"
-required-features = ["graal-forge"]
-
 [dependencies]
-manabrew-agent-interface = { path = "../manabrew-agent-interface" }
-manabrew-protocol = { path = "../manabrew-protocol" }
-manabot = { path = "../manabot/" }
-forge-carddb = { path = "../forge-carddb" }
-manabrew-engine = { path = "../manabrew-engine" }
-forge-foundation = { path = "../forge-foundation" }
-manabrew_game_runtime = { path = "../manabrew-game-runtime" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.1.0" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "0.2.0" }
+manabot = { path = "../manabot/", version = "0.1.0" }
+forge-carddb = { path = "../forge-carddb", version = "0.1.0" }
+manabrew-engine = { path = "../manabrew-engine", version = "0.1.0" }
+forge-foundation = { path = "../forge-foundation", version = "0.1.0" }
+manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.1.0" }
 memmap2 = "0.9"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }

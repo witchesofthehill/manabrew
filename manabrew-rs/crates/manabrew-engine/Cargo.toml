@@ -2,12 +2,14 @@
 name = "manabrew-engine"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
+description = "Magic: The Gathering rules engine — a Rust port of Forge"
 
 [dependencies]
-forge-foundation = { path = "../forge-foundation" }
-forge-card-script = { path = "../forge-card-script" }
-forge-carddb = { path = "../forge-carddb" }
-manabrew-engine-macros = { path = "../manabrew-engine-macros" }
+forge-foundation = { path = "../forge-foundation", version = "0.1.0" }
+forge-card-script = { path = "../forge-card-script", version = "0.1.0" }
+forge-carddb = { path = "../forge-carddb", version = "0.1.0" }
+manabrew-engine-macros = { path = "../manabrew-engine-macros", version = "0.1.0" }
 strum_macros = "0.28.0"
 strum = "0.28"
 serde = { workspace = true }

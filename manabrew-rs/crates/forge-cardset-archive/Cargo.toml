@@ -2,6 +2,8 @@
 name = "forge-cardset-archive"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
+description = "rkyv archive format for manabrew's pre-compiled cardset"
 
 [features]
 default = []
@@ -9,7 +11,7 @@ build = ["dep:walkdir", "dep:memmap2"]
 
 [dependencies]
 rkyv = { version = "0.7", features = ["validation"] }
-forge-card-script = { path = "../forge-card-script" }
+forge-card-script = { path = "../forge-card-script", version = "0.1.0" }
 memmap2 = { version = "0.9", optional = true }
 walkdir = { version = "2", optional = true }
 

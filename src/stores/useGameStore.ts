@@ -12,7 +12,7 @@ import {
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
 import { armActiveGameSession, clearActiveGameSession } from "@/lib/activeGameSession";
-import { startHostedAiGame } from "@/game/hostedAiPlay";
+import { startHostedAiGame, startTauriForgeAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -112,15 +112,19 @@ async function initializeGame({
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
 
-  // On web, "Play vs AI" can be routed through a self-hosted-node room when
-  // the deployment enables it: the node runs the engine and spawns the bot,
-  // and the browser attaches as a non-host multiplayer client.
+  // "Play vs AI" against Forge never runs in-process: a self-hosted node hosts
+  // the room and spawns the bot while the client attaches as a non-host
+  // multiplayer player. On web this uses a pooled hosted room gated by the
+  // deployment flag; on the Tauri graalvm build the desktop app hosts the Forge
+  // room locally. If the local Forge host can't start, fall back to the
+  // in-process Manabrew engine so the game still launches.
+  const platformType = getPlatform().type;
   if (
-    getPlatform().type === "web" &&
-    isHostedEngineAvailable() &&
     engine === "Forge" &&
-    opponentDeck
+    opponentDeck &&
+    (platformType === "tauri" || (platformType === "web" && isHostedEngineAvailable()))
   ) {
+    const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
     set({
       isGameActive: true,
       fatalError: null,
@@ -134,37 +138,45 @@ async function initializeGame({
       relinquishedPriority: false,
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
-      debugInfo: "Starting hosted Forge engine...",
+      debugInfo: "Starting Forge engine...",
     });
-    const hosted = await startHostedAiGame({
-      playerDeck: deck,
-      opponentDeck,
-      formatId: selectedFormatId,
-      commanderName: commanderName ?? null,
-    });
-    resetSelectedGameRuntime();
-    const hostedRuntime = getSelectedGameRuntime();
-    const hostedDecks: Record<string, Deck> = {};
-    hosted.playerOrder.forEach((_, index) => {
-      hostedDecks[`player-${index}`] = hosted.decks[index];
-    });
-    set({
-      isMultiplayer: true,
-      isHost: false,
-      myPlayerSlot: `player-${hosted.enginePlayerIndex}`,
-      gameDecks: hostedDecks,
-      debugInfo: "Joining hosted Forge engine...",
-    });
-    await hostedRuntime.api.startMultiplayerGame({
-      playerNames: hosted.playerOrder,
-      decks: hosted.decks,
-      commanderNames: hosted.commanderNames,
-      enginePlayerIndex: hosted.enginePlayerIndex,
-      localIsHost: false,
-      startingLife: hosted.startingLife,
-    });
-    set({ debugInfo: "Hosted Forge game started.", isPrefetchingCards: false });
-    return;
+    try {
+      const hosted = await launchForge({
+        playerDeck: deck,
+        opponentDeck,
+        formatId: selectedFormatId,
+        commanderName: commanderName ?? null,
+      });
+      resetSelectedGameRuntime();
+      const hostedRuntime = getSelectedGameRuntime();
+      const hostedDecks: Record<string, Deck> = {};
+      hosted.playerOrder.forEach((_, index) => {
+        hostedDecks[`player-${index}`] = hosted.decks[index];
+      });
+      set({
+        isMultiplayer: true,
+        isHost: false,
+        myPlayerSlot: `player-${hosted.enginePlayerIndex}`,
+        gameDecks: hostedDecks,
+        debugInfo: "Joining Forge engine...",
+      });
+      await hostedRuntime.api.startMultiplayerGame({
+        playerNames: hosted.playerOrder,
+        decks: hosted.decks,
+        commanderNames: hosted.commanderNames,
+        enginePlayerIndex: hosted.enginePlayerIndex,
+        localIsHost: false,
+        startingLife: hosted.startingLife,
+      });
+      set({ debugInfo: "Forge game started.", isPrefetchingCards: false });
+      return;
+    } catch (error) {
+      if (platformType !== "tauri") throw error;
+      console.error("[store] Forge host unavailable; falling back to Manabrew:", error);
+      toast.error("Forge engine unavailable — using the Manabrew engine.");
+      resetSelectedGameRuntime();
+      set({ isMultiplayer: false, isHost: false });
+    }
   }
 
   const gameDecks: Record<string, Deck> = { "player-0": deck };

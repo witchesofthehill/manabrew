@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { LONG_PRESS_CANCEL_DIST_SQ, LONG_PRESS_PREVIEW_MS } from "@/lib/responsive";
 
 interface LongPressPreviewOptions<T> {
@@ -19,7 +19,13 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
     }
   };
 
+  useEffect(() => cancelTimer, []);
+
   const onPointerDown = (e: React.PointerEvent) => {
+    // The compat click after a long-press is not guaranteed (iOS often skips it
+    // after a hold, or the finger drifts past the tap slop) — a stale flag here
+    // would swallow the NEXT unrelated click, so disarm on every new press.
+    firedRef.current = false;
     if (e.pointerType !== "touch") return;
     const hit = resolve(e);
     if (!hit) return;

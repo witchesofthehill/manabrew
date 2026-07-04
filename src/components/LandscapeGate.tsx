@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { RotateCw } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useIsTouch } from "@/hooks/useBreakpoints";
+import { LANDSCAPE_GATE_MAX_WIDTH_QUERY, PORTRAIT_QUERY } from "@/lib/responsive";
 
 /** Overlay for landscape-first views (game, draft): on small portrait touch
  *  screens it asks the user to rotate, and best-effort locks the orientation
@@ -11,8 +12,8 @@ import { useIsTouch } from "@/hooks/useBreakpoints";
  *  portal to body and would otherwise render interactive on top of the gate. */
 export function LandscapeGate() {
   const coarse = useIsTouch();
-  const portrait = useMediaQuery("(orientation: portrait)");
-  const small = useMediaQuery("(max-width: 1023px)");
+  const portrait = useMediaQuery(PORTRAIT_QUERY);
+  const small = useMediaQuery(LANDSCAPE_GATE_MAX_WIDTH_QUERY);
 
   useEffect(() => {
     if (!coarse) return;

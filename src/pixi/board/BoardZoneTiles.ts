@@ -44,6 +44,7 @@ export interface ZoneTileHost {
     card: CardDto | null,
     bounds?: { x: number; y: number; width: number; height: number },
   ) => void;
+  isPointerTapSuppressed: (pointerId: number) => boolean;
 }
 
 interface Tile {
@@ -101,7 +102,6 @@ export class BoardZoneTiles {
     grabY: number;
     moved: boolean;
   } | null = null;
-  private cancelledDragPointerId: number | null = null;
   private longPress = new LongPressGesture();
 
   constructor(theme: Theme, host: ZoneTileHost) {
@@ -228,10 +228,18 @@ export class BoardZoneTiles {
       if (this.drag.moved) this.host.onDragMove(nx + this.cardW / 2, ny + this.cardH / 2);
     });
     const end = (e: FederatedPointerEvent) => {
-      if (this.drag?.tile === tile && this.drag.pointerId !== e.pointerId) return;
-      if (this.cancelledDragPointerId === e.pointerId) {
-        this.cancelledDragPointerId = null;
+      if (this.drag && this.drag.tile !== tile) return;
+      if (this.drag && this.drag.pointerId !== e.pointerId) return;
+      // A release from a pointer that joined a pinch (which aborted any drag)
+      // must neither open the zone nor commit a drop.
+      if (this.host.isPointerTapSuppressed(e.pointerId)) {
         this.longPress.cancel();
+        this.host.onPreview(null);
+        if (this.drag?.tile === tile) {
+          this.drag = null;
+          container.zIndex = 0;
+          this.host.onDragEnd();
+        }
         return;
       }
       this.longPress.cancel();
@@ -448,9 +456,10 @@ export class BoardZoneTiles {
 
   cancelDrag(): void {
     if (!this.drag) return;
-    this.cancelledDragPointerId = this.drag.pointerId;
     this.drag.tile.container.zIndex = 0;
     this.drag = null;
+    this.host.onPreview(null);
+    this.longPress.reset();
     this.host.onDragEnd();
   }
 

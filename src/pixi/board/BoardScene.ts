@@ -1318,6 +1318,7 @@ export class BoardScene {
           useAnchor: true,
         });
       },
+      isPointerTapSuppressed: (pointerId) => this.tapSuppressedPointers.has(pointerId),
       isDestroyed: () => this.destroyed,
     };
   }

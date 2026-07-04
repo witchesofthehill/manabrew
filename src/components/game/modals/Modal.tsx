@@ -66,7 +66,10 @@ export function Modal({
         className={cn(
           "relative bg-card border rounded-xl shadow-2xl flex flex-col w-full mx-4 animate-in fade-in zoom-in-95 duration-200",
           maxWidth,
-          maxHeight,
+          // maxHeight="" means "size to content", but the panel must never
+          // exceed the viewport (landscape phones) — clamp and let the inner
+          // wrapper scroll instead of painting offscreen.
+          maxHeight || "max-h-[calc(100dvh-1rem)]",
           className,
         )}
         onClick={(e) => e.stopPropagation()}
@@ -86,7 +89,7 @@ export function Modal({
             <Minus className="h-3.5 w-3.5" />
           </button>
         )}
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
       </div>
     </div>,
     document.body,

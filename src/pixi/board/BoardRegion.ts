@@ -216,7 +216,7 @@ export class BoardRegion {
     // the red strip instead of being dimmed beneath it — still below staged
     // attacker cards and the row's avatar/label header.
     this.zoneTiles.container.zIndex = Z_COMBAT_STAGED - 4;
-    this.zoneTiles.setDraggable(!this.mirrored);
+    this.applyZoneTileDraggable();
     this.container.addChild(this.zoneTiles.container);
 
     this.drawBackground();
@@ -234,8 +234,15 @@ export class BoardRegion {
   setCompactZones(compact: boolean): void {
     if (this.compactZones === compact) return;
     this.compactZones = compact;
+    this.applyZoneTileDraggable();
     if (this.lastState) this.updateBattlefield(this.lastState);
     else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
+
+  // Compact placement ignores stored slots, so a drag would always snap back
+  // (and its slot would resurface on desktop) — disable the affordance instead.
+  private applyZoneTileDraggable(): void {
+    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones);
   }
 
   cancelZoneTileDrag(): void {
@@ -339,7 +346,7 @@ export class BoardRegion {
       prev.height !== zone.height;
     this.mirrored = orientation !== "bottom";
     this.playmat.setMirrored(this.mirrored);
-    this.zoneTiles.setDraggable(!this.mirrored);
+    this.applyZoneTileDraggable();
     this.applyOrientation(zone);
     this.updateClip();
     this.drawBackground();

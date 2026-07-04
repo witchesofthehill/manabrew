@@ -94,7 +94,13 @@ export class BoardZoneTiles {
   private cardW = 0;
   private cardH = 0;
   private draggable = false;
-  private drag: { tile: Tile; grabX: number; grabY: number; moved: boolean } | null = null;
+  private drag: {
+    tile: Tile;
+    pointerId: number;
+    grabX: number;
+    grabY: number;
+    moved: boolean;
+  } | null = null;
   private longPress = new LongPressGesture();
 
   constructor(theme: Theme, host: ZoneTileHost) {
@@ -195,12 +201,18 @@ export class BoardZoneTiles {
       }
       if (!this.draggable) return;
       const p = this.container.toLocal(e.global);
-      this.drag = { tile, grabX: p.x - container.x, grabY: p.y - container.y, moved: false };
+      this.drag = {
+        tile,
+        pointerId: e.pointerId,
+        grabX: p.x - container.x,
+        grabY: p.y - container.y,
+        moved: false,
+      };
       container.zIndex = DRAG_Z;
     });
     container.on("globalpointermove", (e: FederatedPointerEvent) => {
       this.longPress.move(e.global.x, e.global.y);
-      if (this.drag?.tile !== tile) return;
+      if (this.drag?.tile !== tile || this.drag.pointerId !== e.pointerId) return;
       const p = this.container.toLocal(e.global);
       const nx = p.x - this.drag.grabX;
       const ny = p.y - this.drag.grabY;
@@ -214,7 +226,8 @@ export class BoardZoneTiles {
       container.position.set(nx, ny);
       if (this.drag.moved) this.host.onDragMove(nx + this.cardW / 2, ny + this.cardH / 2);
     });
-    const end = () => {
+    const end = (e: FederatedPointerEvent) => {
+      if (this.drag?.tile === tile && this.drag.pointerId !== e.pointerId) return;
       this.longPress.cancel();
       const heldForPreview = this.longPress.consumeTap(tile.spec.key);
       if (heldForPreview) this.host.onPreview(null);
@@ -425,6 +438,13 @@ export class BoardZoneTiles {
       g.circle(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, 1.3);
     }
     g.fill({ color, alpha });
+  }
+
+  cancelDrag(): void {
+    if (!this.drag) return;
+    this.drag.tile.container.zIndex = 0;
+    this.drag = null;
+    this.host.onDragEnd();
   }
 
   destroy(): void {

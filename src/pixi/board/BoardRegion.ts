@@ -238,6 +238,10 @@ export class BoardRegion {
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
+  cancelZoneTileDrag(): void {
+    this.zoneTiles.cancelDrag();
+  }
+
   private freshGrid(): GridLayoutInfo {
     return computeGridLayout(
       this.playArea(),

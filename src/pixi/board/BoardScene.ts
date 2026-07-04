@@ -867,6 +867,7 @@ export class BoardScene {
       const st = ud.region.getLastState();
       if (st) ud.region.updateBattlefield(st);
     }
+    local?.cancelZoneTileDrag();
     this.draggingDelim = null;
     this.setBlockDragId(null);
     this.setAttackDragId(null);
@@ -1594,6 +1595,7 @@ export class BoardScene {
     if (!local || !selection) return;
     if (this.declareBlockers && local.getLastState()?.selectableCardIds?.includes(sprite.card.id)) {
       this.setBlockDragId(sprite.card.id);
+      this.activeGesturePointerId = e.pointerId;
       this.callbacks.onHoverCard?.(null);
       this.callbacks.onDismissHoverPreview?.();
       return;
@@ -1610,6 +1612,7 @@ export class BoardScene {
         e.shiftKey,
       ),
     );
+    this.activeGesturePointerId = e.pointerId;
     selection.refresh();
     this.attackDragCandidate =
       this.declareAttackers && this.attackerOptions.some((a) => a.attackerId === sprite.card.id)

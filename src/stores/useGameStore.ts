@@ -351,6 +351,8 @@ export const useGameStore = create<GameState>()(
         enginePlayerIndex,
         localIsHost,
         startingLife,
+        engine,
+        format,
       ) => {
         // Guard against re-entry — a second start while one is already in
         // flight would tear down the first session's response channels in
@@ -395,8 +397,8 @@ export const useGameStore = create<GameState>()(
             isPrefetchingCards: true,
             gameDecks,
           });
-          resetSelectedGameRuntime();
-          const runtime = getSelectedGameRuntime();
+          const runtime =
+            engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
           await runtime.api.startMultiplayerGame({
             playerNames,
@@ -405,6 +407,7 @@ export const useGameStore = create<GameState>()(
             enginePlayerIndex,
             localIsHost,
             startingLife,
+            format,
           });
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
         } catch (e) {

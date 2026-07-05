@@ -1,8 +1,10 @@
 import { getPlatform } from "@/platform";
+import { IronsmithTrustedGameApi } from "./ironsmithRuntime";
 import { ManualTabletopGameApi } from "./manualTabletopApi";
 import type { GameRuntime, GameRuntimeCapabilities, GameRuntimeKind } from "./runtime.types";
 
 const manualTabletopApi = new ManualTabletopGameApi();
+const ironsmithApi = new IronsmithTrustedGameApi();
 let selectedRuntimeKind: GameRuntimeKind = "manabrew";
 
 function getPlatformGameCapabilities(): GameRuntimeCapabilities {
@@ -40,8 +42,22 @@ const manualTabletopRuntime: GameRuntime = {
   api: manualTabletopApi,
 };
 
+const ironsmithRuntime: GameRuntime = {
+  kind: "ironsmith",
+  label: "Ironsmith trusted",
+  capabilities: {
+    multiplayer: true,
+    snapshots: false,
+    deckAvailabilityCheck: false,
+    manualTabletop: false,
+    concedeBehavior: "send-action",
+  },
+  api: ironsmithApi,
+};
+
 const runtimes: Record<GameRuntimeKind, GameRuntime | null> = {
   manabrew: manabrewRuntime,
+  ironsmith: ironsmithRuntime,
   "manual-tabletop": manualTabletopRuntime,
   forge: null,
 };

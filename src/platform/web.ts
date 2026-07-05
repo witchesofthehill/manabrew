@@ -34,6 +34,7 @@ import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 import { logComms } from "@/lib/commsLog";
+import wasmModuleUrl from "@/wasm/wasm_bg.wasm?url";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
@@ -699,16 +700,13 @@ class WebServerApi implements IServerApi {
       if (msg.kind === "state") {
         const json = JSON.stringify(msg.state);
         if (json === this.lastRelayState) return;
-        this.lastRelayState = json;
         this.broadcastState({ kind: "state", state: msg.state });
       } else if (msg.kind === "display") {
         const json = JSON.stringify(msg.event);
         if (json === this.lastRelayDisplay) return;
-        this.lastRelayDisplay = json;
         this.broadcastState({ kind: "display", event: msg.event });
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
-        this.pendingRelayPrompts.set(forPlayer, envelope);
         this.broadcastState(envelope);
       }
     });
@@ -976,6 +974,7 @@ class WebServerApi implements IServerApi {
 
   /** Broadcast game state to other players in the room */
   async broadcastState(state: Record<string, unknown>): Promise<void> {
+    this.rememberRelayState(state);
     this.send({ type: "BroadcastState", state });
   }
 
@@ -1081,9 +1080,14 @@ class WebServerApi implements IServerApi {
   private async loadWasm(): Promise<typeof import("@/wasm/wasm")> {
     if (!this.wasmReady) {
       this.wasmReady = (async () => {
-        const wasm = await import("@/wasm/wasm");
-        await wasm.default();
-        return wasm;
+        try {
+          const wasm = await import("@/wasm/wasm");
+          await wasm.default({ module_or_path: wasmModuleUrl });
+          return wasm;
+        } catch (error) {
+          this.wasmReady = null;
+          throw error;
+        }
       })();
     }
     return this.wasmReady;
@@ -1096,6 +1100,29 @@ class WebServerApi implements IServerApi {
     }
     logComms("send", msg);
     this.ws.send(JSON.stringify(msg));
+  }
+
+  private rememberRelayState(envelope: Record<string, unknown>): void {
+    switch (envelope.kind) {
+      case "state":
+        this.lastRelayState = JSON.stringify(envelope.state ?? null);
+        return;
+      case "display":
+        this.lastRelayDisplay = JSON.stringify(envelope.event ?? null);
+        return;
+      case "prompt": {
+        const forPlayer = typeof envelope.forPlayer === "string" ? envelope.forPlayer : null;
+        if (forPlayer) this.pendingRelayPrompts.set(forPlayer, envelope);
+        return;
+      }
+      case "response": {
+        const fromPlayer = typeof envelope.fromPlayer === "string" ? envelope.fromPlayer : null;
+        if (fromPlayer) this.pendingRelayPrompts.delete(fromPlayer);
+        return;
+      }
+      default:
+        return;
+    }
   }
 
   private handleServerMessage(msg: Record<string, unknown>): void {
@@ -1181,7 +1208,7 @@ class WebServerApi implements IServerApi {
       if (this.lastRelayState !== null) {
         void this.broadcastState({ kind: "state", state: JSON.parse(this.lastRelayState) });
       }
-      for (const envelope of this.pendingRelayPrompts.values()) {
+      for (const envelope of Array.from(this.pendingRelayPrompts.values())) {
         void this.broadcastState(envelope);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });

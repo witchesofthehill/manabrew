@@ -43,6 +43,7 @@ import init, {
   limited_import_cube,
   limited_drop_session,
 } from "../wasm/wasm";
+import wasmModuleUrl from "../wasm/wasm_bg.wasm?url";
 import type { Deck } from "@/protocol/deck";
 
 // ============================================================================
@@ -123,7 +124,7 @@ async function initWasm(): Promise<void> {
   wasmInitPromise = (async () => {
     try {
       console.log("[GameWorker] initWasm: calling init()");
-      await init();
+      await init({ module_or_path: wasmModuleUrl });
       console.log("[GameWorker] initWasm: init() resolved, calling wasm_init()");
       wasm_init();
       console.log("[GameWorker] initWasm: wasm_init() returned, calling loadCardData()");

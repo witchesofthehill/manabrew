@@ -12,6 +12,7 @@
     "choose-from-selection": "ChooseFromSelectionInput",
     "choose-number": "ChooseNumberInput",
     "dice-rolled": "DiceRolledInput",
+    "directive": "DirectiveInput",
     "game-over": "GameOverInput",
     "mulligan": "MulliganInput",
     "mulligan-put-back": "MulliganPutBackInput",
@@ -41,6 +42,7 @@
     "CombatAssignmentDto",
     "GameViewDto",
     "PlayerDto",
+    "PlayerStatus",
     "PlaymatSettings",
     "StackObjectDto",
     "TargetingIntent"
@@ -178,7 +180,7 @@
     },
     "DeckCard": {
       "ts": "interface DeckCard {\n  identity: DeckCardIdentity;\n  uris: CardImageUris;\n  allParts?: Array<CardPart>;\n  color: string;\n  colorIdentity: Array<string>;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  keywords?: Array<string>;\n  power?: string;\n  toughness?: string;\n  text: string;\n  layout?: string;\n  isDoubleFaced?: boolean;\n}",
-      "rust": "/// Mirror of `manabrew.ts:DeckCard`.\n#[serde(rename_all = \"camelCase\")]\npub struct DeckCard {\n    pub identity: DeckCardIdentity,\n    #[serde(flatten)]\n    pub rules: CardRulesSummary,\n    #[serde(default)]\n    pub uris: CardImageUris,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub all_parts: Option<Vec<CardPart>>,\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCard {\n    pub identity: DeckCardIdentity,\n    #[serde(flatten)]\n    pub rules: CardRulesSummary,\n    #[serde(default)]\n    pub uris: CardImageUris,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub all_parts: Option<Vec<CardPart>>,\n}",
       "refs": ["CardImageUris", "CardPart", "DeckCardIdentity"]
     },
     "DeckCardIdentity": {
@@ -206,14 +208,19 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRolledInput {\n    pub sides: i32,\n    pub rolls: Vec<DiceRollEntry>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub title: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_name: Option<String>,\n}",
       "refs": ["DiceRollEntry"]
     },
+    "DirectiveInput": {
+      "ts": "interface DirectiveInput {\n  type: \"concede\";\n}",
+      "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
+      "refs": []
+    },
     "GameOverInput": {
       "ts": "type GameOverInput = Record<string, never>;",
       "rust": "pub struct GameOverInput {}",
       "refs": []
     },
     "GameViewDto": {
-      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: string;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  battlefield: Array<CardDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  concededPlayerIds: Array<string>;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: String,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub battlefield: Vec<CardDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    #[serde(default)]\n    pub conceded_player_ids: Vec<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n}",
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: string;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  battlefield: Array<CardDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: String,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub battlefield: Vec<CardDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n}",
       "refs": ["CardDto", "CombatAssignmentDto", "PlayerDto", "StackObjectDto"]
     },
     "Mana": {
@@ -242,9 +249,14 @@
       "refs": ["AvailableAction"]
     },
     "PlayerDto": {
-      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  isHuman: boolean;\n  life: number;\n  poison: number;\n  hand: Array<CardDto>;\n  graveyard: Array<CardDto>;\n  exile: Array<CardDto>;\n  commandZone: Array<CardDto>;\n  libraryCount: number;\n  manaPool: Record<string, number>;\n  commanderDamage: Record<string, number>;\n  energyCounters: number;\n  radiationCounters: number;\n  hasCityBlessing: boolean;\n  ringLevel: number;\n  speed: number;\n  experienceCounters: number;\n  ticketCounters: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub is_human: bool,\n    pub life: i32,\n    pub poison: i32,\n    pub hand: Vec<CardDto>,\n    pub graveyard: Vec<CardDto>,\n    pub exile: Vec<CardDto>,\n    pub command_zone: Vec<CardDto>,\n    pub library_count: usize,\n    pub mana_pool: HashMap<String, i32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub energy_counters: i32,\n    pub radiation_counters: i32,\n    pub has_city_blessing: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n    pub experience_counters: i32,\n    pub ticket_counters: i32,\n}",
-      "refs": ["CardDto"]
+      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  poison: number;\n  hand: Array<CardDto>;\n  graveyard: Array<CardDto>;\n  exile: Array<CardDto>;\n  commandZone: Array<CardDto>;\n  libraryCount: number;\n  manaPool: Record<string, number>;\n  commanderDamage: Record<string, number>;\n  energyCounters: number;\n  radiationCounters: number;\n  hasCityBlessing: boolean;\n  ringLevel: number;\n  speed: number;\n  experienceCounters: number;\n  ticketCounters: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    pub poison: i32,\n    pub hand: Vec<CardDto>,\n    pub graveyard: Vec<CardDto>,\n    pub exile: Vec<CardDto>,\n    pub command_zone: Vec<CardDto>,\n    pub library_count: usize,\n    pub mana_pool: HashMap<String, i32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub energy_counters: i32,\n    pub radiation_counters: i32,\n    pub has_city_blessing: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n    pub experience_counters: i32,\n    pub ticket_counters: i32,\n}",
+      "refs": ["CardDto", "PlayerStatus"]
+    },
+    "PlayerStatus": {
+      "ts": "type PlayerStatus = \"playing\" | \"lost\" | \"conceded\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum PlayerStatus {\n    #[default]\n    Playing,\n    Lost,\n    Conceded,\n}",
+      "refs": []
     },
     "PlaymatSettings": {
       "ts": "interface PlaymatSettings {\n  opacity?: number;\n  texture?: number;\n  borderWidth?: number;\n  borderColor?: string;\n  fit?: string;\n  offsetX?: number;\n  offsetY?: number;\n  zoom?: number;\n  blur?: number;\n  brightness?: number;\n  color?: string;\n}",

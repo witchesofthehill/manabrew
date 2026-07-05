@@ -97,7 +97,7 @@ export class PlayerHudLayer {
   }
 
   setCapsuleScale(playerId: string, scale: number): void {
-    this.capsules.get(playerId)?.container.scale.set(scale);
+    this.capsules.get(playerId)?.setScale(scale);
   }
 
   setCompact(compact: boolean): void {

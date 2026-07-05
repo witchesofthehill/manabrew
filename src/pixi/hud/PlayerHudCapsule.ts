@@ -359,6 +359,13 @@ export class PlayerHudCapsule {
     this.render();
   }
 
+  setScale(scale: number): void {
+    if (this.container.scale.x === scale) return;
+    this.container.scale.set(scale);
+    this.lastSig = "";
+    this.render();
+  }
+
   setRect(x: number, y: number, width: number, height: number, column: boolean): void {
     this.container.position.set(x, y);
     if (this.width === width && this.height === height && this.column === column) return;
@@ -888,18 +895,6 @@ export class PlayerHudCapsule {
     chip.content = this.badgeTooltip(badge);
     chip.badgeId = badge.id;
     chip.sprite.cursor = badge.onTap ? "pointer" : "help";
-    if (badge.onTap && tex) {
-      const padX = (BADGE_TAP_HIT_PAD_X / badgeSize) * tex.width;
-      const padY = (BADGE_TAP_HIT_PAD_Y / badgeSize) * tex.height;
-      chip.sprite.hitArea = new Rectangle(
-        -padX,
-        -padY,
-        tex.width + padX * 2,
-        tex.height + padY * 2,
-      );
-    } else {
-      chip.sprite.hitArea = null;
-    }
     const hasCount = badge.count !== undefined;
     let w = badgeSize;
     if (hasCount) {
@@ -910,6 +905,23 @@ export class PlayerHudCapsule {
       );
       chip.count.text = String(badge.count);
       w += 1 + chip.count.width;
+    }
+    if (badge.onTap && tex) {
+      // Pads are screen px: the capsule scale would otherwise shrink them, and
+      // the count text (a separate, non-interactive Text) must be tappable too.
+      const capsuleScale = this.container.scale.x || 1;
+      const toTexX = tex.width / badgeSize;
+      const toTexY = tex.height / badgeSize;
+      const padX = (BADGE_TAP_HIT_PAD_X / capsuleScale) * toTexX;
+      const padY = (BADGE_TAP_HIT_PAD_Y / capsuleScale) * toTexY;
+      chip.sprite.hitArea = new Rectangle(
+        -padX,
+        -padY,
+        tex.width + (w - badgeSize) * toTexX + padX * 2,
+        tex.height + padY * 2,
+      );
+    } else {
+      chip.sprite.hitArea = null;
     }
     return {
       w,

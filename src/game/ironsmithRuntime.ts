@@ -11,6 +11,7 @@ import {
   mapPromptOutputToIronsmithCommand,
   redactPrivateGameView,
   type IronsmithPromptBinding,
+  type IronsmithPromptResult,
 } from "./ironsmithAdapter";
 import { createRoomRelayEnvelope, isRoomRelayProtocol } from "./roomRelay";
 import type {
@@ -39,6 +40,16 @@ async function ensureIronsmith(): Promise<void> {
 type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
   registerExternalCardSourcesJson?: (sourcesJson: string) => string;
   registerExternalCardSources?: (sources: unknown) => unknown;
+  manabrewView?: (promptId: string) => {
+    state?: { gameView?: GameViewDto };
+    promptResult?: IronsmithPromptResult;
+  };
+  manabrewPublicState?: () => { gameView?: GameViewDto };
+  manabrewPrompt?: (promptId: string) => IronsmithPromptResult;
+  manabrewCommandFromPromptOutput?: (
+    output: PromptOutput,
+    binding: IronsmithPromptBinding,
+  ) => unknown;
 };
 
 function matchFormat(format: GameFormat | null | undefined): "commander" | "normal" {
@@ -118,7 +129,7 @@ type IronsmithRoomRelayPayload =
   | { type: "private"; to: string; encrypted: EncryptedRelayPayload };
 
 export class IronsmithTrustedGameApi implements IGameApi {
-  private game: WasmGame | null = null;
+  private game: IronsmithWasmGame | null = null;
   private isMultiplayer = false;
   private isHost = false;
   private localPlayerSlot: string | null = null;
@@ -263,7 +274,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
       if (action.type === "chooseAction" && action.output.type === "concede") {
         this.game.forfeitPlayer(Number(playerSlot.replace("player-", "")));
       } else {
-        const command = mapPromptOutputToIronsmithCommand(action, binding);
+        const command = this.mapPromptOutputToCommand(action, binding);
         this.game.dispatch(command);
       }
     } finally {
@@ -283,13 +294,12 @@ export class IronsmithTrustedGameApi implements IGameApi {
     for (const slot of this.playerSlots) {
       const index = Number(slot.replace("player-", ""));
       this.game.setPerspective(index);
-      const snapshot = this.game.uiState();
-      const gameView = mapIronsmithSnapshotToGameView(snapshot);
+      const { gameView, prompt } = this.readManabrewView(String(++this.promptSeq));
       if (this.isMultiplayer && !publicStateSent) {
         publicStateSent = true;
         await platform.server?.broadcastState({
           kind: "state",
-          state: { gameView: redactPrivateGameView(gameView) },
+          state: this.readPublicState(gameView),
         });
       }
       if (slot === this.localPlayerSlot) {
@@ -299,7 +309,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
         await this.sendPrivateRelay(slot, { type: "state", state: { gameView } });
       }
 
-      const prompt = mapIronsmithPrompt(snapshot, String(++this.promptSeq));
       if (!prompt || prompt.forPlayer !== slot) continue;
       if ("message" in prompt) {
         if (slot === this.localPlayerSlot) {
@@ -324,14 +333,53 @@ export class IronsmithTrustedGameApi implements IGameApi {
 
     if (!localStateSent && this.playerSlots.length === 0) {
       this.game.setPerspective(0);
-      platform.events.emit("game:state", {
-        gameView: mapIronsmithSnapshotToGameView(this.game.uiState()),
-      });
+      platform.events.emit("game:state", this.readManabrewView(String(++this.promptSeq)).state);
     }
 
     if (botResponse) {
       await this.applyResponse(botResponse.slot, botResponse.action);
     }
+  }
+
+  private readManabrewView(promptId: string): {
+    state: { gameView: GameViewDto };
+    gameView: GameViewDto;
+    prompt: IronsmithPromptResult;
+  } {
+    if (!this.game) throw new Error("Ironsmith game is not initialized");
+    if (typeof this.game.manabrewView === "function") {
+      const view = this.game.manabrewView(promptId);
+      const gameView = view.state?.gameView;
+      if (gameView) {
+        return {
+          state: { gameView },
+          gameView,
+          prompt: view.promptResult ?? null,
+        };
+      }
+    }
+    const snapshot = this.game.uiState();
+    const gameView = mapIronsmithSnapshotToGameView(snapshot);
+    return {
+      state: { gameView },
+      gameView,
+      prompt: mapIronsmithPrompt(snapshot, promptId),
+    };
+  }
+
+  private readPublicState(fallbackGameView: GameViewDto): { gameView: GameViewDto } {
+    if (this.game && typeof this.game.manabrewPublicState === "function") {
+      const state = this.game.manabrewPublicState();
+      if (state.gameView) return { gameView: state.gameView };
+    }
+    return { gameView: redactPrivateGameView(fallbackGameView) };
+  }
+
+  private mapPromptOutputToCommand(action: PromptOutput, binding: IronsmithPromptBinding): unknown {
+    if (this.game && typeof this.game.manabrewCommandFromPromptOutput === "function") {
+      return this.game.manabrewCommandFromPromptOutput(action, binding);
+    }
+    return mapPromptOutputToIronsmithCommand(action, binding);
   }
 
   private installRoomRelayListener(): void {

@@ -1,7 +1,7 @@
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { CardDto, GameViewDto, StackObjectDto, TargetingIntent } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import type { TargetRef } from "@/protocol/prompts/common";
+import type { AvailableAction, TargetRef } from "@/protocol/prompts/common";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -425,6 +425,142 @@ function bindPriorityAction(action: JsonRecord, index: number, binding: Ironsmit
   binding.actionRefs[String(index)] = normalizedActionRef;
 }
 
+function priorityRefNumber(actionRef: unknown, ...keys: string[]): number | undefined {
+  const value = valueOf(record(actionRef), ...keys);
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function nestedSpecialActionRef(actionRef: unknown): unknown {
+  return valueOf(record(actionRef), "action");
+}
+
+function priorityActionObjectId(action: JsonRecord, actionRef: unknown): unknown {
+  const kind = priorityActionRefKind(actionRef);
+  if (kind === "cast_spell") return valueOf(record(actionRef), "spell_id", "spellId");
+  if (kind === "play_land") {
+    return valueOf(record(actionRef), "land_id", "landId", "card_id", "cardId");
+  }
+  if (kind === "activate_ability" || kind === "activate_mana_ability") {
+    return valueOf(record(actionRef), "source", "card_id", "cardId");
+  }
+  if (kind === "untap_land") {
+    return valueOf(record(actionRef), "stable_id", "stableId", "land_id", "landId");
+  }
+  if (kind === "special_action") {
+    const nested = nestedSpecialActionRef(actionRef);
+    const nestedKind = priorityActionRefKind(nested);
+    if (nestedKind === "play_land") {
+      return valueOf(record(nested), "card_id", "cardId", "land_id", "landId");
+    }
+    if (nestedKind === "activate_mana_ability") {
+      return valueOf(record(nested), "permanent_id", "permanentId", "source", "card_id", "cardId");
+    }
+    return valueOf(record(nested), "permanent_id", "permanentId", "card_id", "cardId");
+  }
+  return valueOf(action, "object_id", "objectId", "stable_id", "stableId");
+}
+
+function priorityActionAbilityIndex(action: JsonRecord, actionRef: unknown): number {
+  const direct =
+    priorityRefNumber(actionRef, "ability_index", "abilityIndex") ??
+    numberValue(valueOf(action, "ability_index", "abilityIndex"), Number.NaN);
+  if (Number.isFinite(direct)) return direct;
+  const nested = nestedSpecialActionRef(actionRef);
+  return priorityRefNumber(nested, "ability_index", "abilityIndex") ?? 0;
+}
+
+function priorityActionModeLabel(label: string, fallback: string): string {
+  const firstWord = label.trim().split(/\s+/)[0];
+  return firstWord || fallback;
+}
+
+function availableActionFromPriorityAction(
+  action: JsonRecord,
+  index: number,
+): AvailableAction | null {
+  const actionRef = normalizePriorityActionRef(valueOf(action, "action_ref", "actionRef"));
+  const kind = priorityActionRefKind(actionRef);
+  const label = priorityActionLabel(action, index);
+  const objectId = priorityActionObjectId(action, actionRef);
+  const id = String(index);
+
+  if (kind === "cast_spell" && objectId != null) {
+    return {
+      id,
+      type: "cast",
+      cardId: cardId(objectId),
+      mode: "normal",
+      modeLabel: priorityActionModeLabel(label, "Cast"),
+    };
+  }
+  if (kind === "play_land" && objectId != null) {
+    return {
+      id,
+      type: "cast",
+      cardId: cardId(objectId),
+      mode: "playLand",
+      modeLabel: priorityActionModeLabel(label, "Play"),
+    };
+  }
+  if (kind === "activate_ability" || kind === "activate_mana_ability") {
+    if (objectId == null) return null;
+    return {
+      id,
+      type: "activateAbility",
+      cardId: cardId(objectId),
+      abilityIndex: priorityActionAbilityIndex(action, actionRef),
+      description: label,
+      isManaAbility: kind === "activate_mana_ability",
+    };
+  }
+  if (kind === "untap_land" && objectId != null) {
+    return { id, type: "undoMana", cardId: cardId(objectId) };
+  }
+  if (kind === "special_action") {
+    const nested = nestedSpecialActionRef(actionRef);
+    const nestedKind = priorityActionRefKind(nested);
+    const nestedObjectId = priorityActionObjectId(action, actionRef);
+    if (nestedKind === "play_land" && nestedObjectId != null) {
+      return {
+        id,
+        type: "cast",
+        cardId: cardId(nestedObjectId),
+        mode: "playLand",
+        modeLabel: priorityActionModeLabel(label, "Play"),
+      };
+    }
+    if (nestedKind === "activate_mana_ability" && nestedObjectId != null) {
+      return {
+        id,
+        type: "activateAbility",
+        cardId: cardId(nestedObjectId),
+        abilityIndex: priorityActionAbilityIndex(action, actionRef),
+        description: label,
+        isManaAbility: true,
+      };
+    }
+  }
+  return null;
+}
+
+function priorityActionRefHasKind(action: JsonRecord, kind: string): boolean {
+  const actionRef = normalizePriorityActionRef(valueOf(action, "action_ref", "actionRef"));
+  if (priorityActionRefKind(actionRef) === kind) return true;
+  return priorityActionRefKind(nestedSpecialActionRef(actionRef)) === kind;
+}
+
+function isMulliganPriority(actions: JsonRecord[]): boolean {
+  return (
+    actions.some((action) => priorityActionRefHasKind(action, "keep_opening_hand")) &&
+    actions.some((action) => priorityActionRefHasKind(action, "take_mulligan"))
+  );
+}
+
 function priorityPrompt(decision: JsonRecord, promptId: string): IronsmithPromptMapping {
   const forPlayer = playerSlot(valueOf(decision, "player"));
   const binding: IronsmithPromptBinding = {
@@ -437,18 +573,32 @@ function priorityPrompt(decision: JsonRecord, promptId: string): IronsmithPrompt
   };
   const actions = arrayOf(valueOf(decision, "actions")).map(record);
   actions.forEach((action, index) => bindPriorityAction(action, index, binding));
-  const description = stringValue(valueOf(decision, "description"));
+  if (isMulliganPriority(actions)) {
+    return {
+      forPlayer,
+      prompt: {
+        promptId,
+        decidingPlayerId: forPlayer,
+        input: {
+          type: "mulligan",
+          handCardIds: [],
+          mulliganCount: 0,
+        },
+      },
+      binding,
+    };
+  }
   return {
     forPlayer,
     prompt: {
       promptId,
       decidingPlayerId: forPlayer,
       input: {
-        type: "chooseFromSelection",
-        presentation: presentation("Choose action", description || undefined),
-        options: actions.map(priorityActionLabel),
-        minChoices: actions.length > 0 ? 1 : 0,
-        maxChoices: actions.length > 0 ? 1 : 0,
+        type: "chooseAction",
+        actions: actions.flatMap((action, index) => {
+          const availableAction = availableActionFromPriorityAction(action, index);
+          return availableAction ? [availableAction] : [];
+        }),
       },
     },
     binding,
@@ -875,18 +1025,21 @@ function isPassPriorityActionId(actionId: string): boolean {
   return priorityActionRefKind(actionId) === "pass_priority";
 }
 
+function priorityActionRefForKinds(binding: IronsmithPromptBinding, kinds: string[]): unknown {
+  return (
+    Object.values(binding.actionRefs)
+      .map(normalizePriorityActionRef)
+      .find((ref) => kinds.includes(priorityActionRefKind(ref))) ?? { kind: kinds[0] }
+  );
+}
+
 function passPriorityActionRef(binding: IronsmithPromptBinding): unknown {
-  const passLikeKinds = new Set([
+  return priorityActionRefForKinds(binding, [
     "pass_priority",
     "keep_opening_hand",
     "continue_pregame",
     "begin_game",
   ]);
-  return (
-    Object.values(binding.actionRefs)
-      .map(normalizePriorityActionRef)
-      .find((ref) => passLikeKinds.has(priorityActionRefKind(ref))) ?? { kind: "pass_priority" }
-  );
 }
 
 function numericRefField(actionRef: unknown, ...keys: string[]): number | null {
@@ -1026,6 +1179,14 @@ export function mapPromptOutputToIronsmithCommand(
   output: PromptOutput,
   binding: IronsmithPromptBinding,
 ): unknown {
+  if (output.type === "mulligan") {
+    return {
+      type: "priority_action",
+      action_ref: priorityActionRefForKinds(binding, [
+        output.output.keep ? "keep_opening_hand" : "take_mulligan",
+      ]),
+    };
+  }
   if (output.type === "chooseAction") {
     if (output.output.type === "concede") return { type: "forfeit_player" };
     if (output.output.type === "pass") {

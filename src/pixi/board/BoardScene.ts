@@ -1457,6 +1457,8 @@ export class BoardScene {
       cancelHoverClear: () => this.cancelHoverClear(),
       setCardHovered: (sprite) => this.setBattlefieldCardHovered(region, sprite),
       scheduleHoverClear: (id) => this.scheduleHoverClear(id),
+      getCardScale: () => region.getCardScale(),
+      isCompact: () => this.compactMode,
     };
   }
 

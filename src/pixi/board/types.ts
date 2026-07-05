@@ -96,6 +96,8 @@ export interface OverlayHost {
   cancelHoverClear(): void;
   setCardHovered(sprite: CardSprite): void;
   scheduleHoverClear(cardId: string): void;
+  getCardScale(): number;
+  isCompact(): boolean;
 }
 
 /** Narrow seam a `BoardRegion` uses to reach orchestrator-level services

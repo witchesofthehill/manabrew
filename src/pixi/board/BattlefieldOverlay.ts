@@ -45,6 +45,8 @@ interface ActionKind {
   isSelectable: boolean;
 }
 
+const MIN_ICON_SCREEN_PX = 22;
+
 /**
  * Builds and wires the per-card action overlay shown on battlefield cards:
  * a single tap/untap/select button, or a grid of mana-ability buttons.
@@ -112,10 +114,13 @@ export class BattlefieldOverlay {
       ? this.manaAbilitiesForCard(card.id, state.manaAbilityOptions)
       : [];
 
-    if (kind.isTappable && expandedMana.length > 0) {
+    // Compact cards are too small for a per-ability button grid — the whole
+    // card becomes one tap button and multi-ability lands open the DOM picker
+    // (the same routing `handleCardTap` uses).
+    if (kind.isTappable && expandedMana.length > 0 && !this.host.isCompact()) {
       this.drawManaGrid(overlay, card, state, expandedMana);
     } else {
-      this.drawSingleButton(overlay, card, state, kind);
+      this.drawSingleButton(overlay, card, state, kind, expandedMana.length > 1);
     }
 
     overlay.visible = true;
@@ -259,6 +264,7 @@ export class BattlefieldOverlay {
     card: CardDto,
     state: BattlefieldState,
     kind: ActionKind,
+    multiMana = false,
   ): void {
     const ring = hexToNum(this.host.getTheme().gameTheme.cardRing);
     let label = OVERLAY_LABEL_SELECT;
@@ -294,15 +300,25 @@ export class BattlefieldOverlay {
     const centerIcon = symbol ? this.createManaIcon(symbol, 14, 18) : this.createLabelIcon(label);
     centerIcon.x = CARD_W / 2;
     centerIcon.y = CARD_H / 2;
+    // The overlay inherits the sprite scale; keep the icon readable on tiny
+    // compact cards without letting it outgrow the card.
+    const iconScale = Math.min(
+      CARD_W / (2 * 18 + 4),
+      Math.max(1, MIN_ICON_SCREEN_PX / (2 * 18 * this.host.getCardScale())),
+    );
+    centerIcon.scale.set(iconScale);
     overlay.addChild(centerIcon);
 
     this.wireButton(
       btn,
       card.id,
-      () => this.dispatchAction(card, state, kind),
+      () =>
+        multiMana
+          ? this.host.getCallbacks().onClickCard?.(card)
+          : this.dispatchAction(card, state, kind),
       (highlighted) => {
         paintBtn(highlighted);
-        centerIcon.scale.set(highlighted ? ICON_HOVER_SCALE : 1);
+        centerIcon.scale.set(iconScale * (highlighted ? ICON_HOVER_SCALE : 1));
       },
     );
   }

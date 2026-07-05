@@ -667,6 +667,7 @@ export class BoardRegion {
       if (entry.overlay?.visible) {
         entry.overlay.x = s.x;
         entry.overlay.y = s.y;
+        entry.overlay.scale.set(entry.scaleBase);
         entry.overlay.zIndex = entry.targetZIndex + Z_OVERLAY_OFFSET;
         entry.overlay.alpha = lerp(
           entry.overlay.alpha,

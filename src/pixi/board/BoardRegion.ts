@@ -763,7 +763,8 @@ export class BoardRegion {
         .map((id) => cardMap.get(id))
         .filter((c): c is CardDto => c !== undefined);
       const visibleSteps = Math.min(attachments.length, STACK_MAX_SLIDE_CARDS - 1);
-      const totalOffset = visibleSteps * ATTACH_OFFSET_Y;
+      const attachStep = ATTACH_OFFSET_Y * this.cardScale;
+      const totalOffset = visibleSteps * attachStep;
       const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
 
       for (let i = 0; i < attachments.length; i++) {
@@ -772,7 +773,7 @@ export class BoardRegion {
         this.placeBattlefieldCard(
           att,
           center.x,
-          topLeftY + totalOffset - stepsAbove * ATTACH_OFFSET_Y + (CARD_H * this.cardScale) / 2,
+          topLeftY + totalOffset - stepsAbove * attachStep + (CARD_H * this.cardScale) / 2,
           i + 1,
           state,
           guest,
@@ -877,7 +878,7 @@ export class BoardRegion {
       const att = this.entries.get(attId);
       if (!att) return;
       att.targetX = x;
-      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y;
+      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y * this.cardScale;
       att.targetZIndex = baseZ - (k + 1);
     });
   }
@@ -1659,7 +1660,7 @@ export class BoardRegion {
       const child = this.entries.get(childId);
       if (!child) continue;
       const stepsAbove = Math.min(children.length - i, visibleSteps);
-      const cy = parentCenter.y - stepsAbove * ATTACH_OFFSET_Y;
+      const cy = parentCenter.y - stepsAbove * ATTACH_OFFSET_Y * this.cardScale;
       child.targetX = parentCenter.x;
       child.targetY = cy;
       child.sprite.x = parentCenter.x;

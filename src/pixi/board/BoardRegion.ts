@@ -330,7 +330,12 @@ export class BoardRegion {
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
     }
-    this.zoneTiles.setGeometry(CARD_W * this.cardScale, CARD_H * this.cardScale, placements);
+    this.zoneTiles.setGeometry(
+      CARD_W * this.cardScale,
+      CARD_H * this.cardScale,
+      placements,
+      this.touchHitPadScreen(),
+    );
   }
 
   private onZoneTileMoved(key: string, centerX: number, centerY: number): void {
@@ -754,6 +759,7 @@ export class BoardRegion {
     }
     const positions = this.computeBattlefieldGrid(topLevelCards);
     this.gridTargets = positions;
+    for (const entry of this.entries.values()) this.applyTouchChrome(entry.sprite);
 
     for (const card of topLevelCards) {
       const center = positions.get(card.id) ?? { x: this.zoneCenterX(), y: this.zoneCenterY() };
@@ -1432,10 +1438,29 @@ export class BoardRegion {
     this.host.rebuildOverlay(entry, state);
   }
 
+  // Half the free space between grid cells (screen px) — the largest hit slop
+  // that can never make two neighbours' targets overlap.
+  private touchHitPadScreen(): number {
+    const grid = this.gridInfo;
+    if (!this.compactZones || !grid) return 0;
+    return Math.max(0, Math.min((grid.cellW - grid.cardW) / 2, (grid.cellH - grid.cardH) / 2));
+  }
+
+  private applyTouchChrome(sprite: CardSprite): void {
+    if (!this.compactZones) {
+      sprite.setHitPad(0);
+      sprite.setChromeScale(1);
+      return;
+    }
+    sprite.setHitPad(this.touchHitPadScreen() / this.cardScale);
+    sprite.setChromeScale(Math.max(1, 1 / this.cardScale));
+  }
+
   private ensureBattlefieldEntry(card: CardDto): void {
     if (this.entries.has(card.id)) return;
     const sprite = new CardSprite(card);
     this.host.wireSprite(sprite);
+    this.applyTouchChrome(sprite);
     this.container.addChild(sprite);
 
     const seed = this.host.getEntrySeed(card.id);

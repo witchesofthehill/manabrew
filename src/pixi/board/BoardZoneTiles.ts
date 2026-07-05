@@ -2,6 +2,7 @@ import {
   Container,
   Graphics,
   ImageSource,
+  Rectangle,
   Sprite,
   Text,
   Texture,
@@ -94,6 +95,7 @@ export class BoardZoneTiles {
   private placements = new Map<string, { x: number; y: number }>();
   private cardW = 0;
   private cardH = 0;
+  private hitPad = 0;
   private draggable = false;
   private drag: {
     tile: Tile;
@@ -147,9 +149,11 @@ export class BoardZoneTiles {
     cardW: number,
     cardH: number,
     placements: Map<string, { x: number; y: number }>,
+    hitPad = 0,
   ): void {
     this.cardW = cardW;
     this.cardH = cardH;
+    this.hitPad = hitPad;
     this.placements = placements;
     this.redraw();
   }
@@ -315,6 +319,12 @@ export class BoardZoneTiles {
       const pos = this.placements.get(spec.key);
       if (!tile || !pos) continue;
       if (this.drag?.tile !== tile) tile.container.position.set(pos.x, pos.y);
+      tile.container.hitArea = new Rectangle(
+        -this.hitPad,
+        -this.hitPad,
+        cardW + this.hitPad * 2,
+        cardH + this.hitPad * 2,
+      );
       const hl = spec.highlightColor ? hexToNum(spec.highlightColor) : null;
       const hasContent = spec.count > 0;
 

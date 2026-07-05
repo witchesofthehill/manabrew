@@ -568,14 +568,17 @@ class WebEventBus implements IEventBus {
 // ============================================================================
 
 interface BotEntry {
-  ws: WebSocket;
+  ws: WebSocket | null;
   /** wasm-bindgen handle — has `free()` to release the underlying memory. */
   bot: {
     on_open(): string[];
     on_server_message(text: string): string[];
     failure(): string | undefined;
     free(): void;
-  };
+  } | null;
+  stopped: boolean;
+  attempt: number;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const RECONNECT_BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
@@ -901,47 +904,81 @@ class WebServerApi implements IServerApi {
       throw new Error(`Bot '${params.username}' is already running.`);
     }
     const wasm = await this.loadWasm();
-    const bot = new wasm.WasmBot(
-      JSON.stringify({
-        username: params.username,
-        password: this.serverPassword,
-        roomId: params.roomId,
-        roomPassword: params.roomPassword ?? null,
-        deckName: params.deckName,
-        deck: params.deck,
-        commanderName: params.commanderName,
-        agent: params.agent ?? "simple",
-      }),
-    );
-    const ws = new WebSocket(this.relayUrl);
-    const entry: BotEntry = { ws, bot };
+    const config = JSON.stringify({
+      username: params.username,
+      password: this.serverPassword,
+      roomId: params.roomId,
+      roomPassword: params.roomPassword ?? null,
+      deckName: params.deckName,
+      deck: params.deck,
+      commanderName: params.commanderName,
+      agent: params.agent ?? "simple",
+    });
+    const entry: BotEntry = {
+      ws: null,
+      bot: null,
+      stopped: false,
+      attempt: 0,
+      reconnectTimer: null,
+    };
     this.bots.set(params.username, entry);
-    ws.onopen = () => {
-      for (const msg of bot.on_open()) ws.send(msg);
-    };
-    ws.onmessage = (e: MessageEvent) => {
-      if (typeof e.data !== "string") return;
-      for (const msg of bot.on_server_message(e.data)) ws.send(msg);
-      const failure = bot.failure();
-      if (failure) {
-        console.error(`[bot ${params.username}] ${failure}`);
-        ws.close();
+    const connect = () => {
+      entry.reconnectTimer = null;
+      if (entry.stopped || !this.relayUrl) {
+        this.bots.delete(params.username);
+        return;
       }
+      const bot = new wasm.WasmBot(config);
+      const ws = new WebSocket(this.relayUrl);
+      entry.bot = bot;
+      entry.ws = ws;
+      ws.onopen = () => {
+        for (const msg of bot.on_open()) ws.send(msg);
+      };
+      ws.onmessage = (e: MessageEvent) => {
+        if (typeof e.data !== "string") return;
+        for (const msg of bot.on_server_message(e.data)) ws.send(msg);
+        const failure = bot.failure();
+        if (failure) {
+          console.warn(`[bot ${params.username}] ${failure}`);
+          ws.close();
+        } else {
+          entry.attempt = 0;
+        }
+      };
+      ws.onerror = () => console.error(`[bot ${params.username}] WebSocket error`);
+      ws.onclose = () => {
+        bot.free();
+        entry.bot = null;
+        entry.ws = null;
+        if (entry.stopped) {
+          this.bots.delete(params.username);
+          return;
+        }
+        const delay =
+          RECONNECT_BACKOFF_MS[Math.min(entry.attempt, RECONNECT_BACKOFF_MS.length - 1)];
+        entry.attempt += 1;
+        console.warn(`[bot ${params.username}] socket closed; reconnecting in ${delay}ms`);
+        entry.reconnectTimer = setTimeout(connect, delay);
+      };
     };
-    ws.onerror = () => console.error(`[bot ${params.username}] WebSocket error`);
-    ws.onclose = () => {
-      bot.free();
-      this.bots.delete(params.username);
-    };
+    connect();
   }
 
   async removeAiBot(username: string): Promise<void> {
     const entry = this.bots.get(username);
     if (!entry) return;
-    entry.ws.close();
-    this.bots.delete(username);
-    // `bot.free()` is invoked from the ws.onclose handler — calling it here too
-    // would double-free the wasm-bindgen handle.
+    entry.stopped = true;
+    if (entry.reconnectTimer) {
+      clearTimeout(entry.reconnectTimer);
+      entry.reconnectTimer = null;
+    }
+    if (entry.ws) {
+      // onclose frees the wasm handle and removes the entry.
+      entry.ws.close();
+    } else {
+      this.bots.delete(username);
+    }
   }
 
   private async loadWasm(): Promise<typeof import("@/wasm/wasm")> {

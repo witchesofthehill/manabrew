@@ -1,6 +1,6 @@
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
-use manabrew_agent_interface::protocol::{ClientMessage, ServerMessage, StateEnvelope};
+use manabrew_agent_interface::protocol::{ClientMessage, RoomStatus, ServerMessage, StateEnvelope};
 use manabrew_protocol::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -85,15 +85,28 @@ impl BotState {
 
     pub fn on_server_message(&mut self, message: &ServerMessage) -> Vec<ClientMessage> {
         match (&self.phase, message) {
-            (Phase::AwaitingAuthResult, ServerMessage::AuthResult { success, error, .. }) => {
+            (
+                Phase::AwaitingAuthResult,
+                ServerMessage::AuthResult {
+                    success,
+                    reconnected,
+                    error,
+                    ..
+                },
+            ) => {
                 if *success {
-                    self.phase = Phase::AwaitingRoomJoin;
-                    vec![ClientMessage::JoinRoom {
-                        room_id: self.config.room_id.clone(),
-                        observe: false,
-                        as_bot: true,
-                        password: self.config.room_password.clone(),
-                    }]
+                    if *reconnected == Some(true) {
+                        self.phase = Phase::AwaitingGameStart;
+                        vec![ClientMessage::RequestResync]
+                    } else {
+                        self.phase = Phase::AwaitingRoomJoin;
+                        vec![ClientMessage::JoinRoom {
+                            room_id: self.config.room_id.clone(),
+                            observe: false,
+                            as_bot: true,
+                            password: self.config.room_password.clone(),
+                        }]
+                    }
                 } else {
                     self.fail(format!("authentication failed: {:?}", error))
                 }
@@ -106,15 +119,19 @@ impl BotState {
                         .any(|player| player.username == self.config.username) =>
             {
                 self.phase = Phase::AwaitingGameStart;
-                vec![
-                    ClientMessage::SetDeckSelection {
-                        deck_name: self.config.deck_name.clone(),
-                        deck: self.config.deck.clone(),
-                        commander_name: self.config.commander_name.clone(),
-                        avatar: None,
-                    },
-                    ClientMessage::SetReady { ready: true },
-                ]
+                if room.status == RoomStatus::InGame {
+                    vec![ClientMessage::RequestResync]
+                } else {
+                    vec![
+                        ClientMessage::SetDeckSelection {
+                            deck_name: self.config.deck_name.clone(),
+                            deck: self.config.deck.clone(),
+                            commander_name: self.config.commander_name.clone(),
+                            avatar: None,
+                        },
+                        ClientMessage::SetReady { ready: true },
+                    ]
+                }
             }
             (Phase::AwaitingRoomJoin, ServerMessage::Error { message, .. }) => {
                 self.fail(format!("room join failed: {}", message))

@@ -1,10 +1,12 @@
+use std::time::Duration;
+
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabrew_agent_interface::protocol::{ClientMessage, ServerMessage};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::state::{BotConfig, BotState};
 
@@ -12,8 +14,28 @@ type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsSink = SplitSink<WsStream, Message>;
 type WsRead = SplitStream<WsStream>;
 
+const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+
 pub async fn run_bot(relay_url: String, config: BotConfig) -> Result<(), String> {
-    let (socket, _) = connect_async(&relay_url)
+    let mut attempt: usize = 0;
+    loop {
+        match run_bot_session(&relay_url, config.clone()).await {
+            Ok(()) => {
+                info!("bot socket closed; reconnecting");
+                attempt = 0;
+            }
+            Err(error) => {
+                warn!(%error, attempt, "bot session failed; reconnecting");
+            }
+        }
+        let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
+        attempt += 1;
+        tokio::time::sleep(Duration::from_secs(delay)).await;
+    }
+}
+
+async fn run_bot_session(relay_url: &str, config: BotConfig) -> Result<(), String> {
+    let (socket, _) = connect_async(relay_url)
         .await
         .map_err(|error| format!("Failed to connect bot to {}: {}", relay_url, error))?;
     let (mut sink, mut stream) = socket.split();
@@ -48,7 +70,6 @@ pub async fn run_bot(relay_url: String, config: BotConfig) -> Result<(), String>
     }
 
     let _: WsRead = stream;
-    info!("bot socket closed");
     Ok(())
 }
 

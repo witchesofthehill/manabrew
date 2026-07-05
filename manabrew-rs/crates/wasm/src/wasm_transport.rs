@@ -203,8 +203,17 @@ impl WasmTransport {
         js_sys::Atomics::store(&self.signal, 0, SIGNAL_IDLE).unwrap_or(0);
         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
 
-        serde_json::from_slice(&json_bytes).unwrap_or(ClientToServerMessage::Response {
-            action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+        serde_json::from_slice(&json_bytes).unwrap_or_else(|error| {
+            web_sys::console::error_1(
+                &format!(
+                    "[WasmTransport] client message failed to parse ({error}), answering pass: {}",
+                    String::from_utf8_lossy(&json_bytes)
+                )
+                .into(),
+            );
+            ClientToServerMessage::Response {
+                action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+            }
         })
     }
 }

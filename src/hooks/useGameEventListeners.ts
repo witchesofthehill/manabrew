@@ -169,6 +169,7 @@ export function useGameEventListeners() {
           const prompt = normalizeEnginePrompt(payload);
           if (!prompt) return;
           if (getState().gameView?.gameOver) return;
+          if (getState().selfConceded) return;
           applyPrompt(prompt, "Event", setState, getState);
         }),
       );
@@ -220,6 +221,7 @@ export function useGameEventListeners() {
             if (payload.forPlayer !== getState().myPlayerSlot) return;
             const prompt = normalizeEnginePrompt(payload.prompt);
             if (!prompt) return;
+            if (getState().selfConceded) return;
             applyPrompt(prompt, "Remote", setState, getState);
           },
         ),

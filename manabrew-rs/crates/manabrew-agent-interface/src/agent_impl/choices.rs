@@ -165,6 +165,7 @@ pub(super) fn mulligan_decision_recv<T: Responder>(
 ) -> bool {
     match agent.recv_action() {
         PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => keep,
+        PromptOutput::ChooseAction(ChooseActionOutput::Pass { .. }) => true,
         other => panic!("mulligan_decision_recv expected MulliganDecision, got {other:?}"),
     }
 }

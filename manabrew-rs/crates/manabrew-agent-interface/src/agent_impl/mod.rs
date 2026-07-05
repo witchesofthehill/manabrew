@@ -127,10 +127,14 @@ impl<R: Responder> PromptAgent<R> {
             .pending_prompt
             .take()
             .expect("recv_action called without a pending prompt");
-        loop {
-            match self.responder.respond(prompt.clone()) {
-                ClientToServerMessage::Response { action } => return action,
-                ClientToServerMessage::Directive { directive } => self.handle_directive(directive),
+        if self.conceded {
+            return PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
+        }
+        match self.responder.respond(prompt) {
+            ClientToServerMessage::Response { action } => action,
+            ClientToServerMessage::Directive { directive } => {
+                self.handle_directive(directive);
+                PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
             }
         }
     }
@@ -1146,11 +1150,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn await_display_ack(&mut self) {
-        loop {
-            match self.responder.await_ack() {
-                ClientToServerMessage::Response { .. } => return,
-                ClientToServerMessage::Directive { directive } => self.handle_directive(directive),
-            }
+        if self.conceded {
+            return;
+        }
+        if let ClientToServerMessage::Directive { directive } = self.responder.await_ack() {
+            self.handle_directive(directive);
         }
     }
 

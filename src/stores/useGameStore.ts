@@ -469,9 +469,7 @@ export const useGameStore = create<GameState>()(
           return;
         }
         const { myPlayerSlot } = get();
-        // The concession is honored at this seat's next priority window; any
-        // pending prompt stays live and still expects this player's answer.
-        set({ selfConceded: true });
+        set({ selfConceded: true, currentPrompt: null, isWaitingForResponse: false });
         if (!myPlayerSlot) return;
         try {
           await runtime.api.sendDirective({

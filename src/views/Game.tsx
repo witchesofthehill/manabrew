@@ -17,7 +17,7 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
-import { EliminatedModal, LeaveGameModal } from "@/components/game/modals";
+import { ConcedeGameModal, EliminatedModal, LeaveGameModal } from "@/components/game/modals";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -144,6 +144,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
+  const [concedeModalOpen, setConcedeModalOpen] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
@@ -857,11 +858,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   // With fewer than two other players left, my elimination ends the game —
   // GameOverScreen takes over, so the observe-or-leave modal would only flash.
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
-  const handleConcede = useCallback(() => {
+  const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
+  const handleConcedeConfirm = useCallback(() => {
     void concede();
-    // The engine honors the concession at this seat's next priority window;
-    // the status-flip effect below raises EliminatedModal then. The engine
-    // owner never gets one for his own concede.
     if (ownsEngine) eliminatedModalShownRef.current = true;
   }, [concede, ownsEngine]);
   const handleLeave = useCallback(() => {
@@ -871,6 +870,11 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const myStatus = me?.status;
   const gameOverNow = gameView?.gameOver ?? false;
+  useEffect(() => {
+    if (concedeModalOpen && ((myStatus && myStatus !== "playing") || gameOverNow)) {
+      setConcedeModalOpen(false);
+    }
+  }, [concedeModalOpen, myStatus, gameOverNow]);
   useEffect(() => {
     if (gameOverNow || manualApi || !gameContinuesWithoutMe) return;
     if (myStatus && myStatus !== "playing" && !eliminatedModalShownRef.current) {
@@ -1763,6 +1767,13 @@ export default function Game({ exitTo }: GameProps = {}) {
             setLeaveGameModalOpen(false);
             void endGame();
           }}
+        />
+      )}
+      {concedeModalOpen && (
+        <ConcedeGameModal
+          conceding={selfConceded}
+          onConfirm={handleConcedeConfirm}
+          onCancel={() => setConcedeModalOpen(false)}
         />
       )}
 

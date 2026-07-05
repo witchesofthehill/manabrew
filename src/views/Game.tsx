@@ -137,6 +137,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const boardSceneRef = useRef<BoardScene | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+  const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
   const activePrompt = manualApi ? null : currentPrompt;
@@ -1360,11 +1362,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <GameFailedScreen message={fatalError} onLeave={endGame} />;
   }
 
-  if (!gameView || isPrefetchingCards) {
-    return <GameLoadingScreen debugInfo={debugInfo} />;
-  }
-  if (!me) {
-    return <GameLoadingScreen debugInfo={debugInfo || "Waiting for player state..."} />;
+  if (!gameView || isPrefetchingCards || !me || !introDone) {
+    return <GameLoadingScreen debugInfo={debugInfo} onComplete={handleLoadingComplete} />;
   }
 
   const playableIds = new Set<string>(

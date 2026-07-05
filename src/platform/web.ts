@@ -32,6 +32,7 @@ import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
+import { logComms } from "@/lib/commsLog";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
@@ -178,6 +179,7 @@ class WorkerBridge {
     event?: unknown;
     prompt?: unknown;
   }): void {
+    logComms("engine", msg);
     switch (msg?.kind) {
       case "state":
         this.eventBus.emit("game:state", msg.state);
@@ -569,13 +571,6 @@ class WebEventBus implements IEventBus {
 
 interface BotEntry {
   ws: WebSocket | null;
-  /** wasm-bindgen handle — has `free()` to release the underlying memory. */
-  bot: {
-    on_open(): string[];
-    on_server_message(text: string): string[];
-    failure(): string | undefined;
-    free(): void;
-  } | null;
   stopped: boolean;
   attempt: number;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
@@ -775,9 +770,7 @@ class WebServerApi implements IServerApi {
     this.reconnectAttempt = 0;
     this.connectParams = null;
     this.stopKeepalive();
-    for (const username of [...this.bots.keys()]) {
-      await this.removeAiBot(username);
-    }
+    this.stopAllBots();
     const ws = this.ws;
     this.ws = null;
     this.relayUrl = null;
@@ -850,6 +843,7 @@ class WebServerApi implements IServerApi {
   }
 
   async leaveRoom(): Promise<void> {
+    this.stopAllBots();
     this.send({ type: "LeaveRoom" });
   }
 
@@ -880,6 +874,7 @@ class WebServerApi implements IServerApi {
   }
 
   async endGame(): Promise<void> {
+    this.stopAllBots();
     this.send({ type: "EndGame" });
   }
 
@@ -916,7 +911,6 @@ class WebServerApi implements IServerApi {
     });
     const entry: BotEntry = {
       ws: null,
-      bot: null,
       stopped: false,
       attempt: 0,
       reconnectTimer: null,
@@ -930,14 +924,20 @@ class WebServerApi implements IServerApi {
       }
       const bot = new wasm.WasmBot(config);
       const ws = new WebSocket(this.relayUrl);
-      entry.bot = bot;
       entry.ws = ws;
       ws.onopen = () => {
-        for (const msg of bot.on_open()) ws.send(msg);
+        for (const msg of bot.on_open()) {
+          logComms("bot-send", `[${params.username}] ${msg}`);
+          ws.send(msg);
+        }
       };
       ws.onmessage = (e: MessageEvent) => {
         if (typeof e.data !== "string") return;
-        for (const msg of bot.on_server_message(e.data)) ws.send(msg);
+        logComms("bot-recv", `[${params.username}] ${e.data}`);
+        for (const msg of bot.on_server_message(e.data)) {
+          logComms("bot-send", `[${params.username}] ${msg}`);
+          ws.send(msg);
+        }
         const failure = bot.failure();
         if (failure) {
           console.warn(`[bot ${params.username}] ${failure}`);
@@ -949,7 +949,6 @@ class WebServerApi implements IServerApi {
       ws.onerror = () => console.error(`[bot ${params.username}] WebSocket error`);
       ws.onclose = () => {
         bot.free();
-        entry.bot = null;
         entry.ws = null;
         if (entry.stopped) {
           this.bots.delete(params.username);
@@ -981,6 +980,12 @@ class WebServerApi implements IServerApi {
     }
   }
 
+  private stopAllBots(): void {
+    for (const username of [...this.bots.keys()]) {
+      void this.removeAiBot(username);
+    }
+  }
+
   private async loadWasm(): Promise<typeof import("@/wasm/wasm")> {
     if (!this.wasmReady) {
       this.wasmReady = (async () => {
@@ -997,12 +1002,15 @@ class WebServerApi implements IServerApi {
       console.error("[WebServerApi] Not connected");
       return;
     }
+    logComms("send", msg);
     this.ws.send(JSON.stringify(msg));
   }
 
   private handleServerMessage(msg: Record<string, unknown>): void {
+    logComms("recv", msg);
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     const type = msg.type as string;
+    if (type === "GameAborted") this.stopAllBots();
 
     if (type === "ServerShuttingDown") {
       const reconnectInS = typeof msg.reconnect_in_s === "number" ? msg.reconnect_in_s : 5;

@@ -9,6 +9,7 @@ import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
+import { zoneBadgeId } from "@/pixi/hud/playerHud.types";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
@@ -1092,7 +1093,7 @@ export function GameBoard({
       const zones = (zoneTilesByPlayer[spec.playerId] ?? [])
         .filter((t) => t.key !== ZONE_TILE_KEY.command)
         .map((t) => ({
-          id: `zone-${t.key}`,
+          id: zoneBadgeId(t.key),
           icon: ZONE_BADGE_ICONS[t.key] ?? "deck",
           color: t.highlightColor ?? gameTheme.textMuted,
           label: ZONE_BADGE_LABELS[t.key] ?? t.label,

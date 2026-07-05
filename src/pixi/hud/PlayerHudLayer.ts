@@ -110,6 +110,10 @@ export class PlayerHudLayer {
     return this.capsules.get(playerId)?.getAvatarCenter() ?? null;
   }
 
+  getZoneAnchor(playerId: string, zoneKey: string): ScreenPos | null {
+    return this.capsules.get(playerId)?.getZoneAnchor(zoneKey) ?? null;
+  }
+
   getCapsuleBounds(
     playerId: string,
   ): { x: number; y: number; width: number; height: number } | null {

@@ -17,6 +17,7 @@ import { hexToNum } from "../colorUtils";
 import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
 import { loadAvatarTexture } from "./avatarTextureCache";
+import { zoneBadgeId } from "./playerHud.types";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenPos } from "@/pixi/types";
 import { RING_ABILITIES } from "@/components/game/game.constants";
@@ -305,6 +306,16 @@ export class PlayerHudCapsule {
 
   getAvatarCenter(): ScreenPos {
     return this.container.toGlobal(new Point(this.avatarCx, this.avatarCy));
+  }
+
+  getZoneAnchor(zoneKey: string): ScreenPos | null {
+    const idx = this.spec.badges.findIndex((b) => b.id === zoneBadgeId(zoneKey));
+    if (idx < 0) return null;
+    const chip = this.chips[idx];
+    if (!chip || !chip.sprite.visible) return null;
+    return this.container.toGlobal(
+      new Point(chip.sprite.x + chip.sprite.width / 2, chip.sprite.y + chip.sprite.height / 2),
+    );
   }
 
   setSpec(spec: PlayerHudSpec): void {

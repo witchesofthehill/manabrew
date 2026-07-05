@@ -2054,7 +2054,11 @@ export class BoardScene {
         return region?.getPlacementGhostCenter() ?? null;
       }
       case "zone-tile":
-        return this.regions.get(ep.playerId)?.region.getZoneTileCenter(ep.key) ?? null;
+        return (
+          this.regions.get(ep.playerId)?.region.getZoneTileCenter(ep.key) ??
+          this.playerBars.getZoneAnchor(ep.playerId, ep.key) ??
+          this.playerBars.getPlayerAnchor(ep.playerId)
+        );
     }
   }
 

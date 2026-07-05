@@ -1,8 +1,5 @@
 import { LONG_PRESS_CANCEL_DIST_SQ, LONG_PRESS_PREVIEW_MS } from "./responsive";
 
-/** Shared long-press timing core: arms on press, cancels when the pointer
- *  drifts past the tap slop, fires once after the hold delay. Tap-suppression
- *  semantics stay surface-specific (DOM click swallow vs Pixi consumeTap). */
 export class LongPressTimer {
   private timer: number | null = null;
   private origin: { x: number; y: number } | null = null;

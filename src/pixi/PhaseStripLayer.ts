@@ -779,8 +779,6 @@ export class PhaseStripLayer {
       this.collapse();
     }
 
-    // Indicators redraw every frame — skipped while the collapsed pill hides
-    // the whole cells container, so no invisible geometry is rebuilt.
     if (!(this.compact && !this.expanded)) this.drawIndicators();
 
     // Flash animation

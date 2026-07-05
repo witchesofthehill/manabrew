@@ -459,8 +459,6 @@
   #root {
     height: 100%;
   }
-  /* Step the rem base up on very large monitors so all rem-sized chrome
-     (panels, text, spacing) scales together; nothing below 2000px changes. */
   @media (min-width: 2000px) {
     :root {
       font-size: 17.5px;
@@ -481,11 +479,8 @@
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
-    /* Native-app tap feel: no gray tap flash on touch. */
     -webkit-tap-highlight-color: transparent;
   }
-  /* Kill the double-tap-to-zoom delay heuristic on everything tappable while
-     keeping pan/pinch available elsewhere. */
   button,
   a,
   [role="button"],
@@ -497,9 +492,6 @@
   }
 }
 
-/* Applied to the game view root (`Game.tsx`). Long-press is a gesture in-game
-   (preview / context), so the browser's text selection, image callout, and
-   drag ghosts must never fire; inputs keep text selection for editing. */
 .game-touch-surface {
   user-select: none;
   -webkit-user-select: none;

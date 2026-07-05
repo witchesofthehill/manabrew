@@ -5,11 +5,6 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useIsTouch } from "@/hooks/useBreakpoints";
 import { LANDSCAPE_GATE_MAX_WIDTH_QUERY, PORTRAIT_QUERY } from "@/lib/responsive";
 
-/** Overlay for landscape-first views (game, draft): on small portrait touch
- *  screens it asks the user to rotate, and best-effort locks the orientation
- *  to landscape while mounted (only honoured by some browsers / fullscreen).
- *  Portaled to body above the modal/preview layers (z-9000/9999), which also
- *  portal to body and would otherwise render interactive on top of the gate. */
 export function LandscapeGate() {
   const coarse = useIsTouch();
   const portrait = useMediaQuery(PORTRAIT_QUERY);

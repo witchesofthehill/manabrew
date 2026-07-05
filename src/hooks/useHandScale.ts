@@ -4,9 +4,6 @@ import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
 /** Reference viewport width — sizes are authored at this width. */
 const REF_WIDTH = 1440;
 
-/** Clamp the scale so cards don't get absurdly tiny or huge. The upper bound
- *  lets 4K/ultrawide monitors grow the hand; `HandController.setScale` still
- *  shrink-caps by the play-zone height, so short-wide windows can't overflow. */
 const MIN_SCALE = 0.65;
 const MAX_SCALE = 1.8;
 const SHORT_MAX_SCALE = 0.55;
@@ -31,8 +28,6 @@ function getSnapshot() {
 }
 
 /**
- * Returns a multiplier (MIN_SCALE–MAX_SCALE) that scales hand card sizes
- * proportionally to the viewport width, using REF_WIDTH as 1×.
  */
 export function useHandScale() {
   return useSyncExternalStore(subscribe, getSnapshot, () => 1);

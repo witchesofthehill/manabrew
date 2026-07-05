@@ -1,8 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-// One MediaQueryList per query string for the app's lifetime — `getSnapshot`
-// runs on every render of every consumer (each prompt pill calls the breakpoint
-// hooks), and constructing a fresh list forces a style-media evaluation.
 const mqlCache = new Map<string, MediaQueryList>();
 
 function mediaQueryList(query: string): MediaQueryList {

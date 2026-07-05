@@ -100,8 +100,6 @@ const COMBAT_ROW_AVATAR_D = 24;
  *  same objects (resize, blockers, combat staging) hit the cache. */
 const stackKeyCache = new WeakMap<CardDto, string>();
 
-// Reused for the per-frame local<->canvas conversions (one per card per tick) —
-// allocating a Point each call is measurable GC churn on low-end mobile GPUs.
 const SCRATCH_POINT = new PixiPoint();
 
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
@@ -246,8 +244,6 @@ export class BoardRegion {
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
-  // Compact placement ignores stored slots, so a drag would always snap back
-  // (and its slot would resurface on desktop) — disable the affordance instead.
   private applyZoneTileDraggable(): void {
     this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones);
   }
@@ -280,12 +276,6 @@ export class BoardRegion {
   private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
-    // Compact viewports: the local field's keep-out blockers (hand fan, action
-    // cluster) can leave no run of adjacent free cells, scattering the tiles
-    // across the field. Keep the group contiguous at the near-left corner
-    // instead — cards still avoid the reserved cells, and only the fan may
-    // partially overlap the column. Mirrored opponents keep honoring blockers:
-    // their HUD capsule reserves the top-left cells that way.
     const ignoreBlockers = this.compactZones && !this.mirrored;
     const isFree = (cell: GridCell | null): cell is GridCell =>
       !!cell &&
@@ -303,8 +293,6 @@ export class BoardRegion {
       return { col, row, x, y, cx: x + grid.cardW / 2, cy, blocked: false };
     };
 
-    // Compact local fields fill top-down: the bottom-left corner is where the
-    // HUD capsule and the hand fan live, so the column pins to the divider edge.
     const gridRows =
       this.mirrored || this.compactZones
         ? Array.from({ length: grid.rows }, (_, r) => r)
@@ -408,8 +396,6 @@ export class BoardRegion {
     this.container.position.set(0, 0);
   }
 
-  // Through the full transform chain (not just position) so board zoom — a
-  // scale on the scene root — keeps canvas-space math correct.
   private localToCanvas(x: number, y: number): ScreenPos {
     SCRATCH_POINT.set(x, y);
     const p = this.container.toGlobal(SCRATCH_POINT, SCRATCH_POINT);
@@ -1438,8 +1424,6 @@ export class BoardRegion {
     this.host.rebuildOverlay(entry, state);
   }
 
-  // Half the free space between grid cells (screen px) — the largest hit slop
-  // that can never make two neighbours' targets overlap.
   private touchHitPadScreen(): number {
     const grid = this.gridInfo;
     if (!this.compactZones || !grid) return 0;

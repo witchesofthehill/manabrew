@@ -69,9 +69,7 @@ export interface GameCanvasCallbacks {
   onTargetPlayer?: (playerId: string) => void;
   /** Fires when a non-targetable player's avatar is tapped — opens their detail sheet. */
   onShowPlayerSheet?: (playerId: string) => void;
-  /** Compact mode: tapping a collapsed opponent banner focuses (expands) that field. */
   onFocusOpponentField?: (playerId: string) => void;
-  /** Long-press on a battlefield card — opens the sticky card preview. */
   onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   /** Fires when the self panel's gear is tapped — opens the board menu. */
   onShowBoardMenu?: () => void;

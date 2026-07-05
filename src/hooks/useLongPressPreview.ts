@@ -17,9 +17,6 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
   useEffect(() => () => timerRef.current?.cancel(), []);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    // The compat click after a long-press is not guaranteed (iOS often skips it
-    // after a hold, or the finger drifts past the tap slop) — a stale flag here
-    // would swallow the NEXT unrelated click, so disarm on every new press.
     firedRef.current = false;
     if (e.pointerType !== "touch") return;
     const hit = resolve(e);
@@ -40,8 +37,6 @@ export function useLongPressPreview<T>({ resolve, show, hide }: LongPressPreview
     if (pointerIdRef.current !== e.pointerId) return;
     timer().cancel();
     pointerIdRef.current = null;
-    // firedRef stays set until the compat click arrives so onClickCapture
-    // can swallow the tap that would otherwise trigger the item's action.
     if (firedRef.current) hide();
   };
 

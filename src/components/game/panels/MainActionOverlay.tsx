@@ -202,8 +202,6 @@ export function MainActionOverlay({
             ? "bottom-[7.375rem] right-1.5 w-[14.375rem] rounded-lg"
             : "bottom-0 right-3 w-[18.75rem] rounded-t-lg border-b-0",
         hasAction && "action-overlay-glow",
-        // A lifted hand card must never hide behind the cluster (Pixi can't
-        // paint over DOM) — fade out and ignore taps while one is up.
         minimal && dimmed && "pointer-events-none opacity-0 transition-opacity duration-150",
         minimal && !dimmed && "transition-opacity duration-150",
       )}

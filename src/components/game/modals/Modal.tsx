@@ -14,7 +14,6 @@ interface ModalProps {
   onClose?: () => void;
   /** Max width class for the modal panel (default: "max-w-2xl") */
   maxWidth?: string;
-  /** Max height class for the modal panel (default: "max-h-[85dvh]") */
   maxHeight?: string;
   /** Additional className for the modal panel */
   className?: string;
@@ -40,8 +39,6 @@ export function Modal({
   backdropClassName,
 }: ModalProps) {
   const promptChrome = useContext(PromptModalChromeContext);
-  // Long-press is a gesture on any in-game touch surface (incl. tablets), so
-  // suppress selection/callout there; editor modals keep selectable text.
   const isTouch = useIsTouch();
   const isGameActive = useGameStore((s) => s.isGameActive);
   const touchGameSurface = isTouch && isGameActive;
@@ -71,9 +68,6 @@ export function Modal({
         className={cn(
           "relative bg-card border rounded-xl shadow-2xl flex flex-col w-full mx-4 animate-in fade-in zoom-in-95 duration-200",
           maxWidth,
-          // maxHeight="" means "size to content", but the panel must never
-          // exceed the viewport (landscape phones) — clamp and let the inner
-          // wrapper scroll instead of painting offscreen.
           maxHeight || "max-h-[calc(100dvh-1rem)]",
           className,
         )}

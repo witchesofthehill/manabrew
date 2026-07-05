@@ -1186,9 +1186,6 @@ export function GameBoard({
   // cluster. (Player panels no longer reserve space — the Pixi HUD sits in the
   // playmat's own margin.)
   const lastPanelBlockersRef = useRef<string>("");
-  // `opponents` gets a fresh identity on every engine snapshot; the effect only
-  // cares about the seat ids, so key it on those to keep the old "measure on
-  // prompt/layout changes" cadence.
   const opponentIdsKey = opponents.map((op) => op.id).join(",");
   useLayoutEffect(() => {
     const opponentIds = opponentIdsKey ? opponentIdsKey.split(",") : [];
@@ -1206,8 +1203,6 @@ export function GameBoard({
           { x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height },
         ];
         if (compactBoard) {
-          // The divider-anchored cluster straddles into the opponent fields —
-          // reserve its footprint there too so their cards never underlap it.
           const full = { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
           for (const id of opponentIds) next[id] = [full];
         }

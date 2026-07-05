@@ -94,8 +94,6 @@ interface BoardCanvasProps {
   /** Fraction of usable height for the local player's bottom region; defaults to
    *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
-  /** Compact (touch + short-screen) mode: thinner strip band, phase strip
-   *  collapses to a tap-to-expand pill. */
   compact?: boolean;
   /** The opponent whose field auto-expands (their turn), or `null` for an even
    *  split (our turn). The scene owns + eases the delimiters; this sets the
@@ -348,9 +346,6 @@ export function BoardCanvas({
       ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
       : BATTLEFIELD_CARD_SCALE_FLOOR;
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    // Compact ignores the card-scale preference and locks the self field to the
-    // 3-row scale (like opponents) — the desktop floor would otherwise pin the
-    // scale so high that only 1-2 rows fit a phone-height field.
     const selfBand = compact
       ? combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS))
       : combatRowReserve(battlefieldFillScale(selfUsable, fraction));
@@ -509,8 +504,6 @@ export function BoardCanvas({
   }, [scene]);
 
   const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
-  // The hover-anchored panel is a mouse affordance (hover-bridge travel); touch
-  // reaches the same actions through the long-press sticky preview.
   const showActionPanel =
     handHover && handActions.length > 0 && !!onSelectHandAction && !isCoarsePointer();
 

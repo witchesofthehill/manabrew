@@ -1,7 +1,3 @@
-// Launcher for `yarn android` / `yarn ios`: fills in the Android SDK/NDK env
-// (ANDROID_HOME / NDK_HOME) when the shell doesn't export it — Tauri and
-// `ring`'s C build both need the NDK toolchain on the target platform — then
-// execs the tauri CLI with the given subcommand.
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir, platform } from "node:os";
@@ -48,10 +44,6 @@ if (target === "android") {
   }
 }
 
-// `simctl install` (which tauri runs to deploy) requires a Booted simulator but
-// tauri doesn't boot one — a Shutdown target dies with SimError 405. So for
-// `yarn ios` with no explicit device, offer a picker, boot the choice, and pass
-// it to tauri so both sides target the same simulator.
 if (target === "ios" && args[0] === "dev" && args.length === 1 && platform() === "darwin") {
   const chosen = await pickIosSimulator();
   if (chosen) {
@@ -61,9 +53,6 @@ if (target === "ios" && args[0] === "dev" && args.length === 1 && platform() ===
     if (chosen.state !== "Booted") {
       console.log(`[mobile-dev] booting ${chosen.name} (${chosen.os})… (waits until ready)`);
     }
-    // bootstatus -b boots the device if needed and BLOCKS until it has fully
-    // booted — a plain `simctl boot` returns early and tauri's `simctl install`
-    // can race a device that is still booting.
     spawnSync("xcrun", ["simctl", "bootstatus", chosen.udid, "-b"], { stdio: "ignore" });
     args.push(chosen.name);
   } else {
@@ -113,8 +102,6 @@ async function pickIosSimulator() {
   return devices[idx - 1];
 }
 
-// Node >=18.20 refuses to spawn .cmd shims without a shell (CVE-2024-27980);
-// the EINVAL lands in res.error with a null status, so surface it.
 const res = spawnSync("yarn", ["tauri", target, ...args], {
   stdio: "inherit",
   env,

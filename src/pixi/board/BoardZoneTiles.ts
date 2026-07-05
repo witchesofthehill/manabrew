@@ -234,8 +234,6 @@ export class BoardZoneTiles {
     const end = (e: FederatedPointerEvent) => {
       if (this.drag && this.drag.tile !== tile) return;
       if (this.drag && this.drag.pointerId !== e.pointerId) return;
-      // A release from a pointer that joined a pinch (which aborted any drag)
-      // must neither open the zone nor commit a drop.
       if (this.host.isPointerTapSuppressed(e.pointerId)) {
         this.longPress.cancel();
         this.host.onPreview(null);
@@ -349,8 +347,6 @@ export class BoardZoneTiles {
 
         tile.countText.visible = true;
         tile.countText.style.fill = hexToNum(gt.textOnTinted);
-        // Pill chrome scales with the tile so it never covers half a compact
-        // card; the font floors at 8px to stay legible.
         const k = Math.min(1, cardW / CARD_W);
         tile.countText.style.fontSize = Math.max(8, Math.round(12 * k));
         tile.countText.text = String(spec.count);

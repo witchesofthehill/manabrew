@@ -55,8 +55,6 @@ export function BoardOverlayCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        // Touch devices cap at native density (GPU budget); desktops keep the
-        // pre-phone-support 2x supersampling for crisp arrows/stack on 1x displays.
         resolution: isCoarsePointer() ? Math.min(2, window.devicePixelRatio || 1) : 2,
       })
       .then(() => {

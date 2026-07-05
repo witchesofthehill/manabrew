@@ -184,16 +184,8 @@ export class BoardScene {
   // The legal attacker under a pointer-down, armed into an attack drag only once
   // the pointer actually moves — so a plain tap still reaches the click handler.
   private attackDragCandidate: string | null = null;
-  // Pointer that owns the current gesture (drag / marquee / grip / un-declare).
-  // Moves and ups from any other pointer are ignored while it's set, so a second
-  // finger on a touch screen can't hijack or end an in-progress drag.
   private activeGesturePointerId: number | null = null;
-  // Touch has no hover: holding a finger still on a card for LONG_PRESS_PREVIEW_MS
-  // shows the hover preview instead, and the release-tap is swallowed so the hold
-  // doesn't also trigger the card's tap action.
   private longPress = new LongPressGesture();
-  // Two-finger pinch zooms the scene root (arrows and DOM overlays stay put —
-  // sprite positions resolve through the transform chain so they track).
   private pinchPointers = new Map<number, { x: number; y: number }>();
   private pinchStart: {
     dist: number;
@@ -391,9 +383,6 @@ export class BoardScene {
       if (!this.pinchPointers.delete(e.pointerId)) return;
       if (this.pinchPointers.size < 2) this.endPinch();
     };
-    // Pixi v8's EventSystem never forwards pointercancel to the stage, so an
-    // OS-cancelled touch (edge swipe, notification shade) would leave a dead
-    // activeGesturePointerId that filters out all future input.
     this.gestureCancelListener = (e: PointerEvent) => {
       this.localRegion()?.cancelZoneTileDragForPointer(e.pointerId);
       if (this.activeGesturePointerId === e.pointerId) this.abortActiveGesture();
@@ -813,8 +802,6 @@ export class BoardScene {
     const b = pts[1]!;
     const dist = Math.hypot(b.x - a.x, b.y - a.y);
     if (dist <= 0) return;
-    // A finger that joined a pinch must never resolve to a card tap on release
-    // (e.g. a long-press-preview hold that turned into a zoom).
     for (const id of this.pinchPointers.keys()) this.tapSuppressedPointers.add(id);
     this.abortActiveGesture();
     const scale = this.root.scale.x;
@@ -859,9 +846,6 @@ export class BoardScene {
     this.root.position.set(0, 0);
   }
 
-  /** A second finger landed mid-gesture: cleanly discard whatever the first
-   *  finger was doing (drag / marquee / grip / combat drags) before pinching,
-   *  so no half-finished gesture commits or dangles when the pinch ends. */
   private abortActiveGesture(): void {
     const local = this.localRegion();
     if (this.dragHandler.isDragging) {
@@ -1593,8 +1577,6 @@ export class BoardScene {
 
   private onBattlefieldCardDown(sprite: CardSprite, e: FederatedPointerEvent): void {
     if (this.destroyed) return;
-    // During a pinch the matching onGlobalUp is discarded, so a claim here
-    // would never be released — and no drag should start mid-pinch anyway.
     if (this.pinchStart) return;
     const local = this.localRegion();
     const selection = this.selection;

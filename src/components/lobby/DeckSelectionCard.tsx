@@ -30,7 +30,6 @@ interface DeckSelectionCardProps {
   isPlayerDeck?: boolean;
   isOpponentDeck?: boolean;
   formatId?: string;
-  /** Short-screen layout: fixed banner height, name + badges only. */
   dense?: boolean;
   onSelect: () => void;
   /** Double-click to immediately confirm this deck (skip the Select button). */
@@ -106,9 +105,6 @@ export function DeckSelectionCard({
       disabled={!isLegal}
       title={!isLegal ? validationError : undefined}
       className={cn(
-        // `isolate` contains the internal z-layers (cover gradient z-[1],
-        // content z-10) — without it they'd stack against sibling UI like the
-        // picker's sticky filter bar and paint over it while scrolling.
         "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted",
         dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
         "hover:ring-2 hover:ring-primary hover:border-primary",

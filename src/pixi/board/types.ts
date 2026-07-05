@@ -142,10 +142,7 @@ export interface RegionHost {
   getTopReserve(): number;
   /** Spawn a rising/fading number at a canvas-space point (combat damage). */
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
-  /** Show/hide the hover-card preview from a non-sprite surface (zone tiles);
-   *  bounds are canvas-space and converted to viewport by the scene. */
   previewCard(card: CardDto | null, bounds?: ScreenBounds): void;
-  /** Whether releases from this pointer are tap-suppressed (it joined a pinch). */
   isPointerTapSuppressed(pointerId: number): boolean;
   isDestroyed(): boolean;
 }

@@ -1266,14 +1266,10 @@ export class CardSprite extends Container {
     this.damageGfx.fill({ color: hexToNum(activeTheme.gameTheme.pt.lethal), alpha });
   }
 
-  /** Touch-target slop in card-local units — inflates the hit box without
-   *  touching the visuals (compact boards, where cards are ~23px wide). */
   setHitPad(pad: number): void {
     this.hitPad = pad;
   }
 
-  /** Multiplier for interaction chrome (rings) so a 2px stroke stays ~2
-   *  SCREEN px on heavily scaled-down compact cards. Re-draws the live ring. */
   setChromeScale(scale: number): void {
     if (this.chromeScale === scale) return;
     this.chromeScale = scale;

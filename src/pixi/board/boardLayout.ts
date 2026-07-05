@@ -22,7 +22,6 @@ export interface BoardLayout {
   opponents: OpponentRegion[];
   /** Vertical center of the strip band — where the phase strip is drawn. */
   dividerY: number;
-  /** Actual strip band height used by this layout (compact or full). */
   stripBandPx: number;
 }
 
@@ -33,8 +32,6 @@ export const SELF_HEIGHT_FRACTION = 0.55;
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
 export const STRIP_BAND_PX = 56;
 
-/** Thinner strip band on compact (touch + short) viewports — the strip renders
- *  as a collapsed pill there, so the full band would waste battlefield height. */
 export const STRIP_BAND_COMPACT_PX = 32;
 
 /** Width, in px, of a collapsed opponent column — just enough for the avatar

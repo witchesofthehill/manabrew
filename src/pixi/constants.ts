@@ -14,8 +14,6 @@ export const MAX_GRID_SLOTS = 200;
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
 // Absolute floor so cards never go microscopic on very short displays.
 export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
-// Compact viewports trade card size for row count: the desktop floor would pin
-// the scale so high that a phone-height field fits only 1-2 rows.
 export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.32;
 export const BATTLEFIELD_MIN_ROWS = 3;
 export const BATTLEFIELD_MAX_ROWS = 4;
@@ -27,8 +25,6 @@ export const GRID_SKELETON_HOVER_ALPHA = 0.9;
 export const GRID_SKELETON_STACK_ALPHA = 0.85;
 export const GRID_SKELETON_FILL_ALPHA = 0.04;
 export const GRID_SKELETON_STACK_FILL_ALPHA = 0.22;
-// Compact viewports: cells are tiny and sit over busy playmat art, so the
-// 0.25-alpha hairline grid reads as invisible — draw it stronger there.
 export const GRID_SKELETON_STROKE_ALPHA_COMPACT = 0.6;
 export const GRID_SKELETON_FILL_ALPHA_COMPACT = 0.1;
 // Under all battlefield cards (whose targetZIndex is >= 1) so dragged sprites
@@ -93,9 +89,6 @@ export const COMBAT_ROW_PAD_Y = 8;
 // bottom row can grow down behind the hand. The action overlay keeps the full
 // reserve so it never sits under the hand.
 export const HAND_RESERVE_TRIM = 0.65;
-// Fraction of a hand card's height that hangs below the canvas bottom edge.
-// Compact (touch + short) viewports sink the fan further so the battlefield
-// keeps more of the scarce vertical space; tap/hover still lifts the card up.
 export const HAND_BOTTOM_SINK_FRAC = 0.45;
 export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
 // Extra upward tilt for the local player's staged creatures — the self region
@@ -120,9 +113,6 @@ export const DOOMED_FILL_ALPHA = 0.42;
 export const Z_COMBAT_STAGED = 400;
 export const Z_PLACEMENT_GHOST = 500;
 export const Z_PLACEMENT_GHOST_TEXT = 501;
-// The hand renders above every other scene layer (phase strip 7000, staged
-// combat 8000/8500, floaters 9000, selection badge 9500) — a lifted card must
-// never be occluded.
 export const Z_HAND_CONTAINER = 9600;
 export const Z_HAND_HOVERED = 100;
 export const Z_OVERLAY_OFFSET = 100;

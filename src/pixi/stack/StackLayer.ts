@@ -84,8 +84,6 @@ export class StackLayer implements StackAnchorProvider {
   private builtCardWidth = CARD_WIDTH;
   private prevFanOut: boolean | null = null;
 
-  // Width shrinks on short viewports so a stack card (plus hover zoom) never
-  // exceeds the screen; at desktop heights the cap never binds.
   private cardWidth(): number {
     if (this.viewH <= 0) return CARD_WIDTH;
     const maxW = (this.viewH * MAX_CARD_HEIGHT_FRAC * CARD_W) / CARD_H;
@@ -114,8 +112,6 @@ export class StackLayer implements StackAnchorProvider {
     this.btn.visible = false;
     this.btn.eventMode = "static";
     this.btn.cursor = "pointer";
-    // Coarse pointers need a ≥40px-wide target — this is the only way to
-    // re-expand a collapsed stack on a phone.
     const btnHitPad = isCoarsePointer() ? 16 : 6;
     this.btn.hitArea = new Rectangle(
       -(BTN_W / 2 + btnHitPad),
@@ -140,8 +136,6 @@ export class StackLayer implements StackAnchorProvider {
     if (this.viewW === width && this.viewH === height) return;
     this.viewW = width;
     this.viewH = height;
-    // Sprites bake their width at construction; when the viewport cap changes
-    // the card width, rebuild them or the pile geometry and the sprites drift.
     if (this.sprites.size > 0 && this.cardWidth() !== this.builtCardWidth) {
       for (const sprite of this.sprites.values()) sprite.destroy();
       this.sprites.clear();

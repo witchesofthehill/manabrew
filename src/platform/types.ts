@@ -34,6 +34,7 @@ export interface StartMultiplayerGameParams {
   enginePlayerIndex: number;
   localIsHost: boolean;
   startingLife: number;
+  format?: GameFormat | null;
 }
 
 export interface RespondParams {

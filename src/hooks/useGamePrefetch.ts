@@ -15,7 +15,9 @@ function cardsToPrefetchImmediately(
   gameDecks: Record<string, Deck>,
 ): DeckCard[] {
   const cards: DeckCard[] = [];
-  const visible = view.players.flatMap((p) => [...p.hand, ...p.commandZone]);
+  const visible = view.players
+    .flatMap((p) => [...p.hand, ...p.commandZone])
+    .filter((card) => !card.isFaceDown && card.identity.name !== "Hidden Card");
   for (const gc of visible) {
     const deck = gameDecks[gc.ownerId];
     if (deck) cards.push(asDeckCard(deck, gc));

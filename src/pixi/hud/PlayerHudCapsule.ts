@@ -595,7 +595,9 @@ export class PlayerHudCapsule {
         this.onHover(null);
       });
       sprite.on("pointertap", (e) => {
-        const onTap = this.spec.badges.find((b) => b.id === chip.badgeId)?.onTap;
+        const onTap = this.column
+          ? undefined
+          : this.spec.badges.find((b) => b.id === chip.badgeId)?.onTap;
         if (onTap) {
           this.onHover(null);
           onTap();
@@ -894,7 +896,10 @@ export class PlayerHudCapsule {
     chip.sprite.height = badgeSize;
     chip.content = this.badgeTooltip(badge);
     chip.badgeId = badge.id;
-    chip.sprite.cursor = badge.onTap ? "pointer" : "help";
+    // Collapsed columns keep chips as plain badges: the banner's tap gesture
+    // belongs to tap-to-focus, so zone chips must not open dialogs there.
+    const tappable = !!badge.onTap && !this.column;
+    chip.sprite.cursor = tappable ? "pointer" : "help";
     const hasCount = badge.count !== undefined;
     let w = badgeSize;
     if (hasCount) {
@@ -906,7 +911,7 @@ export class PlayerHudCapsule {
       chip.count.text = String(badge.count);
       w += 1 + chip.count.width;
     }
-    if (badge.onTap && tex) {
+    if (tappable && tex) {
       // Pads are screen px: the capsule scale would otherwise shrink them, and
       // the count text (a separate, non-interactive Text) must be tappable too.
       const capsuleScale = this.container.scale.x || 1;

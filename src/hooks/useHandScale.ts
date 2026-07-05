@@ -5,7 +5,7 @@ import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
 const REF_WIDTH = 1440;
 
 const MIN_SCALE = 0.65;
-const MAX_SCALE = 1.8;
+const MAX_SCALE = 1.3;
 const SHORT_MAX_SCALE = 0.55;
 const SHORT_MIN_SCALE = 0.5;
 
@@ -27,8 +27,6 @@ function getSnapshot() {
   return getScale();
 }
 
-/**
- */
 export function useHandScale() {
   return useSyncExternalStore(subscribe, getSnapshot, () => 1);
 }

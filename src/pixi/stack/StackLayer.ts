@@ -1,4 +1,5 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
+import { isCoarsePointer } from "@/lib/responsive";
 import gsap from "gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -113,7 +114,15 @@ export class StackLayer implements StackAnchorProvider {
     this.btn.visible = false;
     this.btn.eventMode = "static";
     this.btn.cursor = "pointer";
-    this.btn.hitArea = new Rectangle(-(BTN_W / 2 + 6), -(BTN_H / 2 + 6), BTN_W + 12, BTN_H + 12);
+    // Coarse pointers need a ≥40px-wide target — this is the only way to
+    // re-expand a collapsed stack on a phone.
+    const btnHitPad = isCoarsePointer() ? 16 : 6;
+    this.btn.hitArea = new Rectangle(
+      -(BTN_W / 2 + btnHitPad),
+      -(BTN_H / 2 + btnHitPad),
+      BTN_W + btnHitPad * 2,
+      BTN_H + btnHitPad * 2,
+    );
     this.btn.on("pointertap", () => this.callbacks.onToggleCollapsed());
     this.btn.on("pointerover", () => this.setBtnHover(true));
     this.btn.on("pointerout", () => this.setBtnHover(false));

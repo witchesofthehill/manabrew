@@ -30,6 +30,8 @@ interface DeckSelectionCardProps {
   isPlayerDeck?: boolean;
   isOpponentDeck?: boolean;
   formatId?: string;
+  /** Short-screen layout: fixed banner height, name + badges only. */
+  dense?: boolean;
   onSelect: () => void;
   /** Double-click to immediately confirm this deck (skip the Select button). */
   onActivate?: () => void;
@@ -64,6 +66,7 @@ export function DeckSelectionCard({
   isPlayerDeck,
   isOpponentDeck,
   formatId,
+  dense,
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
@@ -104,7 +107,7 @@ export function DeckSelectionCard({
       title={!isLegal ? validationError : undefined}
       className={cn(
         "relative group rounded-xl border text-left transition-all overflow-hidden bg-muted",
-        "aspect-[4/3] sm:min-h-[172px]",
+        dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
         "hover:ring-2 hover:ring-primary hover:border-primary",
         isLegal ? "cursor-pointer" : "cursor-not-allowed opacity-50",
         !hasVsSide && isSelected && isLegal
@@ -201,7 +204,7 @@ export function DeckSelectionCard({
             ))}
           </div>
 
-          {breakdown && (
+          {breakdown && !dense && (
             <p
               className={cn(
                 "text-[11px] leading-tight line-clamp-2",
@@ -213,16 +216,20 @@ export function DeckSelectionCard({
             </p>
           )}
 
-          <div className="flex items-center gap-1 flex-wrap">
-            <span className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}>
-              {isPreset ? "Preset deck" : `${cards.length} cards`}
-            </span>
-            {badge && (
-              <Badge variant="outline" className="text-[9px] h-4 px-1 ml-auto">
-                {badge}
-              </Badge>
-            )}
-          </div>
+          {!dense && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span
+                className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
+              >
+                {isPreset ? "Preset deck" : `${cards.length} cards`}
+              </span>
+              {badge && (
+                <Badge variant="outline" className="text-[9px] h-4 px-1 ml-auto">
+                  {badge}
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </button>

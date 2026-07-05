@@ -9,6 +9,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
+import { useIsShortScreen } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { cn } from "@/lib/utils";
 import { Search, Shuffle, Swords } from "lucide-react";
@@ -33,6 +34,9 @@ export function CreateGameDialog({
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
   const isLobbyMode = mode === "lobby";
+  // Landscape phones: an aspect-[4/3] tile is taller than the whole scroll
+  // area — switch to dense banner tiles in a tighter grid.
+  const denseDecks = useIsShortScreen();
 
   const initialFormat = GAME_FORMATS.find((f) => f.id === forcedFormatId) ?? GAME_FORMATS[0];
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
@@ -375,7 +379,14 @@ export function CreateGameDialog({
                     : "No saved decks. Build one in the Deck Editor."}
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div
+                  className={cn(
+                    "grid gap-3",
+                    denseDecks
+                      ? "grid-cols-2 md:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                  )}
+                >
                   {filteredUserDecks.map((d) => {
                     const validation = validateDeckSections(
                       {
@@ -401,6 +412,7 @@ export function CreateGameDialog({
                         isSelected={selectedDeck === d.id}
                         isLegal={validation.legal}
                         validationError={validation.errors[0]}
+                        dense={denseDecks}
                         onSelect={() => setSelectedDeck(d.id)}
                         onActivate={() => handleCreate(d, d.commanderName)}
                       />
@@ -422,7 +434,14 @@ export function CreateGameDialog({
                   No preset decks match your search.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div
+                  className={cn(
+                    "grid gap-3",
+                    denseDecks
+                      ? "grid-cols-2 md:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                  )}
+                >
                   {filteredPresetEntries.map((deck) => (
                     <DeckSelectionCard
                       key={deck.id}
@@ -435,6 +454,7 @@ export function CreateGameDialog({
                       isPreset={deck.isPreset}
                       isSelected={selectedDeck === deck.id}
                       isLegal={true}
+                      dense={denseDecks}
                       onSelect={() => setSelectedDeck(deck.id)}
                       onActivate={() => handleCreate(deck, deck.commanderName)}
                     />

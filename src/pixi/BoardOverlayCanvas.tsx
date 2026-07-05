@@ -55,7 +55,9 @@ export function BoardOverlayCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: isCoarsePointer() ? Math.min(2, window.devicePixelRatio || 1) : 2,
+        resolution: isCoarsePointer()
+          ? Math.min(2, window.devicePixelRatio || 1)
+          : Math.max(2, window.devicePixelRatio || 1),
       })
       .then(() => {
         if (!active || !app.renderer) {

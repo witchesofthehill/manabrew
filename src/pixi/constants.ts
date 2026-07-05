@@ -120,10 +120,10 @@ export const DOOMED_FILL_ALPHA = 0.42;
 export const Z_COMBAT_STAGED = 400;
 export const Z_PLACEMENT_GHOST = 500;
 export const Z_PLACEMENT_GHOST_TEXT = 501;
-// Above the player HUD (5600) and the phase strip (7000) so a hover-lifted
-// card never slides under the divider line; below combat staging (8000+) and
-// damage floaters (9000).
-export const Z_HAND_CONTAINER = 7500;
+// The hand renders above every other scene layer (phase strip 7000, staged
+// combat 8000/8500, floaters 9000, selection badge 9500) — a lifted card must
+// never be occluded.
+export const Z_HAND_CONTAINER = 9600;
 export const Z_HAND_HOVERED = 100;
 export const Z_OVERLAY_OFFSET = 100;
 export const Z_SELECTION_BADGE = 9500;

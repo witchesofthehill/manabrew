@@ -110,4 +110,5 @@ export interface MainActionOverlayProps {
   onMulliganPutBackConfirm?: () => void;
   selfClusterMaxHeight?: number;
   dividerY?: number;
+  dimmed?: boolean;
 }

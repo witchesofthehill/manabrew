@@ -258,6 +258,7 @@ export function BoardCanvas({
       onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
       onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
       onHoverHandCard: (card, bounds) => {
+        callbacksRef.current.onHoverHandCard?.(card, bounds);
         if (card && bounds) {
           cancelHandHoverClear();
           setHandHover({ card, bounds });

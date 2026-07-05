@@ -137,6 +137,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSceneRef = useRef<BoardScene | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
+  const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
@@ -1519,6 +1520,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onLongPressCard={(card, rect) =>
             preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
           }
+          onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
           onFlipCard={preview.flipCard}
@@ -1693,6 +1695,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 onMulliganPutBackConfirm={mulliganPutBack.confirm}
                 selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
                 dividerY={boardLayout?.dividerY}
+                dimmed={handCardLifted}
               />
               <MiddleBarDock
                 open={boardMenuOpen}

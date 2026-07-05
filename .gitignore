@@ -16,6 +16,8 @@ dist-ssr
 
 # Generated wire protocol
 /src/protocol/
+# ts-rs export-test artifacts (any `cargo test -p manabrew-protocol` emits them)
+/manabrew-rs/crates/manabrew-protocol/bindings/
 
 # Editor directories and files
 .vscode/*

@@ -1,5 +1,6 @@
 name: Preview deploy
 
+# TODO: Stale would need some love might not work proper
 # PRs labelled `deploy-preview` are deployed to staging.manabrew.app.
 # Closing the PR or removing the label tears the preview down.
 on:

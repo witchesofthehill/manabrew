@@ -1,0 +1,65 @@
+# git-cliff configuration — https://git-cliff.org/docs/configuration
+#
+# Consumed by `cargo xtask` (release planning + changelog/release notes) and
+# usable standalone. Per-crate runs pass `--tag-pattern` / `--include-path` on
+# the command line; this file holds the shared parsing rules and templates.
+# Section names/visibility mirror the old release-please changelog-sections.
+
+[changelog]
+header = ""
+# Release-please-compatible section: "## [x.y.z](compare) (date)" + grouped bullets.
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}]\
+{%- if previous and previous.version %}(https://github.com/witchesofthehill/manabrew/compare/{{ previous.version }}...{{ version }}){% else %}(https://github.com/witchesofthehill/manabrew/releases/tag/{{ version }}){% endif %} \
+({{ timestamp | date(format="%Y-%m-%d") }})
+{% else -%}
+## Unreleased
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+
+{% for commit in commits -%}
+* {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message }} \
+([{{ commit.id | truncate(length=7, end="") }}](https://github.com/witchesofthehill/manabrew/commit/{{ commit.id }}))
+{% endfor -%}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+# Keep unconventional commits visible (they land in "Other" and count as a
+# patch-level change for the crates they touch).
+filter_unconventional = false
+protect_breaking_commits = true
+# Default tag pattern = the app's tags; per-crate runs override on the CLI.
+tag_pattern = "^v[0-9]"
+sort_commits = "oldest"
+commit_preprocessors = [
+  # Linkify "(#123)" PR references, release-please style.
+  { pattern = '\(#([0-9]+)\)', replace = "([#${1}](https://github.com/witchesofthehill/manabrew/issues/${1}))" },
+]
+commit_parsers = [
+  { message = "^feat", group = "<!-- 0 -->Features" },
+  { message = "^fix", group = "<!-- 1 -->Fixes" },
+  { message = "^perf", group = "<!-- 2 -->Performance" },
+  { message = "^refactor", group = "<!-- 3 -->Refactors" },
+  { message = "^revert", group = "<!-- 4 -->Reverts" },
+  # Hidden from changelogs AND ignored for version bumping (xtask sees only
+  # the commits that survive these parsers; breaking commits always survive
+  # via protect_breaking_commits).
+  { message = "^docs", skip = true },
+  { message = "^style", skip = true },
+  { message = "^chore", skip = true },
+  { message = "^test", skip = true },
+  { message = "^build", skip = true },
+  { message = "^ci", skip = true },
+  { message = ".*", group = "<!-- 9 -->Other" },
+]
+
+[bump]
+# Post-1.0 semantics for the app; pre-1.0 crates still get minor on feat and
+# major on breaking (non-lockstep, computed per crate by xtask).
+features_always_bump_minor = true
+breaking_always_bump_major = true

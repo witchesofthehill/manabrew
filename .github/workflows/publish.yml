@@ -1,8 +1,15 @@
-name: Release artifacts
+name: Publish
 
-# Builds the Tauri desktop installers (macOS .dmg, Windows .exe / .msi) on
-# GitHub-hosted runners and posts a joyful Discord embed when each is ready.
-# Native installers — Wasm/web stack lives in .github/workflows/deploy.yml.
+# The release pipeline, driven by the v* tag `cargo xtask release` pushes
+# from release.yml on every merge to main:
+#   1. build the Tauri desktop installers (macOS .dmg, Windows .exe / .msi)
+#      on GitHub-hosted runners, signed for the auto-updater,
+#   2. attach them + the updater manifest (tauri.json) to the GitHub Release
+#      xtask already created,
+#   3. deploy the Wasm/web stack to production (deploy.sh over SSH) — LAST,
+#      so play.manabrew.app/tauri.json (a redirect to the release asset) and
+#      the served manifest.json never get ahead of assets that exist.
+# There is no main-push deploy: main commits only run release.yml.
 #
 # GitHub-hosted runners are free for public repositories (unlimited minutes
 # on standard ubuntu-latest / windows-latest / macos-latest). The previous
@@ -12,90 +19,19 @@ name: Release artifacts
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      build_macos:
-        description: "Build macOS .dmg"
-        type: boolean
-        default: true
-      build_windows:
-        description: "Build Windows .exe / .msi"
-        type: boolean
-        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # ── Gate: decide which platforms to build ──────────────────────────
-  # Precedence:
-  #   1. workflow_dispatch  -> honour the boolean inputs.
-  #   2. Tag push (v*)      -> build both (release needs both artifacts).
-  #   3. Push to main       -> read the PR body checkboxes.
-  gate:
-    name: Check build gate
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      should_build_macos: ${{ steps.check.outputs.should_build_macos }}
-      should_build_windows: ${{ steps.check.outputs.should_build_windows }}
-    steps:
-      - name: Evaluate gate
-        id: check
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { eventName, ref, sha } = context;
-
-            if (eventName === 'workflow_dispatch') {
-              const inputs = context.payload.inputs ?? {};
-              const mac = String(inputs.build_macos   ?? 'true') === 'true';
-              const win = String(inputs.build_windows ?? 'true') === 'true';
-              core.info(`workflow_dispatch; mac=${mac} win=${win}`);
-              core.setOutput('should_build_macos',   mac ? 'true' : 'false');
-              core.setOutput('should_build_windows', win ? 'true' : 'false');
-              return;
-            }
-
-            if (ref.startsWith('refs/tags/v')) {
-              core.info(`Tag push ${ref}; building both platforms.`);
-              core.setOutput('should_build_macos',   'true');
-              core.setOutput('should_build_windows', 'true');
-              return;
-            }
-
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: sha,
-            });
-            const pr = prs[0];
-            if (!pr) {
-              core.info(`No PR found for commit ${sha}; skipping builds.`);
-              core.setOutput('should_build_macos',   'false');
-              core.setOutput('should_build_windows', 'false');
-              return;
-            }
-            const body = pr.body ?? '';
-            const mac = /^\s*-\s*\[x\]\s*Build macOS \.dmg/im.test(body);
-            const win = /^\s*-\s*\[x\]\s*Build Windows \.exe/im.test(body);
-            core.info(`PR #${pr.number} mac=${mac} win=${win}`);
-            core.setOutput('should_build_macos',   mac ? 'true' : 'false');
-            core.setOutput('should_build_windows', win ? 'true' : 'false');
-
   # ── macOS .dmg ─────────────────────────────────────────────────────
   # macos-latest = Apple Silicon (arm64). Produces an arm64 .dmg. If you
   # ever need Intel too, add an `arch: [arm64, x86_64]` matrix and pass
   # `--target` to `tauri build`.
   macos-dmg:
     name: Build macOS .dmg
-    needs: gate
-    if: needs.gate.outputs.should_build_macos == 'true'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -146,14 +82,20 @@ jobs:
         run: ./forge-harness/build-native.sh
 
       - name: Tauri build (macOS)
-        run: yarn tauri -- build --features forge-room
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: yarn tauri -- build --features forge-room --config src-tauri/updater.conf.json
 
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg-${{ github.sha }}
           # Cargo workspace lives at repo root; target/ is there, not in src-tauri/.
-          path: target/release/bundle/dmg/*.dmg
+          path: |
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/macos/*.app.tar.gz
+            target/release/bundle/macos/*.app.tar.gz.sig
           if-no-files-found: error
           retention-days: 30
 
@@ -291,8 +233,6 @@ jobs:
   # runner image. MSVC env is loaded per-step via ilammy/msvc-dev-cmd.
   windows-exe:
     name: Build Windows .exe
-    needs: gate
-    if: needs.gate.outputs.should_build_windows == 'true'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -347,7 +287,10 @@ jobs:
         shell: pwsh
 
       - name: Tauri build (Windows)
-        run: yarn tauri -- build --features forge-room
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: yarn tauri -- build --features forge-room --config src-tauri/updater.conf.json
 
       - name: Upload .exe
         uses: actions/upload-artifact@v4
@@ -357,6 +300,7 @@ jobs:
           # NSIS produces the self-installing .exe, WiX produces the .msi.
           path: |
             target/release/bundle/nsis/*.exe
+            target/release/bundle/nsis/*.exe.sig
             target/release/bundle/msi/*.msi
           if-no-files-found: error
           retention-days: 30
@@ -494,13 +438,11 @@ jobs:
 
           post_discord
 
-  # ── Publish GitHub Release (tags only) ─────────────────────────────
-  # Triggered only on `v*` tag pushes. Downloads the artifacts built
-  # above, generates a changelog from commits since the previous tag,
-  # and publishes a GitHub Release with the bundles attached.
+  # ── Publish GitHub Release ─────────────────────────────────────────
+  # Downloads the artifacts built above, generates the updater manifest,
+  # and attaches everything to the GitHub Release xtask created for the tag.
   release:
     name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [macos-dmg, windows-exe]
     runs-on: ubuntu-latest
     permissions:
@@ -522,6 +464,9 @@ jobs:
           name: windows-exe-${{ github.sha }}
           path: release-assets/windows
 
+      - name: Generate updater manifest (tauri.json)
+        run: node scripts/gen-updater-manifest.mjs --tag "${{ github.ref_name }}" --assets release-assets --out release-assets/tauri.json
+
       # Attach artifacts to the release release-please already created from
       # CHANGELOG.md. Omitting `body` makes softprops/action-gh-release leave
       # the existing release notes untouched.
@@ -534,8 +479,12 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
             release-assets/macos/**/*.dmg
+            release-assets/macos/**/*.app.tar.gz
+            release-assets/macos/**/*.app.tar.gz.sig
             release-assets/windows/**/*.exe
+            release-assets/windows/**/*.exe.sig
             release-assets/windows/**/*.msi
+            release-assets/tauri.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -658,3 +607,153 @@ jobs:
           }
 
           post_discord
+
+  # ── Deploy production (runs LAST) ──────────────────────────────────
+  # Ships the Wasm/web stack only after the Release has all its artifacts,
+  # so the tauri.json redirect and the served manifest.json never point at
+  # assets that don't exist yet. Job-level concurrency serializes deploys
+  # across runs (two tags in flight must not deploy concurrently).
+  deploy:
+    name: Deploy production
+    needs: [release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: wasm-deploy
+      cancel-in-progress: false
+    steps:
+      - name: SSH and run deploy.sh
+        id: deploy
+        continue-on-error: true
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # ServerAliveInterval/CountMax keep the SSH connection healthy
+          # while deploy.sh has quiet stretches (cargo compiles, docker
+          # pulls). Without them the runner's SSH client times out after
+          # a few minutes idle and we get `client_loop: send disconnect:
+          # Broken pipe` mid-deploy.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Fetch raw deploy log on failure
+        if: steps.deploy.outcome != 'success'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
+            echo "(raw log not retrievable from server)"
+
+      - name: Post Discord embed (as bot)
+        if: always()
+        continue-on-error: true
+        env:
+          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+        shell: bash
+        run: |
+          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
+            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
+            exit 0
+          fi
+
+          if [ -f deploy.log ] && [ -s deploy.log ]; then
+            LOG=$(cat deploy.log)
+          else
+            LOG="(no log captured — SSH step failed before any output; see workflow run)"
+          fi
+
+          # Discord embed description hard cap is 4096 chars.
+          MAX=3900
+          if [ "${#LOG}" -gt "$MAX" ]; then
+            LOG="${LOG:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
+          fi
+
+          if [ "$DEPLOY_OUTCOME" = "success" ]; then
+            COLOR=5763719   # 0x57F287 green
+            TITLE="🚀 Wasm deploy successful"
+          else
+            COLOR=15548997  # 0xED4245 red
+            TITLE="💥 Wasm deploy failed"
+          fi
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
+          ACTOR_URL="https://github.com/${ACTOR}"
+
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg url "$RUN_URL" \
+            --arg desc "$LOG" \
+            --arg footer "manabrew · $SHORT_SHA" \
+            --arg actor "$ACTOR" \
+            --arg actor_url "$ACTOR_URL" \
+            --arg avatar_url "$AVATAR_URL" \
+            --arg timestamp "$TIMESTAMP" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: $color,
+                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }]
+            }')
+
+          # A failed notification (stale bot token, Discord outage, network
+          # blip) must never fail the deploy job: capture the HTTP status and
+          # downgrade any non-2xx to a ::warning:: annotation.
+          body=$(mktemp)
+          if [ "$DEPLOY_OUTCOME" != "success" ] && [ -f deploy-raw.log ] && [ -s deploy-raw.log ]; then
+            http=$(curl -sS -X POST \
+              -H "Authorization: Bot $BOT_TOKEN" \
+              -F "payload_json=$PAYLOAD" \
+              -F "files[0]=@deploy-raw.log;type=text/plain" \
+              -o "$body" -w "%{http_code}" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+          else
+            http=$(curl -sS -X POST \
+              -H "Authorization: Bot $BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              -o "$body" -w "%{http_code}" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+          fi
+
+          if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+            echo "Discord notification posted (HTTP $http)."
+          else
+            echo "::warning::Discord notification failed (HTTP $http): $(cat "$body" 2>/dev/null); deploy result is unaffected."
+          fi
+          rm -f "$body"
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: |
+          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
+          exit 1

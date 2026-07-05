@@ -1,7 +1,9 @@
 [package]
 name = "forge-foundation"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+license.workspace = true
+description = "Core Magic types for the manabrew engine: colors, mana, card types, zones, phases"
 
 [dependencies]
 serde = { workspace = true }

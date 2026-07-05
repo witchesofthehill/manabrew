@@ -23,7 +23,6 @@ import {
   SNAP_ROT,
   HAND_MAX_ZONE_HEIGHT_FRACTION,
   Z_HAND_CONTAINER,
-  Z_HAND_CONTAINER_COMPACT,
   Z_HAND_HOVERED,
 } from "../constants";
 import { lerp, safeDestroy } from "./pixiHelpers";
@@ -96,7 +95,6 @@ export class HandController {
   setCompact(compact: boolean): void {
     if (this.compact === compact) return;
     this.compact = compact;
-    this.container.zIndex = compact ? Z_HAND_CONTAINER_COMPACT : Z_HAND_CONTAINER;
     if (this.lastState) this.updateHand(this.lastState);
   }
 

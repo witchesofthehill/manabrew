@@ -22,6 +22,7 @@ function createPlayer(
   return {
     id,
     name,
+    status: "playing",
     isHuman,
     life,
     poison: 0,
@@ -114,7 +115,6 @@ function createInitialGameView(params: StartGameParams): GameViewDto {
     combatAssignments: [],
     gameOver: false,
     winnerId: null,
-    concededPlayerIds: [],
     monarchId: null,
     initiativeHolderId: null,
   };

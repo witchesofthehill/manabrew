@@ -75,7 +75,6 @@ interface GameBoardProps {
 
   monarchId?: string | null;
   initiativeHolderId?: string | null;
-  concededPlayerIds?: string[];
 
   turnFlashPlayerId: string | null;
 
@@ -176,7 +175,6 @@ export function GameBoard({
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
-  concededPlayerIds,
   turnFlashPlayerId,
   isOverBattlefield,
   draggingCardId,
@@ -709,7 +707,6 @@ export function GameBoard({
       addCards(p.exile);
     }
     const roomByName = new Map(currentRoom?.players.map((p) => [p.username, p]) ?? []);
-    const concededSet = new Set(concededPlayerIds ?? []);
 
     // Dev overrides are applied to every player (not just self) so the dev
     // panel can light up each state on all opponents at once. In production
@@ -798,7 +795,7 @@ export function GameBoard({
         isTargetable: dev.forceTargetable ? true : playerIsTargetable(player.id),
         isSelectedTarget: dev.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
         isFlashing: dev.forceFlashing ? true : turnFlashPlayerId === player.id,
-        isEliminated: dev.forceEliminated ? true : concededSet.has(player.id),
+        isEliminated: dev.forceEliminated ? true : player.status !== "playing",
         isDisconnected: dev.forceDisconnected
           ? true
           : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
@@ -832,7 +829,6 @@ export function GameBoard({
     gameTheme.pt,
     devOverrides,
     currentRoom,
-    concededPlayerIds,
     myPermanents,
     opponentPermanentsByPlayer,
   ]);

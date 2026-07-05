@@ -937,6 +937,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           ({
             id: `dev-fake-${i}`,
             name: `Dev Opp ${opponents.length + i + 1}`,
+            status: "playing",
             isHuman: false,
             life: 20,
             poison: 0,
@@ -1378,7 +1379,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return (
       <GameOverScreen
         winnerId={gameView.winnerId}
-        concededPlayerIds={gameView.concededPlayerIds}
         me={me}
         opponents={opponents}
         turn={gameView.turn}
@@ -1482,7 +1482,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
-          concededPlayerIds={gameView.concededPlayerIds}
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}

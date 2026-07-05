@@ -56,15 +56,11 @@ public final class InteractiveSnapshotExtractor {
 
         final List<Map<String, Object>> players = new ArrayList<>();
         final List<CardDto> battlefield = new ArrayList<>();
-        final List<String> concededPlayerIds = new ArrayList<>();
         for (final Player player : game.getRegisteredPlayers()) {
             final int index = SnapshotExtractor.playerIndex(game, player);
             players.add(toPlayer(game, player, index, viewer));
             for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
                 battlefield.add(toCard(game, card, index, "battlefield", false));
-            }
-            if (player.conceded()) {
-                concededPlayerIds.add("player-" + index);
             }
         }
 
@@ -85,7 +81,6 @@ public final class InteractiveSnapshotExtractor {
         if (winner != null) {
             view.put("winnerId", "player-" + winner);
         }
-        view.put("concededPlayerIds", concededPlayerIds);
         final Player monarch = game.getMonarch();
         if (monarch != null) {
             view.put("monarchId", "player-" + SnapshotExtractor.playerIndex(game, monarch));
@@ -110,6 +105,7 @@ public final class InteractiveSnapshotExtractor {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", "player-" + index);
         out.put("name", player.getName());
+        out.put("status", player.conceded() ? "conceded" : player.hasLost() ? "lost" : "playing");
         out.put("isHuman", index == viewer);
         out.put("life", player.getLife());
         out.put("poison", player.getPoisonCounters());

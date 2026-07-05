@@ -24,9 +24,6 @@ function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | nul
     stack: Array.isArray(incoming.stack) ? incoming.stack : (current?.stack ?? []),
     gameOver: incoming.gameOver ?? current?.gameOver ?? false,
     winnerId: incoming.winnerId ?? current?.winnerId ?? null,
-    concededPlayerIds: Array.isArray(incoming.concededPlayerIds)
-      ? incoming.concededPlayerIds
-      : (current?.concededPlayerIds ?? []),
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
   };

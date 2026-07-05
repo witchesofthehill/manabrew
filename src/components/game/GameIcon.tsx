@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { icons as gameIconsPack } from "@iconify-json/game-icons";
+import { SVG as panelIconSvg } from "@/pixi/panelIcons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -8,6 +9,9 @@ import { cn } from "@/lib/utils";
  * data — we look them up by name at render time. The `GameIconName`
  * union is a narrow whitelist: add a name here before using it in a
  * component, so every referenced icon is tracked in one place.
+ * The hand-picked `panelIcons` registry wins over the iconify pack —
+ * the same precedence as the Pixi `gameIconCache` — so zone icons
+ * (deck/graveyard/exile) match the HUD capsule pills and the tiles.
  */
 export type GameIconName =
   | "crown"
@@ -40,7 +44,10 @@ export type GameIconName =
   | "battery-pack-alt"
   | "scroll-unfurled"
   | "anvil"
-  | "beer-stein";
+  | "beer-stein"
+  | "deck"
+  | "graveyard"
+  | "exile";
 
 interface GameIconProps {
   name: GameIconName;
@@ -50,10 +57,11 @@ interface GameIconProps {
 }
 
 export function GameIcon({ name, className, style, title }: GameIconProps) {
+  const panelBody = panelIconSvg[name];
   const icon = gameIconsPack.icons[name];
-  if (!icon) return null;
-  const width = icon.width ?? gameIconsPack.width ?? 512;
-  const height = icon.height ?? gameIconsPack.height ?? 512;
+  if (!panelBody && !icon) return null;
+  const width = panelBody ? 512 : (icon!.width ?? gameIconsPack.width ?? 512);
+  const height = panelBody ? 512 : (icon!.height ?? gameIconsPack.height ?? 512);
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -62,7 +70,7 @@ export function GameIcon({ name, className, style, title }: GameIconProps) {
       aria-label={title}
       className={cn("shrink-0", className)}
       style={style}
-      dangerouslySetInnerHTML={{ __html: icon.body }}
+      dangerouslySetInnerHTML={{ __html: panelBody ?? icon!.body }}
     />
   );
 }

@@ -163,12 +163,8 @@ pub(super) fn mulligan_decision_recv<T: Responder>(
     _hand: &[CardId],
     _mulligan_count: u32,
 ) -> bool {
-    // The engine sends exactly one Mulligan prompt before this recv;
-    // any other action is a contract violation. Concede short-circuits
-    // so a torn-down session exits cleanly.
     match agent.recv_action() {
         PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => keep,
-        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => true,
         other => panic!("mulligan_decision_recv expected MulliganDecision, got {other:?}"),
     }
 }

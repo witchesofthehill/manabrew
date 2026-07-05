@@ -47,6 +47,8 @@ export interface GameState {
    *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
   relinquishedPriority: boolean;
   gameConfig: GameConfig | null;
+  /** Set at concede click, before the engine confirms via `status: "conceded"`. */
+  selfConceded: boolean;
   /** True if this is a networked multiplayer game. */
   isMultiplayer: boolean;
   /** True if this client is the host (runs the engine). */

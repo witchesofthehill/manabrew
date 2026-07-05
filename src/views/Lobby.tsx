@@ -2,6 +2,7 @@ import { TablesList } from "@/components/lobby/TablesList";
 import { UserList, type ConnectionState } from "@/components/lobby/UserList";
 import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { LeaveGameModal } from "@/components/game/modals";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -109,6 +110,7 @@ export default function Lobby() {
     rooms,
     currentRoom,
     roomPassword,
+    hostingForgeRoom,
     players,
     gameStarted,
     playerOrder,
@@ -145,6 +147,17 @@ export default function Lobby() {
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
+  const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
+
+  // Leaving tears down the embedded Forge node (stopRoom), which kills the
+  // game for everyone still playing — by design. Make the host confirm it.
+  const handleLeaveRoom = () => {
+    if (hostingForgeRoom && currentRoom?.status === "InGame") {
+      setConfirmLeaveHostedGame(true);
+      return;
+    }
+    void leaveRoom();
+  };
 
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
@@ -582,7 +595,7 @@ export default function Lobby() {
             refreshing={refreshingLobby}
             refreshDisabled={!connected || connecting}
             onJoinRoom={handleJoinRoom}
-            onLeaveRoom={leaveRoom}
+            onLeaveRoom={handleLeaveRoom}
             onSetReady={setReady}
             onSetFormat={setFormat}
             onSetMaxPlayers={handleSetMaxPlayers}
@@ -659,6 +672,15 @@ export default function Lobby() {
           }
         }}
       />
+      {confirmLeaveHostedGame && (
+        <LeaveGameModal
+          onStay={() => setConfirmLeaveHostedGame(false)}
+          onLeave={() => {
+            setConfirmLeaveHostedGame(false);
+            void leaveRoom();
+          }}
+        />
+      )}
     </div>
   );
 }

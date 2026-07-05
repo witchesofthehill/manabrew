@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 use crate::display::DisplayEvent;
 use crate::game::GameViewDto;
-use crate::prompts::PromptInput;
+use crate::prompts::{PromptInput, PromptOutput};
 
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -18,6 +18,21 @@ pub enum AgentMessage {
 #[ts(export, export_to = "transport/messages.ts")]
 pub struct StateUpdate {
     pub game_view: GameViewDto,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum DirectiveInput {
+    Concede,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum ClientToServerMessage {
+    Response { action: PromptOutput },
+    Directive { directive: DirectiveInput },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

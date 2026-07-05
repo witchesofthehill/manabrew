@@ -29,10 +29,11 @@ use crate::config::DeckSelection;
 use manabot::{BotAgent, SimpleAi};
 #[cfg(forge_backend)]
 use manabrew_agent_interface::game_view_dto::GameViewDto;
-use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage};
 #[cfg(forge_backend)]
 use manabrew_agent_interface::prompt::{
-    AgentPrompt, ChooseActionOutput, DiceRolledOutput, GameOverInput, PromptInput, StateUpdate,
+    AgentPrompt, ChooseActionOutput, DiceRolledOutput, DirectiveInput, GameOverInput, PromptInput,
+    PromptOutput, StateUpdate,
 };
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{MulliganOutput, MulliganPutBackOutput};
@@ -912,7 +913,7 @@ pub fn run_hosted_engine_game(
     ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
+    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
@@ -941,7 +942,7 @@ pub fn run_hosted_engine_game(
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
+    _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     _game_over_tx: std_mpsc::Sender<HostedGameOver>,
     _cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
@@ -958,7 +959,7 @@ fn run_hosted_engine_game_inner(
     ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
+    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
@@ -1002,7 +1003,7 @@ fn run_hosted_engine_game_inner(
         armed: std::cell::Cell::new(true),
     };
 
-    let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<PromptOutput>> =
+    let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<ClientToServerMessage>> =
         remote_response_rxs.into_iter().collect();
     let mut last_prompt_id: Option<u32> = None;
     let mut pending_roll_acks: usize = 0;
@@ -1018,7 +1019,9 @@ fn run_hosted_engine_game_inner(
         for (player_index, rx) in &mut remote_response_rxs {
             loop {
                 match rx.try_recv() {
-                    Ok(PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged)) => {
+                    Ok(ClientToServerMessage::Response {
+                        action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
+                    }) => {
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
                             if pending_roll_acks == 0 {
@@ -1030,7 +1033,7 @@ fn run_hosted_engine_game_inner(
                             }
                         }
                     }
-                    Ok(action) => {
+                    Ok(ClientToServerMessage::Response { action }) => {
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1038,6 +1041,16 @@ fn run_hosted_engine_game_inner(
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
                         engine.submit_action(&session_id, &action_json)?;
+                    }
+                    Ok(ClientToServerMessage::Directive {
+                        directive: DirectiveInput::Concede,
+                    }) => {
+                        // A directive can arrive while another player's prompt
+                        // is open (this loop drains every seat), so it names
+                        // its seat.
+                        let directive_json = directive_concede_json(*player_index);
+                        debug!(player_index, %directive_json, "submitting concede directive to java");
+                        engine.submit_action(&session_id, &directive_json)?;
                     }
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => {
@@ -1374,6 +1387,157 @@ fn run_scenario_loop<B: JavaBridge>(
         "java-forge scenario '{}' did not complete within {max_prompts} prompts",
         scenario.name()
     ))
+}
+
+#[cfg(feature = "java-forge")]
+pub fn run_concede_smoke() -> Result<(), String> {
+    let config = JavaRuntimeConfig::from_env();
+    let assets_dir = config.assets_dir.to_string_lossy().to_string();
+    let bridge = SubprocessBridge::spawn(&config)?;
+    let mut session = JavaForgeSession::new(bridge);
+    session.initialize(&assets_dir)?;
+    run_concede_game(&mut session, 3, 2, 12)?;
+    run_concede_game(&mut session, 2, 1, 8)?;
+    Ok(())
+}
+
+#[cfg(not(feature = "java-forge"))]
+pub fn run_concede_smoke() -> Result<(), String> {
+    Err(unsupported_message().to_string())
+}
+
+#[cfg(forge_backend)]
+fn directive_concede_json(player: usize) -> String {
+    format!(r#"{{"type":"directive","directive":{{"type":"concede"}},"player":{player}}}"#)
+}
+
+#[cfg(feature = "java-forge")]
+fn run_concede_game<B: JavaBridge>(
+    session: &mut JavaForgeSession<B>,
+    seats: usize,
+    conceder: usize,
+    concede_after: usize,
+) -> Result<(), String> {
+    const POST_CONCEDE_DECISIONS: usize = 12;
+    const STALL_REPEATS: usize = 300;
+
+    let cards: Vec<manabrew_protocol::deck_dto::DeckCard> = (0..60)
+        .map(|_| manabrew_protocol::deck_dto::DeckCard {
+            identity: DeckCardIdentity {
+                name: "Mountain".to_string(),
+                set_code: "M20".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .collect();
+    let deck = Deck {
+        name: "concede-smoke".to_string(),
+        cards,
+        ..Default::default()
+    };
+    let identities = deck_card_identities(&deck);
+    let players: Vec<PlayerConfig> = (0..seats)
+        .map(|i| PlayerConfig::new(format!("Concede {}", i + 1), &identities, None))
+        .collect();
+    let request = StartGameRequest::new(format!("concede-smoke-{seats}p"), 20, 7, players);
+    let session_id = session.start_game(&request)?;
+    info!(
+        session_id,
+        seats, conceder, concede_after, "concede smoke game started"
+    );
+
+    let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
+    let mut last_prompt_json: Option<String> = None;
+    let mut acted = 0usize;
+    let mut acted_after_concede = 0usize;
+    let mut conceded = false;
+    let mut repeat_count = 0usize;
+
+    for _ in 0..40_000 {
+        if session.is_game_over()? {
+            if !conceded {
+                return Err("concede smoke: game ended before the concede fired".to_string());
+            }
+            break;
+        }
+        let Some(prompt_json) = session.get_prompt(0)? else {
+            std::thread::sleep(Duration::from_millis(10));
+            continue;
+        };
+        if last_prompt_json.as_deref() == Some(prompt_json.as_str()) {
+            repeat_count += 1;
+            if repeat_count > STALL_REPEATS {
+                return Err(format!(
+                    "concede smoke stalled on the same prompt (seats={seats} acted={acted} conceded={conceded} after={acted_after_concede}): {prompt_json}"
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(10));
+            continue;
+        }
+        repeat_count = 0;
+
+        let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
+            .map_err(|err| format!("concede smoke: bad prompt: {err}"))?;
+        let player = player_index(&prompt.deciding_player_id);
+
+        if !conceded && acted >= concede_after {
+            info!(conceder, acted, "concede smoke: injecting concede");
+            session.submit_action(&directive_concede_json(conceder))?;
+            conceded = true;
+            last_prompt_json = None;
+            continue;
+        }
+        if conceded && player == conceder {
+            session.submit_action(&directive_concede_json(conceder))?;
+            last_prompt_json = Some(prompt_json);
+            continue;
+        }
+
+        if let Some(action) = bots.entry(player).or_default().decide(prompt) {
+            submit_player_action(session, &action)?;
+            acted += 1;
+            if conceded {
+                acted_after_concede += 1;
+            }
+        }
+        last_prompt_json = Some(prompt_json);
+        if conceded && seats > 2 && acted_after_concede >= POST_CONCEDE_DECISIONS {
+            break;
+        }
+    }
+
+    if !conceded {
+        return Err("concede smoke: never reached the injection point".to_string());
+    }
+    if seats == 2 {
+        if !session.is_game_over()? {
+            return Err("concede smoke: 2p concession did not end the game".to_string());
+        }
+        info!(acted, "concede smoke: 2p concession ended the game");
+    } else {
+        if acted_after_concede < POST_CONCEDE_DECISIONS && !session.is_game_over()? {
+            return Err(format!(
+                "concede smoke: game did not progress after the concession (only {acted_after_concede} decisions)"
+            ));
+        }
+        let snapshot = parse_snapshot(session)?;
+        let status = snapshot
+            .pointer(&format!("/players/{conceder}/status"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if status != "conceded" {
+            return Err(format!(
+                "concede smoke: seat {conceder} has status '{status}', expected 'conceded'"
+            ));
+        }
+        info!(
+            acted,
+            acted_after_concede, "concede smoke: game continued past the concession"
+        );
+    }
+    session.end_game()?;
+    Ok(())
 }
 
 #[cfg(feature = "java-forge")]

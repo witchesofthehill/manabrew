@@ -15,6 +15,7 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 import { StatusBanner } from "./StatusBanner";
 import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
+import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
 
 // Tailwind's default `md` breakpoint. Kept in sync with utility classes
 // like `md:hidden` / `hidden md:flex` so the JS gate matches the CSS.
@@ -60,6 +61,7 @@ export function AppShell() {
   useGameSessionResume();
   useStatusBanner();
   useDesktopUpdater();
+  useEngineHostCloseGuard();
 
   function toggleSidebar() {
     setSidebarCollapsed((v) => !v);

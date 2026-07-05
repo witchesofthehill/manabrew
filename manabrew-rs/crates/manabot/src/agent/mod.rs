@@ -6,7 +6,9 @@
 //! picks which agent to spawn via the `agent` field of the bot config.
 
 use manabrew_agent_interface::agent_impl::Responder;
-use manabrew_agent_interface::prompt::{AgentPrompt, ChooseActionOutput, PromptOutput};
+use manabrew_agent_interface::prompt::{
+    AgentPrompt, ChooseActionOutput, ClientToServerMessage, PromptOutput,
+};
 use serde::{Deserialize, Serialize};
 
 pub mod simple_ai;
@@ -49,11 +51,13 @@ impl Default for BotResponder {
 }
 
 impl Responder for BotResponder {
-    fn respond(&mut self, prompt: AgentPrompt) -> PromptOutput {
-        self.agent
+    fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage {
+        let action = self
+            .agent
             .decide(prompt)
             .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until: None,
-            }))
+            }));
+        ClientToServerMessage::Response { action }
     }
 }

@@ -14,7 +14,7 @@ import type {
   SealedConfig,
 } from "@/types/server";
 import type { Deck } from "@/protocol/deck";
-import type { Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
+import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
 
 // ============================================================================
 // Game API Types
@@ -39,6 +39,11 @@ export interface StartMultiplayerGameParams {
 export interface RespondParams {
   action: PromptOutput;
   playerSlot: string | null;
+}
+
+export interface SendDirectiveParams {
+  playerSlot: string;
+  directive: DirectiveInput;
 }
 
 export interface RestoreSnapshotParams {
@@ -127,6 +132,9 @@ export interface IGameApi {
 
   /** Send a player action to the engine */
   respond(params: RespondParams): Promise<void>;
+
+  /** Fire-and-forget out-of-band player instruction (concede, …). */
+  sendDirective(params: SendDirectiveParams): Promise<void>;
 
   /** End the current game */
   endGame(): Promise<void>;

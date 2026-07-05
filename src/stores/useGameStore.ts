@@ -194,6 +194,7 @@ async function initializeGame({
     isFlashing: false,
     isWaitingForResponse: false,
     relinquishedPriority: false,
+    selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,
     isPrefetchingCards: true,
@@ -225,6 +226,7 @@ export const useGameStore = create<GameState>()(
       isWaitingForResponse: false,
       relinquishedPriority: false,
       gameConfig: null,
+      selfConceded: false,
       isMultiplayer: false,
       isHost: false,
       myPlayerSlot: null,
@@ -388,6 +390,7 @@ export const useGameStore = create<GameState>()(
             isFlashing: false,
             isWaitingForResponse: false,
             relinquishedPriority: false,
+            selfConceded: false,
             debugInfo: "Starting multiplayer game...",
             isPrefetchingCards: true,
             gameDecks,
@@ -430,10 +433,7 @@ export const useGameStore = create<GameState>()(
         // arrival (especially with multiplayer relay latency), so a
         // rapid second click would otherwise queue a stale action that
         // gets misrouted by the next recv on the engine side.
-        //
-        // Concede is the one exception: it must always go through to
-        // tear down the session even mid-prompt.
-        if (get().isWaitingForResponse && output.type !== "concede") {
+        if (get().isWaitingForResponse) {
           console.warn(`[store] respond(${output.type}) ignored — already waiting for a response`);
           return;
         }
@@ -468,19 +468,19 @@ export const useGameStore = create<GameState>()(
           void get().endGame();
           return;
         }
-        // Await the concede send so the relay-bound message is on the wire
-        // before we tear down the runtime / leave the room — otherwise the
-        // host engine never sees the concede and waits out the 120 s
-        // recv_timeout while the other players sit idle.
+        const { myPlayerSlot } = get();
+        // The concession is honored at this seat's next priority window; any
+        // pending prompt stays live and still expects this player's answer.
+        set({ selfConceded: true });
+        if (!myPlayerSlot) return;
         try {
-          await get().respond({ type: "concede" });
+          await runtime.api.sendDirective({
+            playerSlot: myPlayerSlot,
+            directive: { type: "concede" },
+          });
         } catch (e) {
-          console.warn("[store] concede respond failed:", e);
+          console.warn("[store] concede directive failed:", e);
         }
-        // Conceding always exits the room: the player explicitly opted out
-        // of the match, so don't strand them on the game-over screen
-        // waiting for the GameOver prompt to round-trip.
-        void get().endGame();
       },
 
       endGame: async () => {
@@ -497,6 +497,7 @@ export const useGameStore = create<GameState>()(
           isFlashing: false,
           isWaitingForResponse: false,
           relinquishedPriority: false,
+          selfConceded: false,
           isMultiplayer: false,
           isHost: false,
           myPlayerSlot: null,

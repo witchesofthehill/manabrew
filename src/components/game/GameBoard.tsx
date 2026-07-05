@@ -29,11 +29,7 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import {
-  ZONE_BADGE_ICONS,
-  ZONE_BADGE_LABELS,
-  ZONE_TILE_KEY,
-} from "@/components/game/game.constants";
+import { ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import {
   GAP,
   HAND_BOTTOM_SINK_FRAC,
@@ -1090,17 +1086,22 @@ export function GameBoard({
   const hudBarSpecs = useMemo<PlayerHudSpec[]>(() => {
     if (!compactBoard) return playerBarSpecs;
     return playerBarSpecs.map((spec) => {
-      const zones = (zoneTilesByPlayer[spec.playerId] ?? [])
-        .filter((t) => t.key !== ZONE_TILE_KEY.command)
-        .map((t) => ({
-          id: zoneBadgeId(t.key),
-          icon: ZONE_BADGE_ICONS[t.key] ?? "deck",
-          color: t.highlightColor ?? gameTheme.textMuted,
-          label: ZONE_BADGE_LABELS[t.key] ?? t.label,
-          count: t.count,
-          onTap: t.onOpen,
-          zone: true,
-        }));
+      const zones = (zoneTilesByPlayer[spec.playerId] ?? []).flatMap((t) => {
+        const badge = ZONE_BADGES[t.key];
+        return badge
+          ? [
+              {
+                id: zoneBadgeId(t.key),
+                icon: badge.icon,
+                color: t.highlightColor ?? gameTheme.textMuted,
+                label: badge.label,
+                count: t.count,
+                onTap: t.onOpen,
+                zone: true,
+              },
+            ]
+          : [];
+      });
       if (zones.length === 0) return spec;
       const badges = [...spec.badges];
       const handIdx = badges.findIndex((b) => b.id === "hand");

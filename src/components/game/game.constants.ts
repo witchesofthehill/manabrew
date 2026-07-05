@@ -26,16 +26,10 @@ export const ZONE_TILE_KEY = {
   command: "cmd",
 } as const;
 
-export const ZONE_BADGE_ICONS: Record<string, string> = {
-  [ZONE_TILE_KEY.library]: "deck",
-  [ZONE_TILE_KEY.graveyard]: "graveyard",
-  [ZONE_TILE_KEY.exile]: "exile",
-};
-
-export const ZONE_BADGE_LABELS: Record<string, string> = {
-  [ZONE_TILE_KEY.library]: "Library",
-  [ZONE_TILE_KEY.graveyard]: "Graveyard",
-  [ZONE_TILE_KEY.exile]: "Exile",
+export const ZONE_BADGES: Record<string, { icon: string; label: string }> = {
+  [ZONE_TILE_KEY.library]: { icon: "deck", label: "Library" },
+  [ZONE_TILE_KEY.graveyard]: { icon: "graveyard", label: "Graveyard" },
+  [ZONE_TILE_KEY.exile]: { icon: "exile", label: "Exile" },
 };
 
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.

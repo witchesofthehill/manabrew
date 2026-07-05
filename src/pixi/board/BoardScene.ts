@@ -46,6 +46,7 @@ import {
   Z_STAGED_REGION,
   Z_COMBAT_GUEST,
   HAND_RESERVE_TRIM,
+  HAND_RESERVE_TRIM_COMPACT,
 } from "../constants";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
@@ -1179,6 +1180,7 @@ export class BoardScene {
     this.compactMode = compact;
     this.phaseStrip.setCompact(compact);
     this.hand?.setCompact(compact);
+    this.playerBars.setCompact(compact);
     for (const rec of this.regions.values()) rec.region.setCompactZones(compact);
     this.layoutSelfBar();
   }
@@ -1279,6 +1281,7 @@ export class BoardScene {
       collectBlockers: () => [
         ...(this.playerBlockers.get(playerId) ?? []),
         ...(isLocal ? this.localBlockers() : []),
+        ...(this.compactMode ? this.capsuleBlockers(playerId) : []),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
       getCombatGuestLayer: () => this.combatGuestLayer,
@@ -1289,7 +1292,11 @@ export class BoardScene {
       },
       wireSprite: (sprite) => this.wireSprite(sprite, playerId, isLocal),
       screenXToLocalX: (screenX) => screenX - this.app.canvas.getBoundingClientRect().left,
-      getHandReserveBottom: () => (isLocal ? this.handReserveBottom() * HAND_RESERVE_TRIM : 0),
+      getHandReserveBottom: () =>
+        isLocal
+          ? this.handReserveBottom() *
+            (this.compactMode ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM)
+          : 0,
       // The opponent HUD is a keep-out blocker (see BoardRegion.collectLocalBlockers)
       // rather than a full-width top reserve, so the grid uses the whole height.
       getTopReserve: () => 0,
@@ -1360,6 +1367,13 @@ export class BoardScene {
   private localBlockers(): BlockingRect[] {
     const handRect = this.hand?.getBlockerRect();
     return handRect ? [handRect] : [];
+  }
+
+  /** Compact keep-out for the whole rendered HUD capsule (avatar, life, badge
+   *  rows, zone pill column) so battlefield cards never lay out beneath it. */
+  private capsuleBlockers(playerId: string): BlockingRect[] {
+    const b = this.playerBars.getCapsuleBounds(playerId);
+    return b ? [b] : [];
   }
 
   private entrySeedFor(

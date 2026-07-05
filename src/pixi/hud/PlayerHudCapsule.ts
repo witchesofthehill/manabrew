@@ -3,6 +3,7 @@ import {
   Container,
   Graphics,
   Point,
+  Rectangle,
   Sprite,
   Text,
   Texture,
@@ -25,6 +26,8 @@ const SKULL_ICON_NAME = "skull-crossed-bones";
 const OFFLINE_ICON_NAME = "aerial-signal";
 const GEAR_ICON_NAME = "cog";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
+const BADGE_TAP_HIT_PAD_X = 8;
+const BADGE_TAP_HIT_PAD_Y = 3;
 
 /** Avatar circle diameter — fixed so it's identical in the expanded capsule and
  *  the collapsed column (the collapsed band caps it if narrower). */
@@ -73,6 +76,7 @@ interface BadgeChip {
   sprite: Sprite;
   count: Text;
   content: PlayerHudTooltipContent;
+  badgeId?: string;
 }
 
 interface ContentItem {
@@ -126,6 +130,7 @@ export class PlayerHudCapsule {
   private width = 0;
   private height = 0;
   private column = false;
+  private compact = false;
   private avatarUrl: string | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
@@ -329,6 +334,13 @@ export class PlayerHudCapsule {
       s.manaPool,
       s.badges,
     ]);
+  }
+
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    this.lastSig = "";
+    this.render();
   }
 
   setRect(x: number, y: number, width: number, height: number, column: boolean): void {
@@ -560,6 +572,12 @@ export class PlayerHudCapsule {
         this.onHover(null);
       });
       sprite.on("pointertap", (e) => {
+        const onTap = this.spec.badges.find((b) => b.id === chip.badgeId)?.onTap;
+        if (onTap) {
+          this.onHover(null);
+          onTap();
+          return;
+        }
         if (e.pointerType === "mouse") return;
         const s = sprite.height;
         this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
@@ -820,6 +838,20 @@ export class PlayerHudCapsule {
     chip.sprite.width = badgeSize;
     chip.sprite.height = badgeSize;
     chip.content = this.badgeTooltip(badge);
+    chip.badgeId = badge.id;
+    chip.sprite.cursor = badge.onTap ? "pointer" : "help";
+    if (badge.onTap && tex) {
+      const padX = (BADGE_TAP_HIT_PAD_X / badgeSize) * tex.width;
+      const padY = (BADGE_TAP_HIT_PAD_Y / badgeSize) * tex.height;
+      chip.sprite.hitArea = new Rectangle(
+        -padX,
+        -padY,
+        tex.width + padX * 2,
+        tex.height + padY * 2,
+      );
+    } else {
+      chip.sprite.hitArea = null;
+    }
     const hasCount = badge.count !== undefined;
     let w = badgeSize;
     if (hasCount) {
@@ -858,14 +890,15 @@ export class PlayerHudCapsule {
     const badgeSize = Math.round(unit * 0.4);
 
     // Top row: hand-size badge + the floating mana pool. Bottom row(s): every
-    // other badge, wrapping within the panel's max width.
+    // other badge, wrapping within the panel's max width. Zone pills leave the
+    // rows entirely and stack on the avatar instead.
     const handIdx = badges.findIndex((b) => b.id === "hand");
     const top: ContentItem[] = [];
     if (handIdx >= 0) top.push(this.makeBadgeItem(handIdx, unit));
     for (let i = 0; i < present.length; i++) top.push(this.makePipItem(i, present[i]!, unit));
     const bottom: ContentItem[] = [];
     for (let i = 0; i < badges.length; i++)
-      if (i !== handIdx) bottom.push(this.makeBadgeItem(i, unit));
+      if (i !== handIdx && !badges[i]!.zone) bottom.push(this.makeBadgeItem(i, unit));
 
     const interGap = Math.max(4, Math.round(gap * 0.7));
     const rowH = Math.round(unit * 0.52);
@@ -888,9 +921,34 @@ export class PlayerHudCapsule {
       x += it.w + interGap;
     }
 
+    const avatarTop = this.avatarCy - this.avatarDia / 2;
     const maxRow = placed.reduce((m, p) => Math.max(m, p.row), 0);
-    const blockTop = cy - ((maxRow + 1) * rowH) / 2;
+    const blockH = (maxRow + 1) * rowH;
+    // Compact self capsule sits at the bottom edge under the hand fan, so the
+    // whole row block lifts above the avatar top instead of centring on it.
+    const blockTop = this.compact && this.spec.isSelf ? avatarTop - gap - blockH : cy - blockH / 2;
     for (const p of placed) p.item.place(p.x, blockTop + p.row * rowH + rowH / 2);
+
+    this.layoutZoneColumn(unit, rowH, gap, avatarTop);
+  }
+
+  /** Compact-mode library/graveyard/exile pills: a vertical column centred on
+   *  the avatar — above it for the local player (clear of the hand fan), below
+   *  the life pill for opponents. */
+  private layoutZoneColumn(unit: number, rowH: number, gap: number, avatarTop: number): void {
+    const items: ContentItem[] = [];
+    for (let i = 0; i < this.spec.badges.length; i++)
+      if (this.spec.badges[i]!.zone) items.push(this.makeBadgeItem(i, unit));
+    if (items.length === 0) return;
+    const colH = items.length * rowH;
+    const pillH = Math.round(this.avatarDia * 0.34);
+    const colTop = this.spec.isSelf
+      ? avatarTop - gap - colH
+      : this.avatarCy + this.avatarDia / 2 + pillH * 0.2 + gap;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]!;
+      it.place(this.avatarCx - it.w / 2, colTop + i * rowH + rowH / 2);
+    }
   }
 
   private applyLifeAnim(): void {

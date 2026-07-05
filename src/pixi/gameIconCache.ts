@@ -1,14 +1,21 @@
 import { Texture, ImageSource } from "pixi.js";
 import { icons as gameIcons } from "@iconify-json/game-icons";
+import { SVG as panelIconSvg } from "./panelIcons";
 
 /** Rasterized game-icons (`@iconify-json/game-icons`) as white Pixi textures,
  *  tint at the sprite. Mirrors `manaSymbolCache`'s SVG→canvas approach so Pixi
- *  gets a concrete texture (SVG images can decode with zero intrinsic size). */
+ *  gets a concrete texture (SVG images can decode with zero intrinsic size).
+ *  The hand-picked `panelIcons` registry wins over the iconify pack, so zone
+ *  icons (deck/graveyard/exile) match the tiles and the scry modal. */
 const RASTER_SIZE = 128;
 const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
 
 function svgFor(name: string): string | null {
+  const body = panelIconSvg[name];
+  if (body) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${body.replaceAll("currentColor", "#ffffff")}</svg>`;
+  }
   const icon = gameIcons.icons[name as keyof typeof gameIcons.icons];
   if (!icon) return null;
   const w = icon.width ?? gameIcons.width ?? 512;

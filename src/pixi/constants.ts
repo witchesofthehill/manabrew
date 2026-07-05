@@ -14,7 +14,9 @@ export const MAX_GRID_SLOTS = 200;
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
 // Absolute floor so cards never go microscopic on very short displays.
 export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
-export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.32;
+// Low enough that 3 rows + the combat band always fit on a landscape phone —
+// the row lock in BoardCanvas.reconfigure is what actually picks the scale.
+export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.2;
 export const BATTLEFIELD_MIN_ROWS = 3;
 export const BATTLEFIELD_MAX_ROWS = 4;
 // Panel wider than this fraction of the canvas reserves the whole top row.
@@ -89,6 +91,7 @@ export const COMBAT_ROW_PAD_Y = 8;
 // bottom row can grow down behind the hand. The action overlay keeps the full
 // reserve so it never sits under the hand.
 export const HAND_RESERVE_TRIM = 0.65;
+export const HAND_RESERVE_TRIM_COMPACT = 0.4;
 export const HAND_BOTTOM_SINK_FRAC = 0.45;
 export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
 // Extra upward tilt for the local player's staged creatures — the self region

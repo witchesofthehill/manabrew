@@ -26,6 +26,18 @@ export const ZONE_TILE_KEY = {
   command: "cmd",
 } as const;
 
+export const ZONE_BADGE_ICONS: Record<string, string> = {
+  [ZONE_TILE_KEY.library]: "deck",
+  [ZONE_TILE_KEY.graveyard]: "graveyard",
+  [ZONE_TILE_KEY.exile]: "exile",
+};
+
+export const ZONE_BADGE_LABELS: Record<string, string> = {
+  [ZONE_TILE_KEY.library]: "Library",
+  [ZONE_TILE_KEY.graveyard]: "Graveyard",
+  [ZONE_TILE_KEY.exile]: "Exile",
+};
+
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`
  *  every single-faced card references. */

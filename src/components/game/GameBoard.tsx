@@ -28,12 +28,17 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { ZONE_TILE_KEY } from "@/components/game/game.constants";
+import {
+  ZONE_BADGE_ICONS,
+  ZONE_BADGE_LABELS,
+  ZONE_TILE_KEY,
+} from "@/components/game/game.constants";
 import {
   GAP,
   HAND_BOTTOM_SINK_FRAC,
   HAND_BOTTOM_SINK_FRAC_COMPACT,
   HAND_RESERVE_TRIM,
+  HAND_RESERVE_TRIM_COMPACT,
 } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
@@ -240,7 +245,8 @@ export function GameBoard({
   const handVisibleFrac =
     1 - (compactBoard ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC);
   const selfBottomReserve = Math.round(
-    (handVisibleFrac * HAND_CARD_BASE.cardH * vScale + GAP) * HAND_RESERVE_TRIM,
+    (handVisibleFrac * HAND_CARD_BASE.cardH * vScale + GAP) *
+      (compactBoard ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM),
   );
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
@@ -1070,6 +1076,38 @@ export function GameBoard({
     openExile,
   ]);
 
+  const boardZoneTiles = useMemo<Record<string, ZoneTileSpec[]>>(() => {
+    if (!compactBoard) return zoneTilesByPlayer;
+    return Object.fromEntries(
+      Object.entries(zoneTilesByPlayer).map(([pid, tiles]) => [
+        pid,
+        tiles.filter((t) => t.key === ZONE_TILE_KEY.command),
+      ]),
+    );
+  }, [zoneTilesByPlayer, compactBoard]);
+
+  const hudBarSpecs = useMemo<PlayerHudSpec[]>(() => {
+    if (!compactBoard) return playerBarSpecs;
+    return playerBarSpecs.map((spec) => {
+      const zones = (zoneTilesByPlayer[spec.playerId] ?? [])
+        .filter((t) => t.key !== ZONE_TILE_KEY.command)
+        .map((t) => ({
+          id: `zone-${t.key}`,
+          icon: ZONE_BADGE_ICONS[t.key] ?? "deck",
+          color: t.highlightColor ?? gameTheme.textMuted,
+          label: ZONE_BADGE_LABELS[t.key] ?? t.label,
+          count: t.count,
+          onTap: t.onOpen,
+          zone: true,
+        }));
+      if (zones.length === 0) return spec;
+      const badges = [...spec.badges];
+      const handIdx = badges.findIndex((b) => b.id === "hand");
+      badges.splice(handIdx + 1, 0, ...zones);
+      return { ...spec, badges };
+    });
+  }, [playerBarSpecs, zoneTilesByPlayer, compactBoard, gameTheme]);
+
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const seatColorOf = (pid: string): string =>
       pid === me.id
@@ -1222,7 +1260,7 @@ export function GameBoard({
   }, [sceneRef, me.id, opponentIdsKey, unifiedLayout, promptType, compactBoard]);
 
   const sheetSpec = sheetPlayerId
-    ? (playerBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
+    ? (hudBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
     : null;
 
   // Screen-reader mirror of the Pixi HUD (Pixi has no DOM accessibility).
@@ -1296,9 +1334,9 @@ export function GameBoard({
           focusedOpponentId={focusedOpponentId}
           combatFocusIds={combatFocusIds}
           manualFocusId={manualFocusId}
-          playerBars={playerBarSpecs}
+          playerBars={hudBarSpecs}
           showPlayerBars
-          zoneTiles={zoneTilesByPlayer}
+          zoneTiles={boardZoneTiles}
           callbacks={pixiCallbacks}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}

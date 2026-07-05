@@ -26,6 +26,7 @@ export class PlayerHudLayer {
   private onMenu: () => void;
   private capsules = new Map<string, PlayerHudCapsule>();
   private tooltip: PlayerHudTooltip;
+  private compact = false;
 
   constructor(
     theme: Theme,
@@ -73,6 +74,7 @@ export class PlayerHudLayer {
         );
         this.container.addChild(capsule.container);
         this.capsules.set(spec.playerId, capsule);
+        capsule.setCompact(this.compact);
       }
       capsule.setSpec(spec);
     }
@@ -98,8 +100,24 @@ export class PlayerHudLayer {
     this.capsules.get(playerId)?.container.scale.set(scale);
   }
 
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    for (const capsule of this.capsules.values()) capsule.setCompact(compact);
+  }
+
   getPlayerAnchor(playerId: string): ScreenPos | null {
     return this.capsules.get(playerId)?.getAvatarCenter() ?? null;
+  }
+
+  getCapsuleBounds(
+    playerId: string,
+  ): { x: number; y: number; width: number; height: number } | null {
+    const capsule = this.capsules.get(playerId);
+    if (!capsule) return null;
+    const b = capsule.container.getBounds();
+    if (b.width <= 0 || b.height <= 0) return null;
+    return { x: b.x, y: b.y, width: b.width, height: b.height };
   }
 
   destroy(): void {

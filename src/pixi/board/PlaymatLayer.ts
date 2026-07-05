@@ -45,6 +45,8 @@ export const clampPlaymatBrightness = (b: number): number =>
 
 const PLAYMAT_DROP_DIM = 0.29;
 export const PLAYMAT_PADDING = 0.04;
+export const playmatPad = (width: number, height: number): number =>
+  Math.min(width, height) * PLAYMAT_PADDING;
 const PLAYMAT_VIGNETTE_ALPHA = 0.7;
 const PLAYMAT_TINT = 0xe4e4e4;
 const PLAYMAT_FABRIC_TILE_SCALE = 0.6;
@@ -276,7 +278,7 @@ export class PlaymatLayer {
     this.rect = rect;
     this.dropActive = opts.dropActive;
 
-    const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
+    const pad = playmatPad(rect.width, rect.height);
     const r = {
       x: rect.x + pad,
       y: rect.y + pad,

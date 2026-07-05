@@ -10,7 +10,7 @@ import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout"
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridLayout";
-import { PLAYMAT_PADDING } from "./board/PlaymatLayer";
+import { playmatPad } from "./board/PlaymatLayer";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -346,12 +346,15 @@ export function BoardCanvas({
     const scaleFloor = compact
       ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
       : BATTLEFIELD_CARD_SCALE_FLOOR;
-    // The region's playArea insets the usable zone by PLAYMAT_PADDING on every
+    // The region's playArea insets the usable zone by the playmat pad on every
     // edge before laying rows; compact subtracts it here too, or the 3-row
     // scale overshoots and the grid floors to 2 rows.
-    const playmatTrim = (usable: number) =>
-      compact ? Math.max(1, usable * (1 - PLAYMAT_PADDING * 2)) : usable;
-    const selfUsable = playmatTrim(Math.max(1, layout.self.height - (selfBottomReserve ?? 0)));
+    const playmatTrim = (usable: number, width: number) =>
+      compact ? Math.max(1, usable - playmatPad(width, usable) * 2) : usable;
+    const selfUsable = playmatTrim(
+      Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
+      layout.self.width,
+    );
     const selfBand = compact
       ? combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS))
       : combatRowReserve(battlefieldFillScale(selfUsable, fraction));
@@ -363,8 +366,10 @@ export function BoardCanvas({
       : battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
     // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
     // the full field height (the avatar's top-left cells are blocked instead).
-    const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height));
-    const oppUsable = oppHeights.length ? playmatTrim(Math.min(...oppHeights)) : selfUsable;
+    const oppUsables = layout.opponents.map((o) =>
+      playmatTrim(Math.max(1, o.rect.height), o.rect.width),
+    );
+    const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
     const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
     const oppScale = Math.max(
       scaleFloor,

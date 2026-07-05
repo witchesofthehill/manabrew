@@ -78,7 +78,7 @@ import {
   PLAYER_HUD_MAX_WIDTH_PX,
   PLAYER_HUD_TOP_MARGIN_PX,
 } from "../hud/PlayerHudLayer";
-import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
+import { PlaymatLayer, playmatPad } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
 
@@ -1546,7 +1546,7 @@ export class BoardRegion {
    *  border on every side. Keep the inset in sync with `PlaymatLayer.layout`. */
   private playmatRect(): PlayZoneRect {
     const b = this.bandZone();
-    const pad = Math.min(b.width, b.height) * PLAYMAT_PADDING;
+    const pad = playmatPad(b.width, b.height);
     return {
       x: b.x + pad,
       y: b.y + pad,
@@ -1557,7 +1557,7 @@ export class BoardRegion {
 
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
-    const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    const pad = playmatPad(z.width, z.height);
     // Every field permanently reserves the inner-edge combat-row band so the
     // grid rows are sized once and never reflow when combat starts/ends; the row
     // shows/hides inside the reserved strip. The inner edge (next to the divider)

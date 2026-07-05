@@ -411,7 +411,8 @@ export class BoardRegion {
   private collectLocalBlockers(): BlockingRect[] {
     const blockers = this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
-      return { x: p1.x, y: p1.y, width: r.width, height: r.height };
+      const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
+      return { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
     });
     if (this.mirrored) {
       // The opponent HUD capsule (avatar / life / badges) sits at the top-left

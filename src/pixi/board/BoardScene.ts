@@ -1382,9 +1382,16 @@ export class BoardScene {
     this.handReserveCb = cb;
   }
 
+  /** The hand blocker is root-local; `collectBlockers` rects are canvas-space
+   *  (regions convert back through the zoomed root transform). */
   private localBlockers(): BlockingRect[] {
     const handRect = this.hand?.getBlockerRect();
-    return handRect ? [handRect] : [];
+    if (!handRect) return [];
+    const tl = this.root.toGlobal(new Point(handRect.x, handRect.y));
+    const br = this.root.toGlobal(
+      new Point(handRect.x + handRect.width, handRect.y + handRect.height),
+    );
+    return [{ x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y }];
   }
 
   private capsuleBlockers(playerId: string): BlockingRect[] {

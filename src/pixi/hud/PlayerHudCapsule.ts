@@ -19,7 +19,7 @@ import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCa
 import { loadAvatarTexture } from "./avatarTextureCache";
 import { zoneBadgeId } from "./playerHud.types";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
-import type { ScreenPos } from "@/pixi/types";
+import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 import { RING_ABILITIES } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";
@@ -158,6 +158,11 @@ export class PlayerHudCapsule {
   private avatarCx = 0;
   private avatarCy = 0;
   private avatarDia = 0;
+  private contentMinX = 0;
+  private contentMinY = 0;
+  private contentMaxX = 0;
+  private contentMaxY = 0;
+  private hasContent = false;
 
   constructor(
     theme: Theme,
@@ -606,9 +611,36 @@ export class PlayerHudCapsule {
     }
   }
 
+  private extendContent(x: number, y: number, w: number, h: number): void {
+    if (!this.hasContent) {
+      this.hasContent = true;
+      this.contentMinX = x;
+      this.contentMinY = y;
+      this.contentMaxX = x + w;
+      this.contentMaxY = y + h;
+      return;
+    }
+    this.contentMinX = Math.min(this.contentMinX, x);
+    this.contentMinY = Math.min(this.contentMinY, y);
+    this.contentMaxX = Math.max(this.contentMaxX, x + w);
+    this.contentMaxY = Math.max(this.contentMaxY, y + h);
+  }
+
+  /** The rendered footprint (avatar, life pill, badge rows, zone column) in
+   *  canvas space, accumulated analytically at render time — transient tween
+   *  children (life float, sparkles, glows) are deliberately excluded so the
+   *  battlefield keep-out doesn't breathe with animations. */
+  getKeepOutBounds(): ScreenBounds | null {
+    if (!this.hasContent) return null;
+    const tl = this.container.toGlobal(new Point(this.contentMinX, this.contentMinY));
+    const br = this.container.toGlobal(new Point(this.contentMaxX, this.contentMaxY));
+    return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+  }
+
   private render(): void {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
+    this.hasContent = false;
     this.life.text = String(this.spec.life);
     this.updateFilters();
     this.applyOffline();
@@ -754,6 +786,8 @@ export class PlayerHudCapsule {
     this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
+    this.extendContent(cx - avatarD / 2, avatarCy - avatarD / 2, avatarD, avatarD);
+    this.extendContent(pillLeft, pillCy - pillH / 2, pillW, pillH);
 
     // Vertical stack of badges + mana, distributed down the remaining height.
     const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
@@ -771,6 +805,7 @@ export class PlayerHudCapsule {
     for (let i = 0; i < items.length; i++) {
       const it = items[i]!;
       it.place(cx - it.w / 2, top + i * rowH + rowH / 2);
+      this.extendContent(cx - it.w / 2, top + i * rowH, it.w, rowH);
     }
   }
 
@@ -786,6 +821,7 @@ export class PlayerHudCapsule {
     this.avatarCy = avatarCy;
     this.avatarDia = avatarD;
     this.drawAvatar(avatarCx, avatarCy, avatarD);
+    this.extendContent(avatarCx - avatarD / 2, avatarCy - avatarD / 2, avatarD, avatarD);
 
     // Life pill straddling the avatar's bottom edge (MTGA-style).
     this.lifeFontSize = Math.round(avatarD * 0.32);
@@ -808,6 +844,7 @@ export class PlayerHudCapsule {
     this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
+    this.extendContent(pillLeft, pillCy - pillH / 2, pillW, pillH);
 
     // Mana pips + badges flow to the right of the avatar and wrap into stacked
     // rows once they'd exceed the panel's max width, so a player with many
@@ -938,7 +975,11 @@ export class PlayerHudCapsule {
     // Compact self capsule sits at the bottom edge under the hand fan, so the
     // whole row block lifts above the avatar top instead of centring on it.
     const blockTop = this.compact && this.spec.isSelf ? avatarTop - gap - blockH : cy - blockH / 2;
-    for (const p of placed) p.item.place(p.x, blockTop + p.row * rowH + rowH / 2);
+    for (const p of placed) {
+      const rowTop = blockTop + p.row * rowH;
+      p.item.place(p.x, rowTop + rowH / 2);
+      this.extendContent(p.x, rowTop, p.item.w, rowH);
+    }
 
     this.layoutZoneColumn(unit, rowH, gap, avatarTop);
   }
@@ -959,6 +1000,7 @@ export class PlayerHudCapsule {
     for (let i = 0; i < items.length; i++) {
       const it = items[i]!;
       it.place(this.avatarCx - it.w / 2, colTop + i * rowH + rowH / 2);
+      this.extendContent(this.avatarCx - it.w / 2, colTop + i * rowH, it.w, rowH);
     }
   }
 

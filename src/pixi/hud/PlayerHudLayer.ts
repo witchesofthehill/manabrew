@@ -3,7 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
-import type { ScreenPos } from "@/pixi/types";
+import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
 export const PLAYER_HUD_HEIGHT_PX = 60;
 export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
@@ -114,14 +114,8 @@ export class PlayerHudLayer {
     return this.capsules.get(playerId)?.getZoneAnchor(zoneKey) ?? null;
   }
 
-  getCapsuleBounds(
-    playerId: string,
-  ): { x: number; y: number; width: number; height: number } | null {
-    const capsule = this.capsules.get(playerId);
-    if (!capsule) return null;
-    const b = capsule.container.getBounds();
-    if (b.width <= 0 || b.height <= 0) return null;
-    return { x: b.x, y: b.y, width: b.width, height: b.height };
+  getCapsuleBounds(playerId: string): ScreenBounds | null {
+    return this.capsules.get(playerId)?.getKeepOutBounds() ?? null;
   }
 
   destroy(): void {

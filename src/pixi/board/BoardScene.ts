@@ -236,6 +236,7 @@ export class BoardScene {
   private handInsetLeft = 0;
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
+  private lastCapsuleRects = new Map<string, string>();
   private autoSort = false;
   private gridSkeletonDebug = false;
   private attackRowDebug = false;
@@ -660,6 +661,23 @@ export class BoardScene {
       }
     }
     this.applyDelimiters();
+    this.refreshCapsuleBlockers();
+  }
+
+  /** Re-grid a region when its capsule's keep-out footprint moved or resized
+   *  since the last battlefield layout — capsules are positioned after regions
+   *  lay out (configure order, delimiter easing), and capsule growth (badge
+   *  wrap, pill counts) triggers no battlefield update on its own. */
+  private refreshCapsuleBlockers(): void {
+    if (!this.compactMode) return;
+    for (const [id, rec] of this.regions) {
+      const b = this.playerBars.getCapsuleBounds(id);
+      const key = b ? [b.x, b.y, b.width, b.height].map((v) => Math.round(v / 4)).join(",") : "";
+      if (this.lastCapsuleRects.get(id) === key) continue;
+      this.lastCapsuleRects.set(id, key);
+      const state = rec.region.getLastState();
+      if (state) rec.region.updateBattlefield(state);
+    }
   }
 
   /** Bleed a fog-of-war fade from each delimiter into its adjacent fields. The
@@ -1181,8 +1199,8 @@ export class BoardScene {
     this.phaseStrip.setCompact(compact);
     this.hand?.setCompact(compact);
     this.playerBars.setCompact(compact);
+    this.applyDelimiters();
     for (const rec of this.regions.values()) rec.region.setCompactZones(compact);
-    this.layoutSelfBar();
   }
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {
@@ -1369,8 +1387,6 @@ export class BoardScene {
     return handRect ? [handRect] : [];
   }
 
-  /** Compact keep-out for the whole rendered HUD capsule (avatar, life, badge
-   *  rows, zone pill column) so battlefield cards never lay out beneath it. */
   private capsuleBlockers(playerId: string): BlockingRect[] {
     const b = this.playerBars.getCapsuleBounds(playerId);
     return b ? [b] : [];

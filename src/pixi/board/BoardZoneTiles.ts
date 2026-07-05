@@ -339,11 +339,15 @@ export class BoardZoneTiles {
 
         tile.countText.visible = true;
         tile.countText.style.fill = hexToNum(gt.textOnTinted);
+        // Pill chrome scales with the tile so it never covers half a compact
+        // card; the font floors at 8px to stay legible.
+        const k = Math.min(1, cardW / CARD_W);
+        tile.countText.style.fontSize = Math.max(8, Math.round(12 * k));
         tile.countText.text = String(spec.count);
-        const pillW = tile.countText.width + 12;
-        const pillH = 17;
+        const pillW = tile.countText.width + 12 * k;
+        const pillH = 17 * k;
         const pillX = (cardW - pillW) / 2;
-        const pillY = cardH - pillH - 3;
+        const pillY = cardH - pillH - 3 * k;
         tile.outline.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
         tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.78 });
         tile.countText.position.set(cardW / 2, pillY + pillH / 2);

@@ -165,7 +165,7 @@ describe("Ironsmith deck source mapping", () => {
 });
 
 describe("Ironsmith prompt mapping", () => {
-  it("binds priority selections by action_ref without new Manabrew action kinds", () => {
+  it("maps priority actions to Manabrew's non-modal action prompt", () => {
     const mapping = promptMapping({
       decision: {
         kind: "priority",
@@ -180,28 +180,55 @@ describe("Ironsmith prompt mapping", () => {
             ability_index: 2,
             action_ref: { kind: "activate_mana_ability", source: 201 },
           },
-          { label: "Special line", object_id: 301, action_ref: { kind: "special_case" } },
+          {
+            label: "Special play",
+            action_ref: { kind: "special_action", action: { kind: "play_land", card_id: 301 } },
+          },
         ],
       },
     });
 
     expect(mapping.forPlayer).toBe("player-0");
-    expect(mapping.prompt.input.type).toBe("chooseFromSelection");
-    if (mapping.prompt.input.type !== "chooseFromSelection") {
-      throw new Error("expected chooseFromSelection");
+    expect(mapping.prompt.input.type).toBe("chooseAction");
+    if (mapping.prompt.input.type !== "chooseAction") {
+      throw new Error("expected chooseAction");
     }
-    expect(mapping.prompt.input.options).toEqual([
-      "Pass",
-      "Cast Bear",
-      "Play Forest",
-      "Activate Elf",
-      "Special line",
+    expect(mapping.prompt.input.actions).toEqual([
+      {
+        id: "1",
+        type: "cast",
+        cardId: "card-101",
+        mode: "normal",
+        modeLabel: "Cast",
+      },
+      {
+        id: "2",
+        type: "cast",
+        cardId: "card-102",
+        mode: "playLand",
+        modeLabel: "Play",
+      },
+      {
+        id: "3",
+        type: "activateAbility",
+        cardId: "card-201",
+        abilityIndex: 2,
+        description: "Activate Elf",
+        isManaAbility: true,
+      },
+      {
+        id: "4",
+        type: "cast",
+        cardId: "card-301",
+        mode: "playLand",
+        modeLabel: "Special",
+      },
     ]);
 
     const command = mapPromptOutputToIronsmithCommand(
       {
-        type: "chooseFromSelection",
-        output: { type: "selectionDecision", chosenIndices: [2] },
+        type: "chooseAction",
+        output: { type: "act", actionId: "2" },
       },
       mapping.binding,
     );
@@ -212,8 +239,8 @@ describe("Ironsmith prompt mapping", () => {
 
     const pass = mapPromptOutputToIronsmithCommand(
       {
-        type: "chooseFromSelection",
-        output: { type: "selectionDecision", chosenIndices: [0] },
+        type: "chooseAction",
+        output: { type: "pass" },
       },
       mapping.binding,
     );
@@ -240,15 +267,15 @@ describe("Ironsmith prompt mapping", () => {
 
     const pass = mapPromptOutputToIronsmithCommand(
       {
-        type: "chooseFromSelection",
-        output: { type: "selectionDecision", chosenIndices: [0] },
+        type: "chooseAction",
+        output: { type: "pass" },
       },
       mapping.binding,
     );
     expect(pass).toEqual({ type: "priority_action", action_ref: { kind: "pass_priority" } });
   });
 
-  it("maps the generic pass button to Ironsmith's keep-opening-hand pregame action", () => {
+  it("maps opening hand choices to Manabrew's mulligan prompt", () => {
     const mapping = promptMapping({
       decision: {
         kind: "priority",
@@ -269,13 +296,24 @@ describe("Ironsmith prompt mapping", () => {
     });
 
     const keep = mapPromptOutputToIronsmithCommand(
-      { type: "chooseAction", output: { type: "pass" } },
+      { type: "mulligan", output: { type: "mulliganDecision", keep: true } },
       mapping.binding,
     );
 
+    expect(mapping.prompt.input.type).toBe("mulligan");
     expect(keep).toEqual({
       type: "priority_action",
       action_ref: { kind: "keep_opening_hand" },
+    });
+
+    const mulligan = mapPromptOutputToIronsmithCommand(
+      { type: "mulligan", output: { type: "mulliganDecision", keep: false } },
+      mapping.binding,
+    );
+
+    expect(mulligan).toEqual({
+      type: "priority_action",
+      action_ref: { kind: "take_mulligan" },
     });
   });
 
@@ -346,7 +384,7 @@ describe("Ironsmith prompt mapping", () => {
     ).toEqual({ type: "priority_action", action_ref: { kind: "untap_land", stable_id: 201 } });
   });
 
-  it("uses a neutral selection prompt when Ironsmith is collecting mana payment", () => {
+  it("keeps priority non-modal while Ironsmith is collecting mana payment", () => {
     const mapping = promptMapping({
       mana_payment: {},
       decision: {
@@ -358,11 +396,19 @@ describe("Ironsmith prompt mapping", () => {
       },
     });
 
-    expect(mapping.prompt.input.type).toBe("chooseFromSelection");
-    if (mapping.prompt.input.type !== "chooseFromSelection") {
-      throw new Error("expected chooseFromSelection");
+    expect(mapping.prompt.input.type).toBe("chooseAction");
+    if (mapping.prompt.input.type !== "chooseAction") {
+      throw new Error("expected chooseAction");
     }
-    expect(mapping.prompt.input.options).toEqual(["Cast Bear"]);
+    expect(mapping.prompt.input.actions).toEqual([
+      {
+        id: "0",
+        type: "cast",
+        cardId: "card-101",
+        mode: "normal",
+        modeLabel: "Cast",
+      },
+    ]);
   });
 
   it("maps numeric, option, card, and target decisions back to UiCommand shapes", () => {

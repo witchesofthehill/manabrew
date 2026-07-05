@@ -1001,9 +1001,6 @@ export class PlayerHudCapsule {
     this.layoutZoneColumn(unit, rowH, gap, avatarTop);
   }
 
-  /** Compact-mode library/graveyard/exile pills: a vertical column centred on
-   *  the avatar — above it for the local player (clear of the hand fan), below
-   *  the life pill for opponents. */
   private layoutZoneColumn(unit: number, rowH: number, gap: number, avatarTop: number): void {
     const items: ContentItem[] = [];
     for (let i = 0; i < this.spec.badges.length; i++)

@@ -36,6 +36,11 @@ pub enum StateEnvelope {
         from_player: String,
         action: Value,
     },
+    Directive {
+        #[serde(rename = "fromPlayer")]
+        from_player: String,
+        directive: Value,
+    },
     /// Engine log entry broadcast to observers.
     Log {
         #[serde(rename = "fromPlayer")]

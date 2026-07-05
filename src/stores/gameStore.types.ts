@@ -46,6 +46,8 @@ export interface GameState {
   /** Optimistic: true from when the local player passes/declines a decision until the next prompt
    *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
   relinquishedPriority: boolean;
+  /** Local optimistic flag set once this seat has sent a concede directive. */
+  selfConceded: boolean;
   gameConfig: GameConfig | null;
   /** True if this is a networked multiplayer game. */
   isMultiplayer: boolean;

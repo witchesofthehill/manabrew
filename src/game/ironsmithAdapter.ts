@@ -290,6 +290,7 @@ export function mapIronsmithSnapshotToGameView(snapshotValue: unknown): GameView
     return {
       id,
       name: stringValue(valueOf(player, "name"), id),
+      status: "playing" as const,
       isHuman: true,
       life: numberValue(valueOf(player, "life"), 20),
       poison: 0,
@@ -340,7 +341,6 @@ export function mapIronsmithSnapshotToGameView(snapshotValue: unknown): GameView
     stack: arrayOf(valueOf(snapshot, "stack_objects", "stackObjects")).map(stackObject),
     gameOver: over.over,
     winnerId: over.winnerId,
-    concededPlayerIds: [],
     monarchId: null,
     initiativeHolderId: null,
   };
@@ -1188,7 +1188,6 @@ export function mapPromptOutputToIronsmithCommand(
     };
   }
   if (output.type === "chooseAction") {
-    if (output.output.type === "concede") return { type: "forfeit_player" };
     if (output.output.type === "pass") {
       return { type: "priority_action", action_ref: passPriorityActionRef(binding) };
     }

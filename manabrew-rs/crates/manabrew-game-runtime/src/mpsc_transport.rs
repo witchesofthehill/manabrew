@@ -5,7 +5,8 @@ use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::prompt::{
-    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
+    AgentMessage, AgentPrompt, ChooseActionOutput, ClientToServerMessage, DirectiveInput,
+    PromptOutput,
 };
 
 enum PromptSink {
@@ -18,16 +19,17 @@ enum PromptSink {
 
 pub struct MpscTransport {
     prompt_sink: PromptSink,
-    response_rx: mpsc::Receiver<PromptOutput>,
+    response_rx: mpsc::Receiver<ClientToServerMessage>,
     notify_tx: Option<mpsc::Sender<GameLogEntryDto>>,
     snapshot_tx: Option<mpsc::Sender<GameSnapshotEventDto>>,
     response_timeout: Option<Duration>,
+    disconnected: bool,
 }
 
 impl MpscTransport {
     pub fn new_local(
         prompt_tx: mpsc::Sender<AgentMessage>,
-        response_rx: mpsc::Receiver<PromptOutput>,
+        response_rx: mpsc::Receiver<ClientToServerMessage>,
         notify_tx: mpsc::Sender<GameLogEntryDto>,
         snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
     ) -> Self {
@@ -37,13 +39,14 @@ impl MpscTransport {
             notify_tx: Some(notify_tx),
             snapshot_tx: Some(snapshot_tx),
             response_timeout: None,
+            disconnected: false,
         }
     }
 
     pub fn new_relay(
         player_index: usize,
         prompt_tx: mpsc::Sender<(usize, AgentMessage)>,
-        response_rx: mpsc::Receiver<PromptOutput>,
+        response_rx: mpsc::Receiver<ClientToServerMessage>,
     ) -> Self {
         Self {
             prompt_sink: PromptSink::Relay {
@@ -54,6 +57,7 @@ impl MpscTransport {
             notify_tx: None,
             snapshot_tx: None,
             response_timeout: Some(Duration::from_secs(120)),
+            disconnected: false,
         }
     }
 }
@@ -70,34 +74,30 @@ impl MpscTransport {
         }
     }
 
-    fn recv(&self) -> PromptOutput {
+    fn recv(&mut self) -> ClientToServerMessage {
         // When the response channel is disconnected — typically because
-        // `GameManager::end_game()` (or the concede branch of `respond`)
-        // dropped it to tear the session down — the previous fallback of
-        // `PlayerAction::Pass { until: None }` quietly passed
-        // priority and let the game loop keep running forever on auto-
-        // pilot, which manifested on the UI side as the concede/return-
-        // to-menu "infinite prompt" loop. Treating a disconnect as a
-        // concede lets the engine mark the player as having lost,
-        // collapse the game, and exit cleanly.
         //
-        // A recv_timeout timeout (separate from disconnection) still
-        // falls back to a no-op so long-idle games don't get forcibly
-        // conceded just because nobody clicked anything for a while.
-        if let Some(timeout) = self.response_timeout {
+        let pass = || ClientToServerMessage::Response {
+            action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+        };
+        let received = if let Some(timeout) = self.response_timeout {
             match self.response_rx.recv_timeout(timeout) {
-                Ok(action) => action,
-                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
-                }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                    PromptOutput::ChooseAction(ChooseActionOutput::Concede)
-                }
+                Ok(message) => Some(message),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return pass(),
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => None,
             }
         } else {
-            self.response_rx
-                .recv()
-                .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Concede))
+            self.response_rx.recv().ok()
+        };
+        match received {
+            Some(message) => message,
+            None if !self.disconnected => {
+                self.disconnected = true;
+                ClientToServerMessage::Directive {
+                    directive: DirectiveInput::Concede,
+                }
+            }
+            None => pass(),
         }
     }
 }
@@ -107,12 +107,12 @@ impl Responder for MpscTransport {
         self.send_to_sink(message.clone());
     }
 
-    fn respond(&mut self, _prompt: AgentPrompt) -> PromptOutput {
+    fn respond(&mut self, _prompt: AgentPrompt) -> ClientToServerMessage {
         self.recv()
     }
 
-    fn await_ack(&mut self) {
-        let _ = self.recv();
+    fn await_ack(&mut self) -> ClientToServerMessage {
+        self.recv()
     }
 
     fn send_log(&mut self, entry: GameLogEntryDto) {

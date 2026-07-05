@@ -66,9 +66,13 @@ pub(crate) fn parse_express_mana_choice(color: Option<&str>) -> Option<u16> {
 /// Answers the prompts a `PromptAgent` builds.
 ///
 pub trait Responder {
-    fn respond(&mut self, prompt: AgentPrompt) -> PromptOutput;
+    fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage;
     fn present(&mut self, _message: &AgentMessage) {}
-    fn await_ack(&mut self) {}
+    fn await_ack(&mut self) -> ClientToServerMessage {
+        ClientToServerMessage::Response {
+            action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
+        }
+    }
     fn send_log(&mut self, _entry: GameLogEntryDto) {}
     fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
 }
@@ -81,6 +85,7 @@ pub struct PromptAgent<R: Responder> {
     pub(crate) latest_view: Option<GameViewDto>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
+    conceded: bool,
     next_prompt_id: u32,
 }
 
@@ -94,6 +99,7 @@ impl<R: Responder> PromptAgent<R> {
             latest_view: None,
             pending_restore_checkpoint: None,
             pass_until: None,
+            conceded: false,
             next_prompt_id: 0,
         }
     }
@@ -121,7 +127,18 @@ impl<R: Responder> PromptAgent<R> {
             .pending_prompt
             .take()
             .expect("recv_action called without a pending prompt");
-        self.responder.respond(prompt)
+        loop {
+            match self.responder.respond(prompt.clone()) {
+                ClientToServerMessage::Response { action } => return action,
+                ClientToServerMessage::Directive { directive } => self.handle_directive(directive),
+            }
+        }
+    }
+
+    fn handle_directive(&mut self, directive: DirectiveInput) {
+        match directive {
+            DirectiveInput::Concede => self.conceded = true,
+        }
     }
 
     pub(crate) fn present_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
@@ -379,6 +396,9 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         action_space: Option<&PriorityActionSpace>,
         request_action_space: &mut dyn FnMut() -> PriorityActionSpace,
     ) -> EnginePlayerAction {
+        if self.conceded {
+            return EnginePlayerAction::Concede;
+        }
         let requested_action_space;
         let action_space = match action_space {
             Some(action_space) => action_space,
@@ -453,7 +473,17 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             ),
             None,
         );
-        match self.recv_action() {
+        let prompt = self
+            .pending_prompt
+            .take()
+            .expect("choose_action called without a pending prompt");
+        let action = match self.responder.respond(prompt) {
+            ClientToServerMessage::Response { action } => action,
+            ClientToServerMessage::Directive {
+                directive: DirectiveInput::Concede,
+            } => return EnginePlayerAction::Concede,
+        };
+        match action {
             PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
                 if let Some(rest) = action_id.strip_prefix("cast:") {
                     let (id_part, mode) = rest.split_once(':').unwrap_or((rest, "normal"));
@@ -499,9 +529,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     EnginePlayerAction::PassPriority
                 }
             }
-            // Only the priority-loop branch acts on Concede; other recv_action
-            // sites discard it and concede re-enters at the next priority window.
-            PromptOutput::ChooseAction(ChooseActionOutput::Concede) => EnginePlayerAction::Concede,
             PromptOutput::ChooseAction(ChooseActionOutput::Pass { until }) => {
                 self.pass_until = until.and_then(|u| {
                     Some(manabrew_engine::agent::PassUntilTarget {
@@ -1119,7 +1146,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn await_display_ack(&mut self) {
-        self.responder.await_ack();
+        loop {
+            match self.responder.await_ack() {
+                ClientToServerMessage::Response { .. } => return,
+                ClientToServerMessage::Directive { directive } => self.handle_directive(directive),
+            }
+        }
     }
 
     fn specify_mana_combo(

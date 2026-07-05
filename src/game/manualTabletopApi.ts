@@ -2,6 +2,7 @@ import { getPlatform } from "@/platform";
 import type {
   RespondParams,
   RestoreSnapshotParams,
+  SendDirectiveParams,
   StartGameParams,
   StartMultiplayerGameParams,
 } from "@/platform";
@@ -22,6 +23,7 @@ function createPlayer(
   return {
     id,
     name,
+    status: "playing",
     isHuman,
     life,
     poison: 0,
@@ -114,7 +116,6 @@ function createInitialGameView(params: StartGameParams): GameViewDto {
     combatAssignments: [],
     gameOver: false,
     winnerId: null,
-    concededPlayerIds: [],
     monarchId: null,
     initiativeHolderId: null,
   };
@@ -219,6 +220,10 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
 
   async respond(_params: RespondParams): Promise<void> {
     throw new Error("Manual tabletop API expects manual table actions.");
+  }
+
+  async sendDirective(_params: SendDirectiveParams): Promise<void> {
+    throw new Error("Manual tabletop has no engine to direct.");
   }
 
   async endGame(): Promise<void> {

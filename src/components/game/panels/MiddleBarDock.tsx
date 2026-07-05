@@ -28,7 +28,6 @@ interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConcede: () => void;
-  isMyPriority: boolean;
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
@@ -44,7 +43,6 @@ export function MiddleBarDock({
   open,
   onOpenChange,
   onConcede,
-  isMyPriority,
   sidePanelCollapsed,
   onToggleSidePanel,
   players,
@@ -118,13 +116,11 @@ export function MiddleBarDock({
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          disabled={!isMyPriority}
           className="text-destructive focus:text-destructive"
           onSelect={(event) => {
             event.preventDefault();
-            if (isMyPriority) onConcede();
+            onConcede();
           }}
-          title={isMyPriority ? undefined : "Wait until you have priority to concede"}
         >
           <Flag className="mr-2 h-4 w-4" />
           Concede

@@ -16,6 +16,7 @@ import type {
   StartMultiplayerGameParams,
   RespondParams,
   RestoreSnapshotParams,
+  SendDirectiveParams,
   ServerConnectParams,
   CreateRoomParams,
   JoinRoomParams,
@@ -29,7 +30,7 @@ import type {
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
-import type { Prompt, PromptOutput } from "@/protocol";
+import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 import wasmModuleUrl from "@/wasm/wasm_bg.wasm?url";
@@ -69,6 +70,10 @@ interface RemoteSeat {
   data: Uint8Array;
   /** terminate() flips this so an already-queued rAF poll short-circuits. */
   cancelled: boolean;
+  /** A prompt was read off this SAB and no message was written back yet. */
+  awaitingResponse: boolean;
+  /** Queued until this seat next blocks waiting for a prompt response. */
+  pendingDirective: DirectiveInput | null;
 }
 
 // A kind-tagged engine message read off a seat's SAB, awaiting relay.
@@ -97,6 +102,8 @@ class WorkerBridge {
   gameBuffer: SharedArrayBuffer | null = null;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
+  private localAwaitingResponse = false;
+  private localPendingDirective: DirectiveInput | null = null;
 
   /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
   private remoteSeats = new Map<string, RemoteSeat>();
@@ -121,6 +128,8 @@ class WorkerBridge {
         signal: new Int32Array(payload.buffer, 0, 2),
         data: new Uint8Array(payload.buffer, 8),
         cancelled: false,
+        awaitingResponse: false,
+        pendingDirective: null,
       };
       this.remoteSeats.set(payload.playerSlot, seat);
       console.log(
@@ -187,6 +196,11 @@ class WorkerBridge {
         this.eventBus.emit("game:display", msg.event);
         break;
       case "prompt":
+        this.localAwaitingResponse = true;
+        if (this.localPendingDirective) {
+          this.writeLocalMessage({ kind: "directive", directive: this.localPendingDirective });
+          this.localPendingDirective = null;
+        }
         this.eventBus.emit("game:prompt", msg.prompt);
         break;
     }
@@ -210,6 +224,16 @@ class WorkerBridge {
           console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, jsonStr);
         try {
           const msg = JSON.parse(jsonStr);
+          if (msg?.kind === "prompt") {
+            seat.awaitingResponse = true;
+            if (seat.pendingDirective) {
+              this.writeSeatMessage(seat, {
+                kind: "directive",
+                directive: seat.pendingDirective,
+              });
+              seat.pendingDirective = null;
+            }
+          }
           this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
         } catch (e) {
           console.error(`[WorkerBridge] Failed to parse SAB message for ${playerSlot}:`, e);
@@ -223,8 +247,8 @@ class WorkerBridge {
   }
 
   /**
-   * Routes each `server:state_update` of kind `response` to the SAB for
-   * the seat named in `fromPlayer`. Subscription lives for the page's
+   * Routes each `server:state_update` of kind `response` or `directive` to the
+   * SAB for the seat named in `fromPlayer`. Subscription lives for the page's
    * lifetime (singleton bridge, no disposal), so the unsubscribe is dropped.
    */
   private installRemoteResponseListener(): void {
@@ -232,36 +256,76 @@ class WorkerBridge {
       from_player: string;
       state: Record<string, unknown>;
     }>("server:state_update", (payload) => {
-      if (payload.state?.kind !== "response") return;
+      const kind = payload.state?.kind;
+      if (kind !== "response" && kind !== "directive") return;
       const fromPlayer = payload.state.fromPlayer as string | undefined;
       if (!fromPlayer) return;
       const seat = this.remoteSeats.get(fromPlayer);
       if (DEBUG_TRANSPORT)
         console.log(
-          `[MP] response← ${fromPlayer}`,
+          `[MP] ${kind}← ${fromPlayer}`,
           seat ? "(routed to SAB)" : "(NO SEAT — dropped)",
         );
       if (!seat) return;
-      const action = payload.state.action;
+      if (kind === "directive") {
+        this.deliverSeatDirective(seat, payload.state.directive as DirectiveInput);
+        return;
+      }
+      const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
-      const json = new TextEncoder().encode(JSON.stringify(action));
-      Atomics.store(seat.signal, 1, json.length);
-      seat.data.set(json, 0);
-      Atomics.store(seat.signal, 0, 2); // RESPONSE_READY
-      Atomics.notify(seat.signal, 0);
+      this.writeSeatMessage(seat, { kind: "response", action });
     });
+  }
+
+  private deliverSeatDirective(seat: RemoteSeat, directive: DirectiveInput): void {
+    if (seat.awaitingResponse) {
+      this.writeSeatMessage(seat, { kind: "directive", directive });
+    } else {
+      seat.pendingDirective = directive;
+    }
+  }
+
+  private writeSeatMessage(seat: RemoteSeat, message: ClientToServerMessage): void {
+    seat.awaitingResponse = false;
+    const json = new TextEncoder().encode(JSON.stringify(message));
+    Atomics.store(seat.signal, 1, json.length);
+    seat.data.set(json, 0);
+    Atomics.store(seat.signal, 0, 2); // RESPONSE_READY
+    Atomics.notify(seat.signal, 0);
   }
 
   /**
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
   writeResponse(action: PromptOutput): void {
+    this.writeLocalMessage({ kind: "response", action });
+  }
+
+  deliverLocalDirective(directive: DirectiveInput): void {
+    if (this.localAwaitingResponse) {
+      this.writeLocalMessage({ kind: "directive", directive });
+    } else {
+      this.localPendingDirective = directive;
+    }
+  }
+
+  deliverRemoteDirective(playerSlot: string, directive: DirectiveInput): void {
+    const seat = this.remoteSeats.get(playerSlot);
+    if (seat) this.deliverSeatDirective(seat, directive);
+  }
+
+  hasRemoteSeat(playerSlot: string): boolean {
+    return this.remoteSeats.has(playerSlot);
+  }
+
+  private writeLocalMessage(message: ClientToServerMessage): void {
     if (!this.gameSignal || !this.gameData) {
       console.error("[WorkerBridge] No SharedArrayBuffer available for response");
       return;
     }
 
-    const json = new TextEncoder().encode(JSON.stringify(action));
+    this.localAwaitingResponse = false;
+    const json = new TextEncoder().encode(JSON.stringify(message));
     // Write length
     Atomics.store(this.gameSignal, 1, json.length);
     // Write data
@@ -392,6 +456,8 @@ class WorkerBridge {
     this.gameBuffer = null;
     this.gameSignal = null;
     this.gameData = null;
+    this.localAwaitingResponse = false;
+    this.localPendingDirective = null;
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
     // Response listener stays installed — terminate() is per-game, and a
@@ -469,6 +535,20 @@ class WebGameApi implements IGameApi {
         action: params.action,
         playerSlot: params.playerSlot,
       });
+    }
+  }
+
+  async sendDirective(params: SendDirectiveParams): Promise<void> {
+    if (this.isMultiplayer && !this.isHost && this.serverApi) {
+      await this.serverApi.broadcastState({
+        kind: "directive",
+        fromPlayer: params.playerSlot,
+        directive: params.directive,
+      });
+    } else if (this.bridge.hasRemoteSeat(params.playerSlot)) {
+      this.bridge.deliverRemoteDirective(params.playerSlot, params.directive);
+    } else {
+      this.bridge.deliverLocalDirective(params.directive);
     }
   }
 
@@ -1011,6 +1091,12 @@ class WebServerApi implements IServerApi {
       switch (envelope.kind) {
         case "response":
           this.pendingRelayPrompts.delete(envelope.fromPlayer);
+          this.eventBus.emit("server:state_update", {
+            from_player: msg.from_player,
+            state: envelope,
+          });
+          return;
+        case "directive":
           this.eventBus.emit("server:state_update", {
             from_player: msg.from_player,
             state: envelope,

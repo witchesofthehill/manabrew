@@ -935,6 +935,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           ({
             id: `dev-fake-${i}`,
             name: `Dev Opp ${opponents.length + i + 1}`,
+            status: "playing",
             isHuman: false,
             life: 20,
             poison: 0,
@@ -1375,32 +1376,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       : [],
   );
 
-  if (import.meta.env.DEV && typeof document !== "undefined") {
-    document.documentElement.dataset.manabrewGameDebug = JSON.stringify({
-      promptType,
-      actions: chooseActionInput?.actions ?? [],
-      playableIds: [...playableIds],
-      hand: gameView.players.map((player) => ({
-        id: player.id,
-        name: player.name,
-        hand: player.hand.map((card) => ({ id: card.id, name: card.identity.name })),
-      })),
-      battlefield: gameView.battlefield.map((card) => ({
-        id: card.id,
-        name: card.identity.name,
-        tapped: card.tapped,
-        types: card.types,
-      })),
-      step: gameView.step,
-      priorityPlayerId: gameView.priorityPlayerId,
-    });
-  }
-
   if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen
         winnerId={gameView.winnerId}
-        concededPlayerIds={gameView.concededPlayerIds}
         me={me}
         opponents={opponents}
         turn={gameView.turn}
@@ -1504,7 +1483,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
-          concededPlayerIds={gameView.concededPlayerIds}
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}
@@ -1711,7 +1689,6 @@ export default function Game({ exitTo }: GameProps = {}) {
                 open={boardMenuOpen}
                 onOpenChange={setBoardMenuOpen}
                 onConcede={concede}
-                isMyPriority={gameView.priorityPlayerId === me.id}
                 sidePanelCollapsed={isActionPanelCollapsed}
                 onToggleSidePanel={toggleActionPanel}
                 players={gameView.players.map((p) => {

@@ -13,6 +13,7 @@ import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridL
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
   BATTLEFIELD_CARD_SCALE_FLOOR,
@@ -508,7 +509,10 @@ export function BoardCanvas({
   }, [scene]);
 
   const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
-  const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
+  // The hover-anchored panel is a mouse affordance (hover-bridge travel); touch
+  // reaches the same actions through the long-press sticky preview.
+  const showActionPanel =
+    handHover && handActions.length > 0 && !!onSelectHandAction && !isCoarsePointer();
 
   const hoverFaces = useCardFaces({
     name: handHover?.card.identity.name,
@@ -651,7 +655,13 @@ export function BoardCanvas({
           <div
             style={{
               position: "absolute",
-              left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+              left: Math.min(
+                handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+                Math.max(
+                  0,
+                  (canvasRef.current?.clientWidth ?? Infinity) - HAND_ACTIONS_PANEL_W - 8,
+                ),
+              ),
               top: handHover.bounds.y,
               zIndex: Z_HAND_ACTIONS_MENU,
             }}

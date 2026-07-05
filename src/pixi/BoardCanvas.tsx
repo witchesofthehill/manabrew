@@ -597,7 +597,7 @@ export function BoardCanvas({
         >
           <button
             type="button"
-            className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85"
+            className="pointer-events-auto relative inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
             title={
               hoverHorizontal ? "Rotate the card to read it" : "Flip card to view the other face"
             }

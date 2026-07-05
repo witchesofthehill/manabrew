@@ -23,15 +23,26 @@ pub async fn run_server(state: Arc<ServerState>, addr: SocketAddr, health_addr: 
         .await
         .expect("Failed to bind to address");
 
-    info!("[server] Forge Server listening on ws://{}", addr);
+    let shutdown = Arc::new(Notify::new());
+    tokio::spawn(wait_for_shutdown_signal(shutdown.clone()));
+
+    serve(state, listener, health_addr, shutdown).await;
+}
+
+pub async fn serve(
+    state: Arc<ServerState>,
+    listener: TcpListener,
+    health_addr: SocketAddr,
+    shutdown: Arc<Notify>,
+) {
+    if let Ok(addr) = listener.local_addr() {
+        info!("[server] Forge Server listening on ws://{}", addr);
+    }
     info!("[server] Server key: {}", mask_key(&state.server_key));
     info!("[server] Max rooms: {}", state.max_rooms);
 
-    let shutdown = Arc::new(Notify::new());
-
     tokio::spawn(cleanup_loop(state.clone()));
     tokio::spawn(run_health_listener(state.clone(), health_addr));
-    tokio::spawn(wait_for_shutdown_signal(shutdown.clone()));
 
     let accept = accept_loop(state.clone(), listener, shutdown.clone());
 

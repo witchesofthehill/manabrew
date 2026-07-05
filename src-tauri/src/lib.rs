@@ -8,6 +8,7 @@ mod limited_bootstrap;
 mod limited_commands;
 mod limited_dto;
 mod limited_manager;
+mod local_relay;
 
 use limited_manager::LimitedManager;
 use manabrew_engine::game::TypeRegistry;
@@ -41,6 +42,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             TypeRegistry::load(TYPE_LISTS);
 
@@ -75,10 +78,13 @@ pub fn run() {
         })
         .manage(LimitedManager::new())
         .manage(forge_room::ForgeRoomHost::new())
+        .manage(local_relay::LocalRelayHost::new())
         .invoke_handler(tauri::generate_handler![
             commands::is_card_supported,
             forge_room::start_forge_host,
             forge_room::stop_forge_host,
+            local_relay::start_local_relay,
+            local_relay::stop_local_relay,
             limited_commands::limited_start_sealed,
             limited_commands::limited_get_sealed_pool,
             limited_commands::limited_get_edition_info,

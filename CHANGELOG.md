@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.2](https://github.com/witchesofthehill/manabrew/compare/v1.0.1...v1.0.2) (2026-07-04)
+
+### Fixes
+
+* about page and dockerfile ([#338](https://github.com/witchesofthehill/manabrew/issues/338)) ([2d64135](https://github.com/witchesofthehill/manabrew/commit/2d64135ff87c4114d40d2673242829e95235e084))
+
+## [1.0.1](https://github.com/witchesofthehill/manabrew/compare/v1.0.0...v1.0.1) (2026-07-04)
+
+### Fixes
+
+* globe icon ([#337](https://github.com/witchesofthehill/manabrew/issues/337)) ([b8fead2](https://github.com/witchesofthehill/manabrew/commit/b8fead228ae2f33ac84d28b4a845de27ea272c47))
+
+## [1.0.0](https://github.com/witchesofthehill/manabrew/compare/v0.6.0...v1.0.0) (2026-07-04)
+
+### Features
+
+* **ui:** default tauri play-vs-ai to the forge engine ([#293](https://github.com/witchesofthehill/manabrew/issues/293)) ([72e2eed](https://github.com/witchesofthehill/manabrew/commit/72e2eed8c8d8ec839de16d28a49479304ea2674a))
+* proper infrastructure for release ([#329](https://github.com/witchesofthehill/manabrew/issues/329)) ([#330](https://github.com/witchesofthehill/manabrew/issues/330)) ([a833281](https://github.com/witchesofthehill/manabrew/commit/a833281045b48e7e0ab11a74c7f81fd75c8ebb2d))
+
+### Other
+
+* Misc fixes post-release ([#326](https://github.com/witchesofthehill/manabrew/issues/326)) ([1386825](https://github.com/witchesofthehill/manabrew/commit/1386825c57c5457485507ebf41a55e5cf1605280))
+
 ## [0.6.0](https://github.com/witchesofthehill/manabrew/compare/v0.5.2...v0.6.0) (2026-07-03)
 
 

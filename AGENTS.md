@@ -109,7 +109,7 @@ chore: bump prettier
 perf(carddb): avoid re-parsing SVars on card load
 ```
 
-The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan`, `Build artifacts` in that order. Tick `Build macOS .dmg` / `Build Windows .exe` only when the PR should produce installers on merge.
+The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan` in that order (plus `Demo` for UI changes). Installers are not built per-PR — every merge to main releases via `cargo xtask release`, and the resulting `v*` tag runs the full publish pipeline (`publish.yml`: build installers → populate the Release → deploy production last).
 
 ## Workflow rules
 

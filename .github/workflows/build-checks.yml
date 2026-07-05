@@ -356,3 +356,47 @@ jobs:
 
       - name: Build tauri crate with forge-room feature
         run: cargo build --release -p manabrew --features forge-room
+
+  # Squash-merge titles become the conventional commits that drive per-crate
+  # version bumps on main (see release.yml) — an unparseable title would ship
+  # as a silent patch, so lint it here.
+  pr-title:
+    name: PR title (conventional)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install commitlint
+        run: yarn install --frozen-lockfile --ignore-scripts
+
+      - name: Lint PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITLE" | yarn commitlint
+
+  # Informational: what `cargo xtask release` would do after this PR merges
+  # (approximate — squash merging rewrites the PR's commits into its title).
+  # Also fails if ops/manifest.json was hand-edited out of sync.
+  release-plan:
+    name: Release plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff@2.13.1
+
+      - name: Check ops/manifest.json is in sync
+        run: cargo xtask manifest --check
+
+      - name: Compute release plan
+        run: cargo xtask plan --github-summary

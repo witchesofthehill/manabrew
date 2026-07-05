@@ -1,11 +1,26 @@
 name: Release
 
-# Watches `main` for Conventional Commits, opens/updates a "Release PR" that
-# bumps the version in package.json, src-tauri/tauri.conf.json and
-# src-tauri/Cargo.toml plus regenerates CHANGELOG.md. Merging that PR creates
-# a `vX.Y.Z` tag + GitHub Release; the existing `release-artifacts.yml`
-# workflow then builds the macOS .dmg / Windows .exe and attaches them to
-# that same release.
+# Continuous, non-lockstep releases. On every merge to `main`, `cargo xtask
+# release` computes a per-crate bump from the conventional commits since each
+# crate's last release tag (parsed by git-cliff), rewrites the workspace
+# versions + ops/manifest.json + CHANGELOG.md, commits `chore(release): ...`
+# straight to main, tags each released crate (`<crate>-vX.Y.Z`; the desktop
+# app owns plain `vX.Y.Z`), and creates the GitHub Release with notes.
+#
+# Auth is the release GitHub App: create-github-app-token mints a short-lived
+# installation token from RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (an app
+# private key never expires — nothing to rotate). The app sits on the "Main
+# protection" ruleset bypass list (GITHUB_TOKEN cannot push to main), and
+# because it is not the Actions token, its pushes fire normal events: the
+# v* tag push triggers publish.yml, which builds the installers, attaches
+# them + the updater manifest (tauri.json) to the Release this job already
+# created, and finishes by deploying production. Main pushes trigger nothing
+# else — this workflow is the only thing that runs on a main commit.
+#
+# Loop guard: the release commit itself starts with `chore(release):`, which
+# the job-level `if` skips. Concurrent merges serialize via the concurrency
+# group; if main moves mid-run the push fails non-fast-forward — the next
+# merge (or a manual workflow_dispatch) re-runs the release.
 
 on:
   push:
@@ -14,44 +29,56 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-  actions: write
 
 concurrency:
-  group: release-please-${{ github.ref }}
+  group: release-main
   cancel-in-progress: false
 
 jobs:
-  release-please:
-    name: Run release-please
-    # Lightweight GitHub-API job; keep it off the self-hosted runner so it does
-    # not compete with deploys/builds on that box (a likely cause of flaky
-    # "Error creating commit" failures).
+  release:
+    name: Version, tag, release
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.rp.outputs.release_created }}
-      tag_name: ${{ steps.rp.outputs.tag_name }}
+    if: >
+      github.repository == 'witchesofthehill/manabrew' &&
+      (github.event_name == 'workflow_dispatch' ||
+       !startsWith(github.event.head_commit.message, 'chore(release):'))
     steps:
-      - uses: googleapis/release-please-action@v4
-        id: rp
+      - uses: actions/create-github-app-token@v2
+        id: app-token
         with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-          token: ${{ secrets.GITHUB_TOKEN }}
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
-  # release-please pushes the vX.Y.Z tag using GITHUB_TOKEN, which by design
-  # does not trigger downstream workflows. Dispatch release-artifacts.yml
-  # explicitly on the new tag ref so the macOS/Windows builds + Discord
-  # release notification fire.
-  dispatch-artifacts:
-    name: Dispatch release-artifacts on new tag
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    steps:
       - uses: actions/checkout@v4
-      - name: Trigger release-artifacts workflow
+        with:
+          # Full history + tags: git-cliff walks commits since each crate's
+          # last release tag. The app token is what lets the push bypass
+          # main's branch protection.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff@2.13.1
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute bumps, commit to main, tag, create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
-        run: gh workflow run release-artifacts.yml --ref "$TAG"
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: cargo xtask release
+
+      # Publishes every publishable crate whose version is not on crates.io
+      # yet (idempotent; partial failures — e.g. crates.io's new-crate rate
+      # limit — heal on the next release run). No-ops without the token.
+      - name: Publish crates to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo xtask publish

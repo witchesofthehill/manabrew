@@ -135,15 +135,16 @@ Dashboard will be at `http://<server-ip>:8080`.
 
 ## Auto-Deploy with GitHub Actions
 
-Every push to `main` triggers the **Wasm deploy** workflow
-(`.github/workflows/deploy.yml`), which SSHes into the server, runs
-`deploy.sh` to rebuild the Wasm/web stack (manabrew, manabrew-server, optional
-parity-dashboard) under Docker, and posts a success/failure embed to the
-community Discord channel via the project's Discord bot.
-
-Native Tauri installers (`.dmg` / `.exe` / `.msi`) are built by a separate
-workflow, `.github/workflows/release-artifacts.yml`, which uploads them to
-the workflow run and (on tag pushes) attaches them to a GitHub Release.
+Every release tag (pushed by the **Release** workflow's `cargo xtask release`
+on merges to `main`) triggers **Publish**
+(`.github/workflows/publish.yml`): it builds the Tauri installers
+(`.dmg` / `.exe` / `.msi`), attaches them plus the updater manifest
+(`tauri.json`) to the GitHub Release, and its final `deploy` job SSHes into
+the server, runs `deploy.sh` to rebuild the Wasm/web stack (manabrew,
+manabrew-server, optional parity-dashboard) under Docker, and posts a
+success/failure embed to the community Discord channel via the project's
+Discord bot. Deploy runs last so the live site never references release
+assets that don't exist yet. Plain `main` commits do not deploy.
 
 ### 1. Generate an SSH keypair for the deploy
 
@@ -206,7 +207,9 @@ n8n endpoint (`/webhook/github-deploy`).
 
 ### 6. Test it
 
-Trigger manually first: **Actions → Wasm deploy → Run workflow → branch `main`**.
+The pipeline only runs on release tags, so exercise it end to end: merge any
+change to `main`, let the **Release** workflow tag it, and watch the resulting
+**Publish** run's final `deploy` job.
 
 Verify:
 

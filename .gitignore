@@ -90,6 +90,7 @@ forge-harness/native/gen-config/
 .vscode/
 
 src/components/prompts/dev/
+push.sh
 
 # Tauri mobile staged assets — copied from src-tauri/resources by the mobile
 # build (tauri.conf.json resources map); scaffolding stays tracked, assets not.

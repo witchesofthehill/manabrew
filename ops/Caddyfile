@@ -90,6 +90,25 @@ play.manabrew.app {
         file_server
     }
 
+    # Per-package version manifest (ops/manifest.json, bind-mounted). Self-hosted
+    # nodes and the desktop app poll this to detect they are behind the release.
+    handle /manifest.json {
+        header {
+            Access-Control-Allow-Origin "*"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
+    # Tauri updater manifest. Generated per release by release-artifacts.yml
+    # (gen-updater-manifest.mjs) and attached as a release asset; redirecting
+    # keeps it live the moment a release publishes, with no deploy in between.
+    # `latest` skips drafts and prereleases. Drop or point this elsewhere to
+    # pause updates.
+    handle /tauri.json {
+        redir * https://github.com/witchesofthehill/manabrew/releases/latest/download/tauri.json 302
+    }
+
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

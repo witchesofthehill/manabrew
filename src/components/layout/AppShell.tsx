@@ -15,6 +15,7 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 import { DESKTOP_QUERY } from "@/lib/responsive";
 import { StatusBanner } from "./StatusBanner";
 import { useStatusBanner } from "@/hooks/useStatusBanner";
+import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 
 // Order mirrors the primary nav in Sidebar; drives prev/next page shortcuts.
 const NAV_ROUTES = [
@@ -55,6 +56,7 @@ export function AppShell() {
 
   useGameSessionResume();
   useStatusBanner();
+  useDesktopUpdater();
 
   function toggleSidebar() {
     setSidebarCollapsed((v) => !v);

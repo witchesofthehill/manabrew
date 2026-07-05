@@ -1,3 +1,6 @@
+[alias]
+xtask = "run --quiet --package xtask --"
+
 # Android 15+ devices can use 16 KB memory pages; native libs must be linked
 # with 16 KB-aligned LOAD segments or the OS runs the app in a slower compat
 # mode (and warns). Keep in sync with the targets in scripts/mobile-dev.mjs.

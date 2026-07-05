@@ -8,15 +8,16 @@ import Icons from "unplugin-icons/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
-// release-please's authoritative version. It bumps this manifest plus the
-// extra-files (package.json, src-tauri/tauri.conf.json, Cargo.toml) in the
-// same release commit, then tags vX.Y.Z — so the manifest always matches the
-// shipped release tag, even if package.json is hand-edited out of sync.
+// The release flow's authoritative version. `cargo xtask release` bumps this
+// manifest plus the mirrors (package.json, src-tauri/tauri.conf.json,
+// Cargo.toml) in the same release commit, then tags vX.Y.Z — so the manifest
+// always matches the shipped release tag, even if package.json is hand-edited
+// out of sync.
 const appVersion = (
-  JSON.parse(readFileSync(path.resolve(__dirname, ".release-please-manifest.json"), "utf-8")) as {
-    ".": string;
+  JSON.parse(readFileSync(path.resolve(__dirname, "ops/manifest.json"), "utf-8")) as {
+    packages: Record<string, string>;
   }
-)["."];
+).packages["manabrew"];
 
 const COEP = process.env.TAURI_ENV_PLATFORM ? "require-corp" : "credentialless";
 

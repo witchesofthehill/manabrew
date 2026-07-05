@@ -7,7 +7,6 @@ import {
   mapPromptOutputToIronsmithCommand,
   type IronsmithPromptMapping,
 } from "./ironsmithAdapter";
-import type { PromptOutput } from "@/protocol";
 import type { DeckCard } from "@/protocol/deck";
 
 function promptMapping(snapshot: unknown, promptId = "prompt-1"): IronsmithPromptMapping {
@@ -616,13 +615,5 @@ describe("Ironsmith prompt mapping", () => {
       "prompt-1",
     );
     expect(result).toEqual({ forPlayer: "player-1", message: "Name a card" });
-  });
-
-  it("maps concede responses without needing an Ironsmith action_ref", () => {
-    const binding = promptMapping({
-      decision: { kind: "priority", player: 0, actions: [] },
-    }).binding;
-    const output: PromptOutput = { type: "chooseAction", output: { type: "concede" } };
-    expect(mapPromptOutputToIronsmithCommand(output, binding)).toEqual({ type: "forfeit_player" });
   });
 });

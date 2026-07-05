@@ -1,8 +1,15 @@
 import type { GameState, DeferredSnapshot } from "./gameStore.types";
 import type { Prompt } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { GameViewDto, PlayerDto } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
+
+function normalizePlayer(player: PlayerDto): PlayerDto {
+  return {
+    ...player,
+    status: player.status ?? "playing",
+  };
+}
 
 function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | null): GameViewDto {
   const incoming = (nextView ?? {}) as Partial<GameViewDto>;
@@ -17,7 +24,9 @@ function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | nul
       : (current?.combatAssignments ?? []),
     activePlayerId: incoming.activePlayerId ?? current?.activePlayerId ?? "",
     priorityPlayerId: incoming.priorityPlayerId ?? current?.priorityPlayerId ?? "",
-    players: Array.isArray(incoming.players) ? incoming.players : (current?.players ?? []),
+    players: Array.isArray(incoming.players)
+      ? incoming.players.map(normalizePlayer)
+      : (current?.players ?? []).map(normalizePlayer),
     battlefield: Array.isArray(incoming.battlefield)
       ? incoming.battlefield
       : (current?.battlefield ?? []),

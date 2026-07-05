@@ -9,9 +9,8 @@ import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import { zoneBadgeId } from "@/pixi/hud/playerHud.types";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
-import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
+import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
@@ -29,7 +28,7 @@ import { useHandScale } from "@/hooks/useHandScale";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { ZONE_BADGES, ZONE_TILE_KEY } from "@/components/game/game.constants";
+import { ZONE_TILE_KEY } from "@/components/game/game.constants";
 import {
   GAP,
   HAND_BOTTOM_SINK_FRAC,
@@ -1086,22 +1085,7 @@ export function GameBoard({
   const hudBarSpecs = useMemo<PlayerHudSpec[]>(() => {
     if (!compactBoard) return playerBarSpecs;
     return playerBarSpecs.map((spec) => {
-      const zones = (zoneTilesByPlayer[spec.playerId] ?? []).flatMap((t) => {
-        const badge = ZONE_BADGES[t.key];
-        return badge
-          ? [
-              {
-                id: zoneBadgeId(t.key),
-                icon: badge.icon,
-                color: t.highlightColor ?? gameTheme.textMuted,
-                label: badge.label,
-                count: t.count,
-                onTap: t.onOpen,
-                zone: true,
-              },
-            ]
-          : [];
-      });
+      const zones = buildZoneBadges(zoneTilesByPlayer[spec.playerId] ?? [], gameTheme.textMuted);
       if (zones.length === 0) return spec;
       const badges = [...spec.badges];
       const handIdx = badges.findIndex((b) => b.id === "hand");

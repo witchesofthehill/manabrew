@@ -3,6 +3,8 @@ title: Hosting your own relay
 description: Run the Manabrew relay server (manabrew-server) that handles lobbies, matchmaking, and message relay between players — from source or with Docker Compose.
 ---
 
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
 You don't have to use the public relay — the relay server (`manabrew-server`) is
 part of the repo and self-hostable. It handles lobbies, matchmaking, and message
 relay between players; it never runs games itself. Every player's client (web or
@@ -14,47 +16,54 @@ build (`VITE_RELAY_PASSWORD`) and to any self-hosted node
 (`SELF_HOSTED_NODE_SERVER_KEY`). It is a shared access token, not a per-user
 secret.
 
-## With Docker Compose
-
-The relay Dockerfile builds from the **repo root**, so start from a checkout:
+Both options below build from the repo root, so start from a checkout:
 
 ```bash
 git clone https://github.com/witchesofthehill/manabrew.git
 cd manabrew
 ```
 
-Create a `compose.yml`:
+## Running the relay
 
-```yaml
-services:
-  relay:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
-    environment:
-      MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:-forge}"
-      RUST_LOG: "manabrew_server=info"
-    ports:
-      - "9443:9443" # WebSocket lobby/game traffic
-      - "9444:9444" # health endpoint
-    restart: unless-stopped
-```
+<Tabs>
+  <TabItem label="Docker Compose">
+    Create a `compose.yml`:
 
-Then bring it up:
+    ```yaml
+    services:
+      relay:
+        build:
+          context: .
+          dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+        environment:
+          MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:-forge}"
+          RUST_LOG: "manabrew_server=info"
+        ports:
+          - "9443:9443" # WebSocket lobby/game traffic
+          - "9444:9444" # health endpoint
+        restart: unless-stopped
+    ```
 
-```bash
-MANABREW_SERVER_KEY=pick-a-key docker compose up --build
-```
+    Then bring it up:
+
+    ```bash
+    MANABREW_SERVER_KEY=pick-a-key docker compose up --build
+    ```
+
+  </TabItem>
+  <TabItem label="From source">
+    You need a Rust toolchain. Run the relay directly:
+
+    ```bash
+    MANABREW_SERVER_KEY=pick-a-key cargo run --release -p manabrew-server
+    ```
+
+  </TabItem>
+</Tabs>
 
 The relay now accepts WebSocket connections on `ws://your-host:9443` and serves
 `http://your-host:9444/health`. Point your clients and any node at
 `ws://your-host:9443`.
-
-## From source
-
-```bash
-MANABREW_SERVER_KEY=pick-a-key cargo run --release -p manabrew-server
-```
 
 ## Configuration
 

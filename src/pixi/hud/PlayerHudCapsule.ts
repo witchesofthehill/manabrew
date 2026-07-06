@@ -41,6 +41,9 @@ const COLUMN_AVATAR_TOP = 10;
 
 const iconTextures = new Map<string, Texture>();
 
+const SCRATCH_A = new Point();
+const SCRATCH_B = new Point();
+
 // Shared, immutable text styles keyed by (size, weight, fill). Pixi safely
 // shares one TextStyle across many Text objects, so this removes the per-render
 // allocation churn — callers must never mutate a returned style.
@@ -314,13 +317,16 @@ export class PlayerHudCapsule {
   }
 
   getZoneAnchor(zoneKey: string): ScreenPos | null {
-    const idx = this.spec.badges.findIndex((b) => b.id === zoneBadgeId(zoneKey));
+    const id = zoneBadgeId(zoneKey);
+    const idx = this.spec.badges.findIndex((b) => b.id === id);
     if (idx < 0) return null;
     const chip = this.chips[idx];
     if (!chip || !chip.sprite.visible) return null;
-    return this.container.toGlobal(
-      new Point(chip.sprite.x + chip.sprite.width / 2, chip.sprite.y + chip.sprite.height / 2),
+    const p = this.container.toGlobal(
+      SCRATCH_A.set(chip.sprite.x + chip.sprite.width / 2, chip.sprite.y + chip.sprite.height / 2),
+      SCRATCH_A,
     );
+    return { x: p.x, y: p.y };
   }
 
   setSpec(spec: PlayerHudSpec): void {
@@ -655,8 +661,14 @@ export class PlayerHudCapsule {
    *  doesn't breathe with animations. */
   getKeepOutBounds(): ScreenBounds | null {
     if (!this.hasContent) return null;
-    const tl = this.container.toGlobal(new Point(this.contentMinX, this.contentMinY));
-    const br = this.container.toGlobal(new Point(this.contentMaxX, this.contentMaxY));
+    const tl = this.container.toGlobal(
+      SCRATCH_A.set(this.contentMinX, this.contentMinY),
+      SCRATCH_A,
+    );
+    const br = this.container.toGlobal(
+      SCRATCH_B.set(this.contentMaxX, this.contentMaxY),
+      SCRATCH_B,
+    );
     return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
   }
 

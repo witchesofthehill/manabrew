@@ -107,6 +107,8 @@ const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
 const COARSE_POINTER = isCoarsePointer();
 const GRIP_HIT_WIDTH_PX = COARSE_POINTER ? 32 : 16;
+const RECT_SCRATCH_A = new Point();
+const RECT_SCRATCH_B = new Point();
 const BOARD_ZOOM_MAX = 2.25;
 const BOARD_ZOOM_SNAP_BACK = 1.05;
 const ATTACK_ARROW_LANE_PX = 18;
@@ -1397,9 +1399,10 @@ export class BoardScene {
   private localBlockers(): BlockingRect[] {
     const handRect = this.hand?.getBlockerRect();
     if (!handRect) return [];
-    const tl = this.root.toGlobal(new Point(handRect.x, handRect.y));
+    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(handRect.x, handRect.y), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
-      new Point(handRect.x + handRect.width, handRect.y + handRect.height),
+      RECT_SCRATCH_B.set(handRect.x + handRect.width, handRect.y + handRect.height),
+      RECT_SCRATCH_B,
     );
     return [{ x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y }];
   }

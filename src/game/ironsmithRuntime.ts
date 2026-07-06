@@ -93,17 +93,22 @@ type IronsmithPrivatePayload =
   | { type: "directive"; directive: DirectiveInput };
 
 type IronsmithRoomRelayPayload =
-  | { type: "hello"; seat: string; isHost: boolean; publicKey: JsonWebKey }
+  | { type: "hello"; seat: string; publicKey: JsonWebKey }
   | { type: "private"; to: string; encrypted: EncryptedRelayPayload };
 
+// Trusted mode encrypts per-seat payloads against casual room observers, but it
+// is not a cryptographic identity system. Seat identity is bound only to the
+// relay-authenticated username for this room, and peer keys are pinned for the
+// lifetime of this browser game session.
 export class IronsmithTrustedGameApi implements IGameApi {
   private game: IronsmithWasmGame | null = null;
   private isMultiplayer = false;
   private isHost = false;
   private localPlayerSlot: string | null = null;
+  private playerNames: string[] = [];
   private playerSlots: string[] = [];
   private botPlayerSlots = new Set<string>();
-  private pendingBinding: IronsmithPromptBinding | null = null;
+  private pendingBindings = new Map<string, IronsmithPromptBinding>();
   private prompts = new Map<string, Prompt>();
   private roomRelayUnsubscribe: (() => void) | null = null;
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
@@ -135,12 +140,14 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.isMultiplayer = true;
     this.isHost = params.localIsHost;
     this.localPlayerSlot = `player-${params.enginePlayerIndex}`;
+    this.playerNames = params.playerNames;
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
-    this.botPlayerSlots = botPlayerSlots(params.playerNames);
+    this.botPlayerSlots = new Set(params.botPlayerSlots ?? []);
     this.prompts.clear();
-    this.pendingBinding = null;
+    this.pendingBindings.clear();
     this.concededPlayerSlots.clear();
-    this.hostPlayerSlot = null;
+    this.hostPlayerSlot =
+      params.hostPlayerSlot ?? (params.localIsHost ? this.localPlayerSlot : null);
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
     this.sharedKeys.clear();
@@ -198,9 +205,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.isMultiplayer = false;
     this.isHost = false;
     this.localPlayerSlot = null;
+    this.playerNames = [];
     this.playerSlots = [];
     this.botPlayerSlots.clear();
-    this.pendingBinding = null;
+    this.pendingBindings.clear();
     this.prompts.clear();
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
@@ -223,7 +231,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
 
   private async startHost(
     params: StartMultiplayerGameParams,
-    botSlots = botPlayerSlots(params.playerNames),
+    botSlots = new Set(params.botPlayerSlots ?? []),
   ): Promise<void> {
     await ensureIronsmith();
     await this.endHostOnly();
@@ -231,8 +239,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.game = game;
     this.isHost = true;
     this.localPlayerSlot = `player-${params.enginePlayerIndex}`;
+    this.playerNames = params.playerNames;
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
     this.botPlayerSlots = botSlots;
+    this.hostPlayerSlot = this.localPlayerSlot;
     const config = matchConfig(params);
     const validation = game.validateManabrewMatchConfig(config);
     if (
@@ -250,14 +260,14 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private async endHostOnly(): Promise<void> {
     this.game?.free();
     this.game = null;
-    this.pendingBinding = null;
+    this.pendingBindings.clear();
     this.prompts.clear();
     this.concededPlayerSlots.clear();
   }
 
   private async applyResponse(playerSlot: string, action: PromptOutput): Promise<void> {
     if (!this.game) return;
-    const binding = this.pendingBinding;
+    const binding = this.pendingBindings.get(playerSlot);
     if (!binding || binding.playerSlot !== playerSlot) {
       await this.publish();
       return;
@@ -286,10 +296,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
     if (!this.game) return;
     const platform = getPlatform();
     this.prompts.clear();
-    this.pendingBinding = null;
+    this.pendingBindings.clear();
     let localStateSent = false;
     let publicStateSent = false;
-    let botResponse: { slot: string; action: PromptOutput } | null = null;
+    const botResponses: Array<{ slot: string; action: PromptOutput }> = [];
 
     for (const slot of this.playerSlots) {
       const index = Number(slot.replace("player-", ""));
@@ -319,11 +329,11 @@ export class IronsmithTrustedGameApi implements IGameApi {
         continue;
       }
       this.prompts.set(slot, prompt.prompt);
-      this.pendingBinding = prompt.binding;
+      this.pendingBindings.set(slot, prompt.binding);
       const autoAction =
         this.isHost && this.botPlayerSlots.has(slot) ? botPromptOutput(prompt.prompt) : null;
       if (autoAction) {
-        botResponse = { slot, action: autoAction };
+        botResponses.push({ slot, action: autoAction });
       } else if (slot === this.localPlayerSlot) {
         platform.events.emit("game:prompt", prompt.prompt);
       } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
@@ -336,8 +346,10 @@ export class IronsmithTrustedGameApi implements IGameApi {
       platform.events.emit("game:state", this.readManabrewView(String(++this.promptSeq)).state);
     }
 
-    if (botResponse) {
-      await this.applyResponse(botResponse.slot, botResponse.action);
+    for (const botResponse of botResponses) {
+      if (this.pendingBindings.has(botResponse.slot)) {
+        await this.applyResponse(botResponse.slot, botResponse.action);
+      }
     }
   }
 
@@ -403,13 +415,19 @@ export class IronsmithTrustedGameApi implements IGameApi {
       return;
     }
     const relayPayload = envelope.payload;
-    const sender = envelope.fromPlayer ?? message.from_player;
+    const sender = this.authenticatedSenderSlot(message, envelope.fromPlayer);
+    if (!sender) return;
     if (sender && sender === this.localPlayerSlot) return;
 
     if (relayPayload.type === "hello") {
       if (relayPayload.seat === this.localPlayerSlot) return;
+      if (relayPayload.seat !== sender) {
+        console.warn(
+          `[Ironsmith] ignored relay hello claiming ${relayPayload.seat} from authenticated ${sender}`,
+        );
+        return;
+      }
       const changed = await this.rememberPeerKey(relayPayload.seat, relayPayload.publicKey);
-      if (relayPayload.isHost) this.hostPlayerSlot = relayPayload.seat;
       if (changed) {
         await this.sendRelayHello();
         if (this.isHost && this.game) await this.publish();
@@ -418,7 +436,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     }
 
     if (relayPayload.type !== "private") return;
-    if (relayPayload.to !== this.localPlayerSlot || !sender) return;
+    if (relayPayload.to !== this.localPlayerSlot) return;
     const privatePayload = await this.decryptPrivatePayload(sender, relayPayload.encrypted);
     if (!privatePayload) return;
     const platform = getPlatform();
@@ -451,7 +469,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     await this.sendRelayPayload({
       type: "hello",
       seat: slot,
-      isHost: this.isHost,
       publicKey,
     });
   }
@@ -482,7 +499,11 @@ export class IronsmithTrustedGameApi implements IGameApi {
   }
 
   private async ownKeyPair(): Promise<CryptoKeyPair | null> {
-    if (!crypto.subtle) return null;
+    if (typeof crypto === "undefined" || !crypto.subtle) {
+      throw new Error(
+        "Ironsmith trusted multiplayer requires Web Crypto in a secure context. Use HTTPS, localhost, or a browser that exposes crypto.subtle.",
+      );
+    }
     this.keyPairPromise ??= crypto.subtle
       .generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"])
       .catch((error) => {
@@ -494,8 +515,16 @@ export class IronsmithTrustedGameApi implements IGameApi {
   }
 
   private async rememberPeerKey(slot: string, publicKey: JsonWebKey): Promise<boolean> {
+    if (!this.playerSlots.includes(slot)) {
+      console.warn(`[Ironsmith] ignored relay key for unknown slot ${slot}`);
+      return false;
+    }
     const fingerprint = JSON.stringify(publicKey);
     if (this.peerKeyFingerprints.get(slot) === fingerprint) return false;
+    if (this.peerKeyFingerprints.has(slot)) {
+      console.warn(`[Ironsmith] ignored relay key replacement attempt for ${slot}`);
+      return false;
+    }
     try {
       const key = await crypto.subtle.importKey(
         "jwk",
@@ -568,6 +597,30 @@ export class IronsmithTrustedGameApi implements IGameApi {
       return null;
     }
   }
+
+  private authenticatedSenderSlot(
+    message: RoomMessagePayload<IronsmithRoomRelayPayload>,
+    envelopeFromPlayer: string | undefined,
+  ): string | null {
+    const authenticatedSlot = this.slotForUsername(message.from_player);
+    if (!authenticatedSlot) {
+      console.warn(`[Ironsmith] ignored relay from unknown room player ${message.from_player}`);
+      return null;
+    }
+    if (envelopeFromPlayer && envelopeFromPlayer !== authenticatedSlot) {
+      console.warn(
+        `[Ironsmith] ignored relay envelope from ${envelopeFromPlayer}; authenticated sender is ${authenticatedSlot}`,
+      );
+      return null;
+    }
+    return authenticatedSlot;
+  }
+
+  private slotForUsername(username: string): string | null {
+    const index = this.playerNames.indexOf(username);
+    if (index >= 0) return `player-${index}`;
+    return this.playerSlots.includes(username) ? username : null;
+  }
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -583,14 +636,6 @@ function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
-}
-
-function botPlayerSlots(playerNames: string[]): Set<string> {
-  return new Set(
-    playerNames.flatMap((name, index) =>
-      name.toLowerCase().includes("-bot-") ? [`player-${index}`] : [],
-    ),
-  );
 }
 
 function botPromptOutput(prompt: Prompt): PromptOutput | null {

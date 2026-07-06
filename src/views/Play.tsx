@@ -50,8 +50,17 @@ export default function Play() {
     if (!mpState?.multiplayer || multiplayerStarted.current) return;
     multiplayerStarted.current = true;
 
-    const { playerOrder, playerDecks, isHost, startingLife, myPlayerSlot, engine, format } =
-      mpState;
+    const {
+      playerOrder,
+      playerDecks,
+      isHost,
+      startingLife,
+      myPlayerSlot,
+      engine,
+      format,
+      hostPlayerSlot,
+      botPlayerSlots,
+    } = mpState;
     const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);
     if (Number.isNaN(engineIndex) || engineIndex < 0) return;
     const decksByPlayer = playerOrder.flatMap((playerName) => {
@@ -73,6 +82,8 @@ export default function Play() {
       startingLife,
       engine,
       format,
+      hostPlayerSlot,
+      botPlayerSlots,
     );
   }, [mpState, setMultiplayerState, startMultiplayerGame]);
 

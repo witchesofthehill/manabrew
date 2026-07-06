@@ -86,6 +86,8 @@ export interface GameState {
     startingLife: number,
     engine?: EngineKind,
     format?: GameFormat,
+    hostPlayerSlot?: string | null,
+    botPlayerSlots?: string[],
   ) => Promise<void>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;

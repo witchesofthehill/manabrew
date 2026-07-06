@@ -497,15 +497,17 @@ export function DeckBuilder({
 
   // Compute deck legality for conditional save button
   const deckFormat = getFormat(currentDeck.format ?? "standard");
-  const isDeckLegal = deckFormat
-    ? validateDeckSections(
-        {
-          deck: currentDeck,
-          commanderName: currentDeck.commanders?.[0]?.identity.name,
-        },
-        deckFormat,
-      ).legal
-    : false;
+  const isDeckLegal =
+    !hasUnsupportedCards &&
+    (deckFormat
+      ? validateDeckSections(
+          {
+            deck: currentDeck,
+            commanderName: currentDeck.commanders?.[0]?.identity.name,
+          },
+          deckFormat,
+        ).legal
+      : false);
 
   const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
   const matchesFilters = useCallback(
@@ -798,16 +800,14 @@ export function DeckBuilder({
   }
 
   function handleSave() {
-    const playableDeck = { ...currentDeck, draft: undefined };
+    if (hasUnsupportedCards) {
+      handleSaveDraft();
+      return;
+    }
     saveCurrentDeck();
-    const snapshot = buildDeckSnapshot(playableDeck);
+    const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
-    if (hasUnsupportedCards) {
-      toast.warning(
-        `Saved "${currentDeck.name}" as playable. ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} may be unsupported by Manabrew's built-in engine.`,
-      );
-    }
   }
 
   function handleSaveDraft() {
@@ -817,7 +817,7 @@ export function DeckBuilder({
     setUnsavedState(snapshot, snapshot);
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" as draft. ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} may be unsupported by Manabrew's built-in engine.`,
+        `Saved "${currentDeck.name}" as draft - ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
       );
     } else {
       toast.success(`Draft "${currentDeck.name}" saved`);
@@ -1020,8 +1020,8 @@ export function DeckBuilder({
                 className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
                 title={
                   hasUnsupportedCards
-                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} may be unsupported by Manabrew's built-in engine`
-                    : "Deck has errors — save as draft (not playable)"
+                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine - draft only, can't be played`
+                    : "Deck has errors - save as draft (not playable)"
                 }
                 onClick={handleSaveDraft}
               >

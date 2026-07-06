@@ -353,6 +353,8 @@ export const useGameStore = create<GameState>()(
         startingLife,
         engine,
         format,
+        hostPlayerSlot,
+        botPlayerSlots,
       ) => {
         // Guard against re-entry — a second start while one is already in
         // flight would tear down the first session's response channels in
@@ -408,6 +410,8 @@ export const useGameStore = create<GameState>()(
             localIsHost,
             startingLife,
             format,
+            hostPlayerSlot,
+            botPlayerSlots,
           });
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
         } catch (e) {

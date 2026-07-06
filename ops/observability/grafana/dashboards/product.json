@@ -520,7 +520,7 @@
       "id": 13,
       "type": "table",
       "title": "Top commanders",
-      "description": "deck selections, humans",
+      "description": "true commander picks from deck selections (sparse before 2026-07-06)",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -553,8 +553,8 @@
     {
       "id": 14,
       "type": "table",
-      "title": "Top decks",
-      "description": "deck selections, humans",
+      "title": "Top decks by games",
+      "description": "games each deck appeared in (humans; incl. launch archive)",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -572,8 +572,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT deck_name, count(*) AS picks FROM decks WHERE deck_name IS NOT NULL AND is_bot = 0 GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
-          "rawQueryText": "SELECT deck_name, count(*) AS picks FROM decks WHERE deck_name IS NOT NULL AND is_bot = 0 GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+          "queryText": "SELECT deck_name, count(*) AS games FROM game_players WHERE deck_name IS NOT NULL AND is_bot = 0 GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+          "rawQueryText": "SELECT deck_name, count(*) AS games FROM game_players WHERE deck_name IS NOT NULL AND is_bot = 0 GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
           "queryType": "table",
           "timeColumns": []
         }

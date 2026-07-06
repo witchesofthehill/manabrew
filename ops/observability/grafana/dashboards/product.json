@@ -98,8 +98,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT count(*) AS returning FROM (SELECT p.username FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY p.username HAVING count(DISTINCT date(g.started_at)) > 1)",
-          "rawQueryText": "SELECT count(*) AS returning FROM (SELECT p.username FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY p.username HAVING count(DISTINCT date(g.started_at)) > 1)",
+          "queryText": "SELECT count(*) AS returning_players FROM (SELECT p.username FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY p.username HAVING count(DISTINCT date(g.started_at)) > 1)",
+          "rawQueryText": "SELECT count(*) AS returning_players FROM (SELECT p.username FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY p.username HAVING count(DISTINCT date(g.started_at)) > 1)",
           "queryType": "table",
           "timeColumns": []
         }

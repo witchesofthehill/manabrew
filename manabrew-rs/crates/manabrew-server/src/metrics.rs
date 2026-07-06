@@ -46,6 +46,10 @@ pub fn install() -> PrometheusHandle {
         .expect("failed to install metrics recorder")
 }
 
+pub fn detached_handle() -> PrometheusHandle {
+    PrometheusBuilder::new().build_recorder().handle()
+}
+
 pub fn record_game_started(engine: EngineKind) {
     counter!(GAMES_STARTED, LABEL_ENGINE => engine_label(engine)).increment(1);
 }

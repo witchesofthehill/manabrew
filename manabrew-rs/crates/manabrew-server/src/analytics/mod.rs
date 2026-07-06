@@ -26,6 +26,13 @@ pub struct AnalyticsHandle {
 }
 
 impl AnalyticsHandle {
+    pub fn disabled() -> Self {
+        AnalyticsHandle {
+            events: None,
+            capture: None,
+        }
+    }
+
     pub fn from_config(config: &ServerConfig) -> Self {
         let events = config.events_dir.clone().map(|dir| {
             let (tx, rx) = mpsc::channel(CHANNEL_CAPACITY);

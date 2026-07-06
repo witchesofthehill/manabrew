@@ -1,18 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-mod analytics;
-mod cleanup;
-mod config;
-mod connection;
-mod error;
-mod lobby;
-mod metrics;
-mod protocol;
-mod replay;
-mod room;
-mod server;
-mod state;
+use manabrew_server::{analytics, config, metrics, server, state};
 
 #[tokio::main]
 async fn main() {

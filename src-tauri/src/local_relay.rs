@@ -62,6 +62,7 @@ pub async fn start_local_relay(relay: State<'_, LocalRelayHost>) -> Result<Local
             password.clone(),
             4,
             None,
+            manabrew_server::analytics::AnalyticsHandle::disabled(),
         ));
         let shutdown = Arc::new(tokio::sync::Notify::new());
         let health_addr = std::net::SocketAddr::from(([127, 0, 0, 1], 0));
@@ -69,6 +70,7 @@ pub async fn start_local_relay(relay: State<'_, LocalRelayHost>) -> Result<Local
             state,
             listener,
             health_addr,
+            manabrew_server::metrics::detached_handle(),
             shutdown.clone(),
         ));
 

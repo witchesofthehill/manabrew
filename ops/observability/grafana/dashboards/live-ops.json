@@ -375,15 +375,18 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "noValue": "0"
+        },
         "overrides": []
       },
-      "options": {}
+      "options": {},
+      "description": "no series until the first engine error occurs"
     },
     {
       "id": 12,
       "type": "timeseries",
-      "title": "Hosted game duration p50 / p95 (s)",
+      "title": "Hosted game duration p50 / p95 (s, per-node summary)",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -397,21 +400,21 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(manabrew_node_game_duration_seconds_bucket[6h])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
+          "expr": "max(manabrew_node_game_duration_seconds{quantile=\"0.5\"})",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(manabrew_node_game_duration_seconds_bucket[6h])))",
-          "legendFormat": "p95",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
-          }
+          },
+          "expr": "max(manabrew_node_game_duration_seconds{quantile=\"0.95\"})",
+          "legendFormat": "p95"
         }
       ],
       "fieldConfig": {

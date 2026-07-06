@@ -34,7 +34,7 @@ function makeRelay(host: string, port: unknown, password: unknown): KnownRelay {
 function defaultRelay(): KnownRelay {
   const runtime = typeof window !== "undefined" ? window.__MANABREW_RUNTIME__?.relay : undefined;
   const runtimeHost = runtime?.host?.trim();
-  if (runtimeHost) return makeRelay(runtimeHost, runtime.port, runtime.password);
+  if (runtime && runtimeHost) return makeRelay(runtimeHost, runtime.port, runtime.password);
 
   const envHost = import.meta.env.VITE_RELAY_HOST?.trim();
   if (envHost)

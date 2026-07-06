@@ -237,6 +237,7 @@ export class BoardScene {
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
   private lastCapsuleRects = new Map<string, string>();
+  private delimsWereMoving = false;
   private autoSort = false;
   private gridSkeletonDebug = false;
   private attackRowDebug = false;
@@ -491,6 +492,9 @@ export class BoardScene {
     this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     if (selfZone && this.hand) this.dragHandler.setHandExclusion(this.hand.getBlockerRect());
+    // Regions laid out above sampled capsule bounds from before this pass's
+    // applyDelimiters/layoutSelfBar moved them (resize/rotation) — reconcile.
+    this.refreshCapsuleBlockers();
   }
 
   /** Set which opponent's field auto-expands (their turn), or `null` for an even
@@ -570,6 +574,12 @@ export class BoardScene {
       }
     }
     this.applyDelimiters();
+    // Capsules ride the bands (setClip never re-grids), so the keep-outs must
+    // be reconciled once the motion ends — ease settle and grip release both
+    // land here as a moving→still edge.
+    const moving = this.draggingDelim !== null || this.delimitersSettling();
+    if (this.delimsWereMoving && !moving) this.refreshCapsuleBlockers();
+    this.delimsWereMoving = moving;
   }
 
   /** Apply the current delimiters to each opponent region as a clip band, and

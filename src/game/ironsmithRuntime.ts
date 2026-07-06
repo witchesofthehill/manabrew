@@ -1,18 +1,6 @@
 import initIronsmith, { WasmGame } from "ironsmith-wasm";
 import ironsmithWasmModuleUrl from "ironsmith-wasm/ironsmith_bg.wasm?url";
 import { getPlatform } from "@/platform";
-import {
-  buildIronsmithDeckSources,
-  deckCardNames,
-  deckCommanderNames,
-  deckSideboardNames,
-  mapIronsmithPrompt,
-  mapIronsmithSnapshotToGameView,
-  mapPromptOutputToIronsmithCommand,
-  redactPrivateGameView,
-  type IronsmithPromptBinding,
-  type IronsmithPromptResult,
-} from "./ironsmithAdapter";
 import { createRoomRelayEnvelope, isRoomRelayProtocol } from "./roomRelay";
 import type {
   IGameApi,
@@ -30,6 +18,28 @@ import type { RoomMessagePayload } from "@/types/server";
 let ironsmithInit: Promise<unknown> | null = null;
 const IRONSMITH_RELAY_PROTOCOL = "ironsmith-trusted";
 
+interface IronsmithPromptBinding {
+  promptId: string;
+  playerSlot: string;
+  decisionKind: string;
+  actionRefs: Record<string, unknown>;
+  targetKinds: Record<string, "player" | "object" | "planeswalker" | "battle">;
+  optionIndices: Record<string, number>;
+}
+
+interface IronsmithPromptMapping {
+  forPlayer: string;
+  prompt: Prompt;
+  binding: IronsmithPromptBinding;
+}
+
+interface IronsmithFatalPrompt {
+  forPlayer: string;
+  message: string;
+}
+
+type IronsmithPromptResult = IronsmithPromptMapping | IronsmithFatalPrompt | null;
+
 async function ensureIronsmith(): Promise<void> {
   ironsmithInit ??= initIronsmith({ module_or_path: ironsmithWasmModuleUrl }).catch((error) => {
     ironsmithInit = null;
@@ -39,25 +49,18 @@ async function ensureIronsmith(): Promise<void> {
 }
 
 type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
-  registerExternalCardSourcesJson?: (sourcesJson: string) => string;
-  registerExternalCardSources?: (sources: unknown) => unknown;
-  manabrewView?: (promptId: string) => {
+  validateManabrewMatchConfig: (config: unknown) => { valid?: boolean };
+  startManabrewMatch: (config: unknown) => unknown;
+  manabrewView: (promptId: string) => {
     state?: { gameView?: GameViewDto };
     promptResult?: IronsmithPromptResult;
   };
-  manabrewPublicState?: () => { gameView?: GameViewDto };
-  manabrewPrompt?: (promptId: string) => IronsmithPromptResult;
-  manabrewCommandFromPromptOutput?: (
+  manabrewPublicState: () => { gameView?: GameViewDto };
+  manabrewCommandFromPromptOutput: (
     output: PromptOutput,
     binding: IronsmithPromptBinding,
   ) => unknown;
 };
-
-function matchFormat(format: GameFormat | null | undefined): "commander" | "normal" {
-  return format === "Commander" || format === "Brawl" || format === "Oathbreaker"
-    ? "commander"
-    : "normal";
-}
 
 function matchConfig(params: {
   playerNames: string[];
@@ -70,48 +73,11 @@ function matchConfig(params: {
     playerNames: params.playerNames,
     startingLife: params.startingLife,
     seed: crypto.getRandomValues(new Uint32Array(1))[0],
-    format: matchFormat(params.format),
-    decks: params.decks.map(deckCardNames),
-    sideboards: params.decks.map(deckSideboardNames),
-    commanders: params.decks.map((deck, index) =>
-      deckCommanderNames(deck, params.commanderNames[index] ?? null),
-    ),
+    format: params.format ?? null,
+    decks: params.decks,
+    commanderNames: params.commanderNames,
     openingHandSize: 7,
   };
-}
-
-function registerDeckSources(game: IronsmithWasmGame, decks: Deck[]): void {
-  const sources = buildIronsmithDeckSources(decks);
-  if (sources.length === 0) return;
-  if (typeof game.registerExternalCardSourcesJson === "function") {
-    try {
-      game.registerExternalCardSourcesJson(JSON.stringify(sources));
-      return;
-    } catch (error) {
-      console.warn(
-        "[Ironsmith] batch card source registration failed; retrying one card at a time",
-        error,
-      );
-      for (const source of sources) {
-        try {
-          game.registerExternalCardSourcesJson(JSON.stringify(source));
-        } catch (sourceError) {
-          console.warn(
-            `[Ironsmith] failed to register card source for ${source.canonicalName}`,
-            sourceError,
-          );
-        }
-      }
-      return;
-    }
-  }
-  if (typeof game.registerExternalCardSources === "function") {
-    try {
-      game.registerExternalCardSources(sources);
-    } catch (error) {
-      console.warn("[Ironsmith] card source registration failed", error);
-    }
-  }
 }
 
 interface EncryptedRelayPayload {
@@ -261,14 +227,14 @@ export class IronsmithTrustedGameApi implements IGameApi {
   ): Promise<void> {
     await ensureIronsmith();
     await this.endHostOnly();
-    this.game = new WasmGame();
+    const game = new WasmGame() as IronsmithWasmGame;
+    this.game = game;
     this.isHost = true;
     this.localPlayerSlot = `player-${params.enginePlayerIndex}`;
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
     this.botPlayerSlots = botSlots;
-    registerDeckSources(this.game, params.decks);
     const config = matchConfig(params);
-    const validation = this.game.validateMatchConfig(config);
+    const validation = game.validateManabrewMatchConfig(config);
     if (
       validation &&
       typeof validation === "object" &&
@@ -277,7 +243,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     ) {
       throw new Error(`Ironsmith rejected match config: ${JSON.stringify(validation)}`);
     }
-    this.game.startMatch(config);
+    game.startManabrewMatch(config);
     await this.publish();
   }
 
@@ -333,7 +299,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
         publicStateSent = true;
         await platform.server?.broadcastState({
           kind: "state",
-          state: this.readPublicState(gameView),
+          state: this.readPublicState(),
         });
       }
       if (slot === this.localPlayerSlot) {
@@ -381,33 +347,23 @@ export class IronsmithTrustedGameApi implements IGameApi {
     prompt: IronsmithPromptResult;
   } {
     if (!this.game) throw new Error("Ironsmith game is not initialized");
-    if (typeof this.game.manabrewView === "function") {
-      const view = this.game.manabrewView(promptId);
-      const rawGameView = view.state?.gameView;
-      const gameView = rawGameView ? this.applyKnownPlayerStatuses(rawGameView) : null;
-      if (gameView) {
-        return {
-          state: { gameView },
-          gameView,
-          prompt: view.promptResult ?? null,
-        };
-      }
+    const view = this.game.manabrewView(promptId);
+    const rawGameView = view.state?.gameView;
+    const gameView = rawGameView ? this.applyKnownPlayerStatuses(rawGameView) : null;
+    if (!gameView) {
+      throw new Error("Ironsmith WASM did not return a Manabrew game view");
     }
-    const snapshot = this.game.uiState();
-    const gameView = this.applyKnownPlayerStatuses(mapIronsmithSnapshotToGameView(snapshot));
     return {
       state: { gameView },
       gameView,
-      prompt: mapIronsmithPrompt(snapshot, promptId),
+      prompt: view.promptResult ?? null,
     };
   }
 
-  private readPublicState(fallbackGameView: GameViewDto): { gameView: GameViewDto } {
-    if (this.game && typeof this.game.manabrewPublicState === "function") {
-      const state = this.game.manabrewPublicState();
-      if (state.gameView) return { gameView: this.applyKnownPlayerStatuses(state.gameView) };
-    }
-    return { gameView: this.applyKnownPlayerStatuses(redactPrivateGameView(fallbackGameView)) };
+  private readPublicState(): { gameView: GameViewDto } {
+    const state = this.game?.manabrewPublicState();
+    if (state?.gameView) return { gameView: this.applyKnownPlayerStatuses(state.gameView) };
+    throw new Error("Ironsmith WASM did not return a public Manabrew game view");
   }
 
   private applyKnownPlayerStatuses(gameView: GameViewDto): GameViewDto {
@@ -426,10 +382,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
   }
 
   private mapPromptOutputToCommand(action: PromptOutput, binding: IronsmithPromptBinding): unknown {
-    if (this.game && typeof this.game.manabrewCommandFromPromptOutput === "function") {
-      return this.game.manabrewCommandFromPromptOutput(action, binding);
-    }
-    return mapPromptOutputToIronsmithCommand(action, binding);
+    if (!this.game) throw new Error("Ironsmith game is not initialized");
+    return this.game.manabrewCommandFromPromptOutput(action, binding);
   }
 
   private installRoomRelayListener(): void {

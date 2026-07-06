@@ -512,6 +512,7 @@ export class PlayerHudCapsule {
       this.offline.width = diameter * 0.42;
       this.offline.height = diameter * 0.42;
       this.offline.position.set(ox, oy);
+      this.extendContent(ox - chipR, oy - chipR, chipR * 2, chipR * 2);
     }
 
     this.avatarHit.clear();
@@ -532,6 +533,12 @@ export class PlayerHudCapsule {
       if (tex) this.gear.texture = tex;
       this.gear.position.set(this.gearCx, this.gearCy);
       this.styleGear();
+      this.extendContent(
+        this.gearCx - this.gearChipR,
+        this.gearCy - this.gearChipR,
+        this.gearChipR * 2,
+        this.gearChipR * 2,
+      );
     }
   }
 
@@ -641,10 +648,11 @@ export class PlayerHudCapsule {
     this.contentMaxY = Math.max(this.contentMaxY, y + h);
   }
 
-  /** The rendered footprint (avatar, life pill, badge rows, zone column) in
-   *  canvas space, accumulated analytically at render time — transient tween
-   *  children (life float, sparkles, glows) are deliberately excluded so the
-   *  battlefield keep-out doesn't breathe with animations. */
+  /** The rendered footprint (avatar + gear/offline chrome, life pill, badge
+   *  rows, zone column incl. tap pads) in canvas space, accumulated
+   *  analytically at render time — transient tween children (life float,
+   *  sparkles, glows) are deliberately excluded so the battlefield keep-out
+   *  doesn't breathe with animations. */
   getKeepOutBounds(): ScreenBounds | null {
     if (!this.hasContent) return null;
     const tl = this.container.toGlobal(new Point(this.contentMinX, this.contentMinY));
@@ -1017,10 +1025,18 @@ export class PlayerHudCapsule {
     const colTop = this.spec.isSelf
       ? avatarTop - gap - colH
       : this.avatarCy + this.avatarDia / 2 + pillH * 0.2 + gap;
+    const capsuleScale = this.container.scale.x || 1;
+    const hitPadX = BADGE_TAP_HIT_PAD_X / capsuleScale;
+    const hitPadY = BADGE_TAP_HIT_PAD_Y / capsuleScale;
     for (let i = 0; i < items.length; i++) {
       const it = items[i]!;
       it.place(this.avatarCx - it.w / 2, colTop + i * rowH + rowH / 2);
-      this.extendContent(this.avatarCx - it.w / 2, colTop + i * rowH, it.w, rowH);
+      this.extendContent(
+        this.avatarCx - it.w / 2 - hitPadX,
+        colTop + i * rowH - hitPadY,
+        it.w + hitPadX * 2,
+        rowH + hitPadY * 2,
+      );
     }
   }
 

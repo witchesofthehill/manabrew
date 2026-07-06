@@ -27,10 +27,6 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": {
-      "resources/forge-runtime": "engine/forge",
-      "resources/cardset.rkyv": "cardset.rkyv"
-    },
     "icon": [
       "icons/icon.icns",
       "icons/icon.ico",

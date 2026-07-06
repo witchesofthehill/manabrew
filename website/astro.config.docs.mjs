@@ -38,6 +38,7 @@ export default defineConfig({
             "getting-started",
             "download-windows",
             "download-macos",
+            "download-ios",
           ],
         },
         { label: "Playing", items: ["playing", "formats", "faq"] },

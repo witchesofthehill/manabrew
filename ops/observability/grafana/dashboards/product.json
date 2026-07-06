@@ -476,8 +476,8 @@
     {
       "id": 12,
       "type": "barchart",
-      "title": "Human vs bot seats",
-      "description": "",
+      "title": "Games by human count",
+      "description": "solo-vs-AI vs multiplayer",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -495,8 +495,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT CASE is_bot WHEN 1 THEN 'bot' ELSE 'human' END AS seat, count(*) AS seats FROM game_players GROUP BY 1",
-          "rawQueryText": "SELECT CASE is_bot WHEN 1 THEN 'bot' ELSE 'human' END AS seat, count(*) AS seats FROM game_players GROUP BY 1",
+          "queryText": "SELECT CASE WHEN h = 0 THEN 'bots only' WHEN h = 1 THEN 'solo vs AI' WHEN h = 2 THEN '2 humans' ELSE '3+ humans' END AS mix, count(*) AS games FROM (SELECT g.game_id, count(CASE WHEN p.is_bot = 0 THEN 1 END) AS h FROM games g LEFT JOIN game_players p USING(game_id) GROUP BY g.game_id) GROUP BY mix ORDER BY games DESC",
+          "rawQueryText": "SELECT CASE WHEN h = 0 THEN 'bots only' WHEN h = 1 THEN 'solo vs AI' WHEN h = 2 THEN '2 humans' ELSE '3+ humans' END AS mix, count(*) AS games FROM (SELECT g.game_id, count(CASE WHEN p.is_bot = 0 THEN 1 END) AS h FROM games g LEFT JOIN game_players p USING(game_id) GROUP BY g.game_id) GROUP BY mix ORDER BY games DESC",
           "queryType": "table",
           "timeColumns": []
         }

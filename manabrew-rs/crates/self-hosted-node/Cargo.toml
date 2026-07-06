@@ -37,5 +37,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
 metrics = "0.24"
-metrics-exporter-prometheus = { version = "0.18", default-features = false, features = ["push-gateway"] }
+# no-tls-provider: keeps aws-lc-rs (cmake) out of the tree; ring is installed at metrics init
+metrics-exporter-prometheus = { version = "0.18", default-features = false, features = ["push-gateway-no-tls-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }

@@ -24,11 +24,8 @@ services:
       - ./ops/manifest.json:/srv/manabrew/manifest.json:ro
       - caddy-data:/data
       - caddy-config:/config
-    # Basic-auth bcrypt hash for the push./loki. observability ingress, passed
-    # through from the host env (ops/production.secrets — single-quote it, the
-    # hash contains `$`). Unset on the host → unset in the container → the
-    # Caddyfile falls back to a locked placeholder hash, so the endpoints
-    # exist but reject everything until the secret is provisioned.
+    # Bcrypt hash for the push./loki. ingress (single-quote in secrets — contains `$`).
+    # Unset on the host stays unset here, so the Caddyfile's locked fallback applies.
     environment:
       PUSHGATEWAY_PASSWORD_HASH:
     depends_on:
@@ -49,8 +46,7 @@ services:
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"
-      # Analytics events + per-game stream captures land on the host
-      # filesystem (durability rule: never inside a container layer).
+      # Events + captures live on the host filesystem, never a container layer.
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
       MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
       MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
@@ -93,9 +89,8 @@ services:
       - manabrew-server
     restart: unless-stopped
 
-  # ── Observability stack ──────────────────────────────────────────────
-  # Opt-in via COMPOSE_PROFILES=observability (see docs/OBSERVABILITY.md).
-  # All images are pulled, never built; config lives in ops/observability/.
+  # ── Observability stack — opt-in via COMPOSE_PROFILES=observability ──
+  # (docs/OBSERVABILITY.md; images pulled, config under ops/observability/)
   prometheus:
     profiles:
       - observability
@@ -111,13 +106,12 @@ services:
     restart: unless-stopped
     mem_limit: 512m
 
-  # Remote (NATed) nodes push metrics here through push.manabrew.app; metrics
-  # outliving a dead pusher is the fleet-down alert signal.
+  # Remote nodes push here via push.manabrew.app; stale pushes = fleet-down alert.
   pushgateway:
     profiles:
       - observability
     image: prom/pushgateway:v1.11.1
-    # The image runs as nobody, but the fresh named volume is root-owned.
+    # image runs as nobody, but the fresh named volume is root-owned
     user: root
     command:
       - --persistence.file=/data/pushgateway.dat
@@ -135,7 +129,7 @@ services:
     image: grafana/grafana:11.6.1
     environment:
       GF_SERVER_ROOT_URL: "https://grafana.manabrew.app"
-      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_INSTALL_PLUGINS: "frser-sqlite-datasource"
       DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-https://discord.invalid/webhook-not-configured}"

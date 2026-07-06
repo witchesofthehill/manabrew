@@ -161,7 +161,10 @@ mints a fresh `game_id`, so its `game_ended` may lack a matching
 `game_started`; the ingester treats those as end-only rows.
 
 Privacy: usernames yes (same as the launch archive), IPs never, no card data
-in metric labels.
+in metric labels. Scrub-on-request (EU-hosted, EU users): usernames live only
+in `events.db` (`DELETE FROM game_players/decks WHERE username = ?`, null out
+`games.winner`), in JSONL lines awaiting their daily roll (grep them out), and
+in captures, which age out via the size cap or can be deleted by `game_id`.
 
 ## Deployment (part 2 of this rollout)
 
@@ -226,12 +229,15 @@ One PR, four parts, each inert until the box's env/secrets are set:
 
 1. **Relay** — `/metrics` + analytics events + game capture + this doc. ✅
 2. **Compose stack** — prometheus, pushgateway, grafana, loki, alloy, Caddy
-   routes, secrets. ✅ Manual steps to activate: DNS A records for
+   routes, secrets. ✅ **Before merging**: add `GRAFANA_ADMIN_PASSWORD` to
+   `ops/production.secrets` — compose interpolation requires it (`:?`, like
+   `MANABREW_SERVER_KEY`), so the deploy fails loudly rather than ever
+   shipping a default-password Grafana. To activate: DNS A records for
    `grafana.`/`push.`/`loki.manabrew.app`; `COMPOSE_PROFILES=observability`;
-   `GRAFANA_ADMIN_PASSWORD` + `PUSHGATEWAY_PASSWORD_HASH` (single-quoted —
-   bcrypt hashes contain `$`) in `ops/production.secrets`. Until the auth
-   hash is set, `push.`/`loki.` fall back to a locked placeholder hash that
-   matches no password; until the profile is on, nothing new runs.
+   `PUSHGATEWAY_PASSWORD_HASH` (single-quoted — bcrypt hashes contain `$`)
+   in `ops/production.secrets`. Until the auth hash is set, `push.`/`loki.`
+   fall back to a locked placeholder hash that matches no password; until
+   the profile is on, nothing new runs.
 3. **Node metrics** — push-gateway exporter, engine-health instruments. ✅
 4. **Ingester + dashboards + alerts.** ✅ `scripts/ingest-events.py` runs as
    the `events-ingester` sidecar (5-min watch loop); dashboards and alert

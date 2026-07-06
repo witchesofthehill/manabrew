@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
-"""Ingest relay analytics JSONL (see docs/OBSERVABILITY.md) into SQLite.
-
-Idempotent: per-file byte offsets are tracked in ingest_state, and event
-files are daily-rolled (frozen after midnight UTC), so re-running or
-crashing mid-file never duplicates rows. Stdlib only.
-
-Usage:
-  ingest-events.py --dir /var/manabrew/events            one-shot
-  ingest-events.py --dir /var/manabrew/events --watch 300  loop forever
-"""
+"""Ingest relay analytics JSONL into SQLite (docs/OBSERVABILITY.md); stdlib only.
+Idempotent via per-file byte offsets; --watch N loops, otherwise one-shot."""
 
 import argparse
 import json

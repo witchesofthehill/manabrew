@@ -22,7 +22,7 @@ const CHANNEL_CAPACITY: usize = 8192;
 #[derive(Clone)]
 pub struct AnalyticsHandle {
     events: Option<mpsc::Sender<AnalyticsEvent>>,
-    capture: Option<mpsc::Sender<capture::CaptureMessage>>,
+    capture: Option<std::sync::mpsc::SyncSender<capture::CaptureMessage>>,
 }
 
 impl AnalyticsHandle {
@@ -33,7 +33,7 @@ impl AnalyticsHandle {
             tx
         });
         let capture = config.capture_dir.clone().map(|dir| {
-            let (tx, rx) = mpsc::channel(CHANNEL_CAPACITY);
+            let (tx, rx) = std::sync::mpsc::sync_channel(CHANNEL_CAPACITY);
             capture::spawn(rx, PathBuf::from(dir), config.capture_max_bytes());
             tx
         });

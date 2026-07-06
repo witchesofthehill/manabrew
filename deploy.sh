@@ -111,10 +111,8 @@ FORGE_SERVER_CHANGED=false
 # can't apply it (identical image → `up -d` won't recreate the container), so
 # it needs an explicit `caddy reload`.
 CADDYFILE_CHANGED=false
-# Observability stack (prometheus/pushgateway/grafana/loki/alloy): pulled
-# images with bind-mounted config under ops/observability/, so a config edit
-# only needs the affected services recreated — never an image build. Only
-# meaningful when COMPOSE_PROFILES includes "observability".
+# Observability stack: pulled images with bind-mounted config, so a config
+# edit only recreates the affected services — never an image build.
 OBSERVABILITY_CHANGED=false
 
 while IFS= read -r file; do

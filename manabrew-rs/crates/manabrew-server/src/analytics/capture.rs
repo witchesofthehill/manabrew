@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant, SystemTime};
 
-use tokio::sync::mpsc;
 use tracing::warn;
 use zstd::Encoder;
 
@@ -13,6 +13,7 @@ use super::writer::{today, warn_rate_limited};
 const COMPRESSION_LEVEL: i32 = 3;
 const FILE_EXTENSION: &str = "jsonl.zst";
 const IDLE_TIMEOUT: Duration = Duration::from_secs(6 * 3600);
+const HOUSEKEEPING_INTERVAL: Duration = Duration::from_secs(60);
 
 pub(super) enum CaptureMessage {
     Open { game_id: String, header: String },
@@ -25,43 +26,48 @@ struct ActiveCapture {
     last_write: Instant,
 }
 
-pub(super) fn spawn(rx: mpsc::Receiver<CaptureMessage>, dir: PathBuf, max_bytes: u64) {
+pub(super) fn spawn(rx: Receiver<CaptureMessage>, dir: PathBuf, max_bytes: u64) {
     std::thread::spawn(move || run(rx, dir, max_bytes));
 }
 
-fn run(mut rx: mpsc::Receiver<CaptureMessage>, dir: PathBuf, max_bytes: u64) {
+fn run(rx: Receiver<CaptureMessage>, dir: PathBuf, max_bytes: u64) {
     if let Err(e) = std::fs::create_dir_all(&dir) {
         warn!("[capture] cannot create capture dir {:?}: {}", dir, e);
         return;
     }
     let mut active: HashMap<String, ActiveCapture> = HashMap::new();
     let mut current_date = today();
+    let mut last_housekeeping = Instant::now();
     let mut last_warn: Option<Instant> = None;
-    while let Some(message) = rx.blocking_recv() {
-        let date = today();
-        if date != current_date {
-            current_date = date.clone();
-            close_idle(&mut active);
-            enforce_retention(&dir, max_bytes);
-        }
-        match message {
-            CaptureMessage::Open { game_id, header } => {
-                if let Some(capture) = open_capture(&dir, &date, &game_id, &mut last_warn) {
-                    let mut capture = capture;
+    loop {
+        match rx.recv_timeout(HOUSEKEEPING_INTERVAL) {
+            Ok(CaptureMessage::Open { game_id, header }) => {
+                if let Some(mut capture) = open_capture(&dir, &today(), &game_id, &mut last_warn) {
                     write_line(&mut capture, &header, &mut last_warn);
                     active.insert(game_id, capture);
                 }
             }
-            CaptureMessage::Line { game_id, line } => {
+            Ok(CaptureMessage::Line { game_id, line }) => {
                 if let Some(capture) = active.get_mut(&game_id) {
                     write_line(capture, &line, &mut last_warn);
                 }
             }
-            CaptureMessage::Close { game_id, footer } => {
+            Ok(CaptureMessage::Close { game_id, footer }) => {
                 if let Some(mut capture) = active.remove(&game_id) {
                     write_line(&mut capture, &footer, &mut last_warn);
                     finish(capture, &mut last_warn);
                 }
+            }
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => break,
+        }
+        if last_housekeeping.elapsed() >= HOUSEKEEPING_INTERVAL {
+            last_housekeeping = Instant::now();
+            close_idle(&mut active, &mut last_warn);
+            let date = today();
+            if date != current_date {
+                current_date = date;
+                enforce_retention(&dir, max_bytes);
             }
         }
     }
@@ -126,7 +132,7 @@ fn finish(capture: ActiveCapture, last_warn: &mut Option<Instant>) {
     }
 }
 
-fn close_idle(active: &mut HashMap<String, ActiveCapture>) {
+fn close_idle(active: &mut HashMap<String, ActiveCapture>, last_warn: &mut Option<Instant>) {
     let idle: Vec<String> = active
         .iter()
         .filter(|(_, capture)| capture.last_write.elapsed() >= IDLE_TIMEOUT)
@@ -134,21 +140,23 @@ fn close_idle(active: &mut HashMap<String, ActiveCapture>) {
         .collect();
     for game_id in idle {
         if let Some(capture) = active.remove(&game_id) {
-            finish(capture, &mut None);
+            finish(capture, last_warn);
         }
     }
 }
 
 fn enforce_retention(dir: &Path, max_bytes: u64) {
     let mut files: Vec<(SystemTime, u64, PathBuf)> = Vec::new();
-    let Ok(subdirs) = std::fs::read_dir(dir) else {
+    let mut subdirs: Vec<PathBuf> = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
-    for subdir in subdirs.flatten() {
-        let Ok(entries) = std::fs::read_dir(subdir.path()) else {
+    for subdir in entries.flatten() {
+        let Ok(children) = std::fs::read_dir(subdir.path()) else {
             continue;
         };
-        for entry in entries.flatten() {
+        subdirs.push(subdir.path());
+        for entry in children.flatten() {
             let Ok(meta) = entry.metadata() else {
                 continue;
             };
@@ -160,16 +168,18 @@ fn enforce_retention(dir: &Path, max_bytes: u64) {
         }
     }
     let mut total: u64 = files.iter().map(|(_, len, _)| len).sum();
-    if total <= max_bytes {
-        return;
+    if total > max_bytes {
+        files.sort_by_key(|(modified, _, _)| *modified);
+        for (_, len, path) in files {
+            if total <= max_bytes {
+                break;
+            }
+            if std::fs::remove_file(&path).is_ok() {
+                total = total.saturating_sub(len);
+            }
+        }
     }
-    files.sort_by_key(|(modified, _, _)| *modified);
-    for (_, len, path) in files {
-        if total <= max_bytes {
-            break;
-        }
-        if std::fs::remove_file(&path).is_ok() {
-            total = total.saturating_sub(len);
-        }
+    for subdir in subdirs {
+        let _ = std::fs::remove_dir(subdir);
     }
 }

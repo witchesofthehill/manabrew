@@ -1,5 +1,5 @@
 # Default /etc/caddy/Caddyfile baked into the published web image
-# (witchesofthehill/manabrew-web). Serves the app on :80 with the cross-origin isolation
+# (ghcr.io/witchesofthehill/manabrew-web). Serves the app on :80 with the cross-origin isolation
 # headers SharedArrayBuffer needs, so `docker run` works with no mounted config.
 #
 # For automatic HTTPS, mount your own Caddyfile over /etc/caddy/Caddyfile with a

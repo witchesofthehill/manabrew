@@ -1,18 +1,20 @@
 name: Docker images
 
-# Builds and pushes the self-hosting images to Docker Hub so deployments can
-# `docker pull` instead of cloning the repo and building:
-#   - <org>/manabrew-server : the multiplayer relay (small Rust binary)
-#   - <org>/manabrew-web    : the browser client + Caddy (WASM + Vite + docs)
+# Builds and pushes the self-hosting images to the GitHub Container Registry
+# (ghcr.io) so deployments can `docker pull` instead of cloning the repo and
+# building:
+#   - ghcr.io/<owner>/manabrew-server : the multiplayer relay (small Rust binary)
+#   - ghcr.io/<owner>/manabrew-web    : the browser client + Caddy (WASM + Vite + docs)
+#
+# GHCR is free and unlimited for public images and authenticates with the
+# built-in GITHUB_TOKEN — no registry secrets to configure. One-time setup: after
+# the first push, set each package's visibility to Public in the org's package
+# settings so self-hosters can pull without logging in.
 #
 # The web image is relay-agnostic: it defaults to the official public relay and
 # is repointed at runtime via RELAY_HOST/RELAY_PORT/RELAY_PASSWORD (the
 # entrypoint writes /srv/manabrew/config.js on start). So no VITE_RELAY_* build
 # args are baked here.
-#
-# Required repo config:
-#   secrets.DOCKERHUB_USERNAME, secrets.DOCKERHUB_TOKEN (a Docker Hub access token)
-#   vars.DOCKERHUB_ORG (optional; defaults to "witchesofthehill")
 
 on:
   push:
@@ -31,10 +33,13 @@ concurrency:
 jobs:
   build:
     name: Build & push ${{ matrix.image }}
-    # Skip on forks that lack the Docker Hub secrets.
+    # Skip on forks: they can't push to this repo's package namespace.
     if: github.repository == 'witchesofthehill/manabrew'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -51,17 +56,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Derive tags & labels
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ vars.DOCKERHUB_ORG || 'witchesofthehill' }}/${{ matrix.image }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
           # `latest` only on real version tags, plus semver and the raw ref.
           tags: |
             type=semver,pattern={{version}}

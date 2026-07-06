@@ -15,7 +15,7 @@ checkout is needed.
 ```yaml
 services:
   relay:
-    image: witchesofthehill/manabrew-server:latest
+    image: ghcr.io/witchesofthehill/manabrew-server:latest
     environment:
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?set MANABREW_SERVER_KEY}"
       RUST_LOG: "manabrew_server=info"
@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: witchesofthehill/manabrew-web:latest
+    image: ghcr.io/witchesofthehill/manabrew-web:latest
     environment:
       RELAY_HOST: relay.example.com
       RELAY_PORT: "443"

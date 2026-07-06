@@ -18,11 +18,13 @@ export function LeaveGameModal({ onStay, onLeave }: LeaveGameModalProps) {
         This app is hosting the game engine. Leaving shuts it down and ends the game for every
         player still in it.
       </Modal.Instructions>
-      <Modal.Footer>
+      <Modal.Footer className="justify-between">
+        <Button variant="outline" onClick={onStay}>
+          Stay
+        </Button>
         <Button variant="destructive" onClick={onLeave}>
           Leave and end game
         </Button>
-        <Button onClick={onStay}>Stay</Button>
       </Modal.Footer>
     </Modal>
   );

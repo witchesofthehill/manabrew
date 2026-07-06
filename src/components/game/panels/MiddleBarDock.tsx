@@ -122,8 +122,7 @@ export function MiddleBarDock({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
-          onSelect={(event) => {
-            event.preventDefault();
+          onSelect={() => {
             if (eliminated) onLeave();
             else onConcede();
           }}

@@ -514,17 +514,17 @@ export const useGameStore = create<GameState>()(
               }, 2000),
             ),
           ]);
-        try {
-          await withTimeout(runtime.api.endGame(), "runtime.endGame()");
-        } catch (e) {
-          console.warn("runtime.endGame() failed:", e);
-        }
         if (wasMultiplayer) {
           try {
             await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
           } catch (e) {
             console.warn("Failed to leave multiplayer room after game end:", e);
           }
+        }
+        try {
+          await withTimeout(runtime.api.endGame(), "runtime.endGame()");
+        } catch (e) {
+          console.warn("runtime.endGame() failed:", e);
         }
       },
 

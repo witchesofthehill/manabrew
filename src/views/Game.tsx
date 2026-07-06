@@ -104,7 +104,7 @@ interface GameProps {
 export default function Game({ exitTo }: GameProps = {}) {
   const interruption = useMultiplayerInterruption();
   useAutoResolvePrompt(interruption.waiting);
-  const gameView = useGameStore((s) => s.gameView);
+  const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -118,6 +118,27 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isHost = useGameStore((s) => s.isHost);
   const selfConceded = useGameStore((s) => s.selfConceded);
+  const gameView = useMemo(() => {
+    if (!rawGameView || !selfConceded || !myPlayerSlot) return rawGameView;
+    const self = rawGameView.players.find((p) => p.id === myPlayerSlot);
+    if (!self || self.status !== "playing") return rawGameView;
+    return {
+      ...rawGameView,
+      players: rawGameView.players.map((p) =>
+        p.id === myPlayerSlot
+          ? {
+              ...p,
+              status: "conceded" as const,
+              hand: [],
+              graveyard: [],
+              exile: [],
+              commandZone: [],
+            }
+          : p,
+      ),
+      battlefield: rawGameView.battlefield.filter((c) => c.controllerId !== myPlayerSlot),
+    };
+  }, [rawGameView, selfConceded, myPlayerSlot]);
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
@@ -860,6 +881,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
   const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
   const handleConcedeConfirm = useCallback(() => {
+    setConcedeModalOpen(false);
     void concede();
     if (ownsEngine) eliminatedModalShownRef.current = true;
   }, [concede, ownsEngine]);
@@ -870,11 +892,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const myStatus = me?.status;
   const gameOverNow = gameView?.gameOver ?? false;
-  useEffect(() => {
-    if (concedeModalOpen && ((myStatus && myStatus !== "playing") || gameOverNow)) {
-      setConcedeModalOpen(false);
-    }
-  }, [concedeModalOpen, myStatus, gameOverNow]);
   useEffect(() => {
     if (gameOverNow || manualApi || !gameContinuesWithoutMe) return;
     if (myStatus && myStatus !== "playing" && !eliminatedModalShownRef.current) {
@@ -1771,7 +1788,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
       {concedeModalOpen && (
         <ConcedeGameModal
-          conceding={selfConceded}
           onConfirm={handleConcedeConfirm}
           onCancel={() => setConcedeModalOpen(false)}
         />

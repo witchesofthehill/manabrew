@@ -58,6 +58,24 @@ const iconCache = new Map<string, Texture>();
 const pendingSprites = new Map<string, Set<PendingSprite>>();
 
 export const ICON_RASTER = 64;
+export const PANEL_ICON_VIEWBOX = 512;
+
+/** The single icon-precedence site: the hand-picked `SVG` registry wins over
+ *  the iconify game-icons pack, so a zone glyph renders identically in the
+ *  Pixi texture cache and the DOM `GameIcon`. */
+export function resolveIconBody(
+  name: string,
+): { body: string; width: number; height: number } | null {
+  const body = SVG[name];
+  if (body) return { body, width: PANEL_ICON_VIEWBOX, height: PANEL_ICON_VIEWBOX };
+  const icon = gameIconsPack.icons[name];
+  if (!icon) return null;
+  return {
+    body: icon.body,
+    width: icon.width ?? gameIconsPack.width ?? PANEL_ICON_VIEWBOX,
+    height: icon.height ?? gameIconsPack.height ?? PANEL_ICON_VIEWBOX,
+  };
+}
 
 function getIconBody(key: string): string | undefined {
   if (SVG[key]) return SVG[key];

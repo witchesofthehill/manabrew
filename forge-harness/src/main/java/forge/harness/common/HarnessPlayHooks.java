@@ -1,6 +1,9 @@
 package forge.harness.common;
 
 import forge.game.card.Card;
+import forge.game.card.CardCollection;
+import forge.game.card.CardCollectionView;
+import forge.game.spellability.SpellAbility;
 
 /**
  * Controller-specific hooks {@link HarnessPlayPlumbing} needs while casting.
@@ -10,4 +13,6 @@ import forge.game.card.Card;
  */
 public interface HarnessPlayHooks {
     void markFailedPaymentCard(Card card);
+
+    CardCollectionView chooseTapTypeForCost(CardCollection valid, SpellAbility ability, int totalPowerRequired);
 }

@@ -414,10 +414,13 @@ export class BoardRegion {
       const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
       return { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
     });
-    if (this.mirrored) {
+    if (this.mirrored && !this.compactZones) {
       // The opponent HUD capsule (avatar / life / badges) sits at the top-left
       // of the band; block just its cells so the grid uses the rest of the top
       // instead of reserving the whole bar-height band across the field.
+      // Compact skips this estimate — the scene supplies the capsule's live
+      // rendered bounds instead, and the 280px-wide estimate would over-block
+      // cells the 0.7-scaled capsule doesn't cover.
       const bandLeft = this.clipX ?? this.zone.x;
       blockers.push({
         x: bandLeft,

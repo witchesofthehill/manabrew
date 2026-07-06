@@ -199,8 +199,26 @@ Alert rules (Discord webhook): relay `up == 0` (2m); node fleet silent
 engine-error spike (`increase > 1/10min`); `outdated_wire` burst after a
 release; zero human connections for 30 min during EU daytime.
 
-Ad-hoc analysis: DuckDB `sqlite_scanner` over `events.db`, or `zstd -dc` a
-capture file and pipe through `jq`.
+Ad-hoc analysis with DuckDB (on the box or a synced copy of `events.db`):
+
+```sql
+INSTALL sqlite; LOAD sqlite;
+ATTACH '/var/manabrew/events/events.db' AS ev (TYPE sqlite);
+-- retention cohort: players by number of distinct days seen
+SELECT days_seen, count(*) FROM (
+  SELECT p.username, count(DISTINCT date_trunc('day', g.started_at::TIMESTAMP)) AS days_seen
+  FROM ev.games g JOIN ev.game_players p USING (game_id)
+  WHERE p.is_bot = 0 GROUP BY 1
+) GROUP BY 1 ORDER BY 1;
+-- commander winrate
+SELECT p.commander, count(*) AS games,
+       avg(CASE WHEN g.winner = p.username THEN 1.0 ELSE 0.0 END) AS winrate
+FROM ev.games g JOIN ev.game_players p USING (game_id)
+WHERE g.game_over = 1 AND p.commander IS NOT NULL
+GROUP BY 1 HAVING count(*) >= 5 ORDER BY winrate DESC;
+```
+
+Captures: `zstd -dc <capture>.jsonl.zst | jq .` streams a full game.
 
 ## Rollout
 
@@ -215,7 +233,11 @@ One PR, four parts, each inert until the box's env/secrets are set:
    hash is set, `push.`/`loki.` fall back to a locked placeholder hash that
    matches no password; until the profile is on, nothing new runs.
 3. **Node metrics** — push-gateway exporter, engine-health instruments. ✅
-4. **Ingester + dashboards + alerts.**
+4. **Ingester + dashboards + alerts.** ✅ `scripts/ingest-events.py` runs as
+   the `events-ingester` sidecar (5-min watch loop); dashboards and alert
+   rules are provisioned from `ops/observability/grafana/`. Alerts post to
+   Discord once `DISCORD_WEBHOOK_URL` is in `ops/production.secrets` (until
+   then they fire into a placeholder URL).
 
 ## Open questions
 

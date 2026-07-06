@@ -138,6 +138,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_INSTALL_PLUGINS: "frser-sqlite-datasource"
+      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-https://discord.invalid/webhook-not-configured}"
     volumes:
       - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -161,6 +162,23 @@ services:
       - "3100"
     restart: unless-stopped
     mem_limit: 384m
+
+  events-ingester:
+    profiles:
+      - observability
+    image: python:3.12-alpine
+    command:
+      - python
+      - /app/ingest-events.py
+      - --dir
+      - /var/manabrew/events
+      - --watch
+      - "300"
+    volumes:
+      - ./scripts/ingest-events.py:/app/ingest-events.py:ro
+      - ./ops/observability/data/events:/var/manabrew/events
+    restart: unless-stopped
+    mem_limit: 64m
 
   alloy:
     profiles:

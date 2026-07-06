@@ -144,7 +144,7 @@ while IFS= read -r file; do
             CADDYFILE_CHANGED=true ;;
     esac
     case "$file" in
-        ops/observability/*)
+        ops/observability/*|scripts/ingest-events.py)
             OBSERVABILITY_CHANGED=true ;;
     esac
     case "$file" in
@@ -221,7 +221,7 @@ fi
 # -- observability stack (config-only; images are pulled, never built) --
 if $OBSERVABILITY_CHANGED; then
     if echo "${COMPOSE_PROFILES:-}" | grep -q "observability"; then
-        SERVICES_TO_RESTART="$SERVICES_TO_RESTART prometheus pushgateway grafana loki alloy"
+        SERVICES_TO_RESTART="$SERVICES_TO_RESTART prometheus pushgateway grafana loki alloy events-ingester"
     else
         echo "Observability config changed but profile inactive — skipped" >> "$RAW_LOG"
     fi

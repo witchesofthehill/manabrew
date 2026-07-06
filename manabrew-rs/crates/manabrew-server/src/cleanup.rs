@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use tracing::{info, warn};
 
+use crate::analytics::{self, GameEndReason};
 use crate::connection::{broadcast_to_room, emit_to};
 use crate::protocol::{RoomStatus, ServerMessage};
 use crate::room::Room;
@@ -72,7 +73,7 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
             "[cleanup] removing stale room {}",
             &room_id[..8.min(room_id.len())]
         );
-        remove_room_and_clear_sessions(state, &room_id);
+        remove_room_and_clear_sessions(state, &room_id, GameEndReason::StaleExpired);
     }
 }
 
@@ -193,7 +194,7 @@ pub fn schedule_host_resume_abort(
                 room_id: room_id.clone(),
             },
         );
-        remove_room_and_clear_sessions(&state, &room_id);
+        remove_room_and_clear_sessions(&state, &room_id, GameEndReason::HostLost);
     });
 }
 
@@ -202,7 +203,9 @@ fn abort_in_game_room(state: &Arc<ServerState>, room_id: &str) {
         "[cleanup] aborting in-game room {} (reconnect timeout)",
         &room_id[..8.min(room_id.len())]
     );
-    let Some((info, notify)) = crate::lobby::reset_room_to_lobby(state, room_id) else {
+    let Some((info, notify)) =
+        crate::lobby::reset_room_to_lobby(state, room_id, GameEndReason::ReconnectTimeout)
+    else {
         return;
     };
 
@@ -349,7 +352,7 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
                         "[cleanup] hosted lobby room {} lost its non-playing host -- removing",
                         &rid[..8]
                     );
-                    remove_room_and_clear_sessions(state, rid);
+                    remove_room_and_clear_sessions(state, rid, GameEndReason::HostLost);
                     return;
                 }
 
@@ -375,7 +378,7 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
                         "[cleanup] lobby room {} is now empty -- removing",
                         &rid[..8]
                     );
-                    remove_room_and_clear_sessions(state, rid);
+                    remove_room_and_clear_sessions(state, rid, GameEndReason::Abandoned);
                 } else {
                     broadcast_to_room(
                         state,
@@ -410,8 +413,16 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
     }
 }
 
-pub fn remove_room_and_clear_sessions(state: &Arc<ServerState>, room_id: &str) {
-    state.rooms.remove(room_id);
+pub fn remove_room_and_clear_sessions(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    reason: GameEndReason,
+) {
+    if let Some((_, room)) = state.rooms.remove(room_id) {
+        if let Some(replay) = room.replay.as_ref() {
+            analytics::emit_game_ended(&state.analytics, &room, replay, reason);
+        }
+    }
     let player_ids = state
         .players
         .iter()

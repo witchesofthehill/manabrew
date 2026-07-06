@@ -22,3 +22,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 socket2 = "0.5"
 axum = "0.7"
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.18", default-features = false }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+zstd = "0.13"

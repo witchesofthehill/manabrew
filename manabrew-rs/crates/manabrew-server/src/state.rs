@@ -3,6 +3,7 @@ use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
+use crate::analytics::AnalyticsHandle;
 use crate::room::Room;
 
 pub struct ConnectedPlayer {
@@ -23,16 +24,23 @@ pub struct ServerState {
     pub server_key: String,
     pub max_rooms: usize,
     pub official_key: Option<String>,
+    pub analytics: AnalyticsHandle,
 }
 
 impl ServerState {
-    pub fn new(server_key: String, max_rooms: usize, official_key: Option<String>) -> Self {
+    pub fn new(
+        server_key: String,
+        max_rooms: usize,
+        official_key: Option<String>,
+        analytics: AnalyticsHandle,
+    ) -> Self {
         ServerState {
             players: DashMap::new(),
             rooms: DashMap::new(),
             server_key,
             max_rooms,
             official_key,
+            analytics,
         }
     }
 

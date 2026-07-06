@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
 
   # ── Observability stack — opt-in via COMPOSE_PROFILES=observability ──
-  # (docs/OBSERVABILITY.md; images pulled, config under ops/observability/)
+  # (images pulled, never built; config under ops/observability/)
   prometheus:
     profiles:
       - observability

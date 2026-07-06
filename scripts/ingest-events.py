@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ingest relay analytics JSONL into SQLite (docs/OBSERVABILITY.md); stdlib only.
+"""Ingest relay analytics JSONL into SQLite; stdlib only.
 Idempotent via per-file byte offsets; --watch N loops, otherwise one-shot."""
 
 import argparse

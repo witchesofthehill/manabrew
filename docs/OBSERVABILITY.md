@@ -161,8 +161,11 @@ in metric labels.
 
 ## Deployment (part 2 of this rollout)
 
-Added to `compose.production.yml` on the production box (3.7 GB RAM, ~2.6 GB
-free; stack limits total ≈1.3 GB, realistic RSS well under):
+Added to `compose.production.yml` behind the `observability` compose profile —
+a merge deploys nothing until the box opts in with
+`COMPOSE_PROFILES=observability` (same pattern as `parity` / `hosted-ai`).
+On the production box (3.7 GB RAM, ~2.6 GB free; stack limits total ≈1.3 GB,
+realistic RSS well under):
 
 - `prometheus` — 30d retention, scrapes relay + pushgateway, volume.
 - `pushgateway` — persistence file + volume, reached internally and via
@@ -201,9 +204,12 @@ One PR, four parts, each inert until the box's env/secrets are set:
 
 1. **Relay** — `/metrics` + analytics events + game capture + this doc. ✅
 2. **Compose stack** — prometheus, pushgateway, grafana, loki, alloy, Caddy
-   routes, secrets. Manual steps: DNS for `grafana.`/`push.`/`loki.`,
-   `GRAFANA_ADMIN_PASSWORD` + `PUSHGATEWAY_PASSWORD_HASH` in
-   `ops/production.secrets`.
+   routes, secrets. ✅ Manual steps to activate: DNS A records for
+   `grafana.`/`push.`/`loki.manabrew.app`; `COMPOSE_PROFILES=observability`;
+   `GRAFANA_ADMIN_PASSWORD` + `PUSHGATEWAY_PASSWORD_HASH` (single-quoted —
+   bcrypt hashes contain `$`) in `ops/production.secrets`. Until the auth
+   hash is set, `push.`/`loki.` fall back to a locked placeholder hash that
+   matches no password; until the profile is on, nothing new runs.
 3. **Node metrics** — push-gateway exporter, engine-health instruments.
 4. **Ingester + dashboards + alerts.**
 

@@ -91,3 +91,7 @@ forge-harness/native/gen-config/
 
 src/components/prompts/dev/
 push.sh
+
+
+# Observability runtime data (bind mounts; never committed)
+ops/observability/data/

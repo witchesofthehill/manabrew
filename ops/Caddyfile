@@ -146,6 +146,30 @@ relay.manabrew.app {
     }
 }
 
+# Observability ingress (services behind the `observability` compose profile).
+# grafana has its own login; push/loki take basic auth for the remote node
+# fleet. PUSHGATEWAY_PASSWORD_HASH comes from ops/observability/caddy.env
+# (bcrypt, generate with `caddy hash-password`); when unset the placeholder
+# hash below matches no password, so the endpoints stay locked instead of
+# breaking config load.
+grafana.manabrew.app {
+    reverse_proxy grafana:3000
+}
+
+push.manabrew.app {
+    basic_auth {
+        metrics {$PUSHGATEWAY_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy pushgateway:9091
+}
+
+loki.manabrew.app {
+    basic_auth {
+        metrics {$PUSHGATEWAY_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy loki:3100
+}
+
 staging.manabrew.app {
     reverse_proxy manabrew-staging:80
 }

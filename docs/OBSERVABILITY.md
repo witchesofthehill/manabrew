@@ -124,7 +124,11 @@ which the relay recognizes in the parse error. The wire error code stays
 `parse_error` — clients are unaffected. Labeling rejections by client version
 needs a `version` field on `Authenticate` (version-handshake follow-up).
 
-Node (`self-hosted-node`) — planned (part 3 of this rollout):
+Node (`self-hosted-node`) — env-gated push exporter: set
+`SELF_HOSTED_NODE_METRICS_PUSH_URL` (plus `_USERNAME`/`_PASSWORD` for the
+Caddy basic auth) to e.g.
+`https://push.manabrew.app/metrics/job/self-hosted-node/instance/<name>`;
+unset = no exporter, all instruments are no-ops. Pushes every 15s:
 
 | Metric                        | Type      | Labels                    | Source                                  |
 | ----------------------------- | --------- | ------------------------- | --------------------------------------- |
@@ -210,7 +214,7 @@ One PR, four parts, each inert until the box's env/secrets are set:
    bcrypt hashes contain `$`) in `ops/production.secrets`. Until the auth
    hash is set, `push.`/`loki.` fall back to a locked placeholder hash that
    matches no password; until the profile is on, nothing new runs.
-3. **Node metrics** — push-gateway exporter, engine-health instruments.
+3. **Node metrics** — push-gateway exporter, engine-health instruments. ✅
 4. **Ingester + dashboards + alerts.**
 
 ## Open questions

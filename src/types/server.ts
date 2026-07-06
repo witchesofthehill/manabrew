@@ -63,6 +63,7 @@ export interface AuthResultPayload {
   player_id: string | null;
   reconnected: boolean | null;
   error: string | null;
+  username: string | null;
 }
 
 export interface RoomListPayload {

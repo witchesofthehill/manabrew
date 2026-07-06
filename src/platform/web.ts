@@ -32,6 +32,7 @@ import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
+import { suffixUsername } from "@/lib/username";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
@@ -579,6 +580,7 @@ interface BotEntry {
 }
 
 const RECONNECT_BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
+const MAX_DUPLICATE_NAME_RETRIES = 3;
 
 class WebServerApi implements IServerApi {
   private ws: WebSocket | null = null;
@@ -599,6 +601,7 @@ class WebServerApi implements IServerApi {
   private lastRelayState: string | null = null;
   private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
+  private duplicateNameRetries = 0;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
 
   constructor(eventBus: WebEventBus) {
@@ -629,6 +632,7 @@ class WebServerApi implements IServerApi {
     this.manualDisconnect = false;
     this.connectParams = params;
     this.reconnectAttempt = 0;
+    this.duplicateNameRetries = 0;
     return this.openSocket(params);
   }
 
@@ -1044,6 +1048,24 @@ class WebServerApi implements IServerApi {
       return;
     }
 
+    if (type === "AuthResult") {
+      if (msg.success) {
+        this.duplicateNameRetries = 0;
+      } else if (
+        typeof msg.error === "string" &&
+        msg.error.includes("already taken") &&
+        this.connectParams !== null &&
+        this.duplicateNameRetries < MAX_DUPLICATE_NAME_RETRIES
+      ) {
+        // Retry under a tagged name instead of surfacing the failure: the
+        // server closes the socket after rejecting, so the reconnect loop
+        // re-authenticates with the updated connectParams.
+        this.duplicateNameRetries += 1;
+        this.connectParams.username = suffixUsername(this.connectParams.username);
+        return;
+      }
+    }
+
     // Map server message type to event name and payload
     const eventMap: Record<string, [string, unknown]> = {
       AuthResult: [
@@ -1053,6 +1075,7 @@ class WebServerApi implements IServerApi {
           player_id: msg.player_id,
           reconnected: msg.reconnected,
           error: msg.error,
+          username: this.connectParams?.username ?? null,
         },
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],

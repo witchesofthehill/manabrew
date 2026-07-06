@@ -3,6 +3,7 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
+import { stripUsernameTag } from "@/lib/username";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
@@ -806,7 +807,7 @@ export function GameBoard({
       const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
       return {
         playerId: player.id,
-        name: player.name,
+        name: stripUsernameTag(player.name),
         isSelf,
         life: dev.life ?? player.life,
         color,
@@ -1021,7 +1022,8 @@ export function GameBoard({
           label: "GY",
           count: op.graveyard.length,
           topCard: top(op.graveyard),
-          onOpen: () => openOpZone(`${op.name}'s Graveyard`, op.graveyard, gyTargets),
+          onOpen: () =>
+            openOpZone(`${stripUsernameTag(op.name)}'s Graveyard`, op.graveyard, gyTargets),
           highlightColor: gyTargets.length > 0 ? targetColor : undefined,
         },
         {
@@ -1029,7 +1031,7 @@ export function GameBoard({
           label: "EX",
           count: op.exile.length,
           topCard: top(op.exile),
-          onOpen: () => openOpZone(`${op.name}'s Exile`, op.exile, exTargets),
+          onOpen: () => openOpZone(`${stripUsernameTag(op.name)}'s Exile`, op.exile, exTargets),
           highlightColor: exTargets.length > 0 ? targetColor : undefined,
         },
       ];
@@ -1039,7 +1041,8 @@ export function GameBoard({
           label: "CMD",
           count: op.commandZone.length,
           topCard: top(op.commandZone),
-          onOpen: () => openOpZone(`${op.name}'s Command Zone`, op.commandZone, cmdTargets),
+          onOpen: () =>
+            openOpZone(`${stripUsernameTag(op.name)}'s Command Zone`, op.commandZone, cmdTargets),
           highlightColor: cmdTargets.length > 0 ? targetColor : undefined,
           commander: playerColors[OPPONENT_SEATS[oppIndex] ?? "opponent1"],
         });
@@ -1268,7 +1271,9 @@ export function GameBoard({
 
   const combatA11y = useMemo(() => {
     const nameOf = (id: string) =>
-      id === me.id ? "You" : (opponents.find((o) => o.id === id)?.name ?? "a player");
+      id === me.id
+        ? "You"
+        : stripUsernameTag(opponents.find((o) => o.id === id)?.name ?? "a player");
     const pairs = new Map<string, { attacker: string; defender: string; count: number }>();
     for (const c of battlefield) {
       if (!c.isAttacking || !c.attackingPlayerId) continue;

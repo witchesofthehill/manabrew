@@ -6,6 +6,7 @@ import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { Wifi, WifiOff, Loader2 } from "lucide-react";
 import type { PlayerInfo, RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
+import { stripUsernameTag } from "@/lib/username";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected";
 
@@ -140,7 +141,7 @@ export function UserList({
                 <div className="relative shrink-0">
                   <Avatar className="h-7 w-7">
                     <AvatarFallback className="text-[10px]">
-                      {player.username.slice(0, 2).toUpperCase()}
+                      {stripUsernameTag(player.username).slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <span
@@ -152,7 +153,7 @@ export function UserList({
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-xs font-medium leading-none truncate block">
-                    {player.username}
+                    {stripUsernameTag(player.username)}
                   </span>
                   <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
                     {playerStatus(room)}

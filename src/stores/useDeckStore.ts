@@ -161,7 +161,15 @@ let deckPersistReady = false;
 const deckStorage = createJSONStorage(() => ({
   getItem: (name) => localStorage.getItem(name),
   setItem: (name, value) => {
-    if (deckPersistReady) localStorage.setItem(name, value);
+    if (!deckPersistReady) return;
+    // A single oversized deck (base64 playmats reach ~1.5MB) can exceed the
+    // localStorage quota; let the throw drop this write rather than take down
+    // the whole persisted saved-deck set.
+    try {
+      localStorage.setItem(name, value);
+    } catch (error) {
+      console.warn("[deck] persist skipped (storage quota?)", error);
+    }
   },
   removeItem: (name) => localStorage.removeItem(name),
 }));
@@ -794,8 +802,18 @@ export const useDeckStore = create<DeckState>()(
           const p = persisted as Partial<DeckState>;
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
-          merged.currentDeck = { ...initialDeck };
-          merged.currentDeckId = null;
+          // Reopen the deck the user last had loaded, so a reload doesn't drop
+          // them back to a blank deck. Only restore editable saved decks —
+          // presets/read-only decks intentionally fall back to a fresh deck.
+          const lastId = p.currentDeckId ?? null;
+          const lastSaved = lastId ? (p.savedDecks ?? []).find((s) => s.id === lastId) : undefined;
+          if (lastSaved) {
+            merged.currentDeck = migrateDeck(lastSaved.deck);
+            merged.currentDeckId = lastSaved.id;
+          } else {
+            merged.currentDeck = { ...initialDeck };
+            merged.currentDeckId = null;
+          }
           return merged;
         },
         onRehydrateStorage: () => (_state, error) => {

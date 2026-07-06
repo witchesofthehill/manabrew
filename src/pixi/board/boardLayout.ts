@@ -22,6 +22,7 @@ export interface BoardLayout {
   opponents: OpponentRegion[];
   /** Vertical center of the strip band — where the phase strip is drawn. */
   dividerY: number;
+  stripBandPx: number;
 }
 
 /** Fraction of the usable height (canvas minus strip band) given to the
@@ -30,6 +31,8 @@ export const SELF_HEIGHT_FRACTION = 0.55;
 
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
 export const STRIP_BAND_PX = 56;
+
+export const STRIP_BAND_COMPACT_PX = 32;
 
 /** Width, in px, of a collapsed opponent column — just enough for the avatar
  *  sphere + life banner peeking out from under its neighbour. */
@@ -40,9 +43,11 @@ export function computeBoardLayout(
   height: number,
   opponentCount: number,
   selfHeightFraction: number = SELF_HEIGHT_FRACTION,
+  compact = false,
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
-  const band = Math.min(STRIP_BAND_PX, Math.max(0, height - 2));
+  const bandPx = compact ? STRIP_BAND_COMPACT_PX : STRIP_BAND_PX;
+  const band = Math.min(bandPx, Math.max(0, height - 2));
   const usable = Math.max(0, height - band);
   const fraction = Math.min(0.8, Math.max(0.2, selfHeightFraction));
   const selfHeight = Math.round(usable * fraction);
@@ -70,5 +75,6 @@ export function computeBoardLayout(
     self: { x: 0, y: topHeight + band, width, height: selfHeight },
     opponents,
     dividerY,
+    stripBandPx: band,
   };
 }

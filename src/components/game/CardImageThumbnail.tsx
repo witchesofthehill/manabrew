@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import type { DeckCard } from "@/protocol/deck";
 
 const PREVIEW_W = 240;
@@ -22,16 +23,31 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const imgRef = useRef<HTMLImageElement>(null);
 
-  function handleMouseEnter(e: React.MouseEvent) {
+  const longPress = useLongPressPreview<DeckCard>({
+    resolve: (e) => ({ item: card, anchor: e.currentTarget as HTMLElement }),
+    show: (_item, rect) => {
+      setMousePos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      setHovered(true);
+    },
+    hide: () => setHovered(false),
+  });
+
+  function handlePointerEnter(e: React.PointerEvent) {
+    if (e.pointerType === "touch") return;
     setMousePos({ x: e.clientX, y: e.clientY });
     setHovered(true);
   }
 
-  function handleMouseMove(e: React.MouseEvent) {
+  function handlePointerMove(e: React.PointerEvent) {
+    if (e.pointerType === "touch") {
+      longPress.onPointerMove(e);
+      return;
+    }
     setMousePos({ x: e.clientX, y: e.clientY });
   }
 
-  function handleMouseLeave() {
+  function handlePointerLeave(e: React.PointerEvent) {
+    if (e.pointerType === "touch") return;
     setHovered(false);
   }
 
@@ -49,10 +65,15 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
         ref={imgRef}
         src={card.uris.normal}
         alt={card.identity.name}
-        className={cn("cursor-zoom-in", className)}
-        onMouseEnter={handleMouseEnter}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+        className={cn("cursor-zoom-in select-none [-webkit-touch-callout:none]", className)}
+        onPointerEnter={handlePointerEnter}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        onPointerDown={longPress.onPointerDown}
+        onPointerUp={longPress.onPointerUp}
+        onPointerCancel={longPress.onPointerCancel}
+        onClickCapture={longPress.onClickCapture}
+        onContextMenu={longPress.onContextMenu}
       />
       {hovered &&
         createPortal(

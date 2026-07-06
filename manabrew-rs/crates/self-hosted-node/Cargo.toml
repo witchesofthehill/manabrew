@@ -1,6 +1,6 @@
 [package]
 name = "self-hosted-node"
-version = "0.2.1"
+version = "0.3.1"
 edition = "2021"
 license.workspace = true
 description = "Headless manabrew engine node for hosting AI games"
@@ -18,13 +18,13 @@ name = "self-hosted-node"
 path = "src/main.rs"
 
 [dependencies]
-manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.2.0" }
-manabrew-protocol = { path = "../manabrew-protocol", version = "0.3.0" }
-manabot = { path = "../manabot/", version = "0.2.0" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.2.1" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "0.4.0" }
+manabot = { path = "../manabot/", version = "0.2.2" }
 forge-carddb = { path = "../forge-carddb", version = "0.2.0" }
 manabrew-engine = { path = "../manabrew-engine", version = "0.2.0" }
 forge-foundation = { path = "../forge-foundation", version = "0.2.0" }
-manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.2.0" }
+manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.2.1" }
 memmap2 = "0.9"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
@@ -36,3 +36,7 @@ uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+metrics = "0.24"
+# no-tls-provider: keeps aws-lc-rs (cmake) out of the tree; ring is installed at metrics init
+metrics-exporter-prometheus = { version = "0.18", default-features = false, features = ["push-gateway-no-tls-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }

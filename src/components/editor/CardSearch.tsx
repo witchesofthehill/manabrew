@@ -401,9 +401,9 @@ function DraggableCardGrid({
     <div
       ref={dragDisabled ? undefined : setNodeRef}
       {...(dragDisabled ? {} : { ...listeners, ...attributes })}
-      onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
-      onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
-      onMouseLeave={onLeave}
+      onPointerEnter={onHover ? (e) => e.pointerType !== "touch" && onHover(card, e) : undefined}
+      onPointerMove={onHover ? (e) => e.pointerType !== "touch" && onHover(card, e) : undefined}
+      onPointerLeave={onLeave ? (e) => e.pointerType !== "touch" && onLeave() : undefined}
       className={cn(
         "relative group",
         !dragDisabled && "cursor-grab active:cursor-grabbing",
@@ -411,7 +411,7 @@ function DraggableCardGrid({
       )}
     >
       <CardThumbnail card={card} />
-      <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto">
+      <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto">
         <Button
           size="sm"
           variant="secondary"
@@ -457,9 +457,9 @@ function DraggableCardRow({
     <div
       ref={dragDisabled ? undefined : setNodeRef}
       {...(dragDisabled ? {} : { ...listeners, ...attributes })}
-      onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
-      onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
-      onMouseLeave={onLeave}
+      onPointerEnter={onHover ? (e) => e.pointerType !== "touch" && onHover(card, e) : undefined}
+      onPointerMove={onHover ? (e) => e.pointerType !== "touch" && onHover(card, e) : undefined}
+      onPointerLeave={onLeave ? (e) => e.pointerType !== "touch" && onLeave() : undefined}
       className={cn(
         "flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 group border-b border-border/30 last:border-0",
         !dragDisabled && "cursor-grab active:cursor-grabbing",
@@ -485,7 +485,7 @@ function DraggableCardRow({
       <Button
         size="sm"
         variant="ghost"
-        className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto"
+        className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto"
         onClick={(e) => {
           e.stopPropagation();
           onMoreInfo();
@@ -796,7 +796,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase">pow</span>
                 <select
-                  className="h-6 text-xs bg-background border rounded px-1"
+                  className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.powerOp}
                   onChange={(e) => setAdv("powerOp", e.target.value)}
                 >
@@ -816,7 +816,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase">tou</span>
                 <select
-                  className="h-6 text-xs bg-background border rounded px-1"
+                  className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.toughnessOp}
                   onChange={(e) => setAdv("toughnessOp", e.target.value)}
                 >
@@ -836,7 +836,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-muted-foreground/60 uppercase">loy</span>
                 <select
-                  className="h-6 text-xs bg-background border rounded px-1"
+                  className="h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-1"
                   value={advanced.loyaltyOp}
                   onChange={(e) => setAdv("loyaltyOp", e.target.value)}
                 >
@@ -1004,7 +1004,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
             <FilterRow>
               <FilterLabel>Sort by</FilterLabel>
               <select
-                className="h-7 text-xs bg-background border rounded px-2"
+                className="h-7 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-2"
                 value={advanced.sort}
                 onChange={(e) => setAdv("sort", e.target.value)}
               >
@@ -1016,7 +1016,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                 ))}
               </select>
               <select
-                className="h-7 text-xs bg-background border rounded px-2"
+                className="h-7 text-xs pointer-coarse:h-9 pointer-coarse:text-base bg-background border rounded px-2"
                 value={advanced.sortDir}
                 onChange={(e) => setAdv("sortDir", e.target.value)}
               >

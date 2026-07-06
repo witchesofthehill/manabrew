@@ -192,7 +192,7 @@ export function ImportDeckDialog({ open, onOpenChange, mode, onImport }: ImportD
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -356,7 +356,7 @@ function SearchInput({
           value={formatValue}
           onChange={(e) => onFormatChange(e.target.value)}
           title="Filter by format"
-          className="h-9 text-xs rounded-md border bg-background px-2 cursor-pointer shrink-0"
+          className="h-9 text-xs pointer-coarse:text-base rounded-md border bg-background px-2 cursor-pointer shrink-0"
         >
           <option value="">All formats</option>
           {GAME_FORMATS.map((f) => (

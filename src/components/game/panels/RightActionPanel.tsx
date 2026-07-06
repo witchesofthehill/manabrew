@@ -75,7 +75,7 @@ export function RightActionPanel({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            className="h-7 w-7 pointer-coarse:h-10 pointer-coarse:w-10 text-muted-foreground hover:text-foreground"
             onClick={rawToggle}
             title="Close right panel"
           >

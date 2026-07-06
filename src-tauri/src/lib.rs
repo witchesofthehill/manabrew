@@ -63,12 +63,16 @@ pub fn run() {
             }
 
             let url = asset_server::main_window_url(app.handle());
-            tauri::WebviewWindowBuilder::new(app, "main", url)
+            let builder = tauri::WebviewWindowBuilder::new(app, "main", url);
+            // Sizing/decoration builder methods are desktop-only in tauri v2;
+            // mobile windows are always fullscreen.
+            #[cfg(desktop)]
+            let builder = builder
                 .title("Manabrew")
                 .inner_size(1400.0, 900.0)
                 .resizable(true)
-                .maximized(true)
-                .build()?;
+                .maximized(true);
+            builder.build()?;
 
             Ok(())
         })

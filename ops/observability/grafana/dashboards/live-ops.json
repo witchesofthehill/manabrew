@@ -1,0 +1,500 @@
+{
+  "uid": "manabrew-live-ops",
+  "title": "Manabrew \u2014 Live Ops",
+  "tags": ["manabrew", "ops"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Humans connected",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(manabrew_relay_connections{kind=\"human\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Games in progress",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(manabrew_relay_rooms{status=\"in_game\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Hosted rooms (node)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(manabrew_node_rooms_hosted)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Node push age (s)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - max(push_time_seconds{job=\"self-hosted-node\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 300
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Analytics events dropped",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(manabrew_relay_analytics_dropped_total)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Node versions",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "manabrew_node_build_info",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Connections by kind",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (manabrew_relay_connections)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Rooms by status / hosted",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status, hosted) (manabrew_relay_rooms)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{status}} hosted={{hosted}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Games started / ended (per hour)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(manabrew_relay_games_started_total[1h])) * 3600",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "started"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (reason) (rate(manabrew_relay_games_ended_total[1h])) * 3600",
+          "legendFormat": "ended: {{reason}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Client rejections by reason (per hour)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reason) (rate(manabrew_relay_client_rejections_total[1h])) * 3600",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Engine errors by signature (10m increase)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (signature) (increase(manabrew_node_engine_errors_total[10m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{signature}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "no series until the first engine error occurs"
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Hosted game duration p50 / p95 (s, per-node summary)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(manabrew_node_game_duration_seconds{quantile=\"0.5\"})",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(manabrew_node_game_duration_seconds{quantile=\"0.95\"})",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Reconnect resyncs (per hour)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(manabrew_relay_reconnect_resyncs_total[1h])) * 3600",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "resyncs"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(manabrew_node_relay_reconnects_total[1h])) * 3600",
+          "legendFormat": "node reconnects",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 14,
+      "type": "logs",
+      "title": "Warnings & errors (relay + node)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service=~\"manabrew-server|self-hosted-node\"} |~ \"WARN|ERROR|panicked\""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    }
+  ]
+}

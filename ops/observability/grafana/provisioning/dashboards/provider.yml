@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: manabrew
+    folder: Manabrew
+    type: file
+    disableDeletion: true
+    options:
+      path: /var/lib/grafana/dashboards

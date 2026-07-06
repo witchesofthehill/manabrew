@@ -301,7 +301,7 @@ export default function Gauntlet() {
             </DialogDescription>
           </DialogHeader>
           {matchDecks ? (
-            <div className="h-[70vh] min-h-[400px]">
+            <div className="h-[70dvh] min-h-[400px]">
               <LimitedDeckBuilder
                 pool={[...matchDecks.humanMain, ...matchDecks.humanSideboard]}
                 initialMain={matchDecks.humanMain}

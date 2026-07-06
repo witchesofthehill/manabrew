@@ -109,7 +109,9 @@ export function DeckCard({
           <div
             className={cn(
               "flex gap-1 shrink-0 transition-opacity",
-              isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+              isSelected
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
             )}
           >
             <Button

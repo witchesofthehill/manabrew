@@ -579,8 +579,8 @@ export default function DeckEditor() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="h-full w-full overflow-hidden flex">
-          <div className="h-full overflow-hidden flex-1 min-w-0">
+        <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
+          <div className="overflow-hidden flex-1 min-h-0 min-w-0">
             <DeckBuilder
               onToggleSearch={() => setShowSearch((v) => !v)}
               onBack={handleBack}
@@ -591,7 +591,7 @@ export default function DeckEditor() {
             />
           </div>
           {showSearch && (
-            <div className="flex-1 min-w-0 h-full border-l overflow-hidden">
+            <div className="flex-1 min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l overflow-hidden">
               <CardSearch
                 onClose={() => setShowSearch(false)}
                 previewSlot={previewSlot}

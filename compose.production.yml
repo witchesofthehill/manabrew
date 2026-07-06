@@ -24,6 +24,10 @@ services:
       - ./ops/manifest.json:/srv/manabrew/manifest.json:ro
       - caddy-data:/data
       - caddy-config:/config
+    # Bcrypt hash for the push./loki. ingress (single-quote in secrets — contains `$`).
+    # Unset on the host stays unset here, so the Caddyfile's locked fallback applies.
+    environment:
+      PUSHGATEWAY_PASSWORD_HASH:
     depends_on:
       - manabrew-server
 
@@ -42,6 +46,13 @@ services:
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"
+      # Events + captures live on the host filesystem, never a container layer.
+      MANABREW_EVENTS_DIR: "/var/manabrew/events"
+      MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
+      MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
+    volumes:
+      - ./ops/observability/data/events:/var/manabrew/events
+      - ./ops/observability/data/captures:/var/manabrew/captures
     expose:
       - "9443"
       - "9444"
@@ -72,11 +83,117 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:
       - manabrew-server
     restart: unless-stopped
 
+  # ── Observability stack — opt-in via COMPOSE_PROFILES=observability ──
+  # (images pulled, never built; config under ops/observability/)
+  prometheus:
+    profiles:
+      - observability
+    image: prom/prometheus:v3.4.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./ops/observability/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    expose:
+      - "9090"
+    restart: unless-stopped
+    mem_limit: 512m
+
+  # Remote nodes push here via push.manabrew.app; stale pushes = fleet-down alert.
+  pushgateway:
+    profiles:
+      - observability
+    image: prom/pushgateway:v1.11.1
+    # image runs as nobody, but the fresh named volume is root-owned
+    user: root
+    command:
+      - --persistence.file=/data/pushgateway.dat
+      - --persistence.interval=5m
+    volumes:
+      - pushgateway-data:/data
+    expose:
+      - "9091"
+    restart: unless-stopped
+    mem_limit: 64m
+
+  grafana:
+    profiles:
+      - observability
+    image: grafana/grafana:11.6.1
+    environment:
+      GF_SERVER_ROOT_URL: "https://grafana.manabrew.app"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: "frser-sqlite-datasource"
+      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-https://discord.invalid/webhook-not-configured}"
+    volumes:
+      - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./ops/observability/data/events:/var/manabrew/events:ro
+      - grafana-data:/var/lib/grafana
+    expose:
+      - "3000"
+    restart: unless-stopped
+    mem_limit: 384m
+
+  loki:
+    profiles:
+      - observability
+    image: grafana/loki:3.5.0
+    command:
+      - -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./ops/observability/loki:/etc/loki:ro
+      - loki-data:/loki
+    expose:
+      - "3100"
+    restart: unless-stopped
+    mem_limit: 384m
+
+  events-ingester:
+    profiles:
+      - observability
+    image: python:3.12-alpine
+    command:
+      - python
+      - /app/ingest-events.py
+      - --dir
+      - /var/manabrew/events
+      - --watch
+      - "300"
+    volumes:
+      - ./scripts/ingest-events.py:/app/ingest-events.py:ro
+      - ./ops/observability/data/events:/var/manabrew/events
+    restart: unless-stopped
+    mem_limit: 64m
+
+  alloy:
+    profiles:
+      - observability
+    image: grafana/alloy:v1.9.1
+    command:
+      - run
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./ops/observability/alloy:/etc/alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    restart: unless-stopped
+    mem_limit: 128m
+
 volumes:
   caddy-data:
   caddy-config:
+  prometheus-data:
+  pushgateway-data:
+  grafana-data:
+  loki-data:
+  alloy-data:

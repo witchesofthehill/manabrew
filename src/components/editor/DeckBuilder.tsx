@@ -949,7 +949,7 @@ export function DeckBuilder({
               <input
                 type="range"
                 min={1}
-                max={5}
+                max={6}
                 step={1}
                 value={cardSize}
                 onChange={(e) => setCardSize(Number(e.target.value))}

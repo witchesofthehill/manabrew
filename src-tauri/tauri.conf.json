@@ -1,6 +1,6 @@
 {
   "productName": "Manabrew",
-  "version": "1.0.2",
+  "version": "1.2.1",
   "identifier": "com.manabrew.app",
   "build": {
     "frontendDist": "../dist",

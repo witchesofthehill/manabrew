@@ -4,6 +4,7 @@ import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ export function BoardPlayground() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
   const preview = useCardPreview([cards]);
+  const compactBoard = useIsMobileGame();
 
   const update = (id: string | null, fn: (c: CardDto) => CardDto) => {
     if (!id) return;
@@ -163,6 +165,7 @@ export function BoardPlayground() {
           hand={{ cards: [] }}
           arrowSpecs={[]}
           phaseStrip={PHASE_STRIP_STUB}
+          compact={compactBoard}
           callbacks={{
             onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
             onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),

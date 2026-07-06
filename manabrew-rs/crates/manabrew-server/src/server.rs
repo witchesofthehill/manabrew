@@ -2,7 +2,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use axum::extract::State;
 use axum::{response::Json, routing::get, Router};
+use metrics_exporter_prometheus::PrometheusHandle;
 use serde_json::{json, Value};
 use socket2::{SockRef, TcpKeepalive};
 use tokio::net::TcpListener;
@@ -18,7 +20,12 @@ use crate::state::ServerState;
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(10);
 const SHUTDOWN_RECONNECT_HINT_S: u32 = 5;
 
-pub async fn run_server(state: Arc<ServerState>, addr: SocketAddr, health_addr: SocketAddr) {
+pub async fn run_server(
+    state: Arc<ServerState>,
+    addr: SocketAddr,
+    health_addr: SocketAddr,
+    metrics_handle: PrometheusHandle,
+) {
     let listener = TcpListener::bind(addr)
         .await
         .expect("Failed to bind to address");
@@ -26,13 +33,14 @@ pub async fn run_server(state: Arc<ServerState>, addr: SocketAddr, health_addr: 
     let shutdown = Arc::new(Notify::new());
     tokio::spawn(wait_for_shutdown_signal(shutdown.clone()));
 
-    serve(state, listener, health_addr, shutdown).await;
+    serve(state, listener, health_addr, metrics_handle, shutdown).await;
 }
 
 pub async fn serve(
     state: Arc<ServerState>,
     listener: TcpListener,
     health_addr: SocketAddr,
+    metrics_handle: PrometheusHandle,
     shutdown: Arc<Notify>,
 ) {
     if let Ok(addr) = listener.local_addr() {
@@ -42,7 +50,11 @@ pub async fn serve(
     info!("[server] Max rooms: {}", state.max_rooms);
 
     tokio::spawn(cleanup_loop(state.clone()));
-    tokio::spawn(run_health_listener(state.clone(), health_addr));
+    tokio::spawn(run_health_listener(
+        state.clone(),
+        health_addr,
+        metrics_handle,
+    ));
 
     let accept = accept_loop(state.clone(), listener, shutdown.clone());
 
@@ -159,10 +171,15 @@ async fn drain_and_exit(state: Arc<ServerState>) {
     info!("[server] shutdown grace elapsed — exiting");
 }
 
-async fn run_health_listener(state: Arc<ServerState>, addr: SocketAddr) {
+async fn run_health_listener(
+    state: Arc<ServerState>,
+    addr: SocketAddr,
+    metrics_handle: PrometheusHandle,
+) {
     let app = Router::new()
         .route("/health", get(health_handler))
-        .with_state(state);
+        .route("/metrics", get(metrics_handler))
+        .with_state((state, metrics_handle));
 
     let listener = match TcpListener::bind(addr).await {
         Ok(l) => l,
@@ -179,7 +196,7 @@ async fn run_health_listener(state: Arc<ServerState>, addr: SocketAddr) {
 }
 
 async fn health_handler(
-    axum::extract::State(state): axum::extract::State<Arc<ServerState>>,
+    State((state, _)): State<(Arc<ServerState>, PrometheusHandle)>,
 ) -> Json<Value> {
     let connected_players = state.players.iter().filter(|e| e.value().connected).count();
     Json(json!({
@@ -188,6 +205,14 @@ async fn health_handler(
         "connected_players": connected_players,
         "uptime_s": uptime_secs(),
     }))
+}
+
+async fn metrics_handler(
+    State((state, metrics_handle)): State<(Arc<ServerState>, PrometheusHandle)>,
+) -> String {
+    crate::metrics::refresh_gauges(&state);
+    metrics_handle.run_upkeep();
+    metrics_handle.render()
 }
 
 fn uptime_secs() -> u64 {

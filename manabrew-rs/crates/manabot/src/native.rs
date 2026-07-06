@@ -1,9 +1,11 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabrew_agent_interface::protocol::{ClientMessage, ServerMessage};
 use tokio::net::TcpStream;
+use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tracing::{info, warn};
@@ -15,12 +17,26 @@ type WsSink = SplitSink<WsStream, Message>;
 type WsRead = SplitStream<WsStream>;
 
 const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
 
-pub async fn run_bot(relay_url: String, config: BotConfig) -> Result<(), String> {
+enum SessionEnd {
+    Shutdown,
+    Disconnected,
+}
+
+pub async fn run_bot(
+    relay_url: String,
+    config: BotConfig,
+    shutdown: Arc<Notify>,
+) -> Result<(), String> {
     let mut attempt: usize = 0;
     loop {
-        match run_bot_session(&relay_url, config.clone()).await {
-            Ok(()) => {
+        match run_bot_session(&relay_url, config.clone(), &shutdown).await {
+            Ok(SessionEnd::Shutdown) => {
+                info!("bot socket closed on shutdown");
+                return Ok(());
+            }
+            Ok(SessionEnd::Disconnected) => {
                 info!("bot socket closed; reconnecting");
                 attempt = 0;
             }
@@ -30,11 +46,18 @@ pub async fn run_bot(relay_url: String, config: BotConfig) -> Result<(), String>
         }
         let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
         attempt += 1;
-        tokio::time::sleep(Duration::from_secs(delay)).await;
+        tokio::select! {
+            _ = shutdown.notified() => return Ok(()),
+            _ = tokio::time::sleep(Duration::from_secs(delay)) => {}
+        }
     }
 }
 
-async fn run_bot_session(relay_url: &str, config: BotConfig) -> Result<(), String> {
+async fn run_bot_session(
+    relay_url: &str,
+    config: BotConfig,
+    shutdown: &Notify,
+) -> Result<SessionEnd, String> {
     let (socket, _) = connect_async(relay_url)
         .await
         .map_err(|error| format!("Failed to connect bot to {}: {}", relay_url, error))?;
@@ -45,7 +68,15 @@ async fn run_bot_session(relay_url: &str, config: BotConfig) -> Result<(), Strin
         send(&mut sink, &outbound).await?;
     }
 
-    while let Some(frame) = stream.next().await {
+    loop {
+        let frame = tokio::select! {
+            _ = shutdown.notified() => {
+                close(&mut sink, &mut stream).await;
+                return Ok(SessionEnd::Shutdown);
+            }
+            frame = stream.next() => frame,
+        };
+        let Some(frame) = frame else { break };
         let frame = frame.map_err(|error| error.to_string())?;
         let text = match frame {
             Message::Text(text) => text,
@@ -65,12 +96,22 @@ async fn run_bot_session(relay_url: &str, config: BotConfig) -> Result<(), Strin
             send(&mut sink, &msg).await?;
         }
         if let Some(reason) = state.failure() {
+            close(&mut sink, &mut stream).await;
             return Err(reason.to_string());
         }
     }
 
-    let _: WsRead = stream;
-    Ok(())
+    Ok(SessionEnd::Disconnected)
+}
+
+async fn close(sink: &mut WsSink, stream: &mut WsRead) {
+    if sink.send(Message::Close(None)).await.is_err() {
+        return;
+    }
+    let _ = tokio::time::timeout(CLOSE_DRAIN_TIMEOUT, async {
+        while let Some(Ok(_)) = stream.next().await {}
+    })
+    .await;
 }
 
 async fn send(sink: &mut WsSink, message: &ClientMessage) -> Result<(), String> {

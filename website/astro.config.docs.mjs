@@ -92,7 +92,7 @@ export default defineConfig({
         },
         {
           label: "Hosting",
-          items: ["self-hosting", "hosting-relay", "hosting-web-client"],
+          items: ["hosting-relay", "hosting-web-client", "hosting-full-stack", "self-hosting"],
         },
         { label: "Project", items: ["contributing", "releases", "privacy"] },
       ],

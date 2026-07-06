@@ -12,6 +12,8 @@ import {
   CAST_DRAG_HAND_SINK_PX,
   CAST_DRAG_SCALE,
   GAP,
+  HAND_BOTTOM_SINK_FRAC,
+  HAND_BOTTOM_SINK_FRAC_COMPACT,
   HAND_HOVER_HOLD_MS,
   HAND_LERP,
   PLAYABLE_HIGHLIGHT_ALPHA,
@@ -42,6 +44,7 @@ export class HandController {
   private pendingLeaveIndex: number | null = null;
   private lastState: HandState | null = null;
   private vScale = 1;
+  private compact = false;
   private dropActive = false;
   private hoverDebugGfx: Graphics;
   private hoverDebug = false;
@@ -87,6 +90,12 @@ export class HandController {
     const maxScale =
       zoneH > 0 ? (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH : scale;
     this.vScale = Math.min(scale, maxScale);
+  }
+
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    if (this.lastState) this.updateHand(this.lastState);
   }
 
   setDropActive(active: boolean): void {
@@ -328,7 +337,8 @@ export class HandController {
   getBottomY(): number {
     const zone = this.host.getPlayZone();
     const dims = this.getDimensions();
-    return zone.y + zone.height + dims.cardH * 0.45;
+    const sink = this.compact ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC;
+    return zone.y + zone.height + dims.cardH * sink;
   }
 
   getOriginSeed(): { x: number; y: number; scale: number } {
@@ -425,12 +435,20 @@ export class HandController {
         return;
       }
       if (this.lastState?.playableIds?.has(sprite.card.id)) {
-        this.host.getCallbacks().onStartDrag?.(sprite.card, {
-          x: e.globalX,
-          y: e.globalY,
-        });
+        this.host.getCallbacks().onStartDrag?.(
+          sprite.card,
+          { x: e.globalX, y: e.globalY },
+          {
+            pointerId: e.pointerId,
+            pointerType: e.pointerType,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          },
+        );
       } else {
-        this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
+        this.host
+          .getCallbacks()
+          .onClickCard_Hand?.(sprite.card, { clientX: e.clientX, clientY: e.clientY });
       }
     });
 

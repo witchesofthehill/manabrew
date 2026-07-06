@@ -5,6 +5,8 @@
  */
 import { Check } from "lucide-react";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { PromptActionButton } from "./PromptActionButton";
 import { MulliganButton } from "./MulliganButton";
 
 export interface MulliganPutBackProps {
@@ -21,7 +23,25 @@ export function MulliganPutBack({
   onConfirm,
 }: MulliganPutBackProps) {
   const colors = usePromptActionColors();
+  const minimal = useIsMobileGame();
   const canConfirm = selectedCount === count && !isWaitingForResponse;
+
+  if (minimal) {
+    return (
+      <div className="flex flex-row items-center justify-center gap-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {selectedCount}/{count}
+        </span>
+        <PromptActionButton
+          label="Confirm"
+          icon={<Check className="h-3.5 w-3.5" />}
+          baseColor={colors.defenseAction}
+          onClick={onConfirm}
+          disabled={!canConfirm}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-3/5 flex-col gap-1.5">

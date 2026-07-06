@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
@@ -60,6 +60,7 @@ enum EngineSession {
 #[derive(Default)]
 struct BotState {
     handle: Option<JoinHandle<()>>,
+    shutdown: Option<Arc<tokio::sync::Notify>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -121,6 +122,8 @@ struct HostSnapshot {
 type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
 
 const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
+const BOT_STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
 enum LoopExit {
     Cancelled,
@@ -134,6 +137,7 @@ pub async fn cli_entry() {
                 .unwrap_or_else(|_| "self_hosted_node=info".into()),
         )
         .init();
+    crate::metrics::init_from_env();
 
     if std::env::var("SELF_HOSTED_NODE_JAVA_SMOKE").is_ok() {
         let max_prompts = std::env::var("SELF_HOSTED_NODE_JAVA_SMOKE_PROMPTS")
@@ -268,33 +272,31 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     ensure_engine_ready(&config)?;
 
     let registry: SessionRegistry = Arc::new(Mutex::new(Vec::new()));
+
+    let slots = config.max_games.max(1);
+    let single = config.room_id.is_some() || slots <= 1;
+    let room_count = if single { 1 } else { slots };
+    let cancels: Vec<RoomCancel> = (0..room_count)
+        .map(|_| Arc::new(tokio::sync::Notify::new()))
+        .collect();
+
     let monitor_registry = registry.clone();
+    let stale_cancels = cancels.clone();
     tokio::spawn(run_stale_monitor(
         StaleConfig::from_env_and_args(),
         move || registry_idle(&monitor_registry),
+        move || notify_all(&stale_cancels),
     ));
 
-    if config.room_id.is_some() {
-        return host_one_room(
-            config,
-            None,
-            Arc::new(tokio::sync::Notify::new()),
-            None,
-            Some(registry),
-        )
-        .await;
-    }
+    let signal_cancels = cancels.clone();
+    tokio::spawn(async move {
+        wait_for_shutdown_signal().await;
+        info!("shutdown signal received; closing rooms");
+        notify_all(&signal_cancels);
+    });
 
-    let slots = config.max_games.max(1);
-    if slots <= 1 {
-        return host_one_room(
-            config,
-            None,
-            Arc::new(tokio::sync::Notify::new()),
-            None,
-            Some(registry),
-        )
-        .await;
+    if single {
+        return host_one_room(config, None, cancels[0].clone(), None, Some(registry)).await;
     }
 
     config.format = GameFormat::Any;
@@ -304,17 +306,11 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
 
     info!(rooms = hosts.len(), "hosting multiple rooms on one node");
     let mut handles = Vec::with_capacity(hosts.len());
-    for (cfg, label) in hosts {
+    for ((cfg, label), cancel) in hosts.into_iter().zip(cancels) {
         let registry = registry.clone();
         handles.push(tokio::spawn(async move {
-            if let Err(error) = host_one_room(
-                cfg,
-                Some(label.clone()),
-                Arc::new(tokio::sync::Notify::new()),
-                None,
-                Some(registry),
-            )
-            .await
+            if let Err(error) =
+                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry)).await
             {
                 error!(%error, label, "room host exited");
             }
@@ -324,6 +320,35 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         let _ = handle.await;
     }
     Ok(())
+}
+
+fn notify_all(cancels: &[RoomCancel]) {
+    for cancel in cancels {
+        cancel.notify_one();
+    }
+}
+
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut term =
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+                Ok(term) => term,
+                Err(error) => {
+                    warn!(%error, "failed to install SIGTERM handler");
+                    let _ = tokio::signal::ctrl_c().await;
+                    return;
+                }
+            };
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 async fn host_one_room(
@@ -338,6 +363,12 @@ async fn host_one_room(
         config.bot_username = format!("{}-{label}", config.bot_username);
         config.room_name = format!("{} ({label})", config.room_name);
     }
+
+    let _rooms_hosted = crate::metrics::RoomHostedGuard::new(if label.is_some() {
+        crate::metrics::PoolKind::Pod
+    } else {
+        crate::metrics::PoolKind::Solo
+    });
 
     info!(
         relay_url = %config.relay_url,
@@ -386,9 +417,12 @@ async fn host_one_room(
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
+            stop_bot(&bot_state);
+            host.close().await;
             return Ok(());
         }
 
+        crate::metrics::record_relay_reconnect();
         let mut attempt: usize = 0;
         host = loop {
             let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
@@ -396,6 +430,7 @@ async fn host_one_room(
                 _ = cancel.notified() => {
                     info!(username = %config.username, "room host cancelled while reconnecting");
                     cancel_engine(&engine_session);
+                    stop_bot(&bot_state);
                     return Ok(());
                 }
                 _ = time::sleep(Duration::from_secs(delay)) => {}
@@ -626,19 +661,33 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
         commander_name: deck.commander_name.clone(),
         agent: AgentKind::Simple,
     };
+    let shutdown = Arc::new(tokio::sync::Notify::new());
+    let bot_shutdown = shutdown.clone();
     let handle = tokio::spawn(async move {
-        if let Err(error) = run_bot(relay_url, bot_config).await {
+        if let Err(error) = run_bot(relay_url, bot_config, bot_shutdown).await {
             error!(%error, "bot task exited");
         }
     });
     guard.handle = Some(handle);
+    guard.shutdown = Some(shutdown);
 }
 
 fn stop_bot(bot_state: &SharedBotState) {
     match bot_state.lock() {
         Ok(mut state) => {
-            if let Some(handle) = state.handle.take() {
-                handle.abort();
+            let Some(mut handle) = state.handle.take() else {
+                return;
+            };
+            match state.shutdown.take() {
+                Some(shutdown) => {
+                    shutdown.notify_one();
+                    tokio::spawn(async move {
+                        if time::timeout(BOT_STOP_TIMEOUT, &mut handle).await.is_err() {
+                            handle.abort();
+                        }
+                    });
+                }
+                None => handle.abort(),
             }
         }
         Err(error) => warn!(%error, "bot state lock poisoned"),
@@ -1152,6 +1201,8 @@ fn maybe_start_hosted_engine(
                     local_player_index,
                     "starting hosted engine thread"
                 );
+                crate::metrics::record_engine_session_started();
+                let started = Instant::now();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     rust_backend::run_hosted_engine_game(
                         game_id.clone(),
@@ -1165,7 +1216,15 @@ fn maybe_start_hosted_engine(
                         game_over_tx,
                     )
                 }));
-                finish_hosted_engine(result, &outbound_tx, &session_handle, &snapshot);
+                finish_hosted_engine(
+                    result,
+                    &game_id,
+                    num_players,
+                    started,
+                    &outbound_tx,
+                    &session_handle,
+                    &snapshot,
+                );
             });
         }
         EngineBackendKind::Forge => {
@@ -1200,6 +1259,8 @@ fn maybe_start_hosted_engine(
                     local_player_index,
                     "starting hosted engine thread"
                 );
+                crate::metrics::record_engine_session_started();
+                let started = Instant::now();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     java_backend::run_hosted_engine_game(
                         game_id.clone(),
@@ -1215,7 +1276,15 @@ fn maybe_start_hosted_engine(
                         cancel,
                     )
                 }));
-                finish_hosted_engine(result, &outbound_tx, &session_handle, &snapshot);
+                finish_hosted_engine(
+                    result,
+                    &game_id,
+                    num_players,
+                    started,
+                    &outbound_tx,
+                    &session_handle,
+                    &snapshot,
+                );
             });
         }
     }
@@ -1419,17 +1488,20 @@ fn send_seat_message(
 
 fn finish_hosted_engine(
     result: std::thread::Result<Result<(), String>>,
+    game_id: &str,
+    players: usize,
+    started: Instant,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     session_handle: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,
 ) {
     let fatal = match result {
         Ok(Ok(())) => {
-            info!("hosted engine thread finished");
+            info!(game_id, "hosted engine thread finished");
             None
         }
         Ok(Err(message)) => {
-            error!(message, "hosted engine exited with a fatal error");
+            error!(game_id, message, "hosted engine exited with a fatal error");
             Some(message)
         }
         Err(panic) => {
@@ -1440,10 +1512,11 @@ fn finish_hosted_engine(
             } else {
                 "the host engine panicked".to_string()
             };
-            error!(message, "hosted engine thread panicked");
+            error!(game_id, message, "hosted engine thread panicked");
             Some(message)
         }
     };
+    crate::metrics::record_engine_session_finished(players, started, fatal.as_deref());
     if let Some(message) = fatal {
         if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
             let _ = outbound_tx.send(ClientMessage::BroadcastState { state });
@@ -1728,6 +1801,16 @@ impl RelayClient {
                 _ => {}
             }
         }
+    }
+
+    async fn close(&mut self) {
+        if self.write.send(Message::Close(None)).await.is_err() {
+            return;
+        }
+        let _ = time::timeout(CLOSE_DRAIN_TIMEOUT, async {
+            while let Some(Ok(_)) = self.read.next().await {}
+        })
+        .await;
     }
 
     async fn broadcast_room_message(

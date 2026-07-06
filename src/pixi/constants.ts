@@ -14,6 +14,9 @@ export const MAX_GRID_SLOTS = 200;
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
 // Absolute floor so cards never go microscopic on very short displays.
 export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
+// Low enough that 3 rows + the combat band always fit on a landscape phone —
+// the row lock in BoardCanvas.reconfigure is what actually picks the scale.
+export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.2;
 export const BATTLEFIELD_MIN_ROWS = 3;
 export const BATTLEFIELD_MAX_ROWS = 4;
 // Panel wider than this fraction of the canvas reserves the whole top row.
@@ -24,6 +27,8 @@ export const GRID_SKELETON_HOVER_ALPHA = 0.9;
 export const GRID_SKELETON_STACK_ALPHA = 0.85;
 export const GRID_SKELETON_FILL_ALPHA = 0.04;
 export const GRID_SKELETON_STACK_FILL_ALPHA = 0.22;
+export const GRID_SKELETON_STROKE_ALPHA_COMPACT = 0.6;
+export const GRID_SKELETON_FILL_ALPHA_COMPACT = 0.1;
 // Under all battlefield cards (whose targetZIndex is >= 1) so dragged sprites
 // stay visible on top of it.
 export const Z_GRID_SKELETON = -1;
@@ -86,6 +91,9 @@ export const COMBAT_ROW_PAD_Y = 8;
 // bottom row can grow down behind the hand. The action overlay keeps the full
 // reserve so it never sits under the hand.
 export const HAND_RESERVE_TRIM = 0.65;
+export const HAND_RESERVE_TRIM_COMPACT = 0.4;
+export const HAND_BOTTOM_SINK_FRAC = 0.45;
+export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
 // Extra upward tilt for the local player's staged creatures — the self region
 // sits right at the bar, so its creatures can come up a touch further.
 export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
@@ -97,6 +105,8 @@ export const Z_STAGED_REGION = 8000;
 // across the board into a collapsed defender's row instead of popping in.
 export const Z_COMBAT_GUEST = 8500;
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
+export const STRIP_COMPACT_EXPAND_TIMEOUT_MS = 5000;
+export const STRIP_EXPANDED_BG_ALPHA = 0.92;
 export const COMBAT_DIM_ALPHA = 0.3;
 // Tint rather than alpha so overlapping stacked cards don't show through each
 // other; 1 = full color.
@@ -106,7 +116,7 @@ export const DOOMED_FILL_ALPHA = 0.42;
 export const Z_COMBAT_STAGED = 400;
 export const Z_PLACEMENT_GHOST = 500;
 export const Z_PLACEMENT_GHOST_TEXT = 501;
-export const Z_HAND_CONTAINER = 5000;
+export const Z_HAND_CONTAINER = 9600;
 export const Z_HAND_HOVERED = 100;
 export const Z_OVERLAY_OFFSET = 100;
 export const Z_SELECTION_BADGE = 9500;

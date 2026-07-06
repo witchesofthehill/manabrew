@@ -111,6 +111,9 @@ FORGE_SERVER_CHANGED=false
 # can't apply it (identical image → `up -d` won't recreate the container), so
 # it needs an explicit `caddy reload`.
 CADDYFILE_CHANGED=false
+# Observability stack: pulled images with bind-mounted config, so a config
+# edit only recreates the affected services — never an image build.
+OBSERVABILITY_CHANGED=false
 
 while IFS= read -r file; do
     case "$file" in
@@ -137,6 +140,10 @@ while IFS= read -r file; do
     case "$file" in
         ops/Caddyfile)
             CADDYFILE_CHANGED=true ;;
+    esac
+    case "$file" in
+        ops/observability/*|scripts/ingest-events.py)
+            OBSERVABILITY_CHANGED=true ;;
     esac
     case "$file" in
         *Dockerfile*|*compose*|.dockerignore|deploy.sh)
@@ -209,6 +216,15 @@ elif $WEB_CHANGED || $RUST_CHANGED || $CARDDATA_CHANGED; then
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
 fi
 
+# -- observability stack (config-only; images are pulled, never built) --
+if $OBSERVABILITY_CHANGED; then
+    if echo "${COMPOSE_PROFILES:-}" | grep -q "observability"; then
+        SERVICES_TO_RESTART="$SERVICES_TO_RESTART prometheus pushgateway grafana loki alloy events-ingester"
+    else
+        echo "Observability config changed but profile inactive — skipped" >> "$RAW_LOG"
+    fi
+fi
+
 if [ -z "$SERVICES_TO_RESTART" ] && ! $CADDYFILE_CHANGED; then
     if $RELAY_UNCHANGED; then
         echo "🧹 Relay rebuilt but binary unchanged — nothing to restart."
@@ -218,10 +234,13 @@ if [ -z "$SERVICES_TO_RESTART" ] && ! $CADDYFILE_CHANGED; then
     exit 0
 fi
 
-# Pass --profile parity when dashboard is included in the restart list
+# Pass --profile flags for any profile-gated services in the restart list
 PROFILE_FLAG=""
 if echo "$SERVICES_TO_RESTART" | grep -q "parity-dashboard"; then
     PROFILE_FLAG="--profile parity"
+fi
+if echo "$SERVICES_TO_RESTART" | grep -q "prometheus"; then
+    PROFILE_FLAG="$PROFILE_FLAG --profile observability"
 fi
 # --remove-orphans: when a service is renamed or removed (e.g. the
 # nginx→caddy consolidation that dropped the separate `caddy` service),

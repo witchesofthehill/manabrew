@@ -1,16 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-mod cleanup;
-mod config;
-mod connection;
-mod error;
-mod lobby;
-mod protocol;
-mod replay;
-mod room;
-mod server;
-mod state;
+use manabrew_server::{analytics, config, metrics, server, state};
 
 #[tokio::main]
 async fn main() {
@@ -21,6 +12,7 @@ async fn main() {
         )
         .init();
 
+    let metrics_handle = metrics::install();
     let config = config::ServerConfig::from_env();
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
         .parse()
@@ -29,11 +21,13 @@ async fn main() {
         .parse()
         .expect("Invalid health address");
 
+    let analytics = analytics::AnalyticsHandle::from_config(&config);
     let state = Arc::new(state::ServerState::new(
         config.server_key.clone(),
         config.max_rooms,
         config.official_key.clone(),
+        analytics,
     ));
 
-    server::run_server(state, addr, health_addr).await;
+    server::run_server(state, addr, health_addr, metrics_handle).await;
 }

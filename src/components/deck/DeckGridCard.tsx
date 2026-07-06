@@ -59,7 +59,7 @@ export function DeckGridCard({
 
         {/* Action buttons — visible on hover */}
         {!readOnly && (
-          <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
             {onRename && (
               <Button
                 size="icon"

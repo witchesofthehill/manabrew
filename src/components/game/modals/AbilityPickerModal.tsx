@@ -38,7 +38,7 @@ export function AbilityPickerModal({
       <Modal.Instructions>Click an option to continue.</Modal.Instructions>
 
       <div
-        className="p-4 flex flex-col gap-2 max-h-[60vh] overflow-y-auto"
+        className="p-4 flex flex-col gap-2 max-h-[60dvh] overflow-y-auto"
         role="group"
         aria-label="Available abilities"
       >

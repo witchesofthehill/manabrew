@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.2.1](https://github.com/witchesofthehill/manabrew/compare/v1.2.0...v1.2.1) (2026-07-06)
+
+## [1.2.0](https://github.com/witchesofthehill/manabrew/compare/v1.1.3...v1.2.0) (2026-07-06)
+
+### Features
+
+* **ui:** let users save and switch between servers ([#349](https://github.com/witchesofthehill/manabrew/issues/349)) ([cb88eb7](https://github.com/witchesofthehill/manabrew/commit/cb88eb758c0718e5a3d93d38696d70a68cb6c6b0))
+
+## [1.1.3](https://github.com/witchesofthehill/manabrew/compare/v1.1.2...v1.1.3) (2026-07-06)
+
+### Fixes
+
+* **tauri:** adapt embedded local relay to new relay server signatures ([#355](https://github.com/witchesofthehill/manabrew/issues/355)) ([5931f88](https://github.com/witchesofthehill/manabrew/commit/5931f88bd5d3918ce8e7f4c16093e42cc8979d7f))
+
+## [1.1.2](https://github.com/witchesofthehill/manabrew/compare/v1.1.1...v1.1.2) (2026-07-06)
+
+### Fixes
+
+* repair Kaalia of the Vast preset deck ([#353](https://github.com/witchesofthehill/manabrew/issues/353)) ([448fc0c](https://github.com/witchesofthehill/manabrew/commit/448fc0cb9b229297f82180f9fea507390c915638))
+
+## [1.1.1](https://github.com/witchesofthehill/manabrew/compare/v1.1.0...v1.1.1) (2026-07-06)
+
+## [1.1.0](https://github.com/witchesofthehill/manabrew/compare/v1.0.2...v1.1.0) (2026-07-06)
+
+### Features
+
+* **ui:** smartphone/tablet responsiveness + touch input ([#297](https://github.com/witchesofthehill/manabrew/issues/297)) ([f0c5942](https://github.com/witchesofthehill/manabrew/commit/f0c5942e212d6bfeba3ba46ef957bce530c022f7))
+
 ## [1.0.2](https://github.com/witchesofthehill/manabrew/compare/v1.0.1...v1.0.2) (2026-07-04)
 
 ### Fixes

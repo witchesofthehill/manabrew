@@ -1,11 +1,12 @@
 import { createPortal } from "react-dom";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PromptModalChromeContext } from "./promptModalChrome.context";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsTouch } from "@/hooks/useBreakpoints";
+import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { useGameStore } from "@/stores/useGameStore";
 
 interface ModalProps {
@@ -52,6 +53,19 @@ export function Modal({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  // Backdrop dismissal is click-based but armed after a short delay: a touch
+  // tap on a Pixi surface that opens a modal fires its synthetic click AFTER
+  // the modal mounts (it would close instantly), while dismissing on
+  // pointerdown unmounts the backdrop before the tap's click dispatches — the
+  // click then retargets to whatever game control sat underneath.
+  const dismissArmedRef = useRef(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      dismissArmedRef.current = true;
+    }, GHOST_CLICK_ARM_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   return createPortal(
     <div
       className={cn(
@@ -59,10 +73,9 @@ export function Modal({
         touchGameSurface && "game-touch-surface",
         backdropClassName,
       )}
-      // Dismiss on pointerdown, not click: a touch tap on a Pixi surface that
-      // opens a modal fires its synthetic click AFTER the modal mounts, and a
-      // click-dismiss backdrop would swallow it and close instantly.
-      onPointerDown={onClose}
+      onClick={() => {
+        if (dismissArmedRef.current) onClose?.();
+      }}
     >
       <div
         data-modal-panel="true"
@@ -75,7 +88,6 @@ export function Modal({
           className,
         )}
         onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
         onKeyDownCapture={(e) => {
           if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
             e.preventDefault();

@@ -14,3 +14,6 @@ export const LONG_PRESS_CANCEL_DIST_SQ = 100;
 export function isCoarsePointer(): boolean {
   return typeof window !== "undefined" && window.matchMedia(COARSE_POINTER_QUERY).matches;
 }
+// Delay before an overlay's outside-tap dismissal arms: the synthetic click a
+// touch tap fires lands AFTER the overlay mounts and must not dismiss it.
+export const GHOST_CLICK_ARM_MS = 150;

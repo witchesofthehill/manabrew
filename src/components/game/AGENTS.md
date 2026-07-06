@@ -64,6 +64,8 @@ All game modals use the `Modal` compound:
 
 Use `MODAL_CARD_THUMBNAIL` / `MODAL_CARD_IMAGE` / `MODAL_FOOTER_BETWEEN` constants. Use `useModalKeyboard` for Enter/Escape handling. Use `CardImageThumbnail` for header art.
 
+Backdrop dismissal is **click-based but armed after `GHOST_CLICK_ARM_MS`** (`lib/responsive.ts`): a touch tap on a Pixi surface that opens a modal fires its synthetic click after the modal mounts (instant-close if unarmed), while pointerdown-dismissal unmounts the backdrop before that click dispatches and retargets it onto game controls underneath. Any overlay that opens from a Pixi tap and dismisses on outside interaction needs the same arming treatment (`CardPreview` uses the equivalent delayed window listener).
+
 For a modal that renders a list/grid of cards the user searches through (zone viewers, tutors, choose-from-zone), gate a name filter with `useCardNameFilter(cards)` (shows only past ~10 cards) and render `<ModalCardFilter>` between the header/instructions and `Modal.Body`, mapping its `filtered` instead of the raw `cards`. Pass `autoFocus` only when the modal has no Space/Enter-to-confirm (otherwise the focused input swallows the shortcut).
 
 ## Mana text

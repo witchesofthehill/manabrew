@@ -1,22 +1,80 @@
 ---
 title: Hosting your own relay
-description: Run the ManaBrew relay server (forge-server) that handles lobbies, matchmaking, and message relay between players.
+description: Run the Manabrew relay server (manabrew-server) that handles lobbies, matchmaking, and message relay between players — from source or with Docker Compose.
 ---
 
-You don't have to use the public relay — the relay server (`forge-server`) is
-part of the repo and self-hostable too. It handles lobbies, matchmaking, and
-message relay between players; it never runs games itself.
+You don't have to use the public relay — the relay server (`manabrew-server`) is
+part of the repo and self-hostable. It handles lobbies, matchmaking, and message
+relay between players; it never runs games itself. Every player's client (web or
+desktop) runs the engine, and the relay just passes messages between them.
+
+The relay authenticates every client with a single shared key
+(`MANABREW_SERVER_KEY`, default `forge`). The same key must be given to the web
+build (`VITE_RELAY_PASSWORD`) and to any self-hosted node
+(`SELF_HOSTED_NODE_SERVER_KEY`). It is a shared access token, not a per-user
+secret.
+
+## With Docker Compose
+
+The relay Dockerfile builds from the **repo root**, so start from a checkout:
 
 ```bash
-FORGE_SERVER_KEY=<pick-a-key> cargo run --release -p forge-server
+git clone https://github.com/witchesofthehill/manabrew.git
+cd manabrew
 ```
 
-It listens for WebSocket connections on port `9443` (override with
-`FORGE_PORT`) and serves a health endpoint on `9444`. Point your node and your
-clients at it with `ws://your-host:9443` — or put it behind a TLS-terminating
-proxy and use `wss://`. The key you pick is the same one your nodes pass as
-`SELF_HOSTED_NODE_SERVER_KEY`.
+Create a `compose.yml`:
 
-A Dockerfile is available at `forge-engine/crates/forge-server/Dockerfile`, and
-`compose.production.yml` in the repo root shows a complete relay + node
-deployment behind Caddy.
+```yaml
+services:
+  relay:
+    build:
+      context: .
+      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+    environment:
+      MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:-forge}"
+      RUST_LOG: "manabrew_server=info"
+    ports:
+      - "9443:9443" # WebSocket lobby/game traffic
+      - "9444:9444" # health endpoint
+    restart: unless-stopped
+```
+
+Then bring it up:
+
+```bash
+MANABREW_SERVER_KEY=pick-a-key docker compose up --build
+```
+
+The relay now accepts WebSocket connections on `ws://your-host:9443` and serves
+`http://your-host:9444/health`. Point your clients and any node at
+`ws://your-host:9443`.
+
+## From source
+
+```bash
+MANABREW_SERVER_KEY=pick-a-key cargo run --release -p manabrew-server
+```
+
+## Configuration
+
+All settings are environment variables:
+
+| Variable              | Default   | Purpose                                             |
+| --------------------- | --------- | --------------------------------------------------- |
+| `FORGE_HOST`          | `0.0.0.0` | Bind address                                        |
+| `FORGE_PORT`          | `9443`    | WebSocket listen port                               |
+| `FORGE_HEALTH_PORT`   | `9444`    | HTTP `/health` port                                 |
+| `FORGE_MAX_ROOMS`     | `100`     | Maximum concurrent rooms                            |
+| `MANABREW_SERVER_KEY` | `forge`   | Shared key clients and nodes must present           |
+| `RUST_LOG`            | `info`    | `tracing` env-filter (e.g. `manabrew_server=debug`) |
+
+## TLS / `wss://`
+
+The relay speaks plain `ws://` and does no TLS itself. For a public deployment,
+put it behind a TLS-terminating reverse proxy (Caddy, nginx, …) and connect over
+`wss://`. The web client dials `wss://` automatically when its relay port is
+`443` — see [Hosting the web client](/hosting-web-client/). The
+[full-stack example](/hosting-full-stack/) wires the relay and web client
+together behind one Caddy instance, and `compose.production.yml` in the repo
+root is the complete production deployment.

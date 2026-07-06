@@ -33,7 +33,7 @@ The node authenticates to the relay with the relay's server key. Set it via
       self-hosted-node:
         build:
           context: .
-          dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+          dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
         environment:
           SELF_HOSTED_NODE_RELAY_URL: "wss://relay.manabrew.app"
           SELF_HOSTED_NODE_SERVER_KEY: "${SELF_HOSTED_NODE_SERVER_KEY:?required}"

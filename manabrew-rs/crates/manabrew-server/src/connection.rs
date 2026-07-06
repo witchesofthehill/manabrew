@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
+use tokio_tungstenite::tungstenite::error::ProtocolError;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
@@ -152,11 +153,15 @@ pub async fn handle_connection(
         match authenticate(&mut receiver, &tx, &state).await {
             Ok(result) => result,
             Err(e) => {
-                warn!("[auth] failed from {}: {}", addr, e);
+                if matches!(e, ServerError::AuthTimeout) {
+                    info!("[auth] failed from {}: {}", addr, e);
+                } else {
+                    warn!("[auth] failed from {}: {}", addr, e);
+                }
                 metrics::record_rejection(e.code());
                 drop(tx);
                 let _ = write_task.await;
-                return Err(e);
+                return Ok(());
             }
         };
 
@@ -198,8 +203,18 @@ pub async fn handle_connection(
             frame = read => match frame {
                 Ok(Some(Ok(f))) => f,
                 Ok(Some(Err(e))) => {
-                    warn!("[recv] read error from '{}': {}", username, e);
-                    disconnect_reason = "read_error";
+                    if matches!(
+                        &e,
+                        tokio_tungstenite::tungstenite::Error::Protocol(
+                            ProtocolError::ResetWithoutClosingHandshake
+                        )
+                    ) {
+                        info!("[recv] '{}' disconnected without close handshake", username);
+                        disconnect_reason = "connection_reset";
+                    } else {
+                        warn!("[recv] read error from '{}': {}", username, e);
+                        disconnect_reason = "read_error";
+                    }
                     break;
                 }
                 Ok(None) => {
@@ -776,6 +791,9 @@ fn handle_client_message(
                             );
                         }
                     }
+                }
+                Err(ServerError::NotInRoom) => {
+                    info!("[lobby] '{}' already out of any room", username);
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' leave room failed: {}", username, e);

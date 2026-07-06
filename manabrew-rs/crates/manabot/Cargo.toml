@@ -16,7 +16,7 @@ manabrew-protocol = { path = "../manabrew-protocol", version = "0.4.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 futures-util = { version = "0.3", optional = true }
-tokio = { version = "1", features = ["rt", "macros", "net"], optional = true }
+tokio = { version = "1", features = ["rt", "macros", "net", "sync", "time"], optional = true }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
 tracing = "0.1"
 

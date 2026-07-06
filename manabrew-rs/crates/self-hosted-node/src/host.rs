@@ -59,6 +59,7 @@ enum EngineSession {
 #[derive(Default)]
 struct BotState {
     handle: Option<JoinHandle<()>>,
+    shutdown: Option<Arc<tokio::sync::Notify>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,6 +121,8 @@ struct HostSnapshot {
 type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
 
 const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
+const BOT_STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
 enum LoopExit {
     Cancelled,
@@ -260,33 +263,31 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     ensure_engine_ready(&config)?;
 
     let registry: SessionRegistry = Arc::new(Mutex::new(Vec::new()));
+
+    let slots = config.max_games.max(1);
+    let single = config.room_id.is_some() || slots <= 1;
+    let room_count = if single { 1 } else { slots };
+    let cancels: Vec<RoomCancel> = (0..room_count)
+        .map(|_| Arc::new(tokio::sync::Notify::new()))
+        .collect();
+
     let monitor_registry = registry.clone();
+    let stale_cancels = cancels.clone();
     tokio::spawn(run_stale_monitor(
         StaleConfig::from_env_and_args(),
         move || registry_idle(&monitor_registry),
+        move || notify_all(&stale_cancels),
     ));
 
-    if config.room_id.is_some() {
-        return host_one_room(
-            config,
-            None,
-            Arc::new(tokio::sync::Notify::new()),
-            None,
-            Some(registry),
-        )
-        .await;
-    }
+    let signal_cancels = cancels.clone();
+    tokio::spawn(async move {
+        wait_for_shutdown_signal().await;
+        info!("shutdown signal received; closing rooms");
+        notify_all(&signal_cancels);
+    });
 
-    let slots = config.max_games.max(1);
-    if slots <= 1 {
-        return host_one_room(
-            config,
-            None,
-            Arc::new(tokio::sync::Notify::new()),
-            None,
-            Some(registry),
-        )
-        .await;
+    if single {
+        return host_one_room(config, None, cancels[0].clone(), None, Some(registry)).await;
     }
 
     config.format = GameFormat::Any;
@@ -296,17 +297,11 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
 
     info!(rooms = hosts.len(), "hosting multiple rooms on one node");
     let mut handles = Vec::with_capacity(hosts.len());
-    for (cfg, label) in hosts {
+    for ((cfg, label), cancel) in hosts.into_iter().zip(cancels) {
         let registry = registry.clone();
         handles.push(tokio::spawn(async move {
-            if let Err(error) = host_one_room(
-                cfg,
-                Some(label.clone()),
-                Arc::new(tokio::sync::Notify::new()),
-                None,
-                Some(registry),
-            )
-            .await
+            if let Err(error) =
+                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry)).await
             {
                 error!(%error, label, "room host exited");
             }
@@ -316,6 +311,35 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         let _ = handle.await;
     }
     Ok(())
+}
+
+fn notify_all(cancels: &[RoomCancel]) {
+    for cancel in cancels {
+        cancel.notify_one();
+    }
+}
+
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut term =
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+                Ok(term) => term,
+                Err(error) => {
+                    warn!(%error, "failed to install SIGTERM handler");
+                    let _ = tokio::signal::ctrl_c().await;
+                    return;
+                }
+            };
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 async fn host_one_room(
@@ -384,6 +408,8 @@ async fn host_one_room(
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
+            stop_bot(&bot_state);
+            host.close().await;
             return Ok(());
         }
 
@@ -395,6 +421,7 @@ async fn host_one_room(
                 _ = cancel.notified() => {
                     info!(username = %config.username, "room host cancelled while reconnecting");
                     cancel_engine(&engine_session);
+                    stop_bot(&bot_state);
                     return Ok(());
                 }
                 _ = time::sleep(Duration::from_secs(delay)) => {}
@@ -625,19 +652,33 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
         commander_name: deck.commander_name.clone(),
         agent: AgentKind::Simple,
     };
+    let shutdown = Arc::new(tokio::sync::Notify::new());
+    let bot_shutdown = shutdown.clone();
     let handle = tokio::spawn(async move {
-        if let Err(error) = run_bot(relay_url, bot_config).await {
+        if let Err(error) = run_bot(relay_url, bot_config, bot_shutdown).await {
             error!(%error, "bot task exited");
         }
     });
     guard.handle = Some(handle);
+    guard.shutdown = Some(shutdown);
 }
 
 fn stop_bot(bot_state: &SharedBotState) {
     match bot_state.lock() {
         Ok(mut state) => {
-            if let Some(handle) = state.handle.take() {
-                handle.abort();
+            let Some(mut handle) = state.handle.take() else {
+                return;
+            };
+            match state.shutdown.take() {
+                Some(shutdown) => {
+                    shutdown.notify_one();
+                    tokio::spawn(async move {
+                        if time::timeout(BOT_STOP_TIMEOUT, &mut handle).await.is_err() {
+                            handle.abort();
+                        }
+                    });
+                }
+                None => handle.abort(),
             }
         }
         Err(error) => warn!(%error, "bot state lock poisoned"),
@@ -1587,6 +1628,16 @@ impl RelayClient {
                 _ => {}
             }
         }
+    }
+
+    async fn close(&mut self) {
+        if self.write.send(Message::Close(None)).await.is_err() {
+            return;
+        }
+        let _ = time::timeout(CLOSE_DRAIN_TIMEOUT, async {
+            while let Some(Ok(_)) = self.read.next().await {}
+        })
+        .await;
     }
 
     async fn broadcast_room_message(

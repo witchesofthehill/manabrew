@@ -339,7 +339,6 @@ export const useServerStore = create<ServerState>()(
                 connecting: false,
                 error: null,
                 playerId: payload.player_id,
-                username: payload.username ?? get().username,
                 reconnect: { phase: "idle", attempt: 0 },
               });
               get().listRooms();

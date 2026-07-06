@@ -16,6 +16,7 @@ import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
+import { stripUsernameTag } from "@/lib/username";
 import { getPlatform } from "@/platform";
 import { START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
@@ -374,7 +375,7 @@ export default function Lobby() {
       toast.error("The room is full.");
       return;
     }
-    const botName = `${username}-bot-${Date.now().toString(36)}`;
+    const botName = `${stripUsernameTag(username)}-bot-${Date.now().toString(36)}`;
     setBotDeckTarget(botName);
     setAiDeckDialogOpen(true);
   }

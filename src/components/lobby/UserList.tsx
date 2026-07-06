@@ -110,7 +110,8 @@ export function UserList({
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-xs font-medium leading-none truncate block">
-                  {myUsername} <span className="text-muted-foreground font-normal">(You)</span>
+                  {myUsername && stripUsernameTag(myUsername)}{" "}
+                  <span className="text-muted-foreground font-normal">(You)</span>
                 </span>
                 <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
                   <status.Icon

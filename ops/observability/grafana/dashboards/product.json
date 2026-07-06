@@ -331,8 +331,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT CAST(duration_s / 300 AS INTEGER) * 5 AS bucket_min, count(*) AS games FROM games WHERE duration_s IS NOT NULL GROUP BY 1 ORDER BY 1",
-          "rawQueryText": "SELECT CAST(duration_s / 300 AS INTEGER) * 5 AS bucket_min, count(*) AS games FROM games WHERE duration_s IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "queryText": "SELECT printf('%d-%dm', (CAST(duration_s AS INTEGER)/300)*5, (CAST(duration_s AS INTEGER)/300)*5+5) AS bucket, count(*) AS games FROM games WHERE duration_s IS NOT NULL GROUP BY CAST(duration_s AS INTEGER)/300 ORDER BY CAST(duration_s AS INTEGER)/300",
+          "rawQueryText": "SELECT printf('%d-%dm', (CAST(duration_s AS INTEGER)/300)*5, (CAST(duration_s AS INTEGER)/300)*5+5) AS bucket, count(*) AS games FROM games WHERE duration_s IS NOT NULL GROUP BY CAST(duration_s AS INTEGER)/300 ORDER BY CAST(duration_s AS INTEGER)/300",
           "queryType": "table",
           "timeColumns": []
         }

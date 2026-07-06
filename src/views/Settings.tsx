@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme as useColorMode } from "next-themes";
 import { Navigate } from "react-router-dom";
-import { HelpCircle, Server } from "lucide-react";
+import { HelpCircle, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
 
@@ -402,6 +402,8 @@ export default function Settings() {
   const [port, setPort] = useState(String(prefs.serverPort));
   const [username, setUsername] = useState(prefs.serverUsername);
   const [password, setPassword] = useState(prefs.serverPassword);
+  const [savingServer, setSavingServer] = useState(false);
+  const [newServerName, setNewServerName] = useState("");
 
   const hasChanges =
     host !== prefs.serverHost ||
@@ -447,6 +449,19 @@ export default function Settings() {
     if (username) {
       await server.connect(relay.host, relay.port, username, relay.password);
     }
+  }
+
+  function saveCurrentServer() {
+    const name = newServerName.trim();
+    if (!name) return;
+    if (KNOWN_RELAYS.some((r) => r.name === name)) {
+      toast.error("That name is reserved for a built-in server");
+      return;
+    }
+    prefs.addSavedServer({ name, host, port: Number(port), password });
+    setNewServerName("");
+    setSavingServer(false);
+    toast.success(`Saved "${name}"`);
   }
 
   async function handleClearImageCache() {
@@ -621,7 +636,7 @@ export default function Settings() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
               Save & Reconnect
             </Button>
@@ -629,11 +644,11 @@ export default function Settings() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
                   <Server className="h-4 w-4" />
-                  Configure known servers
+                  Saved servers
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Known servers</DropdownMenuLabel>
+              <DropdownMenuContent align="start" className="min-w-56">
+                <DropdownMenuLabel>Built-in</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {KNOWN_RELAYS.map((relay) => (
                   <DropdownMenuItem key={relay.name} onSelect={() => void applyKnownRelay(relay)}>
@@ -645,8 +660,50 @@ export default function Settings() {
                     </div>
                   </DropdownMenuItem>
                 ))}
+                {prefs.savedServers.length > 0 && (
+                  <>
+                    <DropdownMenuLabel>Your servers</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {prefs.savedServers.map((relay) => (
+                      <DropdownMenuItem
+                        key={relay.name}
+                        onSelect={() => void applyKnownRelay(relay)}
+                        className="justify-between gap-2"
+                      >
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm">{relay.name}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {relay.host}:{relay.port}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${relay.name}`}
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            prefs.removeSavedServer(relay.name);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setNewServerName(host);
+                setSavingServer((v) => !v);
+              }}
+            >
+              Save current server…
+            </Button>
             {server.connected && (
               <span className="text-xs text-success flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-success" />
@@ -658,6 +715,30 @@ export default function Settings() {
             )}
             {server.error && <span className="text-xs text-destructive">{server.error}</span>}
           </div>
+          {savingServer && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                autoFocus
+                value={newServerName}
+                onChange={(e) => setNewServerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveCurrentServer();
+                  if (e.key === "Escape") setSavingServer(false);
+                }}
+                placeholder="Name this server"
+                className="max-w-xs"
+              />
+              <Button size="sm" onClick={saveCurrentServer} disabled={!newServerName.trim()}>
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSavingServer(false)}>
+                Cancel
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Saves the current host, port, and password so you can switch back later.
+              </span>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Server connection settings. Saving will disconnect and reconnect with the new
             credentials.

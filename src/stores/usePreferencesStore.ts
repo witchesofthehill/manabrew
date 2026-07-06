@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
+import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
@@ -23,6 +24,10 @@ interface PreferencesState {
   setServerPort: (port: number) => void;
   setServerUsername: (username: string) => void;
   setServerPassword: (password: string) => void;
+
+  savedServers: KnownRelay[];
+  addSavedServer: (server: KnownRelay) => void;
+  removeSavedServer: (name: string) => void;
 
   customAvatar?: string;
   setCustomAvatar: (dataUrl: string | undefined) => void;
@@ -73,6 +78,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverPort",
   "serverUsername",
   "serverPassword",
+  "savedServers",
   "customAvatar",
   "defaultPlaymat",
   "defaultPlaymatSettings",
@@ -126,6 +132,16 @@ export const usePreferencesStore = create<PreferencesState>()(
           setServerPort: (serverPort) => set({ serverPort }),
           setServerUsername: (serverUsername) => set({ serverUsername }),
           setServerPassword: (serverPassword) => set({ serverPassword }),
+
+          savedServers: [],
+          addSavedServer: (server) =>
+            set((state) => ({
+              savedServers: [...state.savedServers.filter((s) => s.name !== server.name), server],
+            })),
+          removeSavedServer: (name) =>
+            set((state) => ({
+              savedServers: state.savedServers.filter((s) => s.name !== name),
+            })),
 
           customAvatar: undefined,
           setCustomAvatar: (customAvatar) => set({ customAvatar }),

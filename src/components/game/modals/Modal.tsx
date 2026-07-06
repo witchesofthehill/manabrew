@@ -59,7 +59,10 @@ export function Modal({
         touchGameSurface && "game-touch-surface",
         backdropClassName,
       )}
-      onClick={onClose}
+      // Dismiss on pointerdown, not click: a touch tap on a Pixi surface that
+      // opens a modal fires its synthetic click AFTER the modal mounts, and a
+      // click-dismiss backdrop would swallow it and close instantly.
+      onPointerDown={onClose}
     >
       <div
         data-modal-panel="true"
@@ -72,6 +75,7 @@ export function Modal({
           className,
         )}
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         onKeyDownCapture={(e) => {
           if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
             e.preventDefault();

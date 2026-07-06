@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { Settings, RefreshCw, Users, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { DESKTOP_QUERY } from "@/components/layout/AppShell";
+import { DESKTOP_QUERY } from "@/lib/responsive";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -615,7 +615,7 @@ export default function Lobby() {
 
       {myUsername && !isDesktop && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-72 max-w-[80vw] p-0">
             <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}

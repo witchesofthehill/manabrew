@@ -29,6 +29,13 @@ export const MODAL_CARD_SIZE = "w-[100px] h-[140px]" as const;
 export const FLASH_CARD_SIZE = { w: 310, h: 434 } as const;
 /** Cards inside mulligan modals */
 export const MULLIGAN_CARD_SIZE = "w-[160px] h-[222px]" as const;
+export const CHOOSE_CARD_TILE_SIZE = "w-[94px] sm:w-[150px]" as const;
+export const PROMPT_SOURCE_CARD_SIZE = {
+  vertical: "w-[200px]",
+  verticalCompact: "w-[110px]",
+  horizontal: "w-[220px]",
+  horizontalCompact: "w-[120px]",
+} as const;
 
 // ── Modal shared styles ────────────────────────────────────────────────────
 

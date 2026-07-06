@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LandscapeGate } from "@/components/LandscapeGate";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftPodButton } from "@/components/limited/DraftPodButton";
 import { DraftingView } from "@/views/Draft";
@@ -86,6 +87,7 @@ export default function MultiplayerDraft() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
+      <LandscapeGate />
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Multiplayer Draft</h1>
@@ -159,6 +161,7 @@ interface CompletionViewProps {
 function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
   return (
     <div className="flex h-full flex-col gap-4 p-6">
+      <LandscapeGate />
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Draft complete · Build your deck</h1>

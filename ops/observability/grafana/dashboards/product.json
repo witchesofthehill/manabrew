@@ -1,0 +1,380 @@
+{
+  "uid": "manabrew-product",
+  "title": "Manabrew \u2014 Product",
+  "tags": ["manabrew", "product"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Games per day",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT date(started_at) AS day, count(*) AS games FROM games WHERE started_at IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT date(started_at) AS day, count(*) AS games FROM games WHERE started_at IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "queryType": "table",
+          "timeColumns": ["day"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Distinct players per day",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT date(g.started_at) AS day, count(DISTINCT p.username) AS players FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT date(g.started_at) AS day, count(DISTINCT p.username) AS players FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY 1 ORDER BY 1",
+          "queryType": "table",
+          "timeColumns": ["day"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Returning players (seen >1 day)",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT count(*) AS returning FROM (SELECT p.username FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY p.username HAVING count(DISTINCT date(g.started_at)) > 1)",
+          "rawQueryText": "SELECT count(*) AS returning FROM (SELECT p.username FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY p.username HAVING count(DISTINCT date(g.started_at)) > 1)",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "Completion rate",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 8,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT round(100.0 * sum(game_over) / count(*), 1) AS pct FROM games WHERE ended_at IS NOT NULL",
+          "rawQueryText": "SELECT round(100.0 * sum(game_over) / count(*), 1) AS pct FROM games WHERE ended_at IS NOT NULL",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 19,
+      "type": "barchart",
+      "title": "Game ends by reason",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT end_reason, count(*) AS games FROM games WHERE end_reason IS NOT NULL GROUP BY 1 ORDER BY 2 DESC",
+          "rawQueryText": "SELECT end_reason, count(*) AS games FROM games WHERE end_reason IS NOT NULL GROUP BY 1 ORDER BY 2 DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 20,
+      "type": "barchart",
+      "title": "Format split",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 8,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT format, count(*) AS games FROM games WHERE format IS NOT NULL GROUP BY 1 ORDER BY 2 DESC",
+          "rawQueryText": "SELECT format, count(*) AS games FROM games WHERE format IS NOT NULL GROUP BY 1 ORDER BY 2 DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 21,
+      "type": "table",
+      "title": "Top commanders",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 8,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT commander, count(*) AS picks FROM game_players WHERE commander IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+          "rawQueryText": "SELECT commander, count(*) AS picks FROM game_players WHERE commander IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 22,
+      "type": "table",
+      "title": "Top decks",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 14,
+        "w": 8,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT deck_name, count(*) AS games FROM game_players WHERE deck_name IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+          "rawQueryText": "SELECT deck_name, count(*) AS games FROM game_players WHERE deck_name IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 23,
+      "type": "table",
+      "title": "Top cards",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 14,
+        "w": 8,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT c.name, sum(c.count) AS copies, count(DISTINCT c.deck_id) AS decks FROM deck_cards c GROUP BY 1 ORDER BY 2 DESC LIMIT 25",
+          "rawQueryText": "SELECT c.name, sum(c.count) AS copies, count(DISTINCT c.deck_id) AS decks FROM deck_cards c GROUP BY 1 ORDER BY 2 DESC LIMIT 25",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 24,
+      "type": "barchart",
+      "title": "Game duration distribution (minutes)",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT CAST(duration_s / 300 AS INTEGER) * 5 AS bucket_min, count(*) AS games FROM games WHERE duration_s IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT CAST(duration_s / 300 AS INTEGER) * 5 AS bucket_min, count(*) AS games FROM games WHERE duration_s IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 25,
+      "type": "barchart",
+      "title": "Human vs bot seats",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT CASE is_bot WHEN 1 THEN 'bot' ELSE 'human' END AS seat, count(*) AS seats FROM game_players GROUP BY 1",
+          "rawQueryText": "SELECT CASE is_bot WHEN 1 THEN 'bot' ELSE 'human' END AS seat, count(*) AS seats FROM game_players GROUP BY 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}

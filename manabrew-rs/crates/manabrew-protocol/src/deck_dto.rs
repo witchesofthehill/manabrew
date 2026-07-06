@@ -108,6 +108,9 @@ pub struct DeckCard {
     pub all_parts: Option<Vec<CardPart>>,
 }
 
+pub const OUTDATED_CLIENT_MESSAGE: &str =
+    "this app version is out of date — download the latest release at manabrew.app to play online";
+
 // Clients ≤ v0.5.2 serialize the identity fields flattened onto the card.
 // Their gameplay wire (game view, prompts) has drifted too, so the legacy
 // shape is detected and rejected with an actionable message rather than
@@ -133,9 +136,7 @@ impl<'de> Deserialize<'de> for DeckCard {
         let identity = match wire.identity {
             Some(identity) => identity,
             None if wire.name.is_some() => {
-                return Err(serde::de::Error::custom(
-                    "this app version is out of date — download the latest release at manabrew.app to play online",
-                ));
+                return Err(serde::de::Error::custom(OUTDATED_CLIENT_MESSAGE));
             }
             None => return Err(serde::de::Error::missing_field("identity")),
         };

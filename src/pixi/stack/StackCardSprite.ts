@@ -1,9 +1,10 @@
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import gsap from "gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
+import { LongPressGesture } from "../LongPressGesture";
 import type { StackCardSpec } from "./stack.types";
 
 const ENTER_MS = 0.42;
@@ -33,6 +34,7 @@ export class StackCardSprite {
   private moveTween: gsap.core.Tween | null = null;
   private castingTween: gsap.core.Tween | null = null;
   private hoverTween: gsap.core.Tween | null = null;
+  private longPress = new LongPressGesture();
 
   constructor(
     theme: Theme,
@@ -70,10 +72,28 @@ export class StackCardSprite {
     hit.eventMode = "static";
     hit.cursor = "pointer";
     hit.on("pointertap", () => {
+      if (this.longPress.consumeTap(this.spec.id)) return;
       if (this.spec.isValidTarget) onTarget(this.spec.id);
       else onOpen();
     });
-    hit.on("pointerover", () => {
+    hit.on("pointerdown", (e: FederatedPointerEvent) => {
+      this.longPress.start(e, this.spec.id, () => {
+        this.hovered = true;
+        this.applyHover();
+        onHover(this.spec.id);
+      });
+    });
+    hit.on("globalpointermove", (e: FederatedPointerEvent) =>
+      this.longPress.move(e.global.x, e.global.y),
+    );
+    const endTouch = () => {
+      this.longPress.cancel();
+      this.longPress.releaseFired();
+    };
+    hit.on("pointerup", endTouch);
+    hit.on("pointerupoutside", endTouch);
+    hit.on("pointerover", (e: FederatedPointerEvent) => {
+      if (e.pointerType === "touch") return;
       this.hovered = true;
       this.applyHover();
       onHover(this.spec.id);
@@ -157,6 +177,7 @@ export class StackCardSprite {
   }
 
   destroy(): void {
+    this.longPress.cancel();
     this.moveTween?.kill();
     this.castingTween?.kill();
     this.hoverTween?.kill();

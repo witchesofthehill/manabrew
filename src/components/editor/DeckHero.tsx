@@ -186,7 +186,7 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
             }}
           >
             <h1 className="truncate text-2xl font-bold tracking-tight">{currentDeck.name}</h1>
-            <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100" />
           </button>
         )}
 

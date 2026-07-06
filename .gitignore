@@ -91,3 +91,11 @@ forge-harness/native/gen-config/
 
 src/components/prompts/dev/
 push.sh
+
+
+# Observability runtime data (bind mounts; never committed)
+ops/observability/data/
+# Tauri mobile staged assets — copied from src-tauri/resources by the mobile
+# build (tauri.conf.json resources map); scaffolding stays tracked, assets not.
+src-tauri/gen/android/app/src/main/assets/
+src-tauri/gen/apple/assets/

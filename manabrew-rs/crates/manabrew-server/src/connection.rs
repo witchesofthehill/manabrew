@@ -7,11 +7,14 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
+use crate::analytics::{self, AnalyticsEvent};
 use crate::cleanup::mark_disconnected;
 use crate::error::ServerError;
 use crate::lobby;
+use crate::metrics;
 use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
 use crate::state::{ConnectedPlayer, ServerState};
+use manabrew_protocol::deck_dto::OUTDATED_CLIENT_MESSAGE;
 
 type WsSender = futures_util::stream::SplitSink<
     tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
@@ -38,6 +41,17 @@ fn send_msg(sender: &mpsc::UnboundedSender<Message>, msg: &ServerMessage) {
     if let Ok(json) = serde_json::to_string(msg) {
         let _ = sender.send(Message::Text(json));
     }
+}
+
+fn send_error(sender: &mpsc::UnboundedSender<Message>, err: &ServerError) {
+    metrics::record_rejection(err.code());
+    send_msg(
+        sender,
+        &ServerMessage::Error {
+            code: err.code().into(),
+            message: err.to_string(),
+        },
+    );
 }
 
 pub(crate) fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMessage, json: &str) {
@@ -139,6 +153,7 @@ pub async fn handle_connection(
             Ok(result) => result,
             Err(e) => {
                 warn!("[auth] failed from {}: {}", addr, e);
+                metrics::record_rejection(e.code());
                 drop(tx);
                 let _ = write_task.await;
                 return Err(e);
@@ -223,9 +238,16 @@ pub async fn handle_connection(
                     Ok(m) => m,
                     Err(e) => {
                         warn!("[recv] parse error from '{}': {}", username, e);
+                        let message = e.to_string();
+                        let parse_error = ServerError::from(e);
+                        if message.contains(OUTDATED_CLIENT_MESSAGE) {
+                            metrics::record_rejection(metrics::REJECTION_OUTDATED_WIRE);
+                        } else {
+                            metrics::record_rejection(parse_error.code());
+                        }
                         let err_msg = ServerMessage::Error {
-                            code: "parse_error".into(),
-                            message: e.to_string(),
+                            code: parse_error.code().into(),
+                            message,
                         };
                         send_msg(&tx, &err_msg);
                         continue;
@@ -613,13 +635,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' create room failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -639,6 +655,15 @@ fn handle_client_message(
             );
             match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot, password) {
                 Ok((info, rejoined)) => {
+                    if !rejoined {
+                        state.analytics.emit(AnalyticsEvent::SeatJoined {
+                            ts: analytics::now_ts(),
+                            room_id: room_id.clone(),
+                            username: username.to_string(),
+                            is_bot: as_bot,
+                            observer: observe,
+                        });
+                    }
                     if rejoined {
                         info!(
                             "[lobby] '{}' rejoined in-game room '{}'",
@@ -669,13 +694,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' join room failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -721,13 +740,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' resume room failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -740,6 +753,11 @@ fn handle_client_message(
                 Ok(()) => {
                     if let Some(rid) = room_id_before {
                         info!("[lobby] '{}' left room {}", username, &rid[..8]);
+                        state.analytics.emit(AnalyticsEvent::SeatLeft {
+                            ts: analytics::now_ts(),
+                            room_id: rid.clone(),
+                            username: username.to_string(),
+                        });
                         broadcast_to_room(
                             state,
                             &rid,
@@ -761,13 +779,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' leave room failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -796,13 +808,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' set ready failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -819,15 +825,40 @@ fn handle_client_message(
                 deck_name,
                 deck.cards.len()
             );
+            let deck_summary = state
+                .analytics
+                .events_enabled()
+                .then(|| (analytics::aggregate_deck_cards(&deck), deck.sideboard.len()));
             match lobby::set_deck_selection_sync(
                 state,
                 player_id,
-                deck_name,
+                deck_name.clone(),
                 deck,
-                commander_name,
+                commander_name.clone(),
                 avatar,
             ) {
                 Ok(room_id) => {
+                    if let Some((cards, sideboard_count)) = deck_summary {
+                        let is_bot = state
+                            .rooms
+                            .get(&room_id)
+                            .map(|room| {
+                                room.players
+                                    .iter()
+                                    .any(|slot| slot.player_id == player_id && slot.is_bot)
+                            })
+                            .unwrap_or(false);
+                        state.analytics.emit(AnalyticsEvent::DeckSelected {
+                            ts: analytics::now_ts(),
+                            room_id: room_id.clone(),
+                            username: username.to_string(),
+                            is_bot,
+                            deck_name,
+                            commander: commander_name,
+                            cards,
+                            sideboard_count,
+                        });
+                    }
                     if let Some(room) = state.rooms.get(&room_id) {
                         broadcast_to_room(
                             state,
@@ -840,13 +871,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' set deck failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -867,13 +892,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' set format failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -894,13 +913,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' set max_players failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -914,6 +927,10 @@ fn handle_client_message(
                         &started.room_id[..8],
                         started.player_order
                     );
+                    metrics::record_game_started(started.room_info.engine);
+                    state
+                        .analytics
+                        .emit(analytics::game_started_event(&started));
                     broadcast_to_room(
                         state,
                         &started.room_id,
@@ -934,13 +951,7 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[game] '{}' start game failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
+                    send_error(sender, &e);
                 }
             }
         }
@@ -997,18 +1008,13 @@ fn handle_client_message(
             match replayed {
                 Some(messages) => {
                     info!("[game] '{}' resync ({} messages)", username, messages.len());
+                    metrics::record_resync();
                     for msg in &messages {
                         send_msg(sender, msg);
                     }
                 }
                 None => {
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: ServerError::GameNotInProgress.code().into(),
-                            message: ServerError::GameNotInProgress.to_string(),
-                        },
-                    );
+                    send_error(sender, &ServerError::GameNotInProgress);
                 }
             }
         }
@@ -1016,13 +1022,22 @@ fn handle_client_message(
         ClientMessage::BroadcastState { state: game_state } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
-                if let Some(mut room) = state.rooms.get_mut(&rid) {
+                let capture_game_id = state.rooms.get_mut(&rid).and_then(|mut room| {
                     let room = &mut *room;
-                    if room.status == RoomStatus::InGame {
-                        if let Some(replay) = room.replay.as_mut() {
-                            replay.observe(&game_state, &room.players);
-                        }
+                    if room.status != RoomStatus::InGame {
+                        return None;
                     }
+                    let replay = room.replay.as_mut()?;
+                    replay.observe(&game_state, &room.players);
+                    state
+                        .analytics
+                        .capture_enabled()
+                        .then(|| replay.game_id.clone())
+                });
+                if let Some(game_id) = capture_game_id {
+                    state
+                        .analytics
+                        .capture_envelope(&game_id, username, &game_state);
                 }
                 debug!(
                     "[game] '{}' broadcasting state to room {}",
@@ -1043,13 +1058,7 @@ fn handle_client_message(
                     "[game] '{}' tried to broadcast state but not in a room",
                     username
                 );
-                send_msg(
-                    sender,
-                    &ServerMessage::Error {
-                        code: "not_in_room".into(),
-                        message: "You are not in a room".into(),
-                    },
-                );
+                send_error(sender, &ServerError::NotInRoom);
             }
         }
 
@@ -1078,13 +1087,7 @@ fn handle_client_message(
                 );
             } else {
                 warn!("[game] '{}' tried turn change but not in a room", username);
-                send_msg(
-                    sender,
-                    &ServerMessage::Error {
-                        code: "not_in_room".into(),
-                        message: "You are not in a room".into(),
-                    },
-                );
+                send_error(sender, &ServerError::NotInRoom);
             }
         }
     }

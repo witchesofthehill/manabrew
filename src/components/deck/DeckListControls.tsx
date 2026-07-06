@@ -31,7 +31,8 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "updated", label: "Date" },
 ];
 
-const SELECT_CLS = "h-6 text-xs rounded border bg-background px-1 cursor-pointer flex-1 min-w-0";
+const SELECT_CLS =
+  "h-6 text-xs pointer-coarse:h-9 pointer-coarse:text-base rounded border bg-background px-1 cursor-pointer flex-1 min-w-0";
 
 interface DeckListControlsProps {
   search: string;

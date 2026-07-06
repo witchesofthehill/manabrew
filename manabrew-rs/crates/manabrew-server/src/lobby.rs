@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::analytics::{self, GameEndReason};
 use crate::error::ServerError;
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
@@ -221,6 +222,7 @@ pub fn resume_room_sync(
         })
         .collect();
     room.replay = Some(GameReplayCache::new(
+        uuid::Uuid::new_v4().to_string(),
         spec.player_order,
         spec.player_decks,
         spec.starting_life,
@@ -345,7 +347,16 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
     };
 
     if room_empty || no_connected_players {
-        state.rooms.remove(&room_id);
+        if let Some((_, room)) = state.rooms.remove(&room_id) {
+            if let Some(replay) = room.replay.as_ref() {
+                analytics::emit_game_ended(
+                    &state.analytics,
+                    &room,
+                    replay,
+                    GameEndReason::Abandoned,
+                );
+            }
+        }
         let player_ids = state
             .players
             .iter()
@@ -463,6 +474,7 @@ pub fn set_deck_selection_sync(
 }
 
 pub struct StartedGame {
+    pub game_id: String,
     pub room_id: String,
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
@@ -555,7 +567,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (player_order, player_decks, starting_life, room_info) = {
+    let (game_id, player_order, player_decks, starting_life, room_info) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -606,12 +618,15 @@ pub fn start_game_sync(
         };
         let player_order = room.player_usernames();
         let player_decks = room.player_decks();
+        let game_id = uuid::Uuid::new_v4().to_string();
         room.replay = Some(GameReplayCache::new(
+            game_id.clone(),
             player_order.clone(),
             player_decks.clone(),
             starting_life,
         ));
         (
+            game_id,
             player_order,
             player_decks,
             starting_life,
@@ -620,6 +635,7 @@ pub fn start_game_sync(
     };
 
     Ok(StartedGame {
+        game_id,
         room_id,
         player_order,
         player_decks,
@@ -651,8 +667,8 @@ pub fn end_game_sync(
         }
     }
 
-    let (info, notify) =
-        reset_room_to_lobby(state, &room_id).ok_or(ServerError::RoomNotFound(room_id.clone()))?;
+    let (info, notify) = reset_room_to_lobby(state, &room_id, GameEndReason::HostEnded)
+        .ok_or(ServerError::RoomNotFound(room_id.clone()))?;
 
     Ok((room_id, info, notify))
 }
@@ -660,12 +676,15 @@ pub fn end_game_sync(
 pub fn reset_room_to_lobby(
     state: &Arc<ServerState>,
     room_id: &str,
+    reason: GameEndReason,
 ) -> Option<(RoomInfo, Vec<String>)> {
     let (info, cleared) = {
         let mut room = state.rooms.get_mut(room_id)?;
+        if let Some(replay) = room.replay.take() {
+            analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
+        }
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
-        room.replay = None;
         room.players.clear();
         room.reset_lobby_settings();
         (room.to_room_info(), cleared)

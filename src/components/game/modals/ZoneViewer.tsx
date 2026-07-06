@@ -4,6 +4,7 @@ import { Card } from "@/components/game/Card";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { HAND_CARD } from "../game.styles";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
@@ -49,6 +50,16 @@ export function ZoneViewer({
   const clickableIdSet = clickableCardIds ? new Set(clickableCardIds) : null;
   const selectedIdSet = selectedCardIds ? new Set(selectedCardIds) : null;
   const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
+  const longPress = useLongPressPreview<CardDto>({
+    resolve: (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
+      const card = el && filtered.find((c) => c.id === el.dataset.cardId);
+      return card ? { item: card, anchor: el } : null;
+    },
+    show: (card, rect) =>
+      preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
+    hide: preview.dismiss,
+  });
 
   return (
     <Modal onClose={onClose}>
@@ -64,7 +75,7 @@ export function ZoneViewer({
         ) : filtered.length === 0 ? (
           <Modal.EmptyState message="No matching cards" />
         ) : (
-          <div className="flex flex-wrap gap-2 content-start">
+          <div className="flex flex-wrap gap-2 content-start" {...longPress}>
             {filtered.map((card) => {
               const selected = !!selectedIdSet?.has(card.id);
               const clickable =
@@ -75,11 +86,16 @@ export function ZoneViewer({
               return (
                 <div
                   key={card.id}
+                  data-card-id={card.id}
                   className="shrink-0 relative flex flex-col gap-1"
-                  onMouseEnter={(e) =>
-                    preview.handleMouseEnter(card, e, { useDelay: true, useAnchor: true })
-                  }
-                  onMouseLeave={preview.handleMouseLeave}
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === "touch") return;
+                    preview.handleMouseEnter(card, e, { useDelay: true, useAnchor: true });
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === "touch") return;
+                    preview.handleMouseLeave();
+                  }}
                 >
                   <Card
                     card={card}

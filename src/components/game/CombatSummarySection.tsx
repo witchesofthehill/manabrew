@@ -110,7 +110,7 @@ function BlockerCombatSummary({
       </div>
       <button
         type="button"
-        className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+        className="relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors before:absolute before:-inset-2.5 before:content-['']"
         onClick={() => setOpen(true)}
         title="Combat breakdown"
         aria-label="Combat breakdown"

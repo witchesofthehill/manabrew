@@ -1,4 +1,11 @@
-import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from "pixi.js";
+import {
+  Container,
+  Graphics,
+  Point as PixiPoint,
+  Sprite,
+  Text,
+  type FederatedPointerEvent,
+} from "pixi.js";
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
@@ -42,6 +49,8 @@ import {
   COMBAT_ROW_STEP_FRAC,
   COMBAT_STAGE_FAN_FRAC,
   GRID_SKELETON_FILL_ALPHA,
+  GRID_SKELETON_FILL_ALPHA_COMPACT,
+  GRID_SKELETON_STROKE_ALPHA_COMPACT,
   GRID_SKELETON_HOVER_ALPHA,
   GRID_SKELETON_STACK_ALPHA,
   GRID_SKELETON_STACK_FILL_ALPHA,
@@ -69,7 +78,7 @@ import {
   PLAYER_HUD_MAX_WIDTH_PX,
   PLAYER_HUD_TOP_MARGIN_PX,
 } from "../hud/PlayerHudLayer";
-import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
+import { PlaymatLayer, playmatPad } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
 
@@ -90,6 +99,8 @@ const COMBAT_ROW_AVATAR_D = 24;
  *  update, so a real change recomputes; the many re-layout passes that reuse the
  *  same objects (resize, blockers, combat staging) hit the cache. */
 const stackKeyCache = new WeakMap<CardDto, string>();
+
+const SCRATCH_POINT = new PixiPoint();
 
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
  *  every property the engine reports splits the stack automatically. Only `id`
@@ -118,6 +129,7 @@ export class BoardRegion {
   private gridSkeletonGfx: Graphics;
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
+  private compactZones = false;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
@@ -201,13 +213,15 @@ export class BoardRegion {
       onDragMove: (cx, cy) => this.drawDropGrid(cx, cy),
       onDrop: (key, cx, cy) => this.onZoneTileMoved(key, cx, cy),
       onDragEnd: () => this.hideGridSkeleton(),
+      onPreview: (card, bounds) => this.host.previewCard(card, bounds),
+      isPointerTapSuppressed: (pointerId) => this.host.isPointerTapSuppressed(pointerId),
     });
     // Above the combat-row band (`combatRowGfx`, Z_COMBAT_STAGED - 5) so a zone
     // tile parked in the inner-edge attack slot (mirrored fields) sits on top of
     // the red strip instead of being dimmed beneath it — still below staged
     // attacker cards and the row's avatar/label header.
     this.zoneTiles.container.zIndex = Z_COMBAT_STAGED - 4;
-    this.zoneTiles.setDraggable(!this.mirrored);
+    this.applyZoneTileDraggable();
     this.container.addChild(this.zoneTiles.container);
 
     this.drawBackground();
@@ -220,6 +234,26 @@ export class BoardRegion {
     this.zoneTiles.setSpecs(specs);
     if (this.lastState) this.updateBattlefield(this.lastState);
     else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
+
+  setCompactZones(compact: boolean): void {
+    if (this.compactZones === compact) return;
+    this.compactZones = compact;
+    this.applyZoneTileDraggable();
+    if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
+
+  private applyZoneTileDraggable(): void {
+    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones);
+  }
+
+  cancelZoneTileDrag(): void {
+    this.zoneTiles.cancelDrag();
+  }
+
+  cancelZoneTileDragForPointer(pointerId: number): void {
+    this.zoneTiles.cancelDragForPointer(pointerId);
   }
 
   private freshGrid(): GridLayoutInfo {
@@ -242,11 +276,12 @@ export class BoardRegion {
   private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
+    const ignoreBlockers = this.compactZones && !this.mirrored;
     const isFree = (cell: GridCell | null): cell is GridCell =>
       !!cell &&
-      !cell.blocked &&
       !taken.has(cellKey(cell.col, cell.row)) &&
-      !occupied.has(cellKey(cell.col, cell.row));
+      !occupied.has(cellKey(cell.col, cell.row)) &&
+      (ignoreBlockers || !cell.blocked);
 
     const attackBandRow = grid.rows;
     const resolveCell = (col: number, row: number): GridCell | null => {
@@ -258,9 +293,10 @@ export class BoardRegion {
       return { col, row, x, y, cx: x + grid.cardW / 2, cy, blocked: false };
     };
 
-    const gridRows = this.mirrored
-      ? Array.from({ length: grid.rows }, (_, r) => r)
-      : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
+    const gridRows =
+      this.mirrored || this.compactZones
+        ? Array.from({ length: grid.rows }, (_, r) => r)
+        : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
     const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
     const nextDefaultCell = (): GridCell | null => {
       for (let col = 0; col < grid.cols; col++) {
@@ -273,16 +309,21 @@ export class BoardRegion {
     };
 
     for (const key of this.zoneTileKeys) {
-      const slot = this.zoneSlots.get(key);
+      const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       if (!cell) continue;
-      this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+      if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));
       occupied.add(cellKey(cell.col, cell.row));
       placements.set(key, { x: cell.x, y: cell.y });
     }
-    this.zoneTiles.setGeometry(CARD_W * this.cardScale, CARD_H * this.cardScale, placements);
+    this.zoneTiles.setGeometry(
+      CARD_W * this.cardScale,
+      CARD_H * this.cardScale,
+      placements,
+      this.touchHitPadScreen(),
+    );
   }
 
   private onZoneTileMoved(key: string, centerX: number, centerY: number): void {
@@ -313,7 +354,7 @@ export class BoardRegion {
       prev.height !== zone.height;
     this.mirrored = orientation !== "bottom";
     this.playmat.setMirrored(this.mirrored);
-    this.zoneTiles.setDraggable(!this.mirrored);
+    this.applyZoneTileDraggable();
     this.applyOrientation(zone);
     this.updateClip();
     this.drawBackground();
@@ -356,22 +397,30 @@ export class BoardRegion {
   }
 
   private localToCanvas(x: number, y: number): ScreenPos {
-    return { x: this.container.position.x + x, y: this.container.position.y + y };
+    SCRATCH_POINT.set(x, y);
+    const p = this.container.toGlobal(SCRATCH_POINT, SCRATCH_POINT);
+    return { x: p.x, y: p.y };
   }
 
   private canvasToLocal(x: number, y: number): ScreenPos {
-    return { x: x - this.container.position.x, y: y - this.container.position.y };
+    SCRATCH_POINT.set(x, y);
+    const p = this.container.toLocal(SCRATCH_POINT, undefined, SCRATCH_POINT);
+    return { x: p.x, y: p.y };
   }
 
   private collectLocalBlockers(): BlockingRect[] {
     const blockers = this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
-      return { x: p1.x, y: p1.y, width: r.width, height: r.height };
+      const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
+      return { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
     });
-    if (this.mirrored) {
+    if (this.mirrored && !this.compactZones) {
       // The opponent HUD capsule (avatar / life / badges) sits at the top-left
       // of the band; block just its cells so the grid uses the rest of the top
       // instead of reserving the whole bar-height band across the field.
+      // Compact skips this estimate — the scene supplies the capsule's live
+      // rendered bounds instead, and the 280px-wide estimate would over-block
+      // cells the 0.7-scaled capsule doesn't cover.
       const bandLeft = this.clipX ?? this.zone.x;
       blockers.push({
         x: bandLeft,
@@ -613,6 +662,7 @@ export class BoardRegion {
       if (entry.overlay?.visible) {
         entry.overlay.x = s.x;
         entry.overlay.y = s.y;
+        entry.overlay.scale.set(entry.scaleBase);
         entry.overlay.zIndex = entry.targetZIndex + Z_OVERLAY_OFFSET;
         entry.overlay.alpha = lerp(
           entry.overlay.alpha,
@@ -699,6 +749,7 @@ export class BoardRegion {
     }
     const positions = this.computeBattlefieldGrid(topLevelCards);
     this.gridTargets = positions;
+    for (const entry of this.entries.values()) this.applyTouchChrome(entry.sprite);
 
     for (const card of topLevelCards) {
       const center = positions.get(card.id) ?? { x: this.zoneCenterX(), y: this.zoneCenterY() };
@@ -708,7 +759,8 @@ export class BoardRegion {
         .map((id) => cardMap.get(id))
         .filter((c): c is CardDto => c !== undefined);
       const visibleSteps = Math.min(attachments.length, STACK_MAX_SLIDE_CARDS - 1);
-      const totalOffset = visibleSteps * ATTACH_OFFSET_Y;
+      const attachStep = ATTACH_OFFSET_Y * this.cardScale;
+      const totalOffset = visibleSteps * attachStep;
       const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
 
       for (let i = 0; i < attachments.length; i++) {
@@ -717,7 +769,7 @@ export class BoardRegion {
         this.placeBattlefieldCard(
           att,
           center.x,
-          topLeftY + totalOffset - stepsAbove * ATTACH_OFFSET_Y + (CARD_H * this.cardScale) / 2,
+          topLeftY + totalOffset - stepsAbove * attachStep + (CARD_H * this.cardScale) / 2,
           i + 1,
           state,
           guest,
@@ -822,7 +874,7 @@ export class BoardRegion {
       const att = this.entries.get(attId);
       if (!att) return;
       att.targetX = x;
-      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y;
+      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y * this.cardScale;
       att.targetZIndex = baseZ - (k + 1);
     });
   }
@@ -1376,10 +1428,27 @@ export class BoardRegion {
     this.host.rebuildOverlay(entry, state);
   }
 
+  private touchHitPadScreen(): number {
+    const grid = this.gridInfo;
+    if (!this.compactZones || !grid) return 0;
+    return Math.max(0, Math.min((grid.cellW - grid.cardW) / 2, (grid.cellH - grid.cardH) / 2));
+  }
+
+  private applyTouchChrome(sprite: CardSprite): void {
+    if (!this.compactZones) {
+      sprite.setHitPad(0);
+      sprite.setChromeScale(1);
+      return;
+    }
+    sprite.setHitPad(this.touchHitPadScreen() / this.cardScale);
+    sprite.setChromeScale(Math.max(1, 1 / this.cardScale));
+  }
+
   private ensureBattlefieldEntry(card: CardDto): void {
     if (this.entries.has(card.id)) return;
     const sprite = new CardSprite(card);
     this.host.wireSprite(sprite);
+    this.applyTouchChrome(sprite);
     this.container.addChild(sprite);
 
     const seed = this.host.getEntrySeed(card.id);
@@ -1480,7 +1549,7 @@ export class BoardRegion {
    *  border on every side. Keep the inset in sync with `PlaymatLayer.layout`. */
   private playmatRect(): PlayZoneRect {
     const b = this.bandZone();
-    const pad = Math.min(b.width, b.height) * PLAYMAT_PADDING;
+    const pad = playmatPad(b.width, b.height);
     return {
       x: b.x + pad,
       y: b.y + pad,
@@ -1491,7 +1560,7 @@ export class BoardRegion {
 
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
-    const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    const pad = playmatPad(z.width, z.height);
     // Every field permanently reserves the inner-edge combat-row band so the
     // grid rows are sized once and never reflow when combat starts/ends; the row
     // shows/hides inside the reserved strip. The inner edge (next to the divider)
@@ -1604,7 +1673,7 @@ export class BoardRegion {
       const child = this.entries.get(childId);
       if (!child) continue;
       const stepsAbove = Math.min(children.length - i, visibleSteps);
-      const cy = parentCenter.y - stepsAbove * ATTACH_OFFSET_Y;
+      const cy = parentCenter.y - stepsAbove * ATTACH_OFFSET_Y * this.cardScale;
       child.targetX = parentCenter.x;
       child.targetY = cy;
       child.sprite.x = parentCenter.x;
@@ -1785,18 +1854,24 @@ export class BoardRegion {
       const isStack = key === stackKey;
       const isHover = key === hoveredKey && !isStack;
       const isOccupied = occupied.has(key) && !isStack;
+      const baseStroke = this.compactZones
+        ? GRID_SKELETON_STROKE_ALPHA_COMPACT
+        : GRID_SKELETON_STROKE_ALPHA;
+      const baseFill = this.compactZones
+        ? GRID_SKELETON_FILL_ALPHA_COMPACT
+        : GRID_SKELETON_FILL_ALPHA;
       const strokeAlpha = isStack
         ? GRID_SKELETON_STACK_ALPHA
         : isHover
           ? GRID_SKELETON_HOVER_ALPHA
-          : GRID_SKELETON_STROKE_ALPHA;
+          : baseStroke;
       const fillAlpha = isStack
         ? GRID_SKELETON_STACK_FILL_ALPHA
         : isHover
           ? GRID_SKELETON_FILL_ALPHA * 4
           : isOccupied
             ? 0
-            : GRID_SKELETON_FILL_ALPHA;
+            : baseFill;
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
       if (fillAlpha > 0) gfx.fill({ color, alpha: fillAlpha });
       gfx.stroke({ color, width: isStack || isHover ? 2 : 1, alpha: strokeAlpha });
@@ -1827,11 +1902,22 @@ export class BoardRegion {
       const key = cellKey(cell.col, cell.row);
       const isHover = key === hoveredKey;
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-      gfx.fill({ color, alpha: isHover ? GRID_SKELETON_FILL_ALPHA * 5 : GRID_SKELETON_FILL_ALPHA });
+      gfx.fill({
+        color,
+        alpha: isHover
+          ? GRID_SKELETON_FILL_ALPHA * 5
+          : this.compactZones
+            ? GRID_SKELETON_FILL_ALPHA_COMPACT
+            : GRID_SKELETON_FILL_ALPHA,
+      });
       gfx.stroke({
         color,
         width: isHover ? 2 : 1,
-        alpha: isHover ? GRID_SKELETON_HOVER_ALPHA : GRID_SKELETON_STROKE_ALPHA,
+        alpha: isHover
+          ? GRID_SKELETON_HOVER_ALPHA
+          : this.compactZones
+            ? GRID_SKELETON_STROKE_ALPHA_COMPACT
+            : GRID_SKELETON_STROKE_ALPHA,
       });
     }
     gfx.visible = true;

@@ -1,6 +1,7 @@
 pub mod config;
 pub mod engine_backend;
 pub mod host;
+pub mod metrics;
 pub mod updater;
 
 pub use config::Config;

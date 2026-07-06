@@ -1,6 +1,8 @@
 import { Ban, Shield } from "lucide-react";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { cn } from "@/lib/utils";
 import type { ChooseBlockersProps } from "./internal/types";
 
 export function ChooseBlockers({
@@ -20,19 +22,25 @@ export function ChooseBlockers({
       ? "Blocker selected — click the attacker to block."
       : null;
   const promptActionColors = usePromptActionColors();
+  const minimal = useIsMobileGame();
 
   return (
     <div className="flex flex-col items-center gap-1.5">
       {(blockError || blockRequirementError) && (
         <p
-          className="text-center text-xs font-semibold"
+          className={cn(
+            "text-center font-semibold",
+            minimal ? "max-w-[12rem] truncate text-[10px]" : "text-xs",
+          )}
           style={{ color: promptActionColors.attackAction }}
         >
           {blockError ?? blockRequirementError}
         </p>
       )}
-      {hint && <p className="text-center text-[11px] italic text-muted-foreground">{hint}</p>}
-      {!blockError && !blockRequirementError && blockRestrictionHint && (
+      {!minimal && hint && (
+        <p className="text-center text-[11px] italic text-muted-foreground">{hint}</p>
+      )}
+      {!minimal && !blockError && !blockRequirementError && blockRestrictionHint && (
         <p className="text-center text-[11px] font-medium text-muted-foreground">
           {blockRestrictionHint}
         </p>
@@ -43,6 +51,7 @@ export function ChooseBlockers({
             label={`Block ${blockAssignments.length}`}
             icon={<Shield className="h-3.5 w-3.5" />}
             baseColor={promptActionColors.defenseAction}
+            badge={minimal ? String(blockAssignments.length) : undefined}
             onClick={() => onDeclareBlockers(blockAssignments)}
             disabled={isWaitingForResponse || !!blockRequirementError}
           />

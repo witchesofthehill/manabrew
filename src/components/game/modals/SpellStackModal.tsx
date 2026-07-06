@@ -5,6 +5,8 @@ import type { StackObjectDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { stackObjectToCardStub } from "../game.utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
+import type { CardDto } from "@/protocol/game";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { MODAL_CARD_SIZE } from "../game.styles";
 import { useTheme } from "@/hooks/useTheme";
@@ -39,8 +41,19 @@ export function SpellStackModal({
   // Display newest (top of stack) first — stack[last] = top, stack[0] = bottom
   const displayStack = [...stack].reverse();
 
+  const longPress = useLongPressPreview<CardDto>({
+    resolve: (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-stack-id]");
+      const obj = el && displayStack.find((o) => o.id === el.dataset.stackId);
+      return obj ? { item: stackObjectToCardStub(obj), anchor: el } : null;
+    },
+    show: (card, rect) =>
+      preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
+    hide: preview.dismiss,
+  });
+
   return (
-    <Modal onClose={onCancel} maxWidth="max-w-3xl" maxHeight="max-h-[85vh]">
+    <Modal onClose={onCancel} maxWidth="max-w-3xl">
       <Modal.Header>
         <div className="flex items-center justify-between">
           <div>
@@ -65,7 +78,10 @@ export function SpellStackModal({
         {stack.length === 0 ? (
           <Modal.EmptyState message="The stack is empty." />
         ) : (
-          <div className="flex flex-wrap gap-6 content-start justify-center">
+          <div
+            className="flex flex-wrap gap-2 sm:gap-6 content-start justify-center"
+            {...longPress}
+          >
             {displayStack.map((obj, idx) => {
               const isValid = validSpellIds.includes(obj.id);
               const cardStub = stackObjectToCardStub(obj);
@@ -82,13 +98,20 @@ export function SpellStackModal({
               return (
                 <div
                   key={obj.id}
+                  data-stack-id={obj.id}
                   className={cn(
                     "shrink-0 flex flex-col items-center gap-1 group",
                     isValid ? "cursor-pointer" : "cursor-default",
                     !isValid && isTargeting && "opacity-50",
                   )}
-                  onMouseEnter={(e) => preview.handleMouseEnter(cardStub, e)}
-                  onMouseLeave={preview.handleMouseLeave}
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === "touch") return;
+                    preview.handleMouseEnter(cardStub, e);
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === "touch") return;
+                    preview.handleMouseLeave();
+                  }}
                   onClick={isValid ? () => onTarget(obj.id) : undefined}
                 >
                   <Card

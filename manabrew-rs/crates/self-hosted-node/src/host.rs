@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
@@ -133,6 +133,7 @@ pub async fn cli_entry() {
                 .unwrap_or_else(|_| "self_hosted_node=info".into()),
         )
         .init();
+    crate::metrics::init_from_env();
 
     if std::env::var("SELF_HOSTED_NODE_JAVA_SMOKE").is_ok() {
         let max_prompts = std::env::var("SELF_HOSTED_NODE_JAVA_SMOKE_PROMPTS")
@@ -330,6 +331,12 @@ async fn host_one_room(
         config.room_name = format!("{} ({label})", config.room_name);
     }
 
+    let _rooms_hosted = crate::metrics::RoomHostedGuard::new(if label.is_some() {
+        crate::metrics::PoolKind::Pod
+    } else {
+        crate::metrics::PoolKind::Solo
+    });
+
     info!(
         relay_url = %config.relay_url,
         username = %config.username,
@@ -380,6 +387,7 @@ async fn host_one_room(
             return Ok(());
         }
 
+        crate::metrics::record_relay_reconnect();
         let mut attempt: usize = 0;
         host = loop {
             let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
@@ -1126,6 +1134,8 @@ fn maybe_start_hosted_engine(
                     local_player_index,
                     "starting hosted engine thread"
                 );
+                crate::metrics::record_engine_session_started();
+                let started = Instant::now();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     rust_backend::run_hosted_engine_game(
                         game_id.clone(),
@@ -1139,7 +1149,15 @@ fn maybe_start_hosted_engine(
                         game_over_tx,
                     )
                 }));
-                finish_hosted_engine(result, &outbound_tx, &session_handle, &snapshot);
+                finish_hosted_engine(
+                    result,
+                    &game_id,
+                    num_players,
+                    started,
+                    &outbound_tx,
+                    &session_handle,
+                    &snapshot,
+                );
             });
         }
         EngineBackendKind::Forge => {
@@ -1174,6 +1192,8 @@ fn maybe_start_hosted_engine(
                     local_player_index,
                     "starting hosted engine thread"
                 );
+                crate::metrics::record_engine_session_started();
+                let started = Instant::now();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     java_backend::run_hosted_engine_game(
                         game_id.clone(),
@@ -1189,7 +1209,15 @@ fn maybe_start_hosted_engine(
                         cancel,
                     )
                 }));
-                finish_hosted_engine(result, &outbound_tx, &session_handle, &snapshot);
+                finish_hosted_engine(
+                    result,
+                    &game_id,
+                    num_players,
+                    started,
+                    &outbound_tx,
+                    &session_handle,
+                    &snapshot,
+                );
             });
         }
     }
@@ -1268,17 +1296,20 @@ fn end_hosted_game_on_abandon(
 
 fn finish_hosted_engine(
     result: std::thread::Result<Result<(), String>>,
+    game_id: &str,
+    players: usize,
+    started: Instant,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     session_handle: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,
 ) {
     let fatal = match result {
         Ok(Ok(())) => {
-            info!("hosted engine thread finished");
+            info!(game_id, "hosted engine thread finished");
             None
         }
         Ok(Err(message)) => {
-            error!(message, "hosted engine exited with a fatal error");
+            error!(game_id, message, "hosted engine exited with a fatal error");
             Some(message)
         }
         Err(panic) => {
@@ -1289,10 +1320,11 @@ fn finish_hosted_engine(
             } else {
                 "the host engine panicked".to_string()
             };
-            error!(message, "hosted engine thread panicked");
+            error!(game_id, message, "hosted engine thread panicked");
             Some(message)
         }
     };
+    crate::metrics::record_engine_session_finished(players, started, fatal.as_deref());
     if let Some(message) = fatal {
         if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
             let _ = outbound_tx.send(ClientMessage::BroadcastState { state });

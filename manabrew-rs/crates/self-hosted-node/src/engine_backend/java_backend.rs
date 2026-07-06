@@ -1776,7 +1776,11 @@ impl SubprocessBridge {
             if let Some(stderr) = stderr {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().map_while(Result::ok) {
-                    debug!(target: "self_hosted_node::java", "[java] {line}");
+                    if line.contains("Exception") || line.contains("ERROR") {
+                        warn!(target: "self_hosted_node::java", "[java] {line}");
+                    } else {
+                        debug!(target: "self_hosted_node::java", "[java] {line}");
+                    }
                 }
             }
         });

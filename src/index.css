@@ -459,6 +459,16 @@
   #root {
     height: 100%;
   }
+  @media (min-width: 2000px) {
+    :root {
+      font-size: 17.5px;
+    }
+  }
+  @media (min-width: 3000px) {
+    :root {
+      font-size: 20px;
+    }
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
@@ -469,7 +479,31 @@
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
+  button,
+  a,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
+  }
+}
+
+.game-touch-surface {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.game-touch-surface input,
+.game-touch-surface textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.game-touch-surface img {
+  -webkit-user-drag: none;
 }
 
 .font-game {

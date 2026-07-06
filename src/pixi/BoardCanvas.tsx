@@ -10,12 +10,15 @@ import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout"
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridLayout";
+import { playmatPad } from "./board/PlaymatLayer";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import {
   BATTLEFIELD_CARD_SCALE_FLOOR,
+  BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT,
   BATTLEFIELD_MIN_ROWS,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
@@ -92,6 +95,7 @@ interface BoardCanvasProps {
   /** Fraction of usable height for the local player's bottom region; defaults to
    *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
+  compact?: boolean;
   /** The opponent whose field auto-expands (their turn), or `null` for an even
    *  split (our turn). The scene owns + eases the delimiters; this sets the
    *  target. */
@@ -141,6 +145,7 @@ export function BoardCanvas({
   phaseStrip,
   phaseStripCallbacks,
   selfHeightFraction,
+  compact,
   focusedOpponentId,
   combatFocusIds,
   manualFocusId,
@@ -253,6 +258,7 @@ export function BoardCanvas({
       onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
       onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
       onHoverHandCard: (card, bounds) => {
+        callbacksRef.current.onHoverHandCard?.(card, bounds);
         if (card && bounds) {
           cancelHandHoverClear();
           setHandHover({ card, bounds });
@@ -330,22 +336,43 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction);
+    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction, compact ?? false);
+    s.setCompactMode(compact ?? false);
     // Each region is scaled to fill its OWN height — a single shared scale let
     // the tightest field (self, after the hand-fan reserve) shrink everyone, so
     // the roomier opponent fields wasted space. Self follows the card-scale
     // preference; opponents lock to 3 rows beneath the always-reserved combat
     // band (two passes: the band height depends on the scale it reserves).
-    const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    const selfBand = combatRowReserve(battlefieldFillScale(selfUsable, fraction));
-    const selfScale = battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
+    const scaleFloor = compact
+      ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
+      : BATTLEFIELD_CARD_SCALE_FLOOR;
+    // The region's playArea insets the usable zone by the playmat pad on every
+    // edge before laying rows; compact subtracts it here too, or the 3-row
+    // scale overshoots and the grid floors to 2 rows.
+    const playmatTrim = (usable: number, width: number) =>
+      compact ? Math.max(1, usable - playmatPad(width, usable) * 2) : usable;
+    const selfUsable = playmatTrim(
+      Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
+      layout.self.width,
+    );
+    const selfBand = compact
+      ? combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS))
+      : combatRowReserve(battlefieldFillScale(selfUsable, fraction));
+    const selfScale = compact
+      ? Math.max(
+          scaleFloor,
+          maxScaleForRows(Math.max(1, selfUsable - selfBand), BATTLEFIELD_MIN_ROWS),
+        )
+      : battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
     // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
     // the full field height (the avatar's top-left cells are blocked instead).
-    const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height));
-    const oppUsable = oppHeights.length ? Math.min(...oppHeights) : selfUsable;
+    const oppUsables = layout.opponents.map((o) =>
+      playmatTrim(Math.max(1, o.rect.height), o.rect.width),
+    );
+    const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
     const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
     const oppScale = Math.max(
-      BATTLEFIELD_CARD_SCALE_FLOOR,
+      scaleFloor,
       maxScaleForRows(Math.max(1, oppUsable - band), BATTLEFIELD_MIN_ROWS),
     );
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
@@ -362,7 +389,7 @@ export function BoardCanvas({
     latestLayoutRef.current = next;
     onLayoutRef.current?.(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, fraction, selfHeightFraction, selfBottomReserve, showPlayerBars]);
+  }, [playersKey, fraction, selfHeightFraction, compact, selfBottomReserve, showPlayerBars]);
 
   useEffect(() => {
     reconfigure();
@@ -488,7 +515,8 @@ export function BoardCanvas({
   }, [scene]);
 
   const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
-  const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
+  const showActionPanel =
+    handHover && handActions.length > 0 && !!onSelectHandAction && !isCoarsePointer();
 
   const hoverFaces = useCardFaces({
     name: handHover?.card.identity.name,
@@ -556,7 +584,11 @@ export function BoardCanvas({
 
   return (
     <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
-      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ width: "100%", height: "100%", display: "block", touchAction: "none" }}
+        onContextMenu={(e) => e.preventDefault()}
+      />
       {showHandFlip && (
         <div
           className="pointer-events-none absolute flex justify-end p-1.5"
@@ -569,7 +601,7 @@ export function BoardCanvas({
         >
           <button
             type="button"
-            className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85"
+            className="pointer-events-auto relative inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85 pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
             title={
               hoverHorizontal ? "Rotate the card to read it" : "Flip card to view the other face"
             }
@@ -627,7 +659,13 @@ export function BoardCanvas({
           <div
             style={{
               position: "absolute",
-              left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+              left: Math.min(
+                handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+                Math.max(
+                  0,
+                  (canvasRef.current?.clientWidth ?? Infinity) - HAND_ACTIONS_PANEL_W - 8,
+                ),
+              ),
               top: handHover.bounds.y,
               zIndex: Z_HAND_ACTIONS_MENU,
             }}

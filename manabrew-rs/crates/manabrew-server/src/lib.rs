@@ -1,8 +1,10 @@
+pub mod analytics;
 pub mod cleanup;
 pub mod config;
 pub mod connection;
 pub mod error;
 pub mod lobby;
+pub mod metrics;
 pub mod protocol;
 pub mod replay;
 pub mod room;

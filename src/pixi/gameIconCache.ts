@@ -1,19 +1,18 @@
 import { Texture, ImageSource } from "pixi.js";
-import { icons as gameIcons } from "@iconify-json/game-icons";
+import { resolveIconBody } from "./panelIcons";
 
-/** Rasterized game-icons (`@iconify-json/game-icons`) as white Pixi textures,
- *  tint at the sprite. Mirrors `manaSymbolCache`'s SVG→canvas approach so Pixi
- *  gets a concrete texture (SVG images can decode with zero intrinsic size). */
+/** Rasterized icons (via `panelIcons.resolveIconBody` — hand-picked registry
+ *  first, iconify game-icons pack second) as white Pixi textures, tint at the
+ *  sprite. Mirrors `manaSymbolCache`'s SVG→canvas approach so Pixi gets a
+ *  concrete texture (SVG images can decode with zero intrinsic size). */
 const RASTER_SIZE = 128;
 const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
 
 function svgFor(name: string): string | null {
-  const icon = gameIcons.icons[name as keyof typeof gameIcons.icons];
+  const icon = resolveIconBody(name);
   if (!icon) return null;
-  const w = icon.width ?? gameIcons.width ?? 512;
-  const h = icon.height ?? gameIcons.height ?? 512;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" fill="#ffffff" style="color:#ffffff">${icon.body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}" fill="#ffffff" style="color:#ffffff">${icon.body.replaceAll("currentColor", "#ffffff")}</svg>`;
 }
 
 export function gameIconTexture(name: string): Promise<Texture> {

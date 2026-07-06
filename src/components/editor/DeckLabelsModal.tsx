@@ -59,7 +59,7 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
   );
 
   return (
-    <Modal onClose={onClose} maxWidth="max-w-md" maxHeight="max-h-[70vh]">
+    <Modal onClose={onClose} maxWidth="max-w-md" maxHeight="max-h-[70dvh]">
       <Modal.Header onClose={onClose}>
         <h2 className="text-lg font-bold">Deck Labels</h2>
       </Modal.Header>

@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { GameLogEntryType, GameLogEntry } from "@/types/gameLog";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 
 interface ActionLogProps {
   gameLog: GameLogEntry[];
@@ -10,7 +11,12 @@ interface ActionLogProps {
   onHoverLogCard: (
     cardId: string | null,
     event?: React.MouseEvent,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
+    options?: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+      useDelay?: boolean;
+    },
   ) => void;
 }
 
@@ -22,6 +28,15 @@ export function ActionLog({
 }: ActionLogProps) {
   const visibleLog = gameLog.filter((entry) => entry.entryType !== "rule");
   const themeColors = useTheme().gameTheme;
+  const longPress = useLongPressPreview<string>({
+    resolve: (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-log-card-id]");
+      return el?.dataset.logCardId ? { item: el.dataset.logCardId, anchor: el } : null;
+    },
+    show: (cardId, rect) =>
+      onHoverLogCard(cardId, undefined, { useAnchor: true, anchorOverride: rect, useDelay: false }),
+    hide: () => onHoverLogCard(null),
+  });
   const priorityColor = themeColors.activeAction.priority;
   const infoColor = themeColors.promptAction.defenseAction;
 
@@ -81,7 +96,10 @@ export function ActionLog({
   return (
     <div className="rounded-lg p-2.5 min-h-0 flex-1 flex flex-col bg-muted/20">
       <p className="text-xs font-semibold text-muted-foreground mb-2">Game Log</p>
-      <div className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground flex flex-col-reverse pr-1">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground flex flex-col-reverse pr-1"
+        {...longPress}
+      >
         {visibleLog
           .slice(-200)
           .reverse()
@@ -94,8 +112,15 @@ export function ActionLog({
                   "py-1 border-b border-border/40 last:border-b-0",
                   entry.entryType === "warning" && "text-warning font-semibold",
                 )}
-                onMouseEnter={(e) => onHoverLogCard(entry.cardId ?? null, e, { useAnchor: true })}
-                onMouseLeave={() => onHoverLogCard(null)}
+                data-log-card-id={entry.cardId ?? undefined}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === "touch") return;
+                  onHoverLogCard(entry.cardId ?? null, e, { useAnchor: true });
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === "touch") return;
+                  onHoverLogCard(null);
+                }}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span
@@ -123,10 +148,15 @@ export function ActionLog({
                       <span
                         className="px-1 py-0.5 rounded text-[10px] cursor-help"
                         style={{ backgroundColor: withAlpha(infoColor, 0.12), color: infoColor }}
-                        onMouseEnter={(e) =>
-                          onHoverLogCard(entry.sourceCardId!, e, { useAnchor: true })
-                        }
-                        onMouseLeave={() => onHoverLogCard(null)}
+                        data-log-card-id={entry.sourceCardId}
+                        onPointerEnter={(e) => {
+                          if (e.pointerType === "touch") return;
+                          onHoverLogCard(entry.sourceCardId!, e, { useAnchor: true });
+                        }}
+                        onPointerLeave={(e) => {
+                          if (e.pointerType === "touch") return;
+                          onHoverLogCard(null);
+                        }}
                       >
                         {resolveCardName(entry.sourceCardId)}
                       </span>
@@ -135,10 +165,15 @@ export function ActionLog({
                       <span
                         className="px-1 py-0.5 rounded text-[10px] cursor-help"
                         style={{ backgroundColor: withAlpha(infoColor, 0.12), color: infoColor }}
-                        onMouseEnter={(e) =>
-                          onHoverLogCard(entry.targetCardId!, e, { useAnchor: true })
-                        }
-                        onMouseLeave={() => onHoverLogCard(null)}
+                        data-log-card-id={entry.targetCardId}
+                        onPointerEnter={(e) => {
+                          if (e.pointerType === "touch") return;
+                          onHoverLogCard(entry.targetCardId!, e, { useAnchor: true });
+                        }}
+                        onPointerLeave={(e) => {
+                          if (e.pointerType === "touch") return;
+                          onHoverLogCard(null);
+                        }}
                       >
                         {resolveCardName(entry.targetCardId)}
                       </span>

@@ -4,6 +4,7 @@ import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import type { PayManaCostProps } from "./internal/types";
 
@@ -15,6 +16,7 @@ export function PayManaCost({
   onCancelManaCost,
 }: PayManaCostProps) {
   const promptActionColors = usePromptActionColors();
+  const minimal = useIsMobileGame();
   // If the player has already tapped enough mana by hand, the primary
   // button commits that payment directly — swap the wand for a check
   // mark so the state is obvious. Otherwise it's the classic auto-tap
@@ -29,7 +31,7 @@ export function PayManaCost({
   );
   return (
     <div className={cn(PROMPT_BUTTON_COLUMN, "w-full")}>
-      {payManaCostInfo && (
+      {!minimal && payManaCostInfo && (
         <>
           {payManaCostInfo.description ? (
             <p className="text-xs text-muted-foreground">

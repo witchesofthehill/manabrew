@@ -18,7 +18,7 @@ export function KeyboardShortcutsDialog({
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+        <div className="max-h-[60dvh] space-y-4 overflow-y-auto pr-1">
           {categories.map((category) => (
             <div key={category} className="space-y-1.5">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

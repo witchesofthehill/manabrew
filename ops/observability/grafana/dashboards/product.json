@@ -617,6 +617,85 @@
         "overrides": []
       },
       "options": {}
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Player growth",
+      "description": "new players by first-seen day (bars) and cumulative total (line)",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "events-sqlite"
+          },
+          "queryText": "SELECT CAST(strftime('%s', first_day) AS INTEGER) AS day, count(*) AS new_players, sum(count(*)) OVER (ORDER BY first_day) AS total_players FROM (SELECT p.username, min(date(g.started_at)) AS first_day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL GROUP BY 1) GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT CAST(strftime('%s', first_day) AS INTEGER) AS day, count(*) AS new_players, sum(count(*)) OVER (ORDER BY first_day) AS total_players FROM (SELECT p.username, min(date(g.started_at)) AS first_day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND g.started_at IS NOT NULL GROUP BY 1) GROUP BY 1 ORDER BY 1",
+          "queryType": "table",
+          "timeColumns": ["day"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "new_players"
+            },
+            "properties": [
+              {
+                "id": "custom.drawStyle",
+                "value": "bars"
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 100
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#1baf7a"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_players"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#2a78d6"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
     }
   ]
 }

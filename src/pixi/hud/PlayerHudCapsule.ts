@@ -595,9 +595,15 @@ export class PlayerHudCapsule {
         this.onHover(null);
       });
       sprite.on("pointertap", (e) => {
-        const onTap = this.column
-          ? undefined
-          : this.spec.badges.find((b) => b.id === chip.badgeId)?.onTap;
+        // Collapsed column: chips cover most of the banner, and the banner tap
+        // gesture belongs to tap-to-focus/tap-to-target — same as the avatar.
+        if (this.column) {
+          this.onHover(null);
+          if (this.spec.isTargetable) this.onTarget();
+          else this.onShowSheet();
+          return;
+        }
+        const onTap = this.spec.badges.find((b) => b.id === chip.badgeId)?.onTap;
         if (onTap) {
           this.onHover(null);
           onTap();

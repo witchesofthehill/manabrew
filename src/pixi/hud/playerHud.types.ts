@@ -1,5 +1,3 @@
-export const zoneBadgeId = (zoneKey: string): string => `zone-${zoneKey}`;
-
 export interface PlayerHudTooltipContent {
   title: string;
   lines?: { text: string; active: boolean }[];

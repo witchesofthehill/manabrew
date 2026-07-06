@@ -1,4 +1,5 @@
 import {
+  Bounds,
   ColorMatrixFilter,
   Container,
   Graphics,
@@ -17,10 +18,9 @@ import { hexToNum } from "../colorUtils";
 import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
 import { loadAvatarTexture } from "./avatarTextureCache";
-import { zoneBadgeId } from "./playerHud.types";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import type { ScreenBounds, ScreenPos } from "@/pixi/types";
-import { RING_ABILITIES } from "@/components/game/game.constants";
+import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
@@ -161,11 +161,7 @@ export class PlayerHudCapsule {
   private avatarCx = 0;
   private avatarCy = 0;
   private avatarDia = 0;
-  private contentMinX = 0;
-  private contentMinY = 0;
-  private contentMaxX = 0;
-  private contentMaxY = 0;
-  private hasContent = false;
+  private contentBounds = new Bounds();
 
   constructor(
     theme: Theme,
@@ -640,18 +636,7 @@ export class PlayerHudCapsule {
   }
 
   private extendContent(x: number, y: number, w: number, h: number): void {
-    if (!this.hasContent) {
-      this.hasContent = true;
-      this.contentMinX = x;
-      this.contentMinY = y;
-      this.contentMaxX = x + w;
-      this.contentMaxY = y + h;
-      return;
-    }
-    this.contentMinX = Math.min(this.contentMinX, x);
-    this.contentMinY = Math.min(this.contentMinY, y);
-    this.contentMaxX = Math.max(this.contentMaxX, x + w);
-    this.contentMaxY = Math.max(this.contentMaxY, y + h);
+    this.contentBounds.addFrame(x, y, x + w, y + h);
   }
 
   /** The rendered footprint (avatar + gear/offline chrome, life pill, badge
@@ -660,22 +645,17 @@ export class PlayerHudCapsule {
    *  sparkles, glows) are deliberately excluded so the battlefield keep-out
    *  doesn't breathe with animations. */
   getKeepOutBounds(): ScreenBounds | null {
-    if (!this.hasContent) return null;
-    const tl = this.container.toGlobal(
-      SCRATCH_A.set(this.contentMinX, this.contentMinY),
-      SCRATCH_A,
-    );
-    const br = this.container.toGlobal(
-      SCRATCH_B.set(this.contentMaxX, this.contentMaxY),
-      SCRATCH_B,
-    );
+    if (!this.contentBounds.isValid) return null;
+    const b = this.contentBounds;
+    const tl = this.container.toGlobal(SCRATCH_A.set(b.minX, b.minY), SCRATCH_A);
+    const br = this.container.toGlobal(SCRATCH_B.set(b.maxX, b.maxY), SCRATCH_B);
     return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
   }
 
   private render(): void {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
-    this.hasContent = false;
+    this.contentBounds.clear();
     this.life.text = String(this.spec.life);
     this.updateFilters();
     this.applyOffline();

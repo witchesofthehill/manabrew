@@ -26,6 +26,8 @@ export const ZONE_TILE_KEY = {
   command: "cmd",
 } as const;
 
+export const zoneBadgeId = (zoneKey: string): string => `zone-${zoneKey}`;
+
 export const ZONE_BADGES: Record<string, { icon: string; label: string }> = {
   [ZONE_TILE_KEY.library]: { icon: "deck", label: "Library" },
   [ZONE_TILE_KEY.graveyard]: { icon: "graveyard", label: "Graveyard" },

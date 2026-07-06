@@ -1,14 +1,7 @@
 import type { GameThemeColors } from "@/themes/gameTheme";
-import { zoneBadgeId } from "@/pixi/hud/playerHud.types";
 import type { PlayerHudBadge } from "@/pixi/hud/playerHud.types";
-import { ZONE_BADGES } from "@/components/game/game.constants";
-
-export interface ZoneBadgeSource {
-  key: string;
-  count: number;
-  highlightColor?: string;
-  onOpen?: () => void;
-}
+import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
+import { ZONE_BADGES, zoneBadgeId } from "@/components/game/game.constants";
 
 export interface PlayerHudBadgeFlags {
   isMonarch: boolean;
@@ -114,7 +107,7 @@ export function buildPlayerHudBadges(
   return out;
 }
 
-export function buildZoneBadges(tiles: ZoneBadgeSource[], fallbackColor: string): PlayerHudBadge[] {
+export function buildZoneBadges(tiles: ZoneTileSpec[], fallbackColor: string): PlayerHudBadge[] {
   return tiles.flatMap((t) => {
     const badge = ZONE_BADGES[t.key];
     return badge

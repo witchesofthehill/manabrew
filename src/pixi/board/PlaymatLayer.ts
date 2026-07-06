@@ -44,7 +44,7 @@ export const clampPlaymatBrightness = (b: number): number =>
   Math.max(PLAYMAT_BRIGHTNESS_MIN, Math.min(PLAYMAT_BRIGHTNESS_MAX, Number.isFinite(b) ? b : 1));
 
 const PLAYMAT_DROP_DIM = 0.29;
-export const PLAYMAT_PADDING = 0.04;
+const PLAYMAT_PADDING = 0.04;
 export const playmatPad = (width: number, height: number): number =>
   Math.min(width, height) * PLAYMAT_PADDING;
 const PLAYMAT_VIGNETTE_ALPHA = 0.7;

@@ -1,6 +1,6 @@
 ---
 title: Hosting the web client
-description: Serve the Manabrew browser client as a static site with Docker Compose or from source, pointed at your own relay, with the cross-origin isolation headers it needs to run games.
+description: Serve the Manabrew browser client from a published Docker Hub image or from source, pointed at your own relay, with the cross-origin isolation headers it needs to run games.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
@@ -21,87 +21,86 @@ is not offline-capable — card images come from Scryfall at runtime.
 
 ## Pointing at your relay
 
-The default relay endpoint is **baked in at build time**. Set these build args
-to make the bundle default to your own relay (see [Hosting your own
-relay](/hosting-relay/)):
+The published image defaults to the official public relay and is repointed at
+**runtime** — one image, any relay, no rebuild. Set these on the container:
 
-| Build arg             | Default              | Purpose                                   |
-| --------------------- | -------------------- | ----------------------------------------- |
-| `VITE_RELAY_HOST`     | `relay.manabrew.app` | Relay host the client connects to         |
-| `VITE_RELAY_PORT`     | `9443`               | Relay port — use `443` behind a TLS proxy |
-| `VITE_RELAY_PASSWORD` | `forge`              | Shared relay key (`MANABREW_SERVER_KEY`)  |
+| Env var          | Default            | Purpose                                         |
+| ---------------- | ------------------ | ----------------------------------------------- |
+| `RELAY_HOST`     | _(official relay)_ | Relay host the client connects to               |
+| `RELAY_PORT`     | `443`              | Relay port — `443` dials `wss://`, else `ws://` |
+| `RELAY_PASSWORD` | `forge`            | Shared relay key (`MANABREW_SERVER_KEY`)        |
 
-The client dials `wss://` when the port is `443` and `ws://` otherwise, so a
-relay behind a TLS proxy needs `VITE_RELAY_PORT: "443"`. Leaving `VITE_RELAY_HOST`
-unset keeps the official public relay. Players can also add extra servers at
-runtime from **Settings → Server**.
+The entrypoint writes these into `/srv/manabrew/config.js` on start, which the
+app reads before connecting. Leaving `RELAY_HOST` unset keeps the official
+relay. Players can also add extra servers at runtime from **Settings → Server**.
+
+If you build the bundle **from source** instead, bake the same values in at
+build time with `VITE_RELAY_HOST` / `VITE_RELAY_PORT` / `VITE_RELAY_PASSWORD`;
+runtime `RELAY_*` overrides a baked default when both are present.
 
 ## Serving the client
 
 <Tabs>
   <TabItem label="Docker Compose">
-    `Dockerfile.web` builds the bundle and serves it with Caddy, which is also
-    where the cross-origin isolation headers come from. It builds from the repo
-    root, so start from a checkout:
-
-    ```bash
-    git clone https://github.com/witchesofthehill/manabrew.git
-    cd manabrew
-    ```
-
-    Create a `compose.yml`:
+    The published image bundles Caddy with a default `:80` config that already
+    sends the isolation headers, so no checkout and no mounted config are
+    needed. Create a `compose.yml`:
 
     ```yaml
     services:
       web:
-        build:
-          context: .
-          dockerfile: Dockerfile.web
-          args:
-            VITE_RELAY_HOST: relay.example.com
-            VITE_RELAY_PORT: "443"
-            VITE_RELAY_PASSWORD: "${MANABREW_SERVER_KEY:-forge}"
+        image: witchesofthehill/manabrew-web:latest
+        environment:
+          RELAY_HOST: relay.example.com
+          RELAY_PORT: "443"
+          RELAY_PASSWORD: "${MANABREW_SERVER_KEY:-forge}"
         ports:
           - "80:80"
-          - "443:443"
-        volumes:
-          - ./Caddyfile:/etc/caddy/Caddyfile:ro
-          - caddy-data:/data
-          - caddy-config:/config
         restart: unless-stopped
-
-    volumes:
-      caddy-data:
-      caddy-config:
     ```
 
-    Caddy needs a config with the isolation headers. Create a `Caddyfile` next
-    to it — a single-host trim of the repo's `ops/Caddyfile`:
+    Then pull and run:
+
+    ```bash
+    docker compose up -d
+    ```
+
+    This serves plain HTTP on port 80 — put it behind your own TLS proxy, or
+    mount a Caddyfile with a real hostname over `/etc/caddy/Caddyfile` for
+    automatic HTTPS:
 
     ```caddyfile
-    # Replace play.example.com with your domain. For a local test use `:80`
-    # instead, and Caddy will serve plain HTTP with no certificate.
+    # ./Caddyfile — replace play.example.com with your domain.
     play.example.com {
     	root * /srv/manabrew
     	encode zstd gzip
-    	header {
-    		Cross-Origin-Opener-Policy "same-origin"
-    		Cross-Origin-Embedder-Policy "credentialless"
-    		Cross-Origin-Resource-Policy "same-origin"
+    	@config path /config.js
+    	handle @config {
+    		header Cache-Control "no-store"
+    		file_server
     	}
-    	try_files {path} /index.html
-    	file_server
+    	handle {
+    		header {
+    			Cross-Origin-Opener-Policy "same-origin"
+    			Cross-Origin-Embedder-Policy "credentialless"
+    			Cross-Origin-Resource-Policy "same-origin"
+    		}
+    		try_files {path} /index.html
+    		file_server
+    	}
     }
     ```
 
-    Then build and serve:
-
-    ```bash
-    docker compose up --build
+    ```yaml
+    # add to the web service:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
     ```
-
-    With a real domain (and its DNS pointed at the box) Caddy issues a Let's
-    Encrypt certificate automatically.
 
   </TabItem>
   <TabItem label="From source">

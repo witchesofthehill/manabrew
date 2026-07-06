@@ -107,4 +107,15 @@ COPY --from=builder /build/dist/ /srv/manabrew/
 COPY --from=website /repo/website/dist/landing/ /srv/landing/
 COPY --from=website /repo/website/dist/docs/ /srv/docs/
 
+# Standalone defaults so `docker run` works with no mounted config: a :80
+# Caddyfile with the isolation headers, plus an entrypoint that writes the
+# runtime relay config (config.js) from RELAY_* env before starting Caddy. The
+# production compose mounts ops/Caddyfile over this default; the entrypoint runs
+# either way and leaves config.js empty when RELAY_HOST is unset.
+COPY ops/standalone.Caddyfile /etc/caddy/Caddyfile
+COPY ops/web-entrypoint.sh /usr/local/bin/manabrew-entrypoint.sh
+RUN chmod +x /usr/local/bin/manabrew-entrypoint.sh
+
 EXPOSE 80 443
+
+ENTRYPOINT ["manabrew-entrypoint.sh"]

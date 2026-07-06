@@ -1,0 +1,86 @@
+name: Docker images
+
+# Builds and pushes the self-hosting images to Docker Hub so deployments can
+# `docker pull` instead of cloning the repo and building:
+#   - <org>/manabrew-server : the multiplayer relay (small Rust binary)
+#   - <org>/manabrew-web    : the browser client + Caddy (WASM + Vite + docs)
+#
+# The web image is relay-agnostic: it defaults to the official public relay and
+# is repointed at runtime via RELAY_HOST/RELAY_PORT/RELAY_PASSWORD (the
+# entrypoint writes /srv/manabrew/config.js on start). So no VITE_RELAY_* build
+# args are baked here.
+#
+# Required repo config:
+#   secrets.DOCKERHUB_USERNAME, secrets.DOCKERHUB_TOKEN (a Docker Hub access token)
+#   vars.DOCKERHUB_ORG (optional; defaults to "witchesofthehill")
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extra image tag to push (in addition to the git ref)"
+        required: false
+        default: ""
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build & push ${{ matrix.image }}
+    # Skip on forks that lack the Docker Hub secrets.
+    if: github.repository == 'witchesofthehill/manabrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: manabrew-server
+            dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+          - image: manabrew-web
+            dockerfile: Dockerfile.web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Derive tags & labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ vars.DOCKERHUB_ORG || 'witchesofthehill' }}/${{ matrix.image }}
+          # `latest` only on real version tags, plus semver and the raw ref.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=tag
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event.inputs.tag != '' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          # amd64 only: the web image compiles Rust→WASM + a Node/Astro build,
+          # which is impractical under arm64 QEMU emulation. Add
+          # linux/arm64 here (on a native arm runner) if you need it.
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

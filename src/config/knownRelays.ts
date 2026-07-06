@@ -14,21 +14,33 @@ const OFFICIAL_MANABREW: KnownRelay = {
   password: "725c5fba479c4e59605e39988e31cb76813afa55cd1e71488c4dd2aae998164b",
 };
 
-// Self-hosted web builds bake their relay in via `VITE_RELAY_*` (see
-// `Dockerfile.web` build args). When `VITE_RELAY_HOST` is set the built-in
-// server points at that relay instead of the official one; unset builds keep
-// the official default. Port defaults to 9443 (plain `ws://`); set 443 when the
-// relay sits behind a TLS proxy so the client dials `wss://`.
-function configuredRelay(): KnownRelay {
-  const host = import.meta.env.VITE_RELAY_HOST?.trim();
-  if (!host) return OFFICIAL_MANABREW;
-  const port = Number(import.meta.env.VITE_RELAY_PORT);
+function makeRelay(host: string, port: unknown, password: unknown): KnownRelay {
+  const parsed = Number(port);
   return {
     name: host,
     host,
-    port: Number.isFinite(port) && port > 0 ? port : 9443,
-    password: import.meta.env.VITE_RELAY_PASSWORD ?? "forge",
+    port: Number.isFinite(parsed) && parsed > 0 ? parsed : 9443,
+    password: typeof password === "string" && password ? password : "forge",
   };
 }
 
-export const KNOWN_RELAYS: KnownRelay[] = [configuredRelay()];
+// The default relay, resolved in priority order:
+//   1. runtime config (`window.__MANABREW_RUNTIME__`, written from RELAY_* env
+//      by the published web image's entrypoint) — one image, any relay;
+//   2. build-time `VITE_RELAY_*` (baked by `Dockerfile.web` or a source build);
+//   3. the official public relay.
+// Port defaults to 9443 (plain `ws://`); set 443 when the relay sits behind a
+// TLS proxy so the client dials `wss://`.
+function defaultRelay(): KnownRelay {
+  const runtime = typeof window !== "undefined" ? window.__MANABREW_RUNTIME__?.relay : undefined;
+  const runtimeHost = runtime?.host?.trim();
+  if (runtimeHost) return makeRelay(runtimeHost, runtime.port, runtime.password);
+
+  const envHost = import.meta.env.VITE_RELAY_HOST?.trim();
+  if (envHost)
+    return makeRelay(envHost, import.meta.env.VITE_RELAY_PORT, import.meta.env.VITE_RELAY_PASSWORD);
+
+  return OFFICIAL_MANABREW;
+}
+
+export const KNOWN_RELAYS: KnownRelay[] = [defaultRelay()];

@@ -9,6 +9,7 @@ import { StackLayer } from "./stack/StackLayer";
 import type { StackSpec } from "./stack/stack.types";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import { PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
@@ -54,7 +55,9 @@ export function BoardOverlayCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(2, window.devicePixelRatio || 1),
+        resolution: isCoarsePointer()
+          ? Math.min(2, window.devicePixelRatio || 1)
+          : Math.max(2, window.devicePixelRatio || 1),
       })
       .then(() => {
         if (!active || !app.renderer) {
@@ -170,6 +173,7 @@ export function BoardOverlayCanvas({
       ref={canvasRef}
       className={className}
       style={{ width: "100%", height: "100%", display: "block", pointerEvents: "none" }}
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
 }

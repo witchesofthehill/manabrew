@@ -86,7 +86,7 @@ export function ReorderCardsModal({
           <span>{topOfDeck ? "TOP" : "LAST"}</span>
         </div>
         <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
-          <div className="flex max-h-[55vh] flex-wrap justify-center gap-2 overflow-y-auto px-5 pb-4">
+          <div className="flex max-h-[55dvh] flex-wrap justify-center gap-2 overflow-y-auto px-5 pb-4">
             {ids.map((id) => {
               const c = cardsById.get(id);
               return c ? <SortableCard key={id} id={id} card={c} /> : null;

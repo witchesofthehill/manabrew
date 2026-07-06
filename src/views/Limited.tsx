@@ -615,7 +615,7 @@ function SelectedSetSummary({
             <select
               value={selectedVariant}
               onChange={(e) => onVariantChange(e.target.value)}
-              className="w-full rounded border border-border/70 bg-background px-2 py-1 text-xs"
+              className="w-full rounded border border-border/70 bg-background px-2 py-1 text-xs pointer-coarse:text-base"
             >
               <option value="">Default</option>
               {info.variants.map((v) => (

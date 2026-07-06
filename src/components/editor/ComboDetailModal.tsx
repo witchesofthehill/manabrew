@@ -31,7 +31,7 @@ export function ComboDetailModal({
   const prereqs = prerequisites(combo);
 
   return (
-    <Modal onClose={onClose} maxWidth="max-w-3xl" maxHeight="max-h-[90vh]">
+    <Modal onClose={onClose} maxWidth="max-w-3xl" maxHeight="max-h-[90dvh]">
       <Modal.Header onClose={onClose}>
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />

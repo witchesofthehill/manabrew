@@ -10,7 +10,7 @@ import type { StackSpec } from "@/pixi/stack/stack.types";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
-import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
+import { buildPlayerHudBadges, buildZoneBadges } from "@/components/game/panels/playerHudBadges";
 import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
@@ -25,9 +25,17 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ZONE_TILE_KEY } from "@/components/game/game.constants";
-import { GAP, HAND_RESERVE_TRIM } from "@/pixi/constants";
+import {
+  GAP,
+  HAND_BOTTOM_SINK_FRAC,
+  HAND_BOTTOM_SINK_FRAC_COMPACT,
+  HAND_RESERVE_TRIM,
+  HAND_RESERVE_TRIM_COMPACT,
+} from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 
@@ -86,14 +94,16 @@ interface GameBoardProps {
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
 
-  onHandCardDragStart: (card: CardDto, e: React.MouseEvent) => void;
-  onHandCardClick: (card: CardDto, e?: React.MouseEvent) => void;
+  onHandCardDragStart: (card: CardDto, e: HandDragStart) => void;
+  onHandCardClick: (card: CardDto, e?: { clientX: number; clientY: number }) => void;
   onHoverCard: (
     card: CardDto | null,
     e?: React.MouseEvent,
     options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
   ) => void;
   onDismissHoverPreview?: () => void;
+  onLongPressCard?: (card: CardDto, anchor: DOMRect) => void;
+  onHandHoverChange?: (hovering: boolean) => void;
   getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (action: HandActionOption) => void;
   onFlipCard: () => void;
@@ -186,6 +196,8 @@ export function GameBoard({
   onHandCardClick,
   onHoverCard,
   onDismissHoverPreview,
+  onLongPressCard,
+  onHandHoverChange,
   getHandActions,
   onSelectHandAction,
   onFlipCard,
@@ -224,9 +236,13 @@ export function GameBoard({
   const toggleSelfStop = usePhaseStopStore((s) => s.toggleSelfStop);
 
   const vScale = useHandScale();
+  const compactBoard = useIsMobileGame();
 
+  const handVisibleFrac =
+    1 - (compactBoard ? HAND_BOTTOM_SINK_FRAC_COMPACT : HAND_BOTTOM_SINK_FRAC);
   const selfBottomReserve = Math.round(
-    (0.55 * HAND_CARD_BASE.cardH * vScale + GAP) * HAND_RESERVE_TRIM,
+    (handVisibleFrac * HAND_CARD_BASE.cardH * vScale + GAP) *
+      (compactBoard ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM),
   );
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
@@ -469,16 +485,12 @@ export function GameBoard({
           onHoverCard(null);
         }
       },
-      onStartDrag: (card, screenPos) => {
-        onHandCardDragStart(card, {
-          clientX: screenPos.x,
-          clientY: screenPos.y,
-          preventDefault: () => {},
-        } as React.MouseEvent);
+      onStartDrag: (card, _screenPos, pointer) => {
+        onHandCardDragStart(card, pointer);
       },
-      onClickCard_Hand: (card) => {
+      onClickCard_Hand: (card, pointer) => {
         if (handSelectionMode) onHandCardToggle?.(card.id);
-        else onHandCardClick(card);
+        else onHandCardClick(card, pointer);
       },
       onDismissHoverPreview,
       onTapLand,
@@ -501,6 +513,12 @@ export function GameBoard({
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
       onShowBoardMenu,
+      onFocusOpponentField: setManualFocusId,
+      onHoverHandCard: onHandHoverChange ? (card) => onHandHoverChange(!!card) : undefined,
+      onLongPressCard: onLongPressCard
+        ? (card, bounds) =>
+            onLongPressCard(card, new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height))
+        : undefined,
     }),
     [
       promptType,
@@ -528,7 +546,10 @@ export function GameBoard({
       setDragAttackerId,
       setSheetPlayerId,
       setStickyOpponentId,
+      setManualFocusId,
       isSelfTurn,
+      onLongPressCard,
+      onHandHoverChange,
     ],
   );
 
@@ -1051,6 +1072,28 @@ export function GameBoard({
     openExile,
   ]);
 
+  const boardZoneTiles = useMemo<Record<string, ZoneTileSpec[]>>(() => {
+    if (!compactBoard) return zoneTilesByPlayer;
+    return Object.fromEntries(
+      Object.entries(zoneTilesByPlayer).map(([pid, tiles]) => [
+        pid,
+        tiles.filter((t) => t.key === ZONE_TILE_KEY.command),
+      ]),
+    );
+  }, [zoneTilesByPlayer, compactBoard]);
+
+  const hudBarSpecs = useMemo<PlayerHudSpec[]>(() => {
+    if (!compactBoard) return playerBarSpecs;
+    return playerBarSpecs.map((spec) => {
+      const zones = buildZoneBadges(zoneTilesByPlayer[spec.playerId] ?? [], gameTheme.textMuted);
+      if (zones.length === 0) return spec;
+      const badges = [...spec.badges];
+      const handIdx = badges.findIndex((b) => b.id === "hand");
+      badges.splice(handIdx + 1, 0, ...zones);
+      return { ...spec, badges };
+    });
+  }, [playerBarSpecs, zoneTilesByPlayer, compactBoard, gameTheme]);
+
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const seatColorOf = (pid: string): string =>
       pid === me.id
@@ -1167,26 +1210,43 @@ export function GameBoard({
   // cluster. (Player panels no longer reserve space — the Pixi HUD sits in the
   // playmat's own margin.)
   const lastPanelBlockersRef = useRef<string>("");
+  const opponentIdsKey = opponents.map((op) => op.id).join(",");
   useLayoutEffect(() => {
-    const board = boardRef.current;
-    const scene = sceneRef.current;
-    if (!board || !scene) return;
-    const b = board.getBoundingClientRect();
+    const opponentIds = opponentIdsKey ? opponentIdsKey.split(",") : [];
+    const measure = () => {
+      const board = boardRef.current;
+      const scene = sceneRef.current;
+      if (!board || !scene) return;
+      const b = board.getBoundingClientRect();
+      const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
+      const next: Record<string, BlockingRect[]> = {};
+      if (actionEl) {
+        const r = actionEl.getBoundingClientRect();
+        const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
+        next[me.id] = [
+          { x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height },
+        ];
+        if (compactBoard) {
+          const full = { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
+          for (const id of opponentIds) next[id] = [full];
+        }
+      }
+      const json = JSON.stringify(next);
+      if (json === lastPanelBlockersRef.current) return;
+      lastPanelBlockersRef.current = json;
+      scene.setPlayerBlockers(new Map(Object.entries(next)));
+    };
+    measure();
+    if (!compactBoard) return;
     const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-    const next: Record<string, BlockingRect[]> = {};
-    if (actionEl) {
-      const r = actionEl.getBoundingClientRect();
-      const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
-      next[me.id] = [{ x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height }];
-    }
-    const json = JSON.stringify(next);
-    if (json === lastPanelBlockersRef.current) return;
-    lastPanelBlockersRef.current = json;
-    scene.setPlayerBlockers(new Map(Object.entries(next)));
-  }, [sceneRef, me.id, unifiedLayout, promptType]);
+    if (!actionEl) return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(actionEl);
+    return () => ro.disconnect();
+  }, [sceneRef, me.id, opponentIdsKey, unifiedLayout, promptType, compactBoard]);
 
   const sheetSpec = sheetPlayerId
-    ? (playerBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
+    ? (hudBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
     : null;
 
   // Screen-reader mirror of the Pixi HUD (Pixi has no DOM accessibility).
@@ -1256,12 +1316,13 @@ export function GameBoard({
           attackerOptions={chooseAttackersPrompt?.input.attackers ?? []}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
+          compact={compactBoard}
           focusedOpponentId={focusedOpponentId}
           combatFocusIds={combatFocusIds}
           manualFocusId={manualFocusId}
-          playerBars={playerBarSpecs}
+          playerBars={hudBarSpecs}
           showPlayerBars
-          zoneTiles={zoneTilesByPlayer}
+          zoneTiles={boardZoneTiles}
           callbacks={pixiCallbacks}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}

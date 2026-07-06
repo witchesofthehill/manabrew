@@ -297,6 +297,10 @@ export class CardSprite extends Container {
    *  it into the base/hover scale each frame so the two don't fight. */
   readonly fxScale = { x: 1, y: 1 };
   private ringGfx: Graphics;
+  private hitPad = 0;
+  private chromeScale = 1;
+  private lastRing: { color: number; alpha: number } | null = null;
+  private lastOwnerRing: number | null = null;
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private ptContainer: Container;
@@ -506,7 +510,11 @@ export class CardSprite extends Container {
     this.redrawHoverDebug();
 
     this.hitArea = {
-      contains: (x: number, y: number) => x >= 0 && x <= this.cw && y >= 0 && y <= this.ch,
+      contains: (x: number, y: number) =>
+        x >= -this.hitPad &&
+        x <= this.cw + this.hitPad &&
+        y >= -this.hitPad &&
+        y <= this.ch + this.hitPad,
     };
 
     // Everything except the selection/target ring lives under contentContainer so
@@ -1258,18 +1266,31 @@ export class CardSprite extends Container {
     this.damageGfx.fill({ color: hexToNum(activeTheme.gameTheme.pt.lethal), alpha });
   }
 
+  setHitPad(pad: number): void {
+    this.hitPad = pad;
+  }
+
+  setChromeScale(scale: number): void {
+    if (this.chromeScale === scale) return;
+    this.chromeScale = scale;
+    if (this.lastRing) this.setRing(this.lastRing.color, this.lastRing.alpha);
+    if (this.lastOwnerRing != null) this.setOwnerRing(this.lastOwnerRing);
+  }
+
   setRing(color: number | null, alpha = 1): void {
+    this.lastRing = color == null ? null : { color, alpha };
     this.ringGfx.clear();
     if (color == null) return;
     this.drawRingStroke(color, alpha);
   }
 
   setOwnerRing(color: number | null): void {
+    this.lastOwnerRing = color;
     this.ownerRingGfx.clear();
     if (color == null) return;
     const o = RING_INSET + 3;
     this.ownerRingGfx.roundRect(-o, -o, this.cw + o * 2, this.ch + o * 2, RING_RADIUS + 3);
-    this.ownerRingGfx.stroke({ color, width: 2.5 });
+    this.ownerRingGfx.stroke({ color, width: 2.5 * this.chromeScale });
   }
 
   setDoomed(active: boolean): void {
@@ -1304,6 +1325,6 @@ export class CardSprite extends Container {
       this.ch + RING_INSET * 2,
       RING_RADIUS,
     );
-    this.ringGfx.stroke({ color, width: 2, alpha });
+    this.ringGfx.stroke({ color, width: 2 * this.chromeScale, alpha });
   }
 }

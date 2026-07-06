@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/witchesofthehill/manabrew/compare/v1.0.2...v1.1.0) (2026-07-06)
+
+### Features
+
+* **ui:** smartphone/tablet responsiveness + touch input ([#297](https://github.com/witchesofthehill/manabrew/issues/297)) ([f0c5942](https://github.com/witchesofthehill/manabrew/commit/f0c5942e212d6bfeba3ba46ef957bce530c022f7))
+
 ## [1.0.2](https://github.com/witchesofthehill/manabrew/compare/v1.0.1...v1.0.2) (2026-07-04)
 
 ### Fixes

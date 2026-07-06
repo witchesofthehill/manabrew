@@ -123,13 +123,13 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
   }, []);
 
   useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (searchContainerRef.current?.contains(event.target as Node)) return;
       setSearchOpen(false);
     }
-    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, []);

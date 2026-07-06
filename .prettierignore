@@ -7,3 +7,6 @@ src-tauri/gen/
 # Never reformat it — a stray `prettier --write` here dirties hundreds of its
 # docs/json/yml files. Restore with `git -C forge restore .` if it happens.
 forge/
+
+# release-please owns this file; reformatting it churns every release PR.
+CHANGELOG.md

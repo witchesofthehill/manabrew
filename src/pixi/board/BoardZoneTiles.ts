@@ -2,6 +2,7 @@ import {
   Container,
   Graphics,
   ImageSource,
+  Rectangle,
   Sprite,
   Text,
   Texture,
@@ -15,6 +16,7 @@ import { CardSprite } from "../CardSprite";
 import { fetchImageElement } from "@/api/scryfall";
 import { CARD_W, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { CARD_RADIUS } from "../constants";
+import { LongPressGesture } from "../LongPressGesture";
 
 /** One on-grid zone tile (deck / graveyard / exile / command). */
 export interface ZoneTileSpec {
@@ -39,6 +41,11 @@ export interface ZoneTileHost {
   onDragMove: (centerX: number, centerY: number) => void;
   onDrop: (key: string, centerX: number, centerY: number) => void;
   onDragEnd: () => void;
+  onPreview: (
+    card: CardDto | null,
+    bounds?: { x: number; y: number; width: number; height: number },
+  ) => void;
+  isPointerTapSuppressed: (pointerId: number) => boolean;
 }
 
 interface Tile {
@@ -88,8 +95,16 @@ export class BoardZoneTiles {
   private placements = new Map<string, { x: number; y: number }>();
   private cardW = 0;
   private cardH = 0;
+  private hitPad = 0;
   private draggable = false;
-  private drag: { tile: Tile; grabX: number; grabY: number; moved: boolean } | null = null;
+  private drag: {
+    tile: Tile;
+    pointerId: number;
+    grabX: number;
+    grabY: number;
+    moved: boolean;
+  } | null = null;
+  private longPress = new LongPressGesture();
 
   constructor(theme: Theme, host: ZoneTileHost) {
     this.theme = theme;
@@ -134,9 +149,11 @@ export class BoardZoneTiles {
     cardW: number,
     cardH: number,
     placements: Map<string, { x: number; y: number }>,
+    hitPad = 0,
   ): void {
     this.cardW = cardW;
     this.cardH = cardH;
+    this.hitPad = hitPad;
     this.placements = placements;
     this.redraw();
   }
@@ -176,13 +193,31 @@ export class BoardZoneTiles {
     };
 
     container.on("pointerdown", (e: FederatedPointerEvent) => {
+      if (tile.spec.topCard && !tile.spec.back) {
+        this.longPress.start(e, tile.spec.key, () => {
+          const b = tile.container.getBounds();
+          this.host.onPreview(tile.spec.topCard!, {
+            x: b.x,
+            y: b.y,
+            width: b.width,
+            height: b.height,
+          });
+        });
+      }
       if (!this.draggable) return;
       const p = this.container.toLocal(e.global);
-      this.drag = { tile, grabX: p.x - container.x, grabY: p.y - container.y, moved: false };
+      this.drag = {
+        tile,
+        pointerId: e.pointerId,
+        grabX: p.x - container.x,
+        grabY: p.y - container.y,
+        moved: false,
+      };
       container.zIndex = DRAG_Z;
     });
     container.on("globalpointermove", (e: FederatedPointerEvent) => {
-      if (this.drag?.tile !== tile) return;
+      this.longPress.move(e.global.x, e.global.y);
+      if (this.drag?.tile !== tile || this.drag.pointerId !== e.pointerId) return;
       const p = this.container.toLocal(e.global);
       const nx = p.x - this.drag.grabX;
       const ny = p.y - this.drag.grabY;
@@ -191,11 +226,27 @@ export class BoardZoneTiles {
         Math.abs(ny - container.y) > DRAG_THRESHOLD_PX
       ) {
         this.drag.moved = true;
+        this.longPress.cancel();
       }
       container.position.set(nx, ny);
       if (this.drag.moved) this.host.onDragMove(nx + this.cardW / 2, ny + this.cardH / 2);
     });
-    const end = () => {
+    const end = (e: FederatedPointerEvent) => {
+      if (this.drag && this.drag.tile !== tile) return;
+      if (this.drag && this.drag.pointerId !== e.pointerId) return;
+      if (this.host.isPointerTapSuppressed(e.pointerId)) {
+        this.longPress.cancel();
+        this.host.onPreview(null);
+        if (this.drag?.tile === tile) {
+          this.drag = null;
+          container.zIndex = 0;
+          this.host.onDragEnd();
+        }
+        return;
+      }
+      this.longPress.cancel();
+      const heldForPreview = this.longPress.consumeTap(tile.spec.key);
+      if (heldForPreview) this.host.onPreview(null);
       if (this.drag?.tile === tile) {
         const { moved } = this.drag;
         this.drag = null;
@@ -210,7 +261,7 @@ export class BoardZoneTiles {
           return;
         }
       }
-      tile.spec.onOpen?.();
+      if (!heldForPreview) tile.spec.onOpen?.();
     };
     container.on("pointerup", end);
     container.on("pointerupoutside", end);
@@ -266,6 +317,12 @@ export class BoardZoneTiles {
       const pos = this.placements.get(spec.key);
       if (!tile || !pos) continue;
       if (this.drag?.tile !== tile) tile.container.position.set(pos.x, pos.y);
+      tile.container.hitArea = new Rectangle(
+        -this.hitPad,
+        -this.hitPad,
+        cardW + this.hitPad * 2,
+        cardH + this.hitPad * 2,
+      );
       const hl = spec.highlightColor ? hexToNum(spec.highlightColor) : null;
       const hasContent = spec.count > 0;
 
@@ -290,11 +347,13 @@ export class BoardZoneTiles {
 
         tile.countText.visible = true;
         tile.countText.style.fill = hexToNum(gt.textOnTinted);
+        const k = Math.min(1, cardW / CARD_W);
+        tile.countText.style.fontSize = Math.max(8, Math.round(12 * k));
         tile.countText.text = String(spec.count);
-        const pillW = tile.countText.width + 12;
-        const pillH = 17;
+        const pillW = tile.countText.width + 12 * k;
+        const pillH = 17 * k;
         const pillX = (cardW - pillW) / 2;
-        const pillY = cardH - pillH - 3;
+        const pillY = cardH - pillH - 3 * k;
         tile.outline.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
         tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.78 });
         tile.countText.position.set(cardW / 2, pillY + pillH / 2);
@@ -405,7 +464,21 @@ export class BoardZoneTiles {
     g.fill({ color, alpha });
   }
 
+  cancelDrag(): void {
+    if (!this.drag) return;
+    this.drag.tile.container.zIndex = 0;
+    this.drag = null;
+    this.host.onPreview(null);
+    this.longPress.reset();
+    this.host.onDragEnd();
+  }
+
+  cancelDragForPointer(pointerId: number): void {
+    if (this.drag?.pointerId === pointerId) this.cancelDrag();
+  }
+
   destroy(): void {
+    this.longPress.cancel();
     for (const tile of this.tiles.values()) tile.container.destroy({ children: true });
     this.tiles.clear();
     this.container.destroy({ children: true });

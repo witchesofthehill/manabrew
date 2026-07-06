@@ -68,7 +68,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: Print
     <Modal
       onClose={onClose}
       maxWidth="max-w-4xl"
-      maxHeight="max-h-[80vh]"
+      maxHeight="max-h-[80dvh]"
       backdropClassName="z-[9100]"
     >
       <Modal.Header onClose={onClose}>

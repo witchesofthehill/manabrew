@@ -773,7 +773,7 @@ export default function Settings() {
                       id={`zone-order-${index}`}
                       value={zoneOrder[index]}
                       onChange={(e) => setZoneSlot(index, e.target.value as ZonePanelItem)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
                     >
                       <option value="library">Library</option>
                       <option value="graveyard">Graveyard</option>
@@ -1098,7 +1098,7 @@ export default function Settings() {
                       </svg>
                     </button>
                     {presetOpen && (
-                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-[min(16rem,50dvh)] overflow-y-auto">
                         {THEME_PRESETS.map((preset) => (
                           <button
                             key={preset.id}

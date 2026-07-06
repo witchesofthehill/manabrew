@@ -450,7 +450,7 @@ export function TablesList({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               {!isOpenFormat && (
                 <Button size="sm" variant="outline" className="gap-1" onClick={onOpenDeckDialog}>
                   <Shield className="h-3 w-3" /> Select Deck
@@ -465,7 +465,7 @@ export function TablesList({
                 <LogOut className="h-3 w-3" /> Leave
               </Button>
               {isController && (
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                   {onStartTabletop && (
                     <Button
                       size="sm"

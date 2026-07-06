@@ -76,7 +76,7 @@ export function ChooseFromSelectionModal({
     minChoices === maxChoices ? `Choose ${minChoices}` : `Choose ${minChoices}–${maxChoices}`;
 
   return (
-    <Modal maxWidth="max-w-md" maxHeight="max-h-[50vh]">
+    <Modal maxWidth="max-w-md" maxHeight="max-h-[50dvh]">
       <div className="shrink-0 p-5">
         <PromptPresentation presentation={presentation} />
       </div>

@@ -93,7 +93,14 @@ export const STACK_TYPE_COLS: SectionDefinition[] = pick(
   "lands",
 );
 
-export const CARD_WIDTH_MAP: Record<number, number> = { 1: 75, 2: 95, 3: 115, 4: 140, 5: 170 };
+export const CARD_WIDTH_MAP: Record<number, number> = {
+  1: 75,
+  2: 95,
+  3: 115,
+  4: 140,
+  5: 170,
+  6: 200,
+};
 
 // ─── Pure Functions ───────────────────────────────────────────────────────────
 

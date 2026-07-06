@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
+import { useIsShortScreen } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { getDeckFingerprint } from "@/lib/decks";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -47,6 +48,7 @@ function pickRandom<T>(arr: readonly T[]): T | undefined {
 
 export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
+  const denseDecks = useIsShortScreen();
   const [stage, setStage] = useState<"format" | "decks">("format");
   const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(null);
   const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
@@ -232,7 +234,14 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
               .
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+            <div
+              className={cn(
+                "grid gap-3",
+                denseDecks
+                  ? "grid-cols-2 md:grid-cols-3"
+                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+              )}
+            >
               {filteredUserDecks.map((entry) => {
                 const displayCards = [
                   ...(entry.sourceDeck?.cards ?? []),
@@ -253,6 +262,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     isPlayerDeck={playerDeck?.id === entry.id}
                     isOpponentDeck={opponentDeck?.id === entry.id}
                     formatId={entry.sourceDeck?.format ?? entry.formatId ?? "standard"}
+                    dense={denseDecks}
                     onSelect={() => selectUserDeck(entry)}
                   />
                 );
@@ -270,7 +280,14 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
               No starter decks for this format.
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 pt-1">
+            <div
+              className={cn(
+                "grid gap-3 pt-1",
+                denseDecks
+                  ? "grid-cols-2 md:grid-cols-3"
+                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+              )}
+            >
               {filteredDecks.map((deck) => (
                 <DeckSelectionCard
                   key={deck.id ?? deck.name}
@@ -286,6 +303,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   isPlayerDeck={playerDeck?.id === (deck.id ?? deck.name)}
                   isOpponentDeck={opponentDeck?.id === (deck.id ?? deck.name)}
                   formatId={selectedFormat}
+                  dense={denseDecks}
                   onSelect={() => selectDeck(deck)}
                 />
               ))}

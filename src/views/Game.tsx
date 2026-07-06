@@ -10,6 +10,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto, StackObjectDto } from "@/protocol/game";
 import { GameModals } from "@/components/game/GameModals";
+import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
@@ -27,7 +28,7 @@ import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
-import { useHandDrag } from "@/hooks/useHandDrag";
+import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -136,6 +137,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSceneRef = useRef<BoardScene | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
+  const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
@@ -415,7 +417,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (single) respond({ type: "act", actionId: single.id });
   };
 
-  const handleHandCardAction = (card: CardDto, e?: React.MouseEvent) => {
+  const handleHandCardAction = (card: CardDto, e?: { clientX: number; clientY: number }) => {
     if (manualApi) {
       preview.showSticky(card, e?.clientX, e?.clientY);
       return;
@@ -436,7 +438,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     preview.showSticky(card, e?.clientX, e?.clientY);
   };
 
-  const handleHandCardDragStart = (card: CardDto, e: React.MouseEvent) => {
+  const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
     if (manualApi) {
       preview.showSticky(card, e.clientX, e.clientY);
       return;
@@ -766,6 +768,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
     onCastSpell: handleCastSpell,
     dismissHover: preview.dismiss,
+    onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
   });
 
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
@@ -1209,6 +1212,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       useAnchor?: boolean;
       placement?: "auto" | "top-center";
       anchorOverride?: DOMRect;
+      useDelay?: boolean;
     } = {},
   ) => {
     if (draggingHandCard) {
@@ -1224,7 +1228,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.dismiss();
       return;
     }
-    preview.handleMouseEnter(card, e, { ...options, useDelay: true });
+    preview.handleMouseEnter(card, e, { useDelay: true, ...options });
   };
 
   const handleHoverCardGuarded = (
@@ -1435,7 +1439,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game relative flex flex-col h-full min-h-0 overflow-hidden select-none"
+      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -1454,6 +1458,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         } as React.CSSProperties
       }
     >
+      <LandscapeGate />
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
           boardSceneRef={boardSceneRef}
@@ -1512,6 +1517,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           onHandCardClick={handleHandCardAction}
           onHoverCard={handleHoverCardGuarded}
           onDismissHoverPreview={preview.dismiss}
+          onLongPressCard={(card, rect) =>
+            preview.showSticky(card, rect.left + rect.width / 2, rect.top + rect.height / 2)
+          }
+          onHandHoverChange={setHandCardLifted}
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
           onFlipCard={preview.flipCard}
@@ -1685,6 +1694,8 @@ export default function Game({ exitTo }: GameProps = {}) {
                 mulliganSelectedCount={mulliganPutBack.selected.size}
                 onMulliganPutBackConfirm={mulliganPutBack.confirm}
                 selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
+                dividerY={boardLayout?.dividerY}
+                dimmed={handCardLifted}
               />
               <MiddleBarDock
                 open={boardMenuOpen}

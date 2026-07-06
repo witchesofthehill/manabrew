@@ -3,10 +3,11 @@ import type { Theme } from "@/hooks/useTheme";
 import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
-import type { ScreenPos } from "@/pixi/types";
+import type { ScreenBounds, ScreenPos } from "@/pixi/types";
 
 export const PLAYER_HUD_HEIGHT_PX = 60;
 export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
+export const SELF_PLAYER_HUD_COMPACT_SCALE = 0.7;
 export const PLAYER_HUD_TOP_MARGIN_PX = 8;
 export const PLAYER_HUD_SIDE_MARGIN_PX = 10;
 export const PLAYER_HUD_MAX_WIDTH_PX = 280;
@@ -25,6 +26,7 @@ export class PlayerHudLayer {
   private onMenu: () => void;
   private capsules = new Map<string, PlayerHudCapsule>();
   private tooltip: PlayerHudTooltip;
+  private compact = false;
 
   constructor(
     theme: Theme,
@@ -72,6 +74,7 @@ export class PlayerHudLayer {
         );
         this.container.addChild(capsule.container);
         this.capsules.set(spec.playerId, capsule);
+        capsule.setCompact(this.compact);
       }
       capsule.setSpec(spec);
     }
@@ -93,8 +96,26 @@ export class PlayerHudLayer {
     this.capsules.get(playerId)?.setRect(x, y, width, height, column);
   }
 
+  setCapsuleScale(playerId: string, scale: number): void {
+    this.capsules.get(playerId)?.setScale(scale);
+  }
+
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    for (const capsule of this.capsules.values()) capsule.setCompact(compact);
+  }
+
   getPlayerAnchor(playerId: string): ScreenPos | null {
     return this.capsules.get(playerId)?.getAvatarCenter() ?? null;
+  }
+
+  getZoneAnchor(playerId: string, zoneKey: string): ScreenPos | null {
+    return this.capsules.get(playerId)?.getZoneAnchor(zoneKey) ?? null;
+  }
+
+  getCapsuleBounds(playerId: string): ScreenBounds | null {
+    return this.capsules.get(playerId)?.getKeepOutBounds() ?? null;
   }
 
   destroy(): void {

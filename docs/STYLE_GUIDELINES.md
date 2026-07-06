@@ -309,10 +309,26 @@ and add a semantic theme key instead.
 
 ---
 
-## 11. Testing Checklist
+## 11. Responsive & Touch
+
+The app targets smartphones/tablets (touch, small landscape screens) through huge desktop monitors.
+
+- **Breakpoint constants live in `src/lib/responsive.ts`** (`DESKTOP_QUERY`, `SHORT_SCREEN_QUERY`, `COARSE_POINTER_QUERY`, long-press timings). JS gates use `useMediaQuery` or the `useIsTouch` / `useIsDesktop` / `useIsShortScreen` wrappers in `src/hooks/useBreakpoints.ts`. Don't inline `matchMedia` query strings.
+- **`dvh`, never `vh`**, for viewport heights (`max-h-[85dvh]`); `env(safe-area-inset-*)` for notch/home-indicator padding. See `src/AGENTS.md` "page never scrolls".
+- **Hover is not a feature on touch.** Every hover-only affordance needs a touch path: reveal overlays with `pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto`, and previews via **long-press = preview** — the app-wide convention (450ms hold, <10px movement, release hides, the release-tap is swallowed). DOM surfaces use `useLongPressPreview` (`src/hooks/useLongPressPreview.ts`); Pixi surfaces use `LongPressGesture` (`src/pixi/LongPressGesture.ts`).
+- **Hover handlers on card tiles use `onPointerEnter`/`onPointerLeave` with an `e.pointerType === "touch"` early-return** — plain `onMouseEnter` fires on tap and strands the preview (no mouseleave ever comes on touch).
+- **Tap targets**: interactive elements get ≥40px on coarse pointers — either `pointer-coarse:h-10`-style bumps or an invisible hit expander (`relative … before:absolute before:-inset-2.5 before:content-['']`). The `Button` primitive already bumps its sizes under `pointer-coarse:`.
+- **Native `<select>`/`<input>` need ≥16px font on touch** (`pointer-coarse:text-base`) or iOS zooms the page on focus. The `Input` primitive handles this; raw elements must add it.
+- **rem for chrome, px for card art.** Panels/text/spacing use rem-based Tailwind tokens so the `:root` font-size steps at 2000px/3000px (in `index.css`) scale them on big monitors. Card-size constants (`BATTLEFIELD_CARD`, `CARD_WIDTH_MAP`, …) stay px — card art has a native resolution and scaling is handled per-surface (`useHandScale`, battlefield fill scale, size tiers).
+- **Drag gestures use pointer events, never mouse events** (`pointermove`/`pointerup`/`pointercancel`), filtered by `pointerId` so a second finger can't hijack, with `pointercancel` treated as abort.
+
+---
+
+## 12. Testing Checklist
 
 Before committing UI changes:
 
 1. `yarn tsc -p tsconfig.app.json --noEmit` — must pass with zero errors
 2. `yarn tauri dev` — app must build and render correctly
 3. Visual spot-check: verify the changed components look identical to before
+4. Touch-affecting changes: spot-check in DevTools device emulation (long-press previews, tap targets, no stranded hover previews)

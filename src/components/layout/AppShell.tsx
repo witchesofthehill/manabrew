@@ -12,13 +12,10 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
+import { DESKTOP_QUERY } from "@/lib/responsive";
 import { StatusBanner } from "./StatusBanner";
 import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
-
-// Tailwind's default `md` breakpoint. Kept in sync with utility classes
-// like `md:hidden` / `hidden md:flex` so the JS gate matches the CSS.
-export const DESKTOP_QUERY = "(min-width: 768px)";
 
 // Order mirrors the primary nav in Sidebar; drives prev/next page shortcuts.
 const NAV_ROUTES = [

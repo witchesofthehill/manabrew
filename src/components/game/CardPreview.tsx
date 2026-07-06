@@ -22,6 +22,7 @@ import { useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
+import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface CardPreviewProps {
@@ -254,6 +255,7 @@ export function CardPreview({
   imageSize = "large",
 }: CardPreviewProps) {
   const hasActions = actions && actions.length > 0 && onSelectAction;
+  const minimal = useIsMobileGame();
   const showSidePanel = hasActions;
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
@@ -303,19 +305,20 @@ export function CardPreview({
   });
 
   useEffect(() => {
-    if (!hasActions || !onDismiss) return;
+    if (!onDismiss) return;
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         onDismiss!();
         return;
       }
+      if (!hasActions) return;
       const num = parseInt(e.key);
       if (num >= 1 && num <= actions!.length) {
         e.preventDefault();
         onSelectAction!(actions![num - 1]);
       }
     }
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       const target = e.target as HTMLElement;
       if (!target.closest("[data-card-preview]")) {
         onDismiss!();
@@ -324,19 +327,20 @@ export function CardPreview({
     window.addEventListener("keydown", handleKey);
     const timer = setTimeout(() => {
       if (isSticky) {
-        window.addEventListener("mousedown", handleClick);
+        window.addEventListener("pointerdown", handleClick);
       }
     }, 100);
     return () => {
       window.removeEventListener("keydown", handleKey);
       clearTimeout(timer);
-      window.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("pointerdown", handleClick);
     };
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
   const horizontal = horizontalCard && !orientationFlipped;
-  const cardWidth = horizontal ? CARD_H : CARD_W;
-  const cardHeight = horizontal ? CARD_W : CARD_H;
+  const previewScale = minimal ? Math.min(1, (window.innerHeight - 16) / CARD_H) : 1;
+  const cardWidth = (horizontal ? CARD_H : CARD_W) * previewScale;
+  const cardHeight = (horizontal ? CARD_W : CARD_H) * previewScale;
 
   let cardLeft: number;
   let top: number;
@@ -511,7 +515,7 @@ export function CardPreview({
                       e.stopPropagation();
                       onFlip();
                     }}
-                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
                     title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
                   >
                     <RotateCw className="h-3 w-3" />
@@ -525,7 +529,7 @@ export function CardPreview({
                       e.stopPropagation();
                       setOrientationFlipped((prev) => !prev);
                     }}
-                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
                     title="Rotate the card to read it (F)"
                   >
                     <RotateCw className="h-3 w-3" />

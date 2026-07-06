@@ -1,4 +1,5 @@
 import { Container, Graphics, Rectangle } from "pixi.js";
+import { isCoarsePointer } from "@/lib/responsive";
 import gsap from "gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -10,6 +11,7 @@ import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.typ
 
 const DIRECTION_SIGN = -1;
 const CARD_WIDTH = 220;
+const MAX_CARD_HEIGHT_FRAC = 0.55;
 const OFFSET_X = 36;
 const OFFSET_Y = 4;
 const CENTER_OFFSET_Y = -60;
@@ -79,10 +81,22 @@ export class StackLayer implements StackAnchorProvider {
   private peeking = false;
   private peekTimer: gsap.core.Tween | null = null;
   private prevCardIds = new Set<string>();
+  private builtCardWidth = CARD_WIDTH;
   private prevFanOut: boolean | null = null;
 
-  private readonly faceScale = CARD_WIDTH / CARD_W;
-  private readonly cardHeight = CARD_H * (CARD_WIDTH / CARD_W);
+  private cardWidth(): number {
+    if (this.viewH <= 0) return CARD_WIDTH;
+    const maxW = (this.viewH * MAX_CARD_HEIGHT_FRAC * CARD_W) / CARD_H;
+    return Math.min(CARD_WIDTH, maxW);
+  }
+
+  private faceScale(): number {
+    return this.cardWidth() / CARD_W;
+  }
+
+  private cardHeight(): number {
+    return CARD_H * this.faceScale();
+  }
 
   constructor(theme: Theme, callbacks: StackCallbacks) {
     this.theme = theme;
@@ -98,7 +112,13 @@ export class StackLayer implements StackAnchorProvider {
     this.btn.visible = false;
     this.btn.eventMode = "static";
     this.btn.cursor = "pointer";
-    this.btn.hitArea = new Rectangle(-(BTN_W / 2 + 6), -(BTN_H / 2 + 6), BTN_W + 12, BTN_H + 12);
+    const btnHitPad = isCoarsePointer() ? 16 : 6;
+    this.btn.hitArea = new Rectangle(
+      -(BTN_W / 2 + btnHitPad),
+      -(BTN_H / 2 + btnHitPad),
+      BTN_W + btnHitPad * 2,
+      BTN_H + btnHitPad * 2,
+    );
     this.btn.on("pointertap", () => this.callbacks.onToggleCollapsed());
     this.btn.on("pointerover", () => this.setBtnHover(true));
     this.btn.on("pointerout", () => this.setBtnHover(false));
@@ -116,6 +136,14 @@ export class StackLayer implements StackAnchorProvider {
     if (this.viewW === width && this.viewH === height) return;
     this.viewW = width;
     this.viewH = height;
+    if (this.sprites.size > 0 && this.cardWidth() !== this.builtCardWidth) {
+      for (const sprite of this.sprites.values()) sprite.destroy();
+      this.sprites.clear();
+      this.hoveredId = null;
+      this.prevCardIds = new Set();
+      this.setSpec(this.spec);
+      return;
+    }
     this.layout();
   }
 
@@ -141,10 +169,11 @@ export class StackLayer implements StackAnchorProvider {
           reused.setSpec(card);
           continue;
         }
+        this.builtCardWidth = this.cardWidth();
         sprite = new StackCardSprite(
           this.theme,
           card,
-          CARD_WIDTH,
+          this.builtCardWidth,
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),
@@ -201,7 +230,7 @@ export class StackLayer implements StackAnchorProvider {
     const seeds: Array<{ cardId: string; x: number; y: number; scale: number }> = [];
     for (const sprite of this.sprites.values()) {
       const c = sprite.getCenter();
-      seeds.push({ cardId: sprite.sourceId, x: c.x, y: c.y, scale: this.faceScale });
+      seeds.push({ cardId: sprite.sourceId, x: c.x, y: c.y, scale: this.faceScale() });
     }
     return seeds;
   }
@@ -246,9 +275,11 @@ export class StackLayer implements StackAnchorProvider {
     const n = cards.length;
     if (this.viewW === 0 || this.viewH === 0) return;
 
+    const cw = this.cardWidth();
+    const ch = this.cardHeight();
     const spanX = Math.max(0, n - 1) * OFFSET_X;
-    const pileHeight = this.cardHeight + Math.max(0, n - 1) * OFFSET_Y;
-    const pileWidth = spanX + 2 * HOVER_PUSH_X + CARD_WIDTH;
+    const pileHeight = ch + Math.max(0, n - 1) * OFFSET_Y;
+    const pileWidth = spanX + 2 * HOVER_PUSH_X + cw;
 
     const panelLeft = this.viewW - RIGHT_MARGIN - pileWidth;
     const panelTop = this.viewH / 2 - pileHeight / 2 + CENTER_OFFSET_Y;
@@ -289,8 +320,8 @@ export class StackLayer implements StackAnchorProvider {
           : baseLeft + (idx < hoveredIndex ? -1 : 1) * DIRECTION_SIGN * HOVER_PUSH_DIST;
       const boxLeft = pushed + xShift;
       const boxTop = (n - 1 - idx) * OFFSET_Y;
-      const cx = drawLeft + boxLeft + CARD_WIDTH / 2;
-      const cy = panelTop + boxTop + this.cardHeight / 2;
+      const cx = drawLeft + boxLeft + cw / 2;
+      const cy = panelTop + boxTop + ch / 2;
       const zIndex =
         hoveredIndex < 0
           ? idx + 1
@@ -309,8 +340,7 @@ export class StackLayer implements StackAnchorProvider {
         : topIdx * OFFSET_X * DIRECTION_SIGN +
           (topIdx < hoveredIndex ? -1 : 1) * DIRECTION_SIGN * HOVER_PUSH_DIST;
     const topScale = hoveredIndex === topIdx ? HOVER_SCALE : 1;
-    const topLeftEdge =
-      drawLeft + topPushed + xShift + CARD_WIDTH / 2 - (CARD_WIDTH / 2) * topScale;
+    const topLeftEdge = drawLeft + topPushed + xShift + cw / 2 - (cw / 2) * topScale;
     const btnTargetX = topLeftEdge - BTN_GAP - BTN_W / 2;
     this.layoutButton(n > 0, btnTargetX, centerY, transitioning);
 
@@ -441,7 +471,8 @@ export class StackLayer implements StackAnchorProvider {
     this.flashSprite?.destroy();
     this.flashToken = flash.token;
     const sprite = new CardSprite(flash.card, "hand");
-    sprite.scale.set(this.faceScale);
+    const scale = this.faceScale();
+    sprite.scale.set(scale);
     sprite.zIndex = 300;
     sprite.eventMode = "none";
     this.flashSprite = sprite;
@@ -449,16 +480,16 @@ export class StackLayer implements StackAnchorProvider {
     gsap.fromTo(sprite, { alpha: 0 }, { alpha: 1, duration: 0.18, ease: "power2.out" });
     gsap.fromTo(
       sprite.scale,
-      { x: this.faceScale * 0.84, y: this.faceScale * 0.84 },
-      { x: this.faceScale, y: this.faceScale, duration: 0.42, ease: "back.out(1.6)" },
+      { x: scale * 0.84, y: scale * 0.84 },
+      { x: scale, y: scale, duration: 0.42, ease: "back.out(1.6)" },
     );
   }
 
   private layoutFlash(drawLeft: number, panelTop: number, xShift: number, n: number): void {
     if (!this.flashSprite) return;
     const baseLeft = n > 0 ? (n - 1) * OFFSET_X * DIRECTION_SIGN : 0;
-    const cx = drawLeft + baseLeft + xShift + CARD_WIDTH / 2;
-    const cy = panelTop + this.cardHeight / 2;
+    const cx = drawLeft + baseLeft + xShift + this.cardWidth() / 2;
+    const cy = panelTop + this.cardHeight() / 2;
     this.flashSprite.position.set(cx, cy);
   }
 }

@@ -9,6 +9,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
+import { useIsShortScreen } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { cn } from "@/lib/utils";
 import { Search, Shuffle, Swords } from "lucide-react";
@@ -33,6 +34,7 @@ export function CreateGameDialog({
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
   const isLobbyMode = mode === "lobby";
+  const denseDecks = useIsShortScreen();
 
   const initialFormat = GAME_FORMATS.find((f) => f.id === forcedFormatId) ?? GAME_FORMATS[0];
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
@@ -290,7 +292,7 @@ export function CreateGameDialog({
                     )}
                     {legendaryCreatures.length > 0 ? (
                       <select
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs"
+                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
                         value={selectedCommander}
                         onChange={(e) => setSelectedCommander(e.target.value)}
                       >
@@ -303,7 +305,7 @@ export function CreateGameDialog({
                       </select>
                     ) : (
                       <input
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs"
+                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
                         placeholder="Card name"
                         value={selectedCommander}
                         onChange={(e) => setSelectedCommander(e.target.value)}
@@ -345,8 +347,8 @@ export function CreateGameDialog({
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="px-4 pt-4 pb-2 bg-background">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
@@ -363,84 +365,102 @@ export function CreateGameDialog({
               </div>
             </div>
 
-            <div className="p-4 pt-2">
-              <SectionLabel>Your Decks</SectionLabel>
-              <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                Decks you've built in the editor.
-              </p>
-              {filteredUserDecks.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">
-                  {searchLower
-                    ? "No saved decks match your search."
-                    : "No saved decks. Build one in the Deck Editor."}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 pt-2">
+                <SectionLabel>Your Decks</SectionLabel>
+                <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                  Decks you've built in the editor.
                 </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {filteredUserDecks.map((d) => {
-                    const validation = validateDeckSections(
-                      {
-                        deck: d.sourceDeck,
-                        commanderName: selectedFormat.deckRules.requiresCommander
-                          ? d.id === selectedDeck
-                            ? selectedCommander || d.commanderName
-                            : d.commanderName
-                          : undefined,
-                      },
-                      selectedFormat,
-                    );
-                    return (
+                {filteredUserDecks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">
+                    {searchLower
+                      ? "No saved decks match your search."
+                      : "No saved decks. Build one in the Deck Editor."}
+                  </p>
+                ) : (
+                  <div
+                    className={cn(
+                      "grid gap-3",
+                      denseDecks
+                        ? "grid-cols-2 md:grid-cols-3"
+                        : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                    )}
+                  >
+                    {filteredUserDecks.map((d) => {
+                      const validation = validateDeckSections(
+                        {
+                          deck: d.sourceDeck,
+                          commanderName: selectedFormat.deckRules.requiresCommander
+                            ? d.id === selectedDeck
+                              ? selectedCommander || d.commanderName
+                              : d.commanderName
+                            : undefined,
+                        },
+                        selectedFormat,
+                      );
+                      return (
+                        <DeckSelectionCard
+                          key={d.id}
+                          id={d.id}
+                          name={d.name}
+                          badge={d.badge}
+                          labels={d.labels}
+                          cards={d.cards}
+                          cover={d.cover}
+                          isPreset={d.isPreset}
+                          isSelected={selectedDeck === d.id}
+                          isLegal={validation.legal}
+                          validationError={validation.errors[0]}
+                          dense={denseDecks}
+                          onSelect={() => setSelectedDeck(d.id)}
+                          onActivate={() => handleCreate(d, d.commanderName)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="mx-4 border-t" />
+
+              <div className="p-4">
+                <SectionLabel>Preset Decks</SectionLabel>
+                <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                  Pre-built themed decks — always legal, great for testing mechanics.
+                </p>
+                {filteredPresetEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">
+                    No preset decks match your search.
+                  </p>
+                ) : (
+                  <div
+                    className={cn(
+                      "grid gap-3",
+                      denseDecks
+                        ? "grid-cols-2 md:grid-cols-3"
+                        : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                    )}
+                  >
+                    {filteredPresetEntries.map((deck) => (
                       <DeckSelectionCard
-                        key={d.id}
-                        id={d.id}
-                        name={d.name}
-                        badge={d.badge}
-                        labels={d.labels}
-                        cards={d.cards}
-                        cover={d.cover}
-                        isPreset={d.isPreset}
-                        isSelected={selectedDeck === d.id}
-                        isLegal={validation.legal}
-                        validationError={validation.errors[0]}
-                        onSelect={() => setSelectedDeck(d.id)}
-                        onActivate={() => handleCreate(d, d.commanderName)}
+                        key={deck.id}
+                        id={deck.id}
+                        name={deck.name}
+                        desc={deck.desc}
+                        color={deck.color}
+                        cards={deck.cards}
+                        cover={deck.cover}
+                        isPreset={deck.isPreset}
+                        isSelected={selectedDeck === deck.id}
+                        isLegal={true}
+                        dense={denseDecks}
+                        onSelect={() => setSelectedDeck(deck.id)}
+                        onActivate={() => handleCreate(deck, deck.commanderName)}
                       />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="mx-4 border-t" />
-
-            <div className="p-4">
-              <SectionLabel>Preset Decks</SectionLabel>
-              <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                Pre-built themed decks — always legal, great for testing mechanics.
-              </p>
-              {filteredPresetEntries.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">
-                  No preset decks match your search.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {filteredPresetEntries.map((deck) => (
-                    <DeckSelectionCard
-                      key={deck.id}
-                      id={deck.id}
-                      name={deck.name}
-                      desc={deck.desc}
-                      color={deck.color}
-                      cards={deck.cards}
-                      cover={deck.cover}
-                      isPreset={deck.isPreset}
-                      isSelected={selectedDeck === deck.id}
-                      isLegal={true}
-                      onSelect={() => setSelectedDeck(deck.id)}
-                      onActivate={() => handleCreate(deck, deck.commanderName)}
-                    />
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

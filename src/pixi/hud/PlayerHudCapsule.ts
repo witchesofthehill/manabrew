@@ -1,8 +1,10 @@
 import {
+  Bounds,
   ColorMatrixFilter,
   Container,
   Graphics,
   Point,
+  Rectangle,
   Sprite,
   Text,
   Texture,
@@ -17,14 +19,16 @@ import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
 import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
-import type { ScreenPos } from "@/pixi/types";
-import { RING_ABILITIES } from "@/components/game/game.constants";
+import type { ScreenBounds, ScreenPos } from "@/pixi/types";
+import { RING_ABILITIES, zoneBadgeId } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
 const OFFLINE_ICON_NAME = "aerial-signal";
 const GEAR_ICON_NAME = "cog";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
+const BADGE_TAP_HIT_PAD_X = 8;
+const BADGE_TAP_HIT_PAD_Y = 3;
 
 /** Avatar circle diameter — fixed so it's identical in the expanded capsule and
  *  the collapsed column (the collapsed band caps it if narrower). */
@@ -36,6 +40,9 @@ const AVATAR_DIAMETER = 56;
 const COLUMN_AVATAR_TOP = 10;
 
 const iconTextures = new Map<string, Texture>();
+
+const SCRATCH_A = new Point();
+const SCRATCH_B = new Point();
 
 // Shared, immutable text styles keyed by (size, weight, fill). Pixi safely
 // shares one TextStyle across many Text objects, so this removes the per-render
@@ -73,6 +80,7 @@ interface BadgeChip {
   sprite: Sprite;
   count: Text;
   content: PlayerHudTooltipContent;
+  badgeId?: string;
 }
 
 interface ContentItem {
@@ -126,6 +134,7 @@ export class PlayerHudCapsule {
   private width = 0;
   private height = 0;
   private column = false;
+  private compact = false;
   private avatarUrl: string | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
@@ -137,6 +146,7 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
+  private tapTooltipTimer: number | null = null;
   private combatPulse: gsap.core.Tween | null = null;
   private combatActive = false;
   private combatLethalActive = false;
@@ -151,6 +161,7 @@ export class PlayerHudCapsule {
   private avatarCx = 0;
   private avatarCy = 0;
   private avatarDia = 0;
+  private contentBounds = new Bounds();
 
   constructor(
     theme: Theme,
@@ -281,11 +292,13 @@ export class PlayerHudCapsule {
     localTop: number,
     localBottom: number,
   ): void {
+    const sx = this.container.scale.x;
+    const sy = this.container.scale.y;
     this.onHover(
       content,
-      this.container.x + localCx,
-      this.container.y + localTop,
-      this.container.y + localBottom,
+      this.container.x + localCx * sx,
+      this.container.y + localTop * sy,
+      this.container.y + localBottom * sy,
     );
   }
 
@@ -297,6 +310,19 @@ export class PlayerHudCapsule {
 
   getAvatarCenter(): ScreenPos {
     return this.container.toGlobal(new Point(this.avatarCx, this.avatarCy));
+  }
+
+  getZoneAnchor(zoneKey: string): ScreenPos | null {
+    const id = zoneBadgeId(zoneKey);
+    const idx = this.spec.badges.findIndex((b) => b.id === id);
+    if (idx < 0) return null;
+    const chip = this.chips[idx];
+    if (!chip || !chip.sprite.visible) return null;
+    const p = this.container.toGlobal(
+      SCRATCH_A.set(chip.sprite.x + chip.sprite.width / 2, chip.sprite.y + chip.sprite.height / 2),
+      SCRATCH_A,
+    );
+    return { x: p.x, y: p.y };
   }
 
   setSpec(spec: PlayerHudSpec): void {
@@ -326,6 +352,20 @@ export class PlayerHudCapsule {
       s.manaPool,
       s.badges,
     ]);
+  }
+
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    this.lastSig = "";
+    this.render();
+  }
+
+  setScale(scale: number): void {
+    if (this.container.scale.x === scale) return;
+    this.container.scale.set(scale);
+    this.lastSig = "";
+    this.render();
   }
 
   setRect(x: number, y: number, width: number, height: number, column: boolean): void {
@@ -474,6 +514,7 @@ export class PlayerHudCapsule {
       this.offline.width = diameter * 0.42;
       this.offline.height = diameter * 0.42;
       this.offline.position.set(ox, oy);
+      this.extendContent(ox - chipR, oy - chipR, chipR * 2, chipR * 2);
     }
 
     this.avatarHit.clear();
@@ -494,6 +535,12 @@ export class PlayerHudCapsule {
       if (tex) this.gear.texture = tex;
       this.gear.position.set(this.gearCx, this.gearCy);
       this.styleGear();
+      this.extendContent(
+        this.gearCx - this.gearChipR,
+        this.gearCy - this.gearChipR,
+        this.gearChipR * 2,
+        this.gearChipR * 2,
+      );
     }
   }
 
@@ -552,7 +599,34 @@ export class PlayerHudCapsule {
         const s = sprite.height;
         this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
       });
-      sprite.on("pointerout", () => this.onHover(null));
+      sprite.on("pointerout", (e) => {
+        if (e.pointerType !== "mouse" && this.tapTooltipTimer !== null) return;
+        this.onHover(null);
+      });
+      sprite.on("pointertap", (e) => {
+        // Collapsed column: chips cover most of the banner, and the banner tap
+        // gesture belongs to tap-to-focus/tap-to-target — same as the avatar.
+        if (this.column) {
+          this.onHover(null);
+          if (this.spec.isTargetable) this.onTarget();
+          else this.onShowSheet();
+          return;
+        }
+        const onTap = this.spec.badges.find((b) => b.id === chip.badgeId)?.onTap;
+        if (onTap) {
+          this.onHover(null);
+          onTap();
+          return;
+        }
+        if (e.pointerType === "mouse") return;
+        const s = sprite.height;
+        this.emitHover(chip.content, sprite.x + sprite.width / 2, sprite.y, sprite.y + s);
+        if (this.tapTooltipTimer !== null) window.clearTimeout(this.tapTooltipTimer);
+        this.tapTooltipTimer = window.setTimeout(() => {
+          this.tapTooltipTimer = null;
+          this.onHover(null);
+        }, 2500);
+      });
       this.chips.push(chip);
     }
     for (let i = n; i < this.chips.length; i++) {
@@ -561,9 +635,27 @@ export class PlayerHudCapsule {
     }
   }
 
+  private extendContent(x: number, y: number, w: number, h: number): void {
+    this.contentBounds.addFrame(x, y, x + w, y + h);
+  }
+
+  /** The rendered footprint (avatar + gear/offline chrome, life pill, badge
+   *  rows, zone column incl. tap pads) in canvas space, accumulated
+   *  analytically at render time — transient tween children (life float,
+   *  sparkles, glows) are deliberately excluded so the battlefield keep-out
+   *  doesn't breathe with animations. */
+  getKeepOutBounds(): ScreenBounds | null {
+    if (!this.contentBounds.isValid) return null;
+    const b = this.contentBounds;
+    const tl = this.container.toGlobal(SCRATCH_A.set(b.minX, b.minY), SCRATCH_A);
+    const br = this.container.toGlobal(SCRATCH_B.set(b.maxX, b.maxY), SCRATCH_B);
+    return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+  }
+
   private render(): void {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
+    this.contentBounds.clear();
     this.life.text = String(this.spec.life);
     this.updateFilters();
     this.applyOffline();
@@ -709,6 +801,8 @@ export class PlayerHudCapsule {
     this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
+    this.extendContent(cx - avatarD / 2, avatarCy - avatarD / 2, avatarD, avatarD);
+    this.extendContent(pillLeft, pillCy - pillH / 2, pillW, pillH);
 
     // Vertical stack of badges + mana, distributed down the remaining height.
     const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
@@ -726,6 +820,7 @@ export class PlayerHudCapsule {
     for (let i = 0; i < items.length; i++) {
       const it = items[i]!;
       it.place(cx - it.w / 2, top + i * rowH + rowH / 2);
+      this.extendContent(cx - it.w / 2, top + i * rowH, it.w, rowH);
     }
   }
 
@@ -741,6 +836,7 @@ export class PlayerHudCapsule {
     this.avatarCy = avatarCy;
     this.avatarDia = avatarD;
     this.drawAvatar(avatarCx, avatarCy, avatarD);
+    this.extendContent(avatarCx - avatarD / 2, avatarCy - avatarD / 2, avatarD, avatarD);
 
     // Life pill straddling the avatar's bottom edge (MTGA-style).
     this.lifeFontSize = Math.round(avatarD * 0.32);
@@ -763,6 +859,7 @@ export class PlayerHudCapsule {
     this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
+    this.extendContent(pillLeft, pillCy - pillH / 2, pillW, pillH);
 
     // Mana pips + badges flow to the right of the avatar and wrap into stacked
     // rows once they'd exceed the panel's max width, so a player with many
@@ -804,6 +901,11 @@ export class PlayerHudCapsule {
     chip.sprite.width = badgeSize;
     chip.sprite.height = badgeSize;
     chip.content = this.badgeTooltip(badge);
+    chip.badgeId = badge.id;
+    // Collapsed columns keep chips as plain badges: the banner's tap gesture
+    // belongs to tap-to-focus, so zone chips must not open dialogs there.
+    const tappable = !!badge.onTap && !this.column;
+    chip.sprite.cursor = tappable ? "pointer" : "help";
     const hasCount = badge.count !== undefined;
     let w = badgeSize;
     if (hasCount) {
@@ -814,6 +916,23 @@ export class PlayerHudCapsule {
       );
       chip.count.text = String(badge.count);
       w += 1 + chip.count.width;
+    }
+    if (tappable && tex) {
+      // Pads are screen px: the capsule scale would otherwise shrink them, and
+      // the count text (a separate, non-interactive Text) must be tappable too.
+      const capsuleScale = this.container.scale.x || 1;
+      const toTexX = tex.width / badgeSize;
+      const toTexY = tex.height / badgeSize;
+      const padX = (BADGE_TAP_HIT_PAD_X / capsuleScale) * toTexX;
+      const padY = (BADGE_TAP_HIT_PAD_Y / capsuleScale) * toTexY;
+      chip.sprite.hitArea = new Rectangle(
+        -padX,
+        -padY,
+        tex.width + (w - badgeSize) * toTexX + padX * 2,
+        tex.height + padY * 2,
+      );
+    } else {
+      chip.sprite.hitArea = null;
     }
     return {
       w,
@@ -842,14 +961,15 @@ export class PlayerHudCapsule {
     const badgeSize = Math.round(unit * 0.4);
 
     // Top row: hand-size badge + the floating mana pool. Bottom row(s): every
-    // other badge, wrapping within the panel's max width.
+    // other badge, wrapping within the panel's max width. Zone pills leave the
+    // rows entirely and stack on the avatar instead.
     const handIdx = badges.findIndex((b) => b.id === "hand");
     const top: ContentItem[] = [];
     if (handIdx >= 0) top.push(this.makeBadgeItem(handIdx, unit));
     for (let i = 0; i < present.length; i++) top.push(this.makePipItem(i, present[i]!, unit));
     const bottom: ContentItem[] = [];
     for (let i = 0; i < badges.length; i++)
-      if (i !== handIdx) bottom.push(this.makeBadgeItem(i, unit));
+      if (i !== handIdx && !badges[i]!.zone) bottom.push(this.makeBadgeItem(i, unit));
 
     const interGap = Math.max(4, Math.round(gap * 0.7));
     const rowH = Math.round(unit * 0.52);
@@ -872,9 +992,44 @@ export class PlayerHudCapsule {
       x += it.w + interGap;
     }
 
+    const avatarTop = this.avatarCy - this.avatarDia / 2;
     const maxRow = placed.reduce((m, p) => Math.max(m, p.row), 0);
-    const blockTop = cy - ((maxRow + 1) * rowH) / 2;
-    for (const p of placed) p.item.place(p.x, blockTop + p.row * rowH + rowH / 2);
+    const blockH = (maxRow + 1) * rowH;
+    // Compact self capsule sits at the bottom edge under the hand fan, so the
+    // whole row block lifts above the avatar top instead of centring on it.
+    const blockTop = this.compact && this.spec.isSelf ? avatarTop - gap - blockH : cy - blockH / 2;
+    for (const p of placed) {
+      const rowTop = blockTop + p.row * rowH;
+      p.item.place(p.x, rowTop + rowH / 2);
+      this.extendContent(p.x, rowTop, p.item.w, rowH);
+    }
+
+    this.layoutZoneColumn(unit, rowH, gap, avatarTop);
+  }
+
+  private layoutZoneColumn(unit: number, rowH: number, gap: number, avatarTop: number): void {
+    const items: ContentItem[] = [];
+    for (let i = 0; i < this.spec.badges.length; i++)
+      if (this.spec.badges[i]!.zone) items.push(this.makeBadgeItem(i, unit));
+    if (items.length === 0) return;
+    const colH = items.length * rowH;
+    const pillH = Math.round(this.avatarDia * 0.34);
+    const colTop = this.spec.isSelf
+      ? avatarTop - gap - colH
+      : this.avatarCy + this.avatarDia / 2 + pillH * 0.2 + gap;
+    const capsuleScale = this.container.scale.x || 1;
+    const hitPadX = BADGE_TAP_HIT_PAD_X / capsuleScale;
+    const hitPadY = BADGE_TAP_HIT_PAD_Y / capsuleScale;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]!;
+      it.place(this.avatarCx - it.w / 2, colTop + i * rowH + rowH / 2);
+      this.extendContent(
+        this.avatarCx - it.w / 2 - hitPadX,
+        colTop + i * rowH - hitPadY,
+        it.w + hitPadX * 2,
+        rowH + hitPadY * 2,
+      );
+    }
   }
 
   private applyLifeAnim(): void {
@@ -1097,6 +1252,7 @@ export class PlayerHudCapsule {
   }
 
   destroy(): void {
+    if (this.tapTooltipTimer !== null) window.clearTimeout(this.tapTooltipTimer);
     this.pulse?.kill();
     this.combatPulse?.kill();
     this.targetTween?.kill();

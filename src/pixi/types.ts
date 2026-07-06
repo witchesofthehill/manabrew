@@ -59,12 +59,18 @@ export interface GameCanvasCallbacks {
     options?: { useAnchor?: boolean; placement?: HoverPlacement },
   ) => void;
   onFlipCard?: () => void;
-  onStartDrag?: (card: CardDto, screenPos: ScreenPos) => void;
-  onClickCard_Hand?: (card: CardDto) => void;
+  onStartDrag?: (
+    card: CardDto,
+    screenPos: ScreenPos,
+    pointer: { pointerId: number; pointerType: string; clientX: number; clientY: number },
+  ) => void;
+  onClickCard_Hand?: (card: CardDto, pointer?: { clientX: number; clientY: number }) => void;
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
   /** Fires when a non-targetable player's avatar is tapped — opens their detail sheet. */
   onShowPlayerSheet?: (playerId: string) => void;
+  onFocusOpponentField?: (playerId: string) => void;
+  onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
   /** Fires when the self panel's gear is tapped — opens the board menu. */
   onShowBoardMenu?: () => void;
   /** Fires when the mouse enters/leaves an opponent's battleground (null off-field). */

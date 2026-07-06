@@ -8,7 +8,11 @@ import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
-import { STRIP_TURN_ALPHA } from "./constants";
+import {
+  STRIP_TURN_ALPHA,
+  STRIP_COMPACT_EXPAND_TIMEOUT_MS,
+  STRIP_EXPANDED_BG_ALPHA,
+} from "./constants";
 
 /** Display cells. "combat" is a merged cell that represents all combat sub-phases. */
 interface PhaseSpec {
@@ -58,6 +62,10 @@ const COMBAT_CELL_W = 84;
 const CELL_H = 30;
 const CELL_GAP = 5;
 const CELL_R = 4;
+const COMPACT_PILL_H = 24;
+const COMPACT_PILL_MIN_W = 76;
+const COMPACT_PILL_PAD_X = 14;
+const COMPACT_PILL_HIT_PAD = 10;
 const COMBAT_ICON_SIZE = 16;
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
@@ -216,6 +224,22 @@ export class PhaseStripLayer {
   private lineGfx: Graphics;
   private stripHitArea: Graphics;
   private hoveredCellIndex = -1;
+  private cellsContainer: Container;
+  private expandedBackdrop: Graphics;
+  private pillContainer: Container;
+  private pillBg: Graphics;
+  private pillText: Text;
+  private pillFlash: Graphics;
+  private pillHit: Graphics;
+  private compact = false;
+  private expanded = false;
+  private expandedAt = 0;
+  private pillFlashStart = 0;
+  private pillLabel = "";
+  private pillRect: { x: number; y: number; w: number; c: number } | null = null;
+  private forceShowIndicators = false;
+  private expandedBounds: { x: number; y: number; w: number; h: number } | null = null;
+  onExpandedChange?: () => void;
 
   constructor(theme: Theme) {
     this.theme = theme;
@@ -226,20 +250,27 @@ export class PhaseStripLayer {
     this.lineGfx = new Graphics();
     this.container.addChild(this.lineGfx);
 
+    this.expandedBackdrop = new Graphics();
+    this.container.addChild(this.expandedBackdrop);
+
+    this.cellsContainer = new Container();
+    this.container.addChild(this.cellsContainer);
+
     // Full-strip hit area for hover detection (show/hide empty indicators)
     this.stripHitArea = new Graphics();
     this.stripHitArea.eventMode = "static";
-    this.container.addChild(this.stripHitArea);
+    this.stripHitArea.on("pointerdown", () => this.pokeExpandTimer());
+    this.cellsContainer.addChild(this.stripHitArea);
 
     this.cells = [];
     for (const p of PHASES) {
       const bg = new Graphics();
-      this.container.addChild(bg);
+      this.cellsContainer.addChild(bg);
       const flashGfx = new Graphics();
-      this.container.addChild(flashGfx);
+      this.cellsContainer.addChild(flashGfx);
       const hoverBg = new Graphics();
       hoverBg.visible = false;
-      this.container.addChild(hoverBg);
+      this.cellsContainer.addChild(hoverBg);
       // Combat cell gets an icon; default label is empty (icon replaces it)
       let icon: Sprite | undefined;
       const isCombat = !!p.subPhases;
@@ -247,12 +278,12 @@ export class PhaseStripLayer {
         icon = new Sprite();
         icon.width = COMBAT_ICON_SIZE;
         icon.height = COMBAT_ICON_SIZE;
-        this.container.addChild(icon);
+        this.cellsContainer.addChild(icon);
         applyIcon(icon, "cmdsword", getIconColor("cmdsword", this.theme.gameTheme));
       }
       const text = new Text({ text: isCombat ? "" : p.short, style: normalStyle });
       text.anchor.set(0.5, 0.5);
-      this.container.addChild(text);
+      this.cellsContainer.addChild(text);
       // Main cell hit area (for hover) — added first so indicators sit on top
       const hitArea = new Graphics();
       hitArea.eventMode = "static";
@@ -264,16 +295,17 @@ export class PhaseStripLayer {
       hitArea.on("pointerout", () => {
         if (this.hoveredCellIndex === cellIndex) this.hoveredCellIndex = -1;
       });
-      this.container.addChild(hitArea);
+      this.cellsContainer.addChild(hitArea);
 
       // Self indicator (bottom — my turn toggle)
       const selfIndicator = new Graphics();
-      this.container.addChild(selfIndicator);
+      this.cellsContainer.addChild(selfIndicator);
       const selfHitArea = new Graphics();
       selfHitArea.eventMode = "static";
       selfHitArea.cursor = "pointer";
       const selfHovered = false;
       selfHitArea.on("pointerdown", () => {
+        this.pokeExpandTimer();
         const phases = p.indicatorPhases ?? p.subPhases ?? [p.id];
         for (const ph of phases) this.callbacks.onToggleSelfPhase?.(ph);
       });
@@ -283,10 +315,10 @@ export class PhaseStripLayer {
       selfHitArea.on("pointerout", () => {
         cellRef.selfHovered = false;
       });
-      this.container.addChild(selfHitArea);
+      this.cellsContainer.addChild(selfHitArea);
 
       const oppIndicators = new Graphics();
-      this.container.addChild(oppIndicators);
+      this.cellsContainer.addChild(oppIndicators);
       const oppHitAreas: Graphics[] = [];
       const oppHovered: boolean[] = [false, false, false];
       for (let oi = 0; oi < 3; oi++) {
@@ -295,6 +327,7 @@ export class PhaseStripLayer {
         oha.cursor = "pointer";
         oha.visible = false;
         oha.on("pointerdown", () => {
+          this.pokeExpandTimer();
           const oppState = this.lastState;
           if (!oppState) return;
           const opp = oppState.opponents[oi];
@@ -308,7 +341,7 @@ export class PhaseStripLayer {
         oha.on("pointerout", () => {
           cellRef.oppHovered[oi] = false;
         });
-        this.container.addChild(oha);
+        this.cellsContainer.addChild(oha);
         oppHitAreas.push(oha);
       }
 
@@ -334,6 +367,63 @@ export class PhaseStripLayer {
       const cell = cellRef;
       this.cells.push(cell);
     }
+
+    this.pillContainer = new Container();
+    this.pillContainer.visible = false;
+    this.pillBg = new Graphics();
+    this.pillContainer.addChild(this.pillBg);
+    this.pillFlash = new Graphics();
+    this.pillContainer.addChild(this.pillFlash);
+    this.pillText = new Text({ text: "", style: activeStyle });
+    this.pillText.anchor.set(0.5, 0.5);
+    this.pillContainer.addChild(this.pillText);
+    this.pillHit = new Graphics();
+    this.pillHit.eventMode = "static";
+    this.pillHit.cursor = "pointer";
+    this.pillHit.on("pointertap", () => this.expand());
+    this.pillContainer.addChild(this.pillHit);
+    this.container.addChild(this.pillContainer);
+  }
+
+  setCompact(compact: boolean): void {
+    if (this.compact === compact) return;
+    this.compact = compact;
+    this.expanded = false;
+    if (this.lastState) this.update(this.lastState);
+    this.onExpandedChange?.();
+  }
+
+  isCompactExpanded(): boolean {
+    return this.compact && this.expanded;
+  }
+
+  private expand(): void {
+    if (!this.compact || this.expanded) return;
+    this.expanded = true;
+    this.expandedAt = performance.now();
+    if (this.lastState) this.update(this.lastState);
+    this.onExpandedChange?.();
+  }
+
+  private collapse(): void {
+    if (!this.expanded) return;
+    this.expanded = false;
+    if (this.lastState) this.update(this.lastState);
+    this.onExpandedChange?.();
+  }
+
+  private pokeExpandTimer(): void {
+    this.expandedAt = performance.now();
+  }
+
+  handleOutsidePointerDown(localX: number, localY: number): void {
+    if (!this.compact || !this.expanded) return;
+    const b = this.expandedBounds;
+    if (b && localX >= b.x && localX <= b.x + b.w && localY >= b.y && localY <= b.y + b.h) {
+      this.pokeExpandTimer();
+      return;
+    }
+    this.collapse();
   }
 
   setTheme(theme: Theme): void {
@@ -362,6 +452,11 @@ export class PhaseStripLayer {
     const appTheme = this.theme.appTheme;
     const y = this.canvasHeight / 2 - CELL_H / 2;
     const centerX = this.canvasWidth / 2;
+
+    const showPill = this.compact && !this.expanded;
+    this.cellsContainer.visible = !showPill;
+    this.pillContainer.visible = showPill;
+    this.forceShowIndicators = this.compact && this.expanded;
 
     // Find combat cell index
     const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
@@ -412,11 +507,13 @@ export class PhaseStripLayer {
     const stripLeft = cellPositions[0]! - CELL_GAP;
     const stripRight = rx;
     this.lineGfx.clear();
-    this.lineGfx.moveTo(0, lineY);
-    this.lineGfx.lineTo(stripLeft, lineY);
-    this.lineGfx.moveTo(stripRight, lineY);
-    this.lineGfx.lineTo(this.canvasWidth, lineY);
-    this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
+    if (!showPill) {
+      this.lineGfx.moveTo(0, lineY);
+      this.lineGfx.lineTo(stripLeft, lineY);
+      this.lineGfx.moveTo(stripRight, lineY);
+      this.lineGfx.lineTo(this.canvasWidth, lineY);
+      this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
+    }
 
     // Strip hover hit area — covers cells + indicator rows
     const hoverPad = INDICATOR_SIZE + INDICATOR_MARGIN + 6;
@@ -434,6 +531,65 @@ export class PhaseStripLayer {
       stepChanged = true;
     }
     this.prevStep = state.currentStep;
+
+    if (showPill) {
+      const label =
+        COMBAT_LABELS[state.currentStep] ?? PHASES.find((p) => p.id === state.currentStep)?.short;
+      if (label) this.pillLabel = label;
+      this.pillText.text = this.pillLabel;
+      const pillW = Math.max(
+        COMPACT_PILL_MIN_W,
+        Math.ceil(this.pillText.width) + COMPACT_PILL_PAD_X * 2,
+      );
+      const pillX = centerX - pillW / 2;
+      const pillY = lineY - COMPACT_PILL_H / 2;
+      this.pillText.x = centerX;
+      this.pillText.y = lineY;
+      this.pillBg.clear();
+      this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
+      this.pillBg.fill({ color: hexToNum(appTheme.secondary) });
+      this.pillBg.roundRect(pillX, pillY, pillW, COMPACT_PILL_H, COMPACT_PILL_H / 2);
+      this.pillBg.stroke({ color: turnColor, width: 2, alignment: 0.5 });
+      this.pillHit.clear();
+      this.pillHit.rect(
+        pillX - COMPACT_PILL_HIT_PAD,
+        pillY - COMPACT_PILL_HIT_PAD,
+        pillW + COMPACT_PILL_HIT_PAD * 2,
+        COMPACT_PILL_H + COMPACT_PILL_HIT_PAD * 2,
+      );
+      this.pillHit.fill({ color: 0x000000, alpha: 0.001 });
+      this.lineGfx.moveTo(0, lineY);
+      this.lineGfx.lineTo(pillX - CELL_GAP, lineY);
+      this.lineGfx.moveTo(pillX + pillW + CELL_GAP, lineY);
+      this.lineGfx.lineTo(this.canvasWidth, lineY);
+      this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
+      this.pillRect = { x: pillX, y: pillY, w: pillW, c: turnColor };
+      if (stepChanged) this.pillFlashStart = performance.now();
+    } else {
+      this.pillRect = null;
+      this.pillFlashStart = 0;
+      this.pillFlash.clear();
+    }
+
+    this.expandedBackdrop.clear();
+    if (this.compact && this.expanded) {
+      const backdropY = y - hoverPad;
+      const backdropH = CELL_H + hoverPad * 2;
+      this.expandedBackdrop.roundRect(
+        stripLeft,
+        backdropY,
+        stripRight - stripLeft,
+        backdropH,
+        CELL_R * 2,
+      );
+      this.expandedBackdrop.fill({
+        color: hexToNum(t.canvas.background),
+        alpha: STRIP_EXPANDED_BG_ALPHA,
+      });
+      this.expandedBounds = { x: stripLeft, y: backdropY, w: stripRight - stripLeft, h: backdropH };
+    } else {
+      this.expandedBounds = null;
+    }
 
     const count = this.cells.length;
     for (let i = 0; i < count; i++) {
@@ -564,8 +720,7 @@ export class PhaseStripLayer {
     }
   }
 
-  tick(): void {
-    // Draw indicators every frame
+  private drawIndicators(): void {
     for (let ci = 0; ci < this.cells.length; ci++) {
       const cell = this.cells[ci]!;
       const d = cell._indData;
@@ -578,7 +733,11 @@ export class PhaseStripLayer {
       }
 
       const cellHovered = this.hoveredCellIndex === ci;
-      const showEmpty = cellHovered || cell.selfHovered || cell.oppHovered.some(Boolean);
+      const showEmpty =
+        this.forceShowIndicators ||
+        cellHovered ||
+        cell.selfHovered ||
+        cell.oppHovered.some(Boolean);
 
       // Self indicator
       cell.selfIndicator.clear();
@@ -609,6 +768,18 @@ export class PhaseStripLayer {
         drawShape(cell.oppIndicators, "circle", shapeX, d.oppCy, sz, color, enabled, true);
       }
     }
+  }
+
+  tick(): void {
+    if (
+      this.compact &&
+      this.expanded &&
+      performance.now() - this.expandedAt > STRIP_COMPACT_EXPAND_TIMEOUT_MS
+    ) {
+      this.collapse();
+    }
+
+    if (!(this.compact && !this.expanded)) this.drawIndicators();
 
     // Flash animation
     const now = performance.now();
@@ -641,6 +812,33 @@ export class PhaseStripLayer {
       cell.flashGfx.stroke({ color, width: 1.5 + fade * 2, alpha: fade * 0.85, alignment: 0.5 });
       cell.flashGfx.roundRect(cx, cy, cw, CELL_H, CELL_R);
       cell.flashGfx.fill({ color, alpha: fade * fade * 0.25 });
+    }
+
+    if (this.pillFlashStart !== 0 && this.pillRect) {
+      this.pillFlash.clear();
+      const elapsed = now - this.pillFlashStart;
+      if (elapsed >= FLASH_DURATION_MS) {
+        this.pillFlashStart = 0;
+      } else {
+        const fade = 1 - easeOut(elapsed / FLASH_DURATION_MS);
+        const expand = fade * FLASH_MAX_EXPAND;
+        const r = this.pillRect;
+        this.pillFlash.roundRect(
+          r.x - expand,
+          r.y - expand,
+          r.w + expand * 2,
+          COMPACT_PILL_H + expand * 2,
+          COMPACT_PILL_H / 2 + expand * 0.5,
+        );
+        this.pillFlash.stroke({
+          color: r.c,
+          width: 1.5 + fade * 2,
+          alpha: fade * 0.85,
+          alignment: 0.5,
+        });
+        this.pillFlash.roundRect(r.x, r.y, r.w, COMPACT_PILL_H, COMPACT_PILL_H / 2);
+        this.pillFlash.fill({ color: r.c, alpha: fade * fade * 0.25 });
+      }
     }
   }
 

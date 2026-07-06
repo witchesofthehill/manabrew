@@ -442,8 +442,9 @@ export default function LimitedDeckBuilder({
           onSaveToMyDecks={openSaveDialog}
         />
 
-        <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)]">
+        <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-2 lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)] lg:grid-rows-1">
           <Zone
+            className="md:row-span-2 lg:row-span-1"
             title={`Pool (${unused.length})`}
             entries={pickEntries(entries, unused).filter((e) =>
               passesColorFilter(e.card, poolColorFilter, scryfallCache),
@@ -749,6 +750,7 @@ interface ZoneProps {
   warnOnDrop?: string | null;
   onCardClick: (idx: number) => void;
   preview: ReturnType<typeof useCardPreview>;
+  className?: string;
 }
 
 function Zone({
@@ -761,6 +763,7 @@ function Zone({
   warnOnDrop,
   onCardClick,
   preview,
+  className,
 }: ZoneProps) {
   const cache = useScryfallStore((s) => s.cards);
   const groups = useMemo(() => {
@@ -784,6 +787,7 @@ function Zone({
         "flex h-full min-h-0 flex-col overflow-hidden rounded-md border bg-card/30 transition-colors",
         highlight ?? "border-border/70",
         isOver && (warnOnDrop ? "border-destructive bg-destructive/10" : "bg-primary/5"),
+        className,
       )}
     >
       <header className="flex items-center justify-between border-b border-border/40 px-3 py-2 text-sm font-semibold">

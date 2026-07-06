@@ -59,7 +59,7 @@ export function LimitedCompareDialog({ current, open, onOpenChange }: Props) {
               <select
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
-                className="flex-1 rounded border border-border/70 bg-background px-2 py-1 text-sm"
+                className="flex-1 rounded border border-border/70 bg-background px-2 py-1 text-sm pointer-coarse:text-base"
               >
                 <option value="">Choose…</option>
                 {limitedDecks.map((d) => (

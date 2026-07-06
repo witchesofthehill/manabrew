@@ -11,6 +11,10 @@ export interface PlayerHudBadge {
   count?: number;
   /** Renders the count in the lethal colour (e.g. ≥21 commander damage). */
   lethal?: boolean;
+  onTap?: () => void;
+  /** Compact-mode zone pill (library/graveyard/exile): renders in a vertical
+   *  column anchored to the avatar instead of the badge rows. */
+  zone?: boolean;
 }
 
 export interface PlayerHudSpec {

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LandscapeGate } from "@/components/LandscapeGate";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftCardTile } from "@/components/limited/DraftCardTile";
 import { DraftPodButton } from "@/components/limited/DraftPodButton";
@@ -17,7 +18,9 @@ import type { DraftCard } from "@/types/limited";
 type DraftMode = LimitedDraftMode;
 
 const RAIL_DEFAULT_WIDTH = 360;
-const RAIL_FITS_AT_ROW_WIDTH = 1120;
+const RAIL_COMPACT_WIDTH = 300;
+const RAIL_FITS_AT_ROW_WIDTH = 880;
+const RAIL_WIDE_AT_ROW_WIDTH = 1120;
 
 export default function Draft() {
   const { draftId } = useParams<{ draftId: string }>();
@@ -91,6 +94,7 @@ export default function Draft() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
+      <LandscapeGate />
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Booster Draft</h1>
@@ -204,18 +208,19 @@ export function DraftingView({
     });
   }
   const rowRef = useRef<HTMLDivElement | null>(null);
-  const [railFits, setRailFits] = useState(false);
+  const [rowWidth, setRowWidth] = useState(0);
   useEffect(() => {
     const el = rowRef.current;
     if (!el) return;
     const observer = new ResizeObserver(() => {
-      setRailFits(el.clientWidth >= RAIL_FITS_AT_ROW_WIDTH);
+      setRowWidth(el.clientWidth);
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+  const railFits = rowWidth >= RAIL_FITS_AT_ROW_WIDTH;
   return (
-    <div ref={rowRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+    <div ref={rowRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden md:flex-row">
       <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/70 p-4">
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Current Pack ({activeDraft.currentPack.length})
@@ -223,7 +228,7 @@ export function DraftingView({
         {activeDraft.currentPack.length === 0 ? (
           <p className="text-sm text-muted-foreground">Pack empty.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {activeDraft.currentPack.map((c, i) => (
               <DraftCardTile
                 key={`${c.setCode}:${c.cardNumber}:${c.name}:${i}`}
@@ -239,7 +244,7 @@ export function DraftingView({
         )}
       </div>
 
-      <aside className="flex min-h-0 flex-col gap-4 lg:w-[380px] lg:shrink-0">
+      <aside className="flex min-h-0 flex-col gap-4 md:w-[280px] md:shrink-0 lg:w-[380px]">
         {activeDraft.humanConspiracies && activeDraft.humanConspiracies.length > 0 && (
           <section className="rounded-md border border-purple-500/40 bg-purple-500/10 p-3 text-xs">
             <h2 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-purple-200">
@@ -304,7 +309,9 @@ export function DraftingView({
             setSlot={setPreviewSlot}
             collapsed={previewCollapsed}
             onCollapse={togglePreview}
-            defaultWidth={RAIL_DEFAULT_WIDTH}
+            defaultWidth={
+              rowWidth >= RAIL_WIDE_AT_ROW_WIDTH ? RAIL_DEFAULT_WIDTH : RAIL_COMPACT_WIDTH
+            }
           />
         </div>
       )}

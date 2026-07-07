@@ -3,7 +3,8 @@ import {
   DndContext,
   DragOverlay,
   defaultDropAnimationSideEffects,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
@@ -65,7 +66,7 @@ function DraggableCard({
       {...(disabled ? {} : listeners)}
       className={cn(
         CARD_W,
-        "relative shrink-0 touch-none rounded-lg ring-primary",
+        "relative shrink-0 touch-pan-x rounded-lg ring-primary",
         disabled ? "cursor-default" : "cursor-grab hover:z-10 hover:ring-2",
         isDragging && "opacity-0",
         className,
@@ -130,14 +131,14 @@ function Zone({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-w-[140px] flex-1 flex-col">
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
         {DESTINATION_META[destination].label}
       </p>
       <div
         ref={setNodeRef}
         className={cn(
-          "flex h-[320px] items-center overflow-hidden rounded-lg border-2 border-dashed p-3",
+          "flex h-[200px] items-center overflow-hidden rounded-lg border-2 border-dashed p-3 sm:h-[320px]",
           ids.length === 0 ? "justify-center" : "flex-nowrap justify-center",
           isOver ? "border-primary bg-primary/5" : "border-muted-foreground/40",
         )}
@@ -225,7 +226,10 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
     ...Object.fromEntries(zoneIds.map((z) => [z, [] as string[]])),
   }));
   const [activeId, setActiveId] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   // Re-seed when the card set changes (e.g. preview cards arrive after mount).
   const cardKey = useMemo(() => cards.map((c) => c.id).join("|"), [cards]);
@@ -278,7 +282,7 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
         </p>
         <PoolRow id={POOL} ids={items[POOL]} cardsById={cardsById} />
 
-        <div className="flex gap-3 px-5 pb-4">
+        <div className="flex flex-wrap gap-3 px-5 pb-4">
           {zones.map((destination, i) => (
             <Zone
               key={zoneIds[i]}

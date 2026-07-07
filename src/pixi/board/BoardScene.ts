@@ -1591,6 +1591,7 @@ export class BoardScene {
     }
     this.dragHandler.cancel();
     this.attackDragCandidate = null;
+    if (this.blockDragBlockerId) this.setBlockDragId(null);
     if (this.unassignDrag) {
       const ud = this.unassignDrag;
       this.unassignDrag = null;

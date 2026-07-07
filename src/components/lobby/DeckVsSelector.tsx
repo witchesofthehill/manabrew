@@ -71,7 +71,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => !saved.deck.draft && getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
@@ -254,6 +254,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     id={entry.id}
                     name={entry.name}
                     color={entry.color}
+                    badge={entry.sourceDeck?.draft ? "draft" : undefined}
                     cards={displayCards}
                     cover={cover}
                     labels={entry.sourceDeck?.labels}

@@ -495,19 +495,18 @@ export function DeckBuilder({
   const unsupportedNames = useUnsupportedCards(currentDeck);
   const hasUnsupportedCards = unsupportedNames.size > 0;
 
-  // Compute deck legality for conditional save button
+  // Compute deck legality for the save button's warning state
   const deckFormat = getFormat(currentDeck.format ?? "standard");
-  const isDeckLegal =
-    !hasUnsupportedCards &&
-    (deckFormat
-      ? validateDeckSections(
-          {
-            deck: currentDeck,
-            commanderName: currentDeck.commanders?.[0]?.identity.name,
-          },
-          deckFormat,
-        ).legal
-      : false);
+  const deckValidation = deckFormat
+    ? validateDeckSections(
+        {
+          deck: currentDeck,
+          commanderName: currentDeck.commanders?.[0]?.identity.name,
+        },
+        deckFormat,
+      )
+    : { legal: false, errors: [] as string[] };
+  const isDeckLegal = !hasUnsupportedCards && deckValidation.legal;
 
   const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
   const matchesFilters = useCallback(
@@ -729,8 +728,7 @@ export function DeckBuilder({
 
   function handleSetCommander(card: DeckCard) {
     if (!isCommanderEligible(card)) {
-      toast.error(`"${card.identity.name}" is not a legal commander`);
-      return;
+      toast.warning(`"${card.identity.name}" is not a legal commander`);
     }
 
     const existing = currentDeck.commanders ?? [];
@@ -800,14 +798,19 @@ export function DeckBuilder({
   }
 
   function handleSave() {
-    if (hasUnsupportedCards) {
-      handleSaveDraft();
-      return;
-    }
     saveCurrentDeck();
-    const snapshot = buildDeckSnapshot(currentDeck);
+    const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
+    if (hasUnsupportedCards) {
+      toast.warning(
+        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
+      );
+    } else if (!deckValidation.legal) {
+      toast.warning(
+        `Saved "${currentDeck.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
+      );
+    }
   }
 
   function handleSaveDraft() {
@@ -1017,16 +1020,17 @@ export function DeckBuilder({
               <Button
                 size="sm"
                 variant="outline"
+                disabled={!hasUnsavedChanges}
                 className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
                 title={
                   hasUnsupportedCards
-                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — draft only, can't be played`
-                    : "Deck has errors — save as draft (not playable)"
+                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — saves with a warning`
+                    : `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
                 }
-                onClick={handleSaveDraft}
+                onClick={handleSave}
               >
-                <FileBox className="h-3.5 w-3.5" />
-                Save Draft
+                <Save className="h-3.5 w-3.5" />
+                Save
               </Button>
             )}
 
@@ -1047,6 +1051,9 @@ export function DeckBuilder({
                   disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleSaveDraft}>
+                  <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>

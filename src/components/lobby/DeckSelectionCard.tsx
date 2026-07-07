@@ -96,25 +96,20 @@ export function DeckSelectionCard({
     <button
       key={id}
       type="button"
-      onClick={() => {
-        if (isLegal) onSelect();
-      }}
-      onDoubleClick={() => {
-        if (isLegal) onActivate?.();
-      }}
-      disabled={!isLegal}
+      onClick={onSelect}
+      onDoubleClick={() => onActivate?.()}
       title={!isLegal ? validationError : undefined}
       className={cn(
-        "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted",
+        "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted cursor-pointer",
         dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
         "hover:ring-2 hover:ring-primary hover:border-primary",
-        isLegal ? "cursor-pointer" : "cursor-not-allowed opacity-50",
-        !hasVsSide && isSelected && isLegal
+        !hasVsSide && isSelected
           ? "border-primary bg-primary/5 ring-1 ring-primary"
           : !hasVsSide
-            ? isLegal
-              ? "border-border hover:bg-muted/40 hover:shadow-sm"
-              : "border-border"
+            ? cn(
+                "hover:bg-muted/40 hover:shadow-sm",
+                isLegal ? "border-border" : "border-warning/50",
+              )
             : "",
       )}
       style={sideStyle}
@@ -153,7 +148,7 @@ export function DeckSelectionCard({
             <AlertCircle
               className={cn(
                 "h-3.5 w-3.5",
-                cover ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-destructive",
+                cover ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-warning",
               )}
             />
           )}
@@ -178,7 +173,7 @@ export function DeckSelectionCard({
             {!cover && !hasVsSide && (
               <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
                 {isSelected && <Check className="h-3 w-3 text-primary" />}
-                {!isLegal && <AlertCircle className="h-3 w-3 text-destructive" />}
+                {!isLegal && <AlertCircle className="h-3 w-3 text-warning" />}
               </div>
             )}
           </div>

@@ -54,12 +54,11 @@ export function CreateGameDialog({
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => !saved.deck.draft && getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
-    !currentDeck.draft &&
-    (currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0);
+    currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0;
   const allDeckCards = (d: Deck): DeckCard[] => [
     ...d.cards,
     ...d.sideboard,
@@ -91,7 +90,7 @@ export function CreateGameDialog({
     ...distinctSavedDecks.map((s) => ({
       id: s.id,
       name: s.deck.name,
-      badge: null as string | null,
+      badge: (s.deck.draft ? "draft" : null) as string | null,
       labels: s.deck.labels,
       sourceDeck: s.deck,
       isPreset: false as const,
@@ -137,16 +136,6 @@ export function CreateGameDialog({
   }, [selectedDeck]);
 
   const selectedDeckEntry = allDecks.find((d) => d.id === selectedDeck);
-  const selectedDeckValidation =
-    selectedDeckEntry?.isPreset || !selectedDeckEntry
-      ? { legal: true, errors: [] as string[] }
-      : validateDeckSections(
-          {
-            deck: selectedDeckEntry.sourceDeck,
-            commanderName: selectedCommander || selectedDeckEntry.commanderName,
-          },
-          selectedFormat,
-        );
 
   const legendaryCreatures = selectedDeckEntry
     ? Array.from(
@@ -168,7 +157,7 @@ export function CreateGameDialog({
 
   const needsCommander = selectedFormat.deckRules.requiresCommander;
   const commanderValid = !needsCommander || selectedCommander !== "";
-  const isReady = !!selectedDeckEntry && selectedDeckValidation.legal && commanderValid;
+  const isReady = !!selectedDeckEntry && commanderValid;
 
   function handleCreate(
     entry: (typeof allDecks)[number] | undefined = selectedDeckEntry,
@@ -187,8 +176,7 @@ export function CreateGameDialog({
           selectedFormat,
         );
     if (!validation.legal) {
-      toast.error(validation.errors[0] ?? "Deck is not legal in this format");
-      return;
+      toast.warning(validation.errors[0] ?? "Deck is not legal in this format");
     }
     if (needsCommander && !(commander || entry.commanderName)) {
       toast.error("Please select a commander");

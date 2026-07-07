@@ -126,11 +126,20 @@ fn run_put_back_phase(
         count: usize,
     }
 
+    // MulliganService: the first mulligan is free when the game started with
+    // more than two players (or in Brawl, which the engine does not yet track).
+    // London bottoms `timesMulliganed - (firstMulliganFree ? 1 : 0)` cards.
+    let first_mulligan_free = ordered.len() > 2;
+
     let jobs: Vec<PutBackJob> = ordered
         .iter()
         .enumerate()
         .filter_map(|(i, &pid)| {
-            let count = mulligan_count[i] as usize;
+            let count = (mulligan_count[i] as usize).saturating_sub(if first_mulligan_free {
+                1
+            } else {
+                0
+            });
             if count == 0 {
                 return None;
             }

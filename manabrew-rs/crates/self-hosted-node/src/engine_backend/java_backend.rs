@@ -68,8 +68,8 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
         20,
         42,
         vec![
-            PlayerConfig::new("Smoke A".to_string(), &deck_a, None),
-            PlayerConfig::new("Smoke B".to_string(), &deck_b, None),
+            PlayerConfig::new("Smoke A".to_string(), &deck_a, Vec::new()),
+            PlayerConfig::new("Smoke B".to_string(), &deck_b, Vec::new()),
         ],
     );
     let session_id = session.start_game(&request)?;
@@ -130,8 +130,16 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
         20,
         42,
         vec![
-            PlayerConfig::new("Scenario A".to_string(), &scenario_deck("Swamp"), None),
-            PlayerConfig::new("Scenario B".to_string(), &scenario_deck("Forest"), None),
+            PlayerConfig::new(
+                "Scenario A".to_string(),
+                &scenario_deck("Swamp"),
+                Vec::new(),
+            ),
+            PlayerConfig::new(
+                "Scenario B".to_string(),
+                &scenario_deck("Forest"),
+                Vec::new(),
+            ),
         ],
     );
     let session_id = session.start_game(&request)?;
@@ -174,7 +182,7 @@ pub fn run_self_play(
         players.push(PlayerConfig::new(
             format!("Self-Play {}", i + 1),
             &identities,
-            seat.commander_name.clone(),
+            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
         ));
     }
 
@@ -751,7 +759,7 @@ pub fn run_concurrent_self_play(
         players.push(PlayerConfig::new(
             format!("Self-Play {}", i + 1),
             &identities,
-            seat.commander_name.clone(),
+            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
         ));
     }
 
@@ -970,7 +978,7 @@ fn run_hosted_engine_game_inner(
         players.push(PlayerConfig::new(
             name.clone(),
             &identities,
-            commander_names[index].clone(),
+            commander_names_for_java(&decks[index], commander_names[index].as_deref()),
         ));
     }
     for &idx in &ai_player_indices {
@@ -1177,6 +1185,23 @@ fn deck_card_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
         .chain(deck.commanders.iter().flatten())
         .map(|card| card.identity.clone())
         .collect()
+}
+
+#[cfg(forge_backend)]
+fn commander_names_for_java(deck: &Deck, fallback: Option<&str>) -> Vec<String> {
+    let names: Vec<String> = deck
+        .commanders
+        .iter()
+        .flatten()
+        .map(|card| card.identity.name.clone())
+        .collect();
+    if !names.is_empty() {
+        return names;
+    }
+    fallback
+        .filter(|name| !name.is_empty())
+        .map(|name| vec![name.to_string()])
+        .unwrap_or_default()
 }
 
 #[cfg(feature = "java-forge")]
@@ -1992,7 +2017,7 @@ pub struct StartGameRequest {
 pub struct PlayerConfig {
     name: String,
     deck: Vec<CardIdentityForJava>,
-    commander_name: Option<String>,
+    commander_names: Vec<String>,
     ai: bool,
 }
 
@@ -2027,11 +2052,11 @@ impl StartGameRequest {
 }
 
 impl PlayerConfig {
-    pub fn new(name: String, deck: &[DeckCardIdentity], commander_name: Option<String>) -> Self {
+    pub fn new(name: String, deck: &[DeckCardIdentity], commander_names: Vec<String>) -> Self {
         Self {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
-            commander_name,
+            commander_names,
             ai: false,
         }
     }

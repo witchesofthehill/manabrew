@@ -1193,14 +1193,14 @@ fn commander_names_for_java(deck: &Deck, fallback: Option<&str>) -> Vec<String> 
         .commanders
         .iter()
         .flatten()
-        .map(|card| card.identity.name.clone())
+        .map(|card| java_card_name(&card.identity.name))
         .collect();
     if !names.is_empty() {
         return names;
     }
     fallback
         .filter(|name| !name.is_empty())
-        .map(|name| vec![name.to_string()])
+        .map(|name| vec![java_card_name(name)])
         .unwrap_or_default()
 }
 

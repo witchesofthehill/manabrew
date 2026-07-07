@@ -199,6 +199,11 @@ public final class ManaBrewEngineAdapter {
         }
         for (String commanderName : uniqueCommanders) {
             PaperCard commander = mainByName.get(commanderName.toLowerCase(Locale.ROOT));
+            if (commander == null && commanderName.contains(" // ")) {
+                // Forge keys DFCs by front face; mirrors CardDatabase::get_by_card_name.
+                String frontFace = commanderName.substring(0, commanderName.indexOf(" // "));
+                commander = mainByName.get(frontFace.toLowerCase(Locale.ROOT));
+            }
             if (commander == null) {
                 throw new IllegalArgumentException("commander was not found in main deck: "
                         + commanderName);

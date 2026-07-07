@@ -1050,6 +1050,13 @@ class WebServerApi implements IServerApi {
       // (e.g. duplicate_username from a second tab) arrives. Count the
       // rejection so the retry loop backs off instead of hammering the relay.
       this.reconnectAttempt += 1;
+      // "already taken" matches manabrew-server's duplicate-username AuthResult
+      // error. The holder is a session no tab-claim could release (crashed
+      // browser, other device), so it stays until the relay's 90s idle reap —
+      // jump to the slow end of the backoff instead of retrying every 2s.
+      if (typeof msg.error === "string" && msg.error.includes("already taken")) {
+        this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
+      }
     }
 
     // Map server message type to event name and payload

@@ -6,6 +6,7 @@ import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { claimTabSession, holdTabSession, type TabSessionHolder } from "@/lib/tabSession";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
   RoomInfo,
@@ -97,6 +98,13 @@ interface PendingJoin {
 
 let pendingJoin: PendingJoin | null = null;
 
+let tabSession: TabSessionHolder | null = null;
+
+function releaseTabSession() {
+  tabSession?.release();
+  tabSession = null;
+}
+
 function settlePendingJoin(error: Error | null, roomId?: string) {
   if (!pendingJoin) return;
   if (roomId && pendingJoin.roomId !== roomId) return;
@@ -131,14 +139,35 @@ export const useServerStore = create<ServerState>()(
           return;
         }
         set({ username, connecting: true, error: null });
+        releaseTabSession();
+        const claim = await claimTabSession(username);
+        if (claim.outcome === "refused") {
+          set({
+            connecting: false,
+            error: "You are hosting a game in another tab. Finish or close it first.",
+          });
+          return;
+        }
         try {
           await platform.server.connect({ host, port, username, password });
+          tabSession = holdTabSession(username, {
+            refusal: () =>
+              get().gameStarted && get().currentRoom?.host === get().username ? "hosting" : null,
+            onRelease: async () => {
+              // The holder channel acks "released" after this resolves; null the
+              // handle first so disconnect() doesn't close that channel mid-handover.
+              tabSession = null;
+              await get().disconnect();
+              toast.info("Signed in from another tab — this tab was disconnected.");
+            },
+          });
         } catch (e) {
           set({ connecting: false, error: String(e) });
         }
       },
 
       async disconnect() {
+        releaseTabSession();
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.disconnect();

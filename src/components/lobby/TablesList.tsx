@@ -216,6 +216,7 @@ export function TablesList({
 
   const trimmedSearch = search.trim().toLowerCase();
   const visibleRooms = rooms
+    .filter((room) => room.room_name !== "Free Room" && room.room_name !== "Free Pod")
     .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
     .filter(
       (room) =>

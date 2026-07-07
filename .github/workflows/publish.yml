@@ -558,7 +558,7 @@ jobs:
   # and attaches everything to the GitHub Release xtask created for the tag.
   release:
     name: Publish GitHub Release
-    needs: [macos-dmg, windows-exe, android-apk]
+    needs: [macos-dmg, windows-exe]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -578,12 +578,6 @@ jobs:
         with:
           name: windows-exe-${{ github.sha }}
           path: release-assets/windows
-
-      - name: Download Android artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apk-${{ github.sha }}
-          path: release-assets/android
 
       - name: Generate updater manifest (tauri.json)
         run: node scripts/gen-updater-manifest.mjs --tag "${{ github.ref_name }}" --assets release-assets --out release-assets/tauri.json
@@ -605,7 +599,6 @@ jobs:
             release-assets/windows/**/*.exe
             release-assets/windows/**/*.exe.sig
             release-assets/windows/**/*.msi
-            release-assets/android/**/*.apk
             release-assets/tauri.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -729,6 +722,52 @@ jobs:
           }
 
           post_discord
+
+  # ── Attach mobile artifacts to the Release ─────────────────────────
+  # Uploads the iOS .ipa and Android .apk to the published Release. Kept
+  # OUT of the `release` job's `needs` so a flaky mobile build never blocks
+  # the desktop installers: this job runs after `release` regardless of the
+  # mobile jobs' results (`if: always()`), downloads whichever artifacts
+  # exist, and uploads each — a missing one is skipped, not fatal.
+  release-mobile:
+    name: Attach mobile artifacts to release
+    needs: [release, ios-ipa, android-apk]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download iOS IPA
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: mobile/ios
+
+      - name: Download Android APK
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-${{ github.sha }}
+          path: mobile/android
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          shopt -s globstar nullglob
+          files=(mobile/ios/**/*.ipa mobile/android/**/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning::No mobile artifacts found — both mobile builds failed?"
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Uploading $f"
+            gh release upload "$TAG" "$f" --clobber --repo "$REPO"
+          done
 
   # ── Deploy production (runs LAST) ──────────────────────────────────
   # Ships the Wasm/web stack only after the Release has all its artifacts,

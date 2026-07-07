@@ -1150,21 +1150,12 @@ fn maybe_start_hosted_engine(
 
     let player_names = player_order;
     let game_id = format!("room-game-{}", Uuid::new_v4());
-    let commander_variant = !matches!(
-        snapshot
-            .lock()
-            .ok()
-            .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
-            .unwrap_or(GameFormat::Any),
-        GameFormat::Standard
-            | GameFormat::Pioneer
-            | GameFormat::Modern
-            | GameFormat::Legacy
-            | GameFormat::Vintage
-            | GameFormat::Pauper
-            | GameFormat::Draft
-            | GameFormat::Sealed
-    );
+    let commander_variant = snapshot
+        .lock()
+        .ok()
+        .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
+        .unwrap_or(GameFormat::Any)
+        .is_commander_variant();
 
     match backend {
         EngineBackendKind::Manabrew => {

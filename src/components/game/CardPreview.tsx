@@ -600,41 +600,43 @@ export function CardPreview({
                 }}
               />
 
-              {actions?.map((action, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => onSelectAction(action)}
-                  className={cn(
-                    "group w-full text-left rounded-lg text-xs font-medium",
-                    "bg-popover text-popover-foreground border border-border",
-                    "backdrop-blur-md shadow-lg",
-                    "transition-all duration-150 ease-out",
-                    "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
-                    "flex flex-col px-3 py-2",
-                  )}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = ringColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "";
-                    e.currentTarget.style.borderColor = "";
-                  }}
-                >
-                  <span className="flex items-center justify-between w-full mb-0.5">
-                    <span className="text-xs font-bold min-w-[22px] h-5 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-                      {idx + 1}
-                    </span>
-                    {action.cost && (
-                      <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                        <DynamicTextRender text={action.cost} />
-                      </span>
+              <div className="flex max-h-[60dvh] flex-col gap-1.5 overflow-y-auto">
+                {actions?.map((action, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onSelectAction(action)}
+                    className={cn(
+                      "group w-full text-left rounded-lg text-xs font-medium",
+                      "bg-popover text-popover-foreground border border-border",
+                      "backdrop-blur-md shadow-lg",
+                      "transition-all duration-150 ease-out",
+                      "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
+                      "flex flex-col px-3 py-2",
                     )}
-                  </span>
-                  <span className="leading-snug text-[13px] font-semibold">
-                    <DynamicTextRender text={action.label} />
-                  </span>
-                </button>
-              ))}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = ringColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "";
+                      e.currentTarget.style.borderColor = "";
+                    }}
+                  >
+                    <span className="flex items-center justify-between w-full mb-0.5">
+                      <span className="text-xs font-bold min-w-[22px] h-5 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
+                        {idx + 1}
+                      </span>
+                      {action.cost && (
+                        <span className="flex items-center gap-0.5 text-[11px] opacity-90">
+                          <DynamicTextRender text={action.cost} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="leading-snug text-[13px] font-semibold line-clamp-4">
+                      <DynamicTextRender text={action.label} />
+                    </span>
+                  </button>
+                ))}
+              </div>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
                 <span>
                   <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">

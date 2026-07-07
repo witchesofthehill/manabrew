@@ -331,6 +331,27 @@ pub enum GameFormat {
     Sealed,
 }
 
+impl GameFormat {
+    // Any stays commander-capable: hosted "Any" rooms resolve their real format
+    // at StartGame, and dropping commanders there would break commander games.
+    pub fn is_commander_variant(&self) -> bool {
+        match self {
+            GameFormat::Any
+            | GameFormat::Commander
+            | GameFormat::Brawl
+            | GameFormat::Oathbreaker => true,
+            GameFormat::Standard
+            | GameFormat::Pioneer
+            | GameFormat::Modern
+            | GameFormat::Legacy
+            | GameFormat::Vintage
+            | GameFormat::Pauper
+            | GameFormat::Draft
+            | GameFormat::Sealed => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
 pub enum EngineKind {

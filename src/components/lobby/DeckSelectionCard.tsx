@@ -11,6 +11,7 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useIsTouch } from "@/hooks/useBreakpoints";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 
 interface DeckSelectionCardProps {
@@ -69,6 +70,7 @@ export function DeckSelectionCard({
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
+  const isTouch = useIsTouch();
   const colorCost = getDeckColorCost(cards);
   const titleColorClass = getDeckNameColorClass(cards, isPreset ? color : undefined);
   const breakdown = isPreset ? desc : getDeckTypeBreakdown(cards);
@@ -97,7 +99,9 @@ export function DeckSelectionCard({
       key={id}
       type="button"
       onClick={onSelect}
-      onDoubleClick={() => onActivate?.()}
+      onDoubleClick={() => {
+        if (!isTouch) onActivate?.();
+      }}
       title={!isLegal ? validationError : undefined}
       className={cn(
         "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted cursor-pointer",
@@ -198,11 +202,12 @@ export function DeckSelectionCard({
             ))}
           </div>
 
-          {breakdown && !dense && (
+          {(!isLegal || (breakdown && !dense)) && (
             <p
               className={cn(
-                "text-[11px] leading-tight line-clamp-2",
-                cover ? "text-white/85" : "text-muted-foreground",
+                "text-[11px] leading-tight",
+                dense ? "line-clamp-1" : "line-clamp-2",
+                !isLegal ? "text-warning" : cover ? "text-white/85" : "text-muted-foreground",
                 DECK_NAME_SHADOW_CLASS,
               )}
             >
@@ -210,13 +215,15 @@ export function DeckSelectionCard({
             </p>
           )}
 
-          {!dense && (
+          {(!dense || badge) && (
             <div className="flex items-center gap-1 flex-wrap">
-              <span
-                className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
-              >
-                {isPreset ? "Preset deck" : `${cards.length} cards`}
-              </span>
+              {!dense && (
+                <span
+                  className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
+                >
+                  {isPreset ? "Preset deck" : `${cards.length} cards`}
+                </span>
+              )}
               {badge && (
                 <Badge variant="outline" className="text-[9px] h-4 px-1 ml-auto">
                   {badge}

@@ -3620,11 +3620,10 @@ impl Card {
             );
             std::mem::swap(&mut self.svars, &mut other.svars);
 
-            // Reset per-face transient state
-            self.power_modifier = 0;
-            self.toughness_modifier = 0;
-            self.damage = 0;
-            self.granted_keywords.clear();
+            // CR 712.8: transforming keeps the same object, so marked damage
+            // and continuous P/T/keyword modifiers persist. Java's setState
+            // swaps only per-face printed characteristics; leave the
+            // object-level power_modifier/toughness_modifier/damage/granted_keywords alone.
 
             // Re-parse activated abilities from new face's abilities
             self.activated_abilities = self

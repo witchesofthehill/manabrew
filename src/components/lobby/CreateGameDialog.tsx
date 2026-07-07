@@ -12,7 +12,7 @@ import {
   partnerPairLabel,
   type GameFormat,
 } from "@/lib/formats";
-import { Badge } from "@/components/ui/badge";
+import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen } from "@/hooks/useBreakpoints";
@@ -178,7 +178,7 @@ export function CreateGameDialog({
       toast.error("Please select a deck");
       return;
     }
-    if (entry.cards.length === 0) {
+    if (entry.sourceDeck.cards.length === 0 && (entry.sourceDeck.commanders?.length ?? 0) === 0) {
       toast.error(`"${entry.name}" has no cards`);
       return;
     }
@@ -293,12 +293,7 @@ export function CreateGameDialog({
                         <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
                         <span className="text-muted-foreground">+</span>
                         <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
-                        <Badge
-                          variant="outline"
-                          className="h-4 px-1 text-[9px] shrink-0 border-commander/50 text-commander"
-                        >
-                          {selectedPartnerLabel}
-                        </Badge>
+                        <PartnerBadge label={selectedPartnerLabel} />
                       </div>
                     ) : (
                       <>

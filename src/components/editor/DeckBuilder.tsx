@@ -497,15 +497,19 @@ export function DeckBuilder({
 
   // Compute deck legality for the save button's warning state
   const deckFormat = getFormat(currentDeck.format ?? "standard");
-  const deckValidation = deckFormat
-    ? validateDeckSections(
-        {
-          deck: currentDeck,
-          commanderName: currentDeck.commanders?.[0]?.identity.name,
-        },
-        deckFormat,
-      )
-    : { legal: false, errors: [] as string[] };
+  const deckValidation = useMemo(
+    () =>
+      deckFormat
+        ? validateDeckSections(
+            {
+              deck: currentDeck,
+              commanderName: currentDeck.commanders?.[0]?.identity.name,
+            },
+            deckFormat,
+          )
+        : { legal: false, errors: [] as string[] },
+    [currentDeck, deckFormat],
+  );
   const isDeckLegal = !hasUnsupportedCards && deckValidation.legal;
 
   const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
@@ -1008,7 +1012,13 @@ export function DeckBuilder({
             ) : (
               <Button
                 size="sm"
-                variant={isDeckLegal ? (hasUnsavedChanges ? "default" : "secondary") : "outline"}
+                variant={
+                  isDeckLegal
+                    ? hasUnsavedChanges || currentDeck.draft
+                      ? "default"
+                      : "secondary"
+                    : "outline"
+                }
                 disabled={!hasUnsavedChanges && !currentDeck.draft}
                 className={cn(
                   "h-7 shrink-0 gap-1 text-xs",

@@ -13,7 +13,7 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { GAME_FORMATS, getFormat, partnerPairLabel } from "@/lib/formats";
-import { Badge } from "@/components/ui/badge";
+import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
@@ -200,19 +200,7 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
                 <span key={c.identity.id} className="flex min-w-0 items-center gap-1.5">
                   {index > 0 && <span className="text-muted-foreground">·</span>}
                   <span className="truncate">{c.identity.name}</span>
-                  {index === 1 && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "h-4 px-1 text-[9px] shrink-0",
-                        partnerLabel
-                          ? "border-commander/50 text-commander"
-                          : "border-warning/50 text-warning",
-                      )}
-                    >
-                      {partnerLabel ?? "Not partners"}
-                    </Badge>
-                  )}
+                  {index === 1 && <PartnerBadge label={partnerLabel} />}
                 </span>
               ))}
             </span>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { FEATURES } from "@/lib/features";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
@@ -95,6 +95,23 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       commanderName: deck.commanders?.[0]?.identity.name,
     };
   });
+
+  const deckValidations = useMemo(() => {
+    const map = new Map<string, { legal: boolean; errors: string[] }>();
+    for (const entry of userDeckEntries) {
+      const format = getFormat(entry.formatId ?? "standard");
+      if (!format) continue;
+      map.set(
+        entry.id,
+        validateDeckSections(
+          { deck: entry.sourceDeck, commanderName: entry.commanderName },
+          format,
+        ),
+      );
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedDecks, currentDeck]);
 
   const formatFilteredUserDecks = userDeckEntries.filter(
     (deck) => deck.formatId === selectedFormat,
@@ -257,13 +274,10 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   ...(entry.sourceDeck?.commanders ?? []),
                 ];
                 const cover = entry.sourceDeck ? resolveCoverCard(entry.sourceDeck) : undefined;
-                const format = getFormat(entry.formatId ?? "standard");
-                const validation = format
-                  ? validateDeckSections(
-                      { deck: entry.sourceDeck, commanderName: entry.commanderName },
-                      format,
-                    )
-                  : { legal: true, errors: [] as string[] };
+                const validation = deckValidations.get(entry.id) ?? {
+                  legal: true,
+                  errors: [] as string[],
+                };
                 return (
                   <DeckSelectionCard
                     key={entry.id}

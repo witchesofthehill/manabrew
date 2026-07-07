@@ -916,6 +916,7 @@ pub fn run_hosted_engine_game(
     player_names: Vec<String>,
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
+    commander_variant: bool,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -929,6 +930,7 @@ pub fn run_hosted_engine_game(
         player_names,
         decks,
         commander_names,
+        commander_variant,
         local_player_index,
         ai_player_indices,
         starting_life,
@@ -945,6 +947,7 @@ pub fn run_hosted_engine_game(
     _player_names: Vec<String>,
     _decks: Vec<Deck>,
     _commander_names: Vec<Option<String>>,
+    _commander_variant: bool,
     _local_player_index: Option<usize>,
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
@@ -962,6 +965,7 @@ fn run_hosted_engine_game_inner(
     player_names: Vec<String>,
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
+    commander_variant: bool,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -975,10 +979,15 @@ fn run_hosted_engine_game_inner(
     let mut players = Vec::with_capacity(player_names.len());
     for (index, name) in player_names.iter().enumerate() {
         let identities = deck_card_identities(&decks[index]);
+        let seat_commander_names = if commander_variant {
+            commander_names_for_java(&decks[index], commander_names[index].as_deref())
+        } else {
+            Vec::new()
+        };
         players.push(PlayerConfig::new(
             name.clone(),
             &identities,
-            commander_names_for_java(&decks[index], commander_names[index].as_deref()),
+            seat_commander_names,
         ));
     }
     for &idx in &ai_player_indices {

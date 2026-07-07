@@ -1150,6 +1150,21 @@ fn maybe_start_hosted_engine(
 
     let player_names = player_order;
     let game_id = format!("room-game-{}", Uuid::new_v4());
+    let commander_variant = !matches!(
+        snapshot
+            .lock()
+            .ok()
+            .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
+            .unwrap_or(GameFormat::Any),
+        GameFormat::Standard
+            | GameFormat::Pioneer
+            | GameFormat::Modern
+            | GameFormat::Legacy
+            | GameFormat::Vintage
+            | GameFormat::Pauper
+            | GameFormat::Draft
+            | GameFormat::Sealed
+    );
 
     match backend {
         EngineBackendKind::Manabrew => {
@@ -1248,6 +1263,7 @@ fn maybe_start_hosted_engine(
                         player_names,
                         ordered_decks,
                         commander_names,
+                        commander_variant,
                         local_player_index,
                         ai_player_indices,
                         starting_life,

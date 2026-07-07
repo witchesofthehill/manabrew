@@ -42,7 +42,7 @@ import {
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { partnerPairLabel } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
@@ -1977,19 +1977,7 @@ export function DeckListView({
                           className="h-3 w-3 text-commander shrink-0"
                         />
                         <span className="text-sm flex-1 truncate">{name}</span>
-                        {commanderIndex === 1 && (
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "h-4 px-1 text-[9px] shrink-0",
-                              partnerLabel
-                                ? "border-commander/50 text-commander"
-                                : "border-warning/50 text-warning",
-                            )}
-                          >
-                            {partnerLabel ?? "Not partners"}
-                          </Badge>
-                        )}
+                        {commanderIndex === 1 && <PartnerBadge label={partnerLabel} />}
                         {cmd.manaCost && (
                           <ManaSymbols cost={cmd.manaCost} size="sm" className="shrink-0" />
                         )}
@@ -2009,17 +1997,7 @@ export function DeckListView({
                       </div>
                       {commanderIndex === 1 && (
                         <div className="absolute top-1 left-1 z-20">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "h-4 px-1 text-[9px] bg-overlay/70",
-                              partnerLabel
-                                ? "border-commander/50 text-commander"
-                                : "border-warning/50 text-warning",
-                            )}
-                          >
-                            {partnerLabel ?? "Not partners"}
-                          </Badge>
+                          <PartnerBadge label={partnerLabel} className="bg-overlay/70" />
                         </div>
                       )}
                       <CardVisual

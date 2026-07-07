@@ -237,7 +237,7 @@ public final class ManaBrewEngineAdapter {
             if (playerObject.has("commanderNames")
                     && playerObject.get("commanderNames").isJsonArray()) {
                 for (JsonElement commanderValue : playerObject.getAsJsonArray("commanderNames")) {
-                    if (!commanderValue.isJsonNull()) {
+                    if (!commanderValue.isJsonNull() && !commanderValue.getAsString().isBlank()) {
                         commanderNames.add(commanderValue.getAsString());
                     }
                 }

@@ -145,6 +145,7 @@ export default function Lobby() {
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
+  const [startingGame, setStartingGame] = useState(false);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
 
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
@@ -380,6 +381,22 @@ export default function Lobby() {
     setAiDeckDialogOpen(true);
   }
 
+  async function handleStartGame() {
+    const room = currentRoom;
+    if (!room || startingGame) return;
+    setStartingGame(true);
+    const ackPromise = awaitGameStartedAck(room.room_id);
+    ackPromise.catch(() => {});
+    try {
+      await startGame();
+      await ackPromise;
+    } catch (e) {
+      toast.error(`Failed to start game: ${String(e)}`);
+    } finally {
+      setStartingGame(false);
+    }
+  }
+
   async function handleStartDraft() {
     const room = currentRoom;
     if (!room || !username) return;
@@ -588,11 +605,12 @@ export default function Lobby() {
             onSetFormat={setFormat}
             onSetMaxPlayers={handleSetMaxPlayers}
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
-            onStartGame={startGame}
+            onStartGame={handleStartGame}
             onStartTabletop={handleStartTabletop}
             onStartDraft={handleStartDraft}
             onStartSealed={handleStartSealed}
             startingLimited={startingLimited}
+            startingGame={startingGame}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}

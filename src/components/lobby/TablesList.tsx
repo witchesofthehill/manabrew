@@ -118,6 +118,7 @@ interface TablesListProps {
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
+  startingGame?: boolean;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
   /** Bots this host process spawned — used to show the remove button. The
@@ -141,6 +142,7 @@ export function TablesList({
   onStartDraft,
   onStartSealed,
   startingLimited = false,
+  startingGame = false,
   onAddBot,
   onRemoveBot,
   mySpawnedBots = [],
@@ -172,7 +174,7 @@ export function TablesList({
   const controllerHasDeck =
     isOpenFormat ||
     !!currentRoom?.players.find((p) => p.username === controllerName)?.selected_deck_name;
-  const canStart = allOtherPlayersReady && controllerHasDeck;
+  const canStart = currentRoom?.status === "Lobby" && allOtherPlayersReady && controllerHasDeck;
   const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
@@ -509,7 +511,7 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={() => onStartGame()}
-                      disabled={!canStart}
+                      disabled={!canStart || startingGame}
                       title={
                         !controllerHasDeck
                           ? "Select a deck before starting"
@@ -518,7 +520,7 @@ export function TablesList({
                             : undefined
                       }
                     >
-                      <Swords className="h-3 w-3" /> Start Game
+                      <Swords className="h-3 w-3" /> {startingGame ? "Starting…" : "Start Game"}
                     </Button>
                   )}
                 </div>

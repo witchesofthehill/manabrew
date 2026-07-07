@@ -810,14 +810,24 @@ impl SpellAbilityIr {
                 .get(keys::DELAYED_TRIGGER_DEFINED_PLAYER)
                 .map(str::to_string),
             this_turn: params.has("ThisTurn"),
-            condition_hellbent: parsed_true(params.get("ConditionHellbent")),
-            condition_threshold: parsed_true(params.get("ConditionThreshold")),
-            condition_metalcraft: parsed_true(params.get("ConditionMetalcraft")),
-            condition_delirium: parsed_true(params.get("ConditionDelirium")),
-            condition_revolt: parsed_true(params.get("ConditionRevolt")),
-            condition_desert: parsed_true(params.get("ConditionDesert")),
-            condition_blessing: parsed_true(params.get("ConditionBlessing")),
-            condition_kicked: parsed_true(params.get("ConditionKicked")),
+            // `Condition$ <value>` is Forge's shorthand that SpellAbilityCondition
+            // .setConditions expands into these flags; mirror that expansion.
+            condition_hellbent: parsed_true(params.get("ConditionHellbent"))
+                || params.get(keys::CONDITION) == Some("Hellbent"),
+            condition_threshold: parsed_true(params.get("ConditionThreshold"))
+                || params.get(keys::CONDITION) == Some("Threshold"),
+            condition_metalcraft: parsed_true(params.get("ConditionMetalcraft"))
+                || params.get(keys::CONDITION) == Some("Metalcraft"),
+            condition_delirium: parsed_true(params.get("ConditionDelirium"))
+                || params.get(keys::CONDITION) == Some("Delirium"),
+            condition_revolt: parsed_true(params.get("ConditionRevolt"))
+                || params.get(keys::CONDITION) == Some("Revolt"),
+            condition_desert: parsed_true(params.get("ConditionDesert"))
+                || params.get(keys::CONDITION) == Some("Desert"),
+            condition_blessing: parsed_true(params.get("ConditionBlessing"))
+                || params.get(keys::CONDITION) == Some("Blessing"),
+            condition_kicked: parsed_true(params.get("ConditionKicked"))
+                || params.get(keys::CONDITION) == Some("Kicked"),
             condition_optional_paid: parsed_true(params.get("ConditionOptionalPaid")),
             condition_optional_not_paid: parsed_true(params.get("ConditionOptionalNotPaid")),
             condition_opponent_turn: parsed_true(params.get("ConditionOpponentTurn")),

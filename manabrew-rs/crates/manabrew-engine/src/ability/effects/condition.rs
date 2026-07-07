@@ -93,12 +93,10 @@ pub(super) fn check_condition(game: &GameState, sa: &SpellAbility) -> bool {
         }
     }
 
-    // Check Condition$ Kicked (most common pattern: simple kicked gate)
-    if let Some(cond) = sa.ir.condition.as_deref() {
-        if cond == "Kicked" {
-            return sa.kicked;
-        }
-    }
+    // Condition$ Threshold/Metalcraft/Delirium/Hellbent/Revolt/Desert/Blessing/Kicked
+    // are expanded into the flags checked above at IR-construction time (mirroring
+    // SpellAbilityCondition.setConditions), so no raw-string handling is needed here.
+
     // Check ConditionCheckSVar$ Kicked (SVar-based kicked gate)
     if let Some(cond) = sa.ir.condition_check_svar.as_deref() {
         if cond == "Kicked" || cond == "X:Kicked" {

@@ -258,7 +258,7 @@ pub(super) fn specify_mana_combo<T: Responder>(
             let mut result: Vec<String> = chosen_colors
                 .into_iter()
                 .filter(|(c, _)| available_colors.contains(c))
-                .flat_map(|(c, n)| std::iter::repeat(c).take(n as usize))
+                .flat_map(|(c, n)| std::iter::repeat_n(c, n as usize))
                 .collect();
             while result.len() < amount {
                 result.push(available_colors.first().cloned().unwrap_or("C".to_string()));

@@ -355,7 +355,7 @@ impl GameLoop {
                     "You may choose not to untap CARDNAME during your untap step.";
                 let should_untap = if game.card(cid).has_keyword(optional_keyword) {
                     let question = format!("Untap {}?", game.card(cid).card_name);
-                    let source_name = game.card(cid).card_name.clone();
+                    let _source_name = game.card(cid).card_name.clone();
                     agents[active.index()].choose_binary(
                         active,
                         &question,

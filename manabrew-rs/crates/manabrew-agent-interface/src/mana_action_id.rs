@@ -89,7 +89,7 @@ fn split_mana_choices(
         .map(String::as_str)
         .filter(|token| *token != "COMBO")
         .collect();
-    let is_any = mana_tokens.iter().any(|token| *token == "ANY");
+    let is_any = mana_tokens.contains(&"ANY");
     let amount = produced_mana_amount.unwrap_or(1).max(1);
 
     if is_any && !is_combo {

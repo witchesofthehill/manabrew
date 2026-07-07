@@ -24,25 +24,25 @@ pub fn run(args: &[String]) {
     }
 
     let command = &args[1];
-    let server = get_arg(&args, "--server").unwrap_or_else(|| "http://localhost:8080".to_string());
+    let server = get_arg(args, "--server").unwrap_or_else(|| "http://localhost:8080".to_string());
     let (host, port) = parse_host_port(&server);
 
     match command.as_str() {
         "health" => cmd_health(&host, port),
         "submit" => {
-            let file = get_arg(&args, "--file").unwrap_or_else(|| {
+            let file = get_arg(args, "--file").unwrap_or_else(|| {
                 eprintln!("--file is required for submit");
                 std::process::exit(1);
             });
             cmd_submit(&host, port, &file);
         }
         "poll" => {
-            let batch_id = get_arg(&args, "--batch-id").unwrap_or_else(|| {
+            let batch_id = get_arg(args, "--batch-id").unwrap_or_else(|| {
                 eprintln!("--batch-id is required for poll");
                 std::process::exit(1);
             });
-            let pr_comment = get_arg(&args, "--pr").filter(|p| p != "0");
-            let repo = get_arg(&args, "--repo");
+            let pr_comment = get_arg(args, "--pr").filter(|p| p != "0");
+            let repo = get_arg(args, "--repo");
             cmd_poll(
                 &host,
                 port,

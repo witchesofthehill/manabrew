@@ -14,7 +14,7 @@ use crate::parsing::keys;
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let Some(source_id) = sa.source else { return };
     let controller = sa.activating_player;
-    let source_name = ctx.game.card(source_id).card_name.clone();
+    let _source_name = ctx.game.card(source_id).card_name.clone();
 
     let amount = resolve_numeric_svar(ctx.game, sa, keys::COUNTER_NUM, 1);
     if amount <= 0 {

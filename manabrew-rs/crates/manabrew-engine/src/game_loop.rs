@@ -503,7 +503,7 @@ impl GameLoop {
                 }
 
                 agents[takes_action.index()].snapshot_state(game, &self.mana_pools);
-                let card_name = game.card(source_id).card_name.clone();
+                let _card_name = game.card(source_id).card_name.clone();
                 let prompt = sa
                     .ir
                     .spell_description_text

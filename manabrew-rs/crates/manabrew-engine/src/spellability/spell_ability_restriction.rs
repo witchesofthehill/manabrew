@@ -292,9 +292,7 @@ impl SpellAbilityRestriction {
             )
         } else {
             game.cards_in_zone(self.variables.present_zone(), player)
-                .iter()
-                .copied()
-                .collect()
+                .to_vec()
         };
         let count = cards
             .into_iter()

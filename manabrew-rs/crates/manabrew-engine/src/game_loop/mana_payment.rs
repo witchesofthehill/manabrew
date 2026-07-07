@@ -580,7 +580,7 @@ impl GameLoop {
                     this.resolve_single_effect(game, agents, &pt.entry.spell_ability, None);
                 }
             },
-            |_game, _mana_pools, player| unsafe { (&mut *self_ptr).undoable_mana_sources(player) },
+            |_game, _mana_pools, player| unsafe { (*self_ptr).undoable_mana_sources(player) },
             |game, mana_pools, player, card_id| unsafe {
                 (&mut *self_ptr)
                     .begin_mana_undo_action_with_mana_slice(game, mana_pools, player, card_id)

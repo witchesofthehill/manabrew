@@ -14,7 +14,7 @@ use crate::ids::CardId;
 #[manabrew_engine_macros::spell_effect(TapOrUntapEffect)]
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let controller = sa.activating_player;
-    let source_name = sa
+    let _source_name = sa
         .source
         .map(|cid| ctx.game.card(cid).card_name.clone())
         .unwrap_or_else(|| "Ability".to_string());

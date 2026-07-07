@@ -394,6 +394,7 @@ fn load_data_or_exit(cli: &Cli) -> runner::LoadedData {
 }
 
 /// Resolve `--issue-threshold`: explicit CLI value > `ISSUE_THRESHOLD` env > default.
+#[allow(dead_code)]
 fn resolve_issue_threshold(cli_val: i64) -> i64 {
     if cli_val != 5 {
         return cli_val;
@@ -406,6 +407,7 @@ fn resolve_issue_threshold(cli_val: i64) -> i64 {
 }
 
 /// Resolve `--github-repo`: explicit CLI value > `GITHUB_REPO` env > unset.
+#[allow(dead_code)]
 fn resolve_github_repo(cli_val: Option<String>) -> Option<String> {
     cli_val.or_else(|| std::env::var("GITHUB_REPO").ok().filter(|s| !s.is_empty()))
 }

@@ -144,7 +144,7 @@ impl PhaseType {
 
     pub fn parse_range(values: &str) -> Vec<Self> {
         let mut result: Vec<Self> = Vec::new();
-        let mut push = |phase: PhaseType, result: &mut Vec<Self>| {
+        let push = |phase: PhaseType, result: &mut Vec<Self>| {
             if !result.contains(&phase) {
                 result.push(phase);
             }

@@ -42,7 +42,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
     } else {
         // Call mode: player calls heads/tails
-        let card_name = ctx.game.card(source_id).card_name.clone();
+        let _card_name = ctx.game.card(source_id).card_name.clone();
         let called_heads = ctx.agents[controller.index()].choose_binary(
             controller,
             "Call the coin flip",

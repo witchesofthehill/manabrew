@@ -507,8 +507,6 @@ fn resolve_discarded_valid_svar(
         let rem_card = game.card(rem_id);
         let matches = if filter.contains("nonLand") {
             !rem_card.is_land()
-        } else if filter == "Card" {
-            true
         } else {
             true
         };

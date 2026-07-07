@@ -34,6 +34,7 @@ pub(crate) struct TraceWorkerHandle {
     pub(crate) event_rx: Receiver<TraceWorkerEvent>,
 }
 
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum TraceWorkerCommand {
     Preload,
     PrewarmJava(PathBuf),
@@ -97,6 +98,10 @@ pub(crate) fn spawn() -> std::io::Result<TraceWorkerHandle> {
     })
 }
 
+// active_abort is registered before a synchronous trace run and cleared after;
+// the register write is only observable to a concurrent Abort, so clippy sees it
+// as unused in this single-threaded loop.
+#[allow(unused_assignments)]
 fn worker_loop(command_rx: Receiver<TraceWorkerCommand>, event_tx: Sender<TraceWorkerEvent>) {
     let mut loaded_data: Option<LoadedData> = None;
     let mut java_server: Option<JavaServer> = None;

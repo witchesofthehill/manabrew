@@ -12,7 +12,7 @@ impl CardRankingComparator {
         }
     }
 
-    pub fn sort(entries: &mut Vec<(f64, PaperCard)>) {
+    pub fn sort(entries: &mut [(f64, PaperCard)]) {
         entries.sort_by(Self::compare);
     }
 }

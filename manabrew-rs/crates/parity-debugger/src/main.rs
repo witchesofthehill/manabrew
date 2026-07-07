@@ -1,3 +1,5 @@
+#![allow(dead_code)] // debug/inspection tool retains ready-to-wire helper/render fns
+
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::env;
@@ -417,8 +419,8 @@ impl App {
             TraceMode::Java => trace.java.as_ref(),
             _ => trace
                 .pane(self.active_trace_pane)
-                .or_else(|| trace.rust.as_ref())
-                .or_else(|| trace.java.as_ref()),
+                .or(trace.rust.as_ref())
+                .or(trace.java.as_ref()),
         };
         let Some(pane) = pane else {
             return "frame #0 / 0".to_string();
@@ -438,8 +440,8 @@ impl App {
             TraceMode::Java => trace.java.as_ref()?,
             _ => trace
                 .pane(self.active_trace_pane)
-                .or_else(|| trace.rust.as_ref())
-                .or_else(|| trace.java.as_ref())?,
+                .or(trace.rust.as_ref())
+                .or(trace.java.as_ref())?,
         };
         let snapshot = pane.snapshots.get(pane.selected_snapshot)?;
         Some(format!(
@@ -1179,8 +1181,8 @@ impl App {
             TraceMode::Java => trace.java.as_ref(),
             _ => trace
                 .pane(self.active_trace_pane)
-                .or_else(|| trace.rust.as_ref())
-                .or_else(|| trace.java.as_ref()),
+                .or(trace.rust.as_ref())
+                .or(trace.java.as_ref()),
         };
         let Some(pane) = pane else {
             return (0, 0);
@@ -1205,8 +1207,8 @@ impl App {
             TraceMode::Java => trace.java.as_ref(),
             _ => trace
                 .pane(self.active_trace_pane)
-                .or_else(|| trace.rust.as_ref())
-                .or_else(|| trace.java.as_ref()),
+                .or(trace.rust.as_ref())
+                .or(trace.java.as_ref()),
         };
         let Some(pane) = pane else {
             return ("Trace idle".to_string(), "no active pane".to_string());
@@ -4225,7 +4227,7 @@ fn render_timeline_rows(
     let needle = search_query.trim().to_ascii_lowercase();
     let selected_row = selected_phase_row_index(trace, &rows);
     for (idx, (key, snapshot_index)) in rows.iter().enumerate() {
-        let snap = &trace.snapshots[*snapshot_index];
+        let _snap = &trace.snapshots[*snapshot_index];
         let phase_label = short_phase_label(&key.phase);
         let divergence = divergence_for_phase(comparison, key);
         let searchable = format!(
@@ -4731,6 +4733,7 @@ fn render_snapshot_shell(
         });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_snapshot_column(
     ui: &mut egui::Ui,
     title: &str,

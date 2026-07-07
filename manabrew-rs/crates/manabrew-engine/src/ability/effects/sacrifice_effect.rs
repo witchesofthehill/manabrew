@@ -345,7 +345,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     for sacrificing_player in sacrificing_players {
         if optional {
-            let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
+            let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
             let accepted = ctx.agents[sacrificing_player.index()].confirm_action(
                 sacrificing_player,
                 None,

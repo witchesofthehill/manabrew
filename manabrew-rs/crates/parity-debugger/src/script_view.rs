@@ -8,8 +8,8 @@
 use eframe::egui;
 use forge_card_script::{
     ParamEntry, ParsedCardScript, ScriptAbility, ScriptAbilityRecord, ScriptDiagnostic,
-    ScriptDiagnosticKind, ScriptLineKind, ScriptParamRecord, ScriptSVar, ScriptSVarValue,
-    SemanticAmount, SemanticParamValue, SemanticParamValueKind,
+    ScriptLineKind, ScriptParamRecord, ScriptSVar, ScriptSVarValue, SemanticAmount,
+    SemanticParamValue, SemanticParamValueKind,
 };
 
 use crate::ts_view::{tree_sitter_ast_nodes, AstNodeModel};
@@ -276,6 +276,7 @@ fn kind_label(kind: SemanticParamValueKind) -> &'static str {
         SemanticParamValueKind::Transform => "Transform",
         SemanticParamValueKind::Comparison => "Compare",
         SemanticParamValueKind::Expression => "Expr",
+        SemanticParamValueKind::ProducedMana => "ProducedMana",
         SemanticParamValueKind::Raw => "Raw",
     }
 }
@@ -396,7 +397,7 @@ pub(crate) fn render_ast_param_pill(
                 ui.colored_label(color, egui::RichText::new(key).size(10.0).strong());
                 ui.colored_label(
                     theme::FG_1,
-                    egui::RichText::new(shorten_list(&value, 28)).size(10.0),
+                    egui::RichText::new(shorten_list(value, 28)).size(10.0),
                 );
             });
         });
@@ -451,6 +452,9 @@ pub(crate) fn render_svar(ui: &mut egui::Ui, line_no: usize, svar: &ScriptSVar<'
             }
             ScriptSVarValue::Raw(raw) => {
                 ui.monospace(*raw);
+            }
+            ScriptSVarValue::NumericExpression(expr) => {
+                ui.monospace(format!("{expr:?}"));
             }
         });
 }

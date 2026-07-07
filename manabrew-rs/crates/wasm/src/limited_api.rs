@@ -891,12 +891,7 @@ fn template_for_pool(pool: &[PaperCard], variant: Option<&str>) -> SealedTemplat
 }
 
 fn drain_winston_ai(draft: &mut WinstonDraft) {
-    loop {
-        match draft.tick() {
-            WinstonOutcome::Picked { .. } => continue,
-            WinstonOutcome::AwaitingHuman | WinstonOutcome::Complete => break,
-        }
-    }
+    while let WinstonOutcome::Picked { .. } = draft.tick() {}
 }
 
 #[wasm_bindgen]

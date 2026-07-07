@@ -10,6 +10,7 @@ import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { getPlatformType } from "@/platform";
+import { isFeatureEnabled } from "@/featureFlags";
 import type { CubeImportResult } from "@/types/limited";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
@@ -145,6 +146,7 @@ interface CreateRoomDialogProps {
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { createRoom, username } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
+  const ironsmithEnabled = isFeatureEnabled("ironsmithRuntime");
   const [engine, setEngine] = useState<EngineKind>(isTauri ? "Forge" : "Manabrew");
   const [roomPassword, setRoomPassword] = useState("");
   const allSets = useScryfallStore((s) => s.sets);
@@ -444,7 +446,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               <div
                 className={cn(
                   "grid gap-2",
-                  kind === "match" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1",
+                  kind === "match"
+                    ? ironsmithEnabled
+                      ? "grid-cols-1 sm:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2"
+                    : "grid-cols-1",
                 )}
               >
                 <button
@@ -474,7 +480,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     Manabrew's own engine, running locally. Instant, no network.
                   </span>
                 </button>
-                {kind === "match" && (
+                {kind === "match" && ironsmithEnabled && (
                   <button
                     type="button"
                     onClick={() => setEngine("Ironsmith")}

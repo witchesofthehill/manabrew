@@ -999,10 +999,17 @@ fn bot_deck_from_payload(config: &Config, payload: &Value) -> DeckSelection {
         commander = ?deck.commander_name,
         "using requested bot deck"
     );
+    let commander_name = deck.commander_name.or_else(|| {
+        deck.deck
+            .commanders
+            .as_ref()
+            .and_then(|commanders| commanders.first())
+            .map(|commander| commander.identity.name.clone())
+    });
     DeckSelection {
         name: deck.deck_name,
         deck: deck.deck,
-        commander_name: deck.commander_name,
+        commander_name,
     }
 }
 

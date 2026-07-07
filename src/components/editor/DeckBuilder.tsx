@@ -727,12 +727,13 @@ export function DeckBuilder({
   }
 
   function handleSetCommander(card: DeckCard) {
-    if (!isCommanderEligible(card)) {
+    const eligible = isCommanderEligible(card);
+    if (!eligible) {
       toast.warning(`"${card.identity.name}" is not a legal commander`);
     }
 
     const existing = currentDeck.commanders ?? [];
-    if (existing.length >= 1 && !canBePartners(existing[0], card)) {
+    if (eligible && existing.length >= 1 && !canBePartners(existing[0], card)) {
       // Incompatible pairing — explain why before the store silently replaces
       const existingHasPartner =
         hasPartner(existing[0]) || getPartnerWithName(existing[0]) !== null;
@@ -1004,28 +1005,25 @@ export function DeckBuilder({
                 <Save className="h-3.5 w-3.5" />
                 Save
               </Button>
-            ) : isDeckLegal ? (
-              <Button
-                size="sm"
-                variant={hasUnsavedChanges ? "default" : "secondary"}
-                disabled={!hasUnsavedChanges}
-                className="h-7 shrink-0 gap-1 text-xs"
-                title={hasUnsavedChanges ? "Save deck (unsaved changes)" : "Deck saved"}
-                onClick={handleSave}
-              >
-                <Save className="h-3.5 w-3.5" />
-                Save
-              </Button>
             ) : (
               <Button
                 size="sm"
-                variant="outline"
-                disabled={!hasUnsavedChanges}
-                className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                variant={isDeckLegal ? (hasUnsavedChanges ? "default" : "secondary") : "outline"}
+                disabled={!hasUnsavedChanges && !currentDeck.draft}
+                className={cn(
+                  "h-7 shrink-0 gap-1 text-xs",
+                  !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",
+                )}
                 title={
                   hasUnsupportedCards
                     ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — saves with a warning`
-                    : `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
+                    : !isDeckLegal
+                      ? `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
+                      : hasUnsavedChanges
+                        ? "Save deck (unsaved changes)"
+                        : currentDeck.draft
+                          ? "Save draft as a full deck"
+                          : "Deck saved"
                 }
                 onClick={handleSave}
               >

@@ -8,7 +8,9 @@ import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { getDeckFingerprint } from "@/lib/decks";
+import { getFormat, validateDeckSections } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck } from "@/protocol/deck";
 import { ArrowLeft, Hand, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
@@ -157,6 +159,13 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
 
   function handleFight() {
     if (!playerDeck || !opponentDeck) return;
+    const empty = [playerDeck, opponentDeck].find(
+      (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
+    );
+    if (empty) {
+      toast.error(`"${empty.name}" has no cards`);
+      return;
+    }
     onStart(
       playerDeck.sourceDeck,
       opponentDeck.sourceDeck,
@@ -248,6 +257,13 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   ...(entry.sourceDeck?.commanders ?? []),
                 ];
                 const cover = entry.sourceDeck ? resolveCoverCard(entry.sourceDeck) : undefined;
+                const format = getFormat(entry.formatId ?? "standard");
+                const validation = format
+                  ? validateDeckSections(
+                      { deck: entry.sourceDeck, commanderName: entry.commanderName },
+                      format,
+                    )
+                  : { legal: true, errors: [] as string[] };
                 return (
                   <DeckSelectionCard
                     key={entry.id}
@@ -257,6 +273,8 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     badge={entry.sourceDeck?.draft ? "draft" : undefined}
                     cards={displayCards}
                     cover={cover}
+                    isLegal={validation.legal}
+                    validationError={validation.errors[0]}
                     labels={entry.sourceDeck?.labels}
                     isPreset={false}
                     isSelected={false}

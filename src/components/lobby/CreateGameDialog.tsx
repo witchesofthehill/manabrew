@@ -167,6 +167,10 @@ export function CreateGameDialog({
       toast.error("Please select a deck");
       return;
     }
+    if (entry.cards.length === 0) {
+      toast.error(`"${entry.name}" has no cards`);
+      return;
+    }
     const commander =
       commanderOverride ?? (needsCommander ? selectedCommander : entry.commanderName);
     const validation = entry.isPreset

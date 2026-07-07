@@ -232,7 +232,7 @@ effect_dispatch! {
 
     // ── Aliases: variants whose script names map via smart_value_of ────
     ApiType::ExchangeControlVariant => control_gain_variant_effect::ControlGainVariantEffect,
-    ApiType::ExchangeZone => change_zone_effect::ChangeZoneEffect,
+    ApiType::ExchangeZone => zone_exchange_effect::ZoneExchangeEffect,
     ApiType::Regeneration => regenerate_effect::RegenerateEffect,
 
     // ── Niche/format-specific effects ─────────────────────────────────
@@ -267,7 +267,6 @@ effect_dispatch! {
     ApiType::Planeswalk => planeswalk_effect::PlaneswalkEffect,
     ApiType::Radiation => radiation_effect::RadiationEffect,
     ApiType::InternalRadiation => internal_radiation_effect::InternalRadiationEffect,
-    ApiType::ZoneExchange => zone_exchange_effect::ZoneExchangeEffect,
     ApiType::RemoveFromGame => remove_from_game_effect::RemoveFromGameEffect,
     ApiType::RemoveFromMatch => remove_from_match_effect::RemoveFromMatchEffect,
     ApiType::RestartGame => restart_game_effect::RestartGameEffect,

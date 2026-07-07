@@ -207,7 +207,6 @@ pub enum ApiType {
     VillainousChoice,
     Vote,
     WinsGame,
-    ZoneExchange,
     // Internal API types
     BlankLine,
     DamageResolve,
@@ -449,7 +448,6 @@ const ALL_API_TYPES: &[(&str, ApiType)] = &[
     ("VillainousChoice", ApiType::VillainousChoice),
     ("Vote", ApiType::Vote),
     ("WinsGame", ApiType::WinsGame),
-    ("ZoneExchange", ApiType::ZoneExchange),
     // Internal
     ("BlankLine", ApiType::BlankLine),
     ("DamageResolve", ApiType::DamageResolve),

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.3](https://github.com/witchesofthehill/manabrew/compare/v1.2.2...v1.2.3) (2026-07-07)
+
+### Fixes
+
+* **ui:** resolve same-browser username collisions via tab handover ([#373](https://github.com/witchesofthehill/manabrew/issues/373)) ([f4cb0ed](https://github.com/witchesofthehill/manabrew/commit/f4cb0ed70a9ca6ed66fa7214d1726d2c3ca6f909))
+
+## [1.2.2](https://github.com/witchesofthehill/manabrew/compare/v1.2.1...v1.2.2) (2026-07-06)
+
+### Fixes
+
+* **ui:** retry duplicate usernames under a hidden @NNNN tag ([#366](https://github.com/witchesofthehill/manabrew/issues/366)) ([db3c6a4](https://github.com/witchesofthehill/manabrew/commit/db3c6a490730194767d53b7a16e2c5375fc47b1a))
+
 ## [1.2.1](https://github.com/witchesofthehill/manabrew/compare/v1.2.0...v1.2.1) (2026-07-06)
 
 ## [1.2.0](https://github.com/witchesofthehill/manabrew/compare/v1.1.3...v1.2.0) (2026-07-06)

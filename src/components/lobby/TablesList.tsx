@@ -32,6 +32,7 @@ import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
 import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
+import { stripUsernameTag } from "@/lib/username";
 
 const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Any",
@@ -389,7 +390,9 @@ export function TablesList({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium truncate">{p.username}</span>
+                        <span className="text-sm font-medium truncate">
+                          {stripUsernameTag(p.username)}
+                        </span>
                         {p.username === controllerName && (
                           <GameIcon
                             name="overlord-helm"

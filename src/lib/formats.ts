@@ -362,10 +362,6 @@ function isBackgroundCard(card?: DeckCard): boolean {
   return card.subtypes?.some((s) => s.toLowerCase() === "background") ?? false;
 }
 
-/**
- * Returns the mechanic that makes two cards a legal commander pair
- * ("Partner", "Friends forever", "Partner with", "Background"), or null.
- */
 export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
   if (hasPartner(a) && hasPartner(b)) return "Partner";
   if (hasFriendsForever(a) && hasFriendsForever(b)) return "Friends forever";

@@ -495,7 +495,6 @@ export function DeckBuilder({
   const unsupportedNames = useUnsupportedCards(currentDeck);
   const hasUnsupportedCards = unsupportedNames.size > 0;
 
-  // Compute deck legality for the save button's warning state
   const deckFormat = getFormat(currentDeck.format ?? "standard");
   const deckValidation = useMemo(
     () =>

@@ -15,7 +15,7 @@ import {
 import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
-import { useIsShortScreen } from "@/hooks/useBreakpoints";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { cn } from "@/lib/utils";
 import { Search, Shuffle, Swords } from "lucide-react";
@@ -41,6 +41,7 @@ export function CreateGameDialog({
   const { savedDecks, currentDeck } = useDeckStore();
   const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
+  const isTouch = useIsTouch();
 
   const initialFormat = GAME_FORMATS.find((f) => f.id === forcedFormatId) ?? GAME_FORMATS[0];
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
@@ -426,6 +427,7 @@ export function CreateGameDialog({
                           isLegal={validation.legal}
                           validationError={validation.errors[0]}
                           dense={denseDecks}
+                          isTouch={isTouch}
                           onSelect={() => setSelectedDeck(d.id)}
                           onActivate={() => handleCreate(d, d.commanderName)}
                         />
@@ -468,6 +470,7 @@ export function CreateGameDialog({
                         isSelected={selectedDeck === deck.id}
                         isLegal={true}
                         dense={denseDecks}
+                        isTouch={isTouch}
                         onSelect={() => setSelectedDeck(deck.id)}
                         onActivate={() => handleCreate(deck, deck.commanderName)}
                       />

@@ -14,6 +14,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
+import { getSafeAreaInsets } from "@/lib/safeArea";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
@@ -338,7 +339,12 @@ export function CardPreview({
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
   const horizontal = horizontalCard && !orientationFlipped;
-  const previewScale = minimal ? Math.min(1, (window.innerHeight - 16) / CARD_H) : 1;
+  const safe = getSafeAreaInsets();
+  const viewLeft = safe.left;
+  const viewRight = window.innerWidth - safe.right;
+  const viewTop = safe.top;
+  const viewBottom = window.innerHeight - safe.bottom;
+  const previewScale = minimal ? Math.min(1, (viewBottom - viewTop - 16) / CARD_H) : 1;
   const cardWidth = (horizontal ? CARD_H : CARD_W) * previewScale;
   const cardHeight = (horizontal ? CARD_W : CARD_H) * previewScale;
 
@@ -347,16 +353,16 @@ export function CardPreview({
   let actionsOnRight: boolean;
 
   if (placement === "pinned") {
-    cardLeft = window.innerWidth - cardWidth - 16;
-    top = 80;
+    cardLeft = viewRight - cardWidth - 16;
+    top = viewTop + 80;
     actionsOnRight = false;
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = anchorRect.top - cardHeight - 12;
-    cardLeft = Math.max(8, Math.min(cardLeft, window.innerWidth - cardWidth - 8));
-    top = Math.max(8, top);
+    cardLeft = Math.max(viewLeft + 8, Math.min(cardLeft, viewRight - cardWidth - 8));
+    top = Math.max(viewTop + 8, top);
 
-    const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
+    const spaceAfterCard = viewRight - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   } else {
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
@@ -365,8 +371,8 @@ export function CardPreview({
     const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
     const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
 
-    const fitsRight = anchorRight + 16 + cardWidth <= window.innerWidth - 8;
-    const fitsLeft = anchorLeft - 16 - cardWidth >= 8;
+    const fitsRight = anchorRight + 16 + cardWidth <= viewRight - 8;
+    const fitsLeft = anchorLeft - 16 - cardWidth >= viewLeft + 8;
 
     if (fitsRight) {
       cardLeft = anchorRight + 16;
@@ -374,23 +380,26 @@ export function CardPreview({
       cardLeft = anchorLeft - cardWidth - 16;
     } else {
       cardLeft = Math.max(
-        8,
-        Math.min((anchorLeft + anchorRight) / 2 - cardWidth / 2, window.innerWidth - cardWidth - 8),
+        viewLeft + 8,
+        Math.min((anchorLeft + anchorRight) / 2 - cardWidth / 2, viewRight - cardWidth - 8),
       );
     }
 
     if (fitsRight || fitsLeft) {
-      top = Math.min(Math.max(anchorMidY - cardHeight / 2, 8), window.innerHeight - cardHeight - 8);
+      top = Math.min(
+        Math.max(anchorMidY - cardHeight / 2, viewTop + 8),
+        viewBottom - cardHeight - 8,
+      );
     } else {
       const spaceAbove = anchorTop - 16;
-      const spaceBelow = window.innerHeight - anchorBottom - 16;
+      const spaceBelow = viewBottom - anchorBottom - 16;
       top =
         spaceBelow >= spaceAbove
-          ? Math.min(anchorBottom + 12, window.innerHeight - cardHeight - 8)
-          : Math.max(8, anchorTop - cardHeight - 12);
+          ? Math.min(anchorBottom + 12, viewBottom - cardHeight - 8)
+          : Math.max(viewTop + 8, anchorTop - cardHeight - 12);
     }
 
-    const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
+    const spaceAfterCard = viewRight - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   }
 
@@ -600,7 +609,9 @@ export function CardPreview({
                 }}
               />
 
-              <div className="flex max-h-[60dvh] flex-col gap-1.5 overflow-y-auto">
+              <div
+                className={cn("flex flex-col gap-1.5", minimal && "max-h-[60dvh] overflow-y-auto")}
+              >
                 {actions?.map((action, idx) => (
                   <button
                     key={idx}

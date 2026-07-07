@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
-import { useIsShortScreen } from "@/hooks/useBreakpoints";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDeckFingerprint } from "@/lib/decks";
@@ -51,6 +51,7 @@ function pickRandom<T>(arr: readonly T[]): T | undefined {
 export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
+  const isTouch = useIsTouch();
   const [stage, setStage] = useState<"format" | "decks">("format");
   const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(null);
   const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
@@ -296,6 +297,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     isOpponentDeck={opponentDeck?.id === entry.id}
                     formatId={entry.sourceDeck?.format ?? entry.formatId ?? "standard"}
                     dense={denseDecks}
+                    isTouch={isTouch}
                     onSelect={() => selectUserDeck(entry)}
                   />
                 );
@@ -337,6 +339,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   isOpponentDeck={opponentDeck?.id === (deck.id ?? deck.name)}
                   formatId={selectedFormat}
                   dense={denseDecks}
+                  isTouch={isTouch}
                   onSelect={() => selectDeck(deck)}
                 />
               ))}

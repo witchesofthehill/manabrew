@@ -1597,6 +1597,16 @@ export class BoardScene {
       const state = ud.region.getLastState();
       if (state) ud.region.updateBattlefield(state);
     }
+    const selection = this.selection;
+    if (selection) {
+      const selected = selection.getSelected();
+      // Undo only the selection this press created; keep a wider marquee/shift
+      // selection the card was already part of.
+      if (selected.size === 1 && selected.has(sprite.card.id)) {
+        selection.setSelected(new Set());
+        selection.refresh();
+      }
+    }
     if (this.callbacks.onLongPressCard) {
       this.callbacks.onLongPressCard(sprite.card, this.toViewportBounds(sprite.getBounds()));
       return;

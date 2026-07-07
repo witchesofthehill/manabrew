@@ -11,7 +11,6 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useIsTouch } from "@/hooks/useBreakpoints";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 
 interface DeckSelectionCardProps {
@@ -32,6 +31,7 @@ interface DeckSelectionCardProps {
   isOpponentDeck?: boolean;
   formatId?: string;
   dense?: boolean;
+  isTouch?: boolean;
   onSelect: () => void;
   /** Double-click to immediately confirm this deck (skip the Select button). */
   onActivate?: () => void;
@@ -67,10 +67,10 @@ export function DeckSelectionCard({
   isOpponentDeck,
   formatId,
   dense,
+  isTouch = false,
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
-  const isTouch = useIsTouch();
   const colorCost = getDeckColorCost(cards);
   const titleColorClass = getDeckNameColorClass(cards, isPreset ? color : undefined);
   const breakdown = isPreset ? desc : getDeckTypeBreakdown(cards);

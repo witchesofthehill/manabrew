@@ -4,13 +4,23 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { Input } from "@/components/ui/input";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, LayoutGrid, List, Info, SlidersHorizontal, PanelRightClose } from "lucide-react";
+import {
+  Loader2,
+  LayoutGrid,
+  List,
+  Info,
+  Plus,
+  SlidersHorizontal,
+  PanelRightClose,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { useDraggable } from "@dnd-kit/core";
+import { toast } from "sonner";
+import { useDeckStore } from "@/stores/useDeckStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { SetSelect } from "@/components/editor/SetSelect";
@@ -380,12 +390,14 @@ function FilterSeparator({ label }: { label: string }) {
 function DraggableCardGrid({
   card,
   onMoreInfo,
+  onAdd,
   standalone,
   onHover,
   onLeave,
 }: {
   card: DeckCard;
   onMoreInfo: () => void;
+  onAdd?: () => void;
   standalone?: boolean;
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
@@ -412,6 +424,19 @@ function DraggableCardGrid({
     >
       <CardThumbnail card={card} />
       <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto">
+        {onAdd && (
+          <Button
+            size="sm"
+            className="w-4/5 gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd();
+            }}
+          >
+            <Plus className="h-3 w-3" />
+            Add
+          </Button>
+        )}
         <Button
           size="sm"
           variant="secondary"
@@ -434,12 +459,14 @@ function DraggableCardGrid({
 function DraggableCardRow({
   card,
   onMoreInfo,
+  onAdd,
   standalone,
   onHover,
   onLeave,
 }: {
   card: DeckCard;
   onMoreInfo: () => void;
+  onAdd?: () => void;
   standalone?: boolean;
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
@@ -482,6 +509,20 @@ function DraggableCardRow({
 
       {card.manaCost && <ManaSymbols cost={card.manaCost} size="sm" className="shrink-0" />}
 
+      {onAdd && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto pointer-coarse:pointer-events-auto"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd();
+          }}
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </Button>
+      )}
       <Button
         size="sm"
         variant="ghost"
@@ -512,6 +553,11 @@ interface CardSearchProps {
 
 export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
   const preview = useCardPreview();
+  const addToMain = useDeckStore((s) => s.addToMain);
+  const addCard = (card: DeckCard) => {
+    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
+    toast.success(`Added ${card.identity.name}`);
+  };
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
   const [activeColors, setActiveColors] = useState<Set<string>>(new Set());
@@ -1058,6 +1104,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   <DraggableCardGrid
                     card={card}
                     onMoreInfo={() => setDetailCard(rawCards[i])}
+                    onAdd={standalone ? undefined : () => addCard(card)}
                     standalone={standalone}
                     onHover={(c, e) =>
                       preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
@@ -1074,6 +1121,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   key={card.identity.id}
                   card={card}
                   onMoreInfo={() => setDetailCard(rawCards[i])}
+                  onAdd={standalone ? undefined : () => addCard(card)}
                   standalone={standalone}
                   onHover={(c, e) =>
                     preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })

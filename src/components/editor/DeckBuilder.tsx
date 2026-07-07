@@ -164,7 +164,7 @@ function QuickCardSearch({
         <Plus className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
           ref={inputRef}
-          className="h-7 text-xs pl-6 pr-6"
+          className="h-7 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
           placeholder="Quick add card…"
           value={query}
           onChange={(e) => handleChange(e.target.value)}
@@ -881,7 +881,7 @@ export function DeckBuilder({
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
                 ref={filterInputRef}
-                className="h-6 text-xs pl-6 pr-6"
+                className="h-6 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
                 placeholder="Filter…"
                 title="Filter cards by name — comma-separate to match several, e.g. bolt, elves"
                 value={deckFilter}

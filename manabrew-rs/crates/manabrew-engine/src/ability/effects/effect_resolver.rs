@@ -216,7 +216,7 @@ effect_dispatch! {
     ApiType::NameCard => name_card_effect::NameCardEffect,
     ApiType::ChooseNumber => choose_number_effect::ChooseNumberEffect,
     ApiType::DigUntil => dig_until_effect::DigUntilEffect,
-    ApiType::FlipACoin => flip_coin_effect::FlipCoinEffect,
+    ApiType::FlipCoin => flip_coin_effect::FlipCoinEffect,
     ApiType::Explore => explore_effect::ExploreEffect,
     ApiType::RollDice => roll_dice_effect::RollDiceEffect,
     ApiType::Protection => protect_effect::ProtectEffect,

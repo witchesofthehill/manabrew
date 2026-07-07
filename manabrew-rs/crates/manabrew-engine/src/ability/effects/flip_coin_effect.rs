@@ -2,7 +2,7 @@ use super::EffectContext;
 use crate::agent::BinaryChoiceKind;
 use crate::spellability::SpellAbility;
 
-/// `SP$ FlipACoin` — flip a coin, resolve different abilities for win/lose.
+/// `SP$ FlipCoin` — flip a coin, resolve different abilities for win/lose.
 ///
 /// Mirrors Java's `FlipCoinEffect.java`.
 /// - `NoCall` — if set, don't ask the player to call; just resolve HeadsSub$/TailsSub$.
@@ -11,8 +11,8 @@ use crate::spellability::SpellAbility;
 ///
 /// # Card script examples
 /// ```text
-/// A:SP$ FlipACoin | WinSubAbility$ Win | LoseSubAbility$ Lose
-/// A:SP$ FlipACoin | NoCall$ True | HeadsSubAbility$ Heads | TailsSubAbility$ Tails
+/// A:SP$ FlipCoin | WinSubAbility$ Win | LoseSubAbility$ Lose
+/// A:SP$ FlipCoin | NoCall$ True | HeadsSubAbility$ Heads | TailsSubAbility$ Tails
 /// ```
 /// Struct form of this effect so it can participate in the
 /// `SpellAbilityEffect` trait hierarchy — mirrors Java's

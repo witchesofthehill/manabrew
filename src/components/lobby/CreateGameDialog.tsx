@@ -6,7 +6,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
+import {
+  GAME_FORMATS,
+  validateDeckSections,
+  partnerPairLabel,
+  type GameFormat,
+} from "@/lib/formats";
+import { Badge } from "@/components/ui/badge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen } from "@/hooks/useBreakpoints";
@@ -136,6 +142,11 @@ export function CreateGameDialog({
   }, [selectedDeck]);
 
   const selectedDeckEntry = allDecks.find((d) => d.id === selectedDeck);
+  const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
+  const selectedPartnerLabel =
+    selectedDeckCommanders.length === 2
+      ? partnerPairLabel(selectedDeckCommanders[0], selectedDeckCommanders[1])
+      : null;
 
   const legendaryCreatures = selectedDeckEntry
     ? Array.from(
@@ -277,35 +288,51 @@ export function CreateGameDialog({
                 <div>
                   <SectionLabel>Commander</SectionLabel>
                   <div className="mt-2 space-y-1.5">
-                    {legendaryCreatures.length === 0 && (
-                      <p className="text-[10px] text-muted-foreground italic">
-                        No legendaries in deck — type a name below.
-                      </p>
-                    )}
-                    {legendaryCreatures.length > 0 ? (
-                      <select
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                        value={selectedCommander}
-                        onChange={(e) => setSelectedCommander(e.target.value)}
-                      >
-                        <option value="">— Choose —</option>
-                        {legendaryCreatures.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
+                    {selectedPartnerLabel ? (
+                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
+                        <span className="text-muted-foreground">+</span>
+                        <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
+                        <Badge
+                          variant="outline"
+                          className="h-4 px-1 text-[9px] shrink-0 border-commander/50 text-commander"
+                        >
+                          {selectedPartnerLabel}
+                        </Badge>
+                      </div>
                     ) : (
-                      <input
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                        placeholder="Card name"
-                        value={selectedCommander}
-                        onChange={(e) => setSelectedCommander(e.target.value)}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                      />
+                      <>
+                        {legendaryCreatures.length === 0 && (
+                          <p className="text-[10px] text-muted-foreground italic">
+                            No legendaries in deck — type a name below.
+                          </p>
+                        )}
+                        {legendaryCreatures.length > 0 ? (
+                          <select
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            value={selectedCommander}
+                            onChange={(e) => setSelectedCommander(e.target.value)}
+                          >
+                            <option value="">— Choose —</option>
+                            {legendaryCreatures.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            placeholder="Card name"
+                            value={selectedCommander}
+                            onChange={(e) => setSelectedCommander(e.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

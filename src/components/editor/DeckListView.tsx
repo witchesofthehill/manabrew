@@ -42,6 +42,8 @@ import {
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { partnerPairLabel } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, getTaggedGroups } from "./deckBuilder.utils";
@@ -1359,6 +1361,8 @@ export function DeckListView({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
+  const partnerLabel =
+    commanders.length === 2 ? partnerPairLabel(commanders[0], commanders[1]) : null;
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1943,7 +1947,7 @@ export function DeckListView({
             </div>
             {viewMode === "list" ? (
               <div className="space-y-0.5">
-                {commanders.map((cmd) => {
+                {commanders.map((cmd, commanderIndex) => {
                   const { id, name, foil } = cmd.identity;
                   return (
                     <CardContextMenu
@@ -1973,6 +1977,19 @@ export function DeckListView({
                           className="h-3 w-3 text-commander shrink-0"
                         />
                         <span className="text-sm flex-1 truncate">{name}</span>
+                        {commanderIndex === 1 && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "h-4 px-1 text-[9px] shrink-0",
+                              partnerLabel
+                                ? "border-commander/50 text-commander"
+                                : "border-warning/50 text-warning",
+                            )}
+                          >
+                            {partnerLabel ?? "Not partners"}
+                          </Badge>
+                        )}
                         {cmd.manaCost && (
                           <ManaSymbols cost={cmd.manaCost} size="sm" className="shrink-0" />
                         )}
@@ -1983,13 +2000,28 @@ export function DeckListView({
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {commanders.map((cmd) => {
+                {commanders.map((cmd, commanderIndex) => {
                   const { id, name, foil } = cmd.identity;
                   return (
                     <div key={id} className="relative shrink-0" style={{ width: cardWidth }}>
                       <div className="absolute top-1 right-1 z-20 bg-overlay/70 rounded-full p-0.5 shadow">
                         <GameIcon name="overlord-helm" className="h-3.5 w-3.5 text-commander" />
                       </div>
+                      {commanderIndex === 1 && (
+                        <div className="absolute top-1 left-1 z-20">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "h-4 px-1 text-[9px] bg-overlay/70",
+                              partnerLabel
+                                ? "border-commander/50 text-commander"
+                                : "border-warning/50 text-warning",
+                            )}
+                          >
+                            {partnerLabel ?? "Not partners"}
+                          </Badge>
+                        </div>
+                      )}
                       <CardVisual
                         group={{ card: cmd, count: 1 }}
                         dragId={`deck-commander-${name}`}

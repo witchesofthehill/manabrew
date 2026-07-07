@@ -326,9 +326,9 @@ impl GameLoop {
                     // Reset zone turn tracking for all zones.
                     game.reset_zone_turn_tracking();
                     game.reset_card_turn_tracking();
-                    let player_order = game.player_order.clone();
+                    let next = game.next_player(game.turn.active_player);
                     if let Some((player, _skip)) =
-                        game.turn.advance_turn(&mut game.extra_turns, &player_order)
+                        game.turn.advance_turn(&mut game.extra_turns, next)
                     {
                         game.player_set_skip_untap(player);
                     }

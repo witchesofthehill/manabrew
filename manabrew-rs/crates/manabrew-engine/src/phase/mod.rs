@@ -198,18 +198,17 @@ impl TurnState {
         turn_ended
     }
 
-    /// Advance to the next player's turn (for multiplayer).
-    pub fn next_player_turn(&mut self, player_order: &[PlayerId]) {
-        if let Some(pos) = player_order.iter().position(|&p| p == self.active_player) {
-            let next = (pos + 1) % player_order.len();
-            self.active_player = player_order[next];
-            self.priority_player = self.active_player;
-            self.turn_number += 1;
-            self.combat_attackers_declared = false;
-            self.combat_blockers_declared = false;
-            self.combat_block_assignments.clear();
-            self.drawn_for_turn = false;
-        }
+    /// Begin `next_player`'s turn (for multiplayer). The caller supplies the
+    /// next player via `Game::next_player`, which skips players who have left
+    /// the game — mirroring Java `PhaseHandler.getNextActivePlayer`.
+    pub fn next_player_turn(&mut self, next_player: PlayerId) {
+        self.active_player = next_player;
+        self.priority_player = next_player;
+        self.turn_number += 1;
+        self.combat_attackers_declared = false;
+        self.combat_blockers_declared = false;
+        self.combat_block_assignments.clear();
+        self.drawn_for_turn = false;
     }
 
     /// Advance to the next turn, consuming an extra turn if available.
@@ -219,7 +218,7 @@ impl TurnState {
     pub fn advance_turn(
         &mut self,
         extra_turns: &mut std::collections::VecDeque<ExtraTurn>,
-        player_order: &[PlayerId],
+        next_player: PlayerId,
     ) -> Option<(PlayerId, bool)> {
         if let Some(extra_turn) = extra_turns.pop_front() {
             let player = extra_turn.player;
@@ -236,7 +235,7 @@ impl TurnState {
                 None
             }
         } else {
-            self.next_player_turn(player_order);
+            self.next_player_turn(next_player);
             None
         }
     }

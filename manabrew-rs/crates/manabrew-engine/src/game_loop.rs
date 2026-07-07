@@ -637,7 +637,8 @@ impl GameLoop {
             game.player_decrement_skip_turns(active);
             self.log_turn_skipped(game, active, game.player(active).skip_turns);
             // Still advance turn state so the next player gets their turn
-            game.turn.next_player_turn(&game.player_order.clone());
+            let next = game.next_player(game.turn.active_player);
+            game.turn.next_player_turn(next);
             return;
         }
 

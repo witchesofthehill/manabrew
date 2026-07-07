@@ -127,7 +127,14 @@ export function MiddleBarDock({
           title={isMyPriority ? undefined : "Wait until you have priority to concede"}
         >
           <Flag className="mr-2 h-4 w-4" />
-          Concede
+          <span className="flex flex-col">
+            Concede
+            {!isMyPriority && (
+              <span className="text-[10px] text-muted-foreground">
+                Wait until you have priority
+              </span>
+            )}
+          </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

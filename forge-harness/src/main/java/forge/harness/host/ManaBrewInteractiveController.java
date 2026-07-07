@@ -88,7 +88,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         super(game, player, lobbyPlayer);
         this.game = game;
         this.session = session;
-        this.costPlumbing = new HarnessCostPlumbing(this, player);
+        this.costPlumbing = new HarnessCostPlumbing(this, this, player);
         this.autoPay = new AutoPay(player, costPlumbing, true);
         this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing);
     }
@@ -102,6 +102,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public void markFailedPaymentCard(final Card card) {
         // Interactive play re-prompts naturally; no per-turn skip list.
+    }
+
+    @Override
+    public CardCollectionView chooseTapTypeForCost(final CardCollection valid, final SpellAbility sa, final int totalPowerRequired) {
+        return chooseCardsForEffect(
+                valid, sa, "Select creatures to tap (total power " + totalPowerRequired + " or greater)",
+                0, valid.size(), true, null);
     }
 
     @Override

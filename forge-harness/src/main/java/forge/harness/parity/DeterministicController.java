@@ -104,7 +104,7 @@ public class DeterministicController extends PlayerController implements Harness
         this.deep = deep;
         this.verboseTurns = verboseTurns;
         this.currentTurn = 0;
-        this.costPlumbing = new HarnessCostPlumbing(this, this.player);
+        this.costPlumbing = new HarnessCostPlumbing(this, this, this.player);
         this.autoPay = new AutoPay(this.player, this.costPlumbing);
         this.playPlumbing = new HarnessPlayPlumbing(this, this.player, this.costPlumbing);
     }
@@ -251,6 +251,21 @@ public class DeterministicController extends PlayerController implements Harness
         if (card != null) {
             failedPaymentCardsThisTurn.add(card.getId());
         }
+    }
+
+    // Greedy highest-power-first pick; keep in sync with the Rust parity agent's
+    // DeterministicAgent::choose_tap_type_for_cost.
+    @Override
+    public CardCollectionView chooseTapTypeForCost(final CardCollection valid, final SpellAbility sa, final int totalPowerRequired) {
+        valid.sort((a, b) -> b.getNetPower() - a.getNetPower());
+        final CardCollection selected = new CardCollection();
+        for (final Card c : valid) {
+            selected.add(c);
+            if (CardLists.getTotalPower(selected, sa) >= totalPowerRequired) {
+                break;
+            }
+        }
+        return selected;
     }
 
     @Override

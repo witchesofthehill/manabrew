@@ -11,7 +11,7 @@ import {
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Share2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -27,6 +27,7 @@ interface DeckGridCardProps {
   onOpen: () => void;
   onDelete?: () => void;
   onRename?: () => void;
+  onPublish?: () => void;
   readOnly?: boolean;
 }
 
@@ -35,6 +36,7 @@ export function DeckGridCard({
   onOpen,
   onDelete,
   onRename,
+  onPublish,
   readOnly = false,
 }: DeckGridCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -60,6 +62,20 @@ export function DeckGridCard({
         {/* Action buttons — visible on hover */}
         {!readOnly && (
           <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
+            {onPublish && (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                title="Publish to Deck Hub"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPublish();
+                }}
+              >
+                <Share2 className="h-3 w-3" />
+              </Button>
+            )}
             {onRename && (
               <Button
                 size="icon"

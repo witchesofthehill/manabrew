@@ -11,6 +11,10 @@ export function getStatusBannerUrl(): string {
   return import.meta.env.VITE_STATUS_BANNER_URL || "https://play.manabrew.app/status.json";
 }
 
+export function getHubApiUrl(): string {
+  return import.meta.env.VITE_HUB_API_URL || "https://api.manabrew.app";
+}
+
 export function isHostedEngineAvailable(): boolean {
   return ["1", "true", "yes", "on"].includes(
     (import.meta.env.VITE_HOSTED_AI_ENABLED ?? "").toLowerCase(),

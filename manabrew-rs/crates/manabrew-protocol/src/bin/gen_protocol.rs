@@ -10,7 +10,9 @@ use std::path::{Path, PathBuf};
 
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::display::DisplayEvent;
-use manabrew_protocol::hub_dto::{HubDeckDetail, HubDeckList, PublishDeckRequest, TopDeckStat};
+use manabrew_protocol::hub_dto::{
+    HubDeckDetail, HubDeckList, PublishDeckRequest, PublishDeckResponse, TopDeckStat,
+};
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::protocol::ResumeRoomRequest;
 use manabrew_protocol::transport::{
@@ -79,6 +81,7 @@ fn main() {
     Deck::export_all_to(&out).expect("export Deck");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
     PublishDeckRequest::export_all_to(&out).expect("export PublishDeckRequest");
+    PublishDeckResponse::export_all_to(&out).expect("export PublishDeckResponse");
     HubDeckList::export_all_to(&out).expect("export HubDeckList");
     HubDeckDetail::export_all_to(&out).expect("export HubDeckDetail");
     TopDeckStat::export_all_to(&out).expect("export TopDeckStat");

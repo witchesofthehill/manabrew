@@ -4,6 +4,7 @@
 pub mod deck_dto;
 pub mod display;
 pub mod game;
+pub mod hub_dto;
 pub mod prompts;
 pub mod protocol;
 pub mod transport;

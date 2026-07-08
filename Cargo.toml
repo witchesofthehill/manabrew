@@ -8,6 +8,7 @@ members = [
     "manabrew-rs/crates/forge-carddb",
     "manabrew-rs/crates/manabrew-engine-macros",
     "manabrew-rs/crates/manabrew-engine",
+    "manabrew-rs/crates/manabrew-hub",
     "manabrew-rs/crates/manabrew-protocol",
     "manabrew-rs/crates/manabrew-server",
     "manabrew-rs/crates/self-hosted-node",

@@ -1,0 +1,28 @@
+[package]
+name = "manabrew-hub"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Deck hub and analytics stats API for manabrew"
+
+[[bin]]
+name = "manabrew-hub"
+path = "src/main.rs"
+
+[dependencies]
+manabrew-protocol = { path = "../manabrew-protocol", version = "0.4.1" }
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net"] }
+tower-http = { version = "0.5", features = ["cors"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+sha2 = "0.10"
+rand = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }

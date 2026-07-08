@@ -12,6 +12,7 @@ import {
   Info,
   Layers,
   Package,
+  Palette,
   Settings,
   Swords,
   Search,
@@ -175,6 +176,19 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Button>
               )}
             </NavLink>
+            {import.meta.env.DEV && (
+              <NavLink to="/design-system" onClick={onNavigate}>
+                {({ isActive }) => (
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="w-full justify-start whitespace-nowrap"
+                  >
+                    <Palette className="mr-2 h-4 w-4 shrink-0" />
+                    Design System
+                  </Button>
+                )}
+              </NavLink>
+            )}
           </div>
         </div>
       </div>

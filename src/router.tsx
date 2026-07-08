@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const CardMockGallery = import.meta.env.DEV ? lazy(() => import("@/views/CardMockGallery")) : null;
+const DesignSystem = import.meta.env.DEV ? lazy(() => import("@/views/DesignSystem")) : null;
 import Lobby from "@/views/Lobby";
 import DeckEditor from "@/views/DeckEditor";
 
@@ -190,6 +191,20 @@ export const router = createBrowserRouter([
                 <ErrorBoundary context="Card Mock">
                   <Suspense fallback={null}>
                     <CardMockGallery />
+                  </Suspense>
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
+      ...(DesignSystem
+        ? [
+            {
+              path: "design-system",
+              element: (
+                <ErrorBoundary context="Design System">
+                  <Suspense fallback={null}>
+                    <DesignSystem />
                   </Suspense>
                 </ErrorBoundary>
               ),

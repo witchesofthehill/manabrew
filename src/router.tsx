@@ -2,9 +2,10 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 
 const CardMockGallery = import.meta.env.DEV ? lazy(() => import("@/views/CardMockGallery")) : null;
-const DesignSystem = import.meta.env.DEV ? lazy(() => import("@/views/DesignSystem")) : null;
+const DesignSystem = DESIGN_SYSTEM_ENABLED ? lazy(() => import("@/views/DesignSystem")) : null;
 import Lobby from "@/views/Lobby";
 import DeckEditor from "@/views/DeckEditor";
 

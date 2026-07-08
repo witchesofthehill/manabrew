@@ -28,6 +28,8 @@ services:
     # Unset on the host stays unset here, so the Caddyfile's locked fallback applies.
     environment:
       PUSHGATEWAY_PASSWORD_HASH:
+      # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
     depends_on:
       - manabrew-server
 

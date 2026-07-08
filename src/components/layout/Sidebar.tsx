@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
+import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
 import {
@@ -176,7 +177,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Button>
               )}
             </NavLink>
-            {import.meta.env.DEV && (
+            {DESIGN_SYSTEM_ENABLED && (
               <NavLink to="/design-system" onClick={onNavigate}>
                 {({ isActive }) => (
                   <Button

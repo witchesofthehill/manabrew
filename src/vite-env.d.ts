@@ -19,6 +19,9 @@ interface ImportMeta {
 interface Window {
   __MANABREW_RUNTIME__?: {
     relay?: { host?: string; port?: number; password?: string };
+    /** Opt-in per deployment (RELAY entrypoint / config.js) to expose the
+     *  dev-only /design-system reference route on a production build. */
+    designSystem?: boolean;
   };
 }
 

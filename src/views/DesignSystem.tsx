@@ -1,9 +1,7 @@
-import { useState } from "react";
-import { useTheme as useNextTheme } from "next-themes";
+import { useTheme as useColorMode } from "next-themes";
 import { THEME_PRESETS } from "@/themes";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { cn } from "@/lib/utils";
-import { PresetScope, type PreviewMode } from "@/components/dev/designSystem/PresetScope";
 import { SECTIONS } from "@/components/dev/designSystem/designSystem.data";
 import { BrandSection } from "@/components/dev/designSystem/sections/BrandSection";
 import { ColorSection } from "@/components/dev/designSystem/sections/ColorSection";
@@ -14,11 +12,13 @@ import { CardsSection } from "@/components/dev/designSystem/sections/CardsSectio
 import { SpacingSection } from "@/components/dev/designSystem/sections/SpacingSection";
 import { AssetsSection } from "@/components/dev/designSystem/sections/AssetsSection";
 
+type Mode = "light" | "dark";
+
 export default function DesignSystem() {
-  const activePreset = usePreferencesStore((s) => s.appThemePreset);
-  const { resolvedTheme } = useNextTheme();
-  const [presetId, setPresetId] = useState(activePreset);
-  const [mode, setMode] = useState<PreviewMode>(resolvedTheme === "light" ? "light" : "dark");
+  const presetId = usePreferencesStore((s) => s.appThemePreset);
+  const setAppThemePreset = usePreferencesStore((s) => s.setAppThemePreset);
+  const { resolvedTheme, setTheme } = useColorMode();
+  const mode: Mode = resolvedTheme === "light" ? "light" : "dark";
 
   return (
     <div className="h-full overflow-auto">
@@ -30,10 +30,10 @@ export default function DesignSystem() {
           </span>
           <div className="flex-1" />
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            Preview
+            Theme
             <select
               value={presetId}
-              onChange={(e) => setPresetId(e.target.value)}
+              onChange={(e) => setAppThemePreset(e.target.value)}
               className="rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground pointer-coarse:text-base"
             >
               {THEME_PRESETS.map((p) => (
@@ -44,11 +44,11 @@ export default function DesignSystem() {
             </select>
           </label>
           <div className="inline-flex overflow-hidden rounded-md border border-border">
-            {(["light", "dark"] as PreviewMode[]).map((m) => (
+            {(["light", "dark"] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
-                onClick={() => setMode(m)}
+                onClick={() => setTheme(m)}
                 className={cn(
                   "px-2.5 py-1 text-xs capitalize transition-colors",
                   mode === m ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
@@ -72,16 +72,14 @@ export default function DesignSystem() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-14 px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
         <BrandSection />
-        <ColorSection />
-        <PresetScope presetId={presetId} mode={mode} className="space-y-14 rounded-2xl">
-          <TypographySection />
-          <IconsSection />
-          <ComponentsSection presetId={presetId} />
-          <CardsSection />
-          <SpacingSection />
-        </PresetScope>
+        <ColorSection presetId={presetId} />
+        <TypographySection />
+        <IconsSection />
+        <ComponentsSection presetId={presetId} />
+        <CardsSection />
+        <SpacingSection />
         <AssetsSection />
       </main>
     </div>

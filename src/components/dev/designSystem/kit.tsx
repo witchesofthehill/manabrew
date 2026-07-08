@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Section({
@@ -12,13 +13,40 @@ export function Section({
   intro?: string;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(true);
+
+  // Expand when the jump-nav (or a shared #hash link) targets this section.
+  useEffect(() => {
+    const openIfTargeted = () => {
+      if (window.location.hash === `#${id}`) setOpen(true);
+    };
+    openIfTargeted();
+    window.addEventListener("hashchange", openIfTargeted);
+    return () => window.removeEventListener("hashchange", openIfTargeted);
+  }, [id]);
+
   return (
-    <section id={id} className="scroll-mt-24 space-y-6 border-t border-border pt-10">
-      <div className="space-y-1">
-        <h2 className="font-serif text-3xl font-light tracking-tight">{title}</h2>
-        {intro && <p className="max-w-2xl text-sm text-muted-foreground">{intro}</p>}
-      </div>
-      {children}
+    <section id={id} className="scroll-mt-24 border-t border-border pt-6">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 text-left"
+      >
+        <ChevronRight
+          className={cn(
+            "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
+          )}
+        />
+        <h2 className="font-serif text-2xl font-light tracking-tight">{title}</h2>
+      </button>
+      {open && (
+        <div className="space-y-6 pt-4">
+          {intro && <p className="max-w-2xl text-sm text-muted-foreground">{intro}</p>}
+          {children}
+        </div>
+      )}
     </section>
   );
 }

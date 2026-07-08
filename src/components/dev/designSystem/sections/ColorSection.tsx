@@ -108,18 +108,15 @@ function PresetCard({ preset }: { preset: ThemePreset }) {
   );
 }
 
-export function ColorSection() {
+export function ColorSection({ presetId }: { presetId: string }) {
+  const preset = THEME_PRESETS.find((p) => p.id === presetId) ?? THEME_PRESETS[0]!;
   return (
     <Section
       id="color"
       title="Color"
-      intro="Every preset resolves ~30 raw palette hues into 24 app-chrome tokens (light + dark) and ~90 semantic game-surface tokens. All 12 presets, straight from src/themes/*."
+      intro={`The active theme — “${preset.name}”. Switch it from the selector at the top right to recolor the whole app and this page. 24 app-chrome tokens (light + dark) plus ~90 semantic game-surface tokens, straight from src/themes/*.`}
     >
-      <div className="space-y-6">
-        {THEME_PRESETS.map((preset) => (
-          <PresetCard key={preset.id} preset={preset} />
-        ))}
-      </div>
+      <PresetCard preset={preset} />
     </Section>
   );
 }

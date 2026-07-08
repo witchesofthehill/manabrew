@@ -15,7 +15,7 @@ use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
     ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
-    ServerMessage, StateEnvelope,
+    ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
 use manabrew_engine::game::TypeRegistry;
 use manabrew_protocol::deck_dto::Deck;
@@ -488,6 +488,7 @@ async fn establish_room(
                 room_name: config.room_name.clone(),
                 max_players: config.max_players,
                 format: config.format.clone(),
+                protocol_version: PROTOCOL_VERSION,
                 hosted: !config.host_plays,
                 engine: engine_kind(config),
                 draft_config: None,

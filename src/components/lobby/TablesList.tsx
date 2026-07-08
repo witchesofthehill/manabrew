@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
+import { PROTOCOL_VERSION } from "@/protocol";
 import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
@@ -216,7 +217,7 @@ export function TablesList({
 
   const trimmedSearch = search.trim().toLowerCase();
   const visibleRooms = rooms
-    .filter((room) => room.room_name !== "Free Room" && room.room_name !== "Free Pod")
+    .filter((room) => room.protocol_version === PROTOCOL_VERSION)
     .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
     .filter(
       (room) =>

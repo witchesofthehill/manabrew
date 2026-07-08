@@ -30,6 +30,7 @@ import type {
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
+import { PROTOCOL_VERSION } from "@/protocol";
 import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
@@ -903,6 +904,7 @@ class WebServerApi implements IServerApi {
       room_name: params.roomName,
       max_players: params.maxPlayers,
       format: params.format,
+      protocol_version: PROTOCOL_VERSION,
       hosted: params.hosted ?? false,
       engine: params.engine ?? "Manabrew",
       draft_config: params.draftConfig ?? null,

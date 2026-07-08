@@ -2,6 +2,11 @@ pub use crate::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+pub const PROTOCOL_VERSION: u32 = 1;
+
+#[cfg(test)]
+const PROTOCOL_SCHEMA_FINGERPRINT: &str = "0a0ad632e3c9dfa9";
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
 pub struct PlayerDeckInfo {
@@ -36,6 +41,8 @@ pub enum ClientMessage {
         room_name: String,
         max_players: u8,
         format: GameFormat,
+        #[serde(default)]
+        protocol_version: u32,
         #[serde(default)]
         hosted: bool,
         #[serde(default)]
@@ -233,6 +240,8 @@ pub struct RoomInfo {
     pub room_name: String,
     pub host: String,
     #[serde(default)]
+    pub protocol_version: u32,
+    #[serde(default)]
     pub hosted: bool,
     #[serde(default)]
     pub official: bool,
@@ -337,4 +346,84 @@ pub enum EngineKind {
     #[default]
     Manabrew,
     Forge,
+}
+
+#[cfg(test)]
+mod schema_fingerprint {
+    use super::PROTOCOL_SCHEMA_FINGERPRINT;
+    use crate::deck_dto::Deck;
+    use crate::display::DisplayEvent;
+    use crate::prompts::{PromptInput, PromptOutput};
+    use crate::protocol::ResumeRoomRequest;
+    use crate::transport::{AgentPrompt, ClientToServerMessage, DirectiveInput, StateUpdate};
+    use std::path::{Path, PathBuf};
+    use ts_rs::TS;
+
+    fn collect_ts(dir: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_ts(&path, out);
+            } else if path.extension().is_some_and(|e| e == "ts") {
+                out.push(path);
+            }
+        }
+    }
+
+    fn fnv1a(bytes: &[u8]) -> u64 {
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        for &byte in bytes {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        hash
+    }
+
+    fn rendered_schema() -> String {
+        let dir = std::env::temp_dir().join(format!(
+            "manabrew-protocol-fingerprint-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        PromptInput::export_all_to(&dir).unwrap();
+        PromptOutput::export_all_to(&dir).unwrap();
+        AgentPrompt::export_all_to(&dir).unwrap();
+        StateUpdate::export_all_to(&dir).unwrap();
+        DirectiveInput::export_all_to(&dir).unwrap();
+        ClientToServerMessage::export_all_to(&dir).unwrap();
+        DisplayEvent::export_all_to(&dir).unwrap();
+        Deck::export_all_to(&dir).unwrap();
+        ResumeRoomRequest::export_all_to(&dir).unwrap();
+
+        let mut files = Vec::new();
+        collect_ts(&dir, &mut files);
+        files.sort();
+
+        let mut schema = String::new();
+        for path in &files {
+            let rel = path
+                .strip_prefix(&dir)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            schema.push_str(&rel);
+            schema.push('\n');
+            schema.push_str(&std::fs::read_to_string(path).unwrap());
+            schema.push('\n');
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        schema
+    }
+
+    #[test]
+    fn wire_schema_is_pinned() {
+        let actual = format!("{:016x}", fnv1a(rendered_schema().as_bytes()));
+        assert_eq!(
+            actual, PROTOCOL_SCHEMA_FINGERPRINT,
+            "protocol wire schema changed — bump PROTOCOL_VERSION and update PROTOCOL_SCHEMA_FINGERPRINT"
+        );
+    }
 }

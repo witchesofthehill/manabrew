@@ -1,5 +1,5 @@
 import { THEME_PRESETS } from "@/themes";
-import type { ThemePreset } from "@/themes";
+import type { ThemePreset, ThemeColors } from "@/themes";
 import { Section, Subhead, Swatch, SwatchGrid } from "../kit";
 
 function groupGameColors(preset: ThemePreset): { name: string; entries: [string, string][] }[] {
@@ -14,8 +14,8 @@ function groupGameColors(preset: ThemePreset): { name: string; entries: [string,
   return [...groups.entries()].map(([name, entries]) => ({ name, entries }));
 }
 
-function AppChrome({ colors, mode }: { colors: Record<string, string>; mode: string }) {
-  const g = (k: string) => colors[k]!;
+function AppChrome({ colors, mode }: { colors: ThemeColors; mode: string }) {
+  const g = (k: keyof ThemeColors) => colors[k];
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <div className="flex items-center justify-between border-b border-border bg-card px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

@@ -56,7 +56,9 @@
     "build:web": "yarn gen:protocol && yarn sync:ironsmith && yarn build:wasm && tsc -b && vite build",
     "prepare": "husky",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e:ironsmith": "node tests/e2e-ironsmith/ironsmith-multiplayer.mjs",
+    "test:e2e:ironsmith:pair": "node tests/e2e-ironsmith/ironsmith-two-clients.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -135,6 +137,7 @@
     "globals": "^16.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "playwright": "^1.61.1",
     "postcss": "^8.5.10",
     "prettier": "^3.8.3",
     "redux": "^5.0.1",

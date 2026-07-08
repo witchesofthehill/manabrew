@@ -14,6 +14,7 @@ services:
         # VITE_HOSTED_AI_ENABLED=true (and run the node via --profile hosted-ai)
         # to expose the Settings engine toggle.
         VITE_HOSTED_AI_ENABLED: "${VITE_HOSTED_AI_ENABLED:-false}"
+        VITE_HUB_API_URL: "${VITE_HUB_API_URL:-https://api.manabrew.app}"
     restart: unless-stopped
     ports:
       - "80:80"
@@ -28,8 +29,11 @@ services:
     # Unset on the host stays unset here, so the Caddyfile's locked fallback applies.
     environment:
       PUSHGATEWAY_PASSWORD_HASH:
+      # Bcrypt hash for the api. /admin/* ingress (same single-quote caveat).
+      HUB_ADMIN_PASSWORD_HASH:
     depends_on:
       - manabrew-server
+      - manabrew-hub
 
   manabrew-server:
     # Explicit tag so deploy.sh can address the freshly built image when it
@@ -62,6 +66,32 @@ services:
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  manabrew-hub:
+    image: manabrew-hub:production
+    build:
+      context: .
+      dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
+    environment:
+      HUB_HOST: "0.0.0.0"
+      HUB_PORT: "9500"
+      # hub.db on the host filesystem so it rides the existing restic backups.
+      HUB_DB_PATH: "/var/manabrew/hub/hub.db"
+      EVENTS_DB_PATH: "/var/manabrew/events/events.db"
+      RUST_LOG: "manabrew_hub=info"
+    volumes:
+      - ./ops/hub-data:/var/manabrew/hub
+      - ./ops/observability/data/events:/var/manabrew/events:ro
+    expose:
+      - "9500"
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9500/health"]
       interval: 15s
       timeout: 3s
       retries: 3

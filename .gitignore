@@ -97,6 +97,8 @@ push.sh
 
 # Observability runtime data (bind mounts; never committed)
 ops/observability/data/
+# Deck hub runtime data (hub.db bind mount; never committed)
+ops/hub-data/
 # Tauri mobile staged assets — copied from src-tauri/resources by the mobile
 # build (tauri.conf.json resources map); scaffolding stays tracked, assets not.
 src-tauri/gen/android/app/src/main/assets/

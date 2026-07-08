@@ -106,6 +106,9 @@ CARDDATA_CHANGED=false
 # updates that are outside the relay's dep closure of manabrew-server +
 # manabrew-protocol).
 FORGE_SERVER_CHANGED=false
+# manabrew-hub (deck hub API) — stateless HTTP over sqlite, so a restart is
+# harmless; no binary-diff gate needed. Same over-triggering closure filter.
+HUB_CHANGED=false
 # The Caddyfile is volume-mounted into the manabrew container, not baked into
 # the image, and caddy does not watch its config file. Rebuilding the image
 # can't apply it (identical image → `up -d` won't recreate the container), so
@@ -126,6 +129,10 @@ while IFS= read -r file; do
         # manabrew-server's whole closure (see `cargo tree -p manabrew-server`).
         manabrew-rs/crates/manabrew-server/*|manabrew-rs/crates/manabrew-protocol/*|Cargo.toml|Cargo.lock)
             FORGE_SERVER_CHANGED=true ;;
+    esac
+    case "$file" in
+        manabrew-rs/crates/manabrew-hub/*|manabrew-rs/crates/manabrew-protocol/*|Cargo.toml|Cargo.lock)
+            HUB_CHANGED=true ;;
     esac
     case "$file" in
         forge|forge/*)
@@ -205,6 +212,17 @@ elif $FORGE_SERVER_CHANGED; then
     fi
 fi
 
+# -- manabrew-hub (deck hub API; restart is harmless, no live-game state) --
+if $INFRA_CHANGED; then
+    echo "Building manabrew-hub (full)..." >> "$RAW_LOG"
+    docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache manabrew-hub >> "$RAW_LOG" 2>&1
+    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
+elif $HUB_CHANGED; then
+    echo "Building manabrew-hub (cached)..." >> "$RAW_LOG"
+    docker compose -f "$COMPOSE_FILE" build --progress=plain manabrew-hub >> "$RAW_LOG" 2>&1
+    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
+fi
+
 # -- manabrew (WASM + React static site served via caddy) --
 if $INFRA_CHANGED; then
     echo "Building manabrew (full)..." >> "$RAW_LOG"
@@ -272,6 +290,7 @@ CHANGES=""
 $JAVA_CHANGED      && CHANGES="${CHANGES} ☕ Java"
 $RUST_CHANGED      && CHANGES="${CHANGES} 🦀 Rust"
 $WEB_CHANGED       && CHANGES="${CHANGES} 🌐 Web"
+$HUB_CHANGED       && CHANGES="${CHANGES} 🗂️ Hub"
 $INFRA_CHANGED     && CHANGES="${CHANGES} 🐳 Infra"
 $CADDYFILE_CHANGED && CHANGES="${CHANGES} ⚙️ Caddy"
 CHANGES=$(echo "$CHANGES" | xargs)

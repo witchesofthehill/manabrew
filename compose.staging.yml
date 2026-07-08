@@ -18,6 +18,9 @@ services:
         # default play stays client-side.
         VITE_HOSTED_AI_ENABLED: "true"
     restart: unless-stopped
+    environment:
+      # Set DESIGN_SYSTEM=1 (e.g. via deployStaging.sh) to expose /design-system.
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
     expose:
       - "80"
     volumes:

@@ -22,11 +22,6 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
 COMPOSE_FILE="${COMPOSE_FILE:-compose.production.yml}"
-# Branch to deploy (default main). Point at a feature branch to preview it on a
-# separate box without merging. FORCE_DEPLOY=1 rebuilds the web image even when
-# the branch is already up to date (needed for a first bring-up, or to re-emit
-# config.js after toggling a runtime env like DESIGN_SYSTEM).
-DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 RAW_LOG="/tmp/deploy-raw.log"
 : > "$RAW_LOG"   # truncate
 
@@ -62,7 +57,7 @@ fi
 
 # ── Pull latest changes ──────────────────────────────────────────────
 PREV=$(git rev-parse --short HEAD)
-git pull origin "$DEPLOY_BRANCH" --ff-only >> "$RAW_LOG" 2>&1
+git pull origin main --ff-only >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
 
 # Forge is a git submodule (engine + cardsfolder). Pulling main only moves the
@@ -71,7 +66,7 @@ CURR=$(git rev-parse --short HEAD)
 git submodule sync --recursive >> "$RAW_LOG" 2>&1 || true
 git submodule update --init --recursive >> "$RAW_LOG" 2>&1
 
-if [ "$PREV" = "$CURR" ] && [ "${FORCE_DEPLOY:-}" != "1" ]; then
+if [ "$PREV" = "$CURR" ]; then
     echo "😴 No new commits. Nothing to deploy."
     exit 0
 fi
@@ -155,12 +150,6 @@ while IFS= read -r file; do
             INFRA_CHANGED=true ;;
     esac
 done <<< "$CHANGED"
-
-# FORCE_DEPLOY rebuilds + recreates the web container regardless of the diff —
-# so a first bring-up (PREV==CURR) or a runtime-env toggle still takes effect.
-if [ "${FORCE_DEPLOY:-}" = "1" ]; then
-    WEB_CHANGED=true
-fi
 
 # ── Build & deploy ───────────────────────────────────────────────────
 export DOCKER_BUILDKIT=1

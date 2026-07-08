@@ -1,0 +1,49 @@
+# Self-contained, prod-like stack for a single standalone machine — the whole
+# app plus its own relay, on their own bridge network, with ports published.
+# Unlike compose.staging.yml (which joins the prod network and sits behind the
+# prod ingress), this needs nothing external. Driven by ./deploy-local.sh.
+#
+# The web image serves on :80 with the COOP/COEP headers the WASM engine needs
+# (ops/standalone.Caddyfile, baked in) and reads its relay endpoint at runtime
+# from config.js — so the app points at THIS box's relay via RELAY_HOST, with
+# no rebuild. See deploy-local.sh for the secure-context (HTTPS) caveat.
+services:
+  manabrew:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    environment:
+      # Address the browser uses to reach this box's relay (written into
+      # config.js on start). Port 443 → wss://, anything else → ws://.
+      RELAY_HOST: "${RELAY_HOST:-localhost}"
+      RELAY_PORT: "${RELAY_PORT:-9443}"
+      RELAY_PASSWORD: "${MANABREW_SERVER_KEY:-forge}"
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - manabrew-server
+
+  manabrew-server:
+    build:
+      context: .
+      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+    environment:
+      FORGE_HOST: "0.0.0.0"
+      FORGE_PORT: "9443"
+      FORGE_HEALTH_PORT: "9444"
+      FORGE_MAX_ROOMS: "100"
+      MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:-forge}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
+      RUST_LOG: "manabrew_server=info"
+    ports:
+      - "${RELAY_PORT:-9443}:9443"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

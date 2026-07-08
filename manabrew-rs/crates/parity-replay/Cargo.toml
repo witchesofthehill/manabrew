@@ -1,0 +1,24 @@
+[package]
+name = "parity-replay"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "Replays a captured Forge game trace through the Rust engine and diffs GameViewDto for parity divergences"
+publish = false
+
+[[bin]]
+name = "parity-replay"
+path = "src/main.rs"
+
+[dependencies]
+manabrew-protocol = { path = "../manabrew-protocol", version = "0.4.1" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.2.2" }
+manabrew-engine = { path = "../manabrew-engine", version = "0.2.1" }
+manabrew_game_runtime = { path = "../manabrew-game-runtime", version = "0.2.2" }
+forge-carddb = { path = "../forge-carddb" }
+forge-foundation = { path = "../forge-foundation", version = "0.2.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { version = "4", features = ["derive", "env"] }
+memmap2 = "0.9"
+rand = "0.8"

@@ -34,9 +34,41 @@ import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 import { logComms } from "@/lib/commsLog";
+import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
+import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
+
+/** Reload/bot-recovery trace, gated behind the debug-prompts preference. */
+const dlog = (...args: unknown[]) => {
+  if (isPromptLoggingEnabled()) console.log(...args);
+};
+
+/** One-line summary of a bot wire frame (in or out) for the reload trace. */
+function describeBotFrame(raw: string): string {
+  try {
+    const p = JSON.parse(raw) as {
+      type?: string;
+      state?: {
+        kind?: string;
+        forPlayer?: string;
+        fromPlayer?: string;
+        prompt?: { input?: { type?: string } };
+      };
+    };
+    let d = p.type ?? "?";
+    if ((p.type === "StateUpdate" || p.type === "BroadcastState") && p.state) {
+      d += ` kind=${p.state.kind}`;
+      if (p.state.forPlayer) d += ` forPlayer=${p.state.forPlayer}`;
+      if (p.state.fromPlayer) d += ` fromPlayer=${p.state.fromPlayer}`;
+      if (p.state.prompt?.input?.type) d += ` promptType=${p.state.prompt.input.type}`;
+    }
+    return d;
+  } catch {
+    return "?";
+  }
+}
 
 // ============================================================================
 // Worker Message Types
@@ -535,7 +567,9 @@ class WebGameApi implements IGameApi {
         fromPlayer,
         action: params.action,
       };
-      if (DEBUG_TRANSPORT) console.log(`[MP] respond→ as ${fromPlayer}:`, params.action.type);
+      dlog(
+        `[resume-wire] guest respond → broadcasting response as ${fromPlayer}: ${params.action.type}`,
+      );
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer
@@ -936,6 +970,7 @@ class WebServerApi implements IServerApi {
 
   async leaveRoom(): Promise<void> {
     this.stopAllBots();
+    clearSpawnedBots();
     this.send({ type: "LeaveRoom" });
   }
 
@@ -967,6 +1002,7 @@ class WebServerApi implements IServerApi {
 
   async endGame(): Promise<void> {
     this.stopAllBots();
+    clearSpawnedBots();
     this.send({ type: "EndGame" });
   }
 
@@ -1008,16 +1044,19 @@ class WebServerApi implements IServerApi {
       reconnectTimer: null,
     };
     this.bots.set(params.username, entry);
+    rememberSpawnedBot(params);
     const connect = () => {
       entry.reconnectTimer = null;
       if (entry.stopped || !this.relayUrl) {
         this.bots.delete(params.username);
         return;
       }
+      dlog(`[bot-life ${params.username}] connecting (attempt ${entry.attempt})`);
       const bot = new wasm.WasmBot(config);
       const ws = new WebSocket(this.relayUrl);
       entry.ws = ws;
       ws.onopen = () => {
+        dlog(`[bot-life ${params.username}] socket open → authenticating`);
         for (const msg of bot.on_open()) {
           logComms("bot-send", `[${params.username}] ${msg}`);
           ws.send(msg);
@@ -1026,8 +1065,16 @@ class WebServerApi implements IServerApi {
       ws.onmessage = (e: MessageEvent) => {
         if (typeof e.data !== "string") return;
         logComms("bot-recv", `[${params.username}] ${e.data}`);
-        for (const msg of bot.on_server_message(e.data)) {
+        const trace = isPromptLoggingEnabled();
+        const replies = bot.on_server_message(e.data);
+        if (trace) {
+          console.log(
+            `[bot-life ${params.username}] recv ${describeBotFrame(e.data)} → ${replies.length} repl${replies.length === 1 ? "y" : "ies"}`,
+          );
+        }
+        for (const msg of replies) {
           logComms("bot-send", `[${params.username}] ${msg}`);
+          if (trace) console.log(`[bot-life ${params.username}] send ${describeBotFrame(msg)}`);
           ws.send(msg);
         }
         const failure = bot.failure();
@@ -1057,6 +1104,7 @@ class WebServerApi implements IServerApi {
   }
 
   async removeAiBot(username: string): Promise<void> {
+    forgetSpawnedBot(username);
     const entry = this.bots.get(username);
     if (!entry) return;
     entry.stopped = true;
@@ -1102,7 +1150,33 @@ class WebServerApi implements IServerApi {
     logComms("recv", msg);
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     const type = msg.type as string;
-    if (type === "GameAborted") this.stopAllBots();
+    if (isPromptLoggingEnabled()) {
+      if (type === "AuthResult") {
+        console.log(
+          `[resume-wire] AuthResult success=${msg.success} reconnected=${msg.reconnected}` +
+            ` player_id=${msg.player_id} error=${msg.error ?? "none"}`,
+        );
+      } else if (type === "RoomUpdate") {
+        const room = msg.room as
+          | { room_id?: string; status?: string; host?: string; players?: unknown[] }
+          | undefined;
+        const players = Array.isArray(room?.players)
+          ? (room?.players as { username?: string; is_bot?: boolean; connected?: boolean }[]).map(
+              (p) => `${p.username}${p.is_bot ? "(bot)" : ""}:${p.connected ? "on" : "off"}`,
+            )
+          : [];
+        console.log(
+          `[resume-wire] RoomUpdate id='${room?.room_id}' status='${room?.status}'` +
+            ` host='${room?.host}' players=[${players.join(", ")}]`,
+        );
+      } else if (type === "GameStarted" || type === "GameAborted" || type === "Error") {
+        console.log(`[resume-wire] ${type}`, JSON.stringify(msg));
+      }
+    }
+    if (type === "GameAborted") {
+      this.stopAllBots();
+      clearSpawnedBots();
+    }
 
     if (type === "ServerShuttingDown") {
       const reconnectInS = typeof msg.reconnect_in_s === "number" ? msg.reconnect_in_s : 5;
@@ -1118,6 +1192,16 @@ class WebServerApi implements IServerApi {
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;
+      const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
+      const promptType =
+        envelope.kind === "prompt"
+          ? ((envelope as { prompt?: { input?: { type?: string } } }).prompt?.input?.type ?? "?")
+          : undefined;
+      dlog(
+        `[resume-wire] main-socket StateUpdate from=${msg.from_player} kind=${envelope.kind}` +
+          (forPlayer ? ` forPlayer=${forPlayer}` : "") +
+          (promptType ? ` promptType=${promptType}` : ""),
+      );
       switch (envelope.kind) {
         case "response":
           this.pendingRelayPrompts.delete(envelope.fromPlayer);

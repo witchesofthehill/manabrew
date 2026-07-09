@@ -658,7 +658,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     value={cubeInput}
                     onChange={(e) => setCubeInput(e.target.value)}
                     placeholder="cubeid or cubecobra.com/…"
-                    className="h-9 text-sm flex-1"
+                    className="h-9 text-sm flex-1 pointer-coarse:text-base"
                     disabled={importingCube}
                   />
                   <Button

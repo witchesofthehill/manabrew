@@ -406,7 +406,7 @@ export function PlaymatEditorModal({
                     onBlur={() => setBgHex(settings.color)}
                     spellCheck={false}
                     autoComplete="off"
-                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
+                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase pointer-coarse:text-base"
                   />
                   {settings.color && (
                     <Button
@@ -455,7 +455,7 @@ export function PlaymatEditorModal({
                     onBlur={() => setBorderHex(settings.borderColor)}
                     spellCheck={false}
                     autoComplete="off"
-                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
+                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase pointer-coarse:text-base"
                   />
                 </div>
               </div>

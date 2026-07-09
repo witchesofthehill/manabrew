@@ -1009,7 +1009,7 @@ function CardSection({
       <Button
         size="icon"
         variant="ghost"
-        className="h-5 w-5 text-destructive opacity-0 hover:opacity-100 transition-opacity shrink-0"
+        className="h-5 w-5 text-destructive opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
         title={`Remove "${tag}" tag`}
         onClick={onRemoveTag}
       >
@@ -1084,7 +1084,7 @@ function CardSection({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 transition-opacity shrink-0"
+                    className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 pointer-coarse:opacity-100 transition-opacity shrink-0"
                     title="Remove from this tag"
                     onClick={() => onUntagCard(name)}
                   >

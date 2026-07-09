@@ -3,9 +3,11 @@ import { memo } from "react";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import type { useCardPreview } from "@/hooks/useCardPreview";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { useDeckCard } from "@/lib/limited.utils";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
+import type { DeckCard } from "@/protocol/deck";
 import type { CardDto } from "@/protocol/game";
 
 interface DraftCardTileProps {
@@ -26,6 +28,15 @@ function DraftCardTileImpl({
   overlay,
 }: DraftCardTileProps) {
   const deckCard = useDeckCard(card, index);
+  const longPress = useLongPressPreview<DeckCard>({
+    resolve: (e) => (deckCard ? { item: deckCard, anchor: e.currentTarget as HTMLElement } : null),
+    show: (item, rect) =>
+      preview?.handleMouseEnter(item as unknown as CardDto, undefined, {
+        useAnchor: true,
+        anchorOverride: rect,
+      }),
+    hide: () => preview?.dismiss(),
+  });
   if (!deckCard) {
     return (
       <div className="relative w-full">
@@ -42,6 +53,7 @@ function DraftCardTileImpl({
         preview?.handleMouseEnter(deckCard as unknown as CardDto, e, { useDelay: true })
       }
       onMouseLeave={() => preview?.handleMouseLeave()}
+      {...longPress}
       className={cn(
         "group relative w-full text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-60",
         card.foil && "draft-tile-foil",

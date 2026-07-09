@@ -58,7 +58,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e:ironsmith": "node tests/e2e-ironsmith/ironsmith-multiplayer.mjs",
-    "test:e2e:ironsmith:pair": "node tests/e2e-ironsmith/ironsmith-two-clients.mjs"
+    "test:e2e:ironsmith:pair": "node tests/e2e-ironsmith/ironsmith-two-clients.mjs",
+    "test:e2e:engines": "node tests/e2e-ironsmith/other-engines-smoke.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

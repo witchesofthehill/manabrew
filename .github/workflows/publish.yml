@@ -480,6 +480,14 @@ jobs:
       - name: Build WASM + bundle cards
         run: yarn build:wasm
 
+      # tauri.ios.conf.json bundles resources/cardset.rkyv; the tauri CLI
+      # validates it before cargo build (where src-tauri/build.rs would
+      # otherwise produce it), so a clean runner needs it built up front.
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
+
       - name: Tauri build (iOS, unsigned)
         run: yarn tauri ios build --no-sign
 
@@ -541,6 +549,13 @@ jobs:
 
       - name: Build WASM + bundle cards
         run: yarn build:wasm
+
+      # card_db.rs include_bytes!es resources/cardset.rkyv on Android; build
+      # it up front so a clean runner doesn't depend on build.rs ordering.
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
 
       - name: Tauri build (Android APK, arm64)
         run: node scripts/mobile-dev.mjs android build --apk --target aarch64

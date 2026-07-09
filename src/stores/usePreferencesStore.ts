@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
+import { ensureUsernameTag, hasUsernameTag } from "@/lib/username";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
 
@@ -126,11 +127,14 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           serverHost: serverDefaults.host,
           serverPort: serverDefaults.port,
-          serverUsername: serverDefaults.username || generateGuestUsername(),
+          serverUsername: ensureUsernameTag(serverDefaults.username || generateGuestUsername()),
           serverPassword: serverDefaults.password,
           setServerHost: (serverHost) => set({ serverHost }),
           setServerPort: (serverPort) => set({ serverPort }),
-          setServerUsername: (serverUsername) => set({ serverUsername }),
+          setServerUsername: (serverUsername) =>
+            set((state) => ({
+              serverUsername: ensureUsernameTag(serverUsername, state.serverUsername),
+            })),
           setServerPassword: (serverPassword) => set({ serverPassword }),
 
           savedServers: [],
@@ -198,6 +202,14 @@ export const usePreferencesStore = create<PreferencesState>()(
           ...currentState,
           ...pickPersistedPreferences(persistedState),
         }),
+        // Usernames persisted before the @NNNN tag scheme get tagged once on
+        // load, through the setter so the tagged name is written back and
+        // stays stable across refreshes.
+        onRehydrateStorage: () => (state) => {
+          if (state && state.serverUsername && !hasUsernameTag(state.serverUsername)) {
+            state.setServerUsername(state.serverUsername);
+          }
+        },
       },
     ),
     { name: "preferences", enabled: import.meta.env.DEV },

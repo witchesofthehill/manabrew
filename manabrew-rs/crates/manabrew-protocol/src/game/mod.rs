@@ -20,8 +20,6 @@ pub struct GameViewDto {
     pub stack: Vec<StackObjectDto>,
     pub game_over: bool,
     pub winner_id: Option<String>,
-    #[serde(default)]
-    pub conceded_player_ids: Vec<String>,
     pub monarch_id: Option<String>,
     pub initiative_holder_id: Option<String>,
 }
@@ -60,12 +58,23 @@ pub struct CombatAssignmentDto {
     pub attacker_id: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum PlayerStatus {
+    #[default]
+    Playing,
+    Lost,
+    Conceded,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
 pub struct PlayerDto {
     pub id: String,
     pub name: String,
+    pub status: PlayerStatus,
     pub is_human: bool,
     pub life: i32,
     pub poison: i32,

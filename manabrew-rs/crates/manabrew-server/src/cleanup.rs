@@ -5,6 +5,7 @@ use tracing::{info, warn};
 
 use crate::analytics::{self, GameEndReason};
 use crate::connection::{broadcast_to_room, emit_to};
+use crate::lobby;
 use crate::protocol::{RoomStatus, ServerMessage};
 use crate::room::Room;
 use crate::state::ServerState;
@@ -51,6 +52,23 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
         mark_disconnected(state, &player_id, generation);
     }
 
+    let mut humanless_rooms = Vec::new();
+    for mut entry in state.rooms.iter_mut() {
+        let room = entry.value_mut();
+        if room.status != RoomStatus::InGame || room.has_connected_human() {
+            room.humanless_since = None;
+            continue;
+        }
+        let since = *room.humanless_since.get_or_insert(now);
+        let grace = Duration::from_secs(room.reconnect_timeout_s as u64) + RECONNECT_ABORT_MARGIN;
+        if now.duration_since(since) >= grace {
+            humanless_rooms.push(entry.key().clone());
+        }
+    }
+    for room_id in humanless_rooms {
+        abort_humanless_room(state, &room_id);
+    }
+
     let rooms_to_remove = state
         .rooms
         .iter()
@@ -77,77 +95,24 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
     }
 }
 
-pub fn schedule_reconnect_abort(state: Arc<ServerState>, room_id: String, player_id: String) {
-    let Some(timeout_s) = state
-        .rooms
-        .get(&room_id)
-        .map(|room| room.reconnect_timeout_s)
+fn abort_humanless_room(state: &Arc<ServerState>, room_id: &str) {
+    let Some((info, notify)) = lobby::reset_room_to_lobby(state, room_id, GameEndReason::Abandoned)
     else {
         return;
     };
-    let timeout = Duration::from_secs(timeout_s as u64);
-
-    tokio::spawn(async move {
-        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
-
-        let disconnected_past_timeout = state
-            .players
-            .get(&player_id)
-            .and_then(|player| player.disconnected_at)
-            .is_some_and(|since| since.elapsed() >= timeout);
-        if !disconnected_past_timeout {
-            return;
-        }
-
-        let seat_expired = state
-            .rooms
-            .get(&room_id)
-            .map(|room| {
-                room.status == RoomStatus::InGame
-                    && room
-                        .players
-                        .iter()
-                        .any(|slot| slot.player_id == player_id && !slot.connected && !slot.is_bot)
-            })
-            .unwrap_or(false);
-        if !seat_expired {
-            return;
-        }
-
-        abort_in_game_room(&state, &room_id);
-    });
-}
-
-pub fn schedule_seat_rejoin_abort(state: Arc<ServerState>, room_id: String, username: String) {
-    let Some(timeout_s) = state
-        .rooms
-        .get(&room_id)
-        .map(|room| room.reconnect_timeout_s)
-    else {
-        return;
+    info!(
+        "[cleanup] in-game room {} had no connected human players -- reset to lobby",
+        &room_id[..8.min(room_id.len())]
+    );
+    broadcast_to_room(state, room_id, &ServerMessage::RoomUpdate { room: info });
+    let aborted = ServerMessage::GameAborted {
+        room_id: room_id.to_string(),
     };
-    let timeout = Duration::from_secs(timeout_s as u64);
-
-    tokio::spawn(async move {
-        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
-
-        let seat_expired = state
-            .rooms
-            .get(&room_id)
-            .map(|room| {
-                room.status == RoomStatus::InGame
-                    && room
-                        .players
-                        .iter()
-                        .any(|slot| slot.username == username && !slot.connected && !slot.is_bot)
-            })
-            .unwrap_or(false);
-        if !seat_expired {
-            return;
+    if let Ok(json) = serde_json::to_string(&aborted) {
+        for pid in &notify {
+            emit_to(state, pid, &aborted, &json);
         }
-
-        abort_in_game_room(&state, &room_id);
-    });
+    }
 }
 
 pub fn schedule_host_resume_abort(
@@ -198,44 +163,12 @@ pub fn schedule_host_resume_abort(
     });
 }
 
-fn abort_in_game_room(state: &Arc<ServerState>, room_id: &str) {
-    info!(
-        "[cleanup] aborting in-game room {} (reconnect timeout)",
-        &room_id[..8.min(room_id.len())]
-    );
-    let Some((info, notify)) =
-        crate::lobby::reset_room_to_lobby(state, room_id, GameEndReason::ReconnectTimeout)
-    else {
-        return;
-    };
-
-    let aborted = ServerMessage::GameAborted {
-        room_id: room_id.to_string(),
-    };
-    if let Ok(json) = serde_json::to_string(&aborted) {
-        for pid in &notify {
-            emit_to(state, pid, &aborted, &json);
-        }
-    }
-    broadcast_to_room(state, room_id, &ServerMessage::RoomUpdate { room: info });
-
-    let room_deserted = state
-        .rooms
-        .get(room_id)
-        .map(|room| room.connected_player_ids().is_empty())
-        .unwrap_or(true);
-    if room_deserted {
-        state.rooms.remove(room_id);
-    }
-}
-
 fn in_game_room_expired(state: &Arc<ServerState>, room: &Room, now: Instant) -> bool {
     if !room.all_disconnected() {
         return false;
     }
 
-    let disconnected_at = room
-        .players
+    room.players
         .iter()
         .map(|slot| slot.player_id.as_str())
         .chain(
@@ -243,12 +176,8 @@ fn in_game_room_expired(state: &Arc<ServerState>, room: &Room, now: Instant) -> 
                 .iter()
                 .map(|observer| observer.player_id.as_str()),
         )
-        .map(|player_id| state.players.get(player_id).and_then(|p| p.disconnected_at))
-        .collect::<Option<Vec<_>>>();
-
-    disconnected_at
-        .filter(|times| !times.is_empty())
-        .and_then(|times| times.into_iter().max())
+        .filter_map(|player_id| state.players.get(player_id).and_then(|p| p.disconnected_at))
+        .max()
         .is_some_and(|latest| now.duration_since(latest) >= IN_GAME_DISCONNECTED_GRACE)
 }
 
@@ -332,8 +261,6 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
                         },
                     );
                 }
-
-                schedule_reconnect_abort(state.clone(), rid.clone(), player_id.to_string());
             }
             Some(RoomStatus::Lobby) => {
                 info!(

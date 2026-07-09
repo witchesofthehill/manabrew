@@ -212,7 +212,7 @@ pub fn resume_room_sync(
                 },
                 username: seat_username.clone(),
                 ready: true,
-                connected: is_requester || is_bot,
+                connected: is_requester,
                 is_bot,
                 selected_deck_name: deck.map(|d| d.deck_name.clone()),
                 selected_deck: deck.map(|d| d.deck.clone()),
@@ -286,13 +286,13 @@ pub fn join_room_sync(
         }
 
         if room.status != RoomStatus::Lobby {
-            if observe || as_bot {
+            if observe {
                 return Err(ServerError::GameAlreadyStarted);
             }
             let slot = room
                 .players
                 .iter_mut()
-                .find(|slot| slot.username == username && !slot.is_bot && !slot.connected)
+                .find(|slot| slot.username == username && slot.is_bot == as_bot && !slot.connected)
                 .ok_or(ServerError::GameAlreadyStarted)?;
             slot.player_id = player_id.to_string();
             slot.connected = true;

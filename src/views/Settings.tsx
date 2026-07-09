@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { stripUsernameTag } from "@/lib/username";
 import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
@@ -400,7 +401,7 @@ export default function Settings() {
 
   const [host, setHost] = useState(prefs.serverHost);
   const [port, setPort] = useState(String(prefs.serverPort));
-  const [username, setUsername] = useState(prefs.serverUsername);
+  const [username, setUsername] = useState(stripUsernameTag(prefs.serverUsername));
   const [password, setPassword] = useState(prefs.serverPassword);
   const [savingServer, setSavingServer] = useState(false);
   const [newServerName, setNewServerName] = useState("");
@@ -408,7 +409,7 @@ export default function Settings() {
   const hasChanges =
     host !== prefs.serverHost ||
     port !== String(prefs.serverPort) ||
-    username !== prefs.serverUsername ||
+    username !== stripUsernameTag(prefs.serverUsername) ||
     password !== prefs.serverPassword;
 
   function beginThemeColorEdit(path: string, value: string) {
@@ -432,8 +433,10 @@ export default function Settings() {
     // Always disconnect first (kills any existing WS connection)
     await server.disconnect();
 
-    if (username) {
-      await server.connect(host, Number(port), username, password);
+    // The setter tags the name (@NNNN); connect with the stored tagged form.
+    const storedUsername = usePreferencesStore.getState().serverUsername;
+    if (storedUsername) {
+      await server.connect(host, Number(port), storedUsername, password);
     }
   }
 

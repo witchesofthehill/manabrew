@@ -458,6 +458,13 @@ impl GameViewDtoExt for GameViewDto {
             players.push(PlayerDto {
                 id: player_id_str(pid),
                 name: ps.name.clone(),
+                status: if ps.has_conceded {
+                    PlayerStatus::Conceded
+                } else if ps.has_lost {
+                    PlayerStatus::Lost
+                } else {
+                    PlayerStatus::Playing
+                },
                 is_human: pid == human_player,
                 life: ps.life,
                 poison: ps.poison_counters,
@@ -541,12 +548,6 @@ impl GameViewDtoExt for GameViewDto {
             stack,
             game_over: game.game_over,
             winner_id: game.winner.map(player_id_str),
-            conceded_player_ids: game
-                .players
-                .iter()
-                .filter(|p| p.has_conceded)
-                .map(|p| player_id_str(p.id))
-                .collect(),
             monarch_id: game.monarch.map(player_id_str),
             initiative_holder_id: game.initiative_holder.map(player_id_str),
         }

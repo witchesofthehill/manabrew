@@ -1,0 +1,28 @@
+# Default /etc/caddy/Caddyfile baked into the published web image
+# (ghcr.io/witchesofthehill/manabrew-web). Serves the app on :80 with the cross-origin isolation
+# headers SharedArrayBuffer needs, so `docker run` works with no mounted config.
+#
+# For automatic HTTPS, mount your own Caddyfile over /etc/caddy/Caddyfile with a
+# real hostname (see ops/Caddyfile), or terminate TLS in a proxy in front.
+:80 {
+	root * /srv/manabrew
+
+	encode zstd gzip
+
+	# Runtime relay config (rewritten from RELAY_* env on start) — never cache it.
+	@config path /config.js
+	handle @config {
+		header Cache-Control "no-store"
+		file_server
+	}
+
+	handle {
+		header {
+			Cross-Origin-Opener-Policy "same-origin"
+			Cross-Origin-Embedder-Policy "credentialless"
+			Cross-Origin-Resource-Policy "same-origin"
+		}
+		try_files {path} /index.html
+		file_server
+	}
+}

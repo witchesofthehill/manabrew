@@ -32,6 +32,7 @@ import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
 import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
+import { stripUsernameTag } from "@/lib/username";
 
 const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Any",
@@ -117,6 +118,7 @@ interface TablesListProps {
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
+  startingGame?: boolean;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
   /** Bots this host process spawned — used to show the remove button. The
@@ -140,6 +142,7 @@ export function TablesList({
   onStartDraft,
   onStartSealed,
   startingLimited = false,
+  startingGame = false,
   onAddBot,
   onRemoveBot,
   mySpawnedBots = [],
@@ -171,7 +174,7 @@ export function TablesList({
   const controllerHasDeck =
     isOpenFormat ||
     !!currentRoom?.players.find((p) => p.username === controllerName)?.selected_deck_name;
-  const canStart = allOtherPlayersReady && controllerHasDeck;
+  const canStart = currentRoom?.status === "Lobby" && allOtherPlayersReady && controllerHasDeck;
   const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
@@ -213,6 +216,7 @@ export function TablesList({
 
   const trimmedSearch = search.trim().toLowerCase();
   const visibleRooms = rooms
+    .filter((room) => room.room_name !== "Free Room" && room.room_name !== "Free Pod")
     .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
     .filter(
       (room) =>
@@ -389,7 +393,9 @@ export function TablesList({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium truncate">{p.username}</span>
+                        <span className="text-sm font-medium truncate">
+                          {stripUsernameTag(p.username)}
+                        </span>
                         {p.username === controllerName && (
                           <GameIcon
                             name="overlord-helm"
@@ -506,7 +512,7 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={() => onStartGame()}
-                      disabled={!canStart}
+                      disabled={!canStart || startingGame}
                       title={
                         !controllerHasDeck
                           ? "Select a deck before starting"
@@ -515,7 +521,7 @@ export function TablesList({
                             : undefined
                       }
                     >
-                      <Swords className="h-3 w-3" /> Start Game
+                      <Swords className="h-3 w-3" /> {startingGame ? "Starting…" : "Start Game"}
                     </Button>
                   )}
                 </div>

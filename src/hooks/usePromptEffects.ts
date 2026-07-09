@@ -37,7 +37,7 @@ export function usePromptEffects({
 
     const store = usePhaseStopStore.getState();
     const nextStop = getNextStop(
-      gv.players.map((p) => p.id),
+      gv.players.filter((p) => p.status === "playing").map((p) => p.id),
       gv.activePlayerId,
       gv.step,
       myPlayerId,

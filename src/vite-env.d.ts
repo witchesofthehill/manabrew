@@ -4,10 +4,22 @@ interface ImportMetaEnv {
   readonly VITE_SCRYFALL_SYMBOL_BASE?: string;
   readonly VITE_HOSTED_AI_ENABLED?: string;
   readonly VITE_STATUS_BANNER_URL?: string;
+  readonly VITE_RELAY_HOST?: string;
+  readonly VITE_RELAY_PORT?: string;
+  readonly VITE_RELAY_PASSWORD?: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+// Set by `public/config.js` (rewritten at container start by the web image's
+// entrypoint). Runtime relay config takes priority over the build-time
+// VITE_RELAY_* default — see `config/knownRelays.ts`.
+interface Window {
+  __MANABREW_RUNTIME__?: {
+    relay?: { host?: string; port?: number; password?: string };
+  };
 }
 
 declare const __APP_VERSION__: string;

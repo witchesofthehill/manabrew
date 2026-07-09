@@ -26,6 +26,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Runtime deploy config (relay endpoint). Must load before the app module;
+         a classic script runs during parse, ahead of the deferred module. -->
+    <script src="/config.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-protocol"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license.workspace = true
 description = "Wire protocol for manabrew multiplayer"

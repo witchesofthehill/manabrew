@@ -95,10 +95,11 @@ impl GameReplayCache {
             .get("winnerId")
             .and_then(Value::as_str)
             .map(str::to_string);
-        if let Some(conceded) = state.get("concededPlayerIds").and_then(Value::as_array) {
-            self.outcome.conceded_slots = conceded
+        if let Some(players) = state.get("players").and_then(Value::as_array) {
+            self.outcome.conceded_slots = players
                 .iter()
-                .filter_map(Value::as_str)
+                .filter(|player| player.get("status").and_then(Value::as_str) == Some("conceded"))
+                .filter_map(|player| player.get("id").and_then(Value::as_str))
                 .map(str::to_string)
                 .collect();
         }

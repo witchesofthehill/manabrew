@@ -12,7 +12,9 @@ use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::protocol::ResumeRoomRequest;
-use manabrew_protocol::transport::{AgentPrompt, StateUpdate};
+use manabrew_protocol::transport::{
+    AgentPrompt, ClientToServerMessage, DirectiveInput, StateUpdate,
+};
 use ts_rs::TS;
 
 const HEADER: &str =
@@ -70,6 +72,8 @@ fn main() {
     PromptOutput::export_all_to(&out).expect("export PromptOutput");
     AgentPrompt::export_all_to(&out).expect("export AgentPrompt");
     StateUpdate::export_all_to(&out).expect("export StateUpdate");
+    DirectiveInput::export_all_to(&out).expect("export DirectiveInput");
+    ClientToServerMessage::export_all_to(&out).expect("export ClientToServerMessage");
     DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     Deck::export_all_to(&out).expect("export Deck");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");

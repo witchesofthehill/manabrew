@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
 use manabrew_agent_interface::agent_impl::PromptAgent;
-use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage};
 use manabrew_protocol::deck_dto::Deck;
 
 use crate::config::DeckSelection;
@@ -33,7 +33,7 @@ pub fn run_hosted_engine_game(
     local_player_index: Option<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
+    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<ClientToServerMessage>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
 ) -> Result<(), String> {
     let prepared_players = prepare_players(
@@ -54,7 +54,7 @@ pub fn run_hosted_engine_game(
             BotResponder::default(),
         )) as Box<dyn PlayerAgent>
     });
-    let mut remote_rx_map: HashMap<usize, std_mpsc::Receiver<PromptOutput>> =
+    let mut remote_rx_map: HashMap<usize, std_mpsc::Receiver<ClientToServerMessage>> =
         remote_response_rxs.into_iter().collect();
     let game_id_for_agents = game_id.clone();
     let remote_prompt_tx_for_agents = remote_prompt_tx.clone();

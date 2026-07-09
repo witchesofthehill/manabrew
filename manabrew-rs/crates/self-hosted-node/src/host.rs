@@ -12,13 +12,14 @@ use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
-use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
     ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
     ServerMessage, StateEnvelope,
 };
 use manabrew_engine::game::TypeRegistry;
 use manabrew_protocol::deck_dto::Deck;
+use manabrew_protocol::transport::DirectiveInput;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -48,10 +49,10 @@ struct RelayClient {
 
 enum EngineSession {
     Manabrew {
-        remote_response_txs: HashMap<usize, std_mpsc::Sender<PromptOutput>>,
+        remote_response_txs: HashMap<usize, std_mpsc::Sender<ClientToServerMessage>>,
     },
     Forge {
-        remote_response_txs: HashMap<usize, std_mpsc::Sender<PromptOutput>>,
+        remote_response_txs: HashMap<usize, std_mpsc::Sender<ClientToServerMessage>>,
         cancel: Arc<AtomicBool>,
     },
 }
@@ -59,6 +60,7 @@ enum EngineSession {
 #[derive(Default)]
 struct BotState {
     handle: Option<JoinHandle<()>>,
+    shutdown: Option<Arc<tokio::sync::Notify>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,7 +95,7 @@ fn registry_idle(registry: &SessionRegistry) -> bool {
 
 #[derive(Default)]
 struct DisconnectTracker {
-    grace: Option<Arc<AtomicBool>>,
+    grace: HashMap<String, Arc<AtomicBool>>,
 }
 
 type SharedDisconnectTracker = Arc<Mutex<DisconnectTracker>>;
@@ -120,6 +122,8 @@ struct HostSnapshot {
 type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
 
 const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
+const BOT_STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
 enum LoopExit {
     Cancelled,
@@ -145,6 +149,14 @@ pub async fn cli_entry() {
             std::process::exit(1);
         }
         info!(max_prompts, "java-forge smoke completed");
+        return;
+    }
+    if std::env::var("SELF_HOSTED_NODE_JAVA_CONCEDE_SMOKE").is_ok() {
+        if let Err(error) = java_backend::run_concede_smoke() {
+            error!(%error, "java-forge concede smoke failed");
+            std::process::exit(1);
+        }
+        info!("java-forge concede smoke completed");
         return;
     }
     if let Ok(scenario_name) = std::env::var("SELF_HOSTED_NODE_JAVA_SCENARIO") {
@@ -260,33 +272,31 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     ensure_engine_ready(&config)?;
 
     let registry: SessionRegistry = Arc::new(Mutex::new(Vec::new()));
+
+    let slots = config.max_games.max(1);
+    let single = config.room_id.is_some() || slots <= 1;
+    let room_count = if single { 1 } else { slots };
+    let cancels: Vec<RoomCancel> = (0..room_count)
+        .map(|_| Arc::new(tokio::sync::Notify::new()))
+        .collect();
+
     let monitor_registry = registry.clone();
+    let stale_cancels = cancels.clone();
     tokio::spawn(run_stale_monitor(
         StaleConfig::from_env_and_args(),
         move || registry_idle(&monitor_registry),
+        move || notify_all(&stale_cancels),
     ));
 
-    if config.room_id.is_some() {
-        return host_one_room(
-            config,
-            None,
-            Arc::new(tokio::sync::Notify::new()),
-            None,
-            Some(registry),
-        )
-        .await;
-    }
+    let signal_cancels = cancels.clone();
+    tokio::spawn(async move {
+        wait_for_shutdown_signal().await;
+        info!("shutdown signal received; closing rooms");
+        notify_all(&signal_cancels);
+    });
 
-    let slots = config.max_games.max(1);
-    if slots <= 1 {
-        return host_one_room(
-            config,
-            None,
-            Arc::new(tokio::sync::Notify::new()),
-            None,
-            Some(registry),
-        )
-        .await;
+    if single {
+        return host_one_room(config, None, cancels[0].clone(), None, Some(registry)).await;
     }
 
     config.format = GameFormat::Any;
@@ -296,17 +306,11 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
 
     info!(rooms = hosts.len(), "hosting multiple rooms on one node");
     let mut handles = Vec::with_capacity(hosts.len());
-    for (cfg, label) in hosts {
+    for ((cfg, label), cancel) in hosts.into_iter().zip(cancels) {
         let registry = registry.clone();
         handles.push(tokio::spawn(async move {
-            if let Err(error) = host_one_room(
-                cfg,
-                Some(label.clone()),
-                Arc::new(tokio::sync::Notify::new()),
-                None,
-                Some(registry),
-            )
-            .await
+            if let Err(error) =
+                host_one_room(cfg, Some(label.clone()), cancel, None, Some(registry)).await
             {
                 error!(%error, label, "room host exited");
             }
@@ -316,6 +320,35 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         let _ = handle.await;
     }
     Ok(())
+}
+
+fn notify_all(cancels: &[RoomCancel]) {
+    for cancel in cancels {
+        cancel.notify_one();
+    }
+}
+
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut term =
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+                Ok(term) => term,
+                Err(error) => {
+                    warn!(%error, "failed to install SIGTERM handler");
+                    let _ = tokio::signal::ctrl_c().await;
+                    return;
+                }
+            };
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 async fn host_one_room(
@@ -384,6 +417,8 @@ async fn host_one_room(
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
+            stop_bot(&bot_state);
+            host.close().await;
             return Ok(());
         }
 
@@ -395,6 +430,7 @@ async fn host_one_room(
                 _ = cancel.notified() => {
                     info!(username = %config.username, "room host cancelled while reconnecting");
                     cancel_engine(&engine_session);
+                    stop_bot(&bot_state);
                     return Ok(());
                 }
                 _ = time::sleep(Duration::from_secs(delay)) => {}
@@ -625,19 +661,33 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
         commander_name: deck.commander_name.clone(),
         agent: AgentKind::Simple,
     };
+    let shutdown = Arc::new(tokio::sync::Notify::new());
+    let bot_shutdown = shutdown.clone();
     let handle = tokio::spawn(async move {
-        if let Err(error) = run_bot(relay_url, bot_config).await {
+        if let Err(error) = run_bot(relay_url, bot_config, bot_shutdown).await {
             error!(%error, "bot task exited");
         }
     });
     guard.handle = Some(handle);
+    guard.shutdown = Some(shutdown);
 }
 
 fn stop_bot(bot_state: &SharedBotState) {
     match bot_state.lock() {
         Ok(mut state) => {
-            if let Some(handle) = state.handle.take() {
-                handle.abort();
+            let Some(mut handle) = state.handle.take() else {
+                return;
+            };
+            match state.shutdown.take() {
+                Some(shutdown) => {
+                    shutdown.notify_one();
+                    tokio::spawn(async move {
+                        if time::timeout(BOT_STOP_TIMEOUT, &mut handle).await.is_err() {
+                            handle.abort();
+                        }
+                    });
+                }
+                None => handle.abort(),
             }
         }
         Err(error) => warn!(%error, "bot state lock poisoned"),
@@ -808,7 +858,7 @@ async fn handle_server_message(
                 .map(|p| p.username.clone())
                 .collect();
             log_room_update(&client.username, &room);
-            handle_disconnect_grace(&room, engine_session, outbound_tx, disconnect_tracker);
+            handle_disconnect_grace(&room, engine_session, snapshot, disconnect_tracker);
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
@@ -832,7 +882,17 @@ async fn handle_server_message(
         }
         ServerMessage::PlayerLeft { username, room_id } => {
             info!(username, room_id, observer = %client.username, "player left");
-            end_hosted_game_on_abandon(engine_session, outbound_tx);
+            let leaver_still_needed =
+                active_player_usernames(snapshot).is_some_and(|active| active.contains(&username));
+            if leaver_still_needed {
+                if let Some(index) = seat_index_of(snapshot, &username) {
+                    info!(
+                        username,
+                        index, "player abandoned mid-game; conceding their seat"
+                    );
+                    concede_seat(engine_session, index);
+                }
+            }
         }
         ServerMessage::GameStarted {
             room_id,
@@ -893,6 +953,13 @@ async fn handle_state_update(
     match envelope {
         StateEnvelope::Response { .. } => {
             route_remote_response(engine_session, snapshot, &state);
+            Ok(())
+        }
+        StateEnvelope::Directive {
+            from_player,
+            directive,
+        } => {
+            route_remote_directive(engine_session, &from_player, &directive);
             Ok(())
         }
         StateEnvelope::RoomRelay {
@@ -1112,7 +1179,7 @@ fn maybe_start_hosted_engine(
                 if Some(i) == local_player_index {
                     continue;
                 }
-                let (response_tx, response_rx) = std_mpsc::channel::<PromptOutput>();
+                let (response_tx, response_rx) = std_mpsc::channel::<ClientToServerMessage>();
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
@@ -1168,7 +1235,7 @@ fn maybe_start_hosted_engine(
                 if Some(i) == local_player_index {
                     continue;
                 }
-                let (response_tx, response_rx) = std_mpsc::channel::<PromptOutput>();
+                let (response_tx, response_rx) = std_mpsc::channel::<ClientToServerMessage>();
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
@@ -1230,67 +1297,192 @@ fn clear_engine_session(engine_session: &SharedEngineSession) {
     }
 }
 
+/// Usernames of engine players the game still needs — seated in the current
+/// game and not yet eliminated per the last state broadcast. Everyone else
+/// (eliminated players, non-playing members) is effectively a spectator whose
+/// absence never matters. `None` = no hosted game.
+fn active_player_usernames(snapshot: &SharedHostSnapshot) -> Option<HashSet<String>> {
+    let snap = snapshot.lock().ok()?;
+    let game = snap.game.as_ref()?;
+    let mut active: HashSet<String> = game.player_order.iter().cloned().collect();
+    let players = snap
+        .last_state
+        .as_ref()
+        .and_then(|state| state.pointer("/state/gameView/players"))
+        .and_then(Value::as_array);
+    if let Some(players) = players {
+        for player in players {
+            let playing = player
+                .get("status")
+                .and_then(Value::as_str)
+                .is_none_or(|status| status == "playing");
+            if playing {
+                continue;
+            }
+            let index = player
+                .get("id")
+                .and_then(Value::as_str)
+                .and_then(parse_player_slot);
+            if let Some(username) = index.and_then(|i| game.player_order.get(i)) {
+                active.remove(username);
+            }
+        }
+    }
+    Some(active)
+}
+
 fn handle_disconnect_grace(
     room: &RoomInfo,
     engine_session: &SharedEngineSession,
-    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    snapshot: &SharedHostSnapshot,
     tracker: &SharedDisconnectTracker,
 ) {
-    let any_offline = room.players.iter().any(|player| !player.connected);
     let game_active = engine_session
         .lock()
         .map(|guard| guard.is_some())
         .unwrap_or(false);
-    let mut tracker = match tracker.lock() {
+    let mut guard = match tracker.lock() {
         Ok(tracker) => tracker,
         Err(error) => {
             warn!(%error, "disconnect tracker lock poisoned");
             return;
         }
     };
-    if any_offline && game_active {
-        if tracker.grace.is_none() {
-            let token = Arc::new(AtomicBool::new(true));
-            tracker.grace = Some(token.clone());
-            let engine_session = engine_session.clone();
-            let outbound_tx = outbound_tx.clone();
-            // Stay aligned with the relay's reconnect window: the relay aborts
-            // the room reconnect_timeout_s after the disconnect, so the node
-            // must not concede the seat earlier than that.
-            let grace_secs = room.reconnect_timeout_s as u64 + DISCONNECT_GRACE_MARGIN_SECS;
-            tokio::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(grace_secs)).await;
-                if token.load(Ordering::Relaxed) {
-                    info!("player did not reconnect within grace; ending hosted game");
-                    end_hosted_game_on_abandon(&engine_session, &outbound_tx);
-                }
-            });
+    if !game_active {
+        for (_, token) in guard.grace.drain() {
+            token.store(false, Ordering::Relaxed);
         }
-    } else if let Some(token) = tracker.grace.take() {
-        token.store(false, Ordering::Relaxed);
+        return;
+    }
+    let any_offline = room.players.iter().any(|player| !player.connected);
+    let active = if any_offline {
+        active_player_usernames(snapshot)
+    } else {
+        None
+    };
+    for seat in &room.players {
+        let needed = !seat.connected
+            && active
+                .as_ref()
+                .is_none_or(|set| set.contains(&seat.username));
+        if !needed {
+            if let Some(token) = guard.grace.remove(&seat.username) {
+                token.store(false, Ordering::Relaxed);
+            }
+            continue;
+        }
+        if guard.grace.contains_key(&seat.username) {
+            continue;
+        }
+        let token = Arc::new(AtomicBool::new(true));
+        guard.grace.insert(seat.username.clone(), token.clone());
+        let engine_session = engine_session.clone();
+        let snapshot = snapshot.clone();
+        let tracker = tracker.clone();
+        let username = seat.username.clone();
+        // Stay aligned with the relay's reconnect window: a disconnected
+        // seat may still be reclaimed until reconnect_timeout_s, so the
+        // node must not concede the seat earlier than that.
+        let grace_secs = room.reconnect_timeout_s as u64 + DISCONNECT_GRACE_MARGIN_SECS;
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(grace_secs)).await;
+            if token.load(Ordering::Relaxed) {
+                concede_abandoned_seat(&engine_session, &snapshot, &username);
+            }
+            if let Ok(mut guard) = tracker.lock() {
+                let owned = guard
+                    .grace
+                    .get(&username)
+                    .is_some_and(|current| Arc::ptr_eq(current, &token));
+                if owned {
+                    guard.grace.remove(&username);
+                }
+            }
+        });
     }
 }
 
-fn end_hosted_game_on_abandon(
+/// This seat's own grace expired: if it is still offline and still needed by
+/// the game, it forfeits. The game continues for the survivors — the engine
+/// ends it naturally if concession leaves a winner.
+fn concede_abandoned_seat(
     engine_session: &SharedEngineSession,
-    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    snapshot: &SharedHostSnapshot,
+    username: &str,
 ) {
-    let cancelled = match engine_session.lock() {
-        Ok(guard) => match guard.as_ref() {
-            Some(EngineSession::Forge { cancel, .. }) => {
-                cancel.store(true, Ordering::Relaxed);
-                true
-            }
-            _ => false,
+    let still_offline = {
+        let Ok(snap) = snapshot.lock() else { return };
+        snap.room_info.as_ref().is_some_and(|room| {
+            room.players
+                .iter()
+                .any(|seat| seat.username == username && !seat.connected)
+        })
+    };
+    if !still_offline {
+        return;
+    }
+    let still_needed =
+        active_player_usernames(snapshot).is_none_or(|active| active.contains(username));
+    if !still_needed {
+        return;
+    }
+    let Some(index) = seat_index_of(snapshot, username) else {
+        return;
+    };
+    info!(
+        username,
+        index, "player did not reconnect within grace; conceding their seat"
+    );
+    concede_seat(engine_session, index);
+}
+
+fn seat_index_of(snapshot: &SharedHostSnapshot, username: &str) -> Option<usize> {
+    let snap = snapshot.lock().ok()?;
+    let game = snap.game.as_ref()?;
+    game.player_order.iter().position(|name| name == username)
+}
+
+fn concede_seat(engine_session: &SharedEngineSession, player_index: usize) {
+    send_seat_message(
+        engine_session,
+        player_index,
+        ClientToServerMessage::Directive {
+            directive: manabrew_protocol::transport::DirectiveInput::Concede,
         },
+    );
+}
+
+fn send_seat_message(
+    engine_session: &SharedEngineSession,
+    player_index: usize,
+    message: ClientToServerMessage,
+) {
+    let guard = match engine_session.lock() {
+        Ok(guard) => guard,
         Err(error) => {
             warn!(%error, "engine session lock poisoned");
-            false
+            return;
         }
     };
-    if cancelled {
-        info!("player abandoned an in-progress hosted game; ending it to free the room");
-        let _ = outbound_tx.send(ClientMessage::EndGame);
+    let Some(session) = guard.as_ref() else {
+        debug!(player_index, "no engine session for seat action");
+        return;
+    };
+    let txs = match session {
+        EngineSession::Manabrew {
+            remote_response_txs,
+        }
+        | EngineSession::Forge {
+            remote_response_txs,
+            ..
+        } => remote_response_txs,
+    };
+    let Some(tx) = txs.get(&player_index) else {
+        debug!(player_index, "no response channel for player");
+        return;
+    };
+    if let Err(error) = tx.send(message) {
+        warn!(player_index, %error, "failed to route seat message");
     }
 }
 
@@ -1393,7 +1585,7 @@ fn route_remote_response(
                 debug!(from_player, player_index, "no response channel for player");
                 return;
             };
-            if let Err(error) = tx.send(action) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response { action }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1416,10 +1608,32 @@ fn route_remote_response(
                 from_player,
                 player_index, "routing relay response to java engine"
             );
-            if let Err(error) = tx.send(action) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response { action }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
+    }
+}
+
+fn route_remote_directive(
+    engine_session: &SharedEngineSession,
+    from_player: &str,
+    directive: &Value,
+) {
+    let directive: DirectiveInput = match serde_json::from_value(directive.clone()) {
+        Ok(directive) => directive,
+        Err(error) => {
+            warn!(from_player, %error, "relay directive is invalid");
+            return;
+        }
+    };
+    let Some(player_index) = parse_player_slot(from_player) else {
+        warn!(from_player, "relay directive has invalid player slot");
+        return;
+    };
+    info!(from_player, player_index, ?directive, "routing directive");
+    match directive {
+        DirectiveInput::Concede => concede_seat(engine_session, player_index),
     }
 }
 
@@ -1587,6 +1801,16 @@ impl RelayClient {
                 _ => {}
             }
         }
+    }
+
+    async fn close(&mut self) {
+        if self.write.send(Message::Close(None)).await.is_err() {
+            return;
+        }
+        let _ = time::timeout(CLOSE_DRAIN_TIMEOUT, async {
+            while let Some(Ok(_)) = self.read.next().await {}
+        })
+        .await;
     }
 
     async fn broadcast_room_message(

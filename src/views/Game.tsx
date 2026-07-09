@@ -1,4 +1,5 @@
 import { useGameStore } from "@/stores/useGameStore";
+import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { partitionBoardTargets, validCardIdsInCards } from "@/lib/boardTargets";
@@ -17,6 +18,7 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
+import { ConcedeGameModal, EliminatedModal, LeaveGameModal } from "@/components/game/modals";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -103,7 +105,7 @@ interface GameProps {
 export default function Game({ exitTo }: GameProps = {}) {
   const interruption = useMultiplayerInterruption();
   useAutoResolvePrompt(interruption.waiting);
-  const gameView = useGameStore((s) => s.gameView);
+  const rawGameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -116,6 +118,29 @@ export default function Game({ exitTo }: GameProps = {}) {
   const fatalError = useGameStore((s) => s.fatalError);
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isHost = useGameStore((s) => s.isHost);
+  const selfConceded = useGameStore((s) => s.selfConceded);
+  const gameView = useMemo(() => {
+    if (!rawGameView || !selfConceded || !myPlayerSlot) return rawGameView;
+    const self = rawGameView.players.find((p) => p.id === myPlayerSlot);
+    if (!self || self.status !== "playing") return rawGameView;
+    return {
+      ...rawGameView,
+      players: rawGameView.players.map((p) =>
+        p.id === myPlayerSlot
+          ? {
+              ...p,
+              status: "conceded" as const,
+              hand: [],
+              graveyard: [],
+              exile: [],
+              commandZone: [],
+            }
+          : p,
+      ),
+      battlefield: rawGameView.battlefield.filter((c) => c.controllerId !== myPlayerSlot),
+    };
+  }, [rawGameView, selfConceded, myPlayerSlot]);
+  const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
   const { respond, concede, endGame, restoreSnapshot, gameDecks } = useGameStore(
@@ -139,6 +164,12 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
+  const eliminatedModalShownRef = useRef(false);
+  const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
+  const [concedeModalOpen, setConcedeModalOpen] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+  const handleLoadingComplete = useCallback(() => setIntroDone(true), []);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
   const activePrompt = manualApi ? null : currentPrompt;
@@ -846,6 +877,32 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players, me?.id],
   );
 
+  const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
+  const ownsEngine = isHost || hostingForgeRoom;
+  // With fewer than two other players left, my elimination ends the game —
+  // GameOverScreen takes over, so the observe-or-leave modal would only flash.
+  const gameContinuesWithoutMe = opponents.filter((p) => p.status === "playing").length >= 2;
+  const handleConcede = useCallback(() => setConcedeModalOpen(true), []);
+  const handleConcedeConfirm = useCallback(() => {
+    setConcedeModalOpen(false);
+    void concede();
+    if (ownsEngine) eliminatedModalShownRef.current = true;
+  }, [concede, ownsEngine]);
+  const handleLeave = useCallback(() => {
+    if (ownsEngine) setLeaveGameModalOpen(true);
+    else void endGame();
+  }, [ownsEngine, endGame]);
+
+  const myStatus = me?.status;
+  const gameOverNow = gameView?.gameOver ?? false;
+  useEffect(() => {
+    if (gameOverNow || manualApi || !gameContinuesWithoutMe) return;
+    if (myStatus && myStatus !== "playing" && !eliminatedModalShownRef.current) {
+      eliminatedModalShownRef.current = true;
+      setEliminatedModalOpen(true);
+    }
+  }, [myStatus, gameOverNow, manualApi, gameContinuesWithoutMe]);
+
   const payManaCostPrompt =
     currentPrompt?.input.type === "payManaCost" ? currentPrompt.input : null;
   const delveActionIdByCardId = useMemo(() => {
@@ -938,6 +995,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           ({
             id: `dev-fake-${i}`,
             name: `Dev Opp ${opponents.length + i + 1}`,
+            status: "playing",
             isHuman: false,
             life: 20,
             poison: 0,
@@ -1364,11 +1422,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <GameFailedScreen message={fatalError} onLeave={endGame} />;
   }
 
-  if (!gameView || isPrefetchingCards) {
-    return <GameLoadingScreen debugInfo={debugInfo} />;
-  }
-  if (!me) {
-    return <GameLoadingScreen debugInfo={debugInfo || "Waiting for player state..."} />;
+  if (!gameView || isPrefetchingCards || !me || !introDone) {
+    return <GameLoadingScreen debugInfo={debugInfo} onComplete={handleLoadingComplete} />;
   }
 
   const playableIds = new Set<string>(
@@ -1383,7 +1438,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return (
       <GameOverScreen
         winnerId={gameView.winnerId}
-        concededPlayerIds={gameView.concededPlayerIds}
         me={me}
         opponents={opponents}
         turn={gameView.turn}
@@ -1488,7 +1542,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
-          concededPlayerIds={gameView.concededPlayerIds}
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}
@@ -1700,8 +1753,9 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MiddleBarDock
                 open={boardMenuOpen}
                 onOpenChange={setBoardMenuOpen}
-                onConcede={concede}
-                isMyPriority={gameView.priorityPlayerId === me.id}
+                onConcede={handleConcede}
+                eliminated={iAmEliminated}
+                onLeave={handleLeave}
                 sidePanelCollapsed={isActionPanelCollapsed}
                 onToggleSidePanel={toggleActionPanel}
                 players={gameView.players.map((p) => {
@@ -1722,6 +1776,33 @@ export default function Game({ exitTo }: GameProps = {}) {
           ),
           boardSurfaceEl,
         )}
+
+      {eliminatedModalOpen && (
+        <EliminatedModal
+          heading={selfConceded || me?.status === "conceded" ? "You conceded" : "You lost"}
+          hosting={ownsEngine}
+          onObserve={() => setEliminatedModalOpen(false)}
+          onLeave={() => {
+            setEliminatedModalOpen(false);
+            void endGame();
+          }}
+        />
+      )}
+      {leaveGameModalOpen && (
+        <LeaveGameModal
+          onStay={() => setLeaveGameModalOpen(false)}
+          onLeave={() => {
+            setLeaveGameModalOpen(false);
+            void endGame();
+          }}
+        />
+      )}
+      {concedeModalOpen && (
+        <ConcedeGameModal
+          onConfirm={handleConcedeConfirm}
+          onCancel={() => setConcedeModalOpen(false)}
+        />
+      )}
 
       {awaitingAttackTarget && (
         <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">

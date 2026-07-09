@@ -31,9 +31,12 @@ impl StaleConfig {
     }
 }
 
-pub async fn run_stale_monitor<F>(config: StaleConfig, is_idle: F)
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(10);
+
+pub async fn run_stale_monitor<F, S>(config: StaleConfig, is_idle: F, shutdown_rooms: S)
 where
     F: Fn() -> bool + Send + 'static,
+    S: Fn() + Send + 'static,
 {
     let mut tick = tokio::time::interval(config.poll);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -60,6 +63,8 @@ where
                 latest = %latest,
                 "self-hosted-node is stale and idle — exiting so the supervisor respawns on the latest build"
             );
+            shutdown_rooms();
+            tokio::time::sleep(SHUTDOWN_GRACE).await;
             std::process::exit(0);
         }
         info!(

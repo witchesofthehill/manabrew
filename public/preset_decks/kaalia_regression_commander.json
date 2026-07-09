@@ -14,19 +14,11 @@
       "cardNumber": "260",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {
@@ -46,19 +38,11 @@
       "cardNumber": "269",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -78,19 +62,11 @@
       "cardNumber": "266",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -112,9 +88,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -145,15 +119,9 @@
       "cardNumber": "263",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {R}, {W}, or {B}.",
@@ -177,9 +145,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
@@ -201,14 +167,9 @@
       "cardNumber": "366",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.",
@@ -230,14 +191,9 @@
       "cardNumber": "382",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
@@ -259,14 +215,9 @@
       "cardNumber": "64",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}.",
@@ -290,9 +241,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -316,9 +265,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -340,14 +287,9 @@
       "cardNumber": "314",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {R}{W}.",
@@ -369,14 +311,9 @@
       "cardNumber": "323",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {W}{B}.",
@@ -398,14 +335,9 @@
       "cardNumber": "250",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {B}{R}.",
@@ -429,12 +361,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
       "layout": "normal",
@@ -457,12 +385,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
       "layout": "normal",
@@ -482,16 +406,10 @@
       "set": "dka",
       "cardNumber": "87",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -512,18 +430,10 @@
       "set": "otc",
       "cardNumber": "245",
       "manaCost": "{R}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "You gain 2 life. Then you may discard two cards. If you do, draw three cards.",
@@ -544,16 +454,10 @@
       "set": "dsc",
       "cardNumber": "156",
       "manaCost": "{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target player draws two cards and loses 2 life.",
@@ -574,16 +478,10 @@
       "set": "soc",
       "cardNumber": "221",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "You draw two cards and lose 2 life.",
@@ -604,27 +502,12 @@
       "set": "mh3",
       "cardNumber": "290",
       "manaCost": "{1}{R}{W}{B}",
-      "colors": [
-        "B",
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colors": ["B", "R", "W"],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Cleric"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Cleric"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever Kaalia attacks an opponent, you may put an Angel, Demon, or Dragon creature card from your hand onto the battlefield tapped and attacking that opponent.",
       "layout": "normal",
       "power": "2",
@@ -645,20 +528,11 @@
       "set": "soc",
       "cardNumber": "151",
       "manaCost": "{3}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel",
-        "Spirit"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel", "Spirit"],
       "supertypes": [],
       "text": "Flying, protection from black\nEcho {3}{W}{W} (At the beginning of your upkeep, if this came under your control since the beginning of your last upkeep, sacrifice it unless you pay its echo cost.)\nWhen this creature enters, return target creature card from your graveyard to the battlefield.",
       "layout": "normal",
@@ -680,19 +554,11 @@
       "set": "cmm",
       "cardNumber": "137",
       "manaCost": "{6}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
       "supertypes": [],
       "text": "Flying\nYour opponents can't gain life.\nAt the beginning of each end step, each opponent loses life equal to the life that player lost this turn. (Damage causes loss of life.)",
       "layout": "normal",
@@ -714,19 +580,11 @@
       "set": "mh2",
       "cardNumber": "75",
       "manaCost": "{6}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Archon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Archon"],
       "supertypes": [],
       "text": "Flying\nWhenever this creature enters or attacks, target opponent sacrifices a creature or planeswalker of their choice, discards a card, and loses 3 life. You draw a card and gain 3 life.",
       "layout": "normal",
@@ -748,21 +606,11 @@
       "set": "uma",
       "cardNumber": "196",
       "manaCost": "{3}{W}{W}{B}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, destroy target permanent.",
       "layout": "normal",
@@ -784,19 +632,11 @@
       "set": "inr",
       "cardNumber": "479",
       "manaCost": "{5}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying\nWhenever this creature deals combat damage to a player, it deals that much damage to each creature that player controls.",
       "layout": "normal",
@@ -818,19 +658,11 @@
       "set": "soc",
       "cardNumber": "207",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Enchant creature card in a graveyard\nWhen this Aura enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with this Aura.\" Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.",
       "layout": "normal",
@@ -850,16 +682,10 @@
       "set": "dsc",
       "cardNumber": "155",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
@@ -880,22 +706,12 @@
       "set": "inr",
       "cardNumber": "477",
       "manaCost": "{5}{W}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
+      "supertypes": ["Legendary"],
       "text": "Flying, vigilance, indestructible\nOther permanents you control have indestructible.",
       "imageUrl": "https://cards.scryfall.io/normal/front/7/4/74e5dcec-ef1d-4461-bb23-61d98ff082dd.jpg?1782726478",
       "layout": "normal",
@@ -909,22 +725,12 @@
       "set": "fdn",
       "cardNumber": "738",
       "manaCost": "{3}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nFirst strike (This creature deals combat damage before creatures without first strike.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)\nOther Angels you control get +1/+1 and have lifelink.",
       "imageUrl": "https://cards.scryfall.io/normal/front/f/9/f9fa30b6-3a33-46fd-8b32-ac1cfa41500d.jpg?1782683478",
       "layout": "normal",
@@ -938,19 +744,11 @@
       "set": "fdn",
       "cardNumber": "136",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, exile target player's graveyard.",
       "imageUrl": "https://cards.scryfall.io/normal/front/b/a/baaabd52-3aa9-4e2f-9369-d4db8b405ba8.jpg?1782689148",
@@ -965,19 +763,11 @@
       "set": "jmp",
       "cardNumber": "86",
       "manaCost": "{5}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nEach opponent who cast a spell this turn can't attack with creatures.\nEach opponent who attacked with a creature this turn can't cast spells.",
       "imageUrl": "https://cards.scryfall.io/normal/front/8/6/8637d263-5d7e-45bc-aad3-d97f57e6898e.jpg?1782706721",
@@ -992,24 +782,12 @@
       "set": "fdn",
       "cardNumber": "651",
       "manaCost": "{2}{R}{R}{W}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
+      "supertypes": ["Legendary"],
       "text": "Flying, vigilance, haste\nWhenever Aurelia attacks for the first time each turn, untap all creatures you control. After this phase, there is an additional combat phase.",
       "imageUrl": "https://cards.scryfall.io/normal/front/b/c/bc6ffc1c-575b-4116-83c9-d13b29886c35.jpg?1782688699",
       "layout": "normal",
@@ -1023,24 +801,12 @@
       "set": "mkc",
       "cardNumber": "211",
       "manaCost": "{4}{R}{W}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
+      "supertypes": ["Legendary"],
       "text": "Flying, first strike\nIf a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage to that player or permanent instead.\nIf a source would deal damage to you or a permanent you control, prevent half that damage, rounded up.",
       "imageUrl": "https://cards.scryfall.io/normal/front/9/0/900b8908-ba51-472e-ab7a-43bd07f90577.jpg?1782694070",
       "layout": "normal",
@@ -1054,19 +820,11 @@
       "set": "lci",
       "cardNumber": "32",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nAt the beginning of each end step, if you gained 5 or more life this turn, create a 4/4 white Angel creature token with flying and vigilance.\n{3}{W}{W}{W}: Until end of turn, this creature gets +2/+2 and gains lifelink.",
       "imageUrl": "https://cards.scryfall.io/normal/front/5/9/59adbd35-9959-4a0f-babf-46ea3c15f018.jpg?1782694585",
@@ -1090,19 +848,11 @@
       "set": "c19",
       "cardNumber": "61",
       "manaCost": "{3}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, you may exile target nonland permanent an opponent controls until this creature leaves the battlefield.\nEmbalm {5}{W} ({5}{W}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Angel with no mana cost. Embalm only as a sorcery.)",
       "imageUrl": "https://cards.scryfall.io/normal/front/f/3/f3f7f258-7ac0-4149-9d8c-712b5ea7f0a8.jpg?1782708114",
@@ -1126,19 +876,11 @@
       "set": "znc",
       "cardNumber": "16",
       "manaCost": "{5}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nLandfall — Whenever a land you control enters, you may return target nonland permanent card from your graveyard to your hand. If that land is a Plains, you may return that nonland permanent card to the battlefield instead.",
       "imageUrl": "https://cards.scryfall.io/normal/front/a/9/a99dd58d-9fed-4d85-9bb5-f9c91834cab8.jpg?1782706474",
@@ -1153,22 +895,12 @@
       "set": "cmm",
       "cardNumber": "181",
       "manaCost": "{5}{B}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
+      "supertypes": ["Legendary"],
       "text": "Flying, trample\nPay 2 life, Sacrifice another creature: Search your library for a card, put that card into your hand, then shuffle.",
       "imageUrl": "https://cards.scryfall.io/normal/front/d/6/d6bb956d-0df6-4910-9320-55f2c5674d98.jpg?1782733183",
       "layout": "normal",
@@ -1182,22 +914,12 @@
       "set": "m20",
       "cardNumber": "122",
       "manaCost": "{5}{B}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
+      "supertypes": ["Legendary"],
       "text": "Flying\n{B}, Pay 2 life: Target creature gets -1/-1 until end of turn.\nWhenever you lose life, draw that many cards. (Damage causes loss of life.)",
       "imageUrl": "https://cards.scryfall.io/normal/front/e/c/ecdf2bd9-87b9-470a-ad2e-0ebf98560f87.jpg?1782708308",
       "layout": "normal",
@@ -1211,19 +933,11 @@
       "set": "c14",
       "cardNumber": "137",
       "manaCost": "{3}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
       "supertypes": [],
       "text": "Flying\nAt the beginning of your upkeep, target player draws a card and loses 1 life.",
       "imageUrl": "https://cards.scryfall.io/normal/front/6/a/6a2e1d4a-8df4-472f-a98f-d6b71c1dd1c4.jpg?1782712962",
@@ -1238,19 +952,11 @@
       "set": "mkc",
       "cardNumber": "132",
       "manaCost": "{5}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, you may destroy target creature.\nWhenever a nontoken creature an opponent controls dies, create a tapped 2/2 black Zombie creature token.",
       "imageUrl": "https://cards.scryfall.io/normal/front/0/a/0a1a06a4-af73-43e3-a2cd-3a2f0f9b18f0.jpg?1782694125",
@@ -1274,19 +980,11 @@
       "set": "jmp",
       "cardNumber": "243",
       "manaCost": "{4}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
       "supertypes": [],
       "text": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever another nontoken creature dies, you may draw a card.",
       "imageUrl": "https://cards.scryfall.io/normal/front/8/7/870ebc0b-b748-4a21-b939-a48811451bba.jpg?1782706630",
@@ -1301,23 +999,12 @@
       "set": "cmm",
       "cardNumber": "151",
       "manaCost": "{4}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elder",
-        "Demon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elder", "Demon"],
+      "supertypes": ["Legendary"],
       "text": "Flying, trample\nWhen Demonlord Belzenlok enters, exile cards from the top of your library until you exile a nonland card, then put that card into your hand. If the card's mana value is 4 or greater, repeat this process. Demonlord Belzenlok deals 1 damage to you for each card put into your hand this way.",
       "imageUrl": "https://cards.scryfall.io/normal/front/b/0/b07114d8-40b3-4102-8d70-e3ed94a7f515.jpg?1782733203",
       "layout": "normal",
@@ -1331,20 +1018,11 @@
       "set": "mkc",
       "cardNumber": "128",
       "manaCost": "{3}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Nightmare",
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Nightmare", "Demon"],
       "supertypes": [],
       "text": "Flying, trample\nPay 2 life: Surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
       "imageUrl": "https://cards.scryfall.io/normal/front/e/8/e8aabcaf-0968-402f-bc9f-289756e4d4b7.jpg?1782694128",
@@ -1359,24 +1037,12 @@
       "set": "dsc",
       "cardNumber": "230",
       "manaCost": "{B}{B}{R}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
+      "supertypes": ["Legendary"],
       "text": "You can't cast Rakdos unless an opponent lost life this turn.\nFlying, trample\nCreature spells you cast cost {1} less to cast for each 1 life your opponents have lost this turn.",
       "imageUrl": "https://cards.scryfall.io/normal/front/3/d/3d0d5a41-8251-437c-a4a0-3b712281ebb0.jpg?1782689783",
       "layout": "normal",
@@ -1390,21 +1056,11 @@
       "set": "rvr",
       "cardNumber": "198",
       "manaCost": "{3}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
       "supertypes": [],
       "text": "First strike, deathtouch\nThis creature can only attack alone.\nWhenever this creature attacks a player and isn't blocked, that player's life total becomes 1. This creature assigns no combat damage this combat.",
       "imageUrl": "https://cards.scryfall.io/normal/front/f/f/ffd68fe1-5cfc-44cf-8dfe-3488278cdcef.jpg?1782731072",
@@ -1419,25 +1075,12 @@
       "set": "dtk",
       "cardNumber": "218",
       "manaCost": "{4}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elder",
-        "Dragon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elder", "Dragon"],
+      "supertypes": ["Legendary"],
       "text": "Flying, haste\nOther creatures you control have haste.\nWhenever an opponent casts a creature or planeswalker spell with the same name as a card in their graveyard, that player loses 10 life.",
       "imageUrl": "https://cards.scryfall.io/normal/front/1/c/1cbf8933-32a1-4892-9bdc-89464ed9ce1b.jpg?1782712695",
       "layout": "normal",
@@ -1451,25 +1094,12 @@
       "set": "ima",
       "cardNumber": "193",
       "manaCost": "{3}{B}{B}{R}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie",
-        "Dragon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Zombie", "Dragon"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhen Bladewing enters, you may return target Dragon permanent card from your graveyard to the battlefield.\n{B}{R}: Dragon creatures get +1/+1 until end of turn.",
       "imageUrl": "https://cards.scryfall.io/normal/front/2/7/27ce43cb-44f4-4d94-8700-d9f3cc043989.jpg?1782748397",
       "layout": "normal",
@@ -1483,19 +1113,11 @@
       "set": "tdc",
       "cardNumber": "215",
       "manaCost": "{3}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying, haste\nYou may exert this creature as it attacks. When you do, it deals 4 damage to target non-Dragon creature an opponent controls. (An exerted creature won't untap during your next untap step.)",
       "imageUrl": "https://cards.scryfall.io/normal/front/0/6/06f90d62-6d21-47b1-a427-eb25a42f4dcb.jpg?1782686768",
@@ -1510,19 +1132,11 @@
       "set": "plst",
       "cardNumber": "RVR-111",
       "manaCost": "{4}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying, trample\nWhenever this creature deals combat damage to a player, gain control of all artifacts that player controls.\nAt the beginning of your upkeep, if you control twenty or more artifacts, you win the game.",
       "imageUrl": "https://cards.scryfall.io/normal/front/a/7/a7cb4100-1696-4393-8f1f-634018e0b78f.jpg?1782727292",
@@ -1537,19 +1151,11 @@
       "set": "otj",
       "cardNumber": "149",
       "manaCost": "{3}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying\nSpells your opponents cast that target this creature cost an additional 3 life to cast.\nWhenever another creature you control enters, this creature deals damage equal to that creature's power to any target.",
       "imageUrl": "https://cards.scryfall.io/normal/front/9/0/904ff94a-4db4-44a6-8593-89c32905b3fc.jpg?1782692027",
@@ -1564,19 +1170,11 @@
       "set": "ima",
       "cardNumber": "149",
       "manaCost": "{3}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying\nHaste (This creature can attack and {T} as soon as it comes under your control.)\nWhen this creature enters, it deals 1 damage to each creature with flying your opponents control. Tap those creatures.",
       "imageUrl": "https://cards.scryfall.io/normal/front/a/7/a75f6bb4-ab06-42ca-a0df-326d9a098a26.jpg?1782748413",
@@ -1591,19 +1189,11 @@
       "set": "rvr",
       "cardNumber": "129",
       "manaCost": "{6}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying\nWhenever a Dragon you control attacks, create a 6/6 red Dragon creature token with flying.",
       "imageUrl": "https://cards.scryfall.io/normal/front/d/f/df459109-d6ab-4b1d-9570-c7677ff4a014.jpg?1782731122",
@@ -1627,22 +1217,12 @@
       "set": "fdn",
       "cardNumber": "760",
       "manaCost": "{4}{R}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever Drakuseth attacks, it deals 4 damage to any target and 3 damage to each of up to two other targets.",
       "imageUrl": "https://cards.scryfall.io/normal/front/9/e/9e9b40f5-3dd0-4607-a78d-b004d57fa4ea.jpg?1782683457",
       "layout": "normal",
@@ -1659,13 +1239,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 6,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying\n{2}: This creature gets +1/+0 until end of turn.\n{X}: Destroy each nonland permanent with mana value X whose controller was dealt combat damage by this creature this turn. Activate only once each turn.",
       "imageUrl": "https://cards.scryfall.io/normal/front/5/4/548cbc66-d915-4b94-86da-4c909a1ce645.jpg?1782686672",
@@ -1680,16 +1255,10 @@
       "set": "tdc",
       "cardNumber": "94",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever a creature you control with flying enters, it gains haste until end of turn.\nWhenever a Dragon you control enters, it deals X damage to any target, where X is the number of Dragons you control.",
@@ -1703,16 +1272,10 @@
       "set": "m13",
       "cardNumber": "129",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Creatures you control have haste. (They can attack and {T} as soon as they come under your control.)",
@@ -1726,18 +1289,10 @@
       "set": "soc",
       "cardNumber": "293",
       "manaCost": "{1}{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target nonland permanent. You lose 3 life.",
@@ -1751,18 +1306,10 @@
       "set": "dsc",
       "cardNumber": "91",
       "manaCost": "{2}{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target nonland permanent.",
@@ -1776,18 +1323,10 @@
       "set": "fdn",
       "cardNumber": "662",
       "manaCost": "{1}{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature or enchantment.",
@@ -1801,18 +1340,10 @@
       "set": "msc",
       "cardNumber": "189",
       "manaCost": "{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature. It can't be regenerated.",
@@ -1826,16 +1357,10 @@
       "set": "msc",
       "cardNumber": "143",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target creature. Its controller gains life equal to its power.",
@@ -1849,16 +1374,10 @@
       "set": "msc",
       "cardNumber": "141",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
@@ -1872,20 +1391,10 @@
       "set": "2x2",
       "cardNumber": "196",
       "manaCost": "{R}{W}{B}",
-      "colors": [
-        "B",
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colors": ["B", "R", "W"],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Crackling Doom deals 2 damage to each opponent. Each opponent sacrifices a creature with the greatest power among creatures that player controls.",
@@ -1899,16 +1408,10 @@
       "set": "dsc",
       "cardNumber": "154",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Scry 2, then draw two cards. You lose 2 life. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
@@ -1922,16 +1425,10 @@
       "set": "ecc",
       "cardNumber": "82",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Converge — You draw X cards and lose X life, where X is the number of colors of mana spent to cast this spell.",
@@ -1945,21 +1442,12 @@
       "set": "dsc",
       "cardNumber": "159",
       "manaCost": "{2}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 4,
-      "types": [
-        "Enchantment",
-        "Artifact"
-      ],
+      "types": ["Enchantment", "Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "Creatures you control have lifelink.\n{2}{B}{B}, {T}: Return target creature card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step. If it would leave the battlefield, exile it instead of putting it anywhere else. Activate only as a sorcery.",
       "imageUrl": "https://cards.scryfall.io/normal/front/b/7/b738612f-4e78-4b19-9392-6c074956d6e4.jpg?1782689845",
       "layout": "normal",
@@ -1972,14 +1460,9 @@
       "cardNumber": "220",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {B} or {R}. This artifact deals 1 damage to you.",
@@ -1994,14 +1477,9 @@
       "cardNumber": "217",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This artifact deals 1 damage to you.",
@@ -2016,14 +1494,9 @@
       "cardNumber": "358",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This artifact deals 1 damage to you.",
@@ -2037,16 +1510,10 @@
       "set": "mh3",
       "cardNumber": "273",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for up to three creature cards, put them into your graveyard, then shuffle.",
@@ -2060,17 +1527,10 @@
       "set": "2x2",
       "cardNumber": "95",
       "manaCost": "{4}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B", "W"],
       "cmc": 5,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target creature card from your graveyard to the battlefield.\nFlashback {3}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",

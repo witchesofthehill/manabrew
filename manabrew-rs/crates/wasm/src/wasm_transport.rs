@@ -4,7 +4,7 @@ use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::prompt::{
-    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
+    AgentMessage, AgentPrompt, ChooseActionOutput, ClientToServerMessage, PromptOutput,
 };
 
 use js_sys::{Int32Array, SharedArrayBuffer, Uint8Array};
@@ -154,7 +154,7 @@ impl WasmTransport {
         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
     }
 
-    fn recv(&self) -> PromptOutput {
+    fn recv(&self) -> ClientToServerMessage {
         loop {
             let current = js_sys::Atomics::load(&self.signal, 0).unwrap_or(0);
             if current == SIGNAL_RESPONSE_READY {
@@ -185,9 +185,11 @@ impl WasmTransport {
                         // wait_until_prompt_slot_available, which overwrites it.
                         js_sys::Atomics::store(&self.signal, 0, SIGNAL_IDLE).unwrap_or(0);
                         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
-                        return PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                            until: None,
-                        });
+                        return ClientToServerMessage::Response {
+                            action: PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                                until: None,
+                            }),
+                        };
                     }
                 }
                 None => {
@@ -201,9 +203,18 @@ impl WasmTransport {
         js_sys::Atomics::store(&self.signal, 0, SIGNAL_IDLE).unwrap_or(0);
         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
 
-        serde_json::from_slice(&json_bytes).unwrap_or(PromptOutput::ChooseAction(
-            ChooseActionOutput::Pass { until: None },
-        ))
+        serde_json::from_slice(&json_bytes).unwrap_or_else(|error| {
+            web_sys::console::error_1(
+                &format!(
+                    "[WasmTransport] client message failed to parse ({error}), answering pass: {}",
+                    String::from_utf8_lossy(&json_bytes)
+                )
+                .into(),
+            );
+            ClientToServerMessage::Response {
+                action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+            }
+        })
     }
 }
 
@@ -212,12 +223,12 @@ impl Responder for WasmTransport {
         self.send(message);
     }
 
-    fn respond(&mut self, _prompt: AgentPrompt) -> PromptOutput {
+    fn respond(&mut self, _prompt: AgentPrompt) -> ClientToServerMessage {
         self.recv()
     }
 
-    fn await_ack(&mut self) {
-        let _ = self.recv();
+    fn await_ack(&mut self) -> ClientToServerMessage {
+        self.recv()
     }
 
     fn send_log(&mut self, entry: GameLogEntryDto) {

@@ -4,30 +4,20 @@ import { cn } from "@/lib/utils";
 
 interface GameOverScreenProps {
   winnerId: string | null | undefined;
-  concededPlayerIds?: string[];
   me: PlayerDto;
   opponents: PlayerDto[];
   turn: number;
   onEndGame: () => void;
 }
 
-export function GameOverScreen({
-  winnerId,
-  concededPlayerIds,
-  me,
-  opponents,
-  turn,
-  onEndGame,
-}: GameOverScreenProps) {
+export function GameOverScreen({ winnerId, me, opponents, turn, onEndGame }: GameOverScreenProps) {
   const didWin = winnerId === me.id;
-  const concedeIds = concededPlayerIds ?? [];
-  const iConceded = concedeIds.includes(me.id);
-  const otherConcedeNames = concedeIds
-    .filter((id) => id !== me.id)
-    .map((id) => opponents.find((op) => op.id === id)?.name ?? id);
+  const iConceded = me.status === "conceded";
+  const otherConcedeNames = opponents.filter((op) => op.status === "conceded").map((op) => op.name);
+  const anyConceded = iConceded || otherConcedeNames.length > 0;
 
   const { heading, tone } = (() => {
-    if (winnerId == null && concedeIds.length === 0) {
+    if (winnerId == null && !anyConceded) {
       return { heading: "Draw!", tone: "neutral" as const };
     }
     if (iConceded) {

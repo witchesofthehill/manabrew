@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import {
   Flag,
   Image as ImageIcon,
+  LogOut,
   Maximize2,
   Minimize2,
   PanelRightClose,
@@ -28,7 +29,8 @@ interface MiddleBarDockProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConcede: () => void;
-  isMyPriority: boolean;
+  eliminated: boolean;
+  onLeave: () => void;
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
@@ -44,7 +46,8 @@ export function MiddleBarDock({
   open,
   onOpenChange,
   onConcede,
-  isMyPriority,
+  eliminated,
+  onLeave,
   sidePanelCollapsed,
   onToggleSidePanel,
   players,
@@ -118,16 +121,14 @@ export function MiddleBarDock({
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          disabled={!isMyPriority}
           className="text-destructive focus:text-destructive"
-          onSelect={(event) => {
-            event.preventDefault();
-            if (isMyPriority) onConcede();
+          onSelect={() => {
+            if (eliminated) onLeave();
+            else onConcede();
           }}
-          title={isMyPriority ? undefined : "Wait until you have priority to concede"}
         >
-          <Flag className="mr-2 h-4 w-4" />
-          Concede
+          {eliminated ? <LogOut className="mr-2 h-4 w-4" /> : <Flag className="mr-2 h-4 w-4" />}
+          {eliminated ? "Leave" : "Concede"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

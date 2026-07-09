@@ -173,7 +173,7 @@ interface ModalFooterProps {
 
 function ModalFooter({ children, className }: ModalFooterProps) {
   return (
-    <div className={cn("flex items-center justify-end px-4 py-3 border-t", className)}>
+    <div className={cn("flex items-center justify-end gap-2 px-4 py-3 border-t", className)}>
       {children}
     </div>
   );

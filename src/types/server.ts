@@ -1,4 +1,5 @@
 import type {
+  DirectiveInput,
   DraftConfig,
   EngineKind,
   GameFormat,
@@ -135,6 +136,7 @@ export type StateEnvelope =
   | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
   | { kind: "response"; fromPlayer: string; action: PromptOutput }
+  | { kind: "directive"; fromPlayer: string; directive: DirectiveInput }
   | { kind: "log"; fromPlayer: string; entry: unknown }
   | { kind: "snapshot"; fromPlayer: string; entry: unknown }
   | { kind: "fatal"; message: string }

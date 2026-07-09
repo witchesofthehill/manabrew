@@ -1,0 +1,136 @@
+---
+title: Hosting the web client
+description: Serve the Manabrew browser client from a published Docker Hub image or from source, pointed at your own relay, with the cross-origin isolation headers it needs to run games.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+The browser client is a static site (`yarn build:web` → `dist/`), but it is not
+"just static files": the game worker uses `SharedArrayBuffer`, which requires
+cross-origin isolation. Whatever serves it — and every proxy in front — must
+deliver these headers on the HTML, worker JS, and WASM responses:
+
+```http
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: credentialless
+```
+
+If a proxy strips them, the page loads but games won't start. Verify in
+DevTools: `window.crossOriginIsolated` must be `true`. Also note the web client
+is not offline-capable — card images come from Scryfall at runtime.
+
+## Pointing at your relay
+
+The published image defaults to the official public relay and is repointed at
+**runtime** — one image, any relay, no rebuild. Set these on the container:
+
+| Env var          | Default            | Purpose                                         |
+| ---------------- | ------------------ | ----------------------------------------------- |
+| `RELAY_HOST`     | _(official relay)_ | Relay host the client connects to               |
+| `RELAY_PORT`     | `443`              | Relay port — `443` dials `wss://`, else `ws://` |
+| `RELAY_PASSWORD` | `forge`            | Shared relay key (`MANABREW_SERVER_KEY`)        |
+
+The entrypoint writes these into `/srv/manabrew/config.js` on start, which the
+app reads before connecting. Leaving `RELAY_HOST` unset keeps the official
+relay. Players can also add extra servers at runtime from **Settings → Server**.
+
+If you build the bundle **from source** instead, bake the same values in at
+build time with `VITE_RELAY_HOST` / `VITE_RELAY_PORT` / `VITE_RELAY_PASSWORD`;
+runtime `RELAY_*` overrides a baked default when both are present.
+
+## Serving the client
+
+<Tabs>
+  <TabItem label="Docker Compose">
+    The published image bundles Caddy with a default `:80` config that already
+    sends the isolation headers, so no checkout and no mounted config are
+    needed. Create a `compose.yml`:
+
+    ```yaml
+    services:
+      web:
+        image: ghcr.io/witchesofthehill/manabrew-web:latest
+        environment:
+          RELAY_HOST: relay.example.com
+          RELAY_PORT: "443"
+          RELAY_PASSWORD: "${MANABREW_SERVER_KEY:-forge}"
+        ports:
+          - "80:80"
+        restart: unless-stopped
+    ```
+
+    Then pull and run:
+
+    ```bash
+    docker compose up -d
+    ```
+
+    This serves plain HTTP on port 80 — put it behind your own TLS proxy, or
+    mount a Caddyfile with a real hostname over `/etc/caddy/Caddyfile` for
+    automatic HTTPS:
+
+    ```caddyfile
+    # ./Caddyfile — replace play.example.com with your domain.
+    play.example.com {
+    	root * /srv/manabrew
+    	encode zstd gzip
+    	@config path /config.js
+    	handle @config {
+    		header Cache-Control "no-store"
+    		file_server
+    	}
+    	handle {
+    		header {
+    			Cross-Origin-Opener-Policy "same-origin"
+    			Cross-Origin-Embedder-Policy "credentialless"
+    			Cross-Origin-Resource-Policy "same-origin"
+    		}
+    		try_files {path} /index.html
+    		file_server
+    	}
+    }
+    ```
+
+    ```yaml
+    # add to the web service:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ```
+
+  </TabItem>
+  <TabItem label="From source">
+    You need a Rust toolchain (for the WASM engine) and Node 20. Build the
+    static bundle, passing your relay as build-time env vars:
+
+    ```bash
+    git clone https://github.com/witchesofthehill/manabrew.git
+    cd manabrew
+    yarn install --frozen-lockfile
+    VITE_RELAY_HOST=relay.example.com \
+    VITE_RELAY_PORT=443 \
+    VITE_RELAY_PASSWORD=your-server-key \
+    yarn build:web
+    ```
+
+    The result is a plain static site in `dist/`. Serve it with any web server,
+    as long as it sends the two isolation headers above on every response
+    (`window.crossOriginIsolated` must be `true`). A quick local check with
+    Caddy:
+
+    ```bash
+    caddy file-server --root dist --listen :8080 \
+      --header "Cross-Origin-Opener-Policy: same-origin" \
+      --header "Cross-Origin-Embedder-Policy: credentialless"
+    ```
+
+  </TabItem>
+</Tabs>
+
+To serve the client and a relay together behind one Caddy, see the
+[full-stack example](/hosting-full-stack/); `ops/Caddyfile` is the full
+production reference.

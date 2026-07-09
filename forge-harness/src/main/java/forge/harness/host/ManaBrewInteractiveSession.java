@@ -47,6 +47,7 @@ public final class ManaBrewInteractiveSession {
     private Game game;
     private final BlockingQueue<JsonObject> actions = new LinkedBlockingQueue<>();
     private volatile String latestPromptJson;
+    private volatile int promptedPlayerIndex = -1;
     private long promptSeq;
     private volatile boolean closed;
     private volatile Thread gameThread;
@@ -225,7 +226,7 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
-                action = actions.take();
+                action = takeAction();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
                 return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
@@ -371,7 +372,7 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
-                action = actions.take();
+                action = takeAction();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
                 return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
@@ -695,7 +696,7 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
-                action = actions.take();
+                action = takeAction();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
                 return true;
@@ -733,7 +734,7 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
-                action = actions.take();
+                action = takeAction();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
                 return new CardCollection();
@@ -1562,7 +1563,7 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
-                action = actions.take();
+                action = takeAction();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
                 return new CardCollection();
@@ -1614,9 +1615,51 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
+    private JsonObject takeAction() throws InterruptedException {
+        while (true) {
+            final JsonObject action = actions.take();
+            final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if (!"concede".equals(kind)) {
+                return action;
+            }
+            final int target = action.has("player")
+                    ? action.get("player").getAsInt()
+                    : promptedPlayerIndex;
+            concedePlayer(target);
+            if (target != promptedPlayerIndex && !gameDecided()) {
+                continue;
+            }
+            final JsonObject pass = new JsonObject();
+            pass.addProperty("kind", "pass");
+            return pass;
+        }
+    }
+
+    private void concedePlayer(final int index) {
+        final List<Player> players = game.getRegisteredPlayers();
+        if (index < 0 || index >= players.size()) {
+            return;
+        }
+        final Player player = players.get(index);
+        if (player.hasLost()) {
+            return;
+        }
+        player.concede();
+    }
+
+    private boolean gameDecided() {
+        int remaining = 0;
+        for (final Player player : game.getRegisteredPlayers()) {
+            if (!player.hasLost()) {
+                remaining++;
+            }
+        }
+        return remaining <= 1;
+    }
+
     private JsonObject takeActionOrNull() {
         try {
-            return actions.take();
+            return takeAction();
         } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
             return null;
@@ -2262,7 +2305,19 @@ public final class ManaBrewInteractiveSession {
     }
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
+        promptedPlayerIndex = parsePlayerSlot(decidingPlayerId);
         latestPromptJson = ManabrewProtocolAdapter.agentPrompt(++promptSeq, decidingPlayerId, sourceCardId, input);
+    }
+
+    private static int parsePlayerSlot(final String decidingPlayerId) {
+        if (decidingPlayerId == null || !decidingPlayerId.startsWith("player-")) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(decidingPlayerId.substring("player-".length()));
+        } catch (NumberFormatException invalid) {
+            return -1;
+        }
     }
 
     private static final com.google.gson.Gson GSON = new com.google.gson.Gson();

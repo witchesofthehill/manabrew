@@ -51,7 +51,7 @@ final class ManabrewProtocolAdapter {
                 flat.add("card_ids", copyStringArray(output, "chosenCardIds"));
                 return flat;
             case "chooseAction":
-                return translateChooseAction(output);
+                return translateChooseAction(canonical, output);
             case "payManaCost":
                 return translateManaSource(output);
             case "chooseAttackers": {
@@ -170,12 +170,14 @@ final class ManabrewProtocolAdapter {
                 flat.add("allocation", output.has("allocation") && output.get("allocation").isJsonObject()
                         ? output.getAsJsonObject("allocation") : new JsonObject());
                 return flat;
+            case "directive":
+                return translateDirective(canonical);
             default:
                 throw new UnsupportedOperationException("unsupported canonical action type: " + type);
         }
     }
 
-    private static JsonObject translateChooseAction(final JsonObject output) {
+    private static JsonObject translateChooseAction(final JsonObject canonical, final JsonObject output) {
         final String kind = output.has("type") ? output.get("type").getAsString() : "";
         final JsonObject flat = new JsonObject();
         switch (kind) {
@@ -187,14 +189,25 @@ final class ManabrewProtocolAdapter {
                     flat.add("until", output.getAsJsonObject("until"));
                 }
                 return flat;
-            case "concede":
-                flat.addProperty("kind", "pass");
-                return flat;
             case "restoreSnapshot":
                 throw new UnsupportedOperationException("unsupported canonical action type: restoreSnapshot");
             default:
                 throw new UnsupportedOperationException("unsupported chooseAction output: " + kind);
         }
+    }
+
+    private static JsonObject translateDirective(final JsonObject canonical) {
+        final JsonObject directive = canonical.has("directive") && canonical.get("directive").isJsonObject()
+                ? canonical.getAsJsonObject("directive")
+                : new JsonObject();
+        final String kind = directive.has("type") ? directive.get("type").getAsString() : "";
+        if (!"concede".equals(kind)) {
+            throw new UnsupportedOperationException("unsupported directive: " + kind);
+        }
+        final JsonObject flat = new JsonObject();
+        flat.addProperty("kind", "concede");
+        flat.addProperty("player", canonical.get("player").getAsInt());
+        return flat;
     }
 
     private static JsonObject translateManaSource(final JsonObject output) {

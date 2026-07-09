@@ -24,9 +24,6 @@ function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | nul
     stack: Array.isArray(incoming.stack) ? incoming.stack : (current?.stack ?? []),
     gameOver: incoming.gameOver ?? current?.gameOver ?? false,
     winnerId: incoming.winnerId ?? current?.winnerId ?? null,
-    concededPlayerIds: Array.isArray(incoming.concededPlayerIds)
-      ? incoming.concededPlayerIds
-      : (current?.concededPlayerIds ?? []),
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
   };
@@ -48,7 +45,13 @@ function route(
     return;
   }
   const updates: Partial<GameState> = { debugInfo: source };
-  if (snapshot.gameView) updates.gameView = snapshot.gameView;
+  if (snapshot.gameView) {
+    updates.gameView = snapshot.gameView;
+    // An eliminated seat has no pending prompt: the engine consumed it (a
+    // concede at priority) and will never await this player again.
+    const me = snapshot.gameView.players.find((p) => p.id === get().myPlayerSlot);
+    if (me && me.status !== "playing") updates.currentPrompt = null;
+  }
   if (snapshot.prompt) {
     updates.currentPrompt = snapshot.prompt;
     updates.isWaitingForResponse = false;

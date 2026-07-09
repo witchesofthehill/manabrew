@@ -81,11 +81,29 @@ impl ReplayContext {
         self.divergences.first()
     }
 
-    fn advance_to(&mut self, kind: &str) -> Option<usize> {
-        let found = (self.cursor..self.decisions.len())
-            .find(|&i| input_kind(&self.decisions[i].prompt.input) == kind)?;
-        self.cursor = found + 1;
-        Some(found)
+    fn advance_to(&mut self, kind: &str, turn: u32, step: &str, player: &str) -> Option<usize> {
+        let mut fallback = None;
+        for i in self.cursor..self.decisions.len() {
+            if input_kind(&self.decisions[i].prompt.input) != kind {
+                continue;
+            }
+            if fallback.is_none() {
+                fallback = Some(i);
+            }
+            if let Some(state) = &self.decisions[i].state_before {
+                if state.turn == turn
+                    && state.step == step
+                    && self.decisions[i].prompt.deciding_player_id == player
+                {
+                    self.cursor = i + 1;
+                    return Some(i);
+                }
+            }
+        }
+        if let Some(i) = fallback {
+            self.cursor = i + 1;
+        }
+        fallback
     }
 }
 
@@ -120,24 +138,42 @@ impl Responder for ReplayAgent {
 
     fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage {
         let live_kind = input_kind(&prompt.input);
+        let (turn, step) = self
+            .latest_view
+            .as_ref()
+            .map(|v| (v.turn, v.step.clone()))
+            .unwrap_or((0, String::new()));
         let mut ctx = self.ctx.borrow_mut();
 
         if ctx.done {
             return pass();
         }
 
-        let Some(index) = ctx.advance_to(live_kind) else {
+        let Some(index) = ctx.advance_to(live_kind, turn, &step, &prompt.deciding_player_id) else {
             ctx.desyncs += 1;
             return safe_default(&prompt);
         };
 
         let recorded_state = ctx.decisions[index].state_before.clone();
+        let matched_player = ctx.decisions[index].prompt.deciding_player_id.clone();
         let mut new_edits: Vec<MaintenanceEdit> = Vec::new();
         if let (Some(rust_view), Some(trace_view)) =
             (self.latest_view.as_ref(), recorded_state.as_ref())
         {
             ctx.diffed_decisions += 1;
-            let diffs = diff_views(rust_view, trace_view);
+            let on_path = trace_view.turn == rust_view.turn
+                && trace_view.step == rust_view.step
+                && matched_player == prompt.deciding_player_id;
+            let diffs = if on_path {
+                diff_views(rust_view, trace_view)
+            } else {
+                vec![FieldDiff {
+                    path: "<off trace path>".into(),
+                    rust: format!("turn {} {}", rust_view.turn, rust_view.step),
+                    trace: format!("turn {} {}", trace_view.turn, trace_view.step),
+                    library_dependent: false,
+                }]
+            };
             if diffs.is_empty() {
                 ctx.clean_decisions += 1;
             } else {
@@ -149,7 +185,7 @@ impl Responder for ReplayAgent {
                     prompt_kind: live_kind.to_string(),
                     diffs,
                 });
-                if self.reconcile {
+                if self.reconcile && on_path {
                     new_edits = reconcile_edits(rust_view, trace_view);
                 }
                 let stop = !ctx.keep_going || ctx.divergences.len() >= ctx.max_divergences;
@@ -239,6 +275,26 @@ fn reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEd
                         .collect(),
                 });
             }
+        }
+
+        let owned = |cards: &[CardDto]| -> HashMap<String, u32> {
+            let mut out: HashMap<String, u32> = HashMap::new();
+            for card in cards.iter().filter(|c| c.owner_id == trace_player.id) {
+                *out.entry(card.identity.name.clone()).or_default() += 1;
+            }
+            out
+        };
+        if owned(&rust.battlefield) != owned(&trace.battlefield) {
+            edits.push(MaintenanceEdit::SetZone {
+                player,
+                zone: ZoneType::Battlefield,
+                card_names: trace
+                    .battlefield
+                    .iter()
+                    .filter(|c| c.owner_id == trace_player.id)
+                    .map(|c| c.identity.name.clone())
+                    .collect(),
+            });
         }
     }
     edits

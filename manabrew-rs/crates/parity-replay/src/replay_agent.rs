@@ -368,21 +368,12 @@ fn remap_action(
         .find(|a| a.id == recorded_action_id)?;
     let recorded_name = action_card_name(recorded_action, recorded_index);
     let recorded_tag = kind_tag(&recorded_action.kind);
-    let recorded_label = action_mode_label(&recorded_action.kind);
 
-    let matched = live_input.actions.iter().find(|a| {
-        kind_tag(&a.kind) == recorded_tag
-            && action_card_name(a, live_index) == recorded_name
-            && label_matches(&action_mode_label(&a.kind), &recorded_label)
-    });
+    let matched = live_input
+        .actions
+        .iter()
+        .find(|a| kind_tag(&a.kind) == recorded_tag && action_card_name(a, live_index) == recorded_name);
     matched.map(|a| a.id.clone())
-}
-
-fn label_matches(a: &Option<String>, b: &Option<String>) -> bool {
-    match (a, b) {
-        (Some(a), Some(b)) => a == b,
-        _ => true,
-    }
 }
 
 fn action_card_name(action: &AvailableAction, index: Option<&NameIndex>) -> Option<String> {
@@ -407,14 +398,6 @@ fn kind_tag(kind: &AvailableActionKind) -> &'static str {
         AvailableActionKind::UndoMana { .. } => "undoMana",
         AvailableActionKind::Delve { .. } => "delve",
         AvailableActionKind::Undelve { .. } => "undelve",
-    }
-}
-
-fn action_mode_label(kind: &AvailableActionKind) -> Option<String> {
-    match kind {
-        AvailableActionKind::Cast { mode_label, .. } => Some(mode_label.clone()),
-        AvailableActionKind::ActivateAbility(info) => Some(info.description.clone()),
-        _ => None,
     }
 }
 

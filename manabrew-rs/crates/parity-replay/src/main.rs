@@ -1,3 +1,4 @@
+mod analytics;
 mod diff;
 mod replay_agent;
 mod trace;
@@ -40,6 +41,8 @@ struct Args {
     deck0: Option<PathBuf>,
     #[arg(long)]
     deck1: Option<PathBuf>,
+    #[arg(long)]
+    events: Option<PathBuf>,
     #[arg(long, env = "CARDSET_ARCHIVE")]
     cardset: Option<PathBuf>,
     #[arg(long, default_value = "forge/forge-gui/res/cardsfolder")]
@@ -69,11 +72,21 @@ fn run() -> Result<(), String> {
     let (db, token_db) = load_card_data(args.cardset.as_deref())?;
     load_type_registry(&args.cards_dir);
 
+    let selections = match args.events.as_deref() {
+        Some(path) => Some(analytics::Selections::load(path)?),
+        None => None,
+    };
+
     let deck_paths = [args.deck0.as_deref(), args.deck1.as_deref()];
     let mut prepared: Vec<PreparedRegisteredPlayer> = Vec::new();
     for (idx, tp) in trace.header.players.iter().enumerate() {
-        let identities =
-            build_identities(&trace, idx, &tp.deck_name, deck_paths.get(idx).copied().flatten())?;
+        let identities = build_identities(
+            &trace,
+            idx,
+            tp,
+            deck_paths.get(idx).copied().flatten(),
+            selections.as_ref(),
+        )?;
         let mut player = prepare_registered_player(tp.username.clone(), &db, &identities);
         player.registered.starting_life = trace.header.starting_life;
         if let Some(commander) = tp.commander.as_deref() {
@@ -94,6 +107,11 @@ fn run() -> Result<(), String> {
         for idx in 0..registered.len() {
             game.player_mut(PlayerId(idx as u32)).commander_damage_enabled = true;
         }
+    }
+
+    if let Some(starter) = trace.starting_player {
+        game.turn.active_player = PlayerId(starter as u32);
+        game.turn.priority_player = PlayerId(starter as u32);
     }
 
     for idx in 0..registered.len() {
@@ -180,25 +198,59 @@ fn print_diffs(diffs: &[diff::FieldDiff]) {
 fn build_identities(
     trace: &trace::Trace,
     idx: usize,
-    deck_name: &str,
+    player: &trace::TracePlayer,
     deck_path: Option<&Path>,
+    selections: Option<&analytics::Selections>,
 ) -> Result<Vec<DeckCardIdentity>, String> {
     if let Some(path) = deck_path {
         let text = std::fs::read_to_string(path).map_err(|e| format!("read {path:?}: {e}"))?;
         let deck: Deck = serde_json::from_str(&text).map_err(|e| format!("parse {path:?}: {e}"))?;
-        return Ok(deck_to_identities(&deck));
+        return Ok(ensure_commander(deck_to_identities(&deck), player.commander.as_deref()));
+    }
+    if let Some(selections) = selections {
+        if let Some(identities) = selections.deck_for(
+            trace.header.room_id.as_deref(),
+            &player.username,
+            trace.header.ts.as_deref(),
+        ) {
+            eprintln!(
+                "[replay] player {idx} {:?}: {} cards from analytics DeckSelected (timestamp-joined)",
+                player.username,
+                identities.len()
+            );
+            return Ok(ensure_commander(identities, player.commander.as_deref()));
+        }
     }
     let reconstructed = trace.deck_cards.get(&idx).cloned().unwrap_or_default();
     if reconstructed.is_empty() {
         return Err(format!(
-            "no deck for player {idx}: pass --deck{idx} <deck.json> or use a trace with visible cards"
+            "no deck for player {idx}: pass --deck{idx} <deck.json>, --events <analytics dir>, or use a trace with visible cards"
         ));
     }
     eprintln!(
-        "[replay] player {idx} deck {deck_name:?}: reconstructed partial deck of {} distinct cards from trace; the full list would come from the analytics DeckSelected event keyed by this deck name",
+        "[replay] player {idx} deck {:?}: reconstructed partial deck of {} distinct cards from trace (pass --events for the full analytics decklist)",
+        player.deck_name,
         reconstructed.len()
     );
-    Ok(reconstructed)
+    Ok(ensure_commander(reconstructed, player.commander.as_deref()))
+}
+
+fn ensure_commander(
+    mut identities: Vec<DeckCardIdentity>,
+    commander: Option<&str>,
+) -> Vec<DeckCardIdentity> {
+    let Some(commander) = commander else {
+        return identities;
+    };
+    if !identities.iter().any(|i| i.name == commander) {
+        identities.push(DeckCardIdentity {
+            name: commander.to_string(),
+            set_code: String::new(),
+            card_number: String::new(),
+            section: Some("commander".to_string()),
+        });
+    }
+    identities
 }
 
 fn force_opening_hand(game: &mut GameState, pid: PlayerId, hand: Option<&Vec<String>>) {

@@ -22,6 +22,10 @@ pub struct TracePlayer {
 pub struct TraceHeader {
     pub game_id: String,
     #[serde(default)]
+    pub room_id: Option<String>,
+    #[serde(default)]
+    pub ts: Option<String>,
+    #[serde(default)]
     pub format: String,
     #[serde(default = "default_starting_life")]
     pub starting_life: i32,
@@ -43,6 +47,7 @@ pub struct Trace {
     pub decisions: Vec<Decision>,
     pub opening_hands: HashMap<usize, Vec<String>>,
     pub deck_cards: HashMap<usize, Vec<manabrew_game_runtime::deck::DeckCardIdentity>>,
+    pub starting_player: Option<usize>,
 }
 
 pub fn load(path: &Path) -> Result<Trace, String> {
@@ -58,6 +63,7 @@ pub fn load(path: &Path) -> Result<Trace, String> {
     let mut last_state: Option<GameViewDto> = None;
     let mut pending_prompt: Option<(AgentPrompt, Option<GameViewDto>)> = None;
     let mut decisions: Vec<Decision> = Vec::new();
+    let mut starting_player: Option<usize> = None;
     let mut opening_hands: HashMap<usize, Vec<String>> = HashMap::new();
     let mut deck_cards: HashMap<usize, HashMap<String, manabrew_game_runtime::deck::DeckCardIdentity>> =
         HashMap::new();
@@ -80,6 +86,9 @@ pub fn load(path: &Path) -> Result<Trace, String> {
                 normalize_game_view(&mut view_value);
                 match serde_json::from_value::<GameViewDto>(view_value) {
                     Ok(view) => {
+                        if starting_player.is_none() && view.turn >= 1 {
+                            starting_player = player_index(&view.active_player_id);
+                        }
                         record_visible_cards(&view, &mut deck_cards);
                         last_state = Some(view);
                     }
@@ -126,6 +135,7 @@ pub fn load(path: &Path) -> Result<Trace, String> {
         decisions,
         opening_hands,
         deck_cards,
+        starting_player,
     })
 }
 

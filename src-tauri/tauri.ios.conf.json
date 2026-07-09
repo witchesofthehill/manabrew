@@ -1,0 +1,10 @@
+{
+  "build": {
+    "beforeBuildCommand": "yarn vite:build"
+  },
+  "bundle": {
+    "resources": {
+      "resources/cardset.rkyv": "cardset.rkyv"
+    }
+  }
+}

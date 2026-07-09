@@ -1688,6 +1688,7 @@ public final class ManaBrewInteractiveSession {
             if (sa.isLandAbility() || sa.isSpell()) {
                 actionsArray.add(new AvailableAction_cast(id, cardId, id, label));
             } else if (sa.isManaAbility()) {
+                final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
                 final String cost = simpleCostText(sa);
                 for (final ManaChoice choice : splitManaChoices(produced, sa.amountOfManaGenerated(false))) {
@@ -1695,10 +1696,11 @@ public final class ManaBrewInteractiveSession {
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, label, true, cost, choice.producedMana));
+                            actionId, cardId, i, description, true, cost, choice.producedMana));
                 }
             } else {
-                actionsArray.add(new AvailableAction_activateAbility(id, cardId, i, label, false, null, null));
+                actionsArray.add(new AvailableAction_activateAbility(
+                        id, cardId, i, abilityDescription(sa, label), false, null, null));
             }
         }
         for (final Card card : untappableCards) {
@@ -1706,6 +1708,11 @@ public final class ManaBrewInteractiveSession {
             actionsArray.add(new AvailableAction_undoMana("untap:" + cardId, cardId));
         }
         publishAgentPrompt("player-" + playerId, null, new ChooseActionInput(actionsArray));
+    }
+
+    private static String abilityDescription(final SpellAbility sa, final String fallback) {
+        final String text = sa.toString().trim();
+        return text.isEmpty() ? fallback : text;
     }
 
     private ChooseCardsInput chooseCardsInput(

@@ -81,7 +81,7 @@ export function ChatComponent({ channelId }: ChatComponentProps) {
       </ScrollArea>
       <div className="p-2 border-t flex gap-1.5">
         <Input
-          className="h-8 text-xs"
+          className="h-8 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
           placeholder="Type a message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}

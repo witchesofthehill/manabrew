@@ -524,6 +524,13 @@ export function TablesList({
                       <Swords className="h-3 w-3" /> {startingGame ? "Starting…" : "Start Game"}
                     </Button>
                   )}
+                  {!canStart && (
+                    <p className="hidden w-full text-right text-[10px] text-muted-foreground pointer-coarse:block">
+                      {!controllerHasDeck && !isOpenFormat
+                        ? "Select a deck before starting"
+                        : "All other players must be ready"}
+                    </p>
+                  )}
                 </div>
               )}
               {!isController && currentRoom.status === "Lobby" && myPlayer && (
@@ -558,7 +565,7 @@ export function TablesList({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search rooms…"
-              className="h-8 pl-8 text-sm"
+              className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             />
           </div>
         </div>

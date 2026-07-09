@@ -1025,10 +1025,17 @@ fn bot_deck_from_payload(config: &Config, payload: &Value) -> DeckSelection {
         commander = ?deck.commander_name,
         "using requested bot deck"
     );
+    let commander_name = deck.commander_name.or_else(|| {
+        deck.deck
+            .commanders
+            .as_ref()
+            .and_then(|commanders| commanders.first())
+            .map(|commander| commander.identity.name.clone())
+    });
     DeckSelection {
         name: deck.deck_name,
         deck: deck.deck,
-        commander_name: deck.commander_name,
+        commander_name,
     }
 }
 
@@ -1075,6 +1082,24 @@ fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
         .spawn(body)
     {
         error!(%error, "failed to spawn hosted engine thread");
+    }
+}
+
+// Any stays commander-capable: hosted "Any" rooms resolve their real format
+// at StartGame, and dropping commanders there would break commander games.
+fn is_commander_variant(format: GameFormat) -> bool {
+    match format {
+        GameFormat::Any | GameFormat::Commander | GameFormat::Brawl | GameFormat::Oathbreaker => {
+            true
+        }
+        GameFormat::Standard
+        | GameFormat::Pioneer
+        | GameFormat::Modern
+        | GameFormat::Legacy
+        | GameFormat::Vintage
+        | GameFormat::Pauper
+        | GameFormat::Draft
+        | GameFormat::Sealed => false,
     }
 }
 
@@ -1169,6 +1194,13 @@ fn maybe_start_hosted_engine(
 
     let player_names = player_order;
     let game_id = format!("room-game-{}", Uuid::new_v4());
+    let commander_variant = is_commander_variant(
+        snapshot
+            .lock()
+            .ok()
+            .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
+            .unwrap_or(GameFormat::Any),
+    );
 
     match backend {
         EngineBackendKind::Manabrew => {
@@ -1267,6 +1299,7 @@ fn maybe_start_hosted_engine(
                         player_names,
                         ordered_decks,
                         commander_names,
+                        commander_variant,
                         local_player_index,
                         ai_player_indices,
                         starting_life,

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.0](https://github.com/witchesofthehill/manabrew/compare/v1.3.3...v1.4.0) (2026-07-09)
+
+### Features
+
+* **mobile:** ship iOS via SideStore+ android apk + fix mobile card-db bundling ([#365](https://github.com/witchesofthehill/manabrew/issues/365)) ([03bcf62](https://github.com/witchesofthehill/manabrew/commit/03bcf623f34092ff7ac6a7d63b2e1f7f516fd3c6))
+
+### Fixes
+
+* **ui:** bot commander configuration and warn-only deck validity - crew ability ([#368](https://github.com/witchesofthehill/manabrew/issues/368)) ([6b2c653](https://github.com/witchesofthehill/manabrew/commit/6b2c6534ad969be1ff56d16cfd58bb4a0d80d577))
+
 ## [1.3.3](https://github.com/witchesofthehill/manabrew/compare/v1.3.2...v1.3.3) (2026-07-09)
 
 ## [1.3.2](https://github.com/witchesofthehill/manabrew/compare/v1.3.1...v1.3.2) (2026-07-09)

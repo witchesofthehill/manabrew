@@ -2,31 +2,16 @@ use std::sync::OnceLock;
 
 use forge_foundation::edition::EditionsRegistry;
 use forge_limited::bootstrap::build_registry;
-use memmap2::Mmap;
 
 static EDITIONS: OnceLock<EditionsRegistry> = OnceLock::new();
 
 pub fn editions() -> &'static EditionsRegistry {
     EDITIONS.get_or_init(|| {
-        let archive_path = crate::card_db::cardset_archive_path();
-        let file = match std::fs::File::open(&archive_path) {
-            Ok(f) => f,
-            Err(e) => {
-                eprintln!(
-                    "[limited_bootstrap] open {}: {e} — per-set templates disabled",
-                    archive_path.display()
-                );
-                return EditionsRegistry::new();
-            }
+        let Some(bytes) = crate::card_db::cardset_archive_bytes() else {
+            eprintln!("[limited_bootstrap] cardset archive unavailable — per-set templates disabled");
+            return EditionsRegistry::new();
         };
-        let mmap = match unsafe { Mmap::map(&file) } {
-            Ok(m) => m,
-            Err(e) => {
-                eprintln!("[limited_bootstrap] mmap: {e}");
-                return EditionsRegistry::new();
-            }
-        };
-        let archive = match forge_cardset_archive::load_checked(&mmap) {
+        let archive = match forge_cardset_archive::load_checked(bytes) {
             Ok(a) => a,
             Err(e) => {
                 eprintln!("[limited_bootstrap] archive validation failed: {e}");

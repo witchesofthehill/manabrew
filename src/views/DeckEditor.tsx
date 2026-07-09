@@ -8,7 +8,8 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   pointerWithin,
@@ -137,7 +138,10 @@ export default function DeckEditor() {
 
   const blocker = useBlocker(hasUnsavedChanges && view === "editor" && !isReadOnly);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   useEffect(() => {
     return () => {

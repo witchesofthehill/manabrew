@@ -56,8 +56,17 @@ export function useHandDrag({
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);
       document.removeEventListener("pointercancel", handlePointerCancel);
+      document.removeEventListener("pointerdown", handleSecondPointerDown);
       longPress.cancel();
       teardownRef.current = null;
+    };
+
+    // A second finger means a pinch, not a cast — abort without releasing the
+    // spell over the battlefield.
+    const handleSecondPointerDown = (pe: PointerEvent) => {
+      if (pe.pointerId === start.pointerId) return;
+      teardown();
+      reset();
     };
 
     const handlePointerMove = (pe: PointerEvent) => {
@@ -118,6 +127,7 @@ export function useHandDrag({
     document.addEventListener("pointermove", handlePointerMove);
     document.addEventListener("pointerup", handlePointerUp);
     document.addEventListener("pointercancel", handlePointerCancel);
+    document.addEventListener("pointerdown", handleSecondPointerDown);
     teardownRef.current = () => {
       teardown();
       reset();

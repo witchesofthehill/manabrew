@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "resources": {
+      "resources/forge-runtime": "engine/forge",
+      "resources/cardset.rkyv": "cardset.rkyv"
+    }
+  }
+}

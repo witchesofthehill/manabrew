@@ -438,6 +438,121 @@ jobs:
 
           post_discord
 
+  # ── iOS .ipa (SideStore) ───────────────────────────────────────────
+  # Unsigned IPA for sideloading via SideStore, which re-signs on-device
+  # with the user's own Apple ID. Mobile builds neither host Forge rooms
+  # nor need the GraalVM harness, so this job skips GraalVM/Maven entirely
+  # (tauri.ios.conf.json overrides beforeBuildCommand to `yarn vite:build`).
+  ios-ipa:
+    name: Build iOS .ipa
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+          fetch-depth: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-ios
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      - name: Tauri build (iOS, unsigned)
+        run: yarn tauri ios build --no-sign
+
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: src-tauri/gen/apple/build/arm64/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+  # ── Android .apk ───────────────────────────────────────────────────
+  # arm64 APK attached to the GitHub Release. Like iOS, Android hosts no
+  # Forge rooms and skips the GraalVM harness (tauri.android.conf.json
+  # overrides beforeBuildCommand); the card DB is embedded in the binary
+  # (card_db.rs) since APK assets can't be mmap'd. The SDK + an NDK ship
+  # preinstalled on ubuntu-latest; scripts/mobile-dev.mjs derives
+  # ANDROID_HOME / NDK_HOME. The release APK is unsigned — a keystore
+  # secret would be needed to produce an installable signed build.
+  android-apk:
+    name: Build Android .apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+          fetch-depth: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-android
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      - name: Tauri build (Android APK, arm64)
+        run: node scripts/mobile-dev.mjs android build --apk --target aarch64
+
+      - name: Upload .apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ github.sha }}
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
   # ── Publish GitHub Release ─────────────────────────────────────────
   # Downloads the artifacts built above, generates the updater manifest,
   # and attaches everything to the GitHub Release xtask created for the tag.
@@ -608,6 +723,52 @@ jobs:
 
           post_discord
 
+  # ── Attach mobile artifacts to the Release ─────────────────────────
+  # Uploads the iOS .ipa and Android .apk to the published Release. Kept
+  # OUT of the `release` job's `needs` so a flaky mobile build never blocks
+  # the desktop installers: this job runs after `release` regardless of the
+  # mobile jobs' results (`if: always()`), downloads whichever artifacts
+  # exist, and uploads each — a missing one is skipped, not fatal.
+  release-mobile:
+    name: Attach mobile artifacts to release
+    needs: [release, ios-ipa, android-apk]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download iOS IPA
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: mobile/ios
+
+      - name: Download Android APK
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-${{ github.sha }}
+          path: mobile/android
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          shopt -s globstar nullglob
+          files=(mobile/ios/**/*.ipa mobile/android/**/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning::No mobile artifacts found — both mobile builds failed?"
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Uploading $f"
+            gh release upload "$TAG" "$f" --clobber --repo "$REPO"
+          done
+
   # ── Deploy production (runs LAST) ──────────────────────────────────
   # Ships the Wasm/web stack only after the Release has all its artifacts,
   # so the tauri.json redirect and the served manifest.json never point at
@@ -757,3 +918,62 @@ jobs:
         run: |
           echo "deploy step outcome: ${{ steps.deploy.outcome }}"
           exit 1
+
+  # ── Publish SideStore source (runs after web deploy) ───────────────
+  # Ships the unsigned iOS IPA + a regenerated apps.json to the deploy
+  # host's ops/sidestore/ dir, bind-mounted into the caddy container at
+  # /srv/manabrew/sidestore (compose.production.yml). Runs after `deploy`
+  # so the /sidestore Caddy route and the bind-mount are live before the
+  # files land. SideStore source URL: play.manabrew.app/sidestore/apps.json.
+  deploy-sidestore:
+    name: Publish SideStore source
+    needs: [deploy, ios-ipa]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: sidestore-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Download iOS IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: ipa
+
+      - name: Stage SideStore artifacts
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p sidestore-out
+          cp "$(find ipa -name '*.ipa' | head -1)" "sidestore-out/Manabrew-${VERSION}.ipa"
+          cp src-tauri/icons/512x512.png sidestore-out/icon.png
+          node scripts/gen-sidestore-source.mjs \
+            --tag "$GITHUB_REF_NAME" \
+            --ipa "sidestore-out/Manabrew-${VERSION}.ipa" \
+            --out sidestore-out/apps.json \
+            --date "$(date -u +%Y-%m-%d)"
+
+      - name: Rsync to deploy host
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          rsync -az --chmod=F644 \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            sidestore-out/ "$USER@$HOST:$DEPLOY_PATH/ops/sidestore/"

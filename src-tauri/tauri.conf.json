@@ -1,6 +1,6 @@
 {
   "productName": "Manabrew",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "identifier": "com.manabrew.app",
   "build": {
     "frontendDist": "../dist",
@@ -27,10 +27,6 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": {
-      "resources/forge-runtime": "engine/forge",
-      "resources/cardset.rkyv": "cardset.rkyv"
-    },
     "icon": [
       "icons/icon.icns",
       "icons/icon.ico",

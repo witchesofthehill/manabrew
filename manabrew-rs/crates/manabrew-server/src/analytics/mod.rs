@@ -185,7 +185,8 @@ pub fn emit_game_ended(
 
 pub fn aggregate_deck_cards(deck: &Deck) -> Vec<CardEntry> {
     let mut counts: HashMap<(String, String), u32> = HashMap::new();
-    for card in &deck.cards {
+    let commanders = deck.commanders.iter().flatten();
+    for card in deck.cards.iter().chain(commanders) {
         *counts
             .entry((card.identity.name.clone(), card.identity.set_code.clone()))
             .or_insert(0) += 1;

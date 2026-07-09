@@ -49,6 +49,10 @@ struct Args {
     cards_dir: PathBuf,
     #[arg(long, default_value_t = 400)]
     max_turns: u32,
+    #[arg(long)]
+    continue_on_divergence: bool,
+    #[arg(long, default_value_t = 50)]
+    max_divergences: usize,
 }
 
 fn main() {
@@ -126,7 +130,12 @@ fn run() -> Result<(), String> {
     game_loop.set_abort_signal(Arc::clone(&abort));
     register_tokens_from_db(&mut game_loop, &token_db);
 
-    let ctx = Rc::new(RefCell::new(ReplayContext::new(trace.decisions, Arc::clone(&abort))));
+    let ctx = Rc::new(RefCell::new(ReplayContext::new(
+        trace.decisions,
+        Arc::clone(&abort),
+        args.continue_on_divergence,
+        args.max_divergences,
+    )));
 
     let mut agents: Vec<Box<dyn PlayerAgent>> = Vec::new();
     for idx in 0..registered.len() {
@@ -158,27 +167,47 @@ fn report(ctx: &ReplayContext) {
         "[replay] diffed {} decisions, {} clean, remap misses {}, desyncs {}",
         ctx.diffed_decisions, ctx.clean_decisions, ctx.remap_misses, ctx.desyncs
     );
-    match &ctx.divergence {
-        None => {
+    let Some(first) = ctx.first_divergence() else {
+        println!(
+            "CLEAN: replayed cleanly through {} diffed decisions (of {} recorded)",
+            ctx.clean_decisions,
+            ctx.total_decisions()
+        );
+        return;
+    };
+
+    let label = if first.is_library_boundary() {
+        "LIBRARY BOUNDARY"
+    } else {
+        "DIVERGENCE"
+    };
+    let suffix = if first.is_library_boundary() {
+        ": first divergence is hidden-library dependent (expected)"
+    } else {
+        ""
+    };
+    println!(
+        "{label} at decision #{} (turn {} {}, {} on {}){suffix}",
+        first.decision_index, first.turn, first.step, first.prompt_kind, first.deciding_player
+    );
+    print_diffs(&first.diffs);
+
+    if ctx.divergences.len() > 1 {
+        println!(
+            "+ {} more divergence(s) observed (continue-on-divergence; uncorrected replay):",
+            ctx.divergences.len() - 1
+        );
+        for div in ctx.divergences.iter().skip(1) {
+            let fields: Vec<&str> = div.diffs.iter().map(|d| d.path.as_str()).collect();
             println!(
-                "CLEAN: replayed cleanly through {} diffed decisions (of {} recorded)",
-                ctx.clean_decisions,
-                ctx.total_decisions()
+                "  #{} turn {} {} {} on {}: {}",
+                div.decision_index,
+                div.turn,
+                div.step,
+                div.prompt_kind,
+                div.deciding_player,
+                fields.join(", ")
             );
-        }
-        Some(div) if div.is_library_boundary() => {
-            println!(
-                "LIBRARY BOUNDARY at decision #{} (turn {} {}, {} on {}): first divergence is hidden-library dependent (expected)",
-                div.decision_index, div.turn, div.step, div.prompt_kind, div.deciding_player
-            );
-            print_diffs(&div.diffs);
-        }
-        Some(div) => {
-            println!(
-                "DIVERGENCE at decision #{} (turn {} {}, {} on {})",
-                div.decision_index, div.turn, div.step, div.prompt_kind, div.deciding_player
-            );
-            print_diffs(&div.diffs);
         }
     }
 }

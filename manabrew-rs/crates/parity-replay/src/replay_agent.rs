@@ -39,30 +39,43 @@ pub struct ReplayContext {
     cursor: usize,
     pub clean_decisions: usize,
     pub diffed_decisions: usize,
-    pub divergence: Option<Divergence>,
+    pub divergences: Vec<Divergence>,
     pub remap_misses: usize,
     pub desyncs: usize,
     pub abort: Arc<AtomicBool>,
+    keep_going: bool,
+    max_divergences: usize,
     done: bool,
 }
 
 impl ReplayContext {
-    pub fn new(decisions: Vec<Decision>, abort: Arc<AtomicBool>) -> Self {
+    pub fn new(
+        decisions: Vec<Decision>,
+        abort: Arc<AtomicBool>,
+        keep_going: bool,
+        max_divergences: usize,
+    ) -> Self {
         Self {
             decisions,
             cursor: 0,
             clean_decisions: 0,
             diffed_decisions: 0,
-            divergence: None,
+            divergences: Vec::new(),
             remap_misses: 0,
             desyncs: 0,
             abort,
+            keep_going,
+            max_divergences,
             done: false,
         }
     }
 
     pub fn total_decisions(&self) -> usize {
         self.decisions.len()
+    }
+
+    pub fn first_divergence(&self) -> Option<&Divergence> {
+        self.divergences.first()
     }
 
     fn advance_to(&mut self, kind: &str) -> Option<usize> {
@@ -115,18 +128,20 @@ impl Responder for ReplayAgent {
             if diffs.is_empty() {
                 ctx.clean_decisions += 1;
             } else {
-                let divergence = Divergence {
+                ctx.divergences.push(Divergence {
                     decision_index: index,
                     turn: trace_view.turn,
                     step: trace_view.step.clone(),
                     deciding_player: prompt.deciding_player_id.clone(),
                     prompt_kind: live_kind.to_string(),
                     diffs,
-                };
-                ctx.divergence = Some(divergence);
-                ctx.done = true;
-                ctx.abort.store(true, Ordering::Relaxed);
-                return safe_default(&prompt);
+                });
+                let stop = !ctx.keep_going || ctx.divergences.len() >= ctx.max_divergences;
+                if stop {
+                    ctx.done = true;
+                    ctx.abort.store(true, Ordering::Relaxed);
+                    return safe_default(&prompt);
+                }
             }
         }
 

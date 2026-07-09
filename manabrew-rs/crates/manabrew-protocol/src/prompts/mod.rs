@@ -38,7 +38,10 @@ pub use choose_damage_assignment_order::{
 };
 pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
-pub use common::{ActivatableAbilityInfo, AvailableAction, AvailableActionKind, Mana, ManaColor};
+pub use common::{
+    ActivatableAbilityInfo, AlternativeCostKind, AvailableAction, AvailableActionKind,
+    PaymentAction, PaymentActionKind, PaymentResourceKind, PlayCardMode,
+};
 pub use dice_rolled::{DiceRollEntry, DiceRolledInput, DiceRolledOutput};
 pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};

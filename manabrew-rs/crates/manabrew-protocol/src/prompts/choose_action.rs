@@ -30,6 +30,8 @@ pub enum ChooseActionOutput {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         until: Option<PassUntil>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        exhaust_stack: bool,
     },
     RestoreSnapshot {
         #[ts(type = "number")]

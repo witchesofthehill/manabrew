@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::AvailableAction;
+use crate::prompts::common::PaymentAction;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -11,7 +11,7 @@ pub struct PayManaCostInput {
     pub card_name: String,
     pub mana_cost: String,
     pub can_confirm_from_pool: bool,
-    pub actions: Vec<AvailableAction>,
+    pub actions: Vec<PaymentAction>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub description: Option<String>,
@@ -32,6 +32,5 @@ pub enum PayManaCostOutput {
         #[serde(default)]
         auto: bool,
     },
-    PayLife,
     Cancel,
 }

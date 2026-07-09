@@ -2,10 +2,10 @@ pub use crate::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 #[cfg(test)]
-const PROTOCOL_SCHEMA_FINGERPRINT: &str = "0a0ad632e3c9dfa9";
+const PROTOCOL_SCHEMA_FINGERPRINT: &str = "0aefff22867a56c5";
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
@@ -355,7 +355,9 @@ mod schema_fingerprint {
     use crate::display::DisplayEvent;
     use crate::prompts::{PromptInput, PromptOutput};
     use crate::protocol::ResumeRoomRequest;
-    use crate::transport::{AgentPrompt, ClientToServerMessage, DirectiveInput, StateUpdate};
+    use crate::transport::{
+        AgentPrompt, ClientToServerMessage, DirectiveInput, ProtocolError, StateUpdate,
+    };
     use std::path::{Path, PathBuf};
     use ts_rs::TS;
 
@@ -394,6 +396,7 @@ mod schema_fingerprint {
         StateUpdate::export_all_to(&dir).unwrap();
         DirectiveInput::export_all_to(&dir).unwrap();
         ClientToServerMessage::export_all_to(&dir).unwrap();
+        ProtocolError::export_all_to(&dir).unwrap();
         DisplayEvent::export_all_to(&dir).unwrap();
         Deck::export_all_to(&dir).unwrap();
         ResumeRoomRequest::export_all_to(&dir).unwrap();

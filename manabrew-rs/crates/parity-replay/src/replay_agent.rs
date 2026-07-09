@@ -4,10 +4,11 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use forge_foundation::ZoneType;
 use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::maintenance::MaintenanceEdit;
-use manabrew_protocol::game::GameViewDto;
+use manabrew_protocol::game::{CardDto, GameViewDto};
 use manabrew_protocol::prompts::choose_action::ChooseActionOutput;
 use manabrew_protocol::prompts::choose_attackers::ChooseAttackersOutput;
 use manabrew_protocol::prompts::choose_blockers::ChooseBlockersOutput;
@@ -149,7 +150,7 @@ impl Responder for ReplayAgent {
                     diffs,
                 });
                 if self.reconcile {
-                    new_edits = scalar_reconcile_edits(rust_view, trace_view);
+                    new_edits = reconcile_edits(rust_view, trace_view);
                 }
                 let stop = !ctx.keep_going || ctx.divergences.len() >= ctx.max_divergences;
                 if stop {
@@ -179,7 +180,15 @@ impl Responder for ReplayAgent {
     }
 }
 
-fn scalar_reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEdit> {
+fn name_multiset(cards: &[CardDto]) -> HashMap<String, u32> {
+    let mut out: HashMap<String, u32> = HashMap::new();
+    for card in cards {
+        *out.entry(card.identity.name.clone()).or_default() += 1;
+    }
+    out
+}
+
+fn reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEdit> {
     let mut edits = Vec::new();
     for trace_player in &trace.players {
         let Some(index) = trace_player
@@ -192,17 +201,44 @@ fn scalar_reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<Mainte
         let Some(rust_player) = rust.player(&trace_player.id) else {
             continue;
         };
+        let player = PlayerId(index);
         if rust_player.life != trace_player.life {
             edits.push(MaintenanceEdit::SetLife {
-                player: PlayerId(index),
+                player,
                 life: trace_player.life,
             });
         }
         if rust_player.poison != trace_player.poison {
             edits.push(MaintenanceEdit::SetPoison {
-                player: PlayerId(index),
+                player,
                 poison: trace_player.poison,
             });
+        }
+        let zones: [(ZoneType, &Vec<CardDto>, &Vec<CardDto>); 4] = [
+            (ZoneType::Hand, &rust_player.hand, &trace_player.hand),
+            (
+                ZoneType::Graveyard,
+                &rust_player.graveyard,
+                &trace_player.graveyard,
+            ),
+            (ZoneType::Exile, &rust_player.exile, &trace_player.exile),
+            (
+                ZoneType::Command,
+                &rust_player.command_zone,
+                &trace_player.command_zone,
+            ),
+        ];
+        for (zone, rust_cards, trace_cards) in zones {
+            if name_multiset(rust_cards) != name_multiset(trace_cards) {
+                edits.push(MaintenanceEdit::SetZone {
+                    player,
+                    zone,
+                    card_names: trace_cards
+                        .iter()
+                        .map(|c| c.identity.name.clone())
+                        .collect(),
+                });
+            }
         }
     }
     edits

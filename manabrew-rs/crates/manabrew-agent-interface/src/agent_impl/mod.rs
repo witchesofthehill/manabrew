@@ -99,6 +99,15 @@ pub(crate) fn wire_maintenance_edit_to_engine(
             zone: ZoneType::from_str_compat(zone)?,
             owner: parse_player_id(owner_id)?,
         },
+        W::SetZone {
+            player_id,
+            zone,
+            card_names,
+        } => E::SetZone {
+            player: parse_player_id(player_id)?,
+            zone: ZoneType::from_str_compat(zone)?,
+            card_names: card_names.clone(),
+        },
     })
 }
 

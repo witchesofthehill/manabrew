@@ -62,6 +62,11 @@ pub enum MaintenanceEdit {
         zone: String,
         owner_id: String,
     },
+    SetZone {
+        player_id: String,
+        zone: String,
+        card_names: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

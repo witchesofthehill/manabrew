@@ -1085,6 +1085,24 @@ fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
     }
 }
 
+// Any stays commander-capable: hosted "Any" rooms resolve their real format
+// at StartGame, and dropping commanders there would break commander games.
+fn is_commander_variant(format: GameFormat) -> bool {
+    match format {
+        GameFormat::Any | GameFormat::Commander | GameFormat::Brawl | GameFormat::Oathbreaker => {
+            true
+        }
+        GameFormat::Standard
+        | GameFormat::Pioneer
+        | GameFormat::Modern
+        | GameFormat::Legacy
+        | GameFormat::Vintage
+        | GameFormat::Pauper
+        | GameFormat::Draft
+        | GameFormat::Sealed => false,
+    }
+}
+
 fn maybe_start_hosted_engine(
     config: &Config,
     engine_session: &SharedEngineSession,
@@ -1176,12 +1194,13 @@ fn maybe_start_hosted_engine(
 
     let player_names = player_order;
     let game_id = format!("room-game-{}", Uuid::new_v4());
-    let commander_variant = snapshot
-        .lock()
-        .ok()
-        .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
-        .unwrap_or(GameFormat::Any)
-        .is_commander_variant();
+    let commander_variant = is_commander_variant(
+        snapshot
+            .lock()
+            .ok()
+            .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
+            .unwrap_or(GameFormat::Any),
+    );
 
     match backend {
         EngineBackendKind::Manabrew => {

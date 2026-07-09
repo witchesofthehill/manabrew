@@ -4,7 +4,6 @@ mod replay_agent;
 mod trace;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
@@ -122,8 +121,16 @@ fn run() -> Result<(), String> {
 
     for idx in 0..registered.len() {
         let pid = PlayerId(idx as u32);
-        force_opening_hand(&mut game, pid, trace.opening_hands.get(&idx));
-        game.draw_cards(pid, 7);
+        let mut draw_count = 7;
+        if let Some(opening) = trace.opening_hands.get(&idx) {
+            draw_count = opening.len();
+            let mut sequence = opening.clone();
+            if let Some(draws) = trace.draw_order.get(&idx) {
+                sequence.extend(draws.iter().cloned());
+            }
+            force_library_order(&mut game, pid, &sequence);
+        }
+        game.draw_cards(pid, draw_count);
     }
 
     let mut game_loop = GameLoop::new(registered.len());
@@ -291,29 +298,32 @@ fn ensure_commander(
     identities
 }
 
-fn force_opening_hand(game: &mut GameState, pid: PlayerId, hand: Option<&Vec<String>>) {
-    let Some(hand) = hand else {
-        return;
-    };
-    let mut wanted: HashMap<String, usize> = HashMap::new();
-    for name in hand {
-        *wanted.entry(name.clone()).or_default() += 1;
-    }
+fn force_library_order(game: &mut GameState, pid: PlayerId, draw_sequence: &[String]) {
     let library: Vec<_> = game.cards_in_zone(ZoneType::Library, pid).to_vec();
-    let mut rest = Vec::new();
-    let mut top = Vec::new();
-    for cid in library {
-        let name = game.card(cid).card_name.clone();
-        match wanted.get_mut(&name) {
-            Some(count) if *count > 0 => {
-                *count -= 1;
-                top.push(cid);
+    let mut used = vec![false; library.len()];
+    let mut ordered = Vec::new();
+    for name in draw_sequence {
+        let found = library
+            .iter()
+            .enumerate()
+            .position(|(i, &cid)| !used[i] && game.card(cid).card_name == *name);
+        match found {
+            Some(i) => {
+                used[i] = true;
+                ordered.push(library[i]);
             }
-            _ => rest.push(cid),
+            None => break,
         }
     }
-    rest.extend(top);
-    game.replace_zone_cards(ZoneType::Library, pid, rest);
+    let mut new_library: Vec<_> = library
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !used[*i])
+        .map(|(_, &cid)| cid)
+        .collect();
+    ordered.reverse();
+    new_library.extend(ordered);
+    game.replace_zone_cards(ZoneType::Library, pid, new_library);
 }
 
 fn load_card_data(cardset: Option<&Path>) -> Result<(CardDatabase, CardDatabase), String> {

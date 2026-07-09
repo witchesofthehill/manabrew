@@ -13,8 +13,6 @@ pub struct TracePlayer {
     pub username: String,
     #[serde(default)]
     pub deck_name: String,
-    #[serde(default)]
-    pub commander: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -49,6 +47,7 @@ pub struct Trace {
     pub deck_cards: HashMap<usize, Vec<manabrew_game_runtime::deck::DeckCardIdentity>>,
     pub starting_player: Option<usize>,
     pub draw_order: HashMap<usize, Vec<String>>,
+    pub command_zone: HashMap<usize, Vec<String>>,
 }
 
 struct DrawTrack {
@@ -74,6 +73,7 @@ pub fn load(path: &Path) -> Result<Trace, String> {
     let mut opening_hands: HashMap<usize, Vec<String>> = HashMap::new();
     let mut draw_order: HashMap<usize, Vec<String>> = HashMap::new();
     let mut draw_track: HashMap<usize, DrawTrack> = HashMap::new();
+    let mut command_zone: HashMap<usize, Vec<String>> = HashMap::new();
     let mut deck_cards: HashMap<
         usize,
         HashMap<String, manabrew_game_runtime::deck::DeckCardIdentity>,
@@ -106,6 +106,13 @@ pub fn load(path: &Path) -> Result<Trace, String> {
                                     opening_hands.entry(idx).or_insert_with(|| {
                                         player
                                             .hand
+                                            .iter()
+                                            .map(|c| c.identity.name.clone())
+                                            .collect()
+                                    });
+                                    command_zone.entry(idx).or_insert_with(|| {
+                                        player
+                                            .command_zone
                                             .iter()
                                             .map(|c| c.identity.name.clone())
                                             .collect()
@@ -160,6 +167,7 @@ pub fn load(path: &Path) -> Result<Trace, String> {
         deck_cards,
         starting_player,
         draw_order,
+        command_zone,
     })
 }
 

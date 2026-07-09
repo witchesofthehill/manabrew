@@ -21,7 +21,7 @@ use manabrew_engine::game_runtime::GameRuntime;
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::player::RegisteredPlayer;
 use manabrew_game_runtime::deck::{
-    deck_to_identities, force_commander_by_name, instantiate_registered_players,
+    deck_to_identities, instantiate_registered_players, lookup_card_rules,
     prepare_registered_player, DeckCardIdentity, PreparedRegisteredPlayer,
 };
 use manabrew_game_runtime::host_runtime::register_tokens_from_db;
@@ -91,14 +91,10 @@ fn run() -> Result<(), String> {
             tp,
             deck_paths.get(idx).copied().flatten(),
             selections.as_ref(),
+            &db,
         )?;
         let mut player = prepare_registered_player(tp.username.clone(), &db, &identities);
         player.registered.starting_life = trace.header.starting_life;
-        if let Some(commander) = tp.commander.as_deref() {
-            if !force_commander_by_name(&mut player, commander) {
-                eprintln!("[replay] warning: commander {commander:?} not found in deck cards");
-            }
-        }
         prepared.push(player);
     }
 
@@ -243,59 +239,80 @@ fn build_identities(
     player: &trace::TracePlayer,
     deck_path: Option<&Path>,
     selections: Option<&analytics::Selections>,
+    db: &CardDatabase,
 ) -> Result<Vec<DeckCardIdentity>, String> {
-    if let Some(path) = deck_path {
+    let base = if let Some(path) = deck_path {
         let text = std::fs::read_to_string(path).map_err(|e| format!("read {path:?}: {e}"))?;
         let deck: Deck = serde_json::from_str(&text).map_err(|e| format!("parse {path:?}: {e}"))?;
-        return Ok(ensure_commander(
-            deck_to_identities(&deck),
-            player.commander.as_deref(),
-        ));
-    }
-    if let Some(selections) = selections {
-        if let Some(identities) = selections.deck_for(
+        deck_to_identities(&deck)
+    } else if let Some(identities) = selections.and_then(|s| {
+        s.deck_for(
             trace.header.room_id.as_deref(),
             &player.username,
             trace.header.ts.as_deref(),
-        ) {
-            eprintln!(
-                "[replay] player {idx} {:?}: {} cards from analytics DeckSelected (timestamp-joined)",
-                player.username,
-                identities.len()
-            );
-            return Ok(ensure_commander(identities, player.commander.as_deref()));
+        )
+    }) {
+        eprintln!(
+            "[replay] player {idx} {:?}: {} cards from analytics DeckSelected (timestamp-joined)",
+            player.username,
+            identities.len()
+        );
+        identities
+    } else {
+        let reconstructed = trace.deck_cards.get(&idx).cloned().unwrap_or_default();
+        if reconstructed.is_empty() {
+            return Err(format!(
+                "no deck for player {idx}: pass --deck{idx} <deck.json>, --events <analytics dir>, or use a trace with visible cards"
+            ));
         }
-    }
-    let reconstructed = trace.deck_cards.get(&idx).cloned().unwrap_or_default();
-    if reconstructed.is_empty() {
-        return Err(format!(
-            "no deck for player {idx}: pass --deck{idx} <deck.json>, --events <analytics dir>, or use a trace with visible cards"
-        ));
-    }
-    eprintln!(
-        "[replay] player {idx} deck {:?}: reconstructed partial deck of {} distinct cards from trace (pass --events for the full analytics decklist)",
-        player.deck_name,
-        reconstructed.len()
-    );
-    Ok(ensure_commander(reconstructed, player.commander.as_deref()))
+        eprintln!(
+            "[replay] player {idx} deck {:?}: reconstructed partial deck of {} distinct cards from trace (pass --events for the full analytics decklist)",
+            player.deck_name,
+            reconstructed.len()
+        );
+        reconstructed
+    };
+    Ok(complete_deck(
+        base,
+        trace.command_zone.get(&idx),
+        &player.deck_name,
+        db,
+    ))
 }
 
-fn ensure_commander(
+fn complete_deck(
     mut identities: Vec<DeckCardIdentity>,
-    commander: Option<&str>,
+    command_zone: Option<&Vec<String>>,
+    deck_name: &str,
+    db: &CardDatabase,
 ) -> Vec<DeckCardIdentity> {
-    let Some(commander) = commander else {
-        return identities;
-    };
-    if !identities.iter().any(|i| i.name == commander) {
+    if let Some(names) = command_zone {
+        for name in names {
+            match identities.iter_mut().find(|i| &i.name == name) {
+                Some(existing) => existing.section = Some("commander".to_string()),
+                None => identities.push(commander_identity(name)),
+            }
+        }
+    }
+    if lookup_card_rules(db, deck_name).is_some() && !identities.iter().any(|i| i.name == deck_name)
+    {
         identities.push(DeckCardIdentity {
-            name: commander.to_string(),
+            name: deck_name.to_string(),
             set_code: String::new(),
             card_number: String::new(),
-            section: Some("commander".to_string()),
+            section: Some("main".to_string()),
         });
     }
     identities
+}
+
+fn commander_identity(name: &str) -> DeckCardIdentity {
+    DeckCardIdentity {
+        name: name.to_string(),
+        set_code: String::new(),
+        card_number: String::new(),
+        section: Some("commander".to_string()),
+    }
 }
 
 fn force_library_order(game: &mut GameState, pid: PlayerId, draw_sequence: &[String]) {

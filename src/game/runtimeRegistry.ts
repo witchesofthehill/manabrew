@@ -1,5 +1,6 @@
 import { getPlatform } from "@/platform";
 import { isFeatureEnabled } from "@/featureFlags";
+import { IRONSMITH_WASM_AVAILABLE } from "./ironsmithWasmAvailable";
 import { IronsmithTrustedGameApi } from "./ironsmithRuntime";
 import { ManualTabletopGameApi } from "./manualTabletopApi";
 import type { GameRuntime, GameRuntimeCapabilities, GameRuntimeKind } from "./runtime.types";
@@ -58,7 +59,8 @@ const ironsmithRuntime: GameRuntime = {
 
 const runtimes: Record<GameRuntimeKind, GameRuntime | null> = {
   manabrew: manabrewRuntime,
-  ironsmith: isFeatureEnabled("ironsmithRuntime") ? ironsmithRuntime : null,
+  ironsmith:
+    isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE ? ironsmithRuntime : null,
   "manual-tabletop": manualTabletopRuntime,
   forge: null,
 };

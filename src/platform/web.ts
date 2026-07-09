@@ -34,10 +34,41 @@ import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 import { logComms } from "@/lib/commsLog";
-import wasmModuleUrl from "@/wasm/wasm_bg.wasm?url";
+import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
+import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
+
+/** Reload/bot-recovery trace, gated behind the debug-prompts preference. */
+const dlog = (...args: unknown[]) => {
+  if (isPromptLoggingEnabled()) console.log(...args);
+};
+
+/** One-line summary of a bot wire frame (in or out) for the reload trace. */
+function describeBotFrame(raw: string): string {
+  try {
+    const p = JSON.parse(raw) as {
+      type?: string;
+      state?: {
+        kind?: string;
+        forPlayer?: string;
+        fromPlayer?: string;
+        prompt?: { input?: { type?: string } };
+      };
+    };
+    let d = p.type ?? "?";
+    if ((p.type === "StateUpdate" || p.type === "BroadcastState") && p.state) {
+      d += ` kind=${p.state.kind}`;
+      if (p.state.forPlayer) d += ` forPlayer=${p.state.forPlayer}`;
+      if (p.state.fromPlayer) d += ` fromPlayer=${p.state.fromPlayer}`;
+      if (p.state.prompt?.input?.type) d += ` promptType=${p.state.prompt.input.type}`;
+    }
+    return d;
+  } catch {
+    return "?";
+  }
+}
 
 // ============================================================================
 // Worker Message Types
@@ -536,7 +567,9 @@ class WebGameApi implements IGameApi {
         fromPlayer,
         action: params.action,
       };
-      if (DEBUG_TRANSPORT) console.log(`[MP] respond→ as ${fromPlayer}:`, params.action.type);
+      dlog(
+        `[resume-wire] guest respond → broadcasting response as ${fromPlayer}: ${params.action.type}`,
+      );
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer
@@ -700,13 +733,16 @@ class WebServerApi implements IServerApi {
       if (msg.kind === "state") {
         const json = JSON.stringify(msg.state);
         if (json === this.lastRelayState) return;
+        this.lastRelayState = json;
         this.broadcastState({ kind: "state", state: msg.state });
       } else if (msg.kind === "display") {
         const json = JSON.stringify(msg.event);
         if (json === this.lastRelayDisplay) return;
+        this.lastRelayDisplay = json;
         this.broadcastState({ kind: "display", event: msg.event });
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
+        this.pendingRelayPrompts.set(forPlayer, envelope);
         this.broadcastState(envelope);
       }
     });
@@ -934,6 +970,7 @@ class WebServerApi implements IServerApi {
 
   async leaveRoom(): Promise<void> {
     this.stopAllBots();
+    clearSpawnedBots();
     this.send({ type: "LeaveRoom" });
   }
 
@@ -965,6 +1002,7 @@ class WebServerApi implements IServerApi {
 
   async endGame(): Promise<void> {
     this.stopAllBots();
+    clearSpawnedBots();
     this.send({ type: "EndGame" });
   }
 
@@ -974,7 +1012,6 @@ class WebServerApi implements IServerApi {
 
   /** Broadcast game state to other players in the room */
   async broadcastState(state: Record<string, unknown>): Promise<void> {
-    this.rememberRelayState(state);
     this.send({ type: "BroadcastState", state });
   }
 
@@ -1007,16 +1044,19 @@ class WebServerApi implements IServerApi {
       reconnectTimer: null,
     };
     this.bots.set(params.username, entry);
+    rememberSpawnedBot(params);
     const connect = () => {
       entry.reconnectTimer = null;
       if (entry.stopped || !this.relayUrl) {
         this.bots.delete(params.username);
         return;
       }
+      dlog(`[bot-life ${params.username}] connecting (attempt ${entry.attempt})`);
       const bot = new wasm.WasmBot(config);
       const ws = new WebSocket(this.relayUrl);
       entry.ws = ws;
       ws.onopen = () => {
+        dlog(`[bot-life ${params.username}] socket open → authenticating`);
         for (const msg of bot.on_open()) {
           logComms("bot-send", `[${params.username}] ${msg}`);
           ws.send(msg);
@@ -1025,8 +1065,16 @@ class WebServerApi implements IServerApi {
       ws.onmessage = (e: MessageEvent) => {
         if (typeof e.data !== "string") return;
         logComms("bot-recv", `[${params.username}] ${e.data}`);
-        for (const msg of bot.on_server_message(e.data)) {
+        const trace = isPromptLoggingEnabled();
+        const replies = bot.on_server_message(e.data);
+        if (trace) {
+          console.log(
+            `[bot-life ${params.username}] recv ${describeBotFrame(e.data)} → ${replies.length} repl${replies.length === 1 ? "y" : "ies"}`,
+          );
+        }
+        for (const msg of replies) {
           logComms("bot-send", `[${params.username}] ${msg}`);
+          if (trace) console.log(`[bot-life ${params.username}] send ${describeBotFrame(msg)}`);
           ws.send(msg);
         }
         const failure = bot.failure();
@@ -1056,6 +1104,7 @@ class WebServerApi implements IServerApi {
   }
 
   async removeAiBot(username: string): Promise<void> {
+    forgetSpawnedBot(username);
     const entry = this.bots.get(username);
     if (!entry) return;
     entry.stopped = true;
@@ -1080,14 +1129,9 @@ class WebServerApi implements IServerApi {
   private async loadWasm(): Promise<typeof import("@/wasm/wasm")> {
     if (!this.wasmReady) {
       this.wasmReady = (async () => {
-        try {
-          const wasm = await import("@/wasm/wasm");
-          await wasm.default({ module_or_path: wasmModuleUrl });
-          return wasm;
-        } catch (error) {
-          this.wasmReady = null;
-          throw error;
-        }
+        const wasm = await import("@/wasm/wasm");
+        await wasm.default();
+        return wasm;
       })();
     }
     return this.wasmReady;
@@ -1102,34 +1146,37 @@ class WebServerApi implements IServerApi {
     this.ws.send(JSON.stringify(msg));
   }
 
-  private rememberRelayState(envelope: Record<string, unknown>): void {
-    switch (envelope.kind) {
-      case "state":
-        this.lastRelayState = JSON.stringify(envelope.state ?? null);
-        return;
-      case "display":
-        this.lastRelayDisplay = JSON.stringify(envelope.event ?? null);
-        return;
-      case "prompt": {
-        const forPlayer = typeof envelope.forPlayer === "string" ? envelope.forPlayer : null;
-        if (forPlayer) this.pendingRelayPrompts.set(forPlayer, envelope);
-        return;
-      }
-      case "response": {
-        const fromPlayer = typeof envelope.fromPlayer === "string" ? envelope.fromPlayer : null;
-        if (fromPlayer) this.pendingRelayPrompts.delete(fromPlayer);
-        return;
-      }
-      default:
-        return;
-    }
-  }
-
   private handleServerMessage(msg: Record<string, unknown>): void {
     logComms("recv", msg);
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     const type = msg.type as string;
-    if (type === "GameAborted") this.stopAllBots();
+    if (isPromptLoggingEnabled()) {
+      if (type === "AuthResult") {
+        console.log(
+          `[resume-wire] AuthResult success=${msg.success} reconnected=${msg.reconnected}` +
+            ` player_id=${msg.player_id} error=${msg.error ?? "none"}`,
+        );
+      } else if (type === "RoomUpdate") {
+        const room = msg.room as
+          | { room_id?: string; status?: string; host?: string; players?: unknown[] }
+          | undefined;
+        const players = Array.isArray(room?.players)
+          ? (room?.players as { username?: string; is_bot?: boolean; connected?: boolean }[]).map(
+              (p) => `${p.username}${p.is_bot ? "(bot)" : ""}:${p.connected ? "on" : "off"}`,
+            )
+          : [];
+        console.log(
+          `[resume-wire] RoomUpdate id='${room?.room_id}' status='${room?.status}'` +
+            ` host='${room?.host}' players=[${players.join(", ")}]`,
+        );
+      } else if (type === "GameStarted" || type === "GameAborted" || type === "Error") {
+        console.log(`[resume-wire] ${type}`, JSON.stringify(msg));
+      }
+    }
+    if (type === "GameAborted") {
+      this.stopAllBots();
+      clearSpawnedBots();
+    }
 
     if (type === "ServerShuttingDown") {
       const reconnectInS = typeof msg.reconnect_in_s === "number" ? msg.reconnect_in_s : 5;
@@ -1145,6 +1192,16 @@ class WebServerApi implements IServerApi {
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;
+      const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
+      const promptType =
+        envelope.kind === "prompt"
+          ? ((envelope as { prompt?: { input?: { type?: string } } }).prompt?.input?.type ?? "?")
+          : undefined;
+      dlog(
+        `[resume-wire] main-socket StateUpdate from=${msg.from_player} kind=${envelope.kind}` +
+          (forPlayer ? ` forPlayer=${forPlayer}` : "") +
+          (promptType ? ` promptType=${promptType}` : ""),
+      );
       switch (envelope.kind) {
         case "response":
           this.pendingRelayPrompts.delete(envelope.fromPlayer);
@@ -1208,11 +1265,26 @@ class WebServerApi implements IServerApi {
       if (this.lastRelayState !== null) {
         void this.broadcastState({ kind: "state", state: JSON.parse(this.lastRelayState) });
       }
-      for (const envelope of Array.from(this.pendingRelayPrompts.values())) {
+      for (const envelope of this.pendingRelayPrompts.values()) {
         void this.broadcastState(envelope);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });
       return;
+    }
+
+    if (type === "AuthResult" && !msg.success) {
+      // openSocket resolves on ws.onopen, before auth completes, so
+      // tryReconnect has already reset the backoff by the time a rejection
+      // (e.g. duplicate_username from a second tab) arrives. Count the
+      // rejection so the retry loop backs off instead of hammering the relay.
+      this.reconnectAttempt += 1;
+      // "already taken" matches manabrew-server's duplicate-username AuthResult
+      // error. The holder is a session no tab-claim could release (crashed
+      // browser, other device), so it stays until the relay's 90s idle reap —
+      // jump to the slow end of the backoff instead of retrying every 2s.
+      if (typeof msg.error === "string" && msg.error.includes("already taken")) {
+        this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
+      }
     }
 
     // Map server message type to event name and payload

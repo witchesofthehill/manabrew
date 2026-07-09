@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { stripUsernameTag } from "@/lib/username";
 
 interface Message {
   id: string;
@@ -71,7 +72,7 @@ export function ChatComponent({ channelId }: ChatComponentProps) {
                 msg.type === "whisper" && "text-primary/80 bg-primary/5",
               )}
             >
-              <span className="font-semibold mr-1.5">{msg.sender}</span>
+              <span className="font-semibold mr-1.5">{stripUsernameTag(msg.sender)}</span>
               <span className="text-foreground/80">{msg.content}</span>
             </div>
           ))}

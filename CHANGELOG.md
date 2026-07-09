@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.3.3](https://github.com/witchesofthehill/manabrew/compare/v1.3.2...v1.3.3) (2026-07-09)
+
+## [1.3.2](https://github.com/witchesofthehill/manabrew/compare/v1.3.1...v1.3.2) (2026-07-09)
+
+### Fixes
+
+* reloading on a bot room will work ([#427](https://github.com/witchesofthehill/manabrew/issues/427)) ([3a22e15](https://github.com/witchesofthehill/manabrew/commit/3a22e15a16907679d152d849073356ea943fe08a))
+
+## [1.3.1](https://github.com/witchesofthehill/manabrew/compare/v1.3.0...v1.3.1) (2026-07-07)
+
+### Fixes
+
+* filter broken rooms ([#380](https://github.com/witchesofthehill/manabrew/issues/380)) ([f880233](https://github.com/witchesofthehill/manabrew/commit/f8802331709ba2b5ae06f5c40e958a93ecc450ce))
+
+## [1.3.0](https://github.com/witchesofthehill/manabrew/compare/v1.2.3...v1.3.0) (2026-07-07)
+
+### Features
+
+* better players tab ([#344](https://github.com/witchesofthehill/manabrew/issues/344)) ([1331637](https://github.com/witchesofthehill/manabrew/commit/13316377f463a53e204fe3abaf785085ad7f2664))
+
+### Fixes
+
+* **protocol:** concedes and leaves ([#343](https://github.com/witchesofthehill/manabrew/issues/343)) ([f1bb4d4](https://github.com/witchesofthehill/manabrew/commit/f1bb4d4678d499746de34574102e8ecbe45d816c))
+* **ui:** reset relay room after forced game end and latch start button ([#377](https://github.com/witchesofthehill/manabrew/issues/377)) ([296868e](https://github.com/witchesofthehill/manabrew/commit/296868ec871e61cc116ca954a27302a90a9d7870))
+
+### Other
+
+* Merge branch 'main' into staging ([a133e92](https://github.com/witchesofthehill/manabrew/commit/a133e92f1f3355dfb3e66aff9c932299071888e1))
+* Merge branch 'main' into staging ([261a6c2](https://github.com/witchesofthehill/manabrew/commit/261a6c27a8acf6be7bf9d7890e1ed6ca5f18db1a))
+
+## [1.2.3](https://github.com/witchesofthehill/manabrew/compare/v1.2.2...v1.2.3) (2026-07-07)
+
+### Fixes
+
+* **ui:** resolve same-browser username collisions via tab handover ([#373](https://github.com/witchesofthehill/manabrew/issues/373)) ([f4cb0ed](https://github.com/witchesofthehill/manabrew/commit/f4cb0ed70a9ca6ed66fa7214d1726d2c3ca6f909))
+
+## [1.2.2](https://github.com/witchesofthehill/manabrew/compare/v1.2.1...v1.2.2) (2026-07-06)
+
+### Fixes
+
+* **ui:** retry duplicate usernames under a hidden @NNNN tag ([#366](https://github.com/witchesofthehill/manabrew/issues/366)) ([db3c6a4](https://github.com/witchesofthehill/manabrew/commit/db3c6a490730194767d53b7a16e2c5375fc47b1a))
+
 ## [1.2.1](https://github.com/witchesofthehill/manabrew/compare/v1.2.0...v1.2.1) (2026-07-06)
 
 ## [1.2.0](https://github.com/witchesofthehill/manabrew/compare/v1.1.3...v1.2.0) (2026-07-06)

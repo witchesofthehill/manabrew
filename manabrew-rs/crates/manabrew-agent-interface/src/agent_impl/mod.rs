@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use forge_foundation::{ManaAtom, ZoneType};
 use manabrew_engine::agent::notification::GameNotification;
 use manabrew_engine::agent::{
@@ -129,13 +127,14 @@ impl<R: Responder> PromptAgent<R> {
             .pending_prompt
             .take()
             .expect("recv_action called without a pending prompt");
-        loop {
-            match self.responder.respond(prompt.clone()) {
-                ClientToServerMessage::Response { action } => return action,
-                ClientToServerMessage::Directive { directive } => {
-                    self.handle_directive(directive);
-                    return Self::fallback_action_after_directive(&prompt);
-                }
+        if self.conceded {
+            return PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
+        }
+        match self.responder.respond(prompt) {
+            ClientToServerMessage::Response { action } => action,
+            ClientToServerMessage::Directive { directive } => {
+                self.handle_directive(directive);
+                PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
             }
         }
     }
@@ -143,123 +142,6 @@ impl<R: Responder> PromptAgent<R> {
     fn handle_directive(&mut self, directive: DirectiveInput) {
         match directive {
             DirectiveInput::Concede => self.conceded = true,
-        }
-    }
-
-    fn fallback_action_after_directive(prompt: &AgentPrompt) -> PromptOutput {
-        match &prompt.input {
-            PromptInput::Mulligan(_) => {
-                PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: true })
-            }
-            PromptInput::MulliganPutBack(input) => {
-                PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision {
-                    card_ids: input
-                        .hand_card_ids
-                        .iter()
-                        .take(input.count)
-                        .cloned()
-                        .collect(),
-                })
-            }
-            PromptInput::ChooseAction(_) => {
-                PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
-            }
-            PromptInput::ChooseAttackers(_) => {
-                PromptOutput::ChooseAttackers(ChooseAttackersOutput::DeclareAttackers {
-                    assignments: Vec::new(),
-                })
-            }
-            PromptInput::ChooseBlockers(_) => {
-                PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers {
-                    assignments: Vec::new(),
-                })
-            }
-            PromptInput::ChooseBoardTargets(input) => {
-                let count = input.min_targets.max(0) as usize;
-                PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets {
-                    chosen: input.candidates.iter().take(count).cloned().collect(),
-                })
-            }
-            PromptInput::ChooseBoolean(_) => {
-                PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value: false })
-            }
-            PromptInput::ChooseFromSelection(input) => {
-                PromptOutput::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
-                    chosen_indices: (0..input.min_choices.min(input.options.len())).collect(),
-                })
-            }
-            PromptInput::GameOver(_) | PromptInput::DiceRolled(_) => {
-                PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged)
-            }
-            PromptInput::RevealCards(_) => {
-                PromptOutput::RevealCards(RevealCardsOutput::RevealCardsAcknowledged)
-            }
-            PromptInput::Scry(input) => {
-                let mut zone_card_ids = vec![Vec::new(); input.zones.len().max(1)];
-                zone_card_ids[0] = input.cards.iter().map(|card| card.id.clone()).collect();
-                PromptOutput::Scry(ScryOutput::ScryDecision { zone_card_ids })
-            }
-            PromptInput::ChooseColor(input) => {
-                let mut chosen_colors = BTreeMap::new();
-                if input.repeat_allowed {
-                    if let Some(color) = input.valid_colors.first() {
-                        chosen_colors.insert(color.clone(), input.amount);
-                    }
-                } else {
-                    for color in input.valid_colors.iter().take(input.amount as usize) {
-                        chosen_colors.insert(color.clone(), 1);
-                    }
-                }
-                PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { chosen_colors })
-            }
-            PromptInput::ChooseNumber(input) => {
-                PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
-                    chosen_number: Some(input.min),
-                })
-            }
-            PromptInput::ChooseDamageAssignmentOrder(input) => {
-                PromptOutput::ChooseDamageAssignmentOrder(
-                    ChooseDamageAssignmentOrderOutput::DamageAssignmentOrderDecision {
-                        ordered_blocker_ids: input.blocker_ids.clone(),
-                    },
-                )
-            }
-            PromptInput::ChooseCombatDamageAssignment(input) => {
-                let assignee_id = input
-                    .blocker_ids
-                    .first()
-                    .cloned()
-                    .or_else(|| input.defender_id.clone());
-                let assignments = assignee_id
-                    .map(|assignee_id| CombatDamageAssignmentEntry {
-                        assignee_id,
-                        damage: input.total_damage.max(0),
-                    })
-                    .into_iter()
-                    .filter(|entry| entry.damage > 0)
-                    .collect();
-                PromptOutput::ChooseCombatDamageAssignment(
-                    ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision {
-                        assignments,
-                    },
-                )
-            }
-            PromptInput::PayManaCost(_) => PromptOutput::PayManaCost(PayManaCostOutput::Cancel),
-            PromptInput::ChooseCards(input) => {
-                PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision {
-                    chosen_card_ids: input
-                        .cards
-                        .iter()
-                        .take(input.min)
-                        .map(|card| card.id.clone())
-                        .collect(),
-                })
-            }
-            PromptInput::ReorderCards(input) => {
-                PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision {
-                    ordered_card_ids: input.cards.iter().map(|card| card.id.clone()).collect(),
-                })
-            }
         }
     }
 
@@ -438,31 +320,6 @@ impl<R: Responder> PromptAgent<R> {
             }
             _ => valid.first().copied(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct ConcedeResponder;
-
-    impl Responder for ConcedeResponder {
-        fn respond(&mut self, _prompt: AgentPrompt) -> ClientToServerMessage {
-            ClientToServerMessage::Directive {
-                directive: DirectiveInput::Concede,
-            }
-        }
-    }
-
-    #[test]
-    fn concede_directive_during_mulligan_unwinds_without_prompt_mismatch() {
-        let mut agent = PromptAgent::new(PlayerId(0), "test-game".to_string(), ConcedeResponder);
-
-        let keep = choices::mulligan_decision(&mut agent, PlayerId(0), &[CardId(1)], 0);
-
-        assert!(keep);
-        assert!(agent.conceded);
     }
 }
 

@@ -282,6 +282,7 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
           const message = payload?.message ?? "Forced game exit";
+          const { isMultiplayer, isHost } = getState();
           clearActiveGameSession();
           setState({
             isGameActive: false,
@@ -296,6 +297,12 @@ export function useGameEventListeners() {
             snapshots: [],
             debugInfo: `Game ended: ${message}`,
           });
+          // Without EndGame the relay room stays InGame and every rematch
+          // action bounces off "Game has already started".
+          if (isMultiplayer && isHost) {
+            toast.error("Game ended unexpectedly — returning the room to the lobby.");
+            void useServerStore.getState().endGame();
+          }
         }),
       );
     } catch (e) {

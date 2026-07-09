@@ -17,6 +17,7 @@ import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
+import { stripUsernameTag } from "@/lib/username";
 import { getPlatform } from "@/platform";
 import { START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
@@ -146,6 +147,7 @@ export default function Lobby() {
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
+  const [startingGame, setStartingGame] = useState(false);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
 
@@ -387,9 +389,25 @@ export default function Lobby() {
       toast.error("The room is full.");
       return;
     }
-    const botName = `${username}-bot-${Date.now().toString(36)}`;
+    const botName = `${stripUsernameTag(username)}-bot-${Date.now().toString(36)}`;
     setBotDeckTarget(botName);
     setAiDeckDialogOpen(true);
+  }
+
+  async function handleStartGame() {
+    const room = currentRoom;
+    if (!room || startingGame) return;
+    setStartingGame(true);
+    const ackPromise = awaitGameStartedAck(room.room_id);
+    ackPromise.catch(() => {});
+    try {
+      await startGame();
+      await ackPromise;
+    } catch (e) {
+      toast.error(`Failed to start game: ${String(e)}`);
+    } finally {
+      setStartingGame(false);
+    }
   }
 
   async function handleStartDraft() {
@@ -600,11 +618,12 @@ export default function Lobby() {
             onSetFormat={setFormat}
             onSetMaxPlayers={handleSetMaxPlayers}
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
-            onStartGame={startGame}
+            onStartGame={handleStartGame}
             onStartTabletop={handleStartTabletop}
             onStartDraft={handleStartDraft}
             onStartSealed={handleStartSealed}
             startingLimited={startingLimited}
+            startingGame={startingGame}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}

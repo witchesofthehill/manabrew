@@ -45,6 +45,9 @@ pub struct PlayerState {
     pub has_lost: bool,
     pub has_won: bool,
     pub has_conceded: bool,
+    /// CR 800.4 processed: `on_player_lost` ran for this seat (Java's
+    /// `ingamePlayers` removal).
+    pub left_game: bool,
     pub outcome: Option<PlayerOutcome>,
 
     pub commander_damage_received: HashMap<u32, i32>,
@@ -177,6 +180,7 @@ impl PlayerState {
             has_lost: false,
             has_won: false,
             has_conceded: false,
+            left_game: false,
             outcome: None,
             commander_damage_received: HashMap::new(),
             commanders: Vec::new(),
@@ -333,6 +337,7 @@ impl PlayerState {
         self.has_lost = false;
         self.has_won = false;
         self.has_conceded = false;
+        self.left_game = false;
         self.outcome = None;
         self.statistics.set_outcome(None);
     }

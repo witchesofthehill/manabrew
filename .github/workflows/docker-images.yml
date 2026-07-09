@@ -5,6 +5,7 @@ name: Docker images
 # building:
 #   - ghcr.io/<owner>/manabrew-server : the multiplayer relay (small Rust binary)
 #   - ghcr.io/<owner>/manabrew-web    : the browser client + Caddy (WASM + Vite + docs)
+#   - ghcr.io/<owner>/manabrew-node   : the headless Forge room host (node + harness jar + JRE)
 #
 # GHCR is free and unlimited for public images and authenticates with the
 # built-in GITHUB_TOKEN — no registry secrets to configure. One-time setup: after
@@ -48,6 +49,8 @@ jobs:
             dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
           - image: manabrew-web
             dockerfile: Dockerfile.web
+          - image: manabrew-node
+            dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:

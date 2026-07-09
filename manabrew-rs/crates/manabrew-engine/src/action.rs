@@ -861,6 +861,108 @@ impl GameState {
         self.check_state_based_actions_impl(trigger_handler, None, Some(agents))
     }
 
+    fn on_player_lost(
+        &mut self,
+        player: PlayerId,
+        trigger_handler: &mut Option<&mut TriggerHandler>,
+    ) {
+        self.player_mut(player).left_game = true;
+        let is_multiplayer = self.player_order.len() > 2;
+        let all_cards: Vec<CardId> = (0..self.cards.len()).map(|i| CardId(i as u32)).collect();
+
+        if !is_multiplayer {
+            // CR 707.9: at the end of the game every face-down card is revealed.
+            for &cid in &all_cards {
+                self.cards[cid.index()].force_turn_face_up();
+            }
+            return;
+        }
+
+        // CR 724.4 / CR 725.4. Reassigned before the sweep so the old effect
+        if self.monarch == Some(player) {
+            let heir = if self.turn.active_player == player {
+                self.next_player(player)
+            } else {
+                self.turn.active_player
+            };
+            self.player_set_monarch(heir, trigger_handler.as_deref_mut());
+        }
+        if self.initiative_holder == Some(player) {
+            let heir = if self.turn.active_player == player {
+                self.next_player(player)
+            } else {
+                self.turn.active_player
+            };
+            self.player_take_initiative(heir, trigger_handler.as_deref_mut());
+        }
+
+        let next = self.next_player(player);
+        for &cid in &all_cards {
+            let (zone, owner, controller) = {
+                let card = &self.cards[cid.index()];
+                (card.zone, card.owner, card.controller)
+            };
+            if zone == ZoneType::None {
+                continue;
+            }
+            if owner != player {
+                // CR 800.4c: nothing stays enchanting the leaving player.
+                if self.cards[cid.index()].attached_to_player == Some(player) {
+                    self.cards[cid.index()].attached_to_player = None;
+                }
+                continue;
+            }
+            if self.cards[cid.index()].effect_source.is_some() && zone == ZoneType::Command {
+                // Mirrors Java: lingering effects move to the next player so
+                // they continue to work.
+                self.remove_card_from_zone(ZoneType::Command, controller, cid);
+                self.cards[cid.index()].controller = next;
+                self.add_card_to_zone(ZoneType::Command, next, cid);
+                continue;
+            }
+            // CR 800.4a: objects owned by the leaving player leave the game.
+            for &other in &all_cards {
+                if other == cid {
+                    continue;
+                }
+                let other_card = &mut self.cards[other.index()];
+                other_card.imprinted_cards.retain(|&r| r != cid);
+                other_card.remembered_cards.retain(|&r| r != cid);
+                other_card.attachments.retain(|&r| r != cid);
+                other_card.gain_control_targets.retain(|&r| r != cid);
+                if other_card.attached_to == Some(cid) {
+                    other_card.attached_to = None;
+                }
+            }
+            if let Some(handler) = trigger_handler.as_deref_mut() {
+                crate::ability::effects::emit_zone_trigger(handler, cid, zone, ZoneType::None);
+            }
+            self.remove_card_from_zone(zone, controller, cid);
+            self.cards[cid.index()].zone = ZoneType::None;
+        }
+
+        apply_continuous_effects(self);
+
+        // CR 800.4d as Java implements it: permanents the leaving player
+        for &cid in &all_cards {
+            let (zone, owner, controller) = {
+                let card = &self.cards[cid.index()];
+                (card.zone, card.owner, card.controller)
+            };
+            if zone == ZoneType::Battlefield && controller == player && owner != player {
+                if let Some(handler) = trigger_handler.as_deref_mut() {
+                    crate::ability::effects::emit_zone_trigger(
+                        handler,
+                        cid,
+                        ZoneType::Battlefield,
+                        ZoneType::Exile,
+                    );
+                }
+                self.move_card_without_replacement(cid, ZoneType::Exile, owner);
+            }
+        }
+    }
+
     fn move_battlefield_card_to_graveyard_for_sba(
         &mut self,
         cid: CardId,
@@ -1005,8 +1107,19 @@ impl GameState {
             }
         }
 
+        for pid in self.player_order.clone() {
+            if !self.player(pid).is_alive()
+                && !self.player(pid).left_game
+                && !newly_lost_players.contains(&pid)
+            {
+                newly_lost_players.push(pid);
+                any_changes = true;
+            }
+        }
+
         if !newly_lost_players.is_empty() {
             for pid in &newly_lost_players {
+                self.on_player_lost(*pid, &mut trigger_handler);
                 self.stack.remove_instances_controlled_by(*pid);
             }
             if let Some(handler) = trigger_handler.as_deref_mut() {

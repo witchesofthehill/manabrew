@@ -12,6 +12,7 @@
     "manabrew-agent-interface": "0.2.2",
     "manabrew-engine": "0.2.1",
     "manabrew-engine-macros": "0.2.0",
+    "manabrew-hub": "0.1.0",
     "manabrew-protocol": "0.4.1",
     "manabrew-server": "0.3.3",
     "manabrew_game_runtime": "0.2.2",

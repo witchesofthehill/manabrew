@@ -2,6 +2,7 @@ import { TablesList } from "@/components/lobby/TablesList";
 import { UserList, type ConnectionState } from "@/components/lobby/UserList";
 import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { LeaveGameModal } from "@/components/game/modals";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -110,6 +111,7 @@ export default function Lobby() {
     rooms,
     currentRoom,
     roomPassword,
+    hostingForgeRoom,
     players,
     gameStarted,
     playerOrder,
@@ -145,7 +147,19 @@ export default function Lobby() {
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
+  const [startingGame, setStartingGame] = useState(false);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
+  const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
+
+  // Leaving tears down the embedded Forge node (stopRoom), which kills the
+  // game for everyone still playing — by design. Make the host confirm it.
+  const handleLeaveRoom = () => {
+    if (hostingForgeRoom && currentRoom?.status === "InGame") {
+      setConfirmLeaveHostedGame(true);
+      return;
+    }
+    void leaveRoom();
+  };
 
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
@@ -380,6 +394,22 @@ export default function Lobby() {
     setAiDeckDialogOpen(true);
   }
 
+  async function handleStartGame() {
+    const room = currentRoom;
+    if (!room || startingGame) return;
+    setStartingGame(true);
+    const ackPromise = awaitGameStartedAck(room.room_id);
+    ackPromise.catch(() => {});
+    try {
+      await startGame();
+      await ackPromise;
+    } catch (e) {
+      toast.error(`Failed to start game: ${String(e)}`);
+    } finally {
+      setStartingGame(false);
+    }
+  }
+
   async function handleStartDraft() {
     const room = currentRoom;
     if (!room || !username) return;
@@ -583,16 +613,17 @@ export default function Lobby() {
             refreshing={refreshingLobby}
             refreshDisabled={!connected || connecting}
             onJoinRoom={handleJoinRoom}
-            onLeaveRoom={leaveRoom}
+            onLeaveRoom={handleLeaveRoom}
             onSetReady={setReady}
             onSetFormat={setFormat}
             onSetMaxPlayers={handleSetMaxPlayers}
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
-            onStartGame={startGame}
+            onStartGame={handleStartGame}
             onStartTabletop={handleStartTabletop}
             onStartDraft={handleStartDraft}
             onStartSealed={handleStartSealed}
             startingLimited={startingLimited}
+            startingGame={startingGame}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}
@@ -660,6 +691,15 @@ export default function Lobby() {
           }
         }}
       />
+      {confirmLeaveHostedGame && (
+        <LeaveGameModal
+          onStay={() => setConfirmLeaveHostedGame(false)}
+          onLeave={() => {
+            setConfirmLeaveHostedGame(false);
+            void leaveRoom();
+          }}
+        />
+      )}
     </div>
   );
 }

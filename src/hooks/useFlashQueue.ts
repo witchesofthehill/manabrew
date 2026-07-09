@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import type { FlashItem } from "@/components/game/game.types";
+import type { GameViewDto } from "@/protocol/game";
 
 /**
  * Manages the display-event flash queue: processes deferred snapshots,
@@ -23,7 +24,13 @@ export function useFlashQueue(flashDurationMs: number) {
 
   function applySnapshotFields(gameView: unknown, prompt: unknown) {
     const updates: Record<string, unknown> = {};
-    if (gameView) updates.gameView = gameView;
+    if (gameView) {
+      updates.gameView = gameView;
+      // Mirror route(): an eliminated seat has no pending prompt.
+      const view = gameView as GameViewDto;
+      const me = view.players?.find((p) => p.id === useGameStore.getState().myPlayerSlot);
+      if (me && me.status !== "playing") updates.currentPrompt = null;
+    }
     if (prompt) {
       updates.currentPrompt = prompt;
       updates.isWaitingForResponse = false;

@@ -745,13 +745,6 @@ fn handle_client_message(
                             room: resumed.room_info,
                         },
                     );
-                    for seat in resumed.awaiting_rejoin {
-                        crate::cleanup::schedule_seat_rejoin_abort(
-                            state.clone(),
-                            room_id.clone(),
-                            seat,
-                        );
-                    }
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' resume room failed: {}", username, e);

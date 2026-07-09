@@ -18,8 +18,21 @@ final class PriorityFastForward {
         if (current == null || active == null) {
             return true;
         }
+        if (targetPlayerHasLost(game, untilPlayer)) {
+            return true;
+        }
         final String activeSlot = "player-" + SnapshotExtractor.playerIndex(game, active);
         return activeSlot.equals(untilPlayer) && !current.isBefore(target);
+    }
+
+    /** A held target on a player who has left the game would never be reached. */
+    private static boolean targetPlayerHasLost(final Game game, final String untilPlayer) {
+        for (final Player p : game.getRegisteredPlayers()) {
+            if (("player-" + SnapshotExtractor.playerIndex(game, p)).equals(untilPlayer)) {
+                return p.hasLost();
+            }
+        }
+        return false;
     }
 
     /** Auto-pass (skip the prompt) only with an empty stack outside active combat. */

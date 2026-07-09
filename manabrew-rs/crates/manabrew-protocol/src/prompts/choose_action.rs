@@ -31,7 +31,6 @@ pub enum ChooseActionOutput {
         #[ts(optional)]
         until: Option<PassUntil>,
     },
-    Concede,
     RestoreSnapshot {
         #[ts(type = "number")]
         checkpoint_id: u64,

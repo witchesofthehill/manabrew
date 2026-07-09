@@ -38,6 +38,7 @@ export type {
   StartMultiplayerGameParams,
   RespondParams,
   RestoreSnapshotParams,
+  SendDirectiveParams,
   ServerConnectParams,
   CreateRoomParams,
   JoinRoomParams,

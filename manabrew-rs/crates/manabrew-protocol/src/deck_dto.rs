@@ -92,7 +92,6 @@ pub struct CardPart {
     pub component: CardPartComponent,
 }
 
-/// Mirror of `manabrew.ts:DeckCard`.
 #[derive(Debug, Clone, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]

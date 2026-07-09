@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
     SealedConfig,
@@ -44,6 +46,7 @@ pub struct Room {
     pub reconnect_timeout_s: u32,
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
+    pub humanless_since: Option<Instant>,
 }
 
 impl Room {
@@ -106,6 +109,7 @@ impl Room {
             reconnect_timeout_s,
             replay: None,
             resume_token: String::new(),
+            humanless_since: None,
         }
     }
 
@@ -225,6 +229,14 @@ impl Room {
     #[allow(dead_code)]
     pub fn all_disconnected(&self) -> bool {
         self.players.iter().all(|p| !p.connected) && self.observers.iter().all(|p| !p.connected)
+    }
+
+    pub fn has_connected_human(&self) -> bool {
+        self.players.iter().any(|p| p.connected && !p.is_bot)
+            || self
+                .observers
+                .iter()
+                .any(|o| o.connected && !(self.hosted && o.player_id == self.host_player_id))
     }
 
     pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(), String> {

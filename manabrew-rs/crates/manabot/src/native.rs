@@ -8,7 +8,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::state::{BotConfig, BotState};
 
@@ -16,14 +16,49 @@ type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsSink = SplitSink<WsStream, Message>;
 type WsRead = SplitStream<WsStream>;
 
+const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
 const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
+
+enum SessionEnd {
+    Shutdown,
+    Disconnected,
+}
 
 pub async fn run_bot(
     relay_url: String,
     config: BotConfig,
     shutdown: Arc<Notify>,
 ) -> Result<(), String> {
-    let (socket, _) = connect_async(&relay_url)
+    let mut attempt: usize = 0;
+    loop {
+        match run_bot_session(&relay_url, config.clone(), &shutdown).await {
+            Ok(SessionEnd::Shutdown) => {
+                info!("bot socket closed on shutdown");
+                return Ok(());
+            }
+            Ok(SessionEnd::Disconnected) => {
+                info!("bot socket closed; reconnecting");
+                attempt = 0;
+            }
+            Err(error) => {
+                warn!(%error, attempt, "bot session failed; reconnecting");
+            }
+        }
+        let delay = RECONNECT_BACKOFF_SECS[attempt.min(RECONNECT_BACKOFF_SECS.len() - 1)];
+        attempt += 1;
+        tokio::select! {
+            _ = shutdown.notified() => return Ok(()),
+            _ = tokio::time::sleep(Duration::from_secs(delay)) => {}
+        }
+    }
+}
+
+async fn run_bot_session(
+    relay_url: &str,
+    config: BotConfig,
+    shutdown: &Notify,
+) -> Result<SessionEnd, String> {
+    let (socket, _) = connect_async(relay_url)
         .await
         .map_err(|error| format!("Failed to connect bot to {}: {}", relay_url, error))?;
     let (mut sink, mut stream) = socket.split();
@@ -37,8 +72,7 @@ pub async fn run_bot(
         let frame = tokio::select! {
             _ = shutdown.notified() => {
                 close(&mut sink, &mut stream).await;
-                info!("bot socket closed on shutdown");
-                return Ok(());
+                return Ok(SessionEnd::Shutdown);
             }
             frame = stream.next() => frame,
         };
@@ -67,8 +101,7 @@ pub async fn run_bot(
         }
     }
 
-    info!("bot socket closed");
-    Ok(())
+    Ok(SessionEnd::Disconnected)
 }
 
 async fn close(sink: &mut WsSink, stream: &mut WsRead) {

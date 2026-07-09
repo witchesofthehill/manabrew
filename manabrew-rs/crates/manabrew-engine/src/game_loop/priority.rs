@@ -94,7 +94,8 @@ impl GameLoop {
                             | forge_foundation::PhaseType::CombatDamage
                             | forge_foundation::PhaseType::CombatEnd
                     );
-                let reached = active == target.player && !current_phase.is_before(target.phase);
+                let reached = (active == target.player && !current_phase.is_before(target.phase))
+                    || !game.player(target.player).is_alive();
                 if reached {
                     agents[priority_player.index()].clear_pass_until();
                 } else if !is_active_combat && game.stack.is_empty() {

@@ -11,6 +11,7 @@ import {
   Hand,
   Info,
   Layers,
+  LibraryBig,
   Package,
   Settings,
   Swords,
@@ -82,6 +83,17 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 >
                   <Layers className="mr-2 h-4 w-4 shrink-0" />
                   My Decks
+                </Button>
+              )}
+            </NavLink>
+            <NavLink to="/hub" onClick={onNavigate}>
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-start whitespace-nowrap"
+                >
+                  <LibraryBig className="mr-2 h-4 w-4 shrink-0" />
+                  Deck Hub
                 </Button>
               )}
             </NavLink>

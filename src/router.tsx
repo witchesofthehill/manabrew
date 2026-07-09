@@ -21,6 +21,7 @@ import Gauntlet from "@/views/Gauntlet";
 import Settings from "@/views/Settings";
 import About from "@/views/About";
 import Search from "@/views/Search";
+import DeckHub from "@/views/DeckHub";
 
 export const router = createBrowserRouter([
   {
@@ -79,6 +80,14 @@ export const router = createBrowserRouter([
         element: (
           <ErrorBoundary context="Deck Editor">
             <DeckEditor />
+          </ErrorBoundary>
+        ),
+      },
+      {
+        path: "hub",
+        element: (
+          <ErrorBoundary context="Deck Hub">
+            <DeckHub />
           </ErrorBoundary>
         ),
       },

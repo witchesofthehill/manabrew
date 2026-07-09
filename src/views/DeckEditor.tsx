@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { DeckListControls } from "@/components/deck/DeckListControls";
+import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -85,6 +86,7 @@ export default function DeckEditor() {
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
+  const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
 
   useKeybindings({
     "card-search-focus": () => {
@@ -451,6 +453,7 @@ export default function DeckEditor() {
                     onOpen={() => handleSelectDeck(s.id)}
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
+                    onPublish={() => setPublishingDeck(s)}
                   />
                 ))}
               </div>
@@ -537,6 +540,17 @@ export default function DeckEditor() {
           onOpenChange={setImportDialogOpen}
           onImport={handleTextImport}
         />
+
+        {publishingDeck && (
+          <PublishDeckDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setPublishingDeck(null);
+            }}
+            deck={publishingDeck.deck}
+            localDeckId={publishingDeck.id}
+          />
+        )}
 
         <Dialog
           open={renamingId !== null}

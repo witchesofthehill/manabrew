@@ -5,6 +5,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use manabrew_agent_interface::agent_impl::Responder;
+use manabrew_engine::ids::PlayerId;
+use manabrew_engine::maintenance::MaintenanceEdit;
 use manabrew_protocol::game::GameViewDto;
 use manabrew_protocol::prompts::choose_action::ChooseActionOutput;
 use manabrew_protocol::prompts::choose_attackers::ChooseAttackersOutput;
@@ -89,13 +91,17 @@ impl ReplayContext {
 pub struct ReplayAgent {
     ctx: Rc<RefCell<ReplayContext>>,
     latest_view: Option<GameViewDto>,
+    reconcile: bool,
+    pending_edits: Vec<MaintenanceEdit>,
 }
 
 impl ReplayAgent {
-    pub fn new(ctx: Rc<RefCell<ReplayContext>>) -> Self {
+    pub fn new(ctx: Rc<RefCell<ReplayContext>>, reconcile: bool) -> Self {
         Self {
             ctx,
             latest_view: None,
+            reconcile,
+            pending_edits: Vec::new(),
         }
     }
 }
@@ -105,6 +111,10 @@ impl Responder for ReplayAgent {
         if let AgentMessage::State(update) = message {
             self.latest_view = Some(update.game_view.clone());
         }
+    }
+
+    fn take_maintenance_edits(&mut self) -> Vec<MaintenanceEdit> {
+        std::mem::take(&mut self.pending_edits)
     }
 
     fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage {
@@ -121,7 +131,9 @@ impl Responder for ReplayAgent {
         };
 
         let recorded_state = ctx.decisions[index].state_before.clone();
-        if let (Some(rust_view), Some(trace_view)) = (self.latest_view.as_ref(), recorded_state.as_ref())
+        let mut new_edits: Vec<MaintenanceEdit> = Vec::new();
+        if let (Some(rust_view), Some(trace_view)) =
+            (self.latest_view.as_ref(), recorded_state.as_ref())
         {
             ctx.diffed_decisions += 1;
             let diffs = diff_views(rust_view, trace_view);
@@ -136,6 +148,9 @@ impl Responder for ReplayAgent {
                     prompt_kind: live_kind.to_string(),
                     diffs,
                 });
+                if self.reconcile {
+                    new_edits = scalar_reconcile_edits(rust_view, trace_view);
+                }
                 let stop = !ctx.keep_going || ctx.divergences.len() >= ctx.max_divergences;
                 if stop {
                     ctx.done = true;
@@ -144,6 +159,7 @@ impl Responder for ReplayAgent {
                 }
             }
         }
+        self.pending_edits.append(&mut new_edits);
 
         let recorded_response = ctx.decisions[index].response.clone();
         let recorded_prompt = ctx.decisions[index].prompt.clone();
@@ -163,6 +179,35 @@ impl Responder for ReplayAgent {
     }
 }
 
+fn scalar_reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEdit> {
+    let mut edits = Vec::new();
+    for trace_player in &trace.players {
+        let Some(index) = trace_player
+            .id
+            .strip_prefix("player-")
+            .and_then(|n| n.parse().ok())
+        else {
+            continue;
+        };
+        let Some(rust_player) = rust.player(&trace_player.id) else {
+            continue;
+        };
+        if rust_player.life != trace_player.life {
+            edits.push(MaintenanceEdit::SetLife {
+                player: PlayerId(index),
+                life: trace_player.life,
+            });
+        }
+        if rust_player.poison != trace_player.poison {
+            edits.push(MaintenanceEdit::SetPoison {
+                player: PlayerId(index),
+                poison: trace_player.poison,
+            });
+        }
+    }
+    edits
+}
+
 fn pass() -> ClientToServerMessage {
     ClientToServerMessage::Response {
         action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
@@ -180,9 +225,9 @@ fn safe_default(prompt: &AgentPrompt) -> ClientToServerMessage {
         PromptInput::RevealCards(_) => {
             PromptOutput::RevealCards(RevealCardsOutput::RevealCardsAcknowledged)
         }
-        PromptInput::Mulligan(_) => PromptOutput::Mulligan(MulliganOutput::MulliganDecision {
-            keep: true,
-        }),
+        PromptInput::Mulligan(_) => {
+            PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: true })
+        }
         _ => PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
     };
     ClientToServerMessage::Response { action }
@@ -384,10 +429,9 @@ fn remap_action(
     let recorded_name = action_card_name(recorded_action, recorded_index);
     let recorded_tag = kind_tag(&recorded_action.kind);
 
-    let matched = live_input
-        .actions
-        .iter()
-        .find(|a| kind_tag(&a.kind) == recorded_tag && action_card_name(a, live_index) == recorded_name);
+    let matched = live_input.actions.iter().find(|a| {
+        kind_tag(&a.kind) == recorded_tag && action_card_name(a, live_index) == recorded_name
+    });
     matched.map(|a| a.id.clone())
 }
 

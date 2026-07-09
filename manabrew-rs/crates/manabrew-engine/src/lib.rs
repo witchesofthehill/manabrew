@@ -38,6 +38,7 @@ pub mod game_snapshot;
 pub mod ids;
 pub mod keyword;
 pub mod lki;
+pub mod maintenance;
 pub mod mana;
 pub mod mulligan;
 pub mod parsing;

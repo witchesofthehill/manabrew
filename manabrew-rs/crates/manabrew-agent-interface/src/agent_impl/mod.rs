@@ -63,11 +63,53 @@ pub(crate) fn parse_express_mana_choice(color: Option<&str>) -> Option<u16> {
         .filter(|&atom| atom != 0)
 }
 
+pub(crate) fn wire_maintenance_edit_to_engine(
+    edit: &manabrew_protocol::transport::MaintenanceEdit,
+) -> Option<manabrew_engine::maintenance::MaintenanceEdit> {
+    use manabrew_engine::maintenance::MaintenanceEdit as E;
+    use manabrew_protocol::transport::MaintenanceEdit as W;
+    Some(match edit {
+        W::SetLife { player_id, life } => E::SetLife {
+            player: parse_player_id(player_id)?,
+            life: *life,
+        },
+        W::SetPoison { player_id, poison } => E::SetPoison {
+            player: parse_player_id(player_id)?,
+            poison: *poison,
+        },
+        W::AddCounter {
+            card_id,
+            counter,
+            amount,
+        } => E::AddCardCounter {
+            card: parse_card_id(card_id)?,
+            counter: manabrew_engine::card::counter_type::parse_counter_type(counter),
+            amount: *amount,
+        },
+        W::SetTapped { card_id, tapped } => E::SetTapped {
+            card: parse_card_id(card_id)?,
+            tapped: *tapped,
+        },
+        W::MoveCard {
+            card_id,
+            zone,
+            owner_id,
+        } => E::MoveCard {
+            card: parse_card_id(card_id)?,
+            zone: ZoneType::from_str_compat(zone)?,
+            owner: parse_player_id(owner_id)?,
+        },
+    })
+}
+
 /// Answers the prompts a `PromptAgent` builds.
 ///
 pub trait Responder {
     fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage;
     fn present(&mut self, _message: &AgentMessage) {}
+    fn take_maintenance_edits(&mut self) -> Vec<manabrew_engine::maintenance::MaintenanceEdit> {
+        Vec::new()
+    }
     fn await_ack(&mut self) -> ClientToServerMessage {
         ClientToServerMessage::Response {
             action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
@@ -87,6 +129,7 @@ pub struct PromptAgent<R: Responder> {
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
     next_prompt_id: u32,
+    pending_maintenance: Vec<manabrew_engine::maintenance::MaintenanceEdit>,
 }
 
 impl<R: Responder> PromptAgent<R> {
@@ -101,6 +144,7 @@ impl<R: Responder> PromptAgent<R> {
             pass_until: None,
             conceded: false,
             next_prompt_id: 0,
+            pending_maintenance: Vec::new(),
         }
     }
 
@@ -142,6 +186,11 @@ impl<R: Responder> PromptAgent<R> {
     fn handle_directive(&mut self, directive: DirectiveInput) {
         match directive {
             DirectiveInput::Concede => self.conceded = true,
+            DirectiveInput::Maintenance { edit } => {
+                if let Some(edit) = wire_maintenance_edit_to_engine(&edit) {
+                    self.pending_maintenance.push(edit);
+                }
+            }
         }
     }
 
@@ -350,6 +399,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         ));
     }
 
+    fn drain_maintenance_edits(&mut self) -> Vec<manabrew_engine::maintenance::MaintenanceEdit> {
+        let mut edits = std::mem::take(&mut self.pending_maintenance);
+        edits.extend(self.responder.take_maintenance_edits());
+        edits
+    }
+
     fn mulligan_decision(
         &mut self,
         player: PlayerId,
@@ -483,9 +538,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             .expect("choose_action called without a pending prompt");
         let action = match self.responder.respond(prompt) {
             ClientToServerMessage::Response { action } => action,
-            ClientToServerMessage::Directive {
-                directive: DirectiveInput::Concede,
-            } => return EnginePlayerAction::Concede,
+            ClientToServerMessage::Directive { directive } => match directive {
+                DirectiveInput::Concede => return EnginePlayerAction::Concede,
+                other => {
+                    self.handle_directive(other);
+                    return EnginePlayerAction::PassPriority;
+                }
+            },
         };
         match action {
             PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {

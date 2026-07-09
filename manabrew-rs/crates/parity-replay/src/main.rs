@@ -22,8 +22,8 @@ use manabrew_engine::game_runtime::GameRuntime;
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::player::RegisteredPlayer;
 use manabrew_game_runtime::deck::{
-    deck_to_identities, force_commander_by_name, prepare_registered_player,
-    instantiate_registered_players, DeckCardIdentity, PreparedRegisteredPlayer,
+    deck_to_identities, force_commander_by_name, instantiate_registered_players,
+    prepare_registered_player, DeckCardIdentity, PreparedRegisteredPlayer,
 };
 use manabrew_game_runtime::host_runtime::register_tokens_from_db;
 use manabrew_protocol::deck_dto::Deck;
@@ -53,6 +53,8 @@ struct Args {
     continue_on_divergence: bool,
     #[arg(long, default_value_t = 50)]
     max_divergences: usize,
+    #[arg(long)]
+    reconcile: bool,
 }
 
 fn main() {
@@ -101,15 +103,15 @@ fn run() -> Result<(), String> {
         prepared.push(player);
     }
 
-    let registered: Vec<RegisteredPlayer> =
-        prepared.iter().map(|p| p.registered.clone()).collect();
+    let registered: Vec<RegisteredPlayer> = prepared.iter().map(|p| p.registered.clone()).collect();
     let mut game = GameState::new_from_registered_players(&registered);
     instantiate_registered_players(&mut game, prepared);
 
     let is_commander = trace.header.format.eq_ignore_ascii_case("Commander");
     if is_commander {
         for idx in 0..registered.len() {
-            game.player_mut(PlayerId(idx as u32)).commander_damage_enabled = true;
+            game.player_mut(PlayerId(idx as u32))
+                .commander_damage_enabled = true;
         }
     }
 
@@ -133,13 +135,13 @@ fn run() -> Result<(), String> {
     let ctx = Rc::new(RefCell::new(ReplayContext::new(
         trace.decisions,
         Arc::clone(&abort),
-        args.continue_on_divergence,
+        args.continue_on_divergence || args.reconcile,
         args.max_divergences,
     )));
 
     let mut agents: Vec<Box<dyn PlayerAgent>> = Vec::new();
     for idx in 0..registered.len() {
-        let responder = ReplayAgent::new(Rc::clone(&ctx));
+        let responder = ReplayAgent::new(Rc::clone(&ctx), args.reconcile);
         agents.push(Box::new(PromptAgent::new(
             PlayerId(idx as u32),
             trace.header.game_id.clone(),
@@ -217,7 +219,11 @@ fn print_diffs(diffs: &[diff::FieldDiff]) {
         println!(
             "  {}{}: rust={} | trace={}",
             d.path,
-            if d.library_dependent { " (library)" } else { "" },
+            if d.library_dependent {
+                " (library)"
+            } else {
+                ""
+            },
             d.rust,
             d.trace
         );
@@ -234,7 +240,10 @@ fn build_identities(
     if let Some(path) = deck_path {
         let text = std::fs::read_to_string(path).map_err(|e| format!("read {path:?}: {e}"))?;
         let deck: Deck = serde_json::from_str(&text).map_err(|e| format!("parse {path:?}: {e}"))?;
-        return Ok(ensure_commander(deck_to_identities(&deck), player.commander.as_deref()));
+        return Ok(ensure_commander(
+            deck_to_identities(&deck),
+            player.commander.as_deref(),
+        ));
     }
     if let Some(selections) = selections {
         if let Some(identities) = selections.deck_for(
@@ -319,9 +328,7 @@ fn load_card_data(cardset: Option<&Path>) -> Result<(CardDatabase, CardDatabase)
     }
     let file = std::fs::File::open(&path).map_err(|e| format!("open {path:?}: {e}"))?;
     let mmap = unsafe { Mmap::map(&file).map_err(|e| format!("mmap {path:?}: {e}"))? };
-    let ArchiveBundle {
-        cards, tokens, ..
-    } = CardDatabase::load_from_archive(&mmap)?;
+    let ArchiveBundle { cards, tokens, .. } = CardDatabase::load_from_archive(&mmap)?;
     Ok((cards, tokens))
 }
 

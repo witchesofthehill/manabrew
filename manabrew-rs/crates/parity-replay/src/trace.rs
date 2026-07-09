@@ -65,8 +65,10 @@ pub fn load(path: &Path) -> Result<Trace, String> {
     let mut decisions: Vec<Decision> = Vec::new();
     let mut starting_player: Option<usize> = None;
     let mut opening_hands: HashMap<usize, Vec<String>> = HashMap::new();
-    let mut deck_cards: HashMap<usize, HashMap<String, manabrew_game_runtime::deck::DeckCardIdentity>> =
-        HashMap::new();
+    let mut deck_cards: HashMap<
+        usize,
+        HashMap<String, manabrew_game_runtime::deck::DeckCardIdentity>,
+    > = HashMap::new();
 
     for line in lines {
         let frame: Value = match serde_json::from_str(line) {
@@ -97,8 +99,7 @@ pub fn load(path: &Path) -> Result<Trace, String> {
             }
             "prompt" => {
                 if let Some(prompt_value) = envelope.get("prompt") {
-                    if let Ok(prompt) =
-                        serde_json::from_value::<AgentPrompt>(prompt_value.clone())
+                    if let Ok(prompt) = serde_json::from_value::<AgentPrompt>(prompt_value.clone())
                     {
                         capture_opening_hand(&prompt, last_state.as_ref(), &mut opening_hands);
                         pending_prompt = Some((prompt, last_state.clone()));
@@ -143,7 +144,8 @@ fn normalize_game_view(value: &mut Value) {
     if let Some(players) = value.get_mut("players").and_then(Value::as_array_mut) {
         for player in players {
             if let Some(obj) = player.as_object_mut() {
-                obj.entry("status").or_insert(Value::String("playing".into()));
+                obj.entry("status")
+                    .or_insert(Value::String("playing".into()));
             }
         }
     }
@@ -209,7 +211,13 @@ fn record_visible_cards(
         push(&c.owner_id, c);
     }
     for p in &view.players {
-        for c in p.hand.iter().chain(&p.graveyard).chain(&p.exile).chain(&p.command_zone) {
+        for c in p
+            .hand
+            .iter()
+            .chain(&p.graveyard)
+            .chain(&p.exile)
+            .chain(&p.command_zone)
+        {
             push(&p.id, c);
         }
     }

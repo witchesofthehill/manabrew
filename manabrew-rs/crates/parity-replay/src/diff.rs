@@ -107,7 +107,13 @@ fn diff_player(diffs: &mut Vec<FieldDiff>, rust: &PlayerDto, trace: &PlayerDto) 
         trace.speed,
     );
 
-    diff_zone(diffs, &format!("players[{p}].hand"), &rust.hand, &trace.hand, true);
+    diff_zone(
+        diffs,
+        &format!("players[{p}].hand"),
+        &rust.hand,
+        &trace.hand,
+        true,
+    );
     diff_zone(
         diffs,
         &format!("players[{p}].graveyard"),
@@ -187,7 +193,12 @@ fn scalar<T: PartialEq + std::fmt::Display>(
     }
 }
 
-fn scalar_opt(diffs: &mut Vec<FieldDiff>, path: &str, rust: &Option<String>, trace: &Option<String>) {
+fn scalar_opt(
+    diffs: &mut Vec<FieldDiff>,
+    path: &str,
+    rust: &Option<String>,
+    trace: &Option<String>,
+) {
     if rust != trace {
         diffs.push(FieldDiff {
             path: path.to_string(),

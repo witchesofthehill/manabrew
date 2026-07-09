@@ -20,11 +20,48 @@ pub struct StateUpdate {
     pub game_view: GameViewDto,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "transport/messages.ts")]
 pub enum DirectiveInput {
     Concede,
+    Maintenance { edit: MaintenanceEdit },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum MaintenanceEdit {
+    SetLife {
+        player_id: String,
+        life: i32,
+    },
+    SetPoison {
+        player_id: String,
+        poison: i32,
+    },
+    AddCounter {
+        card_id: String,
+        counter: String,
+        amount: i32,
+    },
+    SetTapped {
+        card_id: String,
+        tapped: bool,
+    },
+    MoveCard {
+        card_id: String,
+        zone: String,
+        owner_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

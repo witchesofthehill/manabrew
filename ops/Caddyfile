@@ -146,6 +146,20 @@ relay.manabrew.app {
     }
 }
 
+# Deck hub + stats API. HUB_ADMIN_PASSWORD_HASH unset → the placeholder
+# default matches no password: /admin/* is locked, not broken config.
+api.manabrew.app {
+    @admin path /admin/*
+    basic_auth @admin {
+        admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy manabrew-hub:9500 {
+        health_uri /health
+        health_interval 15s
+        health_timeout 3s
+    }
+}
+
 # Observability ingress (`observability` compose profile). PUSHGATEWAY_PASSWORD_HASH
 # unset → the placeholder default matches no password: locked, not broken config.
 grafana.manabrew.app {

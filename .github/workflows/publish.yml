@@ -445,7 +445,12 @@ jobs:
   # (tauri.ios.conf.json overrides beforeBuildCommand to `yarn vite:build`).
   ios-ipa:
     name: Build iOS .ipa
-    runs-on: macos-latest
+    # Pinned to macos-15 (Xcode 16.4): Xcode 26 (macos-latest/macos-26) dropped
+    # the swiftCompatibility* libs that swift-rs-built objects still reference,
+    # so the archive link fails — tauri-apps/tauri#15066. Re-evaluate on a
+    # tauri/rustc fix; sideloaded unsigned IPAs are exempt from the App Store
+    # iOS-26-SDK deadline.
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4

@@ -1493,7 +1493,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none"
+      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,

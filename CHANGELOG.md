@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.5.0](https://github.com/witchesofthehill/manabrew/compare/v1.4.4...v1.5.0) (2026-07-09)
+
+### Features
+
+* **protocol:** filter lobby rooms by protocol version ([#382](https://github.com/witchesofthehill/manabrew/issues/382)) ([64bcaf6](https://github.com/witchesofthehill/manabrew/commit/64bcaf64b289c0b348dfda08b0cddc47ab6971ce))
+
+## [1.4.4](https://github.com/witchesofthehill/manabrew/compare/v1.4.3...v1.4.4) (2026-07-09)
+
+### Fixes
+
+* **carddb:** point cardset rebuild hints at the real archive builder ([#435](https://github.com/witchesofthehill/manabrew/issues/435)) ([610019f](https://github.com/witchesofthehill/manabrew/commit/610019f4652206f8afacea9c5100e560f517b7f0))
+
+## [1.4.3](https://github.com/witchesofthehill/manabrew/compare/v1.4.2...v1.4.3) (2026-07-09)
+
+## [1.4.2](https://github.com/witchesofthehill/manabrew/compare/v1.4.1...v1.4.2) (2026-07-09)
+
+### Fixes
+
+* **ci:** unbreak mobile publish jobs (cardset archive + gradle wrapper) ([#431](https://github.com/witchesofthehill/manabrew/issues/431)) ([3491c3a](https://github.com/witchesofthehill/manabrew/commit/3491c3a8b032756b61ce6d482264fa2721ed86c3))
+
+## [1.4.1](https://github.com/witchesofthehill/manabrew/compare/v1.4.0...v1.4.1) (2026-07-09)
+
+## [1.4.0](https://github.com/witchesofthehill/manabrew/compare/v1.3.3...v1.4.0) (2026-07-09)
+
+### Features
+
+* **mobile:** ship iOS via SideStore+ android apk + fix mobile card-db bundling ([#365](https://github.com/witchesofthehill/manabrew/issues/365)) ([03bcf62](https://github.com/witchesofthehill/manabrew/commit/03bcf623f34092ff7ac6a7d63b2e1f7f516fd3c6))
+
+### Fixes
+
+* **ui:** bot commander configuration and warn-only deck validity - crew ability ([#368](https://github.com/witchesofthehill/manabrew/issues/368)) ([6b2c653](https://github.com/witchesofthehill/manabrew/commit/6b2c6534ad969be1ff56d16cfd58bb4a0d80d577))
+
+## [1.3.3](https://github.com/witchesofthehill/manabrew/compare/v1.3.2...v1.3.3) (2026-07-09)
+
+## [1.3.2](https://github.com/witchesofthehill/manabrew/compare/v1.3.1...v1.3.2) (2026-07-09)
+
+### Fixes
+
+* reloading on a bot room will work ([#427](https://github.com/witchesofthehill/manabrew/issues/427)) ([3a22e15](https://github.com/witchesofthehill/manabrew/commit/3a22e15a16907679d152d849073356ea943fe08a))
+
 ## [1.3.1](https://github.com/witchesofthehill/manabrew/compare/v1.3.0...v1.3.1) (2026-07-07)
 
 ### Fixes

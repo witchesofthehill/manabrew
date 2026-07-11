@@ -12,7 +12,8 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { GAME_FORMATS, getFormat } from "@/lib/formats";
+import { GAME_FORMATS, getFormat, partnerPairLabel } from "@/lib/formats";
+import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,8 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
 
   const commanders = currentDeck.commanders ?? [];
+  const partnerLabel =
+    commanders.length === 2 ? partnerPairLabel(commanders[0], commanders[1]) : null;
   const mainCount = currentDeck.cards.length + commanders.length;
   const sideCount = currentDeck.sideboard.length;
   const maybeCount = currentDeck.maybeboard?.length ?? 0;
@@ -192,8 +195,14 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {commanders.length > 0 && (
-            <span className="truncate font-medium text-foreground/80">
-              {commanders.map((c) => c.identity.name).join(" · ")}
+            <span className="flex min-w-0 items-center gap-1.5 font-medium text-foreground/80">
+              {commanders.map((c, index) => (
+                <span key={c.identity.id} className="flex min-w-0 items-center gap-1.5">
+                  {index > 0 && <span className="text-muted-foreground">·</span>}
+                  <span className="truncate">{c.identity.name}</span>
+                  {index === 1 && <PartnerBadge label={partnerLabel} />}
+                </span>
+              ))}
             </span>
           )}
           <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">

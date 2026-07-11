@@ -1582,6 +1582,32 @@ export class BoardScene {
   }
 
   private fireLongPressPreview(region: BoardRegion, sprite: CardSprite): void {
+    // A fired long-press is preview-only: drop the drag armed by the same
+    // pointerdown, or hold jitter / release wobble past the drag threshold
+    // reaches onGlobalMove's dismiss and closes the sticky preview.
+    if (this.dragHandler.isDragging) {
+      const state = region.getLastState();
+      if (state) region.updateBattlefield(state);
+    }
+    this.dragHandler.cancel();
+    this.attackDragCandidate = null;
+    if (this.blockDragBlockerId) this.setBlockDragId(null);
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      this.unassignDrag = null;
+      const state = ud.region.getLastState();
+      if (state) ud.region.updateBattlefield(state);
+    }
+    const selection = this.selection;
+    if (selection) {
+      const selected = selection.getSelected();
+      // Undo only the selection this press created; keep a wider marquee/shift
+      // selection the card was already part of.
+      if (selected.size === 1 && selected.has(sprite.card.id)) {
+        selection.setSelected(new Set());
+        selection.refresh();
+      }
+    }
     if (this.callbacks.onLongPressCard) {
       this.callbacks.onLongPressCard(sprite.card, this.toViewportBounds(sprite.getBounds()));
       return;

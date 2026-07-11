@@ -69,8 +69,8 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
         20,
         42,
         vec![
-            PlayerConfig::new("Smoke A".to_string(), &deck_a, None),
-            PlayerConfig::new("Smoke B".to_string(), &deck_b, None),
+            PlayerConfig::new("Smoke A".to_string(), &deck_a, Vec::new()),
+            PlayerConfig::new("Smoke B".to_string(), &deck_b, Vec::new()),
         ],
     );
     let session_id = session.start_game(&request)?;
@@ -131,8 +131,16 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
         20,
         42,
         vec![
-            PlayerConfig::new("Scenario A".to_string(), &scenario_deck("Swamp"), None),
-            PlayerConfig::new("Scenario B".to_string(), &scenario_deck("Forest"), None),
+            PlayerConfig::new(
+                "Scenario A".to_string(),
+                &scenario_deck("Swamp"),
+                Vec::new(),
+            ),
+            PlayerConfig::new(
+                "Scenario B".to_string(),
+                &scenario_deck("Forest"),
+                Vec::new(),
+            ),
         ],
     );
     let session_id = session.start_game(&request)?;
@@ -175,7 +183,7 @@ pub fn run_self_play(
         players.push(PlayerConfig::new(
             format!("Self-Play {}", i + 1),
             &identities,
-            seat.commander_name.clone(),
+            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
         ));
     }
 
@@ -752,7 +760,7 @@ pub fn run_concurrent_self_play(
         players.push(PlayerConfig::new(
             format!("Self-Play {}", i + 1),
             &identities,
-            seat.commander_name.clone(),
+            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
         ));
     }
 
@@ -909,6 +917,7 @@ pub fn run_hosted_engine_game(
     player_names: Vec<String>,
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
+    commander_variant: bool,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -922,6 +931,7 @@ pub fn run_hosted_engine_game(
         player_names,
         decks,
         commander_names,
+        commander_variant,
         local_player_index,
         ai_player_indices,
         starting_life,
@@ -938,6 +948,7 @@ pub fn run_hosted_engine_game(
     _player_names: Vec<String>,
     _decks: Vec<Deck>,
     _commander_names: Vec<Option<String>>,
+    _commander_variant: bool,
     _local_player_index: Option<usize>,
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
@@ -955,6 +966,7 @@ fn run_hosted_engine_game_inner(
     player_names: Vec<String>,
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
+    commander_variant: bool,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -968,10 +980,15 @@ fn run_hosted_engine_game_inner(
     let mut players = Vec::with_capacity(player_names.len());
     for (index, name) in player_names.iter().enumerate() {
         let identities = deck_card_identities(&decks[index]);
+        let seat_commander_names = if commander_variant {
+            commander_names_for_java(&decks[index], commander_names[index].as_deref())
+        } else {
+            Vec::new()
+        };
         players.push(PlayerConfig::new(
             name.clone(),
             &identities,
-            commander_names[index].clone(),
+            seat_commander_names,
         ));
     }
     for &idx in &ai_player_indices {
@@ -1190,6 +1207,23 @@ fn deck_card_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
         .chain(deck.commanders.iter().flatten())
         .map(|card| card.identity.clone())
         .collect()
+}
+
+#[cfg(forge_backend)]
+fn commander_names_for_java(deck: &Deck, fallback: Option<&str>) -> Vec<String> {
+    let names: Vec<String> = deck
+        .commanders
+        .iter()
+        .flatten()
+        .map(|card| java_card_name(&card.identity.name))
+        .collect();
+    if !names.is_empty() {
+        return names;
+    }
+    fallback
+        .filter(|name| !name.is_empty())
+        .map(|name| vec![java_card_name(name)])
+        .unwrap_or_default()
 }
 
 #[cfg(feature = "java-forge")]
@@ -1438,7 +1472,7 @@ fn run_concede_game<B: JavaBridge>(
     };
     let identities = deck_card_identities(&deck);
     let players: Vec<PlayerConfig> = (0..seats)
-        .map(|i| PlayerConfig::new(format!("Concede {}", i + 1), &identities, None))
+        .map(|i| PlayerConfig::new(format!("Concede {}", i + 1), &identities, Vec::new()))
         .collect();
     let request = StartGameRequest::new(format!("concede-smoke-{seats}p"), 20, 7, players);
     let session_id = session.start_game(&request)?;
@@ -2156,7 +2190,7 @@ pub struct StartGameRequest {
 pub struct PlayerConfig {
     name: String,
     deck: Vec<CardIdentityForJava>,
-    commander_name: Option<String>,
+    commander_names: Vec<String>,
     ai: bool,
 }
 
@@ -2191,11 +2225,11 @@ impl StartGameRequest {
 }
 
 impl PlayerConfig {
-    pub fn new(name: String, deck: &[DeckCardIdentity], commander_name: Option<String>) -> Self {
+    pub fn new(name: String, deck: &[DeckCardIdentity], commander_names: Vec<String>) -> Self {
         Self {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
-            commander_name,
+            commander_names,
             ai: false,
         }
     }

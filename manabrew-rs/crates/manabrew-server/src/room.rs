@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
     SealedConfig,
@@ -28,6 +30,7 @@ pub struct RoomObserver {
 pub struct Room {
     pub room_id: String,
     pub room_name: String,
+    pub protocol_version: u32,
     pub host_player_id: String,
     pub host_username: String,
     pub hosted: bool,
@@ -44,12 +47,14 @@ pub struct Room {
     pub reconnect_timeout_s: u32,
     pub replay: Option<GameReplayCache>,
     pub resume_token: String,
+    pub humanless_since: Option<Instant>,
 }
 
 impl Room {
     pub fn new(
         room_id: String,
         room_name: String,
+        protocol_version: u32,
         host_player_id: String,
         host_username: String,
         max_players: u8,
@@ -90,6 +95,7 @@ impl Room {
         Room {
             room_id,
             room_name,
+            protocol_version,
             host_player_id: host_player_id.clone(),
             host_username,
             hosted: !host_plays,
@@ -106,6 +112,7 @@ impl Room {
             reconnect_timeout_s,
             replay: None,
             resume_token: String::new(),
+            humanless_since: None,
         }
     }
 
@@ -227,6 +234,14 @@ impl Room {
         self.players.iter().all(|p| !p.connected) && self.observers.iter().all(|p| !p.connected)
     }
 
+    pub fn has_connected_human(&self) -> bool {
+        self.players.iter().any(|p| p.connected && !p.is_bot)
+            || self
+                .observers
+                .iter()
+                .any(|o| o.connected && !(self.hosted && o.player_id == self.host_player_id))
+    }
+
     pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(), String> {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.ready = ready;
@@ -341,6 +356,7 @@ impl Room {
         RoomInfo {
             room_id: self.room_id.clone(),
             room_name: self.room_name.clone(),
+            protocol_version: self.protocol_version,
             host: self.host_username(),
             hosted: self.hosted,
             official: self.official,
@@ -375,6 +391,7 @@ mod tests {
         Room::new(
             "r".into(),
             "room".into(),
+            manabrew_protocol::protocol::PROTOCOL_VERSION,
             "host".into(),
             "host".into(),
             4,

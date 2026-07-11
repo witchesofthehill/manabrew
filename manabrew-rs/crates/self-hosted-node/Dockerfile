@@ -87,6 +87,8 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
 COPY public/preset_decks/ public/preset_decks/
+# host.rs include_str!s TypeLists.txt at compile time.
+COPY forge/forge-gui/res/lists/ forge/forge-gui/res/lists/
 # Stub the non-engine workspace members cargo metadata validates (mirrors
 # manabrew-server's Dockerfile).
 COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
@@ -105,7 +107,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # runtime image needs the JRE on PATH. JRE 21 happily runs the harness's
 # release-17 bytecode (Forge's maven.compiler.release=17), so the build stage
 # can stay on Temurin 17 even though the runtime is 21.
-# The node resolves Forge assets / TypeLists / preset decks relative to its
+# The node resolves Forge assets / preset decks relative to its
 # compile-time workspace root (/build), so the image reproduces that layout.
 FROM eclipse-temurin:21-jre-jammy
 

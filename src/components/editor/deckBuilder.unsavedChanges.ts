@@ -21,6 +21,7 @@ export function setLastSavedSnapshotRef(snapshot: string | null) {
 export function buildDeckSnapshot(deck: EditorDeck): string {
   return JSON.stringify({
     format: deck.format,
+    draft: deck.draft,
     cards: deck.cards,
     commanders: deck.commanders ?? [],
     sideboard: deck.sideboard,

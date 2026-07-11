@@ -14,6 +14,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
+import { getSafeAreaInsets } from "@/lib/safeArea";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
@@ -338,7 +339,12 @@ export function CardPreview({
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
   const horizontal = horizontalCard && !orientationFlipped;
-  const previewScale = minimal ? Math.min(1, (window.innerHeight - 16) / CARD_H) : 1;
+  const safe = getSafeAreaInsets();
+  const viewLeft = safe.left;
+  const viewRight = window.innerWidth - safe.right;
+  const viewTop = safe.top;
+  const viewBottom = window.innerHeight - safe.bottom;
+  const previewScale = minimal ? Math.min(1, (viewBottom - viewTop - 16) / CARD_H) : 1;
   const cardWidth = (horizontal ? CARD_H : CARD_W) * previewScale;
   const cardHeight = (horizontal ? CARD_W : CARD_H) * previewScale;
 
@@ -347,16 +353,16 @@ export function CardPreview({
   let actionsOnRight: boolean;
 
   if (placement === "pinned") {
-    cardLeft = window.innerWidth - cardWidth - 16;
-    top = 80;
+    cardLeft = viewRight - cardWidth - 16;
+    top = viewTop + 80;
     actionsOnRight = false;
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = anchorRect.top - cardHeight - 12;
-    cardLeft = Math.max(8, Math.min(cardLeft, window.innerWidth - cardWidth - 8));
-    top = Math.max(8, top);
+    cardLeft = Math.max(viewLeft + 8, Math.min(cardLeft, viewRight - cardWidth - 8));
+    top = Math.max(viewTop + 8, top);
 
-    const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
+    const spaceAfterCard = viewRight - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   } else {
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
@@ -365,8 +371,8 @@ export function CardPreview({
     const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
     const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
 
-    const fitsRight = anchorRight + 16 + cardWidth <= window.innerWidth - 8;
-    const fitsLeft = anchorLeft - 16 - cardWidth >= 8;
+    const fitsRight = anchorRight + 16 + cardWidth <= viewRight - 8;
+    const fitsLeft = anchorLeft - 16 - cardWidth >= viewLeft + 8;
 
     if (fitsRight) {
       cardLeft = anchorRight + 16;
@@ -374,23 +380,26 @@ export function CardPreview({
       cardLeft = anchorLeft - cardWidth - 16;
     } else {
       cardLeft = Math.max(
-        8,
-        Math.min((anchorLeft + anchorRight) / 2 - cardWidth / 2, window.innerWidth - cardWidth - 8),
+        viewLeft + 8,
+        Math.min((anchorLeft + anchorRight) / 2 - cardWidth / 2, viewRight - cardWidth - 8),
       );
     }
 
     if (fitsRight || fitsLeft) {
-      top = Math.min(Math.max(anchorMidY - cardHeight / 2, 8), window.innerHeight - cardHeight - 8);
+      top = Math.min(
+        Math.max(anchorMidY - cardHeight / 2, viewTop + 8),
+        viewBottom - cardHeight - 8,
+      );
     } else {
       const spaceAbove = anchorTop - 16;
-      const spaceBelow = window.innerHeight - anchorBottom - 16;
+      const spaceBelow = viewBottom - anchorBottom - 16;
       top =
         spaceBelow >= spaceAbove
-          ? Math.min(anchorBottom + 12, window.innerHeight - cardHeight - 8)
-          : Math.max(8, anchorTop - cardHeight - 12);
+          ? Math.min(anchorBottom + 12, viewBottom - cardHeight - 8)
+          : Math.max(viewTop + 8, anchorTop - cardHeight - 12);
     }
 
-    const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
+    const spaceAfterCard = viewRight - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   }
 
@@ -600,41 +609,45 @@ export function CardPreview({
                 }}
               />
 
-              {actions?.map((action, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => onSelectAction(action)}
-                  className={cn(
-                    "group w-full text-left rounded-lg text-xs font-medium",
-                    "bg-popover text-popover-foreground border border-border",
-                    "backdrop-blur-md shadow-lg",
-                    "transition-all duration-150 ease-out",
-                    "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
-                    "flex flex-col px-3 py-2",
-                  )}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = ringColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "";
-                    e.currentTarget.style.borderColor = "";
-                  }}
-                >
-                  <span className="flex items-center justify-between w-full mb-0.5">
-                    <span className="text-xs font-bold min-w-[22px] h-5 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-                      {idx + 1}
-                    </span>
-                    {action.cost && (
-                      <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                        <DynamicTextRender text={action.cost} />
-                      </span>
+              <div
+                className={cn("flex flex-col gap-1.5", minimal && "max-h-[60dvh] overflow-y-auto")}
+              >
+                {actions?.map((action, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onSelectAction(action)}
+                    className={cn(
+                      "group w-full text-left rounded-lg text-xs font-medium",
+                      "bg-popover text-popover-foreground border border-border",
+                      "backdrop-blur-md shadow-lg",
+                      "transition-all duration-150 ease-out",
+                      "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
+                      "flex flex-col px-3 py-2",
                     )}
-                  </span>
-                  <span className="leading-snug text-[13px] font-semibold">
-                    <DynamicTextRender text={action.label} />
-                  </span>
-                </button>
-              ))}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = ringColor;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "";
+                      e.currentTarget.style.borderColor = "";
+                    }}
+                  >
+                    <span className="flex items-center justify-between w-full mb-0.5">
+                      <span className="text-xs font-bold min-w-[22px] h-5 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
+                        {idx + 1}
+                      </span>
+                      {action.cost && (
+                        <span className="flex items-center gap-0.5 text-[11px] opacity-90">
+                          <DynamicTextRender text={action.cost} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="leading-snug text-[13px] font-semibold line-clamp-4">
+                      <DynamicTextRender text={action.label} />
+                    </span>
+                  </button>
+                ))}
+              </div>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
                 <span>
                   <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">

@@ -11,7 +11,7 @@ use crate::room::{Room, RoomSlot};
 use crate::state::ServerState;
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::PlaymatSettings;
-use manabrew_protocol::protocol::DEFAULT_RECONNECT_TIMEOUT_S;
+use manabrew_protocol::protocol::{DEFAULT_RECONNECT_TIMEOUT_S, PROTOCOL_VERSION};
 
 const MIN_RECONNECT_TIMEOUT_S: u32 = 10;
 // Must stay below manabrew_game_runtime 's 120s relay response_timeout
@@ -23,6 +23,7 @@ pub fn create_room_sync(
     room_name: String,
     max_players: u8,
     format: GameFormat,
+    protocol_version: u32,
     hosted: bool,
     engine: EngineKind,
     draft_config: Option<DraftConfig>,
@@ -76,6 +77,7 @@ pub fn create_room_sync(
     let mut room = Room::new(
         room_id.clone(),
         room_name,
+        protocol_version,
         player_id.to_string(),
         username,
         max_players,
@@ -178,6 +180,7 @@ pub fn resume_room_sync(
     let mut room = Room::new(
         spec.room_id.clone(),
         spec.room_name,
+        PROTOCOL_VERSION,
         player_id.to_string(),
         username.clone(),
         spec.max_players,

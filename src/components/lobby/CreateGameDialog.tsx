@@ -6,10 +6,16 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
+import {
+  GAME_FORMATS,
+  validateDeckSections,
+  partnerPairLabel,
+  type GameFormat,
+} from "@/lib/formats";
+import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
-import { useIsShortScreen } from "@/hooks/useBreakpoints";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { cn } from "@/lib/utils";
 import { Search, Shuffle, Swords } from "lucide-react";
@@ -35,6 +41,7 @@ export function CreateGameDialog({
   const { savedDecks, currentDeck } = useDeckStore();
   const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
+  const isTouch = useIsTouch();
 
   const initialFormat = GAME_FORMATS.find((f) => f.id === forcedFormatId) ?? GAME_FORMATS[0];
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
@@ -54,12 +61,11 @@ export function CreateGameDialog({
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => !saved.deck.draft && getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
-    !currentDeck.draft &&
-    (currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0);
+    currentDeck.cards.length > 0 || (currentDeck.commanders?.length ?? 0) > 0;
   const allDeckCards = (d: Deck): DeckCard[] => [
     ...d.cards,
     ...d.sideboard,
@@ -91,7 +97,7 @@ export function CreateGameDialog({
     ...distinctSavedDecks.map((s) => ({
       id: s.id,
       name: s.deck.name,
-      badge: null as string | null,
+      badge: (s.deck.draft ? "draft" : null) as string | null,
       labels: s.deck.labels,
       sourceDeck: s.deck,
       isPreset: false as const,
@@ -137,16 +143,11 @@ export function CreateGameDialog({
   }, [selectedDeck]);
 
   const selectedDeckEntry = allDecks.find((d) => d.id === selectedDeck);
-  const selectedDeckValidation =
-    selectedDeckEntry?.isPreset || !selectedDeckEntry
-      ? { legal: true, errors: [] as string[] }
-      : validateDeckSections(
-          {
-            deck: selectedDeckEntry.sourceDeck,
-            commanderName: selectedCommander || selectedDeckEntry.commanderName,
-          },
-          selectedFormat,
-        );
+  const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
+  const selectedPartnerLabel =
+    selectedDeckCommanders.length === 2
+      ? partnerPairLabel(selectedDeckCommanders[0], selectedDeckCommanders[1])
+      : null;
 
   const legendaryCreatures = selectedDeckEntry
     ? Array.from(
@@ -168,7 +169,7 @@ export function CreateGameDialog({
 
   const needsCommander = selectedFormat.deckRules.requiresCommander;
   const commanderValid = !needsCommander || selectedCommander !== "";
-  const isReady = !!selectedDeckEntry && selectedDeckValidation.legal && commanderValid;
+  const isReady = !!selectedDeckEntry && commanderValid;
 
   function handleCreate(
     entry: (typeof allDecks)[number] | undefined = selectedDeckEntry,
@@ -176,6 +177,10 @@ export function CreateGameDialog({
   ) {
     if (!entry) {
       toast.error("Please select a deck");
+      return;
+    }
+    if (entry.sourceDeck.cards.length === 0 && (entry.sourceDeck.commanders?.length ?? 0) === 0) {
+      toast.error(`"${entry.name}" has no cards`);
       return;
     }
     const commander =
@@ -187,8 +192,7 @@ export function CreateGameDialog({
           selectedFormat,
         );
     if (!validation.legal) {
-      toast.error(validation.errors[0] ?? "Deck is not legal in this format");
-      return;
+      toast.warning(validation.errors[0] ?? "Deck is not legal in this format");
     }
     if (needsCommander && !(commander || entry.commanderName)) {
       toast.error("Please select a commander");
@@ -285,35 +289,46 @@ export function CreateGameDialog({
                 <div>
                   <SectionLabel>Commander</SectionLabel>
                   <div className="mt-2 space-y-1.5">
-                    {legendaryCreatures.length === 0 && (
-                      <p className="text-[10px] text-muted-foreground italic">
-                        No legendaries in deck — type a name below.
-                      </p>
-                    )}
-                    {legendaryCreatures.length > 0 ? (
-                      <select
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                        value={selectedCommander}
-                        onChange={(e) => setSelectedCommander(e.target.value)}
-                      >
-                        <option value="">— Choose —</option>
-                        {legendaryCreatures.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
+                    {selectedPartnerLabel ? (
+                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
+                        <span className="text-muted-foreground">+</span>
+                        <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
+                        <PartnerBadge label={selectedPartnerLabel} />
+                      </div>
                     ) : (
-                      <input
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                        placeholder="Card name"
-                        value={selectedCommander}
-                        onChange={(e) => setSelectedCommander(e.target.value)}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                      />
+                      <>
+                        {legendaryCreatures.length === 0 && (
+                          <p className="text-[10px] text-muted-foreground italic">
+                            No legendaries in deck — type a name below.
+                          </p>
+                        )}
+                        {legendaryCreatures.length > 0 ? (
+                          <select
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            value={selectedCommander}
+                            onChange={(e) => setSelectedCommander(e.target.value)}
+                          >
+                            <option value="">— Choose —</option>
+                            {legendaryCreatures.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            placeholder="Card name"
+                            value={selectedCommander}
+                            onChange={(e) => setSelectedCommander(e.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -412,6 +427,7 @@ export function CreateGameDialog({
                           isLegal={validation.legal}
                           validationError={validation.errors[0]}
                           dense={denseDecks}
+                          isTouch={isTouch}
                           onSelect={() => setSelectedDeck(d.id)}
                           onActivate={() => handleCreate(d, d.commanderName)}
                         />
@@ -454,6 +470,7 @@ export function CreateGameDialog({
                         isSelected={selectedDeck === deck.id}
                         isLegal={true}
                         dense={denseDecks}
+                        isTouch={isTouch}
                         onSelect={() => setSelectedDeck(deck.id)}
                         onActivate={() => handleCreate(deck, deck.commanderName)}
                       />

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
+import { PROTOCOL_VERSION } from "@/protocol";
 import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
@@ -216,7 +217,7 @@ export function TablesList({
 
   const trimmedSearch = search.trim().toLowerCase();
   const visibleRooms = rooms
-    .filter((room) => room.room_name !== "Free Room" && room.room_name !== "Free Pod")
+    .filter((room) => room.protocol_version === PROTOCOL_VERSION)
     .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
     .filter(
       (room) =>
@@ -524,6 +525,13 @@ export function TablesList({
                       <Swords className="h-3 w-3" /> {startingGame ? "Starting…" : "Start Game"}
                     </Button>
                   )}
+                  {!canStart && (
+                    <p className="hidden w-full text-right text-[10px] text-muted-foreground pointer-coarse:block">
+                      {!controllerHasDeck && !isOpenFormat
+                        ? "Select a deck before starting"
+                        : "All other players must be ready"}
+                    </p>
+                  )}
                 </div>
               )}
               {!isController && currentRoom.status === "Lobby" && myPlayer && (
@@ -558,7 +566,7 @@ export function TablesList({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search rooms…"
-              className="h-8 pl-8 text-sm"
+              className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             />
           </div>
         </div>

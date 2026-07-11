@@ -41,6 +41,8 @@ pub struct DeckSelection {
 #[derive(Debug, Deserialize)]
 struct PresetDeckFile {
     label: String,
+    #[serde(default)]
+    commander: Option<String>,
     cards: Vec<PresetDeckCard>,
 }
 
@@ -285,7 +287,7 @@ fn load_preset_deck(
             ..Default::default()
         },
         name: label,
-        commander_name,
+        commander_name: commander_name.or(preset.commander),
     })
 }
 

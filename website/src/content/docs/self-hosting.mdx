@@ -1,6 +1,6 @@
 ---
 title: Self-hosting a Forge room
-description: Run your own headless game room backed by the Forge engine, via Docker Compose or from source.
+description: Run your own headless game room backed by the Forge engine, from a published Docker image, with Docker Compose, or from source.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
@@ -11,13 +11,6 @@ need the web or desktop client. With the `forge` backend the node spawns
 one Forge process per game, so games are played on the original Forge
 rules engine rather than the Rust port.
 
-Both options below start from a full checkout:
-
-```bash
-git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
-cd manabrew
-```
-
 The node authenticates to the relay with the relay's server key. Set it via
 `SELF_HOSTED_NODE_SERVER_KEY` — never commit it anywhere.
 
@@ -25,15 +18,13 @@ The node authenticates to the relay with the relay's server key. Set it via
 
 <Tabs>
   <TabItem label="Docker Compose">
-    The image bundles everything: the node binary, the Forge harness, and a
-    JRE. Create a `compose.yml`:
+    The image is published on GHCR and bundles everything: the node binary,
+    the Forge harness, and a JRE — no checkout needed. Create a `compose.yml`:
 
     ```yaml
     services:
-      self-hosted-node:
-        build:
-          context: .
-          dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+      forge-room:
+        image: ghcr.io/witchesofthehill/manabrew-node:latest
         environment:
           SELF_HOSTED_NODE_RELAY_URL: "wss://relay.manabrew.app"
           SELF_HOSTED_NODE_SERVER_KEY: "${SELF_HOSTED_NODE_SERVER_KEY:?required}"
@@ -45,12 +36,27 @@ The node authenticates to the relay with the relay's server key. Set it via
     The image defaults to the Forge backend, so no extra configuration is needed:
 
     ```bash
-    SELF_HOSTED_NODE_SERVER_KEY=… docker compose up --build
+    SELF_HOSTED_NODE_SERVER_KEY=… docker compose up -d
+    ```
+
+    To build the image yourself instead of pulling, replace the `image:` line
+    with a `build:` block (needs a full checkout —
+    `git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git`):
+
+    ```yaml
+    build:
+      context: .
+      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
     ```
 
   </TabItem>
   <TabItem label="From source">
-    You need a Rust toolchain, a JDK (17+), and Maven.
+    You need a Rust toolchain, a JDK (17+), Maven, and a full checkout:
+
+    ```bash
+    git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
+    cd manabrew
+    ```
 
     Build the Forge harness jar and the cardset archive once:
 
@@ -76,6 +82,41 @@ The node authenticates to the relay with the relay's server key. Set it via
 
   </TabItem>
 </Tabs>
+
+## Hosting multiple rooms
+
+One node can host any number of rooms — set `SELF_HOSTED_NODE_MAX_GAMES` and it
+opens that many lobbies, suffixed `my-room (1)`, `my-room (2)`, …. Each game
+still runs in its own Forge subprocess, so rooms are fully isolated from each
+other:
+
+```yaml
+services:
+  forge-rooms:
+    image: ghcr.io/witchesofthehill/manabrew-node:latest
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "wss://relay.manabrew.app"
+      SELF_HOSTED_NODE_SERVER_KEY: "${SELF_HOSTED_NODE_SERVER_KEY:?required}"
+      SELF_HOSTED_NODE_ROOM_NAME: "my-room"
+      SELF_HOSTED_NODE_MAX_GAMES: "4"
+      RUST_LOG: "self_hosted_node=info"
+    restart: unless-stopped
+```
+
+In multi-room mode the format is forced to `any` — players pick per game.
+Memory scales with games in progress (one JVM each), not with idle lobbies.
+
+To scale across containers instead (e.g. to spread rooms over hosts or set
+per-room memory limits), run several replicas of the same service:
+
+```bash
+SELF_HOSTED_NODE_SERVER_KEY=… docker compose up -d --scale forge-rooms=3
+```
+
+Each replica is an independent node with its own rooms, so total rooms =
+replicas × `SELF_HOSTED_NODE_MAX_GAMES`. Replicas share the same
+`SELF_HOSTED_NODE_ROOM_NAME`; give each its own service entry instead if you
+want distinct lobby names.
 
 ## Native Forge engine (GraalVM)
 
@@ -115,7 +156,7 @@ All settings are environment variables:
 | `SELF_HOSTED_NODE_ROOM_PASSWORD`  | none                  | Require a password to join                                       |
 | `SELF_HOSTED_NODE_FORMAT`         | `any`                 | Game format (e.g. `commander`)                                   |
 | `SELF_HOSTED_NODE_MAX_PLAYERS`    | `4`                   | Seats in the room                                                |
-| `SELF_HOSTED_NODE_MAX_GAMES`      | `1`                   | Concurrent games the node will run                               |
+| `SELF_HOSTED_NODE_MAX_GAMES`      | `1`                   | Rooms the node hosts (one concurrent game each)                  |
 | `SELF_HOSTED_NODE_ENGINE_BACKEND` | `manabrew`            | `forge` for the Forge engine, `manabrew` for the ManaBrew engine |
 | `SELF_HOSTED_NODE_BOT_ENABLED`    | `false`               | Seat an AI bot in the room                                       |
 | `SELF_HOSTED_NODE_AUTO_START`     | `false`               | Start as soon as the room fills                                  |

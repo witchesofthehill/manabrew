@@ -109,6 +109,19 @@ play.manabrew.app {
         redir * https://github.com/witchesofthehill/manabrew/releases/latest/download/tauri.json 302
     }
 
+    # SideStore source + iOS IPA (ops/sidestore, bind-mounted). Regenerated
+    # per release by publish.yml's deploy-sidestore job. apps.json is the
+    # source URL added in SideStore; the .ipa is served as a file download.
+    handle /sidestore/* {
+        @ipa path /sidestore/*.ipa
+        header @ipa Content-Type "application/octet-stream"
+        header {
+            Access-Control-Allow-Origin "*"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

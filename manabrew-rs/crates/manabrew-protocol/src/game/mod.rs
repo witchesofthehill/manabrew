@@ -73,6 +73,16 @@ pub enum StepKind {
     Cleanup,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum DayTime {
+    #[default]
+    Neither,
+    Day,
+    Night,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(
     tag = "visibility",
@@ -116,6 +126,7 @@ pub struct GameViewDto {
     pub winner_id: Option<String>,
     pub monarch_id: Option<String>,
     pub initiative_holder_id: Option<String>,
+    pub day_time: DayTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -220,6 +231,9 @@ pub struct CardDto {
     pub attached_to: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attachment_ids: Vec<String>,
+    /// Mutate pile: the card ids merged under this top card.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub merged_card_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub flashback_cost: Option<String>,

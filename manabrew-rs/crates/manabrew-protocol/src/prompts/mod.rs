@@ -19,7 +19,7 @@ pub mod game_over;
 pub mod mulligan;
 pub mod mulligan_put_back;
 pub mod pay_mana_cost;
-pub mod reorder_cards;
+pub mod reorder;
 pub mod reveal;
 pub mod scry;
 
@@ -47,7 +47,7 @@ pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
 pub use pay_mana_cost::{PayManaCostInput, PayManaCostOutput};
-pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
+pub use reorder::{ReorderInput, ReorderItem, ReorderOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
 pub use scry::{ScryInput, ScryOutput};
 
@@ -74,7 +74,7 @@ pub enum PromptInput {
     ),
     PayManaCost(pay_mana_cost::PayManaCostInput),
     ChooseCards(choose_cards::ChooseCardsInput),
-    ReorderCards(reorder_cards::ReorderCardsInput),
+    Reorder(reorder::ReorderInput),
     DiceRolled(dice_rolled::DiceRolledInput),
 }
 
@@ -100,6 +100,6 @@ pub enum PromptOutput {
     ),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
-    ReorderCards(reorder_cards::ReorderCardsOutput),
+    Reorder(reorder::ReorderOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
 }

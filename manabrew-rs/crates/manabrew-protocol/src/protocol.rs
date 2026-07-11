@@ -5,7 +5,7 @@ use ts_rs::TS;
 pub const PROTOCOL_VERSION: u32 = 2;
 
 #[cfg(test)]
-const PROTOCOL_SCHEMA_FINGERPRINT: &str = "0aefff22867a56c5";
+const PROTOCOL_SCHEMA_FINGERPRINT: &str = "7f32883cb5f77e1f";
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]

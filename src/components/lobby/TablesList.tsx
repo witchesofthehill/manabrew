@@ -35,6 +35,8 @@ import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 
+const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
+
 const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Any",
   "Standard",
@@ -218,6 +220,11 @@ export function TablesList({
   const trimmedSearch = search.trim().toLowerCase();
   const visibleRooms = rooms
     .filter((room) => room.protocol_version === PROTOCOL_VERSION)
+    .filter(
+      (room) =>
+        room.room_id === currentRoom?.room_id ||
+        !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()),
+    )
     .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
     .filter(
       (room) =>

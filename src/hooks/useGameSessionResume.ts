@@ -180,6 +180,7 @@ export function useGameSessionResume() {
       );
       settled.current = true;
       clearActiveGameSession();
+      void useServerStore.getState().leaveRoom();
       toast.info("Your previous game has ended.");
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);

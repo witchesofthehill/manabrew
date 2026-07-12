@@ -9,6 +9,7 @@ import type { Prompt, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
+import { hiddenZoneCard } from "@/lib/gameCard";
 
 function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
   return zone.cards.flatMap((card) =>
@@ -32,13 +33,25 @@ function normalizeGameView(
     return zone ? visibleCardsOf(zone) : [];
   };
 
+  // Exile keeps hidden entries (face-down foretold cards render as backs).
+  const exileCardsOf = (ownerId: string) => {
+    const zone = zoneOf(ownerId, "exile");
+    if (!zone) return [];
+    return zone.cards.map((card) =>
+      card.visibility === "visible"
+        ? { ...card, zoneId: zone.zone }
+        : hiddenZoneCard(card.id, ownerId, zone.zone),
+    );
+  };
+
   const battlefield = zones.filter((zone) => zone.zone === "battlefield").flatMap(visibleCardsOf);
 
   const players: ClientPlayerDto[] = rawPlayers.map((player) => ({
     ...player,
     hand: cardsOf(player.id, "hand"),
+    handCount: zoneOf(player.id, "hand")?.count ?? 0,
     graveyard: cardsOf(player.id, "graveyard"),
-    exile: cardsOf(player.id, "exile"),
+    exile: exileCardsOf(player.id),
     commandZone: cardsOf(player.id, "command"),
     library: cardsOf(player.id, "library"),
     libraryCount: zoneOf(player.id, "library")?.count ?? 0,

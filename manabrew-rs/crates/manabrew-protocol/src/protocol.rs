@@ -2,10 +2,10 @@ pub use crate::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 #[cfg(test)]
-const PROTOCOL_SCHEMA_FINGERPRINT: &str = "905a2267ebb54811";
+const PROTOCOL_SCHEMA_FINGERPRINT: &str = "0eab282b154b255d";
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
@@ -106,6 +106,9 @@ pub enum ClientMessage {
 
     BroadcastState {
         state: serde_json::Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        /// A null value will broadcast to the whole room
+        target_player: Option<String>,
     },
 
     TurnChange {

@@ -219,10 +219,20 @@ export function useGameEventListeners() {
 
       // Relay (non-host) seats receive state/display/prompt addressed per player.
       unsubscribers.push(
-        platform.events.on<{ state: StateUpdate }>("game:remote_state", (payload) => {
-          if (!payload.state?.gameView) return;
-          applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
-        }),
+        platform.events.on<{ forPlayer?: string; state: StateUpdate }>(
+          "game:remote_state",
+          (payload) => {
+            if (!payload.state?.gameView) return;
+            if (payload.forPlayer) {
+              if (payload.forPlayer !== getState().myPlayerSlot) return;
+              if (!getState().seatAddressedStates) setState({ seatAddressedStates: true });
+            } else if (getState().seatAddressedStates) {
+              // Public (spectator) broadcast; this seat gets addressed views.
+              return;
+            }
+            applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
+          },
+        ),
       );
 
       unsubscribers.push(

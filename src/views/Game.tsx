@@ -1016,6 +1016,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             exile: [],
             commandZone: [],
             libraryCount: 40,
+            handCount: 7,
             manaPool: {} as Record<string, number>,
             counters: {},
             commanderDamage: {},

@@ -104,6 +104,34 @@ pub fn broadcast_to_room_except(
     }
 }
 
+pub fn send_to_room_player(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    target_username: &str,
+    msg: &ServerMessage,
+) {
+    let json = match serde_json::to_string(msg) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+    let target_id: Option<String> = state.rooms.get(room_id).and_then(|room| {
+        room.players
+            .iter()
+            .find(|p| p.connected && p.username == target_username)
+            .map(|p| p.player_id.clone())
+    });
+    let Some(pid) = target_id else {
+        debug!(
+            "[send] room={} target '{}' not connected, dropping {}",
+            &room_id[..8],
+            target_username,
+            msg_type_of(msg),
+        );
+        return;
+    };
+    emit_to(state, &pid, msg, &json);
+}
+
 pub fn broadcast_to_room(state: &Arc<ServerState>, room_id: &str, msg: &ServerMessage) {
     let json = match serde_json::to_string(msg) {
         Ok(j) => j,
@@ -1005,7 +1033,11 @@ fn handle_client_message(
                     player_decks: replay.player_decks.clone(),
                     starting_life: replay.starting_life,
                 }];
-                if let Some(state_env) = replay.last_state.clone() {
+                let seat_state = replay
+                    .slot_for(username)
+                    .and_then(|slot| replay.last_state_by_slot.get(&slot).cloned())
+                    .or_else(|| replay.last_state.clone());
+                if let Some(state_env) = seat_state {
                     messages.push(ServerMessage::StateUpdate {
                         from_player: room.host_username(),
                         state: state_env,
@@ -1036,7 +1068,10 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::BroadcastState { state: game_state } => {
+        ClientMessage::BroadcastState {
+            state: game_state,
+            target_player,
+        } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
                 let capture_game_id = state.rooms.get_mut(&rid).and_then(|mut room| {
@@ -1056,20 +1091,29 @@ fn handle_client_message(
                         .analytics
                         .capture_envelope(&game_id, username, &game_state);
                 }
-                debug!(
-                    "[game] '{}' broadcasting state to room {}",
-                    username,
-                    &rid[..8]
-                );
-                broadcast_to_room_except(
-                    state,
-                    player_id,
-                    &rid,
-                    &ServerMessage::StateUpdate {
-                        from_player: username.to_string(),
-                        state: game_state,
-                    },
-                );
+                let msg = ServerMessage::StateUpdate {
+                    from_player: username.to_string(),
+                    state: game_state,
+                };
+                match target_player {
+                    Some(target) => {
+                        debug!(
+                            "[game] '{}' sending state to '{}' in room {}",
+                            username,
+                            target,
+                            &rid[..8]
+                        );
+                        send_to_room_player(state, &rid, &target, &msg);
+                    }
+                    None => {
+                        debug!(
+                            "[game] '{}' broadcasting state to room {}",
+                            username,
+                            &rid[..8]
+                        );
+                        broadcast_to_room_except(state, player_id, &rid, &msg);
+                    }
+                }
             } else {
                 warn!(
                     "[game] '{}' tried to broadcast state but not in a room",

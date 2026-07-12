@@ -12,7 +12,8 @@ export type { DisplayEvent };
  *  The board reads the classic flat shape (a battlefield array, per-player zone
  *  lists, scalar counters), so `normalizeGameView` denormalizes each state into
  *  this client view-model. `zoneId` is re-stamped from the owning zone. Hidden
- *  cards are dropped for now — surfacing them is where the visibility work lands. */
+ *  entries survive only where an anonymous card must render (face-down exile),
+ *  as faceless stubs; elsewhere the zone count carries the hidden bulk. */
 export type ClientCardDto = CardDto & { zoneId: string };
 
 export type ClientPlayerDto = PlayerDto & {
@@ -23,6 +24,7 @@ export type ClientPlayerDto = PlayerDto & {
   /** Visible library cards only (e.g. a revealed top card); the bulk is libraryCount. */
   library: ClientCardDto[];
   libraryCount: number;
+  handCount: number;
   poison: number;
   energyCounters: number;
   radiationCounters: number;
@@ -70,6 +72,7 @@ export interface GameState {
   isFlashing: boolean;
   /** True after respond() is called and before the next prompt arrives — prevents double-submit. */
   isWaitingForResponse: boolean;
+  seatAddressedStates: boolean;
   /** Optimistic: true from when the local player passes/declines a decision until the next prompt
    *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
   relinquishedPriority: boolean;

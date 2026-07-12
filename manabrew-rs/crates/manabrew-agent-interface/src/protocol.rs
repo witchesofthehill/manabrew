@@ -16,6 +16,8 @@ pub use manabrew_protocol::protocol::*;
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum StateEnvelope {
     State {
+        #[serde(rename = "forPlayer", default, skip_serializing_if = "Option::is_none")]
+        for_player: Option<String>,
         state: Value,
     },
     Display {
@@ -95,6 +97,7 @@ impl StateEnvelope {
         use crate::prompt::AgentMessage;
         match message {
             AgentMessage::State(state) => StateEnvelope::State {
+                for_player: Some(for_player),
                 state: serde_json::to_value(state).unwrap_or(Value::Null),
             },
             AgentMessage::Display(event) => StateEnvelope::Display {

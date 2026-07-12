@@ -109,9 +109,9 @@ public final class ManaBrewInteractiveSession {
         return latestPromptJson;
     }
 
-    public String getSnapshotJson() {
+    public String getSnapshotJson(final int viewer) {
         requireAttached();
-        return snapshotJson();
+        return InteractiveSnapshotExtractor.snapshotJson(game, castingAbility, sessionId, viewer);
     }
 
     void beginCast(final SpellAbility sa) {
@@ -120,11 +120,6 @@ public final class ManaBrewInteractiveSession {
 
     void endCast() {
         this.castingAbility = null;
-    }
-
-    private String snapshotJson() {
-        final int viewer = SnapshotExtractor.playerIndex(game, game.getPhaseHandler().getPriorityPlayer());
-        return InteractiveSnapshotExtractor.snapshotJson(game, castingAbility, sessionId, viewer);
     }
 
     public boolean isGameOver() {

@@ -1,3 +1,4 @@
+import type { CardDto } from "@/protocol/game";
 import type { ClientCardDto } from "@/stores/gameStore.types";
 
 export const GAME_CARD_DEFAULTS: ClientCardDto = {
@@ -38,3 +39,18 @@ export const GAME_CARD_DEFAULTS: ClientCardDto = {
   foil: false,
   wouldDieInCombat: false,
 };
+
+export function isFacelessCard(card: Pick<CardDto, "isFaceDown" | "identity">): boolean {
+  return card.isFaceDown && !card.identity.name;
+}
+
+export function hiddenZoneCard(id: string, ownerId: string, zoneId: string): ClientCardDto {
+  return {
+    ...GAME_CARD_DEFAULTS,
+    id,
+    ownerId,
+    controllerId: ownerId,
+    zoneId,
+    isFaceDown: true,
+  };
+}

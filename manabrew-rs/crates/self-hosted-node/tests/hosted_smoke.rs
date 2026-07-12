@@ -158,6 +158,7 @@ async fn play_game(
             &mut write,
             &ClientMessage::BroadcastState {
                 state: serde_json::to_value(&spawn_bot).map_err(|e| e.to_string())?,
+                target_player: None,
             },
         )
         .await?;
@@ -220,6 +221,7 @@ async fn play_game(
                                 &ClientMessage::BroadcastState {
                                     state: serde_json::to_value(&response)
                                         .map_err(|e| e.to_string())?,
+                                    target_player: None,
                                 },
                             )
                             .await?;
@@ -253,6 +255,7 @@ async fn play_game(
                             &mut write,
                             &ClientMessage::BroadcastState {
                                 state: serde_json::to_value(&start).map_err(|e| e.to_string())?,
+                                target_player: None,
                             },
                         )
                         .await?;

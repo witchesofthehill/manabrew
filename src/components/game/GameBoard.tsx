@@ -799,7 +799,7 @@ export function GameBoard({
             cityBlessing: dev.forceCityBlessing ? true : player.hasCityBlessing,
             ringLevel: dev.ringLevel ?? player.ringLevel,
             speed: dev.speed ?? player.speed,
-            handCount: dev.handCount ?? player.hand.length,
+            handCount: dev.handCount ?? player.handCount,
           },
           gameTheme.badges,
         ),
@@ -1034,7 +1034,17 @@ export function GameBoard({
           ? onOpenZone(title, cards, onTargetFromZone, targetIds, hostileTargeting)
           : onOpenZone(title, cards);
       const tiles: ZoneTileSpec[] = [
-        { key: ZONE_TILE_KEY.library, label: "Lib", count: op.libraryCount, back: true },
+        {
+          key: ZONE_TILE_KEY.library,
+          label: "Lib",
+          count: op.libraryCount,
+          topCard: top(op.library),
+          back: op.library.length === 0,
+          onOpen:
+            op.library.length > 0
+              ? () => onOpenZone(`Top of ${stripUsernameTag(op.name)}'s Library`, op.library)
+              : undefined,
+        },
         {
           key: ZONE_TILE_KEY.graveyard,
           label: "GY",

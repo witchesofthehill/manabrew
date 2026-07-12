@@ -252,7 +252,10 @@ impl BotState {
         match serde_json::to_value(response) {
             Ok(state) => {
                 bot_log("send: broadcasting response");
-                vec![ClientMessage::BroadcastState { state }]
+                vec![ClientMessage::BroadcastState {
+                    state,
+                    target_player: None,
+                }]
             }
             Err(error) => {
                 bot_log(&format!(

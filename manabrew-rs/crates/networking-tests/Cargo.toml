@@ -16,3 +16,9 @@ tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
 serde_json = { workspace = true }
 uuid = { version = "1", features = ["v4"] }
+libtest-mimic = "0.8"
+
+[[test]]
+name = "networking_regression"
+path = "tests/networking_regression.rs"
+harness = false

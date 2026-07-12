@@ -2,10 +2,17 @@
 // a real hosted node, and drives real websocket clients through the protocol
 // crate. No mocks, no browser — the system under test is the actual binaries.
 
+use std::any::Any;
+use std::future::Future;
+use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use libtest_mimic::Arguments;
+use tokio::runtime::Handle;
 
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -35,6 +42,7 @@ static PROBE_SEQ: AtomicU32 = AtomicU32::new(0);
 const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const GREEN: &str = "\x1b[32m";
+const RED: &str = "\x1b[31m";
 const RESET: &str = "\x1b[0m";
 
 /// Announce the scenario contract at the top of a test run.
@@ -47,7 +55,7 @@ pub fn scenario(given: &str, when: &str, then: &str) {
 
 /// An action the scenario performs.
 pub fn step(message: impl AsRef<str>) {
-    println!("    {DIM}·{RESET} {}", message.as_ref());
+    println!("    {DIM}→{RESET} {}", message.as_ref());
 }
 
 /// A fact the scenario verified.
@@ -720,4 +728,135 @@ async fn recv(write: &mut WsWrite, read: &mut WsRead) -> Option<ServerMessage> {
         }
     }
     None
+}
+
+const RULE_WIDTH: usize = 72;
+
+fn rule() -> String {
+    "─".repeat(RULE_WIDTH)
+}
+
+pub struct Case {
+    pub name: &'static str,
+    pub run: Box<dyn FnOnce() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send>,
+}
+
+pub fn case<F, Fut>(name: &'static str, f: F) -> Case
+where
+    F: FnOnce() -> Fut + Send + 'static,
+    Fut: Future<Output = ()> + Send + 'static,
+{
+    Case {
+        name,
+        run: Box::new(move || Box::pin(f())),
+    }
+}
+
+fn begin_test(name: &str) {
+    println!();
+    println!("{DIM}{}{RESET}", rule());
+    println!("  {BOLD}{name}{RESET}");
+}
+
+fn pass_test(name: &str, elapsed: Duration) {
+    println!();
+    println!(
+        "  {GREEN}{BOLD}PASS{RESET}  {DIM}{name}{RESET} {DIM}({:.1}s){RESET}",
+        elapsed.as_secs_f32()
+    );
+}
+
+fn fail_test(name: &str, elapsed: Duration, msg: &str) {
+    println!();
+    println!(
+        "  {RED}{BOLD}FAIL{RESET}  {DIM}{name}{RESET} {DIM}({:.1}s){RESET}",
+        elapsed.as_secs_f32()
+    );
+    if !msg.is_empty() {
+        println!("        {RED}{msg}{RESET}");
+    }
+}
+
+fn filtered_out(args: &Arguments, name: &str) -> bool {
+    for skip in &args.skip {
+        if name.contains(skip.as_str()) {
+            return true;
+        }
+    }
+    match &args.filter {
+        Some(f) if args.exact => name != f.as_str(),
+        Some(f) => !name.contains(f.as_str()),
+        None => false,
+    }
+}
+
+fn should_run(args: &Arguments) -> bool {
+    args.ignored || args.include_ignored
+}
+
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&'static str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        String::from("<non-string panic payload>")
+    }
+}
+
+pub fn list(args: &Arguments, cases: &[Case]) {
+    for case in cases {
+        if !filtered_out(args, case.name) {
+            println!("{}: test", case.name);
+        }
+    }
+}
+
+pub fn execute(args: &Arguments, handle: &Handle, cases: Vec<Case>) -> (usize, usize, usize) {
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut skipped = 0;
+    for case in cases {
+        if filtered_out(args, case.name) {
+            continue;
+        }
+        if !should_run(args) {
+            skipped += 1;
+            println!();
+            println!("  {DIM}SKIP{RESET}  {}", case.name);
+            continue;
+        }
+        let Case { name, run } = case;
+        begin_test(name);
+        let start = Instant::now();
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| handle.block_on(run())));
+        let elapsed = start.elapsed();
+        match result {
+            Ok(()) => {
+                passed += 1;
+                pass_test(name, elapsed);
+            }
+            Err(payload) => {
+                failed += 1;
+                fail_test(name, elapsed, &panic_message(payload));
+            }
+        }
+    }
+    (passed, failed, skipped)
+}
+
+pub fn summary(passed: usize, failed: usize, skipped: usize, elapsed: Duration) {
+    let tone = if failed == 0 { GREEN } else { RED };
+    let mut parts = vec![format!("{passed} passed"), format!("{failed} failed")];
+    if skipped > 0 {
+        parts.push(format!("{skipped} skipped"));
+    }
+    println!();
+    println!("{DIM}{}{RESET}", rule());
+    println!(
+        "  {tone}{BOLD}{} · {:.0}s{RESET}",
+        parts.join(" · "),
+        elapsed.as_secs_f32()
+    );
+    println!("{DIM}{}{RESET}", rule());
 }

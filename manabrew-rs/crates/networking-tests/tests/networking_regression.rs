@@ -7,12 +7,13 @@
 
 mod support;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use support::{scenario, spawn_guest_bot, Client, Sim, GRACE_DEADLINE};
+use libtest_mimic::Arguments;
+use support::{
+    case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Sim, GRACE_DEADLINE,
+};
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn brief_disconnect_reclaims_seat() {
     scenario(
         "a 2-player game in progress between a human and the node's bot.",
@@ -54,8 +55,6 @@ async fn brief_disconnect_reclaims_seat() {
     alice.answer_prompts(1).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn vanished_seat_forfeits_and_game_continues() {
     scenario(
         "a 3-player game with two humans and the node's bot.",
@@ -94,8 +93,6 @@ async fn vanished_seat_forfeits_and_game_continues() {
     bot.abort();
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn last_human_leaving_ends_game_immediately() {
     scenario(
         "a 3-player game where the only human plays alongside two bots.",
@@ -129,8 +126,6 @@ async fn last_human_leaving_ends_game_immediately() {
     bot.abort();
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn abandoned_room_serves_a_fresh_game() {
     scenario(
         "a game whose room was just reset after abandonment.",
@@ -163,8 +158,6 @@ async fn abandoned_room_serves_a_fresh_game() {
     assert_ne!(carol.game_id.as_deref(), Some(first_game.as_str()));
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn concede_watch_then_leave() {
     scenario(
         "a 3-player game where the human has conceded and stays connected, watching the bots.",
@@ -216,8 +209,6 @@ async fn concede_watch_then_leave() {
     bot.abort();
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn relay_restart_resumes_the_game() {
     scenario(
         "a 2-player game in progress.",
@@ -241,8 +232,6 @@ async fn relay_restart_resumes_the_game() {
     alice.answer_prompts(1).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn relay_restart_forfeits_unreturned_seat() {
     scenario(
         "a resumed game after a relay restart, with one human back and one still absent.",
@@ -285,8 +274,6 @@ async fn relay_restart_forfeits_unreturned_seat() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn dead_node_room_is_reclaimed() {
     scenario(
         "a hosted in-game room.",
@@ -309,8 +296,6 @@ async fn dead_node_room_is_reclaimed() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn creating_a_room_seats_the_creator() {
     scenario(
         "a player creating a room from the lobby.",
@@ -329,8 +314,6 @@ async fn creating_a_room_seats_the_creator() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn ghost_session_reaped_on_room_teardown() {
     scenario(
         "an in-game room where one player vanished (session preserved for reconnect) and one survivor remains.",
@@ -367,8 +350,6 @@ async fn ghost_session_reaped_on_room_teardown() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "spawns relay + node"]
 async fn empty_lobby_room_is_removed() {
     scenario(
         "a player-created lobby room that never starts a game.",
@@ -394,4 +375,61 @@ async fn empty_lobby_room_is_removed() {
         |room| room.is_none(),
     )
     .await;
+}
+
+fn main() {
+    let args = Arguments::from_args();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build tokio runtime");
+    let handle = runtime.handle().clone();
+
+    let cases: Vec<Case> = vec![
+        case(
+            "brief_disconnect_reclaims_seat",
+            brief_disconnect_reclaims_seat,
+        ),
+        case(
+            "vanished_seat_forfeits_and_game_continues",
+            vanished_seat_forfeits_and_game_continues,
+        ),
+        case(
+            "last_human_leaving_ends_game_immediately",
+            last_human_leaving_ends_game_immediately,
+        ),
+        case(
+            "abandoned_room_serves_a_fresh_game",
+            abandoned_room_serves_a_fresh_game,
+        ),
+        case("concede_watch_then_leave", concede_watch_then_leave),
+        case(
+            "relay_restart_resumes_the_game",
+            relay_restart_resumes_the_game,
+        ),
+        case(
+            "relay_restart_forfeits_unreturned_seat",
+            relay_restart_forfeits_unreturned_seat,
+        ),
+        case("dead_node_room_is_reclaimed", dead_node_room_is_reclaimed),
+        case("empty_lobby_room_is_removed", empty_lobby_room_is_removed),
+        case(
+            "creating_a_room_seats_the_creator",
+            creating_a_room_seats_the_creator,
+        ),
+        case(
+            "ghost_session_reaped_on_room_teardown",
+            ghost_session_reaped_on_room_teardown,
+        ),
+    ];
+
+    if args.list {
+        list(&args, &cases);
+        std::process::exit(0);
+    }
+
+    let total = Instant::now();
+    let (passed, failed, skipped) = execute(&args, &handle, cases);
+    summary(passed, failed, skipped, total.elapsed());
+    std::process::exit(if failed == 0 { 0 } else { 1 });
 }

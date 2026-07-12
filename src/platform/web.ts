@@ -1011,10 +1011,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "StartGame", format: params?.format ?? null });
   }
 
-  async endGame(): Promise<void> {
+  async endGame(gameId: string): Promise<void> {
     this.stopAllBots();
     clearSpawnedBots();
-    this.send({ type: "EndGame" });
+    this.send({ type: "EndGame", game_id: gameId });
   }
 
   async requestResync(): Promise<void> {
@@ -1314,7 +1314,10 @@ class WebServerApi implements IServerApi {
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],
       PlayerList: ["server:player_list", { players: msg.players }],
-      RoomCreated: ["server:room_created", { room_id: msg.room_id, room_name: msg.room_name }],
+      RoomCreated: [
+        "server:room_created",
+        { room_id: msg.room_id, room_name: msg.room_name, room: msg.room },
+      ],
       PlayerJoined: ["server:player_joined", { room_id: msg.room_id, username: msg.username }],
       PlayerLeft: ["server:player_left", { room_id: msg.room_id, username: msg.username }],
       PlayerConnected: ["server:player_connected", { username: msg.username }],
@@ -1325,6 +1328,7 @@ class WebServerApi implements IServerApi {
         "server:game_started",
         {
           room_id: msg.room_id,
+          game_id: msg.game_id,
           player_order: msg.player_order,
           player_decks: msg.player_decks,
           starting_life: msg.starting_life,

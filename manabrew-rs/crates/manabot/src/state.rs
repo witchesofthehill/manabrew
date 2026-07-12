@@ -41,6 +41,8 @@ pub struct BotConfig {
     /// Which built-in AI to plug into the bot. Defaults to `Simple`.
     #[serde(default)]
     pub agent: AgentKind,
+    #[serde(default)]
+    pub answer_delay_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +63,12 @@ pub struct BotState {
 }
 
 impl BotState {
+    pub fn answer_delay(&self) -> Option<std::time::Duration> {
+        self.config
+            .answer_delay_ms
+            .map(std::time::Duration::from_millis)
+    }
+
     pub fn new(config: BotConfig) -> Self {
         let agent = config.agent.build();
         Self {

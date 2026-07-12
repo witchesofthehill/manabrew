@@ -203,7 +203,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43d5b281e737544384e969a5ccad3f1cdd24b48086a0fc1b2a5262a26b8f4f4a"
 dependencies = [
  "anstyle",
- "anstyle-parse",
+ "anstyle-parse 0.2.7",
+ "anstyle-query",
+ "anstyle-wincon",
+ "colorchoice",
+ "is_terminal_polyfill",
+ "utf8parse",
+]
+
+[[package]]
+name = "anstream"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "824a212faf96e9acacdbd09febd34438f8f711fb84e09a8916013cd7815ca28d"
+dependencies = [
+ "anstyle",
+ "anstyle-parse 1.0.0",
  "anstyle-query",
  "anstyle-wincon",
  "colorchoice",
@@ -222,6 +237,15 @@ name = "anstyle-parse"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7644824f0aa2c7b9384579234ef10eb7efb6a0deb83f9630a49594dd9c15c2"
+dependencies = [
+ "utf8parse",
+]
+
+[[package]]
+name = "anstyle-parse"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52ce7f38b242319f7cabaa6813055467063ecdc9d355bbb4ce0c68908cd8130e"
 dependencies = [
  "utf8parse",
 ]
@@ -1065,7 +1089,7 @@ version = "4.5.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24a241312cea5059b13574bb9b3861cabf758b879c15190b37b6d6fd63ab6876"
 dependencies = [
- "anstream",
+ "anstream 0.6.21",
  "anstyle",
  "clap_lex",
  "strsim",
@@ -1965,6 +1989,12 @@ name = "error-code"
 version = "3.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
+
+[[package]]
+name = "escape8259"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5692dd7b5a1978a5aeb0ce83b7655c58ca8efdcb79d21036ea249da95afec2c6"
 
 [[package]]
 name = "event-listener"
@@ -3619,6 +3649,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "libtest-mimic"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
+dependencies = [
+ "anstream 1.0.0",
+ "anstyle",
+ "clap",
+ "escape8259",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3706,7 +3748,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "futures-util",
  "manabrew-agent-interface",
@@ -3722,7 +3764,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "1.5.0"
+version = "1.5.2"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3750,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -3794,7 +3836,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-protocol"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -3804,7 +3846,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "axum",
  "chrono",
@@ -3826,7 +3868,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -4131,6 +4173,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys 0.3.0",
+]
+
+[[package]]
+name = "networking-tests"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "libtest-mimic",
+ "manabot",
+ "manabrew-agent-interface",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "uuid",
 ]
 
 [[package]]
@@ -6207,7 +6263,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -8294,7 +8350,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

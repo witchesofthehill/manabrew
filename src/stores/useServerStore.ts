@@ -57,6 +57,7 @@ interface ServerState {
   players: PlayerInfo[];
 
   gameStarted: boolean;
+  gameId: string;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
   startingLife: number;
@@ -131,6 +132,7 @@ export const useServerStore = create<ServerState>()(
       hostingForgeRoom: false,
       players: [],
       gameStarted: false,
+      gameId: "",
       playerOrder: [],
       playerDecks: [],
       startingLife: DEFAULT_STARTING_LIFE,
@@ -180,6 +182,7 @@ export const useServerStore = create<ServerState>()(
           username: null,
           currentRoom: null,
           gameStarted: false,
+          gameId: "",
           playerOrder: [],
           playerDecks: [],
           startingLife: DEFAULT_STARTING_LIFE,
@@ -250,8 +253,9 @@ export const useServerStore = create<ServerState>()(
 
       async resumeRoomAfterRestart() {
         const platform = getPlatform();
-        const { currentRoom, playerOrder, playerDecks, startingLife, roomPassword } = get();
-        if (!platform.server?.resumeRoom || !currentRoom || playerOrder.length === 0) return;
+        const { currentRoom, gameId, playerOrder, playerDecks, startingLife, roomPassword } = get();
+        if (!platform.server?.resumeRoom || !currentRoom || playerOrder.length === 0 || !gameId)
+          return;
         await platform.server.resumeRoom({
           room_id: currentRoom.room_id,
           room_name: currentRoom.room_name,
@@ -267,6 +271,7 @@ export const useServerStore = create<ServerState>()(
           player_decks: playerDecks,
           starting_life: startingLife,
           bot_players: currentRoom.players.filter((p) => p.is_bot).map((p) => p.username),
+          game_id: gameId,
         });
       },
 
@@ -284,6 +289,7 @@ export const useServerStore = create<ServerState>()(
           roomPassword: null,
           hostingForgeRoom: false,
           gameStarted: false,
+          gameId: "",
           playerOrder: [],
           playerDecks: [],
           startingLife: DEFAULT_STARTING_LIFE,
@@ -353,7 +359,7 @@ export const useServerStore = create<ServerState>()(
       async endGame() {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.endGame();
+        await platform.server.endGame(get().gameId);
       },
 
       setupListeners() {
@@ -413,14 +419,21 @@ export const useServerStore = create<ServerState>()(
         );
 
         unsubscribers.push(
-          platform.events.on<RoomCreatedPayload>("server:room_created", () => {
+          platform.events.on<RoomCreatedPayload>("server:room_created", (payload) => {
+            set({ currentRoom: payload.room });
             get().listRooms();
           }),
         );
 
         unsubscribers.push(
           platform.events.on<RoomUpdatePayload>("server:room_update", (payload) => {
-            set({ currentRoom: payload.room });
+            // Only rooms we are in or joining: an update broadcast while our
+            // LeaveRoom was in flight must not re-enroll us in the room.
+            const inRoom = get().currentRoom?.room_id === payload.room.room_id;
+            const joining = pendingJoin?.roomId === payload.room.room_id;
+            if (inRoom || joining) {
+              set({ currentRoom: payload.room });
+            }
             settlePendingJoin(null, payload.room.room_id);
           }),
         );
@@ -461,6 +474,7 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<GameStartedPayload>("server:game_started", (payload) => {
             set({
               gameStarted: true,
+              gameId: payload.game_id,
               playerOrder: payload.player_order,
               playerDecks: payload.player_decks,
               startingLife: payload.starting_life,
@@ -487,6 +501,7 @@ export const useServerStore = create<ServerState>()(
               set({
                 currentRoom: null,
                 gameStarted: false,
+                gameId: "",
                 playerOrder: [],
                 playerDecks: [],
                 startingLife: DEFAULT_STARTING_LIFE,
@@ -512,6 +527,7 @@ export const useServerStore = create<ServerState>()(
                 playerId: null,
                 currentRoom: null,
                 gameStarted: false,
+                gameId: "",
                 playerOrder: [],
                 playerDecks: [],
                 startingLife: DEFAULT_STARTING_LIFE,

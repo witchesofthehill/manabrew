@@ -371,6 +371,7 @@ export const useGameStore = create<GameState>()(
         if (server.currentRoom) {
           armActiveGameSession({
             roomId: server.currentRoom.room_id,
+            gameId: server.gameId,
             isHost: localIsHost,
             username: server.username ?? "",
           });

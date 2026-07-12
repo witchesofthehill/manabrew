@@ -753,7 +753,7 @@ class WebServerApi implements IServerApi {
         this.pendingRelayPrompts.set(forPlayer, envelope);
         this.broadcastState(envelope);
       } else if (msg.kind === "error") {
-        this.eventBus.emit("game:error", msg.error);
+        this.broadcastState({ kind: "error", forPlayer, error: msg.error });
       }
     });
   }
@@ -1242,6 +1242,9 @@ class WebServerApi implements IServerApi {
           return;
         case "prompt":
           this.eventBus.emit("game:remote_prompt", envelope);
+          return;
+        case "error":
+          this.eventBus.emit("game:remote_error", envelope);
           return;
         case "log":
           this.eventBus.emit("game:log", envelope.entry);

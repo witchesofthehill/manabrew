@@ -208,9 +208,11 @@ async fn play_game(
                         let Ok(agent_prompt) = serde_json::from_value::<AgentPrompt>(prompt) else {
                             continue;
                         };
+                        let prompt_id = agent_prompt.prompt_id;
                         if let Some(action) = ai.decide(agent_prompt) {
                             let response = StateEnvelope::Response {
                                 from_player: for_player,
+                                prompt_id,
                                 action: serde_json::to_value(&action).map_err(|e| e.to_string())?,
                             };
                             send(

@@ -5,7 +5,7 @@ import type {
   ClientGameView,
   ClientPlayerDto,
 } from "./gameStore.types";
-import type { Prompt } from "@/protocol";
+import type { Prompt, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
@@ -125,6 +125,17 @@ export function applyDisplay(
   get: () => GameState,
 ) {
   route({ displayEvents: [event], gameView: null, prompt: null }, `${source}: display`, set, get);
+}
+
+// The engine rejected our last response. It re-sends the open prompt right
+// after the error, so recovery is just unblocking the UI for another attempt.
+export function applyProtocolError(
+  error: ProtocolError,
+  source: string,
+  set: (partial: Partial<GameState>) => void,
+) {
+  console.warn(`[protocol-error:${source}]`, error.code, error.promptId, error.message);
+  set({ isWaitingForResponse: false, relinquishedPriority: false });
 }
 
 // A pure call-to-action: it carries no game view (state arrives via applyState).

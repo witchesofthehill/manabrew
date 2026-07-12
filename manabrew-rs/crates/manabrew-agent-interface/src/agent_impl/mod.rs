@@ -129,21 +129,66 @@ impl<R: Responder> PromptAgent<R> {
             .take()
             .expect("recv_action called without a pending prompt");
         if self.conceded {
-            return PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                until: None,
-                exhaust_stack: false,
-            });
+            return Self::default_pass();
         }
-        match self.responder.respond(prompt) {
-            ClientToServerMessage::Response { action, .. } => action,
-            ClientToServerMessage::Directive { directive } => {
-                self.handle_directive(directive);
-                PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                    until: None,
-                    exhaust_stack: false,
-                })
+        loop {
+            match self.responder.respond(prompt.clone()) {
+                ClientToServerMessage::Response { prompt_id: 0, .. } => {
+                    return Self::default_pass();
+                }
+                ClientToServerMessage::Response { prompt_id, action } => {
+                    if prompt_id != prompt.prompt_id {
+                        self.reject(
+                            &prompt,
+                            ProtocolErrorCode::StalePrompt,
+                            format!(
+                                "response for prompt {prompt_id}, open prompt is {}",
+                                prompt.prompt_id
+                            ),
+                        );
+                        continue;
+                    }
+                    match prompt.input.validate_response(&action) {
+                        Ok(()) => return action,
+                        Err(ResponseViolation::WrongPromptType) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::WrongPromptType,
+                                "response output does not match the prompt type".to_string(),
+                            );
+                        }
+                        Err(ResponseViolation::UnknownActionId(id)) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::UnknownActionId,
+                                format!("action id {id:?} was not advertised by the prompt"),
+                            );
+                        }
+                    }
+                }
+                ClientToServerMessage::Directive { directive } => {
+                    self.handle_directive(directive);
+                    return Self::default_pass();
+                }
             }
         }
+    }
+
+    fn default_pass() -> PromptOutput {
+        PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        })
+    }
+
+    fn reject(&mut self, prompt: &AgentPrompt, code: ProtocolErrorCode, message: String) {
+        self.responder.present(&AgentMessage::Error(ProtocolError {
+            code,
+            message,
+            prompt_id: Some(prompt.prompt_id),
+        }));
+        self.responder
+            .present(&AgentMessage::Prompt(prompt.clone()));
     }
 
     fn handle_directive(&mut self, directive: DirectiveInput) {

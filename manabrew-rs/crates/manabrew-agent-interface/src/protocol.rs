@@ -30,10 +30,11 @@ pub enum StateEnvelope {
         prompt: Value,
     },
     /// Player answers a prompt. `action` is `PlayerAction` for Rust; raw value
-    /// for the Java bridge.
     Response {
         #[serde(rename = "fromPlayer")]
         from_player: String,
+        #[serde(rename = "promptId", default)]
+        prompt_id: u32,
         action: Value,
     },
     Directive {

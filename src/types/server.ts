@@ -6,6 +6,7 @@ import type {
   PlayerDeckInfo,
   Prompt,
   PromptOutput,
+  ProtocolError,
   SealedConfig,
   StateUpdate,
 } from "@/protocol";
@@ -136,6 +137,7 @@ export type StateEnvelope =
   | { kind: "state"; state: StateUpdate }
   | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
+  | { kind: "error"; forPlayer: string; error: ProtocolError }
   | { kind: "response"; fromPlayer: string; promptId: number; action: PromptOutput }
   | { kind: "directive"; fromPlayer: string; directive: DirectiveInput }
   | { kind: "log"; fromPlayer: string; entry: unknown }

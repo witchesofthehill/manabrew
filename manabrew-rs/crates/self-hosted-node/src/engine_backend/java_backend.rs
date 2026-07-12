@@ -33,7 +33,7 @@ use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage};
 #[cfg(forge_backend)]
 use manabrew_agent_interface::prompt::{
     AgentPrompt, ChooseActionOutput, DiceRolledOutput, DirectiveInput, GameOverInput, PromptInput,
-    PromptOutput, StateUpdate,
+    PromptOutput, ProtocolError, ProtocolErrorCode, ResponseViolation, StateUpdate,
 };
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{MulliganOutput, MulliganPutBackOutput};
@@ -1025,7 +1025,7 @@ fn run_hosted_engine_game_inner(
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<ClientToServerMessage>> =
         remote_response_rxs.into_iter().collect();
-    let mut last_prompt_id: Option<u32> = None;
+    let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
 
     loop {
@@ -1054,7 +1054,64 @@ fn run_hosted_engine_game_inner(
                             }
                         }
                     }
-                    Ok(ClientToServerMessage::Response { action, .. }) => {
+                    Ok(ClientToServerMessage::Response { prompt_id, action }) => {
+                        // prompt_id 0 is transport-synthesized: the
+                        // absent-player default, exempt from validation.
+                        if prompt_id != 0 {
+                            let Some(prompt) =
+                                last_prompt.as_ref().filter(|p| p.prompt_id == prompt_id)
+                            else {
+                                reject_response(
+                                    &remote_prompt_tx,
+                                    *player_index,
+                                    last_prompt.as_ref().filter(|p| {
+                                        self::player_index(&p.deciding_player_id) == *player_index
+                                    }),
+                                    ProtocolErrorCode::StalePrompt,
+                                    format!("response for prompt {prompt_id} is not open"),
+                                );
+                                continue;
+                            };
+                            if self::player_index(&prompt.deciding_player_id) != *player_index {
+                                reject_response(
+                                    &remote_prompt_tx,
+                                    *player_index,
+                                    None,
+                                    ProtocolErrorCode::WrongPlayer,
+                                    format!(
+                                        "prompt {prompt_id} is for {}",
+                                        prompt.deciding_player_id
+                                    ),
+                                );
+                                continue;
+                            }
+                            match prompt.input.validate_response(&action) {
+                                Ok(()) => {}
+                                Err(ResponseViolation::WrongPromptType) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::WrongPromptType,
+                                        "response output does not match the prompt type"
+                                            .to_string(),
+                                    );
+                                    continue;
+                                }
+                                Err(ResponseViolation::UnknownActionId(id)) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::UnknownActionId,
+                                        format!(
+                                            "action id {id:?} was not advertised by the prompt"
+                                        ),
+                                    );
+                                    continue;
+                                }
+                            }
+                        }
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1085,8 +1142,8 @@ fn run_hosted_engine_game_inner(
         if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
-            if last_prompt_id != Some(prompt.prompt_id) {
-                last_prompt_id = Some(prompt.prompt_id);
+            if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
@@ -1173,6 +1230,27 @@ fn player_index(deciding_player_id: &str) -> usize {
         .strip_prefix("player-")
         .and_then(|n| n.parse().ok())
         .unwrap_or(0)
+}
+
+#[cfg(forge_backend)]
+fn reject_response(
+    remote_prompt_tx: &std_mpsc::Sender<(usize, AgentMessage)>,
+    seat: usize,
+    reopen_prompt: Option<&AgentPrompt>,
+    code: ProtocolErrorCode,
+    message: String,
+) {
+    let _ = remote_prompt_tx.send((
+        seat,
+        AgentMessage::Error(ProtocolError {
+            code,
+            message,
+            prompt_id: reopen_prompt.map(|p| p.prompt_id),
+        }),
+    ));
+    if let Some(prompt) = reopen_prompt {
+        let _ = remote_prompt_tx.send((seat, AgentMessage::Prompt(prompt.clone())));
+    }
 }
 
 #[cfg(forge_backend)]
@@ -1786,10 +1864,15 @@ fn prompt_card_ids(prompt: &Value, field: &str, count: usize) -> Result<Vec<Stri
 
 #[cfg(feature = "java-forge")]
 fn battlefield_contains(game_view: &GameViewDto, card_name: &str) -> bool {
-    game_view
-        .battlefield
-        .iter()
-        .any(|card| card.identity.name == card_name && card.controller_id == "player-0")
+    use manabrew_agent_interface::game_view_dto::{CardView, ZoneKind};
+    game_view.zones.iter().any(|zone| {
+        zone.zone == ZoneKind::Battlefield
+            && zone.owner_id == "player-0"
+            && zone.cards.iter().any(|card| match card {
+                CardView::Visible(dto) => dto.identity.name == card_name,
+                CardView::Hidden { .. } => false,
+            })
+    })
 }
 
 pub trait JavaBridge {

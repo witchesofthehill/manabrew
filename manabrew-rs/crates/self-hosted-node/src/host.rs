@@ -1579,6 +1579,7 @@ fn route_remote_response(
     };
     let StateEnvelope::Response {
         from_player,
+        prompt_id,
         action: action_value,
     } = envelope
     else {
@@ -1619,10 +1620,7 @@ fn route_remote_response(
                 debug!(from_player, player_index, "no response channel for player");
                 return;
             };
-            if let Err(error) = tx.send(ClientToServerMessage::Response {
-                prompt_id: 0,
-                action,
-            }) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1645,10 +1643,7 @@ fn route_remote_response(
                 from_player,
                 player_index, "routing relay response to java engine"
             );
-            if let Err(error) = tx.send(ClientToServerMessage::Response {
-                prompt_id: 0,
-                action,
-            }) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }

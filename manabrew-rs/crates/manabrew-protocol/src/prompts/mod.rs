@@ -103,3 +103,54 @@ pub enum PromptOutput {
     Reorder(reorder::ReorderOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResponseViolation {
+    WrongPromptType,
+    UnknownActionId(String),
+}
+
+impl PromptInput {
+    /// The formal prompt/response contract: a response is valid only if its
+    /// output family matches this prompt and every echoed action id was
+    /// advertised by it. Engines reject anything else with a `ProtocolError`.
+    pub fn validate_response(&self, output: &PromptOutput) -> Result<(), ResponseViolation> {
+        use PromptInput as I;
+        use PromptOutput as O;
+        match (self, output) {
+            (I::ChooseAction(input), O::ChooseAction(out)) => match out {
+                ChooseActionOutput::Act { action_id }
+                    if !input.actions.iter().any(|a| a.id == *action_id) =>
+                {
+                    Err(ResponseViolation::UnknownActionId(action_id.clone()))
+                }
+                _ => Ok(()),
+            },
+            (I::PayManaCost(input), O::PayManaCost(out)) => match out {
+                PayManaCostOutput::Act { action_id }
+                    if !input.actions.iter().any(|a| a.id == *action_id) =>
+                {
+                    Err(ResponseViolation::UnknownActionId(action_id.clone()))
+                }
+                _ => Ok(()),
+            },
+            (I::Mulligan(_), O::Mulligan(_))
+            | (I::MulliganPutBack(_), O::MulliganPutBack(_))
+            | (I::ChooseAttackers(_), O::ChooseAttackers(_))
+            | (I::ChooseBlockers(_), O::ChooseBlockers(_))
+            | (I::ChooseBoardTargets(_), O::ChooseBoardTargets(_))
+            | (I::ChooseBoolean(_), O::ChooseBoolean(_))
+            | (I::ChooseFromSelection(_), O::ChooseFromSelection(_))
+            | (I::RevealCards(_), O::RevealCards(_))
+            | (I::Scry(_), O::Scry(_))
+            | (I::ChooseColor(_), O::ChooseColor(_))
+            | (I::ChooseNumber(_), O::ChooseNumber(_))
+            | (I::ChooseDamageAssignmentOrder(_), O::ChooseDamageAssignmentOrder(_))
+            | (I::ChooseCombatDamageAssignment(_), O::ChooseCombatDamageAssignment(_))
+            | (I::ChooseCards(_), O::ChooseCards(_))
+            | (I::Reorder(_), O::Reorder(_))
+            | (I::DiceRolled(_), O::DiceRolled(_)) => Ok(()),
+            _ => Err(ResponseViolation::WrongPromptType),
+        }
+    }
+}

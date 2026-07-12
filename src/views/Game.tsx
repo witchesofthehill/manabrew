@@ -138,6 +138,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               hand: [],
               graveyard: [],
               exile: [],
+              library: [],
               commandZone: [],
             }
           : p,
@@ -1011,6 +1012,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             poison: 0,
             hand: [],
             graveyard: [],
+            library: [],
             exile: [],
             commandZone: [],
             libraryCount: 40,
@@ -1547,6 +1549,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           myHand={me?.hand ?? []}
           graveyard={me?.graveyard ?? []}
           exile={me?.exile ?? []}
+          library={me?.library ?? []}
           myCommandZone={me?.commandZone ?? []}
           playableIds={playableIds}
           activePlayerId={gameView.activePlayerId}

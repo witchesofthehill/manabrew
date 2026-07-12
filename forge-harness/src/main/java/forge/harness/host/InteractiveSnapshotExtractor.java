@@ -13,6 +13,7 @@ import forge.game.Game;
 import forge.game.GameEntity;
 import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
+import forge.game.card.CardCollectionView;
 import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
 import forge.game.combat.Combat;
@@ -71,8 +72,15 @@ public final class InteractiveSnapshotExtractor {
                 }
             }
             zones.add(visibleZone("command", ownerId, game, commandZone, index, true));
-            zones.add(zoneEntry("library", ownerId, new ArrayList<>(),
-                    player.getCardsIn(ZoneType.Library).size()));
+            // Library bulk stays hidden (count only); the top card is included
+            // when its owner may look at it (Augur/Courser-style statics), so
+            // `count >= cards.length`.
+            final List<JsonObject> libraryCards = new ArrayList<>();
+            final CardCollectionView library = player.getCardsIn(ZoneType.Library);
+            if (!library.isEmpty() && library.get(0).mayPlayerLook(player)) {
+                libraryCards.add(visibleCard(toCard(game, library.get(0), index, true)));
+            }
+            zones.add(zoneEntry("library", ownerId, libraryCards, library.size()));
         }
         // Battlefield bucketed by controller.
         final Map<String, List<JsonObject>> battlefieldByController = new LinkedHashMap<>();

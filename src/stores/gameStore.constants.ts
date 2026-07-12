@@ -40,6 +40,7 @@ function normalizeGameView(
     graveyard: cardsOf(player.id, "graveyard"),
     exile: cardsOf(player.id, "exile"),
     commandZone: cardsOf(player.id, "command"),
+    library: cardsOf(player.id, "library"),
     libraryCount: zoneOf(player.id, "library")?.count ?? 0,
     poison: player.counters.poison ?? 0,
     energyCounters: player.counters.energy ?? 0,

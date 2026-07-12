@@ -58,6 +58,7 @@ interface GameBoardProps {
   myHand: CardDto[];
   graveyard: CardDto[];
   exile: CardDto[];
+  library: CardDto[];
   myCommandZone?: CardDto[];
   /** Ids of cards the active `chooseAction` prompt offers to cast/activate. */
   playableIds: Set<string>;
@@ -164,6 +165,7 @@ export function GameBoard({
   myHand,
   graveyard,
   exile,
+  library,
   myCommandZone,
   playableIds,
   activePlayerId,
@@ -321,6 +323,9 @@ export function GameBoard({
     .filter((card) => playableIds.has(card.id))
     .map((card) => card.id);
   const exilePlayableIds = exile.filter((card) => playableIds.has(card.id)).map((card) => card.id);
+  const libraryPlayableIds = library
+    .filter((card) => playableIds.has(card.id))
+    .map((card) => card.id);
   const selectableBattlefieldCardIds = useMemo(
     () =>
       promptType === "chooseAttackers"
@@ -920,6 +925,15 @@ export function GameBoard({
     onOpenZoneAndCast,
   ]);
 
+  const openLibrary = useCallback(() => {
+    if (library.length === 0) return;
+    if (libraryPlayableIds.length > 0 && promptType === "chooseAction") {
+      onOpenZoneAndCast("Top of Library", library, (_cardId) => {}, libraryPlayableIds);
+    } else {
+      onOpenZone("Top of Library", library);
+    }
+  }, [library, libraryPlayableIds, promptType, onOpenZoneAndCast, onOpenZone]);
+
   const openExile = useCallback(() => {
     if (isTargetingPrompt && exileTargetIds.length > 0) {
       onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds, hostileTargeting);
@@ -955,9 +969,18 @@ export function GameBoard({
       (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
       !!delveAvailable;
     const exPlayable = promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id));
+    const libPlayable = promptType === "chooseAction" && library.some((c) => playableIds.has(c.id));
 
     const self: ZoneTileSpec[] = [
-      { key: ZONE_TILE_KEY.library, label: "Lib", count: me.libraryCount, back: true },
+      {
+        key: ZONE_TILE_KEY.library,
+        label: "Lib",
+        count: me.libraryCount,
+        topCard: top(library),
+        back: library.length === 0,
+        onOpen: library.length > 0 ? openLibrary : undefined,
+        highlightColor: libPlayable ? active : undefined,
+      },
       {
         key: ZONE_TILE_KEY.graveyard,
         label: "GY",
@@ -1055,6 +1078,7 @@ export function GameBoard({
     commandPlayableIds,
     graveyard,
     exile,
+    library,
     playableIds,
     promptType,
     delveAvailable,
@@ -1068,6 +1092,7 @@ export function GameBoard({
     openCommandZone,
     openGraveyard,
     openExile,
+    openLibrary,
   ]);
 
   const boardZoneTiles = useMemo<Record<string, ZoneTileSpec[]>>(() => {

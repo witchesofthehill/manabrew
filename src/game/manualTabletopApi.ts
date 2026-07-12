@@ -30,6 +30,7 @@ function createPlayer(
     poison: 0,
     hand: [],
     graveyard: [],
+    library: [],
     exile: [],
     commandZone: [],
     libraryCount,

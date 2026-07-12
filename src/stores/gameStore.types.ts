@@ -20,6 +20,8 @@ export type ClientPlayerDto = PlayerDto & {
   graveyard: ClientCardDto[];
   exile: ClientCardDto[];
   commandZone: ClientCardDto[];
+  /** Visible library cards only (e.g. a revealed top card); the bulk is libraryCount. */
+  library: ClientCardDto[];
   libraryCount: number;
   poison: number;
   energyCounters: number;

@@ -68,9 +68,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <VAssignCombatDamageModal input={prompt.input} respond={respond} />
   ),
 
-  reorderCards: ({ prompt, respond }) => (
-    <ReorderCardsModal input={prompt.input} respond={respond} />
-  ),
+  reorder: ({ prompt, respond }) => <ReorderCardsModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
   diceRolled: ({ prompt, respond, ctx }) => (

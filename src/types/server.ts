@@ -136,7 +136,7 @@ export type StateEnvelope =
   | { kind: "state"; state: StateUpdate }
   | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
-  | { kind: "response"; fromPlayer: string; action: PromptOutput }
+  | { kind: "response"; fromPlayer: string; promptId: number; action: PromptOutput }
   | { kind: "directive"; fromPlayer: string; directive: DirectiveInput }
   | { kind: "log"; fromPlayer: string; entry: unknown }
   | { kind: "snapshot"; fromPlayer: string; entry: unknown }

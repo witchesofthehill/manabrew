@@ -78,7 +78,11 @@ impl MpscTransport {
         // When the response channel is disconnected — typically because
         //
         let pass = || ClientToServerMessage::Response {
-            action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+            prompt_id: 0,
+            action: PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                until: None,
+                exhaust_stack: false,
+            }),
         };
         let received = if let Some(timeout) = self.response_timeout {
             match self.response_rx.recv_timeout(timeout) {

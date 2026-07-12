@@ -148,9 +148,9 @@ final class ManabrewProtocolAdapter {
                 flat.addProperty("kind", "damage_assignment_order_decision");
                 flat.add("ordered_card_ids", copyStringArray(output, "orderedBlockerIds"));
                 return flat;
-            case "reorderCards":
+            case "reorder":
                 flat.addProperty("kind", "reorder_library_decision");
-                flat.add("ordered_card_ids", copyStringArray(output, "orderedCardIds"));
+                flat.add("ordered_card_ids", copyStringArray(output, "orderedIds"));
                 return flat;
             case "chooseCombatDamageAssignment": {
                 flat.addProperty("kind", "combat_damage_assignment_decision");
@@ -219,9 +219,6 @@ final class ManabrewProtocolAdapter {
             case "pay":
                 flat.addProperty("kind", "pay_mana");
                 flat.addProperty("auto", output.has("auto") && output.get("auto").getAsBoolean());
-                return flat;
-            case "payLife":
-                flat.addProperty("kind", "pay_life");
                 return flat;
             case "cancel":
                 flat.addProperty("kind", "cancel_mana");

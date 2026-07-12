@@ -86,7 +86,10 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
-        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
@@ -1038,6 +1041,7 @@ fn run_hosted_engine_game_inner(
                 match rx.try_recv() {
                     Ok(ClientToServerMessage::Response {
                         action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
+                        ..
                     }) => {
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
@@ -1050,7 +1054,7 @@ fn run_hosted_engine_game_inner(
                             }
                         }
                     }
-                    Ok(ClientToServerMessage::Response { action }) => {
+                    Ok(ClientToServerMessage::Response { action, .. }) => {
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1177,6 +1181,7 @@ fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
         PromptInput::ChooseAction(_) => {
             Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until: None,
+                exhaust_stack: false,
             }))
         }
         _ => None,
@@ -1308,6 +1313,7 @@ impl JavaScenario {
                         } else {
                             Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                                 until: None,
+                                exhaust_stack: false,
                             })))
                         }
                     }
@@ -1351,7 +1357,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None, exhaust_stack: false })))
                         }
                     }
                     other => Err(format!(

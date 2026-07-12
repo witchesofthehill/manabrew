@@ -163,9 +163,9 @@ pub(super) fn pay_mana_cost<T: Responder>(
     let mut actions = mana_payment_actions(mana_ability_options);
     for &land in untappable_lands {
         let id = card_id_str(land);
-        actions.push(AvailableAction {
+        actions.push(PaymentAction {
             id: format!("untap:{id}"),
-            kind: AvailableActionKind::UndoMana { card_id: id },
+            kind: PaymentActionKind::UndoMana { card_id: id },
         });
     }
 
@@ -193,7 +193,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
 
 pub(super) fn mana_payment_actions(
     mana_ability_options: &[ManaAbilityOption],
-) -> Vec<AvailableAction> {
+) -> Vec<PaymentAction> {
     mana_ability_options
         .iter()
         .flat_map(|opt| {
@@ -205,6 +205,10 @@ pub(super) fn mana_payment_actions(
                 opt.produced_mana.clone(),
                 opt.produced_mana_amount,
             )
+        })
+        .map(|(id, info)| PaymentAction {
+            id,
+            kind: PaymentActionKind::ActivateManaAbility(info),
         })
         .collect()
 }

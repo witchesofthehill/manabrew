@@ -1,31 +1,73 @@
-import type { GameState, DeferredSnapshot } from "./gameStore.types";
+import type {
+  GameState,
+  DeferredSnapshot,
+  ClientCardDto,
+  ClientGameView,
+  ClientPlayerDto,
+} from "./gameStore.types";
 import type { Prompt } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
-function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | null): GameViewDto {
+function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
+  return zone.cards.flatMap((card) =>
+    card.visibility === "visible" ? [{ ...card, zoneId: zone.zone }] : [],
+  );
+}
+
+function normalizeGameView(
+  nextView: GameViewDto,
+  currentView: ClientGameView | null,
+): ClientGameView {
   const incoming = (nextView ?? {}) as Partial<GameViewDto>;
   const current = currentView ?? null;
+  const zones = Array.isArray(incoming.zones) ? incoming.zones : [];
+  const rawPlayers = Array.isArray(incoming.players) ? incoming.players : [];
+
+  const zoneOf = (ownerId: string, kind: ZoneKind) =>
+    zones.find((zone) => zone.ownerId === ownerId && zone.zone === kind);
+  const cardsOf = (ownerId: string, kind: ZoneKind) => {
+    const zone = zoneOf(ownerId, kind);
+    return zone ? visibleCardsOf(zone) : [];
+  };
+
+  const battlefield = zones.filter((zone) => zone.zone === "battlefield").flatMap(visibleCardsOf);
+
+  const players: ClientPlayerDto[] = rawPlayers.map((player) => ({
+    ...player,
+    hand: cardsOf(player.id, "hand"),
+    graveyard: cardsOf(player.id, "graveyard"),
+    exile: cardsOf(player.id, "exile"),
+    commandZone: cardsOf(player.id, "command"),
+    libraryCount: zoneOf(player.id, "library")?.count ?? 0,
+    poison: player.counters.poison ?? 0,
+    energyCounters: player.counters.energy ?? 0,
+    radiationCounters: player.counters.radiation ?? 0,
+    experienceCounters: player.counters.experience ?? 0,
+    ticketCounters: player.counters.ticket ?? 0,
+  }));
+
+  const hasView = zones.length > 0 || rawPlayers.length > 0;
 
   return {
     gameId: incoming.gameId ?? current?.gameId ?? "",
     turn: incoming.turn ?? current?.turn ?? 0,
-    step: incoming.step ?? current?.step ?? "",
+    step: incoming.step ?? current?.step ?? "untap",
     combatAssignments: Array.isArray(incoming.combatAssignments)
       ? incoming.combatAssignments
       : (current?.combatAssignments ?? []),
     activePlayerId: incoming.activePlayerId ?? current?.activePlayerId ?? "",
     priorityPlayerId: incoming.priorityPlayerId ?? current?.priorityPlayerId ?? "",
-    players: Array.isArray(incoming.players) ? incoming.players : (current?.players ?? []),
-    battlefield: Array.isArray(incoming.battlefield)
-      ? incoming.battlefield
-      : (current?.battlefield ?? []),
+    players: hasView ? players : (current?.players ?? []),
+    zones: hasView ? zones : (current?.zones ?? []),
+    battlefield: hasView ? battlefield : (current?.battlefield ?? []),
     stack: Array.isArray(incoming.stack) ? incoming.stack : (current?.stack ?? []),
     gameOver: incoming.gameOver ?? current?.gameOver ?? false,
     winnerId: incoming.winnerId ?? current?.winnerId ?? null,
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
+    dayTime: incoming.dayTime ?? current?.dayTime ?? "neither",
   };
 }
 

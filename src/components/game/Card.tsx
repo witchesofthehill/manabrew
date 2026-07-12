@@ -37,7 +37,7 @@ function CardBadge({ label, style }: { label: string; style: string }) {
 }
 
 interface CardProps {
-  card: CardDto;
+  card: CardDto & { zoneId?: string };
   className?: string;
   style?: CSSProperties;
   isTapped?: boolean;

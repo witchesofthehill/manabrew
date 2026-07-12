@@ -1,5 +1,5 @@
-import type { CardDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
+import type { ClientCardDto } from "@/stores/gameStore.types";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 
 const SUPERTYPES = new Set(["Legendary", "Basic", "Snow", "World", "Ongoing", "Token"]);
@@ -16,8 +16,8 @@ function parseTypeLine(line: string) {
 // Not for live game state — defaults are static.
 export function scryfallToSampleGameCard(
   sc: ScryfallCard,
-  overrides: Partial<CardDto> = {},
-): CardDto {
+  overrides: Partial<ClientCardDto> = {},
+): ClientCardDto {
   const { supertypes, types, subtypes } = parseTypeLine(
     sc.type_line ?? sc.card_faces?.[0]?.type_line ?? "",
   );

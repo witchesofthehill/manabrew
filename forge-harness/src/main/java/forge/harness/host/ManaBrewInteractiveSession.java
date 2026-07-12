@@ -561,7 +561,7 @@ public final class ManaBrewInteractiveSession {
             final boolean canPayLife,
             final int lifeToPay
     ) {
-        final List<AvailableAction> actionList = new java.util.ArrayList<>();
+        final List<PaymentAction> actionList = new java.util.ArrayList<>();
         for (final SpellAbility sa : tappableSources) {
             final Card host = sa.getHostCard();
             if (host == null) {
@@ -577,26 +577,28 @@ public final class ManaBrewInteractiveSession {
                 final String actionId = choice.color != null
                         ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
                         : "tap:" + cardId + ":" + abilityIndex;
-                actionList.add(new AvailableAction_activateAbility(
+                actionList.add(new PaymentAction_activateManaAbility(
                         actionId, cardId, abilityIndex, description, true, cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
-            actionList.add(new AvailableAction_activateAbility(
+            actionList.add(new PaymentAction_activateManaAbility(
                     "tap:" + cardId, cardId, 0, card.getName(), true, null, null));
         }
         for (final Card card : untappableCards) {
             final String cardId = SnapshotExtractor.javaCardId(card);
-            actionList.add(new AvailableAction_undoMana("untap:" + cardId, cardId));
+            actionList.add(new PaymentAction_undoMana("untap:" + cardId, cardId));
         }
         for (final Card card : delveSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             if (delvedCards != null && delvedCards.contains(card)) {
-                actionList.add(new AvailableAction_undelve("undelve:" + cardId, cardId));
+                actionList.add(new PaymentAction_releaseResource(
+                        "undelve:" + cardId, cardId, PaymentResourceKind.DELVE));
             } else {
-                actionList.add(new AvailableAction_delve("delve:" + cardId, cardId));
+                actionList.add(new PaymentAction_useResource(
+                        "delve:" + cardId, cardId, PaymentResourceKind.DELVE));
             }
         }
         publishAgentPrompt("player-" + playerId, null, new PayManaCostInput(
@@ -1686,7 +1688,7 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
             if (sa.isLandAbility() || sa.isSpell()) {
-                actionsArray.add(new AvailableAction_cast(id, cardId, id, label));
+                actionsArray.add(new AvailableAction_cast(id, cardId, new PlayCardMode_normal(), label));
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
@@ -1867,7 +1869,7 @@ public final class ManaBrewInteractiveSession {
                 ? "player-" + SnapshotExtractor.playerIndex(game, owner)
                 : "player-" + playerId;
         publishAgentPrompt("player-" + playerId, null, revealInput(
-                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, richCards(cards, false)));
+                zoneKind(zone), messagePrefix, ownerPlayerId, richCards(cards, false)));
     }
 
     private void publishRevealCardViewsPrompt(
@@ -1893,18 +1895,40 @@ public final class ManaBrewInteractiveSession {
             }
         }
         publishAgentPrompt("player-" + playerId, null, revealInput(
-                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, cardArray));
+                zoneKind(zone), messagePrefix, ownerPlayerId, cardArray));
     }
 
     private RevealCardsInput revealInput(
-            final String zone,
+            final ZoneKind zone,
             final String message,
             final String ownerPlayerId,
             final List<CardDto> cards
     ) {
         return new RevealCardsInput(
-                cards, zone == null ? "unknown" : zone, ownerPlayerId,
+                cards, zone == null ? ZoneKind.LIBRARY : zone, ownerPlayerId,
                 message == null ? "Look at these cards" : message);
+    }
+
+    private static ZoneKind zoneKind(final ZoneType zone) {
+        if (zone == null) {
+            return ZoneKind.LIBRARY;
+        }
+        switch (zone) {
+            case Hand:
+                return ZoneKind.HAND;
+            case Graveyard:
+            case Flashback:
+                return ZoneKind.GRAVEYARD;
+            case Battlefield:
+            case Merged:
+                return ZoneKind.BATTLEFIELD;
+            case Exile:
+                return ZoneKind.EXILE;
+            case Command:
+                return ZoneKind.COMMAND;
+            default:
+                return ZoneKind.LIBRARY;
+        }
     }
 
     private void publishNumberPrompt(
@@ -1930,12 +1954,13 @@ public final class ManaBrewInteractiveSession {
             final String sourceCardId
     ) {
         final String title = sourceName != null ? sourceName : "Reorder";
-        final String targetLabel = destination != null
-                ? destination.name()
-                : (topOfDeck ? "Top of Library" : "Bottom of Library");
-        publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderCardsInput(
-                presentation(title, "Arrange these cards in order.", sourceCardId),
-                richCards(cards, false), targetLabel, topOfDeck));
+        final List<ReorderItem> items = new java.util.ArrayList<>();
+        for (final Card card : cards) {
+            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, false);
+            items.add(new ReorderItem(dto.id, dto, null));
+        }
+        publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderInput(
+                presentation(title, "Arrange these cards in order.", sourceCardId), items));
     }
 
     private void publishLibraryPrompt(

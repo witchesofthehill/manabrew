@@ -23,7 +23,7 @@ import { Card } from "@/components/game/Card";
 import { PromptPresentation } from "./internal/PromptPresentation";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
-import type { ReorderCardsInput, ReorderCardsOutput } from "@/protocol";
+import type { ReorderInput, ReorderOutput } from "@/protocol";
 
 const CARD_W = "w-[84px]";
 
@@ -48,15 +48,11 @@ function SortableCard({ id, card }: { id: string; card: CardDto }) {
   );
 }
 
-export function ReorderCardsModal({
-  input,
-  respond,
-}: PromptProps<ReorderCardsInput, ReorderCardsOutput>) {
-  const { presentation, targetLabel, topOfDeck } = input;
-  const cards = input.cards as CardDto[];
-  const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
+export function ReorderCardsModal({ input, respond }: PromptProps<ReorderInput, ReorderOutput>) {
+  const { presentation, items } = input;
+  const cardsById = useMemo(() => new Map(items.map((i) => [i.id, i.card as CardDto])), [items]);
   const [order, setOrder] = useState<string[] | null>(null);
-  const ids = order ?? cards.map((c) => c.id);
+  const ids = order ?? items.map((i) => i.id);
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -80,11 +76,6 @@ export function ReorderCardsModal({
         onDragStart={(e: DragStartEvent) => setActiveId(e.active.id as string)}
         onDragEnd={onDragEnd}
       >
-        <div className="flex items-center justify-between px-5 pb-2 text-xs font-bold text-muted-foreground">
-          <span>{topOfDeck ? "BOTTOM" : "FIRST"}</span>
-          <span className="text-primary">{targetLabel}</span>
-          <span>{topOfDeck ? "TOP" : "LAST"}</span>
-        </div>
         <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
           <div className="flex max-h-[55dvh] flex-wrap justify-center gap-2 overflow-y-auto px-5 pb-4">
             {ids.map((id) => {
@@ -101,7 +92,7 @@ export function ReorderCardsModal({
       </DndContext>
 
       <Modal.Footer className="justify-end">
-        <Button size="sm" onClick={() => respond({ type: "reorderDecision", orderedCardIds: ids })}>
+        <Button size="sm" onClick={() => respond({ type: "reorderDecision", orderedIds: ids })}>
           Confirm Order
         </Button>
       </Modal.Footer>

@@ -1619,7 +1619,10 @@ fn route_remote_response(
                 debug!(from_player, player_index, "no response channel for player");
                 return;
             };
-            if let Err(error) = tx.send(ClientToServerMessage::Response { action }) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response {
+                prompt_id: 0,
+                action,
+            }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1642,7 +1645,10 @@ fn route_remote_response(
                 from_player,
                 player_index, "routing relay response to java engine"
             );
-            if let Err(error) = tx.send(ClientToServerMessage::Response { action }) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response {
+                prompt_id: 0,
+                action,
+            }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1693,7 +1699,7 @@ fn spawn_remote_prompt_forwarder(
                 AgentMessage::State(_) => last_state = Some(state.clone()),
                 AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
                 AgentMessage::Display(_) => last_display = Some(state.clone()),
-                AgentMessage::Prompt(_) => {}
+                AgentMessage::Prompt(_) | AgentMessage::Error(_) => {}
             }
             if let Ok(mut snap) = snapshot.lock() {
                 match &message {
@@ -1701,7 +1707,7 @@ fn spawn_remote_prompt_forwarder(
                     AgentMessage::Prompt(_) => {
                         snap.pending_prompts.insert(slot, state.clone());
                     }
-                    AgentMessage::Display(_) => {}
+                    AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
             }
             if outbound_tx
@@ -1730,7 +1736,8 @@ fn spawn_game_over_forwarder(
                 match &message {
                     AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                     AgentMessage::State(_) => last_state = Some(state.clone()),
-                    AgentMessage::Display(_) | AgentMessage::Prompt(_) => {}
+                    AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
+                    }
                 }
                 if outbound_tx
                     .send(ClientMessage::BroadcastState { state })

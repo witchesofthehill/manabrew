@@ -95,16 +95,15 @@ pub enum CardView {
     Hidden { id: String },
 }
 
-/// One entry per (zone, owner) pair; battlefield cards are bucketed by controller.
+// One entry per (zone, owner) pair; battlefield cards are bucketed by controller.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
 pub struct ZoneDto {
     pub zone: ZoneKind,
     pub owner_id: String,
-    /// Ordered top-first where order is public knowledge; zones whose bulk is
-    /// hidden from the recipient (library) elide those entries, so
-    /// `count >= cards.len()`.
+    // Ordered top-first where order is public knowledge
+    // count can be > cards.len if hidden cards are present (library)
     pub cards: Vec<CardView>,
     pub count: usize,
 }
@@ -210,8 +209,8 @@ pub struct CardDto {
     #[ts(optional)]
     pub attack_target_id: Option<String>,
     pub keywords: Vec<String>,
-    /// Keyed by the engine's canonical `CounterType` display form ("P1P1",
-    /// "Loyalty", one-off counter names uppercase); both producers must match it.
+    // Keyed by the engine's canonical `CounterType` display form ("P1P1",
+    // "Loyalty", one-off counter names uppercase); both producers must match it.
     #[ts(type = "Record<string, number>")]
     pub counters: BTreeMap<String, u32>,
     pub damage: i32,
@@ -231,7 +230,7 @@ pub struct CardDto {
     pub attached_to: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attachment_ids: Vec<String>,
-    /// Mutate pile: the card ids merged under this top card.
+    // Mutate pile: the card ids merged under this top card.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub merged_card_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

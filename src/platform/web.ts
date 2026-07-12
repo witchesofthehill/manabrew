@@ -113,7 +113,7 @@ interface RemoteSeat {
 // A kind-tagged engine message read off a seat's SAB, awaiting relay.
 type RelayMessage = {
   forPlayer: string;
-  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown };
+  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
 };
 
 // ============================================================================
@@ -221,6 +221,7 @@ class WorkerBridge {
     state?: unknown;
     event?: unknown;
     prompt?: unknown;
+    error?: unknown;
   }): void {
     logComms("engine", msg);
     switch (msg?.kind) {
@@ -229,6 +230,9 @@ class WorkerBridge {
         break;
       case "display":
         this.eventBus.emit("game:display", msg.event);
+        break;
+      case "error":
+        this.eventBus.emit("game:error", msg.error);
         break;
       case "prompt":
         this.localAwaitingResponse = true;
@@ -312,7 +316,8 @@ class WorkerBridge {
       }
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
-      this.writeSeatMessage(seat, { kind: "response", action });
+      const promptId = Number(payload.state.promptId ?? 0);
+      this.writeSeatMessage(seat, { kind: "response", promptId, action });
     });
   }
 
@@ -338,8 +343,8 @@ class WorkerBridge {
   /**
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
-  writeResponse(action: PromptOutput): void {
-    this.writeLocalMessage({ kind: "response", action });
+  writeResponse(action: PromptOutput, promptId: number): void {
+    this.writeLocalMessage({ kind: "response", promptId, action });
   }
 
   /** Deliver a directive to the local seat: now if the engine is blocked on
@@ -566,6 +571,7 @@ class WebGameApi implements IGameApi {
       const envelope: StateEnvelope = {
         kind: "response",
         fromPlayer,
+        promptId: params.promptId,
         action: params.action,
       };
       dlog(
@@ -574,11 +580,12 @@ class WebGameApi implements IGameApi {
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer
-      this.bridge.writeResponse(params.action);
+      this.bridge.writeResponse(params.action, params.promptId);
     } else {
       await this.bridge.invoke("respond", {
         action: params.action,
         playerSlot: params.playerSlot,
+        promptId: params.promptId,
       });
     }
   }
@@ -745,6 +752,8 @@ class WebServerApi implements IServerApi {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
         this.broadcastState(envelope);
+      } else if (msg.kind === "error") {
+        this.eventBus.emit("game:error", msg.error);
       }
     });
   }

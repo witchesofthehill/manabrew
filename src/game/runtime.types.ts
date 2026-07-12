@@ -1,5 +1,6 @@
 import type { IGameApi } from "@/platform";
-import type { CardDto, GameViewDto } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
+import type { ClientCardDto, ClientGameView } from "@/stores/gameStore.types";
 
 export type GameRuntimeKind = "manabrew" | "forge" | "manual-tabletop";
 
@@ -28,8 +29,8 @@ export interface GameRuntime {
 }
 
 export interface ManualTabletopApi extends IGameApi {
-  applyManualAction(action: ManualTabletopAction): Promise<GameViewDto>;
-  getGameView(): GameViewDto | null;
+  applyManualAction(action: ManualTabletopAction): Promise<ClientGameView>;
+  getGameView(): ClientGameView | null;
 }
 
 export interface BaseSeatController {
@@ -97,4 +98,4 @@ export type ManualTabletopAction =
   | { type: "shuffleLibrary"; playerId: string }
   | { type: "revealCards"; playerId: string; cardIds: string[] }
   | { type: "hideCards"; playerId: string; cardIds: string[] }
-  | { type: "replaceState"; gameView: GameViewDto; libraries?: Record<string, CardDto[]> };
+  | { type: "replaceState"; gameView: ClientGameView; libraries?: Record<string, ClientCardDto[]> };

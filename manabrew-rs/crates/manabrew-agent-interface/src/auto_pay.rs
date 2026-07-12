@@ -18,22 +18,24 @@ fn parse_mana_tokens(mana_cost: &str) -> Vec<String> {
         .collect()
 }
 
-fn mana_matches_color(mana: &Mana, letter: &str) -> bool {
-    let color = match letter {
-        "W" => ManaColor::White,
-        "U" => ManaColor::Blue,
-        "B" => ManaColor::Black,
-        "R" => ManaColor::Red,
-        "G" => ManaColor::Green,
-        "C" => ManaColor::Colorless,
-        _ => return false,
-    };
-    mana.color == color
+fn color_letter(color: ManaColor) -> &'static str {
+    match color {
+        ManaColor::White => "W",
+        ManaColor::Blue => "U",
+        ManaColor::Black => "B",
+        ManaColor::Red => "R",
+        ManaColor::Green => "G",
+        ManaColor::Colorless => "C",
+    }
 }
 
-fn action_produces_color(action: &AvailableAction, letter: &str) -> bool {
+fn mana_matches_color(mana: &Mana, letter: &str) -> bool {
+    color_letter(mana.color) == letter
+}
+
+fn action_produces_color(action: &PaymentAction, letter: &str) -> bool {
     match &action.kind {
-        AvailableActionKind::ActivateAbility(info) => info
+        PaymentActionKind::ActivateManaAbility(info) => info
             .produced_mana
             .as_ref()
             .map(|mana| mana.iter().any(|m| mana_matches_color(m, letter)))
@@ -105,15 +107,20 @@ fn can_pay_mana_cost(pool: &HashMap<String, i32>, mana_cost: &str, player_life: 
 pub fn choose_pay_mana_cost_action(
     game_view: &GameViewDto,
     mana_cost: &str,
-    actions: &[AvailableAction],
+    actions: &[PaymentAction],
 ) -> Option<PromptOutput> {
-    let player_pool = game_view
+    let player = game_view
         .players
         .iter()
         .find(|p| p.id == game_view.priority_player_id)
         .cloned();
-    let player_life = player_pool.as_ref().map(|p| p.life).unwrap_or_default();
-    let player_pool = player_pool.map(|p| p.mana_pool).unwrap_or_default();
+    let player_life = player.as_ref().map(|p| p.life).unwrap_or_default();
+    let player_pool: HashMap<String, i32> = player
+        .map(|p| p.mana_pool)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(color, amount)| (color_letter(color).to_string(), amount as i32))
+        .collect();
     let mut needed_colors: Vec<String> = parse_mana_tokens(mana_cost)
         .into_iter()
         .filter_map(|token| {
@@ -153,7 +160,7 @@ pub fn choose_pay_mana_cost_action(
 
     actions
         .iter()
-        .find(|action| matches!(action.kind, AvailableActionKind::ActivateAbility(_)))
+        .find(|action| matches!(action.kind, PaymentActionKind::ActivateManaAbility(_)))
         .map(|action| {
             PromptOutput::PayManaCost(PayManaCostOutput::Act {
                 action_id: action.id.clone(),

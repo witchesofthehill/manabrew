@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::game::StepKind;
 use crate::prompts::common::AvailableAction;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -15,7 +16,7 @@ pub struct ChooseActionInput {
 #[ts(export, export_to = "prompts/chooseAction.ts")]
 pub struct PassUntil {
     pub player_id: String,
-    pub phase: String,
+    pub phase: StepKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

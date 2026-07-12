@@ -9,7 +9,8 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CardDto, PlayerDto, StackObjectDto } from "@/protocol/game";
+import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
@@ -79,7 +80,11 @@ function isManualTabletopApi(
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
 
-function buildDebugKeywordCard(controllerId: string, name: string, keywords: string[]): CardDto {
+function buildDebugKeywordCard(
+  controllerId: string,
+  name: string,
+  keywords: string[],
+): ClientCardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: DEBUG_KEYWORD_CARD_ID,
@@ -273,8 +278,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       arr.push({
         kind: "cast" as const,
         cardId: a.cardId,
-        mode: a.mode,
-        label: a.modeLabel,
+        mode: a.mode.type,
+        label: a.label,
         actionId: a.id,
       });
       map.set(a.cardId, arr);
@@ -327,7 +332,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const getManualCardActions = useCallback(
-    (card: CardDto): HandActionOption[] => {
+    (card: CardDto & { zoneId?: string }): HandActionOption[] => {
       if (!manualApi) return [];
       const humanPlayerId = gameView?.players[0]?.id;
       const ownsHumanZone = card.controllerId === humanPlayerId || card.ownerId === humanPlayerId;
@@ -438,8 +443,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         options: castActions.map((a) => ({
           actionId: a.id,
           cardId: a.cardId,
-          mode: a.mode,
-          modeLabel: a.modeLabel,
+          mode: a.mode.type,
+          modeLabel: a.label,
         })),
       });
       return;
@@ -600,7 +605,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       stickyPromptType,
     });
   }
-  function openManualZone(title: string, cards: CardDto[]) {
+  function openManualZone(title: string, cards: ClientCardDto[]) {
     openZoneViewer({
       title,
       cards,
@@ -908,13 +913,18 @@ export default function Game({ exitTo }: GameProps = {}) {
   const delveActionIdByCardId = useMemo(() => {
     const map = new Map<string, string>();
     for (const a of payManaCostPrompt?.actions ?? []) {
-      if (a.type === "delve" || a.type === "undelve") map.set(a.cardId, a.id);
+      if ((a.type === "useResource" || a.type === "releaseResource") && a.resource === "delve") {
+        map.set(a.cardId, a.id);
+      }
     }
     return map;
   }, [payManaCostPrompt]);
   const delveSourceIds = useMemo(() => [...delveActionIdByCardId.keys()], [delveActionIdByCardId]);
   const delvedCardIds = useMemo(
-    () => payManaCostPrompt?.actions.flatMap((a) => (a.type === "undelve" ? [a.cardId] : [])) ?? [],
+    () =>
+      payManaCostPrompt?.actions.flatMap((a) =>
+        a.type === "releaseResource" && a.resource === "delve" ? [a.cardId] : [],
+      ) ?? [],
     [payManaCostPrompt],
   );
 
@@ -1005,6 +1015,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             commandZone: [],
             libraryCount: 40,
             manaPool: {} as Record<string, number>,
+            counters: {},
             commanderDamage: {},
             energyCounters: 0,
             radiationCounters: 0,
@@ -1013,7 +1024,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             speed: 0,
             experienceCounters: 0,
             ticketCounters: 0,
-          }) as PlayerDto,
+          }) as ClientPlayerDto,
       ),
     ],
     [opponents, devExtraOpponents],
@@ -1600,7 +1611,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onShowBoardMenu={() => setBoardMenuOpen(true)}
           onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
             if (manualApi) {
-              openManualZone(title, cards);
+              openManualZone(title, cards as ClientCardDto[]);
               return;
             }
             openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
@@ -1838,7 +1849,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           </div>
         )}
 
-      {gameView.step === "first_strike_damage" && (
+      {gameView.step === "combatFirstStrikeDamage" && (
         <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>

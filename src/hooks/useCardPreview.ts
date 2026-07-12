@@ -31,7 +31,7 @@ export interface HoverOptions {
  * Handles delay, modifier keys, sticky states, and grace periods.
  */
 export function useCardPreview(dismissDeps: unknown[] = []) {
-  const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<(CardDto & { zoneId?: string }) | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const [placement, setPlacement] = useState<"auto" | "top-center" | "pinned">("auto");

@@ -56,6 +56,13 @@ pub enum StateEnvelope {
     Fatal {
         message: String,
     },
+    /// Engine rejects a response (stale prompt, wrong player, unknown action).
+    /// `error` is `ProtocolError`; recoverable unless the session is terminated.
+    Error {
+        #[serde(rename = "forPlayer")]
+        for_player: String,
+        error: Value,
+    },
     /// Out-of-band message tunneled through the relay (manual tabletop launch,
     /// self-hosted-node control plane, heartbeats, …). The relay never
     /// interprets the `payload`.
@@ -95,6 +102,10 @@ impl StateEnvelope {
             AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {
                 for_player,
                 prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
+            },
+            AgentMessage::Error(error) => StateEnvelope::Error {
+                for_player,
+                error: serde_json::to_value(error).unwrap_or(Value::Null),
             },
         }
     }

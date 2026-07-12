@@ -1,6 +1,6 @@
-import type { CardDto } from "@/protocol/game";
+import type { ClientCardDto } from "@/stores/gameStore.types";
 
-export const GAME_CARD_DEFAULTS: CardDto = {
+export const GAME_CARD_DEFAULTS: ClientCardDto = {
   id: "",
   identity: { name: "", setCode: "", cardNumber: "", isToken: false },
   color: "",
@@ -31,6 +31,7 @@ export const GAME_CARD_DEFAULTS: CardDto = {
   exerted: false,
   isRingBearer: false,
   attachmentIds: [],
+  mergedCardIds: [],
   isMadnessExiled: false,
   isPlotted: false,
   isWarpExiled: false,

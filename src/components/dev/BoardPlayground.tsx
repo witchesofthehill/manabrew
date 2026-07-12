@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CardDto } from "@/protocol/game";
+import type { ClientCardDto } from "@/stores/gameStore.types";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
@@ -43,7 +43,7 @@ const LANDS: CardSpec[] = [
 
 let seq = 0;
 
-function makeCard(spec: CardSpec): CardDto {
+function makeCard(spec: CardSpec): ClientCardDto {
   seq += 1;
   return {
     ...GAME_CARD_DEFAULTS,
@@ -79,13 +79,13 @@ const PHASE_STRIP_STUB: PhaseStripState = {
 };
 
 export function BoardPlayground() {
-  const [cards, setCards] = useState<CardDto[]>([]);
+  const [cards, setCards] = useState<ClientCardDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
   const preview = useCardPreview([cards]);
   const compactBoard = useIsMobileGame();
 
-  const update = (id: string | null, fn: (c: CardDto) => CardDto) => {
+  const update = (id: string | null, fn: (c: ClientCardDto) => ClientCardDto) => {
     if (!id) return;
     setCards((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
   };

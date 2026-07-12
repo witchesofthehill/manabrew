@@ -13,7 +13,7 @@ import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameS
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
-import type { Prompt, StateUpdate } from "@/protocol";
+import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import type { AuthResultPayload, RoomMessagePayload } from "@/types/server";
@@ -161,6 +161,12 @@ export function useGameEventListeners() {
             fatalError: payload?.message || "The game failed to start.",
             isPrefetchingCards: false,
           });
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on<ProtocolError>("game:error", (payload) => {
+          console.warn("[game] protocol error", payload?.code, payload?.message);
         }),
       );
 

@@ -1,12 +1,37 @@
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { EngineKind } from "@/types/server";
 
 export type { DisplayEvent };
+
+/** The engine sends `zones: ZoneDto[]` with per-recipient `CardView` visibility.
+ *  The board reads the classic flat shape (a battlefield array, per-player zone
+ *  lists, scalar counters), so `normalizeGameView` denormalizes each state into
+ *  this client view-model. `zoneId` is re-stamped from the owning zone. Hidden
+ *  cards are dropped for now — surfacing them is where the visibility work lands. */
+export type ClientCardDto = CardDto & { zoneId: string };
+
+export type ClientPlayerDto = PlayerDto & {
+  hand: ClientCardDto[];
+  graveyard: ClientCardDto[];
+  exile: ClientCardDto[];
+  commandZone: ClientCardDto[];
+  libraryCount: number;
+  poison: number;
+  energyCounters: number;
+  radiationCounters: number;
+  experienceCounters: number;
+  ticketCounters: number;
+};
+
+export type ClientGameView = Omit<GameViewDto, "players"> & {
+  players: ClientPlayerDto[];
+  battlefield: ClientCardDto[];
+};
 
 export interface GameConfig {
   formatId: string;
@@ -18,12 +43,12 @@ export interface GameConfig {
  *  incoming message (display / state / prompt) becomes one of these. */
 export interface DeferredSnapshot {
   displayEvents: DisplayEvent[];
-  gameView: GameViewDto | null;
+  gameView: ClientGameView | null;
   prompt: Prompt | null;
 }
 
 export interface GameState {
-  gameView: GameViewDto | null;
+  gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
   gameLog: GameLogEntry[];
   snapshots: GameSnapshotEntry[];
@@ -63,7 +88,7 @@ export interface GameState {
    *  Never synced — it only affects this client's board. Cleared on game end. */
   hiddenPlaymats: Set<string>;
   togglePlaymatHidden: (playerId: string) => void;
-  updateGameView: (view: GameViewDto) => void;
+  updateGameView: (view: ClientGameView) => void;
   setGameConfig: (config: GameConfig) => void;
   // Actions
   startGame: (
@@ -75,7 +100,10 @@ export interface GameState {
   ) => Promise<void>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
-  startManualRoomClient: (localPlayerSlot: string, initialGameView?: GameViewDto) => Promise<void>;
+  startManualRoomClient: (
+    localPlayerSlot: string,
+    initialGameView?: ClientGameView,
+  ) => Promise<void>;
   stopManualRoomSync: () => void;
   startMultiplayerGame: (
     playerNames: string[],

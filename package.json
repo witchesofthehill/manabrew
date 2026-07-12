@@ -47,6 +47,7 @@
     "enrich-presets": "node scripts/enrich-preset-decks.mjs",
     "format-engine": "cargo fmt --manifest-path Cargo.toml -p forge-foundation -p forge-carddb -pmanabrew-engine  -p manabrew-server -p parity -p wasm -p manabrew-agent-interface",
     "test:manabrew-engine": "cargo test --release -pmanabrew-engine  --lib --test cards",
+    "test:networking": "cargo build -p manabrew-server -p self-hosted-node && cargo test -p networking-tests --test networking_regression -- --ignored --nocapture --test-threads=1",
     "build:wasm": "node scripts/build-wasm.mjs",
     "dev:web": "yarn gen:protocol && yarn ensure:wasm && vite",
     "website:dev": "npm --prefix website run dev",

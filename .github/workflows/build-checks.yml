@@ -173,10 +173,10 @@ jobs:
       - name: Build relay and node
         run: cargo build --release -p manabrew-server -p self-hosted-node
 
-      - name: Run zombie room regression
+      - name: Run networking regression suite
         run: >
-          cargo test --release -p self-hosted-node
-          --test zombie_room_regression -- --ignored --nocapture
+          cargo test --release -p networking-tests
+          --test networking_regression -- --ignored --nocapture --test-threads=1
 
   # ── Rust parity dashboard ─────────────────────────────────────────
   rust-parity:

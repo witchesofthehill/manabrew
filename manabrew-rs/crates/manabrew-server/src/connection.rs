@@ -645,10 +645,10 @@ fn handle_client_message(
                         &ServerMessage::RoomCreated {
                             room_id: info.room_id.clone(),
                             room_name: info.room_name.clone(),
+                            room: info,
                             resume_token: Some(resume_token),
                         },
                     );
-                    send_msg(sender, &ServerMessage::RoomUpdate { room: info });
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' create room failed: {}", username, e);

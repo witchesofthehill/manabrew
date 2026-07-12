@@ -135,6 +135,7 @@ pub enum ServerMessage {
     RoomCreated {
         room_id: String,
         room_name: String,
+        room: RoomInfo,
         #[serde(default)]
         resume_token: Option<String>,
     },

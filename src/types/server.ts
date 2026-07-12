@@ -78,6 +78,7 @@ export interface PlayerListPayload {
 export interface RoomCreatedPayload {
   room_id: string;
   room_name: string;
+  room: RoomInfo;
 }
 
 export interface RoomUpdatePayload {

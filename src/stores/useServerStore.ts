@@ -419,7 +419,8 @@ export const useServerStore = create<ServerState>()(
         );
 
         unsubscribers.push(
-          platform.events.on<RoomCreatedPayload>("server:room_created", () => {
+          platform.events.on<RoomCreatedPayload>("server:room_created", (payload) => {
+            set({ currentRoom: payload.room });
             get().listRooms();
           }),
         );

@@ -4134,6 +4134,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "networking-tests"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "manabot",
+ "manabrew-agent-interface",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "uuid",
+]
+
+[[package]]
 name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

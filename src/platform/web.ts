@@ -1302,7 +1302,10 @@ class WebServerApi implements IServerApi {
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],
       PlayerList: ["server:player_list", { players: msg.players }],
-      RoomCreated: ["server:room_created", { room_id: msg.room_id, room_name: msg.room_name }],
+      RoomCreated: [
+        "server:room_created",
+        { room_id: msg.room_id, room_name: msg.room_name, room: msg.room },
+      ],
       PlayerJoined: ["server:player_joined", { room_id: msg.room_id, username: msg.username }],
       PlayerLeft: ["server:player_left", { room_id: msg.room_id, username: msg.username }],
       PlayerConnected: ["server:player_connected", { username: msg.username }],

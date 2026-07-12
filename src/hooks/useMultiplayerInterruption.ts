@@ -22,6 +22,7 @@ export interface MultiplayerInterruption {
 export function useMultiplayerInterruption(): MultiplayerInterruption {
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const isEngineHost = useGameStore((s) => s.isHost);
   const gameOver = useGameStore((s) => s.gameView?.gameOver ?? false);
   const gameOverPrompt = useGameStore((s) => s.currentPrompt?.input.type === "gameOver");
   const reconnectPhase = useServerStore((s) => s.reconnect.phase);
@@ -39,6 +40,26 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
   const disconnectedNames = (currentRoom?.status === "InGame" ? currentRoom.players : [])
     .filter((p) => !p.is_bot && !p.connected && p.username !== username && stillNeeded(p))
     .map((p) => p.username);
+
+  const roomSeats = currentRoom?.status === "InGame" ? currentRoom.players : null;
+  const concededSlots = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!isGameActive) {
+      concededSlots.current.clear();
+      return;
+    }
+    if (!isEngineHost || !isMultiplayer || gameOver || !roomSeats || !gamePlayers) return;
+    const seated = new Set(roomSeats.map((p) => p.username));
+    const platform = getPlatform();
+    for (const gp of gamePlayers) {
+      if (gp.status !== "playing" || seated.has(gp.name) || concededSlots.current.has(gp.id)) {
+        continue;
+      }
+      concededSlots.current.add(gp.id);
+      void platform.game.sendDirective({ playerSlot: gp.id, directive: { type: "concede" } });
+      toast.info(`${gp.name}'s seat was forfeited — conceded.`);
+    }
+  }, [isEngineHost, isMultiplayer, isGameActive, gameOver, roomSeats, gamePlayers]);
 
   const selfDisconnected = reconnectPhase === "reconnecting";
   const waiting =
@@ -77,41 +98,17 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
           void useGameStore.getState().endGame();
           return;
         }
-        const game = useGameStore.getState();
         const server = useServerStore.getState();
         const room = server.currentRoom;
         const gone = (room?.status === "InGame" ? room.players : []).filter(
           (p) => !p.is_bot && !p.connected && p.username !== server.username,
         );
-        if (game.isHost) {
-          // We host the engine: the abandoned seats forfeit and the game
-          // continues for everyone else (mirrors the self-hosted node).
-          const platform = getPlatform();
-          for (const seat of gone) {
-            const slot = game.gameView?.players.find((gp) => gp.name === seat.username)?.id;
-            if (slot) {
-              void platform.game.sendDirective({
-                playerSlot: slot,
-                directive: { type: "concede" },
-              });
-            } else {
-              console.warn(
-                `[interruption] no game seat found for '${seat.username}' — not conceded`,
-              );
-            }
-          }
-          toast.info("A player did not reconnect in time — their seat conceded.");
-          return;
-        }
         if (room && gone.some((p) => p.username === room.host)) {
           // The engine host itself is gone: the game cannot continue.
           clearActiveGameSession();
           toast.error("Game aborted — the host did not reconnect in time.");
           void useGameStore.getState().endGame();
         }
-        // Otherwise the engine host (WASM host tab or self-hosted node) will
-        // concede the missing seat; the overlay clears when their status
-        // flips in the next state update.
       }
     };
     tick();

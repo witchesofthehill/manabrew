@@ -235,8 +235,17 @@ pub fn resume_room_sync(
         room_info: room.to_room_info(),
         awaiting_rejoin: awaiting_rejoin(&room),
     };
+    let pending_seats: Vec<String> = room
+        .players
+        .iter()
+        .filter(|slot| !slot.connected)
+        .map(|slot| slot.player_id.clone())
+        .collect();
 
     state.rooms.insert(spec.room_id.clone(), room);
+    for seat_player_id in pending_seats {
+        crate::cleanup::schedule_seat_forfeit(state.clone(), spec.room_id.clone(), seat_player_id);
+    }
     if let Some(mut player) = state.players.get_mut(player_id) {
         player.room_id = Some(spec.room_id);
     }

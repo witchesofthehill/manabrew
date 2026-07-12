@@ -105,14 +105,6 @@ fn registry_idle(registry: &SessionRegistry) -> bool {
         .unwrap_or(false)
 }
 
-#[derive(Default)]
-struct DisconnectTracker {
-    grace: HashMap<String, Arc<AtomicBool>>,
-}
-
-type SharedDisconnectTracker = Arc<Mutex<DisconnectTracker>>;
-
-const DISCONNECT_GRACE_MARGIN_SECS: u64 = 5;
 type SharedBotState = Arc<Mutex<BotState>>;
 
 #[derive(Clone)]
@@ -508,7 +500,7 @@ async fn establish_room(
                 sealed_config: None,
                 official_key: config.official_key.clone(),
                 password: config.room_password.clone(),
-                reconnect_timeout_s: None,
+                reconnect_timeout_s: config.reconnect_timeout_s,
             })
             .await?;
         info!(room_name = %config.room_name, "creating room");
@@ -733,6 +725,7 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
         deck: deck.deck.clone(),
         commander_name: deck.commander_name.clone(),
         agent: AgentKind::Simple,
+        answer_delay_ms: None,
     };
     let shutdown = Arc::new(tokio::sync::Notify::new());
     let bot_shutdown = shutdown.clone();
@@ -781,11 +774,13 @@ async fn wait_for_host_room(
             Some(ServerMessage::RoomCreated {
                 room_id,
                 room_name,
+                room,
                 resume_token,
             }) => {
                 info!(room_id, room_name, "room created");
                 if let Ok(mut snap) = snapshot.lock() {
                     snap.resume_token = resume_token;
+                    snap.room_info = Some(room);
                 }
                 return Ok(room_id);
             }
@@ -844,8 +839,6 @@ async fn run_client_loop(
 ) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
-    let disconnect_tracker: SharedDisconnectTracker =
-        Arc::new(Mutex::new(DisconnectTracker::default()));
     let mut bot_usernames: HashSet<String> = HashSet::new();
 
     loop {
@@ -895,7 +888,6 @@ async fn run_client_loop(
                     snapshot,
                     bot_state,
                     outbound_tx,
-                    &disconnect_tracker,
                     &mut bot_usernames,
                     message,
                 ).await {
@@ -915,7 +907,6 @@ async fn handle_server_message(
     snapshot: &SharedHostSnapshot,
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
-    disconnect_tracker: &SharedDisconnectTracker,
     bot_usernames: &mut HashSet<String>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -936,7 +927,6 @@ async fn handle_server_message(
             } else {
                 end_game_without_humans(engine_session, snapshot, outbound_tx, &room);
             }
-            handle_disconnect_grace(&room, engine_session, snapshot, disconnect_tracker);
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
@@ -1460,111 +1450,6 @@ fn active_player_usernames(snapshot: &SharedHostSnapshot) -> Option<HashSet<Stri
         }
     }
     Some(active)
-}
-
-fn handle_disconnect_grace(
-    room: &RoomInfo,
-    engine_session: &SharedEngineSession,
-    snapshot: &SharedHostSnapshot,
-    tracker: &SharedDisconnectTracker,
-) {
-    let game_active = engine_session
-        .lock()
-        .map(|guard| guard.is_some())
-        .unwrap_or(false);
-    let mut guard = match tracker.lock() {
-        Ok(tracker) => tracker,
-        Err(error) => {
-            warn!(%error, "disconnect tracker lock poisoned");
-            return;
-        }
-    };
-    if !game_active {
-        for (_, token) in guard.grace.drain() {
-            token.store(false, Ordering::Relaxed);
-        }
-        return;
-    }
-    let any_offline = room.players.iter().any(|player| !player.connected);
-    let active = if any_offline {
-        active_player_usernames(snapshot)
-    } else {
-        None
-    };
-    for seat in &room.players {
-        let needed = !seat.connected
-            && active
-                .as_ref()
-                .is_none_or(|set| set.contains(&seat.username));
-        if !needed {
-            if let Some(token) = guard.grace.remove(&seat.username) {
-                token.store(false, Ordering::Relaxed);
-            }
-            continue;
-        }
-        if guard.grace.contains_key(&seat.username) {
-            continue;
-        }
-        let token = Arc::new(AtomicBool::new(true));
-        guard.grace.insert(seat.username.clone(), token.clone());
-        let engine_session = engine_session.clone();
-        let snapshot = snapshot.clone();
-        let tracker = tracker.clone();
-        let username = seat.username.clone();
-        // Stay aligned with the relay's reconnect window: a disconnected
-        // seat may still be reclaimed until reconnect_timeout_s, so the
-        // node must not concede the seat earlier than that.
-        let grace_secs = room.reconnect_timeout_s as u64 + DISCONNECT_GRACE_MARGIN_SECS;
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(grace_secs)).await;
-            if token.load(Ordering::Relaxed) {
-                concede_abandoned_seat(&engine_session, &snapshot, &username);
-            }
-            if let Ok(mut guard) = tracker.lock() {
-                let owned = guard
-                    .grace
-                    .get(&username)
-                    .is_some_and(|current| Arc::ptr_eq(current, &token));
-                if owned {
-                    guard.grace.remove(&username);
-                }
-            }
-        });
-    }
-}
-
-/// This seat's own grace expired: if it is still offline and still needed by
-/// the game, it forfeits. The game continues for the survivors — the engine
-/// ends it naturally if concession leaves a winner.
-fn concede_abandoned_seat(
-    engine_session: &SharedEngineSession,
-    snapshot: &SharedHostSnapshot,
-    username: &str,
-) {
-    let seat_reclaimed = {
-        let Ok(snap) = snapshot.lock() else { return };
-        snap.room_info.as_ref().is_some_and(|room| {
-            room.players
-                .iter()
-                .any(|seat| seat.username == username && seat.connected)
-        })
-    };
-    if seat_reclaimed {
-        return;
-    }
-    let still_needed =
-        active_player_usernames(snapshot).is_none_or(|active| active.contains(username));
-    if !still_needed {
-        return;
-    }
-    let Some(index) = seat_index_of(snapshot, username) else {
-        return;
-    };
-    info!(
-        username,
-        index, "player did not reconnect within grace; conceding their seat"
-    );
-    concede_seat(engine_session, index);
 }
 
 fn seat_index_of(snapshot: &SharedHostSnapshot, username: &str) -> Option<usize> {

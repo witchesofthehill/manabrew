@@ -331,6 +331,44 @@ async fn creating_a_room_seats_the_creator() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "spawns relay + node"]
+async fn ghost_session_reaped_on_room_teardown() {
+    scenario(
+        "an in-game room where one player vanished (session preserved for reconnect) and one survivor remains.",
+        "the survivor leaves, tearing the room down before the vanished player's forfeit fires.",
+        "the vanished player's session is removed with the room — no eternal grey ghost — while the leaver's live session survives.",
+    );
+    let mut sim = Sim::spawn_relay_only(9640).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.create_room("Ghost table").await.unwrap();
+    sim.room_id = alice.wait_own_room().await.unwrap().room_id;
+
+    let mut bob = Client::connect(&sim.relay_url, "ghost-bob").await.unwrap();
+    bob.join(&sim.room_id, false).await.unwrap();
+    bob.select_deck_and_ready().await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+
+    bob.vanish();
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    alice.leave().await.unwrap();
+
+    sim.wait_room(Duration::from_secs(10), "room torn down", |room| {
+        room.is_none()
+    })
+    .await;
+    let players = sim.players().await;
+    assert!(
+        !players.iter().any(|p| p.username == "ghost-bob"),
+        "ghost-bob's dead session must be reaped with the room"
+    );
+    assert!(
+        players.iter().any(|p| p.username == "alice" && p.connected),
+        "alice's live session must survive the teardown"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "spawns relay + node"]
 async fn empty_lobby_room_is_removed() {
     scenario(
         "a player-created lobby room that never starts a game.",

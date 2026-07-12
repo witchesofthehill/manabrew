@@ -420,6 +420,10 @@ pub fn remove_room_and_clear_sessions(
             analytics::emit_game_ended(&state.analytics, &room, replay, reason);
         }
     }
+    release_room_sessions(state, room_id);
+}
+
+fn release_room_sessions(state: &Arc<ServerState>, room_id: &str) {
     let player_ids = state
         .players
         .iter()
@@ -433,6 +437,17 @@ pub fn remove_room_and_clear_sessions(
         })
         .collect::<Vec<_>>();
     for player_id in player_ids {
-        state.players.remove(&player_id);
+        let connected = state
+            .players
+            .get(&player_id)
+            .map(|player| player.connected)
+            .unwrap_or(false);
+        if connected {
+            if let Some(mut player) = state.players.get_mut(&player_id) {
+                player.room_id = None;
+            }
+        } else {
+            state.players.remove(&player_id);
+        }
     }
 }

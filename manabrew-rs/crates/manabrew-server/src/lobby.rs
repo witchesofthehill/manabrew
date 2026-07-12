@@ -359,33 +359,7 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
     };
 
     if room_empty || no_connected_players {
-        if let Some((_, room)) = state.rooms.remove(&room_id) {
-            if let Some(replay) = room.replay.as_ref() {
-                analytics::emit_game_ended(
-                    &state.analytics,
-                    &room,
-                    replay,
-                    GameEndReason::Abandoned,
-                );
-            }
-        }
-        let player_ids = state
-            .players
-            .iter()
-            .filter_map(|entry| {
-                entry
-                    .value()
-                    .room_id
-                    .as_deref()
-                    .is_some_and(|rid| rid == room_id)
-                    .then(|| entry.key().clone())
-            })
-            .collect::<Vec<_>>();
-        for player_id in player_ids {
-            if let Some(mut player) = state.players.get_mut(&player_id) {
-                player.room_id = None;
-            }
-        }
+        crate::cleanup::remove_room_and_clear_sessions(state, &room_id, GameEndReason::Abandoned);
     }
 
     if let Some(mut player) = state.players.get_mut(player_id) {

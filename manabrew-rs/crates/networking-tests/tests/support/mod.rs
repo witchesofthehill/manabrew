@@ -13,8 +13,8 @@ use manabot::{BotAgent, SimpleAi};
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
-    PROTOCOL_VERSION,
+    ClientMessage, EngineKind, GameFormat, PlayerInfo, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -158,6 +158,28 @@ impl Sim {
         for _ in 0..20 {
             match recv(&mut client.write, &mut client.read).await {
                 Some(ServerMessage::RoomList { rooms }) => return rooms,
+                Some(_) => continue,
+                None => break,
+            }
+        }
+        Vec::new()
+    }
+
+    /// Relay-wide player sessions as seen by a fresh probe connection.
+    pub async fn players(&self) -> Vec<PlayerInfo> {
+        let probe = format!("probe-{}", PROBE_SEQ.fetch_add(1, Ordering::Relaxed));
+        let Ok(mut client) = Client::connect(&self.relay_url, &probe).await else {
+            return Vec::new();
+        };
+        if send(&mut client.write, &ClientMessage::ListPlayers)
+            .await
+            .is_err()
+        {
+            return Vec::new();
+        }
+        for _ in 0..20 {
+            match recv(&mut client.write, &mut client.read).await {
+                Some(ServerMessage::PlayerList { players }) => return players,
                 Some(_) => continue,
                 None => break,
             }
@@ -473,8 +495,8 @@ impl Client {
         Ok(())
     }
 
-    /// Clean exit: tell the relay we're gone for good.
-    pub async fn leave(mut self) -> Result<(), String> {
+    /// Clean exit from the room; the connection itself stays up.
+    pub async fn leave(&mut self) -> Result<(), String> {
         send(&mut self.write, &ClientMessage::LeaveRoom).await?;
         step(format!("'{}' left the room", self.username));
         Ok(())

@@ -105,6 +105,7 @@ export interface ReadyChangedPayload {
 
 export interface GameStartedPayload {
   room_id: string;
+  game_id: string;
   player_order: string[];
   player_decks: PlayerDeckInfo[];
   starting_life: number;

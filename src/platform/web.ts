@@ -1002,10 +1002,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "StartGame", format: params?.format ?? null });
   }
 
-  async endGame(): Promise<void> {
+  async endGame(gameId: string): Promise<void> {
     this.stopAllBots();
     clearSpawnedBots();
-    this.send({ type: "EndGame" });
+    this.send({ type: "EndGame", game_id: gameId });
   }
 
   async requestResync(): Promise<void> {
@@ -1313,6 +1313,7 @@ class WebServerApi implements IServerApi {
         "server:game_started",
         {
           room_id: msg.room_id,
+          game_id: msg.game_id,
           player_order: msg.player_order,
           player_decks: msg.player_decks,
           starting_life: msg.starting_life,

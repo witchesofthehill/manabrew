@@ -225,7 +225,7 @@ pub fn resume_room_sync(
         })
         .collect();
     room.replay = Some(GameReplayCache::new(
-        uuid::Uuid::new_v4().to_string(),
+        spec.game_id,
         spec.player_order,
         spec.player_decks,
         spec.starting_life,
@@ -650,6 +650,7 @@ pub fn start_game_sync(
 pub fn end_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
+    game_id: &str,
 ) -> Result<(String, RoomInfo, Vec<String>), ServerError> {
     let room_id = state
         .players
@@ -666,6 +667,9 @@ pub fn end_game_sync(
             return Err(ServerError::NotHost);
         }
         if room.status != RoomStatus::InGame {
+            return Err(ServerError::GameNotInProgress);
+        }
+        if room.replay.as_ref().is_some_and(|r| r.game_id != game_id) {
             return Err(ServerError::GameNotInProgress);
         }
     }

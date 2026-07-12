@@ -161,6 +161,68 @@ groups:
                     type: gt
                     params: [5]
 
+      - uid: node-session-wedged
+        title: node engine session wedged
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: a node has had a game session active nonstop for 3+ hours — wedged or leaked engine
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: min_over_time(manabrew_node_games_active[3h])
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.5]
+
+      - uid: abandoned-game-spike
+        title: abandoned game spike
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: in-game rooms repeatedly reset with no connected humans — zombie-room signature
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(increase(manabrew_relay_games_ended_total{reason="abandoned"}[30m]))
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [4]
+
       - uid: traffic-cliff
         title: traffic cliff (EU daytime)
         condition: C

@@ -147,7 +147,6 @@ jobs:
       - name: Build manabrew-server (release)
         run: cargo build --release -p manabrew-server
 
-  # TODO: Group these into a nice networking regression suite
   multiplayer-regression:
     name: Multiplayer zombie regression
     runs-on: ubuntu-latest

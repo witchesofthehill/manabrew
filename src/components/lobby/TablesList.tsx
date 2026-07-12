@@ -219,7 +219,6 @@ export function TablesList({
 
   const trimmedSearch = search.trim().toLowerCase();
   const visibleRooms = rooms
-    .filter((room) => room.protocol_version === PROTOCOL_VERSION)
     .filter(
       (room) =>
         room.room_id === currentRoom?.room_id ||
@@ -598,8 +597,12 @@ export function TablesList({
             <div className="divide-y overflow-hidden rounded-lg border bg-card/40">
               {visibleRooms.map((room) => {
                 const isMyRoom = room.room_id === currentRoom?.room_id;
+                const isCompatible = room.protocol_version === PROTOCOL_VERSION;
                 const canJoin =
-                  !inRoom && room.status === "Lobby" && room.players.length < room.max_players;
+                  isCompatible &&
+                  !inRoom &&
+                  room.status === "Lobby" &&
+                  room.players.length < room.max_players;
                 const isFull = room.players.length >= room.max_players;
                 const format = getFormat(room.format.toLowerCase());
                 const modeLabel = format?.name ?? room.format;
@@ -618,6 +621,7 @@ export function TablesList({
                       "flex items-center gap-2.5 px-3 py-2 transition-colors",
                       isMyRoom && "bg-primary/5",
                       !isMyRoom && canJoin && "hover:bg-muted/40 cursor-pointer",
+                      !isCompatible && "opacity-60",
                     )}
                     onClick={() => {
                       if (canJoin) requestJoin(room);
@@ -640,6 +644,11 @@ export function TablesList({
 
                     <span className="font-medium text-sm truncate min-w-0">{room.room_name}</span>
 
+                    {!isCompatible && (
+                      <LobbyTag tone="rose" className="shrink-0">
+                        Incompatible
+                      </LobbyTag>
+                    )}
                     <LobbyTag tone={room.engine === "Forge" ? "blue" : "sky"} className="shrink-0">
                       {room.engine === "Forge" ? (
                         <Anvil className="h-3 w-3" />

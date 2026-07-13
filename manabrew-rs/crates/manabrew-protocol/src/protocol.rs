@@ -352,6 +352,7 @@ pub enum EngineKind {
     #[default]
     Manabrew,
     Forge,
+    Ironsmith,
 }
 
 #[cfg(test)]

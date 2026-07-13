@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0](https://github.com/witchesofthehill/manabrew/compare/v1.5.3...v1.6.0) (2026-07-13)
+
+### Features
+
+* **engine:** ironsmith runtime ([#371](https://github.com/witchesofthehill/manabrew/issues/371)) ([2f57d5e](https://github.com/witchesofthehill/manabrew/commit/2f57d5ea2e5db018b402b79932bc5f910b41c909))
+
 ## [1.5.3](https://github.com/witchesofthehill/manabrew/compare/v1.5.2...v1.5.3) (2026-07-12)
 
 ### Fixes

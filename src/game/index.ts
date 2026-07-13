@@ -23,6 +23,7 @@ export {
   selectGameRuntime,
 } from "./runtimeRegistry";
 export { ManualTabletopGameApi } from "./manualTabletopApi";
+export { IronsmithTrustedGameApi } from "./ironsmithRuntime";
 export {
   applyManualTabletopAction,
   getActiveManualRoomHost,

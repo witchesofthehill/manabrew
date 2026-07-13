@@ -10,6 +10,8 @@ import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { getPlatformType } from "@/platform";
+import { isFeatureEnabled } from "@/featureFlags";
+import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import type { CubeImportResult } from "@/types/limited";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
@@ -145,6 +147,7 @@ interface CreateRoomDialogProps {
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { createRoom, username } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
+  const ironsmithEnabled = isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE;
   const [engine, setEngine] = useState<EngineKind>(isTauri ? "Forge" : "Manabrew");
   const [roomPassword, setRoomPassword] = useState("");
   const allSets = useScryfallStore((s) => s.sets);
@@ -439,12 +442,18 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               />
             </div>
 
-            {/* Engine — rooms created here always run the Manabrew engine. Forge
-                rooms come from self-hosted nodes and are joined from the list, but
-                nodes only host constructed matches, not limited (draft/sealed). */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Engine</Label>
-              <div className={cn("grid gap-2", kind === "match" ? "grid-cols-2" : "grid-cols-1")}>
+              <div
+                className={cn(
+                  "grid gap-2",
+                  kind === "match"
+                    ? ironsmithEnabled
+                      ? "grid-cols-1 sm:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2"
+                    : "grid-cols-1",
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => setEngine("Manabrew")}
@@ -472,6 +481,35 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     Manabrew's own engine, running locally. Instant, no network.
                   </span>
                 </button>
+                {kind === "match" && ironsmithEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => setEngine("Ironsmith")}
+                    className={cn(
+                      "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
+                      engine === "Ironsmith"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30 hover:bg-muted/30",
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <GameIcon
+                        name="anvil"
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          engine === "Ironsmith" ? "text-primary" : "text-muted-foreground",
+                        )}
+                      />
+                      <span className="text-xs font-medium">Ironsmith</span>
+                      <Badge variant="outline" className="text-[9px]">
+                        trusted
+                      </Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground leading-tight">
+                      Ironsmith WASM hosted by the room creator. Experimental card support.
+                    </span>
+                  </button>
+                )}
                 {kind === "match" &&
                   (isTauri ? (
                     <button
@@ -539,9 +577,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
                   <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <p>
-                    {kind === "match"
-                      ? "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
-                      : "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."}
+                    {kind !== "match"
+                      ? "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."
+                      : engine === "Ironsmith"
+                        ? "Ironsmith rooms use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
+                        : "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."}
                   </p>
                 </div>
               )}

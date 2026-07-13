@@ -2,3 +2,8 @@
 	path = forge
 	url = https://github.com/witchesofthehill/forge.git
 	branch = manabrew
+[submodule "ironsmith"]
+	path = ironsmith
+	url = https://github.com/Chiplis/ironsmith.git
+	branch = main
+	update = none

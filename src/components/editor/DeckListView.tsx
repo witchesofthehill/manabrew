@@ -461,7 +461,7 @@ function DraggableStackCard({
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
-          title="Not implemented by the engine — deck can only be saved as draft"
+          title="Not implemented by the engine - deck can only be saved as draft"
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -691,7 +691,7 @@ function CardVisual({
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
-          title="Not implemented by the engine — deck can only be saved as draft"
+          title="Not implemented by the engine - deck can only be saved as draft"
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -885,7 +885,7 @@ function CardRow({
         className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
         title={
           unsupported
-            ? `${name} — not implemented by the engine; deck can only be saved as draft`
+            ? `${name} - not implemented by the engine; deck can only be saved as draft`
             : name
         }
       >

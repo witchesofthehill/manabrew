@@ -7,6 +7,33 @@
 # Build context: repo root (needs manabrew-rs/, src/, scripts/,
 # forge/forge-gui/res/cardsfolder/, public/preset_decks/, package.json, vite.config.ts)
 
+# --- Ironsmith WASM builder: compiles the trusted-runtime engine to WASM in a
+# dedicated stage so this heavy, network-fetching build (Scryfall bulk sync +
+# registry + wasm-pack) caches on the ironsmith sources alone and is NOT
+# invalidated by manabrew src/ changes. The `ironsmith` submodule is
+# `update = none`, so the caller (deploy.sh / docker-images.yml) force-checks it
+# out before the build; when it is absent this stage emits an empty pkg and the
+# runtime ships dark (scripts/sync-ironsmith-wasm.mjs installs the stub, and the
+# lobby tile stays hidden — see src/game/runtimeRegistry.ts). .dockerignore
+# trims the copied tree to just the submodule sources.
+FROM rust:1.88-slim AS ironsmith
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl ca-certificates build-essential pkg-config libssl-dev python3 git && \
+    rm -rf /var/lib/apt/lists/*
+RUN rustup target add wasm32-unknown-unknown && \
+    cargo install wasm-pack --version 0.13.1 --locked
+WORKDIR /ironsmith
+COPY ironsmith/ ./
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    if [ -f rebuild-wasm.sh ]; then \
+        ./rebuild-wasm.sh; \
+    else \
+        echo "ironsmith submodule not checked out; emitting empty pkg (runtime ships dark)"; \
+        mkdir -p pkg; \
+    fi
+
 # --- Builder: Rust + Node to build WASM and bundle the Vite app ---
 FROM rust:1.88-slim AS builder
 
@@ -53,6 +80,12 @@ COPY forge/forge-gui/res/tokenscripts/ ./forge/forge-gui/res/tokenscripts/
 COPY forge/forge-gui/res/editions/ ./forge/forge-gui/res/editions/
 COPY forge/forge-gui/res/blockdata/ ./forge/forge-gui/res/blockdata/
 COPY public/preset_decks/ ./public/preset_decks/
+# Ironsmith trusted-runtime WASM, built in the `ironsmith` stage above.
+# `yarn sync:ironsmith` (inside build:web) copies it into the bundle, or installs
+# a stub when the pkg is empty (submodule not checked out) so the runtime ships
+# dark. Copied from the stage — not the host context — so a local `docker build`
+# never needs the wasm prebuilt.
+COPY --from=ironsmith /ironsmith/pkg/ ./ironsmith/pkg/
 
 # Production build defaults — the prod compose passes these as build args
 # so the static bundle bakes in the public relay endpoint. Dev builds (yarn

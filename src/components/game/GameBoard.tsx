@@ -417,9 +417,9 @@ export function GameBoard({
               .filter((a) => a.mustAttack)
               .map((a) => a.attackerId)
           : undefined,
-      tappableLandIds: promptActions
-        ?.filter((a) => a.type === "activateAbility" && a.isManaAbility)
-        .map((a) => a.cardId),
+      tappableLandIds: promptActions?.flatMap((a) =>
+        a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
+      ),
       untappableLandIds: promptActions?.filter((a) => a.type === "undoMana").map((a) => a.cardId),
       manaAbilityOptions,
       hostileTargeting,

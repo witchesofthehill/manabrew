@@ -94,8 +94,9 @@ export default defineConfig({
     format: "es",
   },
   optimizeDeps: {
-    exclude: ["@/wasm/wasm"],
+    exclude: ["@/wasm/wasm", "ironsmith-wasm"],
   },
+  assetsInclude: ["**/*.wasm"],
   build: {
     target: "esnext",
   },

@@ -1434,6 +1434,27 @@ export default function Game({ exitTo }: GameProps = {}) {
       : [],
   );
 
+  if (import.meta.env.DEV && typeof document !== "undefined") {
+    document.documentElement.dataset.manabrewGameDebug = JSON.stringify({
+      promptType,
+      actions: chooseActionInput?.actions ?? [],
+      playableIds: [...playableIds],
+      hand: gameView.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        hand: player.hand.map((card) => ({ id: card.id, name: card.identity.name })),
+      })),
+      battlefield: gameView.battlefield.map((card) => ({
+        id: card.id,
+        name: card.identity.name,
+        tapped: card.tapped,
+        types: card.types,
+      })),
+      step: gameView.step,
+      priorityPlayerId: gameView.priorityPlayerId,
+    });
+  }
+
   if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen

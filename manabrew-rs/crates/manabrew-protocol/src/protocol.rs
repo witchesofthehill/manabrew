@@ -2,10 +2,10 @@ pub use crate::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 #[cfg(test)]
-const PROTOCOL_SCHEMA_FINGERPRINT: &str = "0a0ad632e3c9dfa9";
+const PROTOCOL_SCHEMA_FINGERPRINT: &str = "b8f0eb5cf679220a";
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
@@ -99,7 +99,9 @@ pub enum ClientMessage {
         format: Option<GameFormat>,
     },
 
-    EndGame,
+    EndGame {
+        game_id: String,
+    },
 
     RequestResync,
 
@@ -134,6 +136,7 @@ pub enum ServerMessage {
     RoomCreated {
         room_id: String,
         room_name: String,
+        room: RoomInfo,
         #[serde(default)]
         resume_token: Option<String>,
     },
@@ -171,6 +174,7 @@ pub enum ServerMessage {
 
     GameStarted {
         room_id: String,
+        game_id: String,
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
         starting_life: i32,
@@ -233,6 +237,7 @@ pub struct ResumeRoomRequest {
     pub starting_life: i32,
     #[serde(default)]
     pub bot_players: Vec<String>,
+    pub game_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -147,6 +147,36 @@ jobs:
       - name: Build manabrew-server (release)
         run: cargo build --release -p manabrew-server
 
+  multiplayer-regression:
+    name: Multiplayer zombie regression
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: multiplayer-regression
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: multiplayer-regression
+          submodules: recursive
+          clean: true
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build cardset archive
+        run: cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive
+
+      - name: Build relay and node
+        run: cargo build --release -p manabrew-server -p self-hosted-node
+
+      - name: Run networking regression suite
+        run: >
+          cargo test --release -p networking-tests
+          --test networking_regression -- --ignored --nocapture --test-threads=1
+
   # ── Rust parity dashboard ─────────────────────────────────────────
   rust-parity:
     name: Rust parity dashboard

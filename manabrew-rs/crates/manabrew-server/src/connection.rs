@@ -645,10 +645,10 @@ fn handle_client_message(
                         &ServerMessage::RoomCreated {
                             room_id: info.room_id.clone(),
                             room_name: info.room_name.clone(),
+                            room: info,
                             resume_token: Some(resume_token),
                         },
                     );
-                    send_msg(sender, &ServerMessage::RoomUpdate { room: info });
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' create room failed: {}", username, e);
@@ -956,6 +956,7 @@ fn handle_client_message(
                         &started.room_id,
                         &ServerMessage::GameStarted {
                             room_id: started.room_id.clone(),
+                            game_id: started.game_id,
                             player_order: started.player_order,
                             player_decks: started.player_decks,
                             starting_life: started.starting_life,
@@ -969,23 +970,25 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::EndGame => match lobby::end_game_sync(state, player_id) {
-            Ok((room_id, info, notify)) => {
-                info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
-                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
-                let aborted = ServerMessage::GameAborted {
-                    room_id: room_id.clone(),
-                };
-                if let Ok(json) = serde_json::to_string(&aborted) {
-                    for pid in notify.iter().filter(|pid| pid.as_str() != player_id) {
-                        emit_to(state, pid, &aborted, &json);
+        ClientMessage::EndGame { game_id } => {
+            match lobby::end_game_sync(state, player_id, &game_id) {
+                Ok((room_id, info, notify)) => {
+                    info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
+                    broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                    let aborted = ServerMessage::GameAborted {
+                        room_id: room_id.clone(),
+                    };
+                    if let Ok(json) = serde_json::to_string(&aborted) {
+                        for pid in notify.iter().filter(|pid| pid.as_str() != player_id) {
+                            emit_to(state, pid, &aborted, &json);
+                        }
                     }
                 }
+                Err(e) => {
+                    debug!("[game] '{}' end game ignored: {}", username, e);
+                }
             }
-            Err(e) => {
-                debug!("[game] '{}' end game ignored: {}", username, e);
-            }
-        },
+        }
 
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
@@ -997,6 +1000,7 @@ fn handle_client_message(
                 let replay = room.replay.as_ref()?;
                 let mut messages = vec![ServerMessage::GameStarted {
                     room_id: rid.clone(),
+                    game_id: replay.game_id.clone(),
                     player_order: replay.player_order.clone(),
                     player_decks: replay.player_decks.clone(),
                     starting_life: replay.starting_life,
@@ -1151,7 +1155,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetFormat { .. } => "SetFormat",
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
-        ClientMessage::EndGame => "EndGame",
+        ClientMessage::EndGame { .. } => "EndGame",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",

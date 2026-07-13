@@ -27,6 +27,7 @@ pub struct Config {
     pub bot_enabled: bool,
     pub bot_username: String,
     pub forge_ai: bool,
+    pub reconnect_timeout_s: Option<u32>,
     pub host_deck: DeckSelection,
     pub bot_deck: DeckSelection,
 }
@@ -123,6 +124,8 @@ impl Config {
             ),
             bot_username,
             forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", false),
+            reconnect_timeout_s: env_first("SELF_HOSTED_NODE_RECONNECT_TIMEOUT_S", "")
+                .and_then(|value| value.parse().ok()),
             host_deck: load_deck_selection(&host_deck_id, host_commander),
             bot_deck: load_deck_selection(&bot_deck_id, bot_commander),
         }
@@ -160,6 +163,7 @@ impl Config {
             bot_enabled: false,
             bot_username,
             forge_ai: false,
+            reconnect_timeout_s: None,
             host_deck: synthetic_deck("forge-host", None),
             bot_deck: synthetic_deck("forge-bot", None),
         }

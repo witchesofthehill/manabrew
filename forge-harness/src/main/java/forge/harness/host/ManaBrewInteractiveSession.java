@@ -1617,7 +1617,13 @@ public final class ManaBrewInteractiveSession {
 
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
-            final JsonObject action = actions.take();
+            final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
+            if (action == null) {
+                if (closed || game.isGameOver()) {
+                    return syntheticPass();
+                }
+                continue;
+            }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if (!"concede".equals(kind)) {
                 return action;
@@ -1629,10 +1635,14 @@ public final class ManaBrewInteractiveSession {
             if (target != promptedPlayerIndex && !gameDecided()) {
                 continue;
             }
-            final JsonObject pass = new JsonObject();
-            pass.addProperty("kind", "pass");
-            return pass;
+            return syntheticPass();
         }
+    }
+
+    private static JsonObject syntheticPass() {
+        final JsonObject pass = new JsonObject();
+        pass.addProperty("kind", "pass");
+        return pass;
     }
 
     private void concedePlayer(final int index) {

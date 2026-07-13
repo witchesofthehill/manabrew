@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.5.3](https://github.com/witchesofthehill/manabrew/compare/v1.5.2...v1.5.3) (2026-07-12)
+
+### Fixes
+
+* **ui:** silly mistake on reload ([#444](https://github.com/witchesofthehill/manabrew/issues/444)) ([7d83a19](https://github.com/witchesofthehill/manabrew/commit/7d83a19e4570076c0f4229b782d13bcd5cb2227b))
+
+## [1.5.2](https://github.com/witchesofthehill/manabrew/compare/v1.5.1...v1.5.2) (2026-07-12)
+
+### Fixes
+
+* rooms stuck, bad starts, zombie rooms ([#443](https://github.com/witchesofthehill/manabrew/issues/443)) ([6ed64f8](https://github.com/witchesofthehill/manabrew/commit/6ed64f895cd52c9a4016a2e72139157a27a34e44))
+
+## [1.5.1](https://github.com/witchesofthehill/manabrew/compare/v1.5.0...v1.5.1) (2026-07-11)
+
+### Fixes
+
+* filter more room ([#440](https://github.com/witchesofthehill/manabrew/issues/440)) ([6fa9321](https://github.com/witchesofthehill/manabrew/commit/6fa93219055586f2b55ebc30288e6b5a3a51053d))
+
 ## [1.5.0](https://github.com/witchesofthehill/manabrew/compare/v1.4.4...v1.5.0) (2026-07-09)
 
 ### Features

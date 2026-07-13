@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-server"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license.workspace = true
 description = "Matchmaking and lobby relay server for manabrew multiplayer"
@@ -10,7 +10,7 @@ name = "manabrew-server"
 path = "src/main.rs"
 
 [dependencies]
-manabrew-protocol = { path = "../manabrew-protocol", version = "0.5.0" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "0.5.1" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.24"
 futures-util = "0.3"

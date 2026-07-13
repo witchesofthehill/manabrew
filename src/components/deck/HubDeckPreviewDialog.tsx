@@ -17,7 +17,7 @@ import { groupCards } from "@/views/myDecks.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
 import type { DeckCard } from "@/protocol/deck";
-import type { HubDeckDetail } from "@/protocol/hub";
+import type { HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
 
 interface HubDeckPreviewDialogProps {

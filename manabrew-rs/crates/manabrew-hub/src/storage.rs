@@ -1,5 +1,5 @@
+use manabrew_hub::dto::{HubDeckDetail, HubDeckSummary};
 use manabrew_protocol::deck_dto::{Deck, DeckFormat};
-use manabrew_protocol::hub_dto::{HubDeckDetail, HubDeckSummary};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row};
 
 pub struct ListParams {

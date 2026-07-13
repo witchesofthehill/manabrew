@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { fetchHubDecks, fetchTopDecks } from "@/api/hub";
 import type { HubListParams, TopDecksWindow } from "@/api/hub";
-import type { HubDeckList, TopDeckStat } from "@/protocol/hub";
+import type { HubDeckList, TopDeckStat } from "@/api/hubTypes";
 
 interface HubState {
   list: HubDeckList | null;

@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use manabrew_protocol::hub_dto::TopDeckStat;
+use manabrew_hub::dto::TopDeckStat;
 use rusqlite::{Connection, OpenFlags};
 
 const CACHE_TTL: Duration = Duration::from_secs(60);

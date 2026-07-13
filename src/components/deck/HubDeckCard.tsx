@@ -3,7 +3,7 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DECK_NAME_SHADOW_CLASS } from "@/components/deck/deckDisplay.utils";
 import { cn } from "@/lib/utils";
-import type { HubDeckSummary } from "@/protocol/hub";
+import type { HubDeckSummary } from "@/api/hubTypes";
 
 interface HubDeckCardProps {
   deck: HubDeckSummary;

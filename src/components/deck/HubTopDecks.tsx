@@ -5,7 +5,7 @@ import type { TopDecksWindow } from "@/api/hub";
 import { useHubStore } from "@/stores/useHubStore";
 import { chooseImageUrisForCard, useCard } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
-import type { TopDeckStat } from "@/protocol/hub";
+import type { TopDeckStat } from "@/api/hubTypes";
 
 const TOP_WINDOWS: { value: TopDecksWindow; label: string }[] = [
   { value: "7d", label: "7 days" },

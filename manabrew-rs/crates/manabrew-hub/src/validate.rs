@@ -1,5 +1,5 @@
+use manabrew_hub::dto::PublishDeckRequest;
 use manabrew_protocol::deck_dto::{Deck, DeckCard};
-use manabrew_protocol::hub_dto::PublishDeckRequest;
 
 const MAX_AUTHOR_LEN: usize = 50;
 const MAX_NAME_LEN: usize = 100;

@@ -1,19 +1,19 @@
+use manabrew_protocol::deck_dto::{Deck, DeckFormat};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::deck_dto::{Deck, DeckFormat};
-
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "hub/index.ts")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct PublishDeckRequest {
     pub author: String,
+    #[ts(type = "Deck")]
     pub deck: Deck,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "hub/index.ts")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct PublishDeckResponse {
     pub id: String,
     pub management_token: String,
@@ -21,7 +21,7 @@ pub struct PublishDeckResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "hub/index.ts")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct HubDeckSummary {
     pub id: String,
     pub name: String,
@@ -30,7 +30,7 @@ pub struct HubDeckSummary {
     #[ts(optional)]
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[ts(optional, type = "DeckFormat")]
     pub format: Option<DeckFormat>,
     #[serde(default)]
     pub commanders: Vec<String>,
@@ -48,7 +48,7 @@ pub struct HubDeckSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "hub/index.ts")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct HubDeckList {
     pub decks: Vec<HubDeckSummary>,
     pub total: u32,
@@ -58,17 +58,18 @@ pub struct HubDeckList {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "hub/index.ts")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct HubDeckDetail {
     #[serde(flatten)]
     #[ts(flatten)]
     pub summary: HubDeckSummary,
+    #[ts(type = "Deck")]
     pub deck: Deck,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "hub/index.ts")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct TopDeckStat {
     pub deck_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

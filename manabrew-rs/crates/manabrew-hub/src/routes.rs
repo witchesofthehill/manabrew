@@ -8,10 +8,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
+use manabrew_hub::dto::{HubDeckList, HubDeckSummary, PublishDeckRequest, PublishDeckResponse};
 use manabrew_protocol::deck_dto::{Deck, DeckCard};
-use manabrew_protocol::hub_dto::{
-    HubDeckList, HubDeckSummary, PublishDeckRequest, PublishDeckResponse,
-};
 use rand::RngCore;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -334,7 +332,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::Request;
-    use manabrew_protocol::hub_dto::HubDeckDetail;
+    use manabrew_hub::dto::HubDeckDetail;
     use tower::ServiceExt;
 
     fn test_state(per_hour: u32, per_day: u32) -> Arc<AppState> {
@@ -516,7 +514,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let stats: Vec<manabrew_protocol::hub_dto::TopDeckStat> = body_json(response).await;
+        let stats: Vec<manabrew_hub::dto::TopDeckStat> = body_json(response).await;
         assert!(stats.is_empty());
     }
 

@@ -6,7 +6,7 @@ import type {
   PublishDeckRequest,
   PublishDeckResponse,
   TopDeckStat,
-} from "@/protocol/hub";
+} from "@/api/hubTypes";
 
 export type HubSort = "newest" | "name";
 export type TopDecksWindow = "7d" | "30d" | "all";

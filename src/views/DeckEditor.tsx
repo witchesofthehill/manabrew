@@ -264,7 +264,10 @@ export default function DeckEditor() {
       (customName !== DEFAULT_IMPORT_NAME && customName) || commanderName || DEFAULT_IMPORT_NAME;
     const id = addSavedDeck({
       name: deckName,
-      format: inferImportedFormat(cards.map((c) => c.identity.name)),
+      format:
+        commanders.length > 0
+          ? "commander"
+          : inferImportedFormat(cards.map((c) => c.identity.name)),
       cards,
       sideboard,
       maybeboard,

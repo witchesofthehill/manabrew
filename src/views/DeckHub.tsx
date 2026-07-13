@@ -163,7 +163,12 @@ export default function DeckHub() {
           )}
         </>
       ) : (
-        <HubTopDecks />
+        <HubTopDecks
+          onSearchDeck={(name) => {
+            setSearch(name);
+            setTab("browse");
+          }}
+        />
       )}
 
       <HubDeckPreviewDialog

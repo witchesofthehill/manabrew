@@ -13,6 +13,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { fetchHubDeck, unpublishDeck } from "@/api/hub";
+import { groupCards } from "@/views/myDecks.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
 import type { DeckCard } from "@/protocol/deck";
@@ -25,21 +26,6 @@ interface HubDeckPreviewDialogProps {
   onUnpublished?: () => void;
 }
 
-interface CardLine {
-  name: string;
-  count: number;
-}
-
-function groupByName(cards: DeckCard[]): CardLine[] {
-  const counts = new Map<string, number>();
-  for (const card of cards) {
-    counts.set(card.identity.name, (counts.get(card.identity.name) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 function CardSection({ title, cards }: { title: string; cards: DeckCard[] }) {
   if (cards.length === 0) return null;
   return (
@@ -48,10 +34,10 @@ function CardSection({ title, cards }: { title: string; cards: DeckCard[] }) {
         {title} ({cards.length})
       </p>
       <ul className="text-sm space-y-0.5">
-        {groupByName(cards).map((line) => (
-          <li key={line.name} className="flex gap-2">
-            <span className="text-muted-foreground w-6 text-right shrink-0">{line.count}</span>
-            <span className="truncate">{line.name}</span>
+        {groupCards(cards).map((group) => (
+          <li key={group.card.identity.name} className="flex gap-2">
+            <span className="text-muted-foreground w-6 text-right shrink-0">{group.count}</span>
+            <span className="truncate">{group.card.identity.name}</span>
           </li>
         ))}
       </ul>

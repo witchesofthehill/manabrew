@@ -45,7 +45,8 @@ export function fetchHubDecks(params: HubListParams): Promise<HubDeckList> {
   if (params.sort) query.set("sort", params.sort);
   if (params.page) query.set("page", String(params.page));
   if (params.pageSize) query.set("pageSize", String(params.pageSize));
-  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  const queryString = query.toString();
+  const suffix = queryString ? `?${queryString}` : "";
   return hubJson<HubDeckList>(`/api/hub/decks${suffix}`);
 }
 

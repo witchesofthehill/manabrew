@@ -121,11 +121,11 @@ async fn publish_handler(
     Json(request): Json<PublishDeckRequest>,
 ) -> Response {
     let ip = client_ip(&headers, addr);
-    if !state.limiter.allow(&ip) {
-        return StatusCode::TOO_MANY_REQUESTS.into_response();
-    }
     if let Err(message) = validate::validate(&request) {
         return (StatusCode::UNPROCESSABLE_ENTITY, message).into_response();
+    }
+    if !state.limiter.allow(&ip) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let day_ago =
         (Utc::now() - chrono::Duration::hours(24)).to_rfc3339_opts(SecondsFormat::Secs, true);
@@ -220,33 +220,42 @@ async fn top_decks_handler(
     State(state): State<Arc<AppState>>,
     Query(query): Query<TopDecksQuery>,
 ) -> Response {
-    let window = query.window.as_deref().unwrap_or("all").to_string();
+    let window = match query.window.as_deref() {
+        Some("7d") => "7d",
+        Some("30d") => "30d",
+        _ => "all",
+    };
     let limit = query
         .limit
         .unwrap_or(DEFAULT_TOP_DECKS)
         .clamp(1, MAX_TOP_DECKS);
-    Json(state.stats.top_decks(&window, limit)).into_response()
+    Json(state.stats.top_decks(window, limit)).into_response()
 }
 
+// Last hop only: earlier entries are client-supplied and spoofable; the final
+// one is appended by our own Caddy in front of this service.
 fn client_ip(headers: &HeaderMap, addr: SocketAddr) -> String {
     headers
         .get(FORWARDED_FOR_HEADER)
         .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.split(',').next())
+        .and_then(|value| value.split(',').next_back())
         .map(|ip| ip.trim().to_string())
         .filter(|ip| !ip.is_empty())
         .unwrap_or_else(|| addr.ip().to_string())
 }
 
-fn generate_token() -> String {
-    let mut bytes = [0u8; MANAGEMENT_TOKEN_BYTES];
-    rand::thread_rng().fill_bytes(&mut bytes);
+fn hex_encode(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+fn generate_token() -> String {
+    let mut bytes = [0u8; MANAGEMENT_TOKEN_BYTES];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    hex_encode(&bytes)
+}
+
 fn hash_token(token: &str) -> String {
-    let digest = Sha256::digest(token.as_bytes());
-    digest.iter().map(|b| format!("{b:02x}")).collect()
+    hex_encode(&Sha256::digest(token.as_bytes()))
 }
 
 fn internal_error(error: impl std::fmt::Display) -> Response {
@@ -439,6 +448,17 @@ mod tests {
         let router = build_router(test_state(100, 100));
         let response = router.oneshot(publish_request(" ")).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn rejected_publishes_do_not_burn_rate_limit_tokens() {
+        let router = build_router(test_state(1, 100));
+        for _ in 0..3 {
+            let response = router.clone().oneshot(publish_request(" ")).await.unwrap();
+            assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        let response = router.oneshot(publish_request("tester")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
     }
 
     #[tokio::test]

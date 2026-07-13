@@ -51,15 +51,23 @@ const COMMANDER_LINE_REGEX = /^(commander|command)s?\s*:?$/i;
 const MAIN_SECTION_LINE_REGEX = /^(mainboard|main|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
 const SET_SUFFIX_REGEX = /\s+\([A-Za-z0-9]{2,6}\)(?:\s+[\w-]+)?(?:\s+\*F\*)?$/i;
+// Archidekt text exports decorate lines with `[Category]` and `^Label,#hex^`
+// suffixes; the category is also how they mark the commander.
+const LABEL_SUFFIX_REGEX = /\s+\^[^^]*\^$/;
+const CATEGORY_SUFFIX_REGEX = /\s+\[([^\]]*)\]$/;
 
 export function parseDeckListText(text: string): ParsedDeckEntry[] {
-  const lines = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const lines = text.split("\n").map((l) => l.trim());
   let section: "main" | "side" | "maybe" | "commander" = "main";
   const entries: ParsedDeckEntry[] = [];
   for (const line of lines) {
+    if (!line) {
+      // Exports separate the commander block from the deck with a blank line
+      // rather than a "Deck:" heading — without this reset every card below
+      // the commander would be flagged as one.
+      if (section === "commander") section = "main";
+      continue;
+    }
     if (SIDEBOARD_LINE_REGEX.test(line)) {
       section = "side";
       continue;
@@ -78,14 +86,22 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
     }
     const match = line.match(DECK_LINE_REGEX);
     if (!match) continue;
-    const name = match[2].trim().replace(SET_SUFFIX_REGEX, "").trim();
+    let rest = match[2].trim().replace(LABEL_SUFFIX_REGEX, "");
+    const categoryMatch = rest.match(CATEGORY_SUFFIX_REGEX);
+    const categories = (categoryMatch?.[1] ?? "")
+      .toLowerCase()
+      .split(",")
+      .map((c) => c.trim());
+    if (categoryMatch) rest = rest.replace(CATEGORY_SUFFIX_REGEX, "");
+    const name = rest.trim().replace(SET_SUFFIX_REGEX, "").trim();
     if (!name) continue;
+    const inCategory = (prefix: string) => categories.some((c) => c.startsWith(prefix));
     entries.push({
       count: parseInt(match[1], 10),
       name,
-      side: section === "side",
-      maybe: section === "maybe",
-      commander: section === "commander",
+      side: section === "side" || inCategory("sideboard"),
+      maybe: section === "maybe" || inCategory("maybeboard") || inCategory("considering"),
+      commander: section === "commander" || inCategory("commander"),
     });
   }
   return entries;

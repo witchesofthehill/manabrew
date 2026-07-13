@@ -29,6 +29,11 @@ pub fn validate(request: &PublishDeckRequest) -> Result<(), String> {
             return Err("description contains control characters".into());
         }
     }
+    if let Some(cover) = deck.cover_card_name.as_deref() {
+        if cover.chars().count() > MAX_CARD_NAME_LEN || cover.chars().any(char::is_control) {
+            return Err("cover card name is invalid".into());
+        }
+    }
     validate_board(&deck.cards, 1, MAX_MAIN_CARDS, "main deck")?;
     validate_board(&deck.sideboard, 0, MAX_SIDEBOARD_CARDS, "sideboard")?;
     if let Some(commanders) = deck.commanders.as_deref() {

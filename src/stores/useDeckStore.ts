@@ -449,13 +449,9 @@ export const useDeckStore = create<DeckState>()(
               }
             }
 
-            const previousAutoName = (deck.commanders ?? [])
-              .map((c) => c.identity.name)
-              .join(" / ");
-
             commanders.push(selectedCard!);
 
-            const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === previousAutoName;
+            const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === DEFAULT_DECK_NAME;
             return {
               currentDeck: {
                 ...deck,

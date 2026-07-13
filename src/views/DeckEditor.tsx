@@ -256,12 +256,16 @@ export default function DeckEditor() {
         target.push({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
       }
     }
-    if (cards.length === 0 && sideboard.length === 0 && maybeboard.length === 0) {
+    if (
+      cards.length === 0 &&
+      sideboard.length === 0 &&
+      maybeboard.length === 0 &&
+      commanders.length === 0
+    ) {
       throw new Error("None of the cards could be found on Scryfall");
     }
     const commanderName = commanders.map((c) => c.identity.name).join(" / ");
-    const deckName =
-      (customName !== DEFAULT_IMPORT_NAME && customName) || commanderName || DEFAULT_IMPORT_NAME;
+    const deckName = customName || commanderName || DEFAULT_IMPORT_NAME;
     const id = addSavedDeck({
       name: deckName,
       format:

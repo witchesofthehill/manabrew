@@ -6,7 +6,6 @@ import type { HubDeckList, TopDeckStat } from "@/protocol/hub";
 interface HubState {
   list: HubDeckList | null;
   listError: string | null;
-  listLoading: boolean;
   topDecks: TopDeckStat[] | null;
   topError: string | null;
   fetchDecks: (params: HubListParams) => Promise<void>;
@@ -19,21 +18,16 @@ let topRequestId = 0;
 export const useHubStore = create<HubState>((set) => ({
   list: null,
   listError: null,
-  listLoading: false,
   topDecks: null,
   topError: null,
   fetchDecks: async (params) => {
     const requestId = ++listRequestId;
-    set({ listLoading: true });
     try {
       const list = await fetchHubDecks(params);
-      if (requestId === listRequestId) set({ list, listError: null, listLoading: false });
+      if (requestId === listRequestId) set({ list, listError: null });
     } catch (err) {
       if (requestId === listRequestId) {
-        set({
-          listError: err instanceof Error ? err.message : "Failed to load the Deck Hub",
-          listLoading: false,
-        });
+        set({ listError: err instanceof Error ? err.message : "Failed to load the Deck Hub" });
       }
     }
   },

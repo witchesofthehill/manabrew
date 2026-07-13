@@ -32,9 +32,10 @@ services:
       PUSHGATEWAY_PASSWORD_HASH:
       # Bcrypt hash for the api. /admin/* ingress (same single-quote caveat).
       HUB_ADMIN_PASSWORD_HASH:
+    # No depends_on for manabrew-hub: the site must deploy/restart even if the
+    # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:
       - manabrew-server
-      - manabrew-hub
 
   manabrew-server:
     # Explicit tag so deploy.sh can address the freshly built image when it

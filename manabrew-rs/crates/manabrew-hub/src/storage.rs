@@ -109,7 +109,13 @@ impl Storage {
         let mut where_clause = String::from("unlisted = 0");
         let mut args: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
         if let Some(search) = params.search.as_deref().filter(|s| !s.is_empty()) {
-            let pattern = format!("%{}%", search.replace('%', "\\%").replace('_', "\\_"));
+            let pattern = format!(
+                "%{}%",
+                search
+                    .replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            );
             where_clause.push_str(
                 " AND (name LIKE ?1 ESCAPE '\\' OR author LIKE ?1 ESCAPE '\\' OR commanders LIKE ?1 ESCAPE '\\')",
             );

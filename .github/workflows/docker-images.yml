@@ -56,6 +56,16 @@ jobs:
         with:
           submodules: recursive
 
+      # The `ironsmith` submodule is `update = none`, so the checkout above skips
+      # it. The web image compiles its trusted-runtime WASM from source in a
+      # dedicated Dockerfile stage (cached via the type=gha layer cache below),
+      # so force-check-out the sources into the build context. Only the web image
+      # needs it. If this fetch fails the web image still builds with the runtime
+      # dark, so it must not fail the job.
+      - name: Check out ironsmith submodule (web image)
+        if: matrix.image == 'manabrew-web'
+        run: git -c submodule.ironsmith.update=checkout submodule update --init ironsmith || true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

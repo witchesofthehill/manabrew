@@ -3,6 +3,17 @@
 .github/
 .gitignore
 
+# Ironsmith submodule: the web image compiles its WASM from source (Dockerfile.web
+# `ironsmith` stage), so send the sources but not build output, deps, or the
+# large card data it re-downloads during the build.
+ironsmith/pkg/
+ironsmith/reports/
+ironsmith/cards.json
+ironsmith/cards.json.*
+ironsmith/**/node_modules/
+ironsmith/**/target/
+ironsmith/**/dist/
+
 # Rust build artifacts
 target/
 src-tauri/target/

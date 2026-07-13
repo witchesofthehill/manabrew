@@ -131,14 +131,6 @@ final class ManabrewProtocolAdapter {
             }
             case "chooseColor":
                 return translateColorDecision(output);
-            case "chooseType":
-                flat.addProperty("kind", "string_decision");
-                flat.addProperty("value", asString(output, "chosenType"));
-                return flat;
-            case "chooseCardName":
-                flat.addProperty("kind", "string_decision");
-                flat.addProperty("value", asString(output, "chosenName"));
-                return flat;
             case "chooseNumber":
                 flat.addProperty("kind", "number_decision");
                 flat.addProperty("number", output.has("chosenNumber") && !output.get("chosenNumber").isJsonNull()
@@ -165,11 +157,6 @@ final class ManabrewProtocolAdapter {
                 flat.add("assignments", assignments);
                 return flat;
             }
-            case "divideAmount":
-                flat.addProperty("kind", "divide_amount");
-                flat.add("allocation", output.has("allocation") && output.get("allocation").isJsonObject()
-                        ? output.getAsJsonObject("allocation") : new JsonObject());
-                return flat;
             case "directive":
                 return translateDirective(canonical);
             default:

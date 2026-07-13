@@ -66,9 +66,9 @@ export default function DeckHub() {
   const totalPages = list ? Math.max(1, Math.ceil(list.total / PAGE_SIZE)) : 1;
 
   return (
-    <div className="h-full flex flex-col gap-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-bold mr-2">Deck Hub</h1>
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-3 border-b shrink-0 flex items-center gap-1">
+        <h2 className="text-lg font-semibold flex-1">Deck Hub</h2>
         <SegmentedButton active={tab === "browse"} onClick={() => setTab("browse")}>
           <Search className="mr-1 h-4 w-4" />
           Browse
@@ -81,12 +81,12 @@ export default function DeckHub() {
 
       {tab === "browse" ? (
         <>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="mt-2 flex items-center gap-1 px-2 py-1.5 shrink-0 flex-wrap">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search decks, authors, commanders…"
-              className="max-w-xs"
+              className="h-6 max-w-56 text-xs"
             />
             <div className="flex items-center gap-1 flex-wrap">
               <SegmentedButton active={format === ""} onClick={() => setFormat("")}>
@@ -116,28 +116,30 @@ export default function DeckHub() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {listError ? (
-              <p className="text-sm text-destructive">{listError}</p>
-            ) : list === null ? (
-              <p className="text-sm text-muted-foreground">Loading decks…</p>
-            ) : list.decks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center gap-2">
-                <p className="text-lg font-semibold">No decks here yet</p>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Be the first — open My Decks and publish one of your brews to the hub.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {list.decks.map((deck) => (
-                  <HubDeckCard key={deck.id} deck={deck} onOpen={() => setPreviewId(deck.id)} />
-                ))}
-              </div>
-            )}
+            <div className="p-4">
+              {listError ? (
+                <p className="text-sm text-destructive">{listError}</p>
+              ) : list === null ? (
+                <p className="text-sm text-muted-foreground">Loading decks…</p>
+              ) : list.decks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                  <p className="text-lg font-semibold">No decks here yet</p>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Be the first — open My Decks and publish one of your brews to the hub.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {list.decks.map((deck) => (
+                    <HubDeckCard key={deck.id} deck={deck} onOpen={() => setPreviewId(deck.id)} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {list !== null && list.total > PAGE_SIZE && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 px-4 py-2 border-t shrink-0">
               <Button
                 variant="outline"
                 size="sm"

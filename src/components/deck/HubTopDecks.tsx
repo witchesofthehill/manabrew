@@ -22,7 +22,7 @@ export function HubTopDecks() {
 
   return (
     <>
-      <div className="flex items-center gap-1">
+      <div className="mt-2 flex items-center gap-1 px-2 py-1.5 shrink-0">
         {TOP_WINDOWS.map((w) => (
           <Button
             key={w.value}
@@ -34,7 +34,7 @@ export function HubTopDecks() {
           </Button>
         ))}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
         {topError ? (
           <p className="text-sm text-destructive">{topError}</p>
         ) : topDecks === null ? (
@@ -68,7 +68,7 @@ export function HubTopDecks() {
           </ol>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground px-4 py-2 border-t shrink-0">
         Most-played decks across online games. Win rates arrive once winner tracking is fixed for
         hosted games.
       </p>

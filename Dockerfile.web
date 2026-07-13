@@ -57,6 +57,9 @@ RUN corepack enable && yarn install --frozen-lockfile
 
 # Copy the rest of the sources needed for the web build
 COPY Cargo.toml Cargo.lock ./
+# The `xtask` cargo alias (used by `build:web`'s gen:types step) lives in
+# .cargo/config.toml — without it `cargo xtask` fails with "no such command".
+COPY .cargo/ ./.cargo/
 # src-tauri is a workspace member; cargo metadata needs its manifest to resolve
 COPY src-tauri/ ./src-tauri/
 COPY manabrew-rs/ ./manabrew-rs/

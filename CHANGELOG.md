@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.5.3](https://github.com/witchesofthehill/manabrew/compare/v1.5.2...v1.5.3) (2026-07-12)
+
+### Fixes
+
+* **ui:** silly mistake on reload ([#444](https://github.com/witchesofthehill/manabrew/issues/444)) ([7d83a19](https://github.com/witchesofthehill/manabrew/commit/7d83a19e4570076c0f4229b782d13bcd5cb2227b))
+
+## [1.5.2](https://github.com/witchesofthehill/manabrew/compare/v1.5.1...v1.5.2) (2026-07-12)
+
+### Fixes
+
+* rooms stuck, bad starts, zombie rooms ([#443](https://github.com/witchesofthehill/manabrew/issues/443)) ([6ed64f8](https://github.com/witchesofthehill/manabrew/commit/6ed64f895cd52c9a4016a2e72139157a27a34e44))
+
+## [1.5.1](https://github.com/witchesofthehill/manabrew/compare/v1.5.0...v1.5.1) (2026-07-11)
+
+### Fixes
+
+* filter more room ([#440](https://github.com/witchesofthehill/manabrew/issues/440)) ([6fa9321](https://github.com/witchesofthehill/manabrew/commit/6fa93219055586f2b55ebc30288e6b5a3a51053d))
+
+## [1.5.0](https://github.com/witchesofthehill/manabrew/compare/v1.4.4...v1.5.0) (2026-07-09)
+
+### Features
+
+* **protocol:** filter lobby rooms by protocol version ([#382](https://github.com/witchesofthehill/manabrew/issues/382)) ([64bcaf6](https://github.com/witchesofthehill/manabrew/commit/64bcaf64b289c0b348dfda08b0cddc47ab6971ce))
+
+## [1.4.4](https://github.com/witchesofthehill/manabrew/compare/v1.4.3...v1.4.4) (2026-07-09)
+
+### Fixes
+
+* **carddb:** point cardset rebuild hints at the real archive builder ([#435](https://github.com/witchesofthehill/manabrew/issues/435)) ([610019f](https://github.com/witchesofthehill/manabrew/commit/610019f4652206f8afacea9c5100e560f517b7f0))
+
+## [1.4.3](https://github.com/witchesofthehill/manabrew/compare/v1.4.2...v1.4.3) (2026-07-09)
+
+## [1.4.2](https://github.com/witchesofthehill/manabrew/compare/v1.4.1...v1.4.2) (2026-07-09)
+
+### Fixes
+
+* **ci:** unbreak mobile publish jobs (cardset archive + gradle wrapper) ([#431](https://github.com/witchesofthehill/manabrew/issues/431)) ([3491c3a](https://github.com/witchesofthehill/manabrew/commit/3491c3a8b032756b61ce6d482264fa2721ed86c3))
+
+## [1.4.1](https://github.com/witchesofthehill/manabrew/compare/v1.4.0...v1.4.1) (2026-07-09)
+
 ## [1.4.0](https://github.com/witchesofthehill/manabrew/compare/v1.3.3...v1.4.0) (2026-07-09)
 
 ### Features

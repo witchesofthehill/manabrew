@@ -59,7 +59,8 @@ fn ensure_dbs_loaded() {
         let Some(bytes) = cardset_archive_bytes() else {
             panic!(
                 "[carddb] cardset archive unavailable.\n\
-                 Run `cargo build -p forge-web` (or `yarn build:wasm`) to rebuild it."
+                 Run `cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive` \
+                 (or `cargo build -p manabrew`, whose build script rebuilds it)."
             );
         };
         if let Err(err) = load_dbs_from_bytes(bytes, "cardset.rkyv") {

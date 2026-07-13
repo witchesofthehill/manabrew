@@ -90,6 +90,7 @@ export function useGameSessionResume() {
       rlog("resync-effect: session.isHost=true → force-ending game and kicking to lobby");
       settled.current = true;
       clearActiveGameSession();
+      useServerStore.setState({ gameId: session.gameId });
       void useServerStore.getState().endGame();
       toast.error("Your game could not be resumed — the host left mid-game.");
       navigate("/lobby", { replace: true });
@@ -179,6 +180,7 @@ export function useGameSessionResume() {
       );
       settled.current = true;
       clearActiveGameSession();
+      void useServerStore.getState().leaveRoom();
       toast.info("Your previous game has ended.");
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);

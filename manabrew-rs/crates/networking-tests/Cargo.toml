@@ -1,0 +1,24 @@
+[package]
+name = "networking-tests"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+description = "System-wide networking regression suite: real relay + node + clients"
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.2.3" }
+manabot = { path = "../manabot/", version = "0.2.4" }
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+serde_json = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+libtest-mimic = "0.8"
+
+[[test]]
+name = "networking_regression"
+path = "tests/networking_regression.rs"
+harness = false

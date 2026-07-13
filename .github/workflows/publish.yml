@@ -445,7 +445,12 @@ jobs:
   # (tauri.ios.conf.json overrides beforeBuildCommand to `yarn vite:build`).
   ios-ipa:
     name: Build iOS .ipa
-    runs-on: macos-latest
+    # Pinned to macos-15 (Xcode 16.4): Xcode 26 (macos-latest/macos-26) dropped
+    # the swiftCompatibility* libs that swift-rs-built objects still reference,
+    # so the archive link fails — tauri-apps/tauri#15066. Re-evaluate on a
+    # tauri/rustc fix; sideloaded unsigned IPAs are exempt from the App Store
+    # iOS-26-SDK deadline.
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -479,6 +484,14 @@ jobs:
 
       - name: Build WASM + bundle cards
         run: yarn build:wasm
+
+      # tauri.ios.conf.json bundles resources/cardset.rkyv; the tauri CLI
+      # validates it before cargo build (where src-tauri/build.rs would
+      # otherwise produce it), so a clean runner needs it built up front.
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
 
       - name: Tauri build (iOS, unsigned)
         run: yarn tauri ios build --no-sign
@@ -541,6 +554,13 @@ jobs:
 
       - name: Build WASM + bundle cards
         run: yarn build:wasm
+
+      # card_db.rs include_bytes!es resources/cardset.rkyv on Android; build
+      # it up front so a clean runner doesn't depend on build.rs ordering.
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
 
       - name: Tauri build (Android APK, arm64)
         run: node scripts/mobile-dev.mjs android build --apk --target aarch64

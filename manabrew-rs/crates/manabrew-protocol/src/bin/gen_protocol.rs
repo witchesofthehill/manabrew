@@ -5,14 +5,13 @@
 //!
 //! Output is not formatted (ts-rs emits single-line types); run the consumer's
 //! own formatter afterwards if desired.
-use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
-use manabrew_protocol::protocol::ResumeRoomRequest;
+use manabrew_protocol::protocol::{ResumeRoomRequest, PROTOCOL_VERSION};
 use manabrew_protocol::transport::{
     AgentPrompt, ClientToServerMessage, DirectiveInput, StateUpdate,
 };
@@ -58,75 +57,6 @@ fn ts_modules(dir: &Path) -> Vec<String> {
     names
 }
 
-fn export_identifier(line: &str) -> Option<String> {
-    let trimmed = line.trim_start();
-    for prefix in ["export type ", "export interface ", "export const "] {
-        let Some(rest) = trimmed.strip_prefix(prefix) else {
-            continue;
-        };
-        let name: String = rest
-            .chars()
-            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-            .collect();
-        if !name.is_empty() {
-            return Some(format!("{prefix}{name}"));
-        }
-    }
-    None
-}
-
-fn dedupe_exports_in_file(path: &Path) {
-    let Ok(contents) = fs::read_to_string(path) else {
-        return;
-    };
-    let mut seen = HashSet::new();
-    let mut output = Vec::new();
-    let mut pending_docs = Vec::new();
-    let mut in_doc = false;
-
-    for line in contents.lines() {
-        let trimmed = line.trim_start();
-        if in_doc || trimmed.starts_with("/**") {
-            in_doc = !trimmed.ends_with("*/");
-            pending_docs.push(line);
-            continue;
-        }
-
-        if let Some(identifier) = export_identifier(line) {
-            if seen.insert(identifier) {
-                output.append(&mut pending_docs);
-                output.push(line);
-            } else {
-                pending_docs.clear();
-            }
-            continue;
-        }
-
-        output.append(&mut pending_docs);
-        output.push(line);
-    }
-
-    output.append(&mut pending_docs);
-    let deduped = format!("{}\n", output.join("\n"));
-    if deduped != contents {
-        fs::write(path, deduped).expect("dedupe generated TypeScript exports");
-    }
-}
-
-fn dedupe_exports(dir: &Path) {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            dedupe_exports(&path);
-        } else if path.extension().is_some_and(|e| e == "ts") {
-            dedupe_exports_in_file(&path);
-        }
-    }
-}
-
 fn main() {
     let out = PathBuf::from(
         std::env::args()
@@ -168,7 +98,7 @@ fn main() {
     fs::write(
         out.join("version.ts"),
         format!(
-            "{HEADER}export const VERSION = \"{}\";\n",
+            "{HEADER}export const VERSION = \"{}\";\nexport const PROTOCOL_VERSION = {PROTOCOL_VERSION};\n",
             env!("CARGO_PKG_VERSION")
         ),
     )
@@ -181,8 +111,6 @@ fn main() {
         ),
     )
     .expect("write index.ts");
-
-    dedupe_exports(&out);
 }
 
 /// The prompt-request envelope and distributive `Prompt` union — TS generics

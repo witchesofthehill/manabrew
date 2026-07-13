@@ -11,7 +11,7 @@ use crate::room::{Room, RoomSlot};
 use crate::state::ServerState;
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::game::PlaymatSettings;
-use manabrew_protocol::protocol::DEFAULT_RECONNECT_TIMEOUT_S;
+use manabrew_protocol::protocol::{DEFAULT_RECONNECT_TIMEOUT_S, PROTOCOL_VERSION};
 
 const MIN_RECONNECT_TIMEOUT_S: u32 = 10;
 // Must stay below manabrew_game_runtime 's 120s relay response_timeout
@@ -23,6 +23,7 @@ pub fn create_room_sync(
     room_name: String,
     max_players: u8,
     format: GameFormat,
+    protocol_version: u32,
     hosted: bool,
     engine: EngineKind,
     draft_config: Option<DraftConfig>,
@@ -76,6 +77,7 @@ pub fn create_room_sync(
     let mut room = Room::new(
         room_id.clone(),
         room_name,
+        protocol_version,
         player_id.to_string(),
         username,
         max_players,
@@ -178,6 +180,7 @@ pub fn resume_room_sync(
     let mut room = Room::new(
         spec.room_id.clone(),
         spec.room_name,
+        PROTOCOL_VERSION,
         player_id.to_string(),
         username.clone(),
         spec.max_players,
@@ -222,7 +225,7 @@ pub fn resume_room_sync(
         })
         .collect();
     room.replay = Some(GameReplayCache::new(
-        uuid::Uuid::new_v4().to_string(),
+        spec.game_id,
         spec.player_order,
         spec.player_decks,
         spec.starting_life,
@@ -232,8 +235,17 @@ pub fn resume_room_sync(
         room_info: room.to_room_info(),
         awaiting_rejoin: awaiting_rejoin(&room),
     };
+    let pending_seats: Vec<String> = room
+        .players
+        .iter()
+        .filter(|slot| !slot.connected)
+        .map(|slot| slot.player_id.clone())
+        .collect();
 
     state.rooms.insert(spec.room_id.clone(), room);
+    for seat_player_id in pending_seats {
+        crate::cleanup::schedule_seat_forfeit(state.clone(), spec.room_id.clone(), seat_player_id);
+    }
     if let Some(mut player) = state.players.get_mut(player_id) {
         player.room_id = Some(spec.room_id);
     }
@@ -347,33 +359,7 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
     };
 
     if room_empty || no_connected_players {
-        if let Some((_, room)) = state.rooms.remove(&room_id) {
-            if let Some(replay) = room.replay.as_ref() {
-                analytics::emit_game_ended(
-                    &state.analytics,
-                    &room,
-                    replay,
-                    GameEndReason::Abandoned,
-                );
-            }
-        }
-        let player_ids = state
-            .players
-            .iter()
-            .filter_map(|entry| {
-                entry
-                    .value()
-                    .room_id
-                    .as_deref()
-                    .is_some_and(|rid| rid == room_id)
-                    .then(|| entry.key().clone())
-            })
-            .collect::<Vec<_>>();
-        for player_id in player_ids {
-            if let Some(mut player) = state.players.get_mut(&player_id) {
-                player.room_id = None;
-            }
-        }
+        crate::cleanup::remove_room_and_clear_sessions(state, &room_id, GameEndReason::Abandoned);
     }
 
     if let Some(mut player) = state.players.get_mut(player_id) {
@@ -647,6 +633,7 @@ pub fn start_game_sync(
 pub fn end_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
+    game_id: &str,
 ) -> Result<(String, RoomInfo, Vec<String>), ServerError> {
     let room_id = state
         .players
@@ -663,6 +650,9 @@ pub fn end_game_sync(
             return Err(ServerError::NotHost);
         }
         if room.status != RoomStatus::InGame {
+            return Err(ServerError::GameNotInProgress);
+        }
+        if room.replay.as_ref().is_some_and(|r| r.game_id != game_id) {
             return Err(ServerError::GameNotInProgress);
         }
     }

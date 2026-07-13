@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { parseDeckListText, type ParsedDeckEntry } from "@/lib/deckImport";
 
@@ -23,8 +24,6 @@ interface ImportDeckTextDialogProps {
     onProgress: (fraction: number) => void,
   ) => Promise<void>;
 }
-
-export const DEFAULT_IMPORT_NAME = "Imported Deck";
 
 const GUIDE_STEPS = [
   "Open your deck on Moxfield.",

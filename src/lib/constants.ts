@@ -36,6 +36,8 @@ export const STORAGE_KEYS = {
 
 export const DEFAULT_DECK_NAME = "New Deck";
 
+export const DEFAULT_IMPORT_NAME = "Imported Deck";
+
 // ─── Formats & Legalities ────────────────────────────────────────────────────
 
 export const FORMAT_DISPLAY: Record<string, string> = {

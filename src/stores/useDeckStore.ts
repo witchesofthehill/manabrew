@@ -4,7 +4,7 @@ import type { DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
-import { STORAGE_KEYS, DEFAULT_DECK_NAME } from "@/lib/constants";
+import { STORAGE_KEYS, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { migrateDeck } from "@/migrations/deck";
 import { getFormat, canBePartners, canHaveAnyNumberOf, copyLimitFromText } from "@/lib/formats";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
@@ -449,11 +449,17 @@ export const useDeckStore = create<DeckState>()(
               }
             }
 
+            const previousAutoName = (deck.commanders ?? [])
+              .map((c) => c.identity.name)
+              .join(" / ");
+
             commanders.push(selectedCard!);
 
+            const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === previousAutoName;
             return {
               currentDeck: {
                 ...deck,
+                name: autoRename ? commanders.map((c) => c.identity.name).join(" / ") : deck.name,
                 format: "commander",
                 cards: nextMain,
                 commanders,

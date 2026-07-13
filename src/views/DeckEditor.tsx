@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
+import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
 import type { DeckCard } from "@/protocol/deck";
 import type { Deck as DeckType } from "@/protocol/deck";
@@ -38,10 +38,7 @@ import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import {
-  DEFAULT_IMPORT_NAME,
-  ImportDeckTextDialog,
-} from "@/components/editor/ImportDeckTextDialog";
+import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";

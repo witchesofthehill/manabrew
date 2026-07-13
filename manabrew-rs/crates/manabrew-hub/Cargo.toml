@@ -26,10 +26,6 @@ name = "manabrew-hub"
 path = "src/main.rs"
 required-features = ["server"]
 
-[[bin]]
-name = "gen-hub-types"
-path = "src/bin/gen_hub_types.rs"
-
 [dependencies]
 manabrew-protocol = { path = "../manabrew-protocol", version = "0.6.0" }
 serde = { workspace = true }

@@ -18,6 +18,7 @@ dist-ssr
 /src/protocol/
 # ts-rs export-test artifacts (any `cargo test -p manabrew-protocol` emits them)
 /manabrew-rs/crates/manabrew-protocol/bindings/
+/manabrew-rs/crates/manabrew-hub/bindings/
 
 # Editor directories and files
 .vscode/*

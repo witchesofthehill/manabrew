@@ -12,11 +12,13 @@
 //!                                         create the GitHub Release
 //!   cargo xtask manifest [--check]        (re)generate ops/manifest.json
 //!   cargo xtask publish [--dry-run]       publish pending crates to crates.io
+//!   cargo xtask gen-types                 regenerate the frontend TS types
 //!
 //! Requires `git-cliff` on PATH (brew install git-cliff / taiki-e/install-action).
 
 mod apply;
 mod cliff;
+mod gen_types;
 mod manifest;
 mod plan;
 mod publish;
@@ -73,9 +75,10 @@ fn main() -> Result<()> {
         Some("manifest") if check => manifest::check(&ws, &root)?,
         Some("manifest") => manifest::generate(&ws, &root, false)?,
         Some("publish") => publish::publish(&ws, &root, dry_run)?,
+        Some("gen-types") => gen_types::generate(&root)?,
         _ => {
             print_help();
-            bail!("pick a command: plan | release | manifest | publish");
+            bail!("pick a command: plan | release | manifest | publish | gen-types");
         }
     }
     Ok(())
@@ -93,6 +96,7 @@ fn print_help() {
          plan [--github-summary]   show the pending release plan\n  \
          release [--dry-run]       run the continuous-release step (CI/main only)\n  \
          manifest [--check]        regenerate or verify ops/manifest.json\n  \
-         publish [--dry-run]       publish pending crates to crates.io"
+         publish [--dry-run]       publish pending crates to crates.io\n  \
+         gen-types                 regenerate src/protocol + src/api/hubTypes.ts"
     );
 }

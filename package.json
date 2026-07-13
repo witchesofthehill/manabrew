@@ -23,7 +23,7 @@
     "ensure:wasm": "node scripts/ensure-wasm.mjs",
     "sync:ironsmith": "node scripts/sync-ironsmith-wasm.mjs",
     "ensure:harness": "node scripts/harness.mjs ensure",
-    "gen:protocol": "cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && cargo run -q -p manabrew-hub --no-default-features --bin gen-hub-types -- src/api && prettier --write src/protocol src/api/hubTypes.ts",
+    "gen:protocol": "cargo xtask gen-types && prettier --write src/protocol src/api/hubTypes.ts",
     "gen:protocol-docs": "yarn gen:protocol && node scripts/gen-protocol-doc-types.mjs",
     "vite:dev": "yarn gen:protocol && yarn sync:ironsmith && vite",
     "vite:build": "yarn gen:protocol && yarn sync:ironsmith && tsc -b && vite build",

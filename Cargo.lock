@@ -9836,10 +9836,12 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "lexopt",
+ "manabrew-hub",
  "semver",
  "serde",
  "serde_json",
  "toml_edit 0.22.27",
+ "ts-rs",
 ]
 
 [[package]]

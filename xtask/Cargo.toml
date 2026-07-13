@@ -13,3 +13,5 @@ semver = "1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 toml_edit = "0.22"
+ts-rs = { workspace = true }
+manabrew-hub = { path = "../manabrew-rs/crates/manabrew-hub", default-features = false }

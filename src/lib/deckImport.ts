@@ -42,11 +42,13 @@ export interface ParsedDeckEntry {
   count: number;
   side: boolean;
   maybe: boolean;
+  commander: boolean;
 }
 
 const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
 const MAYBEBOARD_LINE_REGEX = /^(maybeboard|maybe)\s*:?$/i;
-const MAIN_SECTION_LINE_REGEX = /^(commander|command|mainboard|main|deck|companion)\s*:?$/i;
+const COMMANDER_LINE_REGEX = /^(commander|command)s?\s*:?$/i;
+const MAIN_SECTION_LINE_REGEX = /^(mainboard|main|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
 const SET_SUFFIX_REGEX = /\s+\([A-Za-z0-9]{2,6}\)(?:\s+[\w-]+)?(?:\s+\*F\*)?$/i;
 
@@ -55,7 +57,7 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
-  let section: "main" | "side" | "maybe" = "main";
+  let section: "main" | "side" | "maybe" | "commander" = "main";
   const entries: ParsedDeckEntry[] = [];
   for (const line of lines) {
     if (SIDEBOARD_LINE_REGEX.test(line)) {
@@ -64,6 +66,10 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
     }
     if (MAYBEBOARD_LINE_REGEX.test(line)) {
       section = "maybe";
+      continue;
+    }
+    if (COMMANDER_LINE_REGEX.test(line)) {
+      section = "commander";
       continue;
     }
     if (MAIN_SECTION_LINE_REGEX.test(line)) {
@@ -79,6 +85,7 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
       name,
       side: section === "side",
       maybe: section === "maybe",
+      commander: section === "commander",
     });
   }
   return entries;

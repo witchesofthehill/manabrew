@@ -38,7 +38,10 @@ import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
+import {
+  DEFAULT_IMPORT_NAME,
+  ImportDeckTextDialog,
+} from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
@@ -218,7 +221,7 @@ export default function DeckEditor() {
     name: string,
     onProgress: (fraction: number) => void,
   ) {
-    const deckName = name.trim() || "Imported Deck";
+    const customName = name.trim();
     onProgress(0.05);
     const scryfallMap = await fetchCardCollection(entries.map((e) => ({ name: e.name })));
     onProgress(0.55);
@@ -242,14 +245,15 @@ export default function DeckEditor() {
     const cards: DeckCard[] = [];
     const sideboard: DeckCard[] = [];
     const maybeboard: DeckCard[] = [];
+    const commanders: DeckCard[] = [];
     const notFound: string[] = [];
-    for (const { name: cardName, count, side, maybe } of entries) {
+    for (const { name: cardName, count, side, maybe, commander } of entries) {
       const sc = scryfallMap.get(cardName.toLowerCase());
       if (!sc) {
         notFound.push(cardName);
         continue;
       }
-      const target = side ? sideboard : maybe ? maybeboard : cards;
+      const target = commander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
       for (let i = 0; i < count; i++) {
         const base = scryfallToDeckCard(sc);
         target.push({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
@@ -258,12 +262,16 @@ export default function DeckEditor() {
     if (cards.length === 0 && sideboard.length === 0 && maybeboard.length === 0) {
       throw new Error("None of the cards could be found on Scryfall");
     }
+    const commanderName = commanders.map((c) => c.identity.name).join(" / ");
+    const deckName =
+      (customName !== DEFAULT_IMPORT_NAME && customName) || commanderName || DEFAULT_IMPORT_NAME;
     const id = addSavedDeck({
       name: deckName,
       format: inferImportedFormat(cards.map((c) => c.identity.name)),
       cards,
       sideboard,
       maybeboard,
+      commanders,
       attractions: [],
       contraptions: [],
       schemes: [],

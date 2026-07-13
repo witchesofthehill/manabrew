@@ -24,7 +24,7 @@ interface ImportDeckTextDialogProps {
   ) => Promise<void>;
 }
 
-const DEFAULT_IMPORT_NAME = "Imported Deck";
+export const DEFAULT_IMPORT_NAME = "Imported Deck";
 
 const GUIDE_STEPS = [
   "Open your deck on Moxfield.",

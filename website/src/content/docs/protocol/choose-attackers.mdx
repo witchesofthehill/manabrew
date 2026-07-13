@@ -10,9 +10,7 @@ which creatures are able to attack and which players, planeswalkers, or battles
 each one may attack — for example, choosing to swing with a Grizzly Bears at the
 opponent's face while leaving an untapped blocker back.
 
-:::note[Answered on the board]
-The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
-:::
+![The chooseAttackers prompt in the Manabrew client](/protocol/declare-attackers.webp)
 
 ## Arguments
 
@@ -53,13 +51,23 @@ simply omitted.
 
 ```json
 {
+  "kind": "response",
   "promptId": 7,
-  "output": {
-    "type": "declareAttackers",
-    "assignments": [
-      { "attackerId": "bf-3", "targetId": "player-1" },
-      { "attackerId": "bf-4", "targetId": "pw-1" }
-    ]
+  "action": {
+    "type": "chooseAttackers",
+    "output": {
+      "type": "declareAttackers",
+      "assignments": [
+        {
+          "attackerId": "bf-3",
+          "targetId": "player-1"
+        },
+        {
+          "attackerId": "bf-4",
+          "targetId": "pw-1"
+        }
+      ]
+    }
   }
 }
 ```

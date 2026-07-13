@@ -66,5 +66,15 @@ legal; otherwise return the chosen integer in `[min, max]`.
 ```
 
 ```json
-{ "promptId": 7, "output": { "type": "numberDecision", "chosenNumber": 3 } }
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "chooseNumber",
+    "output": {
+      "type": "numberDecision",
+      "chosenNumber": 3
+    }
+  }
+}
 ```

@@ -68,5 +68,17 @@ Return the indices (into `options`) of the chosen modes.
 ```
 
 ```json
-{ "promptId": 7, "output": { "type": "selectionDecision", "chosenIndices": [0] } }
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "chooseFromSelection",
+    "output": {
+      "type": "selectionDecision",
+      "chosenIndices": [
+        0
+      ]
+    }
+  }
+}
 ```

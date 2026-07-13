@@ -55,10 +55,15 @@ Return the `id`s of the chosen cards — between `min` and `max` of them.
     "type": "chooseCards",
     "presentation": { "title": "Discard two cards", "targets": [] },
     "cards": [
-      { "id": "hand-0", "name": "Lightning Bolt", "manaCost": "{R}", "types": ["Instant"] },
+      {
+        "id": "hand-0",
+        "identity": { "name": "Lightning Bolt" },
+        "manaCost": "{R}",
+        "types": ["Instant"]
+      },
       {
         "id": "hand-1",
-        "name": "Llanowar Elves",
+        "identity": { "name": "Llanowar Elves" },
         "manaCost": "{G}",
         "types": ["Creature"],
         "power": "1",
@@ -73,8 +78,18 @@ Return the `id`s of the chosen cards — between `min` and `max` of them.
 
 ```json
 {
+  "kind": "response",
   "promptId": 12,
-  "output": { "type": "chooseCardsDecision", "chosenCardIds": ["hand-0", "hand-1"] }
+  "action": {
+    "type": "chooseCards",
+    "output": {
+      "type": "chooseCardsDecision",
+      "chosenCardIds": [
+        "hand-0",
+        "hand-1"
+      ]
+    }
+  }
 }
 ```
 

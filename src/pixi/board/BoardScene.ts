@@ -241,6 +241,7 @@ export class BoardScene {
   private lastCapsuleRects = new Map<string, string>();
   private delimsWereMoving = false;
   private autoSort = false;
+  private zoneTilesLocked = false;
   private gridSkeletonDebug = false;
   private attackRowDebug = false;
 
@@ -459,6 +460,7 @@ export class BoardScene {
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
       region.setCompactZones(this.compactMode);
+      region.setZoneTilesLocked(this.zoneTilesLocked);
       region.setSkeletonDebug(this.gridSkeletonDebug);
       region.setAttackRowDebug(this.attackRowDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
@@ -1213,6 +1215,12 @@ export class BoardScene {
     this.playerBars.setCompact(compact);
     this.applyDelimiters();
     for (const rec of this.regions.values()) rec.region.setCompactZones(compact);
+  }
+
+  setZoneTilesLocked(locked: boolean): void {
+    if (this.zoneTilesLocked === locked) return;
+    this.zoneTilesLocked = locked;
+    for (const rec of this.regions.values()) rec.region.setZoneTilesLocked(locked);
   }
 
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.0](https://github.com/witchesofthehill/manabrew/compare/v1.7.0...v1.8.0) (2026-07-14)
+
+### Features
+
+* **web:** in-game board settings, unified card sizing, scry hover preview ([#450](https://github.com/witchesofthehill/manabrew/issues/450)) ([4eef170](https://github.com/witchesofthehill/manabrew/commit/4eef1706445d9d563ab6e6f10c338afb5431ae08))
+
 ## [1.7.0](https://github.com/witchesofthehill/manabrew/compare/v1.6.0...v1.7.0) (2026-07-13)
 
 ### Features

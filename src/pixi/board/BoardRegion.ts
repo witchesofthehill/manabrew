@@ -130,6 +130,7 @@ export class BoardRegion {
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
   private compactZones = false;
+  private zoneTilesLocked = false;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
@@ -244,8 +245,14 @@ export class BoardRegion {
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
+  setZoneTilesLocked(locked: boolean): void {
+    if (this.zoneTilesLocked === locked) return;
+    this.zoneTilesLocked = locked;
+    this.applyZoneTileDraggable();
+  }
+
   private applyZoneTileDraggable(): void {
-    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones);
+    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones && !this.zoneTilesLocked);
   }
 
   cancelZoneTileDrag(): void {
@@ -277,11 +284,11 @@ export class BoardRegion {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
     const ignoreBlockers = this.compactZones && !this.mirrored;
-    const isFree = (cell: GridCell | null): cell is GridCell =>
+    const isFree = (cell: GridCell | null, ignoreBlocked = ignoreBlockers): cell is GridCell =>
       !!cell &&
       !taken.has(cellKey(cell.col, cell.row)) &&
       !occupied.has(cellKey(cell.col, cell.row)) &&
-      (ignoreBlockers || !cell.blocked);
+      (ignoreBlocked || !cell.blocked);
 
     const attackBandRow = grid.rows;
     const resolveCell = (col: number, row: number): GridCell | null => {
@@ -298,11 +305,11 @@ export class BoardRegion {
         ? Array.from({ length: grid.rows }, (_, r) => r)
         : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
     const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
-    const nextDefaultCell = (): GridCell | null => {
+    const nextDefaultCell = (ignoreBlocked = ignoreBlockers): GridCell | null => {
       for (let col = 0; col < grid.cols; col++) {
         for (const row of rowOrder) {
           const cell = resolveCell(col, row);
-          if (isFree(cell)) return cell;
+          if (isFree(cell, ignoreBlocked)) return cell;
         }
       }
       return null;
@@ -312,6 +319,10 @@ export class BoardRegion {
       const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
+      // A giant-card grid (few cells, partly covered by the hand fan and
+      // action cluster keep-outs) can run out of unblocked cells — overlap a
+      // blocker rather than stranding the tile at its stale geometry.
+      if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
       if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));

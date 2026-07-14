@@ -56,9 +56,24 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
 fi
 
 # ── Pull latest changes ──────────────────────────────────────────────
-PREV=$(git rev-parse --short HEAD)
+# DEPLOY_ORIG_PREV preserves the pre-pull commit across the self-update re-exec
+# below, so the re-run still deploys the right range instead of early-exiting as
+# "no new commits".
+PREV="${DEPLOY_ORIG_PREV:-$(git rev-parse --short HEAD)}"
 git pull origin main --ff-only >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
+
+# Self-update: the pull may have changed this very script. deploy.sh is already
+# loaded into memory, so without this the *old* logic runs and script edits only
+# take effect the NEXT deploy — exactly how the Ironsmith submodule checkout was
+# missed and the runtime shipped dark on its first deploy. Re-exec the updated
+# script once (guarded so it can't loop).
+if [ -z "${DEPLOY_ORIG_PREV:-}" ] && [ "$PREV" != "$CURR" ] \
+   && ! git diff --quiet "${PREV}..${CURR}" -- deploy.sh; then
+    echo "deploy.sh changed in this pull — re-exec'ing the updated script" >> "$RAW_LOG"
+    export DEPLOY_ORIG_PREV="$PREV"
+    exec bash "$0" "$@"
+fi
 
 # Forge is a git submodule (engine + cardsfolder). Pulling main only moves the
 # gitlink pointer; the working tree must be checked out explicitly or the wasm
@@ -191,56 +206,56 @@ else
     echo "Parity dashboard skipped (COMPOSE_PROFILES does not include 'parity')" >> "$RAW_LOG"
 fi
 
-# -- manabrew-server (relay; restarted only when the shipped binary differs) --
-RELAY_IMAGE="manabrew-server:production"
+# -- ghcr images: manabrew (web), manabrew-server (relay), manabrew-hub --
+# These are built + pushed by CI (docker-images.yml) on the same release tag and
+# pulled here instead of built locally (the web image is a ~1h WASM+Vite build
+# that no longer fits the prod host's disk). Pull with retry: the image workflow
+# runs in parallel with this deploy, so the new images may not be pushed yet.
 RELAY_UNCHANGED=false
-if $INFRA_CHANGED; then
-    echo "Building manabrew-server (full)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache manabrew-server >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
-elif $FORGE_SERVER_CHANGED; then
-    echo "Building manabrew-server (cached)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain manabrew-server >> "$RAW_LOG" 2>&1
-    # Dockerfile/compose changes take the INFRA branch above, so on this branch
-    # an identical binary means the deployment is identical: skip the restart
-    # and point the tag back at the running image so `up -d` (here or manual)
-    # keeps considering the container up to date.
-    RELAY_CID=$(docker compose -f "$COMPOSE_FILE" ps -q manabrew-server)
-    if [ -n "$RELAY_CID" ]; then
-        RELAY_OLD_IMAGE=$(docker inspect --format '{{.Image}}' "$RELAY_CID")
-        OLD_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_OLD_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
-        NEW_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
-        if [ -n "$OLD_SHA" ] && [ "$OLD_SHA" = "$NEW_SHA" ]; then
-            docker tag "$RELAY_OLD_IMAGE" "$RELAY_IMAGE" >> "$RAW_LOG" 2>&1
-            RELAY_UNCHANGED=true
-            echo "manabrew-server binary unchanged (${NEW_SHA:0:12}) — relay not restarted" >> "$RAW_LOG"
-        fi
+echo "Pulling ghcr images (manabrew manabrew-server manabrew-hub)..." >> "$RAW_LOG"
+PULLED=false
+for attempt in $(seq 1 40); do
+    if docker compose -f "$COMPOSE_FILE" pull --quiet manabrew manabrew-server manabrew-hub >> "$RAW_LOG" 2>&1; then
+        PULLED=true; break
     fi
-    if ! $RELAY_UNCHANGED; then
+    echo "  pull attempt $attempt failed (CI images not pushed yet?); retrying in 30s" >> "$RAW_LOG"
+    sleep 30
+done
+$PULLED || { echo "❌ ghcr image pull failed after retries — aborting deploy."; exit 1; }
+
+# A service needs recreating only when the pulled image differs from what its
+# container is running — otherwise `up -d` would needlessly churn it (a web
+# recreate briefly blips Caddy; a relay recreate drops every live game).
+image_changed() {  # $1 service, $2 image ref
+    local cid running pulled
+    cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$1" 2>/dev/null || true)
+    [ -z "$cid" ] && return 0
+    running=$(docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || echo "")
+    pulled=$(docker image inspect --format '{{.Id}}' "$2" 2>/dev/null || echo "x")
+    [ "$running" != "$pulled" ]
+}
+GHCR_TAG="${MANABREW_IMAGE_TAG:-latest}"
+image_changed manabrew "ghcr.io/witchesofthehill/manabrew-web:${GHCR_TAG}" \
+    && SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
+image_changed manabrew-hub "ghcr.io/witchesofthehill/manabrew-hub:${GHCR_TAG}" \
+    && SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
+
+# Relay: extra-conservative — restart only when the actual binary differs (an
+# image-digest change from an unrelated base bump must not kill live games).
+RELAY_IMAGE="ghcr.io/witchesofthehill/manabrew-server:${GHCR_TAG}"
+RELAY_CID=$(docker compose -f "$COMPOSE_FILE" ps -q manabrew-server 2>/dev/null || true)
+if [ -n "$RELAY_CID" ]; then
+    RELAY_OLD_IMAGE=$(docker inspect --format '{{.Image}}' "$RELAY_CID")
+    OLD_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_OLD_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
+    NEW_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
+    if [ -n "$OLD_SHA" ] && [ "$OLD_SHA" = "$NEW_SHA" ]; then
+        RELAY_UNCHANGED=true
+        echo "manabrew-server binary unchanged (${NEW_SHA:0:12}) — relay not restarted" >> "$RAW_LOG"
+    else
         SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
     fi
-fi
-
-# -- manabrew-hub (deck hub API; restart is harmless, no live-game state) --
-if $INFRA_CHANGED; then
-    echo "Building manabrew-hub (full)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache manabrew-hub >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
-elif $HUB_CHANGED; then
-    echo "Building manabrew-hub (cached)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain manabrew-hub >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
-fi
-
-# -- manabrew (WASM + React static site served via caddy) --
-if $INFRA_CHANGED; then
-    echo "Building manabrew (full)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache $BUILD_ARGS manabrew >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
-elif $WEB_CHANGED || $RUST_CHANGED || $CARDDATA_CHANGED; then
-    echo "Building manabrew (cached)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain $BUILD_ARGS manabrew >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
+else
+    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
 fi
 
 # -- observability stack (config-only; images are pulled, never built) --
@@ -274,7 +289,41 @@ fi
 # the old container otherwise lingers and can hold the host ports the new
 # one needs — exactly what took prod down on the #19 merge deploy.
 if [ -n "$SERVICES_TO_RESTART" ]; then
-    docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --remove-orphans $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
+    # Snapshot each service's current image so an unhealthy rollout can be rolled
+    # back to the last-good one. GHCR_REF maps the pulled services to the tag we
+    # re-point on rollback.
+    declare -A ROLLBACK_IMG=()
+    declare -A GHCR_REF=(
+        [manabrew]="ghcr.io/witchesofthehill/manabrew-web:${GHCR_TAG:-latest}"
+        [manabrew-server]="ghcr.io/witchesofthehill/manabrew-server:${GHCR_TAG:-latest}"
+        [manabrew-hub]="ghcr.io/witchesofthehill/manabrew-hub:${GHCR_TAG:-latest}"
+    )
+    for svc in $SERVICES_TO_RESTART; do
+        cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || true)
+        [ -n "$cid" ] && ROLLBACK_IMG[$svc]=$(docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || true)
+    done
+
+    # --no-deps: recreate only the listed services, never their dependencies as a
+    # side effect (an `up manabrew` without this recreates the relay it
+    # depends_on — dropping live games, and aborting the deploy if the relay tag
+    # is ever missing). --wait: block until healthchecks pass.
+    if docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --no-deps --remove-orphans --wait --wait-timeout 180 $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1; then
+        echo "✅ rollout healthy: $SERVICES_TO_RESTART" >> "$RAW_LOG"
+    else
+        echo "⚠️ rollout unhealthy — rolling back to the previous images" | tee -a "$RAW_LOG"
+        ROLLED=""
+        for svc in $SERVICES_TO_RESTART; do
+            ref="${GHCR_REF[$svc]:-}"; old="${ROLLBACK_IMG[$svc]:-}"
+            if [ -n "$ref" ] && [ -n "$old" ]; then
+                docker tag "$old" "$ref" >> "$RAW_LOG" 2>&1 && ROLLED="$ROLLED $svc"
+            fi
+        done
+        if [ -n "$ROLLED" ]; then
+            docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --no-deps $ROLLED >> "$RAW_LOG" 2>&1 || true
+            echo "↩️ rolled back:$ROLLED" | tee -a "$RAW_LOG"
+        fi
+        exit 1
+    fi
 fi
 
 if $CADDYFILE_CHANGED; then

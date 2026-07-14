@@ -10,6 +10,9 @@ export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
+export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
+export const CARD_SIZE_MULTIPLIER_MAX = 3;
+
 interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
@@ -44,8 +47,19 @@ interface PreferencesState {
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
-  battlefieldCardScale: number;
-  setBattlefieldCardScale: (fraction: number) => void;
+  // One knob for battlefield card size on ALL fields. 1 = the classic 3-row
+  // board; 3 = 300%. Each field clamps to a 2-row fill of its own height (a
+  // 1-row board is unplayable), so on small windows large multipliers
+  // saturate early. The hand keeps its classic size and only grows past it on
+  // displays tall enough for battlefield cards to outgrow it
+  // (BoardCanvas.reconfigure).
+  cardSizeMultiplier: number;
+  setCardSizeMultiplier: (multiplier: number) => void;
+
+  // Freezes the deck/graveyard/exile/command tiles in place so a drag can't
+  // accidentally reposition them; tap-to-open keeps working.
+  lockZoneTiles: boolean;
+  setLockZoneTiles: (value: boolean) => void;
 
   // Only the Pixi battlefield reads this; hand, stack, and modals always use
   // the image.
@@ -92,7 +106,8 @@ const PERSISTED_PREFERENCE_KEYS = [
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
-  "battlefieldCardScale",
+  "cardSizeMultiplier",
+  "lockZoneTiles",
   "battlefieldCardStyle",
   "inGameAnimations",
   "ironsmithRuntimeEnabled",
@@ -169,9 +184,17 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
 
-          battlefieldCardScale: 0.5,
-          setBattlefieldCardScale: (battlefieldCardScale) =>
-            set({ battlefieldCardScale: Math.max(0, Math.min(1, battlefieldCardScale)) }),
+          cardSizeMultiplier: 1,
+          setCardSizeMultiplier: (cardSizeMultiplier) =>
+            set({
+              cardSizeMultiplier: Math.max(
+                CARD_SIZE_MULTIPLIER_MIN,
+                Math.min(CARD_SIZE_MULTIPLIER_MAX, cardSizeMultiplier),
+              ),
+            }),
+
+          lockZoneTiles: false,
+          setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
           battlefieldCardStyle: "realistic",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),

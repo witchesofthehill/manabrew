@@ -20,7 +20,9 @@ import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
+import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { stackObjectToCardStub } from "@/components/game/game.utils";
+import { useCardPreview } from "@/hooks/useCardPreview";
 import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
@@ -62,6 +64,7 @@ function DraggableCard({
   return (
     <div
       ref={setNodeRef}
+      data-card-id={id}
       {...(disabled ? {} : attributes)}
       {...(disabled ? {} : listeners)}
       className={cn(
@@ -226,6 +229,9 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
     ...Object.fromEntries(zoneIds.map((z) => [z, [] as string[]])),
   }));
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Hover-only big preview: a touch hold on these cards is the drag gesture
+  // (TouchSensor, 200ms), so the app-wide long-press preview can't apply here.
+  const preview = useCardPreview();
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
@@ -274,24 +280,44 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
-        onDragStart={(e) => setActiveId(e.active.id as string)}
+        onDragStart={(e) => {
+          preview.dismiss();
+          setActiveId(e.active.id as string);
+        }}
         onDragEnd={onDragEnd}
       >
-        <p className="px-5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Cards to place
-        </p>
-        <PoolRow id={POOL} ids={items[POOL]} cardsById={cardsById} />
+        <div
+          onMouseOver={(e) => {
+            const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
+            const card = el && cardsById.get(el.dataset.cardId ?? "");
+            if (card) {
+              preview.handleMouseEnter(card, e, {
+                useDelay: true,
+                anchorOverride: el.getBoundingClientRect(),
+              });
+            }
+          }}
+          onMouseOut={(e) => {
+            const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
+            if (el && !el.contains(e.relatedTarget as Node)) preview.handleMouseLeave();
+          }}
+        >
+          <p className="px-5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Cards to place
+          </p>
+          <PoolRow id={POOL} ids={items[POOL]} cardsById={cardsById} />
 
-        <div className="flex flex-wrap gap-3 px-5 pb-4">
-          {zones.map((destination, i) => (
-            <Zone
-              key={zoneIds[i]}
-              id={zoneIds[i]}
-              destination={destination}
-              ids={items[zoneIds[i]]}
-              cardsById={cardsById}
-            />
-          ))}
+          <div className="flex flex-wrap gap-3 px-5 pb-4">
+            {zones.map((destination, i) => (
+              <Zone
+                key={zoneIds[i]}
+                id={zoneIds[i]}
+                destination={destination}
+                ids={items[zoneIds[i]]}
+                cardsById={cardsById}
+              />
+            ))}
+          </div>
         </div>
 
         <DragOverlay dropAnimation={DROP_ANIMATION}>
@@ -322,6 +348,7 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
           Confirm
         </Button>
       </Modal.Footer>
+      <HoverCardPreview preview={preview} />
     </Modal>
   );
 }

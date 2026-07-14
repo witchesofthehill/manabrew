@@ -1,20 +1,14 @@
 services:
   manabrew:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-      args:
-        VITE_RELAY_HOST: relay.manabrew.app
-        VITE_RELAY_PORT: "443"
-        VITE_RELAY_PASSWORD: ${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}
-        VITE_MANAGED_RELAY: "1"
-        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
-        # Off by default: "Play vs AI" runs the engine client-side, so the web
-        # does NOT depend on the self-hosted-node. Build with
-        # VITE_HOSTED_AI_ENABLED=true (and run the node via --profile hosted-ai)
-        # to expose the Settings engine toggle.
-        VITE_HOSTED_AI_ENABLED: "${VITE_HOSTED_AI_ENABLED:-false}"
-        VITE_HUB_API_URL: "${VITE_HUB_API_URL:-https://api.manabrew.app}"
+    # Pre-built in CI (docker-images.yml) and pulled here — the web image is a
+    # ~1h WASM+Vite build that does not fit the prod host's disk. The published
+    # image is relay-agnostic; it is pointed at the relay at RUNTIME via the
+    # RELAY_* env below (ops/web-entrypoint.sh writes /srv/manabrew/config.js),
+    # replacing the old VITE_RELAY_* build args. NOTE: the CI image is built
+    # without VITE_SCRYFALL_SYMBOL_BASE, so mana symbols load from
+    # svgs.scryfall.io directly rather than the /scryfall-symbols/ Caddy proxy —
+    # make it runtime-configurable if the proxy is required.
+    image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "80:80"
@@ -32,18 +26,20 @@ services:
       PUSHGATEWAY_PASSWORD_HASH:
       # Bcrypt hash for the api. /admin/* ingress (same single-quote caveat).
       HUB_ADMIN_PASSWORD_HASH:
+      # Runtime relay config (entrypoint writes config.js from these).
+      RELAY_HOST: relay.manabrew.app
+      RELAY_PORT: "443"
+      RELAY_PASSWORD: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:
       - manabrew-server
 
   manabrew-server:
-    # Explicit tag so deploy.sh can address the freshly built image when it
-    # compares binaries to decide whether a restart is needed.
-    image: manabrew-server:production
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+    # Pre-built in CI (docker-images.yml) and pulled. deploy.sh compares the
+    # pulled binary against the running one and only restarts the relay when it
+    # changed — a relay restart drops every live game.
+    image: ghcr.io/witchesofthehill/manabrew-server:${MANABREW_IMAGE_TAG:-latest}
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
@@ -74,10 +70,8 @@ services:
       start_period: 5s
 
   manabrew-hub:
-    image: manabrew-hub:production
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
+    # Pre-built in CI (docker-images.yml) and pulled.
+    image: ghcr.io/witchesofthehill/manabrew-hub:${MANABREW_IMAGE_TAG:-latest}
     environment:
       HUB_HOST: "0.0.0.0"
       HUB_PORT: "9500"
@@ -107,9 +101,8 @@ services:
   self-hosted-node:
     profiles:
       - hosted-ai
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+    # Pre-built in CI (docker-images.yml) and pulled.
+    image: ghcr.io/witchesofthehill/manabrew-node:${MANABREW_IMAGE_TAG:-latest}
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"

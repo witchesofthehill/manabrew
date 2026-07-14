@@ -9,7 +9,7 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import {
   GAP,
   BATTLEFIELD_MIN_ROWS,
-  BATTLEFIELD_MAX_ROWS,
+  BATTLEFIELD_MIN_ROWS_LARGEST,
   BATTLEFIELD_CARD_SCALE_FLOOR,
   COMBAT_ROW_PAD_Y,
   COMBAT_STAGE_PADDING_PX,
@@ -66,28 +66,28 @@ export const maxScaleForRows = (usableH: number, rows: number): number => {
   return (cellH - GAP) / (CARD_H * (1 + CELL_BREATHING_FRAC));
 };
 
-export const battlefieldScaleForFraction = (usableH: number, fraction: number): number => {
-  const f = Math.min(1, Math.max(0, fraction));
-  const floor = BATTLEFIELD_CARD_SCALE_FLOOR;
-  const maxScale = Math.max(floor, maxScaleForRows(usableH, BATTLEFIELD_MIN_ROWS));
-  const minScale = Math.max(
-    floor,
-    Math.min(maxScale, maxScaleForRows(usableH, BATTLEFIELD_MAX_ROWS)),
+/** Scale at which `rows` whole rows plus the combat-row band the field must
+ *  reserve exactly fill `usableH`. The band is itself a card height, so
+ *  estimating it from a band-less scale (the old two-pass) starves the grid at
+ *  1-2 rows; this is the joint solve, derived from
+ *  `maxScaleForRows(usableH - combatRowReserve(s), rows) = s`. */
+const scaleForRowsWithCombatRow = (usableH: number, rows: number): number => {
+  const bandFixed = COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
+  return (
+    (usableH - bandFixed + GAP - rows * (0.5 + GAP)) /
+    (CARD_H * ((1 + CELL_BREATHING_FRAC) * rows + 1))
   );
-  return minScale + f * (maxScale - minScale);
 };
 
-/** Like `battlefieldScaleForFraction`, but grows the cards to exactly fill
- *  `usableH` with the whole row count the fraction lands on — removing the
- *  leftover slack when the interpolated scale sits between two row counts. */
-export const battlefieldFillScale = (usableH: number, fraction: number): number => {
-  const provisional = battlefieldScaleForFraction(usableH, fraction);
-  const cellH = CARD_H * provisional * (1 + CELL_BREATHING_FRAC) + GAP;
-  const rows = Math.min(
-    BATTLEFIELD_MAX_ROWS,
-    Math.max(BATTLEFIELD_MIN_ROWS, Math.floor((usableH + GAP) / cellH)),
-  );
-  return Math.max(BATTLEFIELD_CARD_SCALE_FLOOR, maxScaleForRows(usableH, rows));
+/** Card scale for the user's size multiplier: 1 (100%) is the classic
+ *  3-row-board size, and the multiplier grows the cards continuously from
+ *  there — clamped to a `BATTLEFIELD_MIN_ROWS_LARGEST`-row fill plus the
+ *  combat band, so the board never degrades below that row count. Applies to
+ *  every battlefield; each field clamps against its own height. */
+export const battlefieldScaleForMultiplier = (usableH: number, multiplier: number): number => {
+  const base = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS);
+  const max = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS_LARGEST);
+  return Math.max(BATTLEFIELD_CARD_SCALE_FLOOR, Math.min(base * multiplier, max));
 };
 
 /**

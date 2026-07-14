@@ -30,6 +30,9 @@ services:
       RELAY_HOST: relay.manabrew.app
       RELAY_PORT: "443"
       RELAY_PASSWORD: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      # Enable the Forge "Play vs AI" hosted engine option (the published image
+      # ships it off). Run the node with `--profile hosted-ai` for it to work.
+      HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:

@@ -53,6 +53,12 @@ jobs:
             dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
           - image: manabrew-web
             dockerfile: Dockerfile.web
+            # Route mana symbols through the web image's own same-origin Caddy
+            # proxy (ops/Caddyfile → /scryfall-symbols/) instead of fetching
+            # svgs.scryfall.io directly, which trips CORS. The proxy ships in
+            # every web image, so this is safe for self-hosters too.
+            build-args: |
+              VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
           - image: manabrew-node
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
           - image: manabrew-hub
@@ -107,6 +113,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
           # amd64 only: the web image compiles Rust→WASM + a Node/Astro build,
           # which is impractical under arm64 QEMU emulation. Add
           # linux/arm64 here (on a native arm runner) if you need it.

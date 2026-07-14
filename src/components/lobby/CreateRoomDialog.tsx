@@ -9,6 +9,7 @@ import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { getPlatformType } from "@/platform";
 import { isFeatureEnabled } from "@/featureFlags";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
@@ -147,7 +148,9 @@ interface CreateRoomDialogProps {
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { createRoom, username } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
-  const ironsmithEnabled = isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE;
+  const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
+  const ironsmithEnabled =
+    isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
   const [engine, setEngine] = useState<EngineKind>(isTauri ? "Forge" : "Manabrew");
   const [roomPassword, setRoomPassword] = useState("");
   const allSets = useScryfallStore((s) => s.sets);

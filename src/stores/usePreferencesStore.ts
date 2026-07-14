@@ -57,6 +57,13 @@ interface PreferencesState {
   inGameAnimations: boolean;
   setInGameAnimations: (value: boolean) => void;
 
+  // Opt-in for the experimental Ironsmith trusted engine. Off by default so the
+  // engine ships dark in prod; the runtime registry and lobby tile also gate on
+  // the compile flag + `IRONSMITH_WASM_AVAILABLE`, so this only surfaces it
+  // where the real wasm is bundled.
+  ironsmithRuntimeEnabled: boolean;
+  setIronsmithRuntimeEnabled: (value: boolean) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
@@ -88,6 +95,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardScale",
   "battlefieldCardStyle",
   "inGameAnimations",
+  "ironsmithRuntimeEnabled",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -170,6 +178,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
+
+          ironsmithRuntimeEnabled: false,
+          setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

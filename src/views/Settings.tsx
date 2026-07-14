@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { isFeatureEnabled } from "@/featureFlags";
+import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { stripUsernameTag } from "@/lib/username";
 import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
@@ -1007,6 +1009,33 @@ export default function Settings() {
                 works (cards move, state indicators and damage numbers stay).
               </p>
             </div>
+
+            {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
+              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+                <Label>Ironsmith engine (experimental)</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
+                  >
+                    On
+                  </Button>
+                  <Button
+                    variant={!prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
+                  >
+                    Off
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Adds the experimental Ironsmith trusted engine as a Create Room option. Card
+                  support is partial and games may be rough — off by default. Leave this off unless
+                  you're testing Ironsmith.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>

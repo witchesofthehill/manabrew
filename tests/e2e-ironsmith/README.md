@@ -17,8 +17,10 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
    ./ironsmith/rebuild-wasm.sh          # first run needs the Scryfall sync
    yarn sync:ironsmith
    ```
-2. **Feature flag ON.** `ironsmithRuntime` ships `false` (dark). Flip it to `true`
-   in `src/featureFlags.ts` for the duration of testing.
+2. **Enable the engine.** The `ironsmithRuntime` compile flag is on, but the
+   engine is opt-in: turn it **On** under Settings → _Ironsmith engine
+   (experimental)_ (persists the `ironsmithRuntimeEnabled` preference). The tests
+   drive the real UI, so enable it there before running.
 3. **A relay** on `:9443` with server key `forge`:
    ```bash
    yarn dev:relay              # or: MANABREW_SERVER_KEY=forge cargo run --release -p manabrew-server

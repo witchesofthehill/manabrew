@@ -213,7 +213,14 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 
 const SCRYFALL_IMAGE_MAX_RETRIES = 3;
 
-async function fetchImageBlobNoCache(url: string): Promise<string> {
+// Avoid scryfall corrupted caches
+function corsCachePartition(url: string): string {
+  const u = new URL(url);
+  u.searchParams.set("mbcors", "1");
+  return u.toString();
+}
+
+async function fetchImageBlob(url: string): Promise<string> {
   const response = await fetch(url, {
     cache: "no-store",
     credentials: "omit",
@@ -221,6 +228,14 @@ async function fetchImageBlobNoCache(url: string): Promise<string> {
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return URL.createObjectURL(await response.blob());
+}
+
+async function fetchImageBlobNoCache(url: string): Promise<string> {
+  try {
+    return await fetchImageBlob(corsCachePartition(url));
+  } catch {
+    return await fetchImageBlob(url);
+  }
 }
 
 function loadImageElement(

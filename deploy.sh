@@ -56,9 +56,24 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
 fi
 
 # ── Pull latest changes ──────────────────────────────────────────────
-PREV=$(git rev-parse --short HEAD)
+# DEPLOY_ORIG_PREV preserves the pre-pull commit across the self-update re-exec
+# below, so the re-run still deploys the right range instead of early-exiting as
+# "no new commits".
+PREV="${DEPLOY_ORIG_PREV:-$(git rev-parse --short HEAD)}"
 git pull origin main --ff-only >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
+
+# Self-update: the pull may have changed this very script. deploy.sh is already
+# loaded into memory, so without this the *old* logic runs and script edits only
+# take effect the NEXT deploy — exactly how the Ironsmith submodule checkout was
+# missed and the runtime shipped dark on its first deploy. Re-exec the updated
+# script once (guarded so it can't loop).
+if [ -z "${DEPLOY_ORIG_PREV:-}" ] && [ "$PREV" != "$CURR" ] \
+   && ! git diff --quiet "${PREV}..${CURR}" -- deploy.sh; then
+    echo "deploy.sh changed in this pull — re-exec'ing the updated script" >> "$RAW_LOG"
+    export DEPLOY_ORIG_PREV="$PREV"
+    exec bash "$0" "$@"
+fi
 
 # Forge is a git submodule (engine + cardsfolder). Pulling main only moves the
 # gitlink pointer; the working tree must be checked out explicitly or the wasm
@@ -274,11 +289,41 @@ fi
 # the old container otherwise lingers and can hold the host ports the new
 # one needs — exactly what took prod down on the #19 merge deploy.
 if [ -n "$SERVICES_TO_RESTART" ]; then
-    # --no-deps: recreate only the listed services, never their dependencies as
-    # a side effect (an `up manabrew` without this recreates the relay it
-    # depends_on — which drops live games and, if the relay image tag is ever
-    # missing, aborts the whole deploy).
-    docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --no-deps --remove-orphans $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
+    # Snapshot each service's current image so an unhealthy rollout can be rolled
+    # back to the last-good one. GHCR_REF maps the pulled services to the tag we
+    # re-point on rollback.
+    declare -A ROLLBACK_IMG=()
+    declare -A GHCR_REF=(
+        [manabrew]="ghcr.io/witchesofthehill/manabrew-web:${GHCR_TAG:-latest}"
+        [manabrew-server]="ghcr.io/witchesofthehill/manabrew-server:${GHCR_TAG:-latest}"
+        [manabrew-hub]="ghcr.io/witchesofthehill/manabrew-hub:${GHCR_TAG:-latest}"
+    )
+    for svc in $SERVICES_TO_RESTART; do
+        cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || true)
+        [ -n "$cid" ] && ROLLBACK_IMG[$svc]=$(docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || true)
+    done
+
+    # --no-deps: recreate only the listed services, never their dependencies as a
+    # side effect (an `up manabrew` without this recreates the relay it
+    # depends_on — dropping live games, and aborting the deploy if the relay tag
+    # is ever missing). --wait: block until healthchecks pass.
+    if docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --no-deps --remove-orphans --wait --wait-timeout 180 $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1; then
+        echo "✅ rollout healthy: $SERVICES_TO_RESTART" >> "$RAW_LOG"
+    else
+        echo "⚠️ rollout unhealthy — rolling back to the previous images" | tee -a "$RAW_LOG"
+        ROLLED=""
+        for svc in $SERVICES_TO_RESTART; do
+            ref="${GHCR_REF[$svc]:-}"; old="${ROLLBACK_IMG[$svc]:-}"
+            if [ -n "$ref" ] && [ -n "$old" ]; then
+                docker tag "$old" "$ref" >> "$RAW_LOG" 2>&1 && ROLLED="$ROLLED $svc"
+            fi
+        done
+        if [ -n "$ROLLED" ]; then
+            docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --no-deps $ROLLED >> "$RAW_LOG" 2>&1 || true
+            echo "↩️ rolled back:$ROLLED" | tee -a "$RAW_LOG"
+        fi
+        exit 1
+    fi
 fi
 
 if $CADDYFILE_CHANGED; then

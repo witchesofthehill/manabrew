@@ -51,6 +51,8 @@ jobs:
             dockerfile: Dockerfile.web
           - image: manabrew-node
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+          - image: manabrew-hub
+            dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:

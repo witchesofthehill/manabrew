@@ -18,27 +18,24 @@ import type { RoomMessagePayload } from "@/types/server";
 let ironsmithInit: Promise<unknown> | null = null;
 const IRONSMITH_RELAY_PROTOCOL = "ironsmith-trusted";
 
-interface IronsmithPromptBinding {
-  promptId: string;
-  playerSlot: string;
-  decisionKind: string;
-  actionRefs: Record<string, unknown>;
-  targetKinds: Record<string, "player" | "object" | "planeswalker" | "battle">;
-  optionIndices: Record<string, number>;
+interface IronsmithAgentPrompt {
+  promptId: number;
+  decidingPlayerId: string;
+  sourceCardId?: string;
+  input: Prompt["input"];
 }
 
-interface IronsmithPromptMapping {
-  forPlayer: string;
-  prompt: Prompt;
-  binding: IronsmithPromptBinding;
-}
-
-interface IronsmithFatalPrompt {
-  forPlayer: string;
+interface IronsmithProtocolError {
+  code: string;
   message: string;
+  promptId?: number;
 }
 
-type IronsmithPromptResult = IronsmithPromptMapping | IronsmithFatalPrompt | null;
+interface IronsmithViewResult {
+  state?: { gameView?: GameViewDto };
+  prompt?: IronsmithAgentPrompt;
+  error?: IronsmithProtocolError;
+}
 
 async function ensureIronsmith(): Promise<void> {
   ironsmithInit ??= initIronsmith({ module_or_path: ironsmithWasmModuleUrl }).catch((error) => {
@@ -51,15 +48,9 @@ async function ensureIronsmith(): Promise<void> {
 type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
   validateManabrewMatchConfig: (config: unknown) => { valid?: boolean };
   startManabrewMatch: (config: unknown) => unknown;
-  manabrewView: (promptId: string) => {
-    state?: { gameView?: GameViewDto };
-    promptResult?: IronsmithPromptResult;
-  };
-  manabrewPublicState: () => { gameView?: GameViewDto };
-  manabrewCommandFromPromptOutput: (
-    output: PromptOutput,
-    binding: IronsmithPromptBinding,
-  ) => unknown;
+  manabrewView: (viewer?: number) => IronsmithViewResult;
+  manabrewRespond: (player: number, promptId: number, output: PromptOutput) => IronsmithViewResult;
+  manabrewApplyDirective: (player: number, directive: DirectiveInput) => IronsmithViewResult;
 };
 
 function matchConfig(params: {
@@ -88,8 +79,8 @@ interface EncryptedRelayPayload {
 type IronsmithPrivatePayload =
   | { type: "state"; state: { gameView: GameViewDto } }
   | { type: "prompt"; prompt: Prompt }
-  | { type: "fatal"; message: string }
-  | { type: "response"; action: PromptOutput }
+  | { type: "error"; error: IronsmithProtocolError }
+  | { type: "response"; promptId: number; action: PromptOutput }
   | { type: "directive"; directive: DirectiveInput };
 
 type IronsmithRoomRelayPayload =
@@ -108,7 +99,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private playerNames: string[] = [];
   private playerSlots: string[] = [];
   private botPlayerSlots = new Set<string>();
-  private pendingBindings = new Map<string, IronsmithPromptBinding>();
   private prompts = new Map<string, Prompt>();
   private roomRelayUnsubscribe: (() => void) | null = null;
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
@@ -116,7 +106,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private peerKeyFingerprints = new Map<string, string>();
   private sharedKeys = new Map<string, CryptoKey>();
   private hostPlayerSlot: string | null = null;
-  private promptSeq = 0;
   private concededPlayerSlots = new Set<string>();
 
   async startGame(params: StartGameParams): Promise<string> {
@@ -144,7 +133,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
     this.botPlayerSlots = new Set(params.botPlayerSlots ?? []);
     this.prompts.clear();
-    this.pendingBindings.clear();
     this.concededPlayerSlots.clear();
     this.hostPlayerSlot =
       params.hostPlayerSlot ?? (params.localIsHost ? this.localPlayerSlot : null);
@@ -162,19 +150,25 @@ export class IronsmithTrustedGameApi implements IGameApi {
   async respond(params: RespondParams): Promise<void> {
     const action = params.action;
     const playerSlot = params.playerSlot ?? this.localPlayerSlot ?? "player-0";
+    const suppliedPromptId = "promptId" in params ? params.promptId : undefined;
+    const promptId = Number(suppliedPromptId ?? this.prompts.get(playerSlot)?.promptId ?? 0);
     if (this.isMultiplayer && !this.isHost) {
       const hostSlot = this.hostPlayerSlot;
       if (!hostSlot) {
         await this.sendRelayHello();
         throw new Error("Ironsmith host relay is not ready yet; try again in a moment.");
       }
-      const sent = await this.sendPrivateRelay(hostSlot, { type: "response", action });
+      const sent = await this.sendPrivateRelay(hostSlot, {
+        type: "response",
+        promptId,
+        action,
+      });
       if (!sent) {
         throw new Error("Ironsmith private relay is not ready yet; try again in a moment.");
       }
       return;
     }
-    await this.applyResponse(playerSlot, action);
+    await this.applyResponse(playerSlot, promptId, action);
   }
 
   async sendDirective(params: SendDirectiveParams): Promise<void> {
@@ -208,7 +202,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.playerNames = [];
     this.playerSlots = [];
     this.botPlayerSlots.clear();
-    this.pendingBindings.clear();
     this.prompts.clear();
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
@@ -260,58 +253,59 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private async endHostOnly(): Promise<void> {
     this.game?.free();
     this.game = null;
-    this.pendingBindings.clear();
     this.prompts.clear();
     this.concededPlayerSlots.clear();
   }
 
-  private async applyResponse(playerSlot: string, action: PromptOutput): Promise<void> {
+  private async applyResponse(
+    playerSlot: string,
+    promptId: number,
+    action: PromptOutput,
+  ): Promise<void> {
     if (!this.game) return;
-    const binding = this.pendingBindings.get(playerSlot);
-    if (!binding || binding.playerSlot !== playerSlot) {
-      await this.publish();
-      return;
-    }
+    let error: IronsmithProtocolError | undefined;
     try {
-      const command = this.mapPromptOutputToCommand(action, binding);
-      this.game.dispatch(command);
+      const player = Number(playerSlot.replace("player-", ""));
+      error = this.readManabrewResult(this.game.manabrewRespond(player, promptId, action)).error;
     } finally {
-      await this.publish();
+      await this.publish(error ? { slot: playerSlot, error } : undefined);
     }
   }
 
   private async applyDirective(playerSlot: string, directive: DirectiveInput): Promise<void> {
     if (!this.game) return;
+    let error: IronsmithProtocolError | undefined;
     try {
-      if (directive.type === "concede") {
+      const player = Number(playerSlot.replace("player-", ""));
+      error = this.readManabrewResult(this.game.manabrewApplyDirective(player, directive)).error;
+      if (!error && directive.type === "concede") {
         this.concededPlayerSlots.add(playerSlot);
-        this.game.forfeitPlayer(Number(playerSlot.replace("player-", "")));
       }
     } finally {
-      await this.publish();
+      await this.publish(error ? { slot: playerSlot, error } : undefined);
     }
   }
 
-  private async publish(): Promise<void> {
+  private async publish(responseError?: {
+    slot: string;
+    error: IronsmithProtocolError;
+  }): Promise<void> {
     if (!this.game) return;
     const platform = getPlatform();
     this.prompts.clear();
-    this.pendingBindings.clear();
     let localStateSent = false;
-    let publicStateSent = false;
-    const botResponses: Array<{ slot: string; action: PromptOutput }> = [];
+    const botResponses: Array<{ slot: string; promptId: number; action: PromptOutput }> = [];
+
+    if (this.isMultiplayer) {
+      await platform.server?.broadcastState({
+        kind: "state",
+        state: this.readPublicState(),
+      });
+    }
 
     for (const slot of this.playerSlots) {
       const index = Number(slot.replace("player-", ""));
-      this.game.setPerspective(index);
-      const { gameView, prompt } = this.readManabrewView(String(++this.promptSeq));
-      if (this.isMultiplayer && !publicStateSent) {
-        publicStateSent = true;
-        await platform.server?.broadcastState({
-          kind: "state",
-          state: this.readPublicState(),
-        });
-      }
+      const { gameView, prompt, error: viewError } = this.readManabrewView(index);
       if (slot === this.localPlayerSlot) {
         platform.events.emit("game:state", { gameView });
         localStateSent = true;
@@ -319,50 +313,55 @@ export class IronsmithTrustedGameApi implements IGameApi {
         await this.sendPrivateRelay(slot, { type: "state", state: { gameView } });
       }
 
-      if (!prompt || prompt.forPlayer !== slot) continue;
-      if ("message" in prompt) {
+      const error = responseError?.slot === slot ? responseError.error : viewError;
+      if (error) {
         if (slot === this.localPlayerSlot) {
-          platform.events.emit("game:fatal", { message: prompt.message });
+          platform.events.emit("game:error", error);
         } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
-          await this.sendPrivateRelay(slot, { type: "fatal", message: prompt.message });
+          await this.sendPrivateRelay(slot, { type: "error", error });
         }
-        continue;
       }
-      this.prompts.set(slot, prompt.prompt);
-      this.pendingBindings.set(slot, prompt.binding);
+
+      if (!prompt || prompt.decidingPlayerId !== slot) continue;
+      this.prompts.set(slot, prompt);
       const autoAction =
-        this.isHost && this.botPlayerSlots.has(slot) ? botPromptOutput(prompt.prompt) : null;
+        this.isHost && this.botPlayerSlots.has(slot) ? botPromptOutput(prompt) : null;
       if (autoAction) {
-        botResponses.push({ slot, action: autoAction });
+        botResponses.push({ slot, promptId: Number(prompt.promptId), action: autoAction });
       } else if (slot === this.localPlayerSlot) {
-        platform.events.emit("game:prompt", prompt.prompt);
+        platform.events.emit("game:prompt", prompt);
       } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
-        await this.sendPrivateRelay(slot, { type: "prompt", prompt: prompt.prompt });
+        await this.sendPrivateRelay(slot, { type: "prompt", prompt });
       }
     }
 
     if (!localStateSent && this.playerSlots.length === 0) {
-      this.game.setPerspective(0);
-      platform.events.emit("game:state", this.readManabrewView(String(++this.promptSeq)).state);
+      platform.events.emit("game:state", this.readManabrewView(0).state);
     }
 
     for (const botResponse of botResponses) {
-      if (this.pendingBindings.has(botResponse.slot)) {
-        await this.applyResponse(botResponse.slot, botResponse.action);
+      if (this.prompts.has(botResponse.slot)) {
+        await this.applyResponse(botResponse.slot, botResponse.promptId, botResponse.action);
       }
     }
   }
 
-  private readManabrewView(promptId: string): {
+  private readManabrewView(viewer?: number): {
     state: { gameView: GameViewDto };
     gameView: GameViewDto;
-    prompt: IronsmithPromptResult;
+    prompt: Prompt | null;
+    error?: IronsmithProtocolError;
   } {
     if (!this.game) throw new Error("Ironsmith game is not initialized");
-    const view = plainify(this.game.manabrewView(promptId)) as {
-      state?: { gameView?: GameViewDto };
-      promptResult?: IronsmithPromptResult;
-    };
+    return this.readManabrewResult(this.game.manabrewView(viewer));
+  }
+
+  private readManabrewResult(view: IronsmithViewResult): {
+    state: { gameView: GameViewDto };
+    gameView: GameViewDto;
+    prompt: Prompt | null;
+    error?: IronsmithProtocolError;
+  } {
     const rawGameView = view.state?.gameView;
     const gameView = rawGameView ? this.applyKnownPlayerStatuses(rawGameView) : null;
     if (!gameView) {
@@ -371,14 +370,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
     return {
       state: { gameView },
       gameView,
-      prompt: view.promptResult ?? null,
+      prompt: (view.prompt as unknown as Prompt | undefined) ?? null,
+      error: view.error,
     };
   }
 
   private readPublicState(): { gameView: GameViewDto } {
-    const state = plainify(this.game?.manabrewPublicState()) as { gameView?: GameViewDto } | null;
-    if (state?.gameView) return { gameView: this.applyKnownPlayerStatuses(state.gameView) };
-    throw new Error("Ironsmith WASM did not return a public Manabrew game view");
+    return this.readManabrewView().state;
   }
 
   private applyKnownPlayerStatuses(gameView: GameViewDto): GameViewDto {
@@ -394,11 +392,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
         return { ...player, status: player.status ?? "playing" };
       }),
     };
-  }
-
-  private mapPromptOutputToCommand(action: PromptOutput, binding: IronsmithPromptBinding): unknown {
-    if (!this.game) throw new Error("Ironsmith game is not initialized");
-    return this.game.manabrewCommandFromPromptOutput(action, binding);
   }
 
   private installRoomRelayListener(): void {
@@ -451,11 +444,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
         if (this.localPlayerSlot) this.prompts.set(this.localPlayerSlot, privatePayload.prompt);
         platform.events.emit("game:prompt", privatePayload.prompt);
         return;
-      case "fatal":
-        platform.events.emit("game:fatal", { message: privatePayload.message });
+      case "error":
+        platform.events.emit("game:error", privatePayload.error);
         return;
       case "response":
-        if (this.isHost) await this.applyResponse(sender, privatePayload.action);
+        if (this.isHost) {
+          await this.applyResponse(sender, privatePayload.promptId, privatePayload.action);
+        }
         return;
       case "directive":
         if (this.isHost) await this.applyDirective(sender, privatePayload.directive);
@@ -626,20 +621,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
   }
 }
 
-// Ironsmith's manabrew bridge builds its view/state returns from a
-// serde_json::Value, which serde-wasm-bindgen encodes as JS `Map`s rather than
-// plain objects. Property access (`view.state`) is `undefined` on a Map, so
-// normalise the whole tree to plain objects before the runtime reads it.
-function plainify(value: unknown): unknown {
-  if (value instanceof Map) {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of value) out[String(k)] = plainify(v);
-    return out;
-  }
-  if (Array.isArray(value)) return value.map(plainify);
-  return value;
-}
-
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -656,6 +637,28 @@ function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
 }
 
 function botPromptOutput(prompt: Prompt): PromptOutput | null {
+  const reorderInput = prompt.input as unknown as
+    | { type: "reorder"; items: Array<{ id: string }> }
+    | { type: "reorderCards"; cards: Array<{ id: string }> };
+  if (reorderInput.type === "reorder") {
+    return {
+      type: "reorder",
+      output: {
+        type: "reorderDecision",
+        orderedIds: reorderInput.items.map((item) => item.id),
+      },
+    } as unknown as PromptOutput;
+  }
+  if (reorderInput.type === "reorderCards") {
+    return {
+      type: "reorderCards",
+      output: {
+        type: "reorderDecision",
+        orderedCardIds: reorderInput.cards.map((card) => card.id),
+      },
+    } as unknown as PromptOutput;
+  }
+
   switch (prompt.input.type) {
     case "mulligan":
       return { type: "mulligan", output: { type: "mulliganDecision", keep: true } };
@@ -716,14 +719,6 @@ function botPromptOutput(prompt: Prompt): PromptOutput | null {
         output: {
           type: "chooseCardsDecision",
           chosenCardIds: prompt.input.cards.slice(0, prompt.input.min).map((card) => card.id),
-        },
-      };
-    case "reorderCards":
-      return {
-        type: "reorderCards",
-        output: {
-          type: "reorderDecision",
-          orderedCardIds: prompt.input.cards.map((card) => card.id),
         },
       };
     case "revealCards":

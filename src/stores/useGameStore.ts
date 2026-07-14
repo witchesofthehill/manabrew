@@ -8,6 +8,7 @@ import {
   selectGameRuntime,
   startManualRoomSync,
   stopManualRoomSync as stopActiveManualRoomSync,
+  IronsmithUnsupportedDeckError,
 } from "@/game";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
@@ -186,6 +187,7 @@ async function initializeGame({
   set({
     isGameActive: true,
     fatalError: null,
+    ironsmithDeckError: null,
     gameView: null,
     currentPrompt: null,
     gameLog: [],
@@ -220,6 +222,7 @@ export const useGameStore = create<GameState>()(
       isGameActive: false,
       debugInfo: "",
       fatalError: null,
+      ironsmithDeckError: null,
       isPrefetchingCards: false,
       deferredQueue: [],
       isFlashing: false,
@@ -245,13 +248,19 @@ export const useGameStore = create<GameState>()(
 
       setGameConfig: (config) => set({ gameConfig: config }),
 
+      dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
+
       startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
         try {
           await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
         } catch (e) {
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);
-          toast.error(e instanceof Error ? e.message : "Failed to start game");
+          if (e instanceof IronsmithUnsupportedDeckError) {
+            set({ ironsmithDeckError: e.issues });
+          } else {
+            toast.error(e instanceof Error ? e.message : "Failed to start game");
+          }
         }
       },
 
@@ -387,6 +396,7 @@ export const useGameStore = create<GameState>()(
             isMultiplayer: true,
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
+            ironsmithDeckError: null,
             gameView: null,
             currentPrompt: null,
             gameLog: [],
@@ -423,7 +433,11 @@ export const useGameStore = create<GameState>()(
             gameDecks: {},
           });
           console.error("[store] Failed to start multiplayer game:", e);
-          toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
+          if (e instanceof IronsmithUnsupportedDeckError) {
+            set({ ironsmithDeckError: e.issues });
+          } else {
+            toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
+          }
         }
       },
 

@@ -5,6 +5,7 @@ import type { Deck } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { EngineKind, GameFormat } from "@/types/server";
+import type { IronsmithDeckIssue } from "@/game";
 
 export type { DisplayEvent };
 
@@ -33,6 +34,11 @@ export interface GameState {
    *  start). The game view shows this instead of hanging on the loading
    *  screen. Cleared when a new game starts. */
   fatalError: string | null;
+  /** Set when an Ironsmith match can't start because the deck contains cards the
+   *  runtime doesn't implement yet. Drives the unsupported-deck modal, shown
+   *  instead of a raw error toast. Cleared on dismiss and on the next start. */
+  ironsmithDeckError: IronsmithDeckIssue[] | null;
+  dismissIronsmithDeckError: () => void;
   /** Card-image prefetch progress shown on the loading screen. Reset to
    *  null between games. Populated while the start-game flow is fetching
    *  Scryfall textures, before the engine is allowed to emit prompts. */

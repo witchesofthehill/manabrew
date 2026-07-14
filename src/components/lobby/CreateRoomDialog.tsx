@@ -504,9 +504,15 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                       <Badge variant="outline" className="text-[9px]">
                         trusted
                       </Badge>
+                      <Badge
+                        variant="outline"
+                        className="border-warning/40 text-[9px] text-warning"
+                      >
+                        experimental
+                      </Badge>
                     </div>
                     <span className="text-[10px] text-muted-foreground leading-tight">
-                      Ironsmith WASM hosted by the room creator. Experimental card support.
+                      Ironsmith WASM hosted by the room creator. Partial card support.
                     </span>
                   </button>
                 )}
@@ -580,7 +586,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     {kind !== "match"
                       ? "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."
                       : engine === "Ironsmith"
-                        ? "Ironsmith rooms use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
+                        ? "Ironsmith is experimental with partial card support — some decks won't run yet. Rooms use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
                         : "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."}
                   </p>
                 </div>

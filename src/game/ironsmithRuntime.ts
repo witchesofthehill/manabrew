@@ -40,6 +40,30 @@ interface IronsmithFatalPrompt {
 
 type IronsmithPromptResult = IronsmithPromptMapping | IronsmithFatalPrompt | null;
 
+export interface IronsmithDeckIssue {
+  playerIndex: number;
+  playerName: string;
+  section: string;
+  cardName: string;
+  error: string;
+}
+
+export class IronsmithUnsupportedDeckError extends Error {
+  readonly issues: IronsmithDeckIssue[];
+  constructor(issues: IronsmithDeckIssue[]) {
+    const cards = [...new Set(issues.map((i) => i.cardName))];
+    const shown = cards.slice(0, 3).join(", ");
+    const rest = cards.length > 3 ? ` and ${cards.length - 3} more` : "";
+    super(
+      cards.length
+        ? `Ironsmith can't run this deck yet — ${cards.length} unsupported ${cards.length === 1 ? "card" : "cards"} (${shown}${rest}).`
+        : "Ironsmith can't run this deck yet.",
+    );
+    this.name = "IronsmithUnsupportedDeckError";
+    this.issues = issues;
+  }
+}
+
 async function ensureIronsmith(): Promise<void> {
   ironsmithInit ??= initIronsmith({ module_or_path: ironsmithWasmModuleUrl }).catch((error) => {
     ironsmithInit = null;
@@ -49,7 +73,10 @@ async function ensureIronsmith(): Promise<void> {
 }
 
 type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
-  validateManabrewMatchConfig: (config: unknown) => { valid?: boolean };
+  validateManabrewMatchConfig: (config: unknown) => {
+    valid?: boolean;
+    issues?: IronsmithDeckIssue[];
+  };
   startManabrewMatch: (config: unknown) => unknown;
   manabrewView: (promptId: string) => {
     state?: { gameView?: GameViewDto };
@@ -251,7 +278,9 @@ export class IronsmithTrustedGameApi implements IGameApi {
       "valid" in validation &&
       validation.valid === false
     ) {
-      throw new Error(`Ironsmith rejected match config: ${JSON.stringify(validation)}`);
+      throw new IronsmithUnsupportedDeckError(
+        Array.isArray(validation.issues) ? validation.issues : [],
+      );
     }
     game.startManabrewMatch(config);
     await this.publish();

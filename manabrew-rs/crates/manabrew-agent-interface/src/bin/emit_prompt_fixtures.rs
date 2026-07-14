@@ -79,6 +79,13 @@ fn main() {
             error: None,
         }),
         ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput {
+            presentation: common::PromptPresentation {
+                title: "Damage".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             candidates: vec![
                 target_ref_player("player-1".into()),
                 target_ref_card("card-1".into()),
@@ -89,14 +96,19 @@ fn main() {
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
-            label: "Damage".to_string(),
         }),
         GameOver(game_over::GameOverInput {}),
         RevealCards(reveal::RevealCardsInput {
+            presentation: common::PromptPresentation {
+                title: "Look at these cards".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards: vec![],
             zone: ZoneKind::Library,
             owner_player_id: String::new(),
-            message: String::new(),
         }),
         Scry(scry::ScryInput {
             presentation: common::PromptPresentation {
@@ -113,6 +125,13 @@ fn main() {
             ],
         }),
         ChooseColor(choose_color::ChooseColorInput {
+            presentation: common::PromptPresentation {
+                title: "Choose a color".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             valid_colors: vec![],
             amount: 1,
             repeat_allowed: false,
@@ -145,9 +164,15 @@ fn main() {
             },
         ),
         PayManaCost(pay_mana_cost::PayManaCostInput {
+            presentation: common::PromptPresentation {
+                title: "Lightning Bolt".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             card_id: String::new(),
             card_name: String::new(),
-            description: None,
             mana_cost: String::new(),
             can_confirm_from_pool: false,
             actions: vec![],
@@ -182,9 +207,15 @@ fn main() {
             max_choices: 2,
         }),
         DiceRolled(dice_rolled::DiceRolledInput {
+            presentation: common::PromptPresentation {
+                title: "Dice roll".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             sides: 0,
             rolls: vec![],
-            title: None,
             source_card_name: None,
         }),
         ChooseCards(choose_cards::ChooseCardsInput {

@@ -172,9 +172,15 @@ pub(super) fn pay_mana_cost<T: Responder>(
     agent.send_prompt(
         PromptInput::PayManaCost(
             manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
+                presentation: PromptPresentation {
+                    title: card_name.to_string(),
+                    description: None,
+                    text: None,
+                    source_card_id: Some(card_id_s.clone()),
+                    targets: Vec::new(),
+                },
                 card_id: card_id_s,
                 card_name: card_name.to_string(),
-                description: None,
                 mana_cost: mana_cost_display.to_string(),
                 can_confirm_from_pool,
                 actions,
@@ -250,6 +256,13 @@ pub(super) fn specify_mana_combo<T: Responder>(
 
     agent.send_prompt(
         PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+            presentation: PromptPresentation {
+                title: "Choose mana color".to_string(),
+                description: None,
+                text: None,
+                source_card_id: source.map(card_id_str),
+                targets: Vec::new(),
+            },
             valid_colors: available_colors.to_vec(),
             amount: amount as u32,
             repeat_allowed: true,

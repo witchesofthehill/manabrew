@@ -539,7 +539,8 @@ public final class ManaBrewInteractiveSession {
                     java.util.List.of(roll), java.util.List.of(roll), java.util.List.of(), p == winner));
         }
         publishAgentPrompt("player-" + playerId, null,
-                new DiceRolledInput(sides, rollEntries, "Roll for first player", null));
+                new DiceRolledInput(
+                        presentation("Roll for first player", null, null), sides, rollEntries, null));
     }
 
     private void publishManaPaymentPrompt(
@@ -596,11 +597,14 @@ public final class ManaBrewInteractiveSession {
                         "delve:" + cardId, cardId, PaymentResourceKind.DELVE));
             }
         }
+        final String payCardId = payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "";
+        final String payCardName =
+                payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "";
         publishAgentPrompt("player-" + playerId, null, new PayManaCostInput(
-                payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "",
-                payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "",
+                presentation(payCardName, null, payCardId.isEmpty() ? null : payCardId),
+                payCardId, payCardName,
                 remainingCost != null ? remainingCost : "",
-                canConfirm, actionList, null));
+                canConfirm, actionList));
     }
 
     List<String> awaitManaCombo(
@@ -610,7 +614,9 @@ public final class ManaBrewInteractiveSession {
             final String sourceName
     ) {
         publishAgentPrompt("player-" + playerId, null,
-                new ChooseColorInput(new java.util.ArrayList<>(availableColors), amount, true));
+                new ChooseColorInput(
+                        presentation("Choose mana color", null, null),
+                        new java.util.ArrayList<>(availableColors), amount, true));
 
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -1507,8 +1513,10 @@ public final class ManaBrewInteractiveSession {
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
+                        presentation("Sacrifice", null,
+                                source == null ? null : SnapshotExtractor.javaCardId(source)),
                         candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
-                        min, max, chosen, "Sacrifice"));
+                        min, max, chosen));
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(
@@ -1787,7 +1795,9 @@ public final class ManaBrewInteractiveSession {
     ) {
         if ("choose_color".equals(kind)) {
             publishAgentPrompt("player-" + playerId, null,
-                    new ChooseColorInput(new java.util.ArrayList<>(options), 1, false));
+                    new ChooseColorInput(
+                            presentation("Choose a color", null, null),
+                            new java.util.ArrayList<>(options), 1, false));
             return;
         }
         final String title;
@@ -1910,8 +1920,8 @@ public final class ManaBrewInteractiveSession {
             final List<CardDto> cards
     ) {
         return new RevealCardsInput(
-                cards, zone == null ? ZoneKind.LIBRARY : zone, ownerPlayerId,
-                message == null ? "Look at these cards" : message);
+                presentation(message == null ? "Look at these cards" : message, null, null),
+                cards, zone == null ? ZoneKind.LIBRARY : zone, ownerPlayerId);
     }
 
     private static ZoneKind zoneKind(final ZoneType zone) {
@@ -2137,12 +2147,13 @@ public final class ManaBrewInteractiveSession {
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
+                        presentation(intentLabel(intent), null,
+                                source == null ? null : SnapshotExtractor.javaCardId(source)),
                         candidateRefs, isHostileIntent(intent),
                         enumFromWire(intent, TargetingIntent.class),
                         ability != null ? ability.getMinTargets() : 0,
                         ability != null ? ability.getMaxTargets() : 0,
-                        ability != null ? ability.getTargets().size() : 0,
-                        intentLabel(intent)));
+                        ability != null ? ability.getTargets().size() : 0));
     }
 
     private static TargetRef targetRef(final String kind, final String id) {

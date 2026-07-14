@@ -248,9 +248,15 @@ pub(super) fn pay_combat_cost<T: Responder>(
     agent.send_prompt(
         PromptInput::PayManaCost(
             manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
+                presentation: PromptPresentation {
+                    title: attacker_name.clone(),
+                    description: None,
+                    text: (!description.trim().is_empty()).then(|| description.to_string()),
+                    source_card_id: Some(attacker_id.clone()),
+                    targets: Vec::new(),
+                },
                 card_id: attacker_id,
                 card_name: attacker_name,
-                description: Some(description.to_string()),
                 mana_cost: format!("{{{cost}}}"),
                 can_confirm_from_pool: mana_pool_total >= cost,
                 actions,

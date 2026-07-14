@@ -1406,9 +1406,15 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
+                            presentation: PromptPresentation {
+                                title: "Roll for first player".to_string(),
+                                description: None,
+                                text: None,
+                                source_card_id: None,
+                                targets: Vec::new(),
+                            },
                             sides,
                             rolls: entries,
-                            title: Some("Roll for first player".to_string()),
                             source_card_name: None,
                         },
                     ),
@@ -1433,6 +1439,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
+                            presentation: PromptPresentation {
+                                title: "Dice roll".to_string(),
+                                description: None,
+                                text: None,
+                                source_card_id: None,
+                                targets: Vec::new(),
+                            },
                             sides,
                             rolls: vec![manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
                                 label: None,
@@ -1442,7 +1455,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                                 ignored_rolls,
                                 highlighted: false,
                             }],
-                            title: None,
                             source_card_name,
                         },
                     ),

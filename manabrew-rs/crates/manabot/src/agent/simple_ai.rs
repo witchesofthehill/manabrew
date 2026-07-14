@@ -184,7 +184,7 @@ impl BotAgent for SimpleAi {
                     chosen_indices: (0..take.min(options.len())).collect(),
                 }))
             }
-            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed }) => {
+            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed, .. }) => {
                 let mut chosen: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
                 if repeat_allowed {
                     if let Some(c) = valid_colors.first() {

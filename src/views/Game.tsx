@@ -1743,7 +1743,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                     ? {
                         cardName: payManaCostInput.cardName,
                         manaCost: payManaCostInput.manaCost,
-                        description: payManaCostInput.description,
+                        description: payManaCostInput.presentation.text,
                         manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
                         canConfirmFromPool: payManaCostInput.canConfirmFromPool,
                         delveCount: delvedCardIds.length,

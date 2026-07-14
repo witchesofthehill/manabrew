@@ -523,10 +523,16 @@ pub(super) fn reveal_cards<T: Responder>(
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(
         PromptInput::RevealCards(manabrew_protocol::prompts::reveal::RevealCardsInput {
+            presentation: PromptPresentation {
+                title: message,
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards,
             zone: zone_kind_of(zone),
             owner_player_id: crate::ids_codec::player_id_str(owner),
-            message,
         }),
         None,
     );
@@ -599,6 +605,13 @@ pub(super) fn choose_color<T: Responder>(
 ) -> Option<String> {
     agent.send_prompt(
         PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+            presentation: PromptPresentation {
+                title: "Choose a color".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             valid_colors: valid_colors.to_vec(),
             amount: 1,
             repeat_allowed: false,

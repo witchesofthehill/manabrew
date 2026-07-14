@@ -1,20 +1,18 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::PaymentAction;
+use crate::prompts::common::{PaymentAction, PromptPresentation};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/payManaCost.ts")]
 pub struct PayManaCostInput {
+    pub presentation: PromptPresentation,
     pub card_id: String,
     pub card_name: String,
     pub mana_cost: String,
     pub can_confirm_from_pool: bool,
     pub actions: Vec<PaymentAction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

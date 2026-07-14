@@ -81,9 +81,9 @@ const scaleForRowsWithCombatRow = (usableH: number, rows: number): number => {
 
 /** Card scale for the user's size multiplier: 1 (100%) is the classic
  *  3-row-board size, and the multiplier grows the cards continuously from
- *  there — clamped to the field's geometric limit, a single row of cards plus
- *  the combat band (`BATTLEFIELD_MIN_ROWS_LARGEST`). Applies to every
- *  battlefield; each field clamps against its own height. */
+ *  there — clamped to a `BATTLEFIELD_MIN_ROWS_LARGEST`-row fill plus the
+ *  combat band, so the board never degrades below that row count. Applies to
+ *  every battlefield; each field clamps against its own height. */
 export const battlefieldScaleForMultiplier = (usableH: number, multiplier: number): number => {
   const base = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS);
   const max = scaleForRowsWithCombatRow(usableH, BATTLEFIELD_MIN_ROWS_LARGEST);

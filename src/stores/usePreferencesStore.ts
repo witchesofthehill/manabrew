@@ -48,11 +48,11 @@ interface PreferencesState {
   setBattlefieldAutoSort: (value: boolean) => void;
 
   // One knob for battlefield card size on ALL fields. 1 = the classic 3-row
-  // board; 3 = 300%. Each field clamps to its own geometric limit (a card
-  // can't outgrow a single-row fill), so on small windows large multipliers
-  // saturate early — roughly where board cards reach the hand fan's size. The
-  // hand keeps its classic size and only grows past it on displays tall
-  // enough for battlefield cards to outgrow it (BoardCanvas.reconfigure).
+  // board; 3 = 300%. Each field clamps to a 2-row fill of its own height (a
+  // 1-row board is unplayable), so on small windows large multipliers
+  // saturate early. The hand keeps its classic size and only grows past it on
+  // displays tall enough for battlefield cards to outgrow it
+  // (BoardCanvas.reconfigure).
   cardSizeMultiplier: number;
   setCardSizeMultiplier: (multiplier: number) => void;
 

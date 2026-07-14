@@ -319,7 +319,7 @@ export class BoardRegion {
       const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
-      // A giant-card grid (single row, mostly covered by the hand fan and
+      // A giant-card grid (few cells, partly covered by the hand fan and
       // action cluster keep-outs) can run out of unblocked cells — overlap a
       // blocker rather than stranding the tile at its stale geometry.
       if (!cell) cell = nextDefaultCell(true);

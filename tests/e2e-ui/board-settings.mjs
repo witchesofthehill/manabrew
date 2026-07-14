@@ -115,7 +115,8 @@ await page.getByRole("button", { name: /^Movable$/ }).click();
 console.log("ok: zone pile lock persists");
 
 await page.getByRole("button", { name: /^Done$/ }).click();
-await page.waitForTimeout(1500);
+// Long settle: the rescale re-fetches card textures at the new resolution.
+await page.waitForTimeout(4000);
 if (SHOT) await page.screenshot({ path: `${SHOT}/board-300.png` });
 
 // ── 4. ScryModal big hover preview ──────────────────────────────────────────

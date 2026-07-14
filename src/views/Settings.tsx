@@ -911,9 +911,8 @@ export default function Settings() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Scales cards on every battlefield. 100% is the classic 3-row board; at the top
-                    end cards reach your hand cards' size, clamped to what fits each field — down to
-                    a single row of giant cards.
+                    Scales cards on every battlefield. 100% is the classic 3-row board; large sizes
+                    are clamped so at least 2 rows always fit each field.
                   </p>
                 </div>
                 <div className="w-[120px] shrink-0 flex justify-center">

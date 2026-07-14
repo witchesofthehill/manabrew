@@ -558,3 +558,11 @@ export const useGameStore = create<GameState>()(
     { name: "game", enabled: import.meta.env.DEV },
   ),
 );
+
+// Dev-only seam for the UI e2e suite (tests/e2e-ui): the tests need the LIVE
+// store instance, and a dynamic `import("/src/stores/useGameStore.ts")` from
+// the page context duplicates the module once vite's HMR stamps the module
+// graph with `?t=` query params. Never present in production builds.
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+}

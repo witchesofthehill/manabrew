@@ -87,3 +87,9 @@ export const RING_ABILITIES: readonly string[] = [
   "Whenever your Ring-bearer becomes blocked by a creature, that creature's controller sacrifices it at the end of combat.",
   "Whenever your Ring-bearer deals combat damage to a player, each opponent loses 3 life.",
 ] as const;
+
+// Card preview hover-delay slider bounds — shared by the Settings page and the
+// in-game board settings modal.
+export const HOVER_DELAY_MIN = 100;
+export const HOVER_DELAY_MAX = 1500;
+export const HOVER_DELAY_STEP = 50;

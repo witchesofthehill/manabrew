@@ -18,7 +18,12 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
-import { ConcedeGameModal, EliminatedModal, LeaveGameModal } from "@/components/game/modals";
+import {
+  ConcedeGameModal,
+  EliminatedModal,
+  GameSettingsModal,
+  LeaveGameModal,
+} from "@/components/game/modals";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -164,6 +169,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
@@ -1774,6 +1780,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MiddleBarDock
                 open={boardMenuOpen}
                 onOpenChange={setBoardMenuOpen}
+                onOpenSettings={() => setGameSettingsOpen(true)}
                 onConcede={handleConcede}
                 eliminated={iAmEliminated}
                 onLeave={handleLeave}
@@ -1798,6 +1805,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceEl,
         )}
 
+      {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {eliminatedModalOpen && (
         <EliminatedModal
           heading={selfConceded || me?.status === "conceded" ? "You conceded" : "You lost"}

@@ -244,8 +244,8 @@
       "refs": ["CardDto"]
     },
     "PayManaCostInput": {
-      "ts": "interface PayManaCostInput {\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  actions: Array<AvailableAction>;\n  description?: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<AvailableAction>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n}",
+      "ts": "interface PayManaCostInput {\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  actions: Array<AvailableAction>;\n  description?: string;\n  lifeToPay?: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<AvailableAction>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub life_to_pay: Option<u32>,\n}",
       "refs": ["AvailableAction"]
     },
     "PlayerDto": {

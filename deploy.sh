@@ -36,13 +36,6 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
 COMPOSE_FILE="${COMPOSE_FILE:-compose.production.yml}"
-# Branch this host tracks. Production pulls main; the staging VM sets
-# DEPLOY_BRANCH=staging (staging-deploy.yml) to run the identical rollout off
-# the staging branch.
-DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
-# Bind-mounted Caddyfile this host serves; the staging VM overrides it so a
-# staging.Caddyfile edit is detected and reloaded like ops/Caddyfile is on prod.
-CADDYFILE_PATH="${CADDYFILE_PATH:-ops/Caddyfile}"
 RAW_LOG="/tmp/deploy-raw.log"
 
 HOLD_MARKER="ops/.manifest-hold"
@@ -128,7 +121,7 @@ fi
 # below, so the re-run still deploys the right range instead of early-exiting as
 # "no new commits".
 PREV="${DEPLOY_ORIG_PREV:-$(git rev-parse --short HEAD)}"
-git pull origin "$DEPLOY_BRANCH" --ff-only >> "$RAW_LOG" 2>&1
+git pull origin main --ff-only >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
 
 # Self-update: the pull may have changed this very script. deploy.sh is already
@@ -276,7 +269,7 @@ while IFS= read -r file; do
             WEB_CHANGED=true ;;
     esac
     case "$file" in
-        "$CADDYFILE_PATH")
+        ops/Caddyfile)
             CADDYFILE_CHANGED=true ;;
     esac
     case "$file" in
@@ -434,7 +427,7 @@ if [ -n "$SERVICES_TO_RESTART" ]; then
 fi
 
 if $CADDYFILE_CHANGED; then
-    echo "Reloading caddy config ($CADDYFILE_PATH)..." >> "$RAW_LOG"
+    echo "Reloading caddy config..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" exec -T manabrew \
         caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >> "$RAW_LOG" 2>&1
 fi

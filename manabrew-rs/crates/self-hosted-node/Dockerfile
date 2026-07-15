@@ -6,14 +6,31 @@
 # counters can't race across games. The Rust backend exists too
 # (SELF_HOSTED_NODE_ENGINE_BACKEND=manabrew) but this image defaults to forge.
 
-# ── Stage 0: Generate Java prompt protocol classes ──────────────────
-FROM rust:1.88-bookworm AS protocol-builder
-
+# ── cargo-chef base + shared dependency recipe ───────────────────────
+# See manabrew-server's Dockerfile for why chef. One planner feeds both Rust
+# stages below (debug deps for gen-protocol, release deps for the node).
+FROM rust:1.88-bookworm AS chef
+RUN cargo install cargo-chef --locked
 WORKDIR /build
+
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY manabrew-rs/ manabrew-rs/
+COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
+RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
+COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
+COPY xtask/ xtask/
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ── Stage 0: Generate Java prompt protocol classes ──────────────────
+FROM chef AS protocol-builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
+
+COPY --from=planner /build/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json -p manabrew-protocol
 
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
@@ -23,10 +40,7 @@ COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 COPY xtask/ xtask/
 COPY scripts/gen-harness-prompts.mjs scripts/gen-harness-prompts.mjs
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/build/target \
-    cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && \
+RUN cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && \
     node scripts/gen-harness-prompts.mjs /generated
 
 # ── Stage 1: Build the Java Forge harness JAR ───────────────────────
@@ -80,9 +94,10 @@ RUN --mount=type=cache,target=/root/.m2/repository \
 # ── Stage 2: Build the Rust node ─────────────────────────────────────
 # Pure Rust build — no JDK needed at compile time. Java only runs at the
 # subprocess boundary (stage 3 ships the runtime JRE).
-FROM rust:1.88-bookworm AS rust-builder
+FROM chef AS rust-builder
 
-WORKDIR /build
+COPY --from=planner /build/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json -p self-hosted-node --features java-forge
 
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
@@ -96,10 +111,7 @@ RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && tou
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 COPY xtask/ xtask/
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/build/target \
-    cargo build --release -p self-hosted-node --features java-forge && \
+RUN cargo build --release -p self-hosted-node --features java-forge && \
     cp /build/target/release/self-hosted-node /usr/local/bin/self-hosted-node
 
 # ── Stage 3: Runtime (Temurin 21 JRE) ────────────────────────────────

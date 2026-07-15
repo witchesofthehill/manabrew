@@ -12,22 +12,40 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Cargo caches use rust-cache shared-keys (engine / relay / web-wasm /
+# tauri-ios / tauri-android). PR-saved caches are only visible to the same
+# branch, so cache-warm.yml re-saves them from main on every merge — keep the
+# shared-keys and build commands here in sync with that workflow.
+
 jobs:
   changes:
     name: Changed files
     runs-on: ubuntu-latest
     outputs:
       run_checks: ${{ steps.scope.outputs.run_checks }}
+      run_rust: ${{ steps.scope.outputs.run_rust }}
+      run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
     steps:
-      - name: Detect website-only PR
+      - name: Classify changed files
         id: scope
         uses: actions/github-script@v7
         with:
           script: |
+            // Entries ending in "/" match as path prefixes, the rest match
+            // exactly. A submodule bump shows up as the bare gitlink path
+            // ("forge"), not as files under it.
+            const matches = (files, paths) =>
+              files.some((file) =>
+                paths.some((p) =>
+                  p.endsWith('/') ? file.filename.startsWith(p) : file.filename === p,
+                ),
+              );
+
             // The GraalVM + forge-room build is slow (native-image), so only run
             // it when a file in the harness → native-lib → tauri link chain moves.
             const FORGE_ROOM_PATHS = [
+              'forge',
               'forge/',
               'forge-harness/',
               'src-tauri/',
@@ -36,9 +54,45 @@ jobs:
               '.github/workflows/build-checks.yml',
             ];
 
+            // Anything that can change a cargo build's inputs: workspace
+            // members and manifests, the forge gitlink (card data feeds the
+            // cardset archive), and preset decks (networking regression games).
+            const RUST_PATHS = [
+              'manabrew-rs/',
+              'Cargo.toml',
+              'Cargo.lock',
+              'forge',
+              'src-tauri/',
+              'tree-sitter-forge-card-script/',
+              'xtask/',
+              'public/preset_decks/',
+              '.github/workflows/build-checks.yml',
+            ];
+
+            // The mobile shells: the tauri crate plus everything the native
+            // binaries link (the Rust workspace + card data) and the JS
+            // toolchain that drives `tauri build` itself. Pure UI changes are
+            // covered by web-build — the shells rebuild the same vite bundle
+            // and add no signal for an hour of macOS/Android runner time.
+            const NATIVE_PATHS = [
+              'src-tauri/',
+              'manabrew-rs/',
+              'Cargo.toml',
+              'Cargo.lock',
+              'forge',
+              'tree-sitter-forge-card-script/',
+              'xtask/',
+              'package.json',
+              'yarn.lock',
+              'scripts/mobile-dev.mjs',
+              'scripts/build-wasm.mjs',
+              '.github/workflows/build-checks.yml',
+            ];
+
             if (context.eventName !== 'pull_request') {
-              core.setOutput('run_checks', 'true');
-              core.setOutput('run_forge_room', 'true');
+              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room']) {
+                core.setOutput(key, 'true');
+              }
               return;
             }
 
@@ -50,24 +104,21 @@ jobs:
             });
             const websiteOnly = files.length > 0 && files.every((file) => file.filename.startsWith('website/'));
             core.setOutput('run_checks', websiteOnly ? 'false' : 'true');
-            const forgeRoom = files.some((file) =>
-              FORGE_ROOM_PATHS.some((prefix) => file.filename.startsWith(prefix)),
-            );
-            core.setOutput('run_forge_room', forgeRoom ? 'true' : 'false');
+            core.setOutput('run_rust', matches(files, RUST_PATHS) ? 'true' : 'false');
+            core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
+            core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
 
   # ── TypeScript type-check ──────────────────────────────────────────
+  # Builds the wasm bundle (or restores it from cache) and uploads it as an
+  # artifact so web-build doesn't build it a second time.
   typescript:
     name: TypeScript & Wasm
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.run_checks == 'true'
-    defaults:
-      run:
-        working-directory: typescript
     steps:
       - uses: actions/checkout@v4
         with:
-          path: typescript
           submodules: recursive
           clean: true
 
@@ -75,6 +126,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: yarn
 
       - name: Install Yarn
         run: npm install --global yarn
@@ -84,35 +136,70 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: web-wasm
+
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack@0.13.1
 
       - run: yarn
-      - run: yarn build:wasm
+
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
+      - name: Build wasm + cardset archive
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
+        run: yarn build:wasm
 
       - name: Type-check
         run: yarn typecheck
+
+      - name: Share wasm with web-build
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-dist
+          path: |
+            src/wasm
+            public/wasm
+          if-no-files-found: error
+          retention-days: 1
 
   # ── Rust workspace (engine, CLI, agent-interface) ──────────────────
   rust-engine:
     name: Rust engine
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.run_checks == 'true'
-    defaults:
-      run:
-        working-directory: rust-engine
+    if: needs.changes.outputs.run_rust == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
-          path: rust-engine
           submodules: recursive
           clean: true
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: engine
 
       - name: Build engine crates (release)
         run: >
@@ -130,19 +217,20 @@ jobs:
     name: Rust server
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.run_checks == 'true'
-    defaults:
-      run:
-        working-directory: rust-server
+    if: needs.changes.outputs.run_rust == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
-          path: rust-server
           submodules: recursive
           clean: true
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: relay
 
       - name: Build manabrew-server (release)
         run: cargo build --release -p manabrew-server
@@ -151,20 +239,21 @@ jobs:
     name: Multiplayer zombie regression
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.run_checks == 'true'
+    if: needs.changes.outputs.run_rust == 'true'
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: multiplayer-regression
     steps:
       - uses: actions/checkout@v4
         with:
-          path: multiplayer-regression
           submodules: recursive
           clean: true
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: relay
 
       - name: Build cardset archive
         run: cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive
@@ -182,36 +271,35 @@ jobs:
     name: Rust parity dashboard
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.run_checks == 'true'
-    defaults:
-      run:
-        working-directory: rust-parity
+    if: needs.changes.outputs.run_rust == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
-          path: rust-parity
           submodules: recursive
           clean: true
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: engine
+
       - name: Build parity (with serve feature, release)
         run: cargo build --release -p parity --features serve
 
   # ── Full web build (wasm + tsc + vite) ─────────────────────────────
+  # The wasm bundle comes prebuilt from the typescript job's artifact, so
+  # this job only runs gen:types + tsc + vite on top of it.
   web-build:
     name: Web build (full)
     runs-on: ubuntu-latest
     needs: [changes, typescript]
     if: needs.changes.outputs.run_checks == 'true'
-    defaults:
-      run:
-        working-directory: web-build
     steps:
       - uses: actions/checkout@v4
         with:
-          path: web-build
           submodules: recursive
           clean: true
 
@@ -219,24 +307,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: yarn
 
       - name: Install Yarn
         run: npm install --global yarn
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
 
-      - name: Install wasm-pack
-        uses: taiki-e/install-action@v2
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
         with:
-          tool: wasm-pack@0.13.1
+          shared-key: web-wasm
 
       - run: yarn
 
-      - name: Build web (wasm + tsc + vite)
-        run: yarn build:web
+      - name: Fetch wasm built by the typescript job
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-dist
+
+      - name: Build web (tsc + vite, wasm prebuilt)
+        run: yarn vite:build
 
   # ── JSON lint (preset decks) ───────────────────────────────────────
   json-lint:
@@ -244,13 +336,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.run_checks == 'true'
-    defaults:
-      run:
-        working-directory: json-lint
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: json-lint
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -272,20 +359,17 @@ jobs:
   # Compile-and-bundle checks mirroring publish.yml's ios-ipa / android-apk
   # jobs (same cardset-archive step, same runner pins) so a PR can't break
   # the release pipeline's mobile builds. Keep the step lists in sync with
-  # publish.yml.
+  # publish.yml. Gated on run_native: pure UI changes exercise the same vite
+  # bundle via web-build, so the shells only rebuild when native inputs move.
   ios-build:
     name: iOS build
     runs-on: macos-15
     needs: changes
-    if: needs.changes.outputs.run_checks == 'true'
+    if: needs.changes.outputs.run_native == 'true'
     timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: ios-build
     steps:
       - uses: actions/checkout@v4
         with:
-          path: ios-build
           submodules: recursive
           clean: true
 
@@ -293,6 +377,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: yarn
 
       - name: Install Yarn
         run: npm install --global yarn
@@ -305,7 +390,6 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ios-build
           shared-key: tauri-ios
 
       - name: Install wasm-pack
@@ -330,15 +414,11 @@ jobs:
     name: Android build
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.run_checks == 'true'
+    if: needs.changes.outputs.run_native == 'true'
     timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: android-build
     steps:
       - uses: actions/checkout@v4
         with:
-          path: android-build
           submodules: recursive
           clean: true
 
@@ -346,6 +426,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: yarn
 
       - name: Install Yarn
         run: npm install --global yarn
@@ -364,7 +445,6 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: android-build
           shared-key: tauri-android
 
       - name: Install wasm-pack
@@ -390,13 +470,9 @@ jobs:
     runs-on: windows-latest
     if: contains(github.event.pull_request.labels.*.name, 'ci:test-desktop')
     timeout-minutes: 90
-    defaults:
-      run:
-        working-directory: forge-room
     steps:
       - uses: actions/checkout@v4
         with:
-          path: forge-room
           submodules: recursive
           clean: true
 
@@ -407,6 +483,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: yarn
 
       - name: Install Yarn
         run: npm install --global yarn
@@ -424,8 +501,6 @@ jobs:
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: forge-room
 
       - run: yarn
 
@@ -450,13 +525,9 @@ jobs:
     runs-on: macos-latest
     if: contains(github.event.pull_request.labels.*.name, 'ci:test-desktop')
     timeout-minutes: 90
-    defaults:
-      run:
-        working-directory: forge-room
     steps:
       - uses: actions/checkout@v4
         with:
-          path: forge-room
           submodules: recursive
           clean: true
 
@@ -464,6 +535,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: yarn
 
       - name: Install Yarn
         run: npm install --global yarn
@@ -481,8 +553,6 @@ jobs:
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: forge-room
 
       - run: yarn
 
@@ -513,6 +583,12 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
 
       - name: Install commitlint
         run: yarn install --frozen-lockfile --ignore-scripts

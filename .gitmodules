@@ -2,6 +2,11 @@
 	path = forge
 	url = https://github.com/witchesofthehill/forge.git
 	branch = manabrew
+	# Fresh clones fetch depth-1 (~590MB working tree, years of upstream
+	# history skipped) — CI checks out this submodule in most jobs. Existing
+	# clones are unaffected; `git fetch --unshallow` inside forge/ restores
+	# full history if you need to archaeology the Java side.
+	shallow = true
 [submodule "ironsmith"]
 	path = ironsmith
 	url = https://github.com/Chiplis/ironsmith.git

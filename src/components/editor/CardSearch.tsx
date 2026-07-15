@@ -656,7 +656,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
   return (
     <div className="flex flex-col h-full w-full">
       {/* Filters */}
-      <div className="p-3 border-b space-y-2 shrink-0">
+      <div className="p-3 border-b space-y-2 shrink-0 max-h-[60%] overflow-y-auto">
         <div className="flex gap-2">
           {onClose && (
             <Button

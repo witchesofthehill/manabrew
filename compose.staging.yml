@@ -100,8 +100,11 @@ services:
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
-      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
-      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      # Play-vs-AI pool rooms must advertise format Any (the client's
+      # findHostedRoom only matches Any) and enough seats for commander pods.
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-Any}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
+
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"

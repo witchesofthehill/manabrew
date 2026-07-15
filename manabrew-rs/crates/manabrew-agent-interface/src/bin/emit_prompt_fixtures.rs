@@ -149,6 +149,7 @@ fn main() {
             mana_cost: String::new(),
             can_confirm_from_pool: false,
             actions: vec![],
+            life_to_pay: None,
         }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {
             presentation: common::PromptPresentation {

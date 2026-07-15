@@ -15,6 +15,9 @@ pub struct PayManaCostInput {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub life_to_pay: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

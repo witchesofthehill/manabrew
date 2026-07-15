@@ -1761,6 +1761,8 @@ export default function Game({ exitTo }: GameProps = {}) {
                         delveCount: delvedCardIds.length,
                         delveAvailable: delveSourceIds.length > 0,
                         onOpenDelve: openDelveZone,
+                        lifeToPay: payManaCostInput.lifeToPay,
+                        onPayLife: () => respond({ type: "payLife" }),
                       }
                     : null
                 }

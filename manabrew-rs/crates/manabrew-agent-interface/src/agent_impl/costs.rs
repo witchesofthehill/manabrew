@@ -178,6 +178,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
                 mana_cost: mana_cost_display.to_string(),
                 can_confirm_from_pool,
                 actions,
+                life_to_pay: None,
             },
         ),
         Some(card_id),

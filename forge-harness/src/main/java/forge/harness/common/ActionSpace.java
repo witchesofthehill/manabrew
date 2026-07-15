@@ -12,7 +12,9 @@ import forge.game.card.Card;
 import forge.game.card.CardCollectionView;
 import forge.game.card.CardLists;
 import forge.game.card.CardPredicates;
+import forge.game.mana.ManaCostBeingPaid;
 import forge.game.player.Player;
+import forge.game.player.PlayerPredicates;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.AlternativeCost;
 import forge.game.spellability.SpellAbility;
@@ -84,6 +86,14 @@ public final class ActionSpace {
     }
 
     public static List<SpellAbility> getPossibleActions(final Player player, final boolean includeManaAbilities) {
+        return getPossibleActions(player, includeManaAbilities, false);
+    }
+
+    public static List<SpellAbility> getPossibleActions(
+            final Player player,
+            final boolean includeManaAbilities,
+            final boolean lifePaymentFallback
+    ) {
         final Game game = player.getGame();
         final Set<Card> candidates = new LinkedHashSet<>();
 
@@ -117,7 +127,9 @@ public final class ActionSpace {
                 final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
                 final boolean canPayMana = !hasManaCost
                         || (reservedSacrifices.isEmpty()
-                        ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
+                        ? (lifePaymentFallback
+                        ? canPayManaCostWithLifeFallback(sa, player)
+                        : ComputerUtilMana.canPayManaCost(sa, player, 0, false))
                         : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
                 final boolean validTargets = hasValidTargets(sa);
                 // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
@@ -189,6 +201,51 @@ public final class ActionSpace {
     ) {
         final ManaCost manaCost = sa.getPayCosts().getTotalMana();
         return canPayManaCostFromCurrentSources(manaCost, sa, player, reservedSacrifices);
+    }
+
+    static boolean canPayManaCostWithLifeFallback(final SpellAbility sa, final Player player) {
+        if (ComputerUtilMana.canPayManaCost(sa, player, 0, false)) {
+            return true;
+        }
+        if (!phyrexianLifePaymentAllowed(sa, player)) {
+            return false;
+        }
+        final ManaCostBeingPaid base =
+                ComputerUtilMana.calculateManaCost(sa.getPayCosts(), sa, player, true, 0, false);
+        final boolean lifeForBlack = player.hasKeyword("PayLifeInsteadOf:B");
+        int lifePayable = 0;
+        for (final ManaCostShard shard : base.getUnpaidShards()) {
+            if (shard.isPhyrexian() || (lifeForBlack && shard == ManaCostShard.BLACK)) {
+                lifePayable++;
+            }
+        }
+        for (int k = 1; k <= lifePayable; k++) {
+            if (!player.canPayLife(2 * k, false, sa)) {
+                return false;
+            }
+            final ManaCostBeingPaid reduced = new ManaCostBeingPaid(base);
+            for (int i = 0; i < k; i++) {
+                if (!reduced.payPhyrexian()) {
+                    reduced.decreaseShard(ManaCostShard.BLACK, 1);
+                }
+            }
+            if (ComputerUtilMana.canPayManaCost(reduced, sa, player, false)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean phyrexianLifePaymentAllowed(final SpellAbility sa, final Player player) {
+        final String param = sa.getParam("AIPhyrexianPayment");
+        if ("Never".equals(param)) {
+            return false;
+        }
+        if (param != null && param.startsWith("OnFatalDamage.")) {
+            final int dmg = Integer.parseInt(param.substring(14));
+            return player.getOpponents().stream().anyMatch(PlayerPredicates.lifeLessOrEqualTo(dmg));
+        }
+        return true;
     }
 
     public static boolean canPayManaCostFromCurrentSources(

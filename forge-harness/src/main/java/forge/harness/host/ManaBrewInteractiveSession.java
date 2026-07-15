@@ -603,7 +603,8 @@ public final class ManaBrewInteractiveSession {
                 payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "",
                 payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "",
                 remainingCost != null ? remainingCost : "",
-                canConfirm, actionList, null));
+                canConfirm, actionList, null,
+                canPayLife ? Integer.valueOf(lifeToPay) : null));
     }
 
     List<String> awaitManaCombo(

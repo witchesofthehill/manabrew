@@ -254,6 +254,7 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 mana_cost: format!("{{{cost}}}"),
                 can_confirm_from_pool: mana_pool_total >= cost,
                 actions,
+                life_to_pay: None,
             },
         ),
         None,

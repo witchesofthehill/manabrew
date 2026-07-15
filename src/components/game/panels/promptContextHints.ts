@@ -10,6 +10,7 @@ export interface PromptContextInfo {
     manaCost: string;
     description?: string;
     delveCount?: number;
+    lifeToPay?: number;
   } | null;
   mulliganPutBackCount?: number;
   mulliganSelectedCount?: number;
@@ -45,6 +46,7 @@ export function getPromptContextLines(
       if (!cost) return [];
       const lines = [cost.description || `Cast ${cost.cardName} for ${cost.manaCost}`];
       if (cost.delveCount) lines.push(`Delved for {${cost.delveCount}}`);
+      if (cost.lifeToPay) lines.push(`Tap ${cost.lifeToPay} Life to pay with life`);
       return lines;
     }
     case "chooseTargetSpell":

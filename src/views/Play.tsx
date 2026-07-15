@@ -126,7 +126,7 @@ export default function Play() {
               setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
               return;
             }
-            startGame(playerDeck, formatId, commanderName, opponentDeck, getDefaultAiEngine());
+            startGame(playerDeck, formatId, commanderName, [opponentDeck], getDefaultAiEngine());
           }}
         />
       </div>
@@ -140,7 +140,7 @@ export default function Play() {
               pending.playerDeck,
               pending.formatId,
               pending.commanderName,
-              pending.opponentDeck,
+              [pending.opponentDeck],
               engine,
             );
           }}

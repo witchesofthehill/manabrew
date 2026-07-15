@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0](https://github.com/witchesofthehill/manabrew/compare/v1.9.4...v1.10.0) (2026-07-15)
+
+### Features
+
+* **ui:** add in-app design system reference route ([#383](https://github.com/witchesofthehill/manabrew/issues/383)) ([dc74707](https://github.com/witchesofthehill/manabrew/commit/dc7470773bbfd3f0609a0ad4dd8802d450d2ccbe))
+
 ## [1.9.4](https://github.com/witchesofthehill/manabrew/compare/v1.9.3...v1.9.4) (2026-07-15)
 
 ### Fixes

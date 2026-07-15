@@ -24,7 +24,7 @@ export interface StartGameParams {
   deck: Deck;
   startingLife: number;
   commanderName: string | null;
-  opponentDeck: Deck | null;
+  opponentDecks: Deck[] | null;
 }
 
 export interface StartMultiplayerGameParams {

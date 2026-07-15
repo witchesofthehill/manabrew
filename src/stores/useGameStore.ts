@@ -95,14 +95,14 @@ function seedManualDeck(
 
 async function initializeGame({
   deck,
-  opponentDeck,
+  opponentDecks,
   formatId,
   set,
   commanderName,
   engine,
 }: {
   deck: Deck;
-  opponentDeck?: Deck;
+  opponentDecks?: Deck[];
   formatId?: string;
   commanderName?: string;
   engine?: EngineKind;
@@ -122,7 +122,7 @@ async function initializeGame({
   const platformType = getPlatform().type;
   if (
     engine === "Forge" &&
-    opponentDeck &&
+    opponentDecks?.length &&
     (platformType === "tauri" || (platformType === "web" && isHostedEngineAvailable()))
   ) {
     const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
@@ -144,7 +144,7 @@ async function initializeGame({
     try {
       const hosted = await launchForge({
         playerDeck: deck,
-        opponentDeck,
+        opponentDecks,
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
       });
@@ -172,7 +172,6 @@ async function initializeGame({
       set({ debugInfo: "Forge game started.", isPrefetchingCards: false });
       return;
     } catch (error) {
-      if (platformType !== "tauri") throw error;
       console.error("[store] Forge host unavailable; falling back to Manabrew:", error);
       toast.error("Forge engine unavailable — using the Manabrew engine.");
       resetSelectedGameRuntime();
@@ -181,7 +180,9 @@ async function initializeGame({
   }
 
   const gameDecks: Record<string, Deck> = { "player-0": deck };
-  if (opponentDeck) gameDecks["player-1"] = opponentDeck;
+  (opponentDecks ?? []).forEach((opponentDeck, index) => {
+    gameDecks[`player-${index + 1}`] = opponentDeck;
+  });
   const runtime = getSelectedGameRuntime();
 
   set({
@@ -207,7 +208,7 @@ async function initializeGame({
     deck,
     startingLife,
     commanderName: commanderName ?? null,
-    opponentDeck: opponentDeck ?? null,
+    opponentDecks: opponentDecks ?? null,
   });
   set({ debugInfo: `Game started: ${result}.` });
 }
@@ -250,9 +251,9 @@ export const useGameStore = create<GameState>()(
 
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
 
-      startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
+      startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
         try {
-          await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
+          await initializeGame({ deck, opponentDecks, formatId, commanderName, engine, set, get });
         } catch (e) {
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);

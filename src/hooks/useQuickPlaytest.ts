@@ -2,10 +2,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchHubDeck } from "@/api/hub";
 import { getDefaultAiEngine } from "@/game/hostedAiPlay";
-import { pickRandom } from "@/lib/utils";
+import { pickRandomDistinct } from "@/lib/utils";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
+
+const COMMANDER_POD_OPPONENTS = 3;
 
 export function useQuickPlaytest(): (deck: Deck) => void {
   const navigate = useNavigate();
@@ -18,14 +20,16 @@ export function useQuickPlaytest(): (deck: Deck) => void {
       return;
     }
     const formatId = deck.format ?? "standard";
-    const opponent =
-      pickRandom(presetDecks.filter((preset) => (preset.format ?? "standard") === formatId)) ??
-      deck;
+    const opponentCount = formatId === "commander" ? COMMANDER_POD_OPPONENTS : 1;
+    const opponents = pickRandomDistinct(
+      presetDecks.filter((preset) => (preset.format ?? "standard") === formatId),
+      opponentCount,
+    );
     void startGame(
       deck,
       formatId,
       deck.commanders?.[0]?.identity.name,
-      opponent,
+      opponents.length > 0 ? opponents : [deck],
       getDefaultAiEngine(),
     );
     navigate("/play");

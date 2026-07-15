@@ -144,9 +144,20 @@ jobs:
           git fetch origin "pull/${PR_NUMBER}/head" --force
           git checkout --detach --force ${PR_SHA}
 
+          # A branch cut before the pulled-image staging stack still has the
+          # old build:-based compose — \`up\` would silently rebuild the web
+          # image ON THE BOX (the exact thing this workflow exists to avoid,
+          # and a disk-filler). Fail fast instead; --no-build below is the
+          # backstop.
+          if ! grep -q 'STAGING_IMAGE_TAG' compose.staging.yml; then
+              echo "❌ compose.staging.yml on this branch predates the pulled-image staging stack."
+              echo "   Merge main into the PR branch and push — the preview will re-run."
+              exit 1
+          fi
+
           export STAGING_IMAGE_TAG="pr-${PR_NUMBER}"
           docker compose -p manabrew-staging -f compose.staging.yml pull --quiet
-          docker compose -p manabrew-staging -f compose.staging.yml up -d --remove-orphans
+          docker compose -p manabrew-staging -f compose.staging.yml up -d --no-build --remove-orphans
           # Record which PR owns the single slot so another PR's teardown
           # doesn't kill this preview.
           echo "${PR_NUMBER}" > "\$STAGING/.preview-pr"

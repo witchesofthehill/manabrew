@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
+import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
 import {
@@ -14,6 +15,7 @@ import {
   Layers,
   LibraryBig,
   Package,
+  Palette,
   Settings,
   Swords,
   Search,
@@ -199,6 +201,19 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Button>
               )}
             </NavLink>
+            {DESIGN_SYSTEM_ENABLED && (
+              <NavLink to="/design-system" onClick={onNavigate}>
+                {({ isActive }) => (
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="w-full justify-start whitespace-nowrap"
+                  >
+                    <Palette className="mr-2 h-4 w-4 shrink-0" />
+                    Design System
+                  </Button>
+                )}
+              </NavLink>
+            )}
           </div>
         </div>
       </div>

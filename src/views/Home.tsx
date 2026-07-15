@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Globe, Plus } from "lucide-react";
+import { ArrowRight, ClipboardPaste, Globe, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
@@ -8,7 +8,7 @@ import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
-import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
+import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { presetDeckParamId } from "@/views/myDecks.utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 
@@ -37,6 +37,7 @@ function SectionHeader({ title, to, linkLabel }: { title: string; to: string; li
 export default function Home() {
   const navigate = useNavigate();
   const quickPlaytest = useQuickPlaytest();
+  const hubPlaytest = useHubDeckPlaytest();
   const savedDecks = useDeckStore((s) => s.savedDecks);
   const clearDeck = useDeckStore((s) => s.clearDeck);
   const presetDecks = usePresetDecks();
@@ -65,11 +66,19 @@ export default function Home() {
     navigate("/deck-editor", { state: { directToEditor: true } });
   }
 
+  function handleImportDeck() {
+    navigate("/deck-editor", { state: { openImport: true } });
+  }
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-4 space-y-8">
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-lg font-semibold flex-1">Home</h2>
+          <Button size="sm" variant="outline" onClick={handleImportDeck}>
+            <ClipboardPaste className="mr-1 h-4 w-4" />
+            Import deck
+          </Button>
           <Button size="sm" variant="outline" onClick={handleNewDeck}>
             <Plus className="mr-1 h-4 w-4" />
             New deck
@@ -85,15 +94,22 @@ export default function Home() {
         <section>
           <SectionHeader title="Your decks" to="/deck-editor" linkLabel="My Decks" />
           {myDecks.length === 0 ? (
-            <div className="rounded-lg border border-dashed px-6 py-10 text-center space-y-2">
+            <div className="rounded-lg border border-dashed px-6 py-10 text-center space-y-3">
               <p className="text-lg font-semibold">No decks yet</p>
               <p className="text-sm text-muted-foreground">
-                Pick a starter deck below and jump straight into a game — or build your own brew.
+                Paste a decklist from Moxfield or anywhere, pick a starter deck below, or build your
+                own brew.
               </p>
-              <Button size="sm" onClick={handleNewDeck}>
-                <Plus className="mr-1 h-4 w-4" />
-                Build a deck
-              </Button>
+              <div className="flex items-center justify-center gap-2">
+                <Button size="sm" onClick={handleImportDeck}>
+                  <ClipboardPaste className="mr-1 h-4 w-4" />
+                  Import a deck
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleNewDeck}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Build from scratch
+                </Button>
+              </div>
             </div>
           ) : (
             <div className={DECK_GRID_CLASS}>
@@ -144,7 +160,12 @@ export default function Home() {
           ) : (
             <div className={DECK_GRID_CLASS}>
               {hubList.decks.slice(0, HUB_PREVIEW_COUNT).map((deck) => (
-                <HubDeckCard key={deck.id} deck={deck} onOpen={() => setPreviewId(deck.id)} />
+                <HubDeckCard
+                  key={deck.id}
+                  deck={deck}
+                  onOpen={() => setPreviewId(deck.id)}
+                  onPlaytest={() => hubPlaytest(deck.id)}
+                />
               ))}
             </div>
           )}

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { fetchHubDeck } from "@/api/hub";
 import { getDefaultAiEngine } from "@/game/hostedAiPlay";
 import { pickRandom } from "@/lib/utils";
 import { useGameStore } from "@/stores/useGameStore";
@@ -28,5 +29,14 @@ export function useQuickPlaytest(): (deck: Deck) => void {
       getDefaultAiEngine(),
     );
     navigate("/play");
+  };
+}
+
+export function useHubDeckPlaytest(): (deckId: string) => void {
+  const quickPlaytest = useQuickPlaytest();
+  return (deckId) => {
+    void fetchHubDeck(deckId)
+      .then((detail) => quickPlaytest(detail.deck))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load deck"));
   };
 }

@@ -7,6 +7,7 @@ import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
 import type { HubSort } from "@/api/hub";
+import { useHubDeckPlaytest } from "@/hooks/useQuickPlaytest";
 import { useHubStore } from "@/stores/useHubStore";
 import { FORMAT_DISPLAY } from "@/lib/constants";
 
@@ -47,6 +48,7 @@ export default function DeckHub() {
   const list = useHubStore((s) => s.list);
   const listError = useHubStore((s) => s.listError);
   const fetchDecks = useHubStore((s) => s.fetchDecks);
+  const hubPlaytest = useHubDeckPlaytest();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -134,7 +136,12 @@ export default function DeckHub() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {list.decks.map((deck) => (
-                    <HubDeckCard key={deck.id} deck={deck} onOpen={() => setPreviewId(deck.id)} />
+                    <HubDeckCard
+                      key={deck.id}
+                      deck={deck}
+                      onOpen={() => setPreviewId(deck.id)}
+                      onPlaytest={() => hubPlaytest(deck.id)}
+                    />
                   ))}
                 </div>
               )}

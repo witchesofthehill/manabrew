@@ -84,10 +84,13 @@ export default function DeckEditor() {
     deck,
     savedAt: 0,
   }));
+  const location = useLocation();
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(() =>
+    Boolean((location.state as { openImport?: boolean } | null)?.openImport),
+  );
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
   const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
 
@@ -115,7 +118,6 @@ export default function DeckEditor() {
     });
   }
   const hasUnsavedChanges = useDeckUnsavedChanges();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
 

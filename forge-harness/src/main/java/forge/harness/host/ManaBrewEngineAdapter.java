@@ -25,6 +25,7 @@ import forge.model.FModel;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -70,7 +71,7 @@ public final class ManaBrewEngineAdapter {
         final boolean commanderGame = playerCount > 2
                 || request.getStartingLife() == 40
                 || request.getPlayers().stream().anyMatch(player ->
-                        player.getCommanderName() != null && !player.getCommanderName().isBlank());
+                        !player.getCommanderNames().isEmpty());
         final GameType gameType = commanderGame ? GameType.Commander : GameType.Constructed;
         final Set<GameType> variants = EnumSet.of(gameType);
         final GameRules rules = new GameRules(gameType);
@@ -186,12 +187,26 @@ public final class ManaBrewEngineAdapter {
         for (PaperCard card : main.toFlatList()) {
             mainByName.putIfAbsent(card.getName().toLowerCase(Locale.ROOT), card);
         }
-        if (playerConfig.getCommanderName() != null && !playerConfig.getCommanderName().isBlank()) {
-            PaperCard commander = mainByName.get(playerConfig.getCommanderName()
-                    .toLowerCase(Locale.ROOT));
+        List<String> uniqueCommanders = new ArrayList<>();
+        Set<String> seenCommanders = new HashSet<>();
+        for (String commanderName : playerConfig.getCommanderNames()) {
+            if (commanderName == null || commanderName.isBlank()) {
+                continue;
+            }
+            if (seenCommanders.add(commanderName.toLowerCase(Locale.ROOT))) {
+                uniqueCommanders.add(commanderName);
+            }
+        }
+        for (String commanderName : uniqueCommanders) {
+            PaperCard commander = mainByName.get(commanderName.toLowerCase(Locale.ROOT));
+            if (commander == null && commanderName.contains(" // ")) {
+                // Forge keys DFCs by front face; mirrors CardDatabase::get_by_card_name.
+                String frontFace = commanderName.substring(0, commanderName.indexOf(" // "));
+                commander = mainByName.get(frontFace.toLowerCase(Locale.ROOT));
+            }
             if (commander == null) {
                 throw new IllegalArgumentException("commander was not found in main deck: "
-                        + playerConfig.getCommanderName());
+                        + commanderName);
             }
             main.remove(commander, 1);
             deck.getOrCreate(DeckSection.Commander).add(commander, 1);
@@ -218,7 +233,20 @@ public final class ManaBrewEngineAdapter {
         for (JsonElement playerValue : playerValues) {
             JsonObject playerObject = playerValue.getAsJsonObject();
             String name = requiredString(playerObject, "name");
-            String commanderName = optionalString(playerObject, "commanderName");
+            List<String> commanderNames = new ArrayList<>();
+            if (playerObject.has("commanderNames")
+                    && playerObject.get("commanderNames").isJsonArray()) {
+                for (JsonElement commanderValue : playerObject.getAsJsonArray("commanderNames")) {
+                    if (!commanderValue.isJsonNull() && !commanderValue.getAsString().isBlank()) {
+                        commanderNames.add(commanderValue.getAsString());
+                    }
+                }
+            } else {
+                String commanderName = optionalString(playerObject, "commanderName");
+                if (commanderName != null && !commanderName.isBlank()) {
+                    commanderNames.add(commanderName);
+                }
+            }
             JsonArray cardValues = playerObject.getAsJsonArray("deck");
             if (cardValues == null) {
                 throw new IllegalArgumentException("player deck is required");
@@ -233,7 +261,7 @@ public final class ManaBrewEngineAdapter {
             boolean ai = playerObject.has("ai")
                     && !playerObject.get("ai").isJsonNull()
                     && playerObject.get("ai").getAsBoolean();
-            players.add(new PlayerConfig(name, deck, commanderName, ai));
+            players.add(new PlayerConfig(name, deck, commanderNames, ai));
         }
         return new StartGameRequest(gameId, startingLife, seed, players);
     }
@@ -297,13 +325,13 @@ public final class ManaBrewEngineAdapter {
     public static final class PlayerConfig {
         private final String name;
         private final List<CardIdentity> deck;
-        private final String commanderName;
+        private final List<String> commanderNames;
         private final boolean ai;
 
         public PlayerConfig(
                 final String name,
                 final List<CardIdentity> deck,
-                final String commanderName,
+                final List<String> commanderNames,
                 final boolean ai
         ) {
             if (name == null || name.isBlank()) {
@@ -314,7 +342,7 @@ public final class ManaBrewEngineAdapter {
             }
             this.name = name;
             this.deck = List.copyOf(deck);
-            this.commanderName = commanderName;
+            this.commanderNames = commanderNames == null ? List.of() : List.copyOf(commanderNames);
             this.ai = ai;
         }
 
@@ -326,8 +354,8 @@ public final class ManaBrewEngineAdapter {
             return deck;
         }
 
-        public String getCommanderName() {
-            return commanderName;
+        public List<String> getCommanderNames() {
+            return commanderNames;
         }
 
         public boolean isAi() {

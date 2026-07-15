@@ -22,7 +22,7 @@ pub const APP_EXTRA_FILES: &[&str] = &[
 ];
 pub const APP_MIRROR_FILES: &[&str] = &["package.json", "src-tauri/tauri.conf.json"];
 /// Internal-tooling crates that never version, tag, or appear in the manifest.
-pub const IGNORED_PACKAGES: &[&str] = &["xtask"];
+pub const IGNORED_PACKAGES: &[&str] = &["xtask", "networking-tests"];
 
 pub struct Package {
     pub name: String,

@@ -128,6 +128,7 @@ fn engine_label(engine: EngineKind) -> &'static str {
     match engine {
         EngineKind::Manabrew => "manabrew",
         EngineKind::Forge => "forge",
+        EngineKind::Ironsmith => "ironsmith",
     }
 }
 

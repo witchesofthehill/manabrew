@@ -18,7 +18,12 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
-import { ConcedeGameModal, EliminatedModal, LeaveGameModal } from "@/components/game/modals";
+import {
+  ConcedeGameModal,
+  EliminatedModal,
+  GameSettingsModal,
+  LeaveGameModal,
+} from "@/components/game/modals";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -164,6 +169,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
@@ -1434,6 +1440,27 @@ export default function Game({ exitTo }: GameProps = {}) {
       : [],
   );
 
+  if (import.meta.env.DEV && typeof document !== "undefined") {
+    document.documentElement.dataset.manabrewGameDebug = JSON.stringify({
+      promptType,
+      actions: chooseActionInput?.actions ?? [],
+      playableIds: [...playableIds],
+      hand: gameView.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        hand: player.hand.map((card) => ({ id: card.id, name: card.identity.name })),
+      })),
+      battlefield: gameView.battlefield.map((card) => ({
+        id: card.id,
+        name: card.identity.name,
+        tapped: card.tapped,
+        types: card.types,
+      })),
+      step: gameView.step,
+      priorityPlayerId: gameView.priorityPlayerId,
+    });
+  }
+
   if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen
@@ -1493,7 +1520,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none"
+      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -1753,6 +1780,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MiddleBarDock
                 open={boardMenuOpen}
                 onOpenChange={setBoardMenuOpen}
+                onOpenSettings={() => setGameSettingsOpen(true)}
                 onConcede={handleConcede}
                 eliminated={iAmEliminated}
                 onLeave={handleLeave}
@@ -1777,6 +1805,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceEl,
         )}
 
+      {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {eliminatedModalOpen && (
         <EliminatedModal
           heading={selfConceded || me?.status === "conceded" ? "You conceded" : "You lost"}

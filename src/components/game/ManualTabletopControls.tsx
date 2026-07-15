@@ -413,6 +413,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     size="icon"
                     className="h-6 w-6"
                     title={card.tapped ? "Untap" : "Tap"}
+                    aria-label={card.tapped ? "Untap" : "Tap"}
                     onClick={() =>
                       void applyAction({
                         type: "tapCard",
@@ -429,6 +430,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     size="icon"
                     className="h-6 w-6"
                     title="Move to hand"
+                    aria-label="Move to hand"
                     onClick={() => void moveCard(card, "hand")}
                   >
                     <Hand className="h-3 w-3" />
@@ -439,6 +441,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     size="icon"
                     className="h-6 w-6"
                     title="Move to exile"
+                    aria-label="Move to exile"
                     onClick={() =>
                       void moveCard(
                         card,
@@ -454,6 +457,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                     size="icon"
                     className="h-6 w-6"
                     title="Move to graveyard"
+                    aria-label="Move to graveyard"
                     onClick={() =>
                       void moveCard(
                         card,

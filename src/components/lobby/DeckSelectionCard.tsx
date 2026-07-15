@@ -31,6 +31,7 @@ interface DeckSelectionCardProps {
   isOpponentDeck?: boolean;
   formatId?: string;
   dense?: boolean;
+  isTouch?: boolean;
   onSelect: () => void;
   /** Double-click to immediately confirm this deck (skip the Select button). */
   onActivate?: () => void;
@@ -66,6 +67,7 @@ export function DeckSelectionCard({
   isOpponentDeck,
   formatId,
   dense,
+  isTouch = false,
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
@@ -96,25 +98,22 @@ export function DeckSelectionCard({
     <button
       key={id}
       type="button"
-      onClick={() => {
-        if (isLegal) onSelect();
-      }}
+      onClick={onSelect}
       onDoubleClick={() => {
-        if (isLegal) onActivate?.();
+        if (!isTouch) onActivate?.();
       }}
-      disabled={!isLegal}
       title={!isLegal ? validationError : undefined}
       className={cn(
-        "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted",
+        "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted cursor-pointer",
         dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
         "hover:ring-2 hover:ring-primary hover:border-primary",
-        isLegal ? "cursor-pointer" : "cursor-not-allowed opacity-50",
-        !hasVsSide && isSelected && isLegal
+        !hasVsSide && isSelected
           ? "border-primary bg-primary/5 ring-1 ring-primary"
           : !hasVsSide
-            ? isLegal
-              ? "border-border hover:bg-muted/40 hover:shadow-sm"
-              : "border-border"
+            ? cn(
+                "hover:bg-muted/40 hover:shadow-sm",
+                isLegal ? "border-border" : "border-warning/50",
+              )
             : "",
       )}
       style={sideStyle}
@@ -153,7 +152,7 @@ export function DeckSelectionCard({
             <AlertCircle
               className={cn(
                 "h-3.5 w-3.5",
-                cover ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-destructive",
+                cover ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-warning",
               )}
             />
           )}
@@ -178,7 +177,7 @@ export function DeckSelectionCard({
             {!cover && !hasVsSide && (
               <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
                 {isSelected && <Check className="h-3 w-3 text-primary" />}
-                {!isLegal && <AlertCircle className="h-3 w-3 text-destructive" />}
+                {!isLegal && <AlertCircle className="h-3 w-3 text-warning" />}
               </div>
             )}
           </div>
@@ -203,11 +202,12 @@ export function DeckSelectionCard({
             ))}
           </div>
 
-          {breakdown && !dense && (
+          {(!isLegal || (breakdown && !dense)) && (
             <p
               className={cn(
-                "text-[11px] leading-tight line-clamp-2",
-                cover ? "text-white/85" : "text-muted-foreground",
+                "text-[11px] leading-tight",
+                dense ? "line-clamp-1" : "line-clamp-2",
+                !isLegal ? "text-warning" : cover ? "text-white/85" : "text-muted-foreground",
                 DECK_NAME_SHADOW_CLASS,
               )}
             >
@@ -215,13 +215,15 @@ export function DeckSelectionCard({
             </p>
           )}
 
-          {!dense && (
+          {(!dense || badge) && (
             <div className="flex items-center gap-1 flex-wrap">
-              <span
-                className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
-              >
-                {isPreset ? "Preset deck" : `${cards.length} cards`}
-              </span>
+              {!dense && (
+                <span
+                  className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
+                >
+                  {isPreset ? "Preset deck" : `${cards.length} cards`}
+                </span>
+              )}
               {badge && (
                 <Badge variant="outline" className="text-[9px] h-4 px-1 ml-auto">
                   {badge}

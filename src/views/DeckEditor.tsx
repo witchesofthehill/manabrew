@@ -8,14 +8,15 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   pointerWithin,
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
+import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
 import type { DeckCard } from "@/protocol/deck";
 import type { Deck as DeckType } from "@/protocol/deck";
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { DeckListControls } from "@/components/deck/DeckListControls";
+import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -85,6 +87,7 @@ export default function DeckEditor() {
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
+  const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
 
   useKeybindings({
     "card-search-focus": () => {
@@ -137,7 +140,10 @@ export default function DeckEditor() {
 
   const blocker = useBlocker(hasUnsavedChanges && view === "editor" && !isReadOnly);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   useEffect(() => {
     return () => {
@@ -212,7 +218,7 @@ export default function DeckEditor() {
     name: string,
     onProgress: (fraction: number) => void,
   ) {
-    const deckName = name.trim() || "Imported Deck";
+    const customName = name.trim();
     onProgress(0.05);
     const scryfallMap = await fetchCardCollection(entries.map((e) => ({ name: e.name })));
     onProgress(0.55);
@@ -236,28 +242,40 @@ export default function DeckEditor() {
     const cards: DeckCard[] = [];
     const sideboard: DeckCard[] = [];
     const maybeboard: DeckCard[] = [];
+    const commanders: DeckCard[] = [];
     const notFound: string[] = [];
-    for (const { name: cardName, count, side, maybe } of entries) {
+    for (const { name: cardName, count, side, maybe, commander } of entries) {
       const sc = scryfallMap.get(cardName.toLowerCase());
       if (!sc) {
         notFound.push(cardName);
         continue;
       }
-      const target = side ? sideboard : maybe ? maybeboard : cards;
+      const target = commander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
       for (let i = 0; i < count; i++) {
         const base = scryfallToDeckCard(sc);
         target.push({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
       }
     }
-    if (cards.length === 0 && sideboard.length === 0 && maybeboard.length === 0) {
+    if (
+      cards.length === 0 &&
+      sideboard.length === 0 &&
+      maybeboard.length === 0 &&
+      commanders.length === 0
+    ) {
       throw new Error("None of the cards could be found on Scryfall");
     }
+    const commanderName = commanders.map((c) => c.identity.name).join(" / ");
+    const deckName = customName || commanderName || DEFAULT_IMPORT_NAME;
     const id = addSavedDeck({
       name: deckName,
-      format: inferImportedFormat(cards.map((c) => c.identity.name)),
+      format:
+        commanders.length > 0
+          ? "commander"
+          : inferImportedFormat(cards.map((c) => c.identity.name)),
       cards,
       sideboard,
       maybeboard,
+      commanders,
       attractions: [],
       contraptions: [],
       schemes: [],
@@ -451,6 +469,7 @@ export default function DeckEditor() {
                     onOpen={() => handleSelectDeck(s.id)}
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
+                    onPublish={() => setPublishingDeck(s)}
                   />
                 ))}
               </div>
@@ -537,6 +556,17 @@ export default function DeckEditor() {
           onOpenChange={setImportDialogOpen}
           onImport={handleTextImport}
         />
+
+        {publishingDeck && (
+          <PublishDeckDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setPublishingDeck(null);
+            }}
+            deck={publishingDeck.deck}
+            localDeckId={publishingDeck.id}
+          />
+        )}
 
         <Dialog
           open={renamingId !== null}

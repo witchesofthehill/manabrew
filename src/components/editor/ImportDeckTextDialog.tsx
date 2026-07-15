@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { parseDeckListText, type ParsedDeckEntry } from "@/lib/deckImport";
 
@@ -24,8 +25,6 @@ interface ImportDeckTextDialogProps {
   ) => Promise<void>;
 }
 
-const DEFAULT_IMPORT_NAME = "Imported Deck";
-
 const GUIDE_STEPS = [
   "Open your deck on Moxfield.",
   "Click the ••• menu, then Export.",
@@ -34,7 +33,7 @@ const GUIDE_STEPS = [
 
 export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDeckTextDialogProps) {
   const [text, setText] = useState("");
-  const [name, setName] = useState(DEFAULT_IMPORT_NAME);
+  const [name, setName] = useState("");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -42,16 +41,20 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
   useEffect(() => {
     if (open) return;
     setText("");
-    setName(DEFAULT_IMPORT_NAME);
+    setName("");
     setImporting(false);
     setProgress(0);
   }, [open]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const entries = useMemo(() => parseDeckListText(text), [text]);
-  const mainCount = entries.reduce((s, e) => (e.side || e.maybe ? s : s + e.count), 0);
-  const sideCount = entries.reduce((s, e) => (e.side ? s + e.count : s), 0);
-  const maybeCount = entries.reduce((s, e) => (e.maybe ? s + e.count : s), 0);
+  const mainCount = entries.reduce(
+    (s, e) => (e.side || e.maybe || e.commander ? s : s + e.count),
+    0,
+  );
+  const sideCount = entries.reduce((s, e) => (e.side && !e.commander ? s + e.count : s), 0);
+  const maybeCount = entries.reduce((s, e) => (e.maybe && !e.commander ? s + e.count : s), 0);
+  const commanderCount = entries.reduce((s, e) => (e.commander ? s + e.count : s), 0);
   const valid = entries.length > 0;
   const dirty = text.trim().length > 0;
 
@@ -156,12 +159,13 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
 
               {valid ? (
                 <div
-                  key={mainCount + sideCount + maybeCount}
+                  key={mainCount + sideCount + maybeCount + commanderCount}
                   className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal duration-300 animate-in fade-in zoom-in-95"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   <span className="text-sm font-medium">Looks good!</span>
                   <span className="text-xs text-muted-foreground">
+                    {commanderCount > 0 ? `${commanderCount} commander · ` : ""}
                     {mainCount} main
                     {sideCount > 0 ? ` · ${sideCount} sideboard` : ""}
                     {maybeCount > 0 ? ` · ${maybeCount} maybeboard` : ""} · {entries.length} unique
@@ -183,7 +187,7 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
                 className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
               >
                 <Download className="h-3.5 w-3.5" />
-                Import{valid ? ` ${mainCount + sideCount + maybeCount} cards` : ""}
+                Import{valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
               </Button>
             </div>
           </>

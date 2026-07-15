@@ -102,7 +102,7 @@ async function joinHostedRoomAndPlay(
         deck: {
           deckName: request.opponentDeck.name || "AI Deck",
           deck: request.opponentDeck,
-          commanderName: null,
+          commanderName: request.opponentDeck.commanders?.[0]?.identity.name ?? null,
         },
       },
     }),

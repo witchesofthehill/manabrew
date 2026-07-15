@@ -6,6 +6,9 @@ import { Card } from "@/components/game/Card";
 import { stackObjectToCardStub } from "@/components/game/game.utils";
 import { CHOOSE_CARD_TILE_SIZE } from "@/components/game/game.styles";
 import { useGameStore } from "@/stores/useGameStore";
+import { useCardPreview } from "@/hooks/useCardPreview";
+import { useLongPressPreview } from "@/hooks/useLongPressPreview";
+import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
@@ -25,6 +28,7 @@ function SelectableCard({
 }) {
   return (
     <div
+      data-card-id={card.id}
       onClick={disabled ? undefined : onClick}
       className={cn(
         CHOOSE_CARD_TILE_SIZE,
@@ -79,6 +83,18 @@ export function ChooseCardsModal({
   const acknowledge = () => onConfirm([]);
   useModalKeyboard({ onEnter: reveal ? acknowledge : undefined }, [reveal]);
 
+  const preview = useCardPreview();
+  const longPress = useLongPressPreview<CardDto>({
+    resolve: (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
+      const card = el && cards.find((c) => c.id === el.dataset.cardId);
+      return card ? { item: card, anchor: el } : null;
+    },
+    show: (card, rect) =>
+      preview.handleMouseEnter(card, undefined, { useAnchor: true, anchorOverride: rect }),
+    hide: preview.dismiss,
+  });
+
   return (
     <Modal maxWidth="max-w-3xl" maxHeight="">
       {sourceCard && (
@@ -100,10 +116,11 @@ export function ChooseCardsModal({
             ? "max-h-[60dvh] flex-wrap justify-center overflow-y-auto"
             : "always-scrollbar scrollbar-inset-x flex-nowrap overflow-x-auto",
         )}
+        {...longPress}
       >
         {cards.map((c) =>
           reveal ? (
-            <div key={c.id} className={cn(CHOOSE_CARD_TILE_SIZE, "shrink-0")}>
+            <div key={c.id} data-card-id={c.id} className={cn(CHOOSE_CARD_TILE_SIZE, "shrink-0")}>
               <Card card={c} className="w-full" />
             </div>
           ) : (
@@ -141,6 +158,7 @@ export function ChooseCardsModal({
           </>
         )}
       </Modal.Footer>
+      <HoverCardPreview preview={preview} />
     </Modal>
   );
 }

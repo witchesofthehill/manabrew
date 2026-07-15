@@ -97,8 +97,8 @@ class TauriServerApi implements IServerApi {
   startGame(params?: StartServerGameParams): Promise<void> {
     return this.inner.startGame(params);
   }
-  endGame(): Promise<void> {
-    return this.inner.endGame();
+  endGame(gameId: string): Promise<void> {
+    return this.inner.endGame(gameId);
   }
   requestResync(): Promise<void> {
     return this.inner.requestResync();

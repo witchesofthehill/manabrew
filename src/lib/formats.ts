@@ -362,16 +362,9 @@ function isBackgroundCard(card?: DeckCard): boolean {
   return card.subtypes?.some((s) => s.toLowerCase() === "background") ?? false;
 }
 
-/**
- * Returns true if two cards are a legal pair of partner commanders.
- * Handles: generic Partner, "Partner with [Name]", Friends forever, and Background.
- */
-export function canBePartners(a: DeckCard, b: DeckCard): boolean {
-  // Generic Partner: both must have Partner
-  if (hasPartner(a) && hasPartner(b)) return true;
-  // Friends forever: both must have Friends forever
-  if (hasFriendsForever(a) && hasFriendsForever(b)) return true;
-  // Partner with: each must specifically name the other
+export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
+  if (hasPartner(a) && hasPartner(b)) return "Partner";
+  if (hasFriendsForever(a) && hasFriendsForever(b)) return "Friends forever";
   const pwA = getPartnerWithName(a);
   const pwB = getPartnerWithName(b);
   if (
@@ -380,11 +373,18 @@ export function canBePartners(a: DeckCard, b: DeckCard): boolean {
     pwA.toLowerCase() === b.identity.name.toLowerCase() &&
     pwB.toLowerCase() === a.identity.name.toLowerCase()
   )
-    return true;
-  // Background: one has "Choose a Background" text, the other is a Background
-  if (hasChooseBackground(a) && isBackgroundCard(b)) return true;
-  if (hasChooseBackground(b) && isBackgroundCard(a)) return true;
-  return false;
+    return "Partner with";
+  if (hasChooseBackground(a) && isBackgroundCard(b)) return "Background";
+  if (hasChooseBackground(b) && isBackgroundCard(a)) return "Background";
+  return null;
+}
+
+/**
+ * Returns true if two cards are a legal pair of partner commanders.
+ * Handles: generic Partner, "Partner with [Name]", Friends forever, and Background.
+ */
+export function canBePartners(a: DeckCard, b: DeckCard): boolean {
+  return partnerPairLabel(a, b) !== null;
 }
 
 export function isCommanderEligible(card?: DeckCard): boolean {

@@ -318,3 +318,25 @@ docker compose -f compose.production.yml logs --since 1h manabrew-server \
 # inside the docker network):
 docker compose -f compose.production.yml exec manabrew-server curl -fsS http://localhost:9444/health
 ```
+
+## iOS distribution (SideStore)
+
+The iOS app ships as an **unsigned IPA** sideloaded via [SideStore](https://sidestore.io), which re-signs on-device with the user's own Apple ID (no paid Apple Developer account required; free accounts get a 7-day refresh cycle).
+
+**How it's published.** `publish.yml`'s `ios-ipa` job builds the IPA on `macos-latest` with `yarn tauri ios build --no-sign`, and the `deploy-sidestore` job (after the web deploy) regenerates `apps.json` (`scripts/gen-sidestore-source.mjs`) and rsyncs it plus `Manabrew-<version>.ipa` and `icon.png` to the host's `ops/sidestore/`. That dir is bind-mounted into the caddy container at `/srv/manabrew/sidestore` and served under `play.manabrew.app/sidestore/`.
+
+**Add the source in SideStore:** Sources → **+** → `https://play.manabrew.app/sidestore/apps.json` → Browse → **Manabrew** → Install.
+
+**Build one locally** (macOS + Xcode required):
+
+```bash
+yarn build:wasm
+yarn tauri ios build --no-sign
+# → src-tauri/gen/apple/build/arm64/Manabrew.ipa
+```
+
+Mobile builds skip the GraalVM/Maven harness (`tauri.{ios,android}.conf.json` override `beforeBuildCommand`) and do **not** bundle the desktop-only 64 MB Forge runtime — only `cardset.rkyv` ships. On Android that archive is embedded in the binary (`card_db.rs`), because the APK `asset://` path can't be mmap'd. See `src-tauri/AGENTS.md`.
+
+### Android APK
+
+`publish.yml`'s `android-apk` job builds an arm64 APK (`node scripts/mobile-dev.mjs android build --apk --target aarch64`) on `ubuntu-latest` and the `release` job attaches it to the GitHub Release alongside the desktop installers. The release APK is **unsigned** — installing it requires signing with a keystore (wire an `ANDROID_KEYSTORE` secret + a signing step to ship an installable build).

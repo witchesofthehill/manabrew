@@ -1,27 +1,25 @@
 #!/bin/sh
 set -e
 
-# Regenerate the app's runtime relay config from env so one published image can
-# point at any relay without a rebuild. Empty RELAY_HOST leaves the app on its
-# compiled-in default (VITE_RELAY_* / the official relay). Port defaults to 443
-# (the client dials wss://); set RELAY_PORT=9443 for a bare ws:// relay.
-# DESIGN_SYSTEM=1/true exposes the dev-only /design-system reference route on
-# this production build (off by default).
-case "${DESIGN_SYSTEM:-}" in
-	1 | true | TRUE | yes) DESIGN_SYSTEM_JS="  designSystem: true," ;;
-	*) DESIGN_SYSTEM_JS="" ;;
-esac
-
+# Regenerate the app's runtime config from env so one published image serves any
+# deployment without a rebuild.
+#   relay: from RELAY_* (empty RELAY_HOST leaves the app on its compiled-in
+#     VITE_RELAY_* default; port defaults to 443 for wss://, set 9443 for ws://).
+#   hostedAiEnabled: from HOSTED_AI_ENABLED — gates the Forge "Play vs AI"
+#     option, off in the published image.
+#   designSystem: from DESIGN_SYSTEM — exposes the dev-only /design-system
+#     reference route on a production build, off by default.
 {
 	echo 'window.__MANABREW_RUNTIME__ = {'
 	if [ -n "${RELAY_HOST:-}" ]; then
-		echo '  relay: {'
-		echo "    host: \"${RELAY_HOST}\","
-		echo "    port: ${RELAY_PORT:-443},"
-		echo "    password: \"${RELAY_PASSWORD:-forge}\""
-		echo '  },'
+		echo "  relay: { host: \"${RELAY_HOST}\", port: ${RELAY_PORT:-443}, password: \"${RELAY_PASSWORD:-forge}\" },"
 	fi
-	[ -n "$DESIGN_SYSTEM_JS" ] && echo "$DESIGN_SYSTEM_JS"
+	case "$(printf '%s' "${HOSTED_AI_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) echo '  hostedAiEnabled: true,' ;;
+	esac
+	case "$(printf '%s' "${DESIGN_SYSTEM:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) echo '  designSystem: true,' ;;
+	esac
 	echo '};'
 } >/srv/manabrew/config.js
 

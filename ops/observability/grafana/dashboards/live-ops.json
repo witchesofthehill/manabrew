@@ -495,6 +495,46 @@
         "sortOrder": "Descending",
         "wrapLogMessage": true
       }
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Stuck-room signal \u2014 abandoned reaps per 2h (alert > 6)",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(manabrew_relay_games_ended_total{reason=\"abandoned\"}[2h]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "abandoned reaps (2h window)"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (reason) (increase(manabrew_relay_games_ended_total{reason!=\"abandoned\"}[2h]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{reason}} (context)"
+        }
+      ]
     }
   ]
 }

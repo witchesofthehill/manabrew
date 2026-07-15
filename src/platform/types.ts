@@ -34,6 +34,9 @@ export interface StartMultiplayerGameParams {
   enginePlayerIndex: number;
   localIsHost: boolean;
   startingLife: number;
+  format?: GameFormat | null;
+  hostPlayerSlot?: string | null;
+  botPlayerSlots?: string[];
 }
 
 export interface RespondParams {
@@ -169,7 +172,7 @@ export interface IServerApi {
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
-  endGame(): Promise<void>;
+  endGame(gameId: string): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;

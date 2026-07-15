@@ -25,11 +25,13 @@ import java.util.Set;
 
 public final class HarnessCostPlumbing {
     private final PlayerController controller;
+    private final HarnessPlayHooks hooks;
     private final Player payer;
     private final List<Set<Card>> reservedSacrificeStack = new ArrayList<>();
 
-    public HarnessCostPlumbing(final PlayerController controller, final Player payer) {
+    public HarnessCostPlumbing(final PlayerController controller, final HarnessPlayHooks hooks, final Player payer) {
         this.controller = controller;
+        this.hooks = hooks;
         this.payer = payer;
     }
 
@@ -836,24 +838,15 @@ public final class HarnessCostPlumbing {
             if (list.isEmpty()) {
                 return null;
             }
-            // Crew / withTotalPowerGE: select creatures greedily (highest power first)
-            // until total power meets the threshold, matching the engine's canPay check.
             if (totalPowerRequired >= 0) {
                 if (CardLists.getTotalPower(list, ability) < totalPowerRequired) {
                     return null;
                 }
-                // Sort by power descending so we tap fewer creatures.
-                list.sort((a, b) -> b.getNetPower() - a.getNetPower());
-                final CardCollection selected = new CardCollection();
-                int accum = 0;
-                for (final Card c : list) {
-                    selected.add(c);
-                    accum = CardLists.getTotalPower(selected, ability);
-                    if (accum >= totalPowerRequired) {
-                        break;
-                    }
+                final CardCollectionView selected = hooks.chooseTapTypeForCost(list, ability, totalPowerRequired);
+                if (selected == null || CardLists.getTotalPower(new CardCollection(selected), ability) < totalPowerRequired) {
+                    return null;
                 }
-                return accum >= totalPowerRequired ? PaymentDecision.card(selected) : null;
+                return PaymentDecision.card(selected);
             }
             final int amount = cost.getAbilityAmount(ability);
             if (sameType) {

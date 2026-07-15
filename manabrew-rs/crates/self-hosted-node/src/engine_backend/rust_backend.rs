@@ -165,7 +165,7 @@ fn ensure_dbs_loaded() {
         info!(path = %archive_path.display(), "loading card + token databases from archive");
         let file = std::fs::File::open(&archive_path).unwrap_or_else(|e| {
             panic!(
-                "Cardset archive not found at {}: {e}. Run `cargo build -p forge-web` (or `yarn build:wasm`) to build it.",
+                "Cardset archive not found at {}: {e}. Run `cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive` to build it.",
                 archive_path.display()
             )
         });

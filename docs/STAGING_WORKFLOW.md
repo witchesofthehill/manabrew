@@ -18,7 +18,7 @@ box that looks exactly like prod but isn't prod.
 ```
   local branch ──(PR / merge)──▶ staging ──(auto)──▶ staging environment
                                     ▲
-                                    │ reset onto latest main
+                                    │ merge latest main in
                                     │
   main ──(every merge)─────────────┘
 ```
@@ -32,36 +32,22 @@ box that looks exactly like prod but isn't prod.
    `.github/workflows/staging-deploy.yml`, which builds the `:staging` images
    and SSHes the staging VM to run the production `deploy.sh` against the
    `staging` branch. Result lands on the staging hosts.
-4. **Every merge to `main`, `staging` is reset onto the latest `main`.** This
+4. **Every merge to `main`, the latest `main` is merged into `staging`.** This
    keeps staging honest: it is always _`main` + whatever is still pending on
    staging_, never a stale fork that has silently drifted from production. The
-   reset re-writes `staging` to `main` and replays the pending staging-only
-   commits on top, then force-pushes — which re-triggers a staging deploy on
+   merge itself is a push to `staging`, so it re-triggers a staging deploy on
    the fresh base.
 
-## `staging` is the one force-pushed branch
-
-The repo rule everywhere else is **merge, never rebase** (see the root
-`AGENTS.md`): feature branches integrate `main` with `git merge`, and
-already-pushed history is never rewritten. `staging` is the deliberate
-exception. It is a **disposable integration branch** owned by the deploy
-process, not shared feature work — resetting it onto `main` and force-pushing is
-expected and safe precisely because nobody bases long-lived work on it. Do
-**not** generalise this to any other branch.
-
-Reset `staging` onto `main`:
+This follows the repo's **merge, never rebase** rule (see the root `AGENTS.md`)
+like every other branch — `staging` is kept current by merging `main` in, not
+by rebasing or force-pushing:
 
 ```bash
 git fetch origin
 git checkout staging
-git reset --hard origin/main
-# replay any staging-only commits that must stay ahead of main, if any, then:
-git push --force-with-lease origin staging
+git merge origin/main
+git push origin staging
 ```
-
-If `staging` carries no commits that aren't yet on `main` (the common case once
-everything has merged), the reset is just `git reset --hard origin/main` and a
-force-push.
 
 ## What makes it a mirror, mechanically
 

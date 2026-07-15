@@ -159,6 +159,7 @@ export class HandController {
 
     // The fan only reshapes for a drag that originates from the hand. A card
     // dragged from the command zone sets `draggingCardId` too, but must not sink
+    // .
     // the hand out of the way.
     const draggingInHand =
       state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);

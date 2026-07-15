@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Swords } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { fetchHubDeck, unpublishDeck } from "@/api/hub";
+import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { groupCards } from "@/views/myDecks.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
@@ -51,6 +53,7 @@ export function HubDeckPreviewDialog({
   onUnpublished,
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
+  const quickPlaytest = useQuickPlaytest();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const published = usePublishedDecksStore((s) => s.published);
@@ -90,6 +93,19 @@ export function HubDeckPreviewDialog({
     loadPresetDeck(detail.deck as EditorDeck);
     onClose();
     navigate("/deck-editor");
+  }
+
+  function handleCopyLink() {
+    if (!deckId) return;
+    const url = `${window.location.origin}/hub?deck=${encodeURIComponent(deckId)}`;
+    void navigator.clipboard.writeText(url);
+    toast.success("Share link copied — anyone can open and play this deck");
+  }
+
+  function handlePlaytest() {
+    if (!detail) return;
+    onClose();
+    quickPlaytest(detail.deck);
   }
 
   async function handleUnpublish() {
@@ -143,11 +159,18 @@ export function HubDeckPreviewDialog({
               {busy ? "Removing…" : "Remove from hub"}
             </Button>
           )}
+          <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
+            Copy link
+          </Button>
           <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
             Open read-only
           </Button>
-          <Button size="sm" disabled={!detail} onClick={handleSave}>
+          <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
             Save to My Decks
+          </Button>
+          <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
+            <Swords className="mr-1 h-3.5 w-3.5" />
+            Playtest
           </Button>
         </DialogFooter>
       </DialogContent>

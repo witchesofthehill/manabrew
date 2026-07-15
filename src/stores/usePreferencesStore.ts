@@ -82,6 +82,9 @@ interface PreferencesState {
   ironsmithRuntimeEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
 
+  askEngineOnAiPlay: boolean;
+  setAskEngineOnAiPlay: (value: boolean) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
@@ -115,6 +118,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardStyle",
   "inGameAnimations",
   "ironsmithRuntimeEnabled",
+  "askEngineOnAiPlay",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -215,6 +219,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
+
+          askEngineOnAiPlay: false,
+          setAskEngineOnAiPlay: (askEngineOnAiPlay) => set({ askEngineOnAiPlay }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

@@ -22,6 +22,7 @@ import Settings from "@/views/Settings";
 import About from "@/views/About";
 import Search from "@/views/Search";
 import DeckHub from "@/views/DeckHub";
+import Home from "@/views/Home";
 
 export const router = createBrowserRouter([
   {
@@ -41,7 +42,15 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/lobby" replace />,
+        element: <Navigate to="/home" replace />,
+      },
+      {
+        path: "home",
+        element: (
+          <ErrorBoundary context="Home">
+            <Home />
+          </ErrorBoundary>
+        ),
       },
       {
         path: "play",

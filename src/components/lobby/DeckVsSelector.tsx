@@ -7,7 +7,7 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
-import { cn } from "@/lib/utils";
+import { cn, pickRandom } from "@/lib/utils";
 import { toast } from "sonner";
 import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat, validateDeckSections } from "@/lib/formats";
@@ -39,14 +39,6 @@ interface DeckVsSelectorProps {
 
 type PickingSide = "player" | "opponent";
 type PlayFormatId = string;
-
-// Lift `Math.random` out of the component body. React's idempotency check
-// flags any impure call statically present in render scope, even when the
-// surrounding function only runs from an event handler.
-function pickRandom<T>(arr: readonly T[]): T | undefined {
-  if (arr.length === 0) return undefined;
-  return arr[Math.floor(Math.random() * arr.length)];
-}
 
 export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();

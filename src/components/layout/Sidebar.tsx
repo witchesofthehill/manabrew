@@ -9,6 +9,7 @@ import {
   HeartPulse,
   Gamepad2,
   Hand,
+  House,
   Info,
   Layers,
   LibraryBig,
@@ -42,6 +43,17 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             <ManaBrewLogo size={256} className="w-full h-auto rounded-xl" />
           </div>
           <div className="space-y-1">
+            <NavLink to="/home" onClick={onNavigate}>
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-start whitespace-nowrap"
+                >
+                  <House className="mr-2 h-4 w-4 shrink-0" />
+                  Home
+                </Button>
+              )}
+            </NavLink>
             <NavLink to="/play" onClick={onNavigate}>
               {({ isActive }) => (
                 <Button

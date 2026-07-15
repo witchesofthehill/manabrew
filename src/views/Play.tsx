@@ -6,7 +6,9 @@ import { EngineChoiceModal } from "@/components/lobby/EngineChoiceModal";
 import Game from "./Game";
 import { getPlatform } from "@/platform";
 import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
+import { getDefaultAiEngine } from "@/game/hostedAiPlay";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 
@@ -120,13 +122,11 @@ export default function Play() {
       <div className="relative h-full">
         <DeckVsSelector
           onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-            if (getPlatform().type === "web") {
+            if (getPlatform().type === "web" && usePreferencesStore.getState().askEngineOnAiPlay) {
               setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
-            } else {
-              // Tauri (graalvm build) defaults to the bundled Forge engine; the
-              // store falls back to Manabrew if the local Forge host can't start.
-              startGame(playerDeck, formatId, commanderName, opponentDeck, "Forge");
+              return;
             }
+            startGame(playerDeck, formatId, commanderName, opponentDeck, getDefaultAiEngine());
           }}
         />
       </div>

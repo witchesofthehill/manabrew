@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,8 @@ export default function DeckHub() {
   const [page, setPage] = useState(1);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlDeckId = searchParams.get("deck");
 
   const list = useHubStore((s) => s.list);
   const listError = useHubStore((s) => s.listError);
@@ -172,8 +175,11 @@ export default function DeckHub() {
       )}
 
       <HubDeckPreviewDialog
-        deckId={previewId}
-        onClose={() => setPreviewId(null)}
+        deckId={previewId ?? urlDeckId}
+        onClose={() => {
+          setPreviewId(null);
+          if (urlDeckId) setSearchParams({}, { replace: true });
+        }}
         onUnpublished={() => setRefreshKey((k) => k + 1)}
       />
     </div>

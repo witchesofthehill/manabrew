@@ -15,6 +15,9 @@ export const featureFlags = {
   // engine is OFF until the user opts in via Settings (`ironsmithRuntimeEnabled`
   // preference) — the experimental engine ships dark in prod by default.
   ironsmithRuntime: true,
+  // Deck Hub (browse/publish shared decks + top decks). Ships dark until the
+  // api.manabrew.app service is deployed and the flow has had a manual pass.
+  deckHub: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

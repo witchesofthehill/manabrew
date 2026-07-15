@@ -953,7 +953,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
             {/* ── Printing & Availability ── */}
             <FilterSeparator label="Printing & Availability" />
 
-            <FilterRow>
+            <FilterRow className="flex-wrap">
               <FilterLabel>Set</FilterLabel>
               <SetSelect value={advanced.set} onChange={(v) => setAdv("set", v)} className="w-48" />
               <FilterLabel>Artist</FilterLabel>

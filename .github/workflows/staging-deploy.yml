@@ -154,7 +154,7 @@ jobs:
         with:
           bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
           # Dedicated staging channel (same bot as the prod deploy embeds).
-          channel-id: "1523711713764184316"
+          channel-id: ${{ secrets.DISCORD_STAGING_CHANNEL_ID }}
           title: ${{ steps.deploy.outcome == 'success' && '🧪 Staging deploy successful' || '💥 Staging deploy failed' }}
           color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

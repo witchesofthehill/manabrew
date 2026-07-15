@@ -95,6 +95,7 @@ Required before the first staging deploy can succeed:
    `STAGING_DEPLOY_PATH` on the `staging` branch, and a box-local `.env` with
    its own `MANABREW_SERVER_KEY` plus `STAGING_APP_HOST` / `STAGING_RELAY_HOST`
    / `STAGING_API_HOST` (matching the DNS and the `STAGING_HUB_API_URL` host).
+   See `.env.example` for the full set of deploy `.env` keys.
 
 The hosted Java "Play vs AI" node is under the `hosted-ai` compose profile and,
 exactly as in production, is not auto-started by `deploy.sh`. Start it once on

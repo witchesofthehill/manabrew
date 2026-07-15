@@ -119,7 +119,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1693966032",
         "border_crop": "https://cards.scryfall.io/border_crop/front/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1693966032"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Etching of Kumano",
+        "manaCost": "",
+        "typeLine": "Enchantment Creature — Human Shaman",
+        "oracleText": "Haste\nIf a creature dealt damage this turn by a source you controlled would die, exile it instead.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1783923870",
+          "normal": "https://cards.scryfall.io/normal/back/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1783923870",
+          "large": "https://cards.scryfall.io/large/back/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1783923870",
+          "png": "https://cards.scryfall.io/png/back/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.png?1783923870",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1783923870",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/8/28d92cad-45b0-479d-97fc-c175f3a3f259.jpg?1783923870"
+        }
+      }
     },
     {
       "name": "Monastery Swiftspear",

@@ -813,7 +813,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1604199791",
         "border_crop": "https://cards.scryfall.io/border_crop/front/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1604199791"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Turntimber, Serpentine Wood",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "normal": "https://cards.scryfall.io/normal/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "large": "https://cards.scryfall.io/large/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "png": "https://cards.scryfall.io/png/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.png?1783929333",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333"
+        }
+      }
     },
     {
       "name": "Fyndhorn Elves",
@@ -863,7 +877,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1669839402",
         "border_crop": "https://cards.scryfall.io/border_crop/front/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1669839402"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Slitherbore Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "normal": "https://cards.scryfall.io/normal/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "large": "https://cards.scryfall.io/large/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "png": "https://cards.scryfall.io/png/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.png?1783928184",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184"
+        }
+      }
     },
     {
       "name": "Lathril, Blade of the Elves",

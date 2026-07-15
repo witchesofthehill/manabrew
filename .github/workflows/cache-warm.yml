@@ -7,15 +7,18 @@ name: Cache warm
 # rust-cache shared-key of a build-checks job and saves main-scoped caches,
 # which every PR run (and every tag build) can restore.
 #
-# Steady-state cost is low: rust-cache skips saving when its key (toolchain +
-# lockfile) already has an entry, so most merges are a warm no-op rebuild.
-# Release bump commits only move version numbers (churning the lockfile), so
-# they are skipped to avoid re-saving near-identical multi-GB caches on every
-# merge.
+# Steady-state cost is low: every job is gated on whether its inputs actually
+# changed in the pushed commit (a UI-only merge warms nothing), rust-cache
+# skips saving when its key (toolchain + lockfile) already has an entry, and
+# release bump commits — which only move version numbers — are skipped
+# entirely. The weekly schedule re-runs everything unconditionally so the
+# caches never hit GitHub's 7-day unused-entry eviction.
 
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC — keepalive against cache eviction
   workflow_dispatch:
 
 permissions:
@@ -26,6 +29,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # What changed in this push decides which warms are worth running. The
+  # docker warms only feed reusable *dependency* layers (chef cooks, yarn
+  # install) — PR previews and release commits have different sources, so
+  # main's final compile layers never transfer — hence the docker gate only
+  # watches manifests/lockfiles/Dockerfiles, not source trees. Non-push runs
+  # (schedule, dispatch) warm everything.
+  changes:
+    name: Changed inputs
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.scope.outputs.rust }}
+      docker: ${{ steps.scope.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Classify pushed changes
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != "push" ] || ! git rev-parse --verify -q HEAD^ >/dev/null; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "docker=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          rust=false
+          docker=false
+          while IFS= read -r f; do
+            case "$f" in
+              manabrew-rs/*|Cargo.toml|Cargo.lock|forge|src-tauri/*|tree-sitter-forge-card-script/*|xtask/*|public/preset_decks/*|.github/workflows/cache-warm.yml)
+                rust=true ;;
+            esac
+            case "$f" in
+              Cargo.toml|Cargo.lock|package.json|yarn.lock|*Dockerfile*|.dockerignore|.github/workflows/cache-warm.yml)
+                docker=true ;;
+            esac
+          done < <(git diff --name-only HEAD^ HEAD)
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          echo "docker=$docker" >> "$GITHUB_OUTPUT"
+
   # GHA caches are ref-scoped: docker layers cached by a PR's preview build
   # are invisible to other PRs, and a release tag's layers are invisible to
   # the next tag. Only main-scoped caches are readable everywhere — so warm
@@ -38,7 +83,8 @@ jobs:
     name: Warm ${{ matrix.image }} layers
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    needs: changes
+    if: needs.changes.outputs.docker == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
     strategy:
       fail-fast: false
       matrix:
@@ -73,7 +119,8 @@ jobs:
     name: Warm engine & parity
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,7 +150,8 @@ jobs:
     name: Warm relay & node
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -130,7 +178,8 @@ jobs:
     name: Warm wasm & xtask
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
     steps:
       - uses: actions/checkout@v4
         with:

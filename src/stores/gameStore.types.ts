@@ -76,7 +76,7 @@ export interface GameState {
     deck: Deck,
     formatId?: string,
     commanderName?: string,
-    opponentDeck?: Deck,
+    opponentDecks?: Deck[],
     engine?: EngineKind,
   ) => Promise<void>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;

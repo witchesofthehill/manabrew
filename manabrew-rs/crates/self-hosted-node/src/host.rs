@@ -69,10 +69,9 @@ impl EngineSession {
     }
 }
 
-#[derive(Default)]
 struct BotState {
-    handle: Option<JoinHandle<()>>,
-    shutdown: Option<Arc<tokio::sync::Notify>>,
+    handle: JoinHandle<()>,
+    shutdown: Arc<tokio::sync::Notify>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -80,6 +79,8 @@ struct BotState {
 struct SpawnBotPayload {
     #[serde(default)]
     deck: Option<SpawnBotDeckPayload>,
+    #[serde(default)]
+    decks: Option<Vec<SpawnBotDeckPayload>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -105,7 +106,7 @@ fn registry_idle(registry: &SessionRegistry) -> bool {
         .unwrap_or(false)
 }
 
-type SharedBotState = Arc<Mutex<BotState>>;
+type SharedBotState = Arc<Mutex<Vec<BotState>>>;
 
 #[derive(Clone)]
 struct GameStart {
@@ -393,7 +394,7 @@ async fn host_one_room(
             registered.push(engine_session.clone());
         }
     }
-    let bot_state: SharedBotState = Arc::new(Mutex::new(BotState::default()));
+    let bot_state: SharedBotState = Arc::new(Mutex::new(Vec::new()));
     let (outbound_tx, mut outbound_rx) = tokio_mpsc::unbounded_channel::<ClientMessage>();
 
     let mut host =
@@ -405,7 +406,12 @@ async fn host_one_room(
     }
 
     if config.bot_enabled {
-        spawn_bot(&config, &config.bot_deck, room_id.clone(), &bot_state);
+        spawn_bots(
+            &config,
+            std::slice::from_ref(&config.bot_deck),
+            &room_id,
+            &bot_state,
+        );
     }
 
     loop {
@@ -422,7 +428,7 @@ async fn host_one_room(
         )
         .await;
         if matches!(exit, LoopExit::Cancelled) {
-            stop_bot(&bot_state);
+            stop_bots(&bot_state);
             host.close().await;
             return Ok(());
         }
@@ -435,7 +441,7 @@ async fn host_one_room(
                 _ = cancel.notified() => {
                     info!(username = %config.username, "room host cancelled while reconnecting");
                     cancel_engine(&engine_session);
-                    stop_bot(&bot_state);
+                    stop_bots(&bot_state);
                     return Ok(());
                 }
                 _ = time::sleep(Duration::from_secs(delay)) => {}
@@ -454,9 +460,14 @@ async fn host_one_room(
             match reestablish_room(&mut client, &config, &engine_session, &snapshot).await {
                 Ok(new_room_id) => {
                     if new_room_id != room_id {
-                        stop_bot(&bot_state);
+                        stop_bots(&bot_state);
                         if config.bot_enabled {
-                            spawn_bot(&config, &config.bot_deck, new_room_id.clone(), &bot_state);
+                            spawn_bots(
+                                &config,
+                                std::slice::from_ref(&config.bot_deck),
+                                &new_room_id,
+                                &bot_state,
+                            );
                         }
                         room_id = new_room_id;
                     }
@@ -703,7 +714,8 @@ fn end_game_without_humans(
     let _ = outbound_tx.send(ClientMessage::EndGame { game_id });
 }
 
-fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: &SharedBotState) {
+fn spawn_bots(config: &Config, decks: &[DeckSelection], room_id: &str, bot_state: &SharedBotState) {
+    stop_bots(bot_state);
     let mut guard = match bot_state.lock() {
         Ok(guard) => guard,
         Err(error) => {
@@ -711,49 +723,47 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
             return;
         }
     };
-    if guard.handle.is_some() {
-        debug!(room_id, "bot already spawned for room");
-        return;
+    let open_seats = config.max_players.saturating_sub(1) as usize;
+    for (index, deck) in decks.iter().take(open_seats).enumerate() {
+        let username = if index == 0 {
+            config.bot_username.clone()
+        } else {
+            format!("{} {}", config.bot_username, index + 1)
+        };
+        let relay_url = config.relay_url.clone();
+        let bot_config = BotConfig {
+            username,
+            password: config.password.clone(),
+            room_id: room_id.to_string(),
+            room_password: config.room_password.clone(),
+            deck_name: deck.name.clone(),
+            deck: deck.deck.clone(),
+            commander_name: deck.commander_name.clone(),
+            agent: AgentKind::Simple,
+            answer_delay_ms: None,
+        };
+        let shutdown = Arc::new(tokio::sync::Notify::new());
+        let bot_shutdown = shutdown.clone();
+        let handle = tokio::spawn(async move {
+            if let Err(error) = run_bot(relay_url, bot_config, bot_shutdown).await {
+                error!(%error, "bot task exited");
+            }
+        });
+        guard.push(BotState { handle, shutdown });
     }
-    let relay_url = config.relay_url.clone();
-    let bot_config = BotConfig {
-        username: config.bot_username.clone(),
-        password: config.password.clone(),
-        room_id,
-        room_password: config.room_password.clone(),
-        deck_name: deck.name.clone(),
-        deck: deck.deck.clone(),
-        commander_name: deck.commander_name.clone(),
-        agent: AgentKind::Simple,
-        answer_delay_ms: None,
-    };
-    let shutdown = Arc::new(tokio::sync::Notify::new());
-    let bot_shutdown = shutdown.clone();
-    let handle = tokio::spawn(async move {
-        if let Err(error) = run_bot(relay_url, bot_config, bot_shutdown).await {
-            error!(%error, "bot task exited");
-        }
-    });
-    guard.handle = Some(handle);
-    guard.shutdown = Some(shutdown);
 }
 
-fn stop_bot(bot_state: &SharedBotState) {
+fn stop_bots(bot_state: &SharedBotState) {
     match bot_state.lock() {
         Ok(mut state) => {
-            let Some(mut handle) = state.handle.take() else {
-                return;
-            };
-            match state.shutdown.take() {
-                Some(shutdown) => {
-                    shutdown.notify_one();
-                    tokio::spawn(async move {
-                        if time::timeout(BOT_STOP_TIMEOUT, &mut handle).await.is_err() {
-                            handle.abort();
-                        }
-                    });
-                }
-                None => handle.abort(),
+            for bot in state.drain(..) {
+                bot.shutdown.notify_one();
+                let mut handle = bot.handle;
+                tokio::spawn(async move {
+                    if time::timeout(BOT_STOP_TIMEOUT, &mut handle).await.is_err() {
+                        handle.abort();
+                    }
+                });
             }
         }
         Err(error) => warn!(%error, "bot state lock poisoned"),
@@ -1055,15 +1065,14 @@ async fn handle_state_update(
             match payload_type {
                 Some("removeBot") => {
                     info!(observer = %client.username, "received removeBot request");
-                    stop_bot(bot_state);
+                    stop_bots(bot_state);
                 }
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
                     if effective_room_id == room_id {
                         info!(observer = %client.username, room_id, "received spawnBot request");
-                        let bot_deck = bot_deck_from_payload(config, &payload);
-                        stop_bot(bot_state);
-                        spawn_bot(config, &bot_deck, room_id.to_string(), bot_state);
+                        let bot_decks = bot_decks_from_payload(config, &payload);
+                        spawn_bots(config, &bot_decks, room_id, bot_state);
                     } else {
                         debug!(
                             observer = %client.username,
@@ -1084,13 +1093,24 @@ async fn handle_state_update(
     }
 }
 
-fn bot_deck_from_payload(config: &Config, payload: &Value) -> DeckSelection {
-    let deck = serde_json::from_value::<SpawnBotPayload>(payload.clone())
-        .ok()
-        .and_then(|payload| payload.deck);
-    let Some(deck) = deck else {
-        return config.bot_deck.clone();
+fn bot_decks_from_payload(config: &Config, payload: &Value) -> Vec<DeckSelection> {
+    let parsed = serde_json::from_value::<SpawnBotPayload>(payload.clone()).ok();
+    let requested = match parsed {
+        Some(SpawnBotPayload {
+            decks: Some(decks), ..
+        }) if !decks.is_empty() => decks,
+        Some(SpawnBotPayload {
+            deck: Some(deck), ..
+        }) => vec![deck],
+        _ => return vec![config.bot_deck.clone()],
     };
+    requested
+        .into_iter()
+        .map(deck_selection_from_payload)
+        .collect()
+}
+
+fn deck_selection_from_payload(deck: SpawnBotDeckPayload) -> DeckSelection {
     info!(
         deck = %deck.deck_name,
         cards = deck.deck.cards.len(),

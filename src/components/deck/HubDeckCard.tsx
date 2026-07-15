@@ -1,4 +1,5 @@
-import { Layers } from "lucide-react";
+import { Layers, Swords } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DECK_NAME_SHADOW_CLASS } from "@/components/deck/deckDisplay.utils";
@@ -8,9 +9,10 @@ import type { HubDeckSummary } from "@/api/hubTypes";
 interface HubDeckCardProps {
   deck: HubDeckSummary;
   onOpen: () => void;
+  onPlaytest?: () => void;
 }
 
-export function HubDeckCard({ deck, onOpen }: HubDeckCardProps) {
+export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
   const colorCost = deck.colors
     .split("")
     .map((color) => `{${color}}`)
@@ -38,6 +40,22 @@ export function HubDeckCard({ deck, onOpen }: HubDeckCardProps) {
       )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
+
+      {onPlaytest && (
+        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
+          <Button
+            size="icon"
+            className="h-6 w-6"
+            title="Playtest vs AI"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlaytest();
+            }}
+          >
+            <Swords className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
 
       <div className="absolute bottom-0 left-0 right-0 px-2 pt-6 pb-2 z-10">
         <p

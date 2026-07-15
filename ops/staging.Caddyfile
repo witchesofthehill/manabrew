@@ -1,4 +1,12 @@
-:80 {
+# Edge config for the staging VM (compose.staging.yml). Mirrors the
+# play/relay/api blocks of ops/Caddyfile, on the staging.manabrew.app
+# hostnames, with automatic HTTPS. Release-only routes (/manifest.json,
+# /tauri.json, /sidestore, /status.json) are omitted — staging serves neither
+# the updater manifest nor SideStore.
+#   staging.manabrew.app       → wasm app  (/srv/manabrew)
+#   relay-staging.manabrew.app → relay
+#   api-staging.manabrew.app   → deck hub + stats API
+staging.manabrew.app {
     root * /srv/manabrew
 
     encode zstd gzip
@@ -22,6 +30,13 @@
             Cross-Origin-Embedder-Policy "credentialless"
             Cross-Origin-Resource-Policy "same-origin"
         }
+        file_server
+    }
+
+    # Runtime relay config (rewritten from RELAY_* env on start) — never cache it.
+    @config path /config.js
+    handle @config {
+        header Cache-Control "no-store"
         file_server
     }
 
@@ -76,5 +91,28 @@
         }
         try_files {path} /index.html
         file_server
+    }
+}
+
+relay-staging.manabrew.app {
+    reverse_proxy manabrew-server:9443 {
+        health_uri /health
+        health_port 9444
+        health_interval 15s
+        health_timeout 3s
+    }
+}
+
+# Deck hub + stats API. HUB_ADMIN_PASSWORD_HASH unset → the placeholder
+# default matches no password: /admin/* is locked, not broken config.
+api-staging.manabrew.app {
+    @admin path /admin/*
+    basic_auth @admin {
+        admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy manabrew-hub:9500 {
+        health_uri /health
+        health_interval 15s
+        health_timeout 3s
     }
 }

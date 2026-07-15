@@ -49,7 +49,7 @@ export function RightActionPanel({
   if (collapsed) return null;
 
   return (
-    <aside className="absolute right-1.5 top-1.5 bottom-1.5 z-50 w-72 rounded-lg bg-card/95 backdrop-blur-sm transition-colors overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+    <aside className="absolute right-[calc(0.375rem+env(safe-area-inset-right))] top-[calc(0.375rem+env(safe-area-inset-top))] bottom-[calc(0.375rem+env(safe-area-inset-bottom))] z-50 w-72 rounded-lg bg-card/95 backdrop-blur-sm transition-colors overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
       <div className="h-full p-3 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-4">

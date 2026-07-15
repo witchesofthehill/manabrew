@@ -36,7 +36,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         className,
       )}
     >
-      <div className="flex-1 min-h-0 space-y-4 overflow-x-hidden overflow-y-auto py-4">
+      <div className="flex-1 min-h-0 space-y-4 overflow-x-hidden overflow-y-auto pl-[env(safe-area-inset-left)] pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="px-3 py-2">
           <div className="mb-2 px-4">
             <ManaBrewLogo size={256} className="w-full h-auto rounded-xl" />

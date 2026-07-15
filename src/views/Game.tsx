@@ -1834,7 +1834,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {awaitingAttackTarget && (
-        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+        <div className="pointer-events-none absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">
               Pick a target — click an opponent or planeswalker
@@ -1852,7 +1852,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {promptType === "chooseBoardTargets" &&
         (boardTargets?.spellIds.length ?? 0) > 0 &&
         !spellStackModalOpen && (
-          <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="pointer-events-none absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
             <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
               <span className="text-sm font-semibold tracking-wide">
                 Click a glowing spell on the stack to counter it
@@ -1868,7 +1868,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         )}
 
       {gameView.step === "first_strike_damage" && (
-        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+        <div className="pointer-events-none absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
             <span className="text-xs text-muted-foreground">

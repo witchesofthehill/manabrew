@@ -168,7 +168,22 @@ export function AppShell() {
               </Button>
             </div>
           )}
-          <main className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}>
+          <main
+            className={cn(
+              "h-full overflow-auto",
+              !isImmersiveRoute &&
+                cn(
+                  "pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)]",
+                  isDesktop
+                    ? cn(
+                        "pt-[env(safe-area-inset-top)]",
+                        sidebarCollapsed && "pl-[env(safe-area-inset-left)]",
+                      )
+                    : "pl-[env(safe-area-inset-left)]",
+                ),
+              isImmersiveRoute && "!p-0 !overflow-hidden",
+            )}
+          >
             <Outlet />
           </main>
         </div>

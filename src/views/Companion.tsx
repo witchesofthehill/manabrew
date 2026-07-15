@@ -109,7 +109,8 @@ export default function Companion() {
       {showChrome && (
         <div
           className={cn(
-            focus && "absolute inset-x-0 top-[env(safe-area-inset-top)] z-40 shadow-xl",
+            focus &&
+              "absolute left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-[env(safe-area-inset-top)] z-40 shadow-xl",
           )}
         >
           <CompanionBar

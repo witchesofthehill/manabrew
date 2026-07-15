@@ -213,11 +213,22 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 
 const SCRYFALL_IMAGE_MAX_RETRIES = 3;
 
-// Avoid scryfall corrupted caches
-function corsCachePartition(url: string): string {
-  const u = new URL(url);
-  u.searchParams.set("mbcors", "1");
-  return u.toString();
+// cards.scryfall.io intermittently serves cached objects with NO CORS headers
+// (verified 2026-07-15: `access-control-allow-origin` absent even with an
+// Origin header, while svgs.scryfall.io still sends it), which makes every
+// cors-mode fetch fail — and WebGL textures need cors-clean pixels, so a
+// plain-<img> fallback can't save the Pixi board. Cache-busting is not an
+// option either: the CDN 403s any unknown query param (the `mbcors=1`
+// partition attempt turned soft failures into hard ones). Instead, card
+// images are fetched same-origin through the `/scryfall-img/` proxy route
+// (ops/Caddyfile + staging/standalone Caddyfiles in prod, the vite dev proxy
+// locally) — same-origin needs no CORS at all. The direct CDN stays as the
+// fallback for deployments without the route.
+const SCRYFALL_IMAGE_CDN_PREFIX = "https://cards.scryfall.io/";
+
+function scryfallImageProxyUrl(url: string): string | null {
+  if (!url.startsWith(SCRYFALL_IMAGE_CDN_PREFIX)) return null;
+  return `/scryfall-img/${url.slice(SCRYFALL_IMAGE_CDN_PREFIX.length)}`;
 }
 
 async function fetchImageBlob(url: string): Promise<string> {
@@ -231,11 +242,16 @@ async function fetchImageBlob(url: string): Promise<string> {
 }
 
 async function fetchImageBlobNoCache(url: string): Promise<string> {
-  try {
-    return await fetchImageBlob(corsCachePartition(url));
-  } catch {
-    return await fetchImageBlob(url);
+  const proxied = scryfallImageProxyUrl(url);
+  if (proxied) {
+    try {
+      return await fetchImageBlob(proxied);
+    } catch {
+      // Proxy route missing or down — the direct CDN works whenever
+      // scryfall's CORS headers are healthy.
+    }
   }
+  return await fetchImageBlob(url);
 }
 
 function loadImageElement(

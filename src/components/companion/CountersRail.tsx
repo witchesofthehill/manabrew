@@ -64,7 +64,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       </button>
       <button
         type="button"
-        className="ml-0.5 hidden size-6 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white group-hover:grid"
+        className="ml-0.5 hidden size-6 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white group-hover:grid pointer-coarse:grid"
         aria-label={`Remove ${counter.label}`}
         onClick={() => remove(playerId, counter.id)}
       >

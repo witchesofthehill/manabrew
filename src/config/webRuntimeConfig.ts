@@ -16,6 +16,12 @@ export function getHubApiUrl(): string {
 }
 
 export function isHostedEngineAvailable(): boolean {
+  // Runtime config (written from HOSTED_AI_ENABLED by the web image entrypoint)
+  // wins over the build-time default, so the generic published image can ship
+  // this off and a deployment can turn it on without a rebuild.
+  const runtime =
+    typeof window !== "undefined" ? window.__MANABREW_RUNTIME__?.hostedAiEnabled : undefined;
+  if (typeof runtime === "boolean") return runtime;
   return ["1", "true", "yes", "on"].includes(
     (import.meta.env.VITE_HOSTED_AI_ENABLED ?? "").toLowerCase(),
   );

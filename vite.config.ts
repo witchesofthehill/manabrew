@@ -88,6 +88,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/scryfall-symbols/, "/card-symbols"),
       },
+      "/scryfall-img": {
+        target: "https://cards.scryfall.io",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/scryfall-img/, ""),
+      },
     },
   },
   worker: {

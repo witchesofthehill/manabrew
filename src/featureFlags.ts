@@ -11,7 +11,9 @@ export const featureFlags = {
   // false when the stub is installed because the submodule wasn't built). So a
   // build that skips the submodule ships this dark automatically, never a tile
   // backed by the throwing stub. Build it with `./ironsmith/rebuild-wasm.sh` +
-  // `yarn sync:ironsmith`.
+  // `yarn sync:ironsmith`. Even with the flag on and the wasm bundled, the
+  // engine is OFF until the user opts in via Settings (`ironsmithRuntimeEnabled`
+  // preference) — the experimental engine ships dark in prod by default.
   ironsmithRuntime: true,
 } as const;
 

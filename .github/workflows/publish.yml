@@ -6,9 +6,15 @@ name: Publish
 #      on GitHub-hosted runners, signed for the auto-updater,
 #   2. attach them + the updater manifest (tauri.json) to the GitHub Release
 #      xtask already created,
-#   3. deploy the Wasm/web stack to production (deploy.sh over SSH) — LAST,
-#      so play.manabrew.app/tauri.json (a redirect to the release asset) and
-#      the served manifest.json never get ahead of assets that exist.
+#   3. deploy the Wasm/web stack to production (deploy.sh over SSH). When the
+#      release is relay-compatible (deploy-gate: no semver-incompatible bump
+#      of manabrew-protocol / manabrew-server / manabrew-hub), deploy-web
+#      ships it EARLY — in parallel with the installer builds — with the
+#      served /manifest.json held back at the previous release so installed
+#      apps aren't told to update before the installers exist (the final
+#      deploy job releases it). Incompatible releases keep the old ordering:
+#      deploy only after the Release has all its assets, so no installed
+#      client is stranded against a relay it can't talk to.
 # There is no main-push deploy: main commits only run release.yml.
 #
 # GitHub-hosted runners are free for public repositories (unlimited minutes
@@ -99,134 +105,31 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Build a per-artifact changelog so the Discord notification carries
-      # the list of commits since the previous push. Trimmed so the whole
-      # message stays well under Discord's 4096-char embed-description limit.
       - name: Build changelog
         id: changelog
-        shell: bash
-        run: |
-          BEFORE='${{ github.event.before }}'
-          AFTER='${{ github.sha }}'
-          ZERO_SHA='0000000000000000000000000000000000000000'
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO_SHA" ] && git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
-            RANGE="${BEFORE}..${AFTER}"
-          else
-            RANGE="${AFTER}~5..${AFTER}"
-          fi
-          LOG=$(git log --pretty=format:'- %s (%h, %an)' "$RANGE" 2>/dev/null || echo '')
-          if [ -z "$LOG" ]; then
-            LOG=$(git log --pretty=format:'- %s (%h, %an)' -n 5 "$AFTER" 2>/dev/null || echo '')
-          fi
-          MAX=1500
-          if [ "${#LOG}" -gt "$MAX" ]; then
-            LOG="${LOG:0:$MAX}"$'\n'"… (truncated)"
-          fi
-          {
-            echo 'changelog<<CHANGELOG_EOF'
-            echo "$LOG"
-            echo 'CHANGELOG_EOF'
-          } >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/commit-changelog
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
 
       - name: Post Discord embed (macOS artifact)
         if: ${{ success() }}
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-          ARTIFACT_NAME: macos-dmg-${{ github.sha }}
-        shell: bash
-        run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: "🍎 macOS build ready"
+          color: "5793266" # 0x5865F2 blurple
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: |
+            🧪 Fresh `.dmg` artifact attached to the workflow run.
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-          TITLE="🍎 macOS build ready"
-          COLOR=5793266   # 0x5865F2 blurple
+            📦 [Download `macos-dmg-${{ github.sha }}` from the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) (sign-in required, 30-day retention).
 
-          DESC=$(printf '%s\n\n%s\n\n%s\n%s' \
-            "🧪 Fresh \`.dmg\` artifact attached to the workflow run." \
-            "📦 [Download \`${ARTIFACT_NAME}\` from the workflow run](${RUN_URL}) (sign-in required, 30-day retention)." \
-            "📝 **Changelog**" \
-            "${CHANGELOG}")
-
-          MAX=3900
-          if [ "${#DESC}" -gt "$MAX" ]; then
-            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
-          fi
-
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RUN_URL" \
-            --arg desc "$DESC" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # Write PAYLOAD to a file and use --data-binary @file so curl reads
-          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
-          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
-          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
-          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
-          REQ=$(mktemp)
-          printf '%s' "$PAYLOAD" > "$REQ"
-
-          post_discord() {
-            local attempt=0
-            local max_attempts=3
-            local delay=2
-            local body http
-            body=$(mktemp)
-            while :; do
-              attempt=$((attempt + 1))
-              http=$(curl -sS -X POST \
-                -H "Authorization: Bot $BOT_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data-binary "@$REQ" \
-                -o "$body" \
-                -w "%{http_code}" \
-                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-
-              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                echo "Discord notification posted (HTTP $http)."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-
-              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
-              if [ "$attempt" -ge "$max_attempts" ]; then
-                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-              sleep "$delay"
-              delay=$((delay * 2))
-            done
-          }
-
-          post_discord
+            📝 **Changelog**
+            ${{ steps.changelog.outputs.changelog }}
 
   # ── Windows .exe ───────────────────────────────────────────────────
   # windows-latest is x86_64. NSIS + WiX (.msi) ship preinstalled on the
@@ -305,138 +208,33 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Build a per-artifact changelog so the Discord notification carries
-      # the list of commits since the previous push. Trimmed so the whole
-      # message stays well under Discord's 4096-char embed-description limit.
-      # Uses bash (Git for Windows ships it) to mirror the macOS step byte
-      # for byte and avoid pwsh's CRLF/Out-File quirks leaking into the env.
       - name: Build changelog
         id: changelog
-        shell: bash
-        run: |
-          BEFORE='${{ github.event.before }}'
-          AFTER='${{ github.sha }}'
-          ZERO_SHA='0000000000000000000000000000000000000000'
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO_SHA" ] && git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
-            RANGE="${BEFORE}..${AFTER}"
-          else
-            RANGE="${AFTER}~5..${AFTER}"
-          fi
-          LOG=$(git log --pretty=format:'- %s (%h, %an)' "$RANGE" 2>/dev/null || echo '')
-          if [ -z "$LOG" ]; then
-            LOG=$(git log --pretty=format:'- %s (%h, %an)' -n 5 "$AFTER" 2>/dev/null || echo '')
-          fi
-          MAX=1500
-          if [ "${#LOG}" -gt "$MAX" ]; then
-            LOG="${LOG:0:$MAX}"$'\n'"… (truncated)"
-          fi
-          {
-            echo 'changelog<<CHANGELOG_EOF'
-            echo "$LOG"
-            echo 'CHANGELOG_EOF'
-          } >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/commit-changelog
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
 
+      # Git for Windows ships bash + jq + curl on the runner image, so the
+      # composite's bash implementation works here too.
       - name: Post Discord embed (Windows artifact)
         if: ${{ success() }}
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-          ARTIFACT_NAME: windows-exe-${{ github.sha }}
-        # Git for Windows ships bash + jq + curl on the runner image, so the
-        # same bash block we use on macOS works here too.
-        shell: bash
-        run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: "🪟 Windows build ready"
+          color: "5793266" # 0x5865F2 blurple
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: |
+            🧪 Fresh `.exe` + `.msi` artifact attached to the workflow run.
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-          TITLE="🪟 Windows build ready"
-          COLOR=5793266   # 0x5865F2 blurple
+            📦 [Download `windows-exe-${{ github.sha }}` from the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) (sign-in required, 30-day retention).
 
-          DESC=$(printf '%s\n\n%s\n\n%s\n%s' \
-            "🧪 Fresh \`.exe\` + \`.msi\` artifact attached to the workflow run." \
-            "📦 [Download \`${ARTIFACT_NAME}\` from the workflow run](${RUN_URL}) (sign-in required, 30-day retention)." \
-            "📝 **Changelog**" \
-            "${CHANGELOG}")
-
-          MAX=3900
-          if [ "${#DESC}" -gt "$MAX" ]; then
-            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
-          fi
-
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RUN_URL" \
-            --arg desc "$DESC" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # Write PAYLOAD to a file and use --data-binary @file so curl reads
-          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
-          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
-          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
-          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
-          REQ=$(mktemp)
-          printf '%s' "$PAYLOAD" > "$REQ"
-
-          post_discord() {
-            local attempt=0
-            local max_attempts=3
-            local delay=2
-            local body http
-            body=$(mktemp)
-            while :; do
-              attempt=$((attempt + 1))
-              http=$(curl -sS -X POST \
-                -H "Authorization: Bot $BOT_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data-binary "@$REQ" \
-                -o "$body" \
-                -w "%{http_code}" \
-                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-
-              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                echo "Discord notification posted (HTTP $http)."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-
-              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
-              if [ "$attempt" -ge "$max_attempts" ]; then
-                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-              sleep "$delay"
-              delay=$((delay * 2))
-            done
-          }
-
-          post_discord
+            📝 **Changelog**
+            ${{ steps.changelog.outputs.changelog }}
 
   # ── iOS .ipa (SideStore) ───────────────────────────────────────────
   # Unsigned IPA for sideloading via SideStore, which re-signs on-device
@@ -639,109 +437,19 @@ jobs:
 
       - name: Post Discord embed (release published)
         if: steps.publish.outputs.url != ''
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_URL: ${{ steps.publish.outputs.url }}
-          RELEASE_BODY: ${{ steps.relbody.outputs.body }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-          PRERELEASE: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
-        shell: bash
-        run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
-
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-
-          if [ "$PRERELEASE" = "true" ]; then
-            TITLE="🧪 manabrew ${RELEASE_TAG} (pre-release)"
-            COLOR=16753920   # 0xFFA500 orange
-          else
-            TITLE="🎁 manabrew ${RELEASE_TAG} released"
-            COLOR=5763719    # 0x57F287 green
-          fi
-
-          DESC=$(printf '%s\n\n%s\n%s' \
-            "📥 Public download (no GitHub account needed): ${RELEASE_URL}" \
-            "📝 **Changelog**" \
-            "${RELEASE_BODY}")
-
-          MAX=3900
-          if [ "${#DESC}" -gt "$MAX" ]; then
-            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see release page for full notes)"
-          fi
-
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RELEASE_URL" \
-            --arg desc "$DESC" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # Write PAYLOAD to a file and use --data-binary @file so curl reads
-          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
-          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
-          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
-          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
-          REQ=$(mktemp)
-          printf '%s' "$PAYLOAD" > "$REQ"
-
-          post_discord() {
-            local attempt=0
-            local max_attempts=3
-            local delay=2
-            local body http
-            body=$(mktemp)
-            while :; do
-              attempt=$((attempt + 1))
-              http=$(curl -sS -X POST \
-                -H "Authorization: Bot $BOT_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data-binary "@$REQ" \
-                -o "$body" \
-                -w "%{http_code}" \
-                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-
-              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                echo "Discord notification posted (HTTP $http)."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-
-              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
-              if [ "$attempt" -ge "$max_attempts" ]; then
-                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-              sleep "$delay"
-              delay=$((delay * 2))
-            done
-          }
-
-          post_discord
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: ${{ (contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha')) && format('🧪 manabrew {0} (pre-release)', github.ref_name) || format('🎁 manabrew {0} released', github.ref_name) }}
+          color: ${{ (contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha')) && '16753920' || '5763719' }} # orange / green
+          url: ${{ steps.publish.outputs.url }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: |
+            📥 Public download (no GitHub account needed): ${{ steps.publish.outputs.url }}
+            📝 **Changelog**
+            ${{ steps.relbody.outputs.body }}
 
   # ── Attach mobile artifacts to the Release ─────────────────────────
   # Uploads the iOS .ipa and Android .apk to the published Release. Kept
@@ -789,21 +497,80 @@ jobs:
             gh release upload "$TAG" "$f" --clobber --repo "$REPO"
           done
 
-  # ── Deploy production (runs LAST) ──────────────────────────────────
-  # Ships the Wasm/web stack only after the Release has all its artifacts,
-  # so the tauri.json redirect and the served manifest.json never point at
-  # assets that don't exist yet. Job-level concurrency serializes deploys
-  # across runs (two tags in flight must not deploy concurrently).
-  deploy:
-    name: Deploy production
-    needs: [release]
+  # ── Early web deploy gate ──────────────────────────────────────────
+  # Decides whether the web stack can ship BEFORE the installer builds
+  # finish. Safe iff no crate an already-installed client talks to took a
+  # semver-incompatible bump since the previous release — otherwise an old
+  # desktop/mobile app would face a relay/hub it can't talk to, with no
+  # updated installer to move to yet. The per-crate versions in
+  # ops/manifest.json (maintained by `cargo xtask release`) are the signal.
+  deploy-gate:
+    name: Early web deploy gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare client-facing crate versions with the previous release
+        id: gate
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          PREV=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${TAG}^" 2>/dev/null || true)
+          if [ -z "$PREV" ]; then
+            echo "No previous release tag found — taking the safe deploy-last path."
+            echo "early=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          early=true
+          for crate in manabrew-protocol manabrew-server manabrew-hub; do
+            old=$(git show "${PREV}:ops/manifest.json" | jq -r --arg c "$crate" '.packages[$c] // empty')
+            new=$(git show "${TAG}:ops/manifest.json" | jq -r --arg c "$crate" '.packages[$c] // empty')
+            if [ -z "$old" ] || [ -z "$new" ]; then
+              echo "$crate: missing from a manifest — taking the safe path."
+              early=false
+              break
+            fi
+            IFS=. read -r omaj omin _ <<< "$old"
+            IFS=. read -r nmaj nmin _ <<< "$new"
+            # Cargo semver compatibility: 0.x crates break on minor bumps too.
+            if [ "$omaj" != "$nmaj" ] || { [ "$nmaj" = "0" ] && [ "$omin" != "$nmin" ]; }; then
+              echo "$crate: $old → $new is semver-incompatible."
+              early=false
+              break
+            fi
+          done
+          echo "previous=$PREV early=$early"
+          echo "early=$early" >> "$GITHUB_OUTPUT"
+    outputs:
+      early: ${{ steps.gate.outputs.early }}
+
+  # ── Early web deploy ───────────────────────────────────────────────
+  # Ships the web/relay/hub stack as soon as the tag lands instead of after
+  # the ~60–90 min installer builds. deploy.sh's ghcr pull-retry loop waits
+  # out docker-images.yml, so web players get the release roughly when the
+  # images finish building. HOLD_MANIFEST keeps the served /manifest.json
+  # (what installed apps poll to nag about updates) at the previous release
+  # until the final deploy job releases it — /tauri.json redirects to the
+  # *latest* GitHub Release's assets, which don't exist yet at this point.
+  deploy-web:
+    name: Deploy web (early)
+    needs: [deploy-gate]
+    if: needs.deploy-gate.outputs.early == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
       group: wasm-deploy
       cancel-in-progress: false
     steps:
-      - name: SSH and run deploy.sh
+      # The composite actions need the repo present.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      - name: SSH and run deploy.sh (manifest held back)
         id: deploy
         continue-on-error: true
         env:
@@ -818,8 +585,8 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
           # ServerAliveInterval/CountMax keep the SSH connection healthy
-          # while deploy.sh has quiet stretches (cargo compiles, docker
-          # pulls). Without them the runner's SSH client times out after
+          # while deploy.sh has quiet stretches (docker pulls, ghcr retry
+          # sleeps). Without them the runner's SSH client times out after
           # a few minutes idle and we get `client_loop: send disconnect:
           # Broken pipe` mid-deploy.
           ssh -i ~/.ssh/deploy_key \
@@ -827,7 +594,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && HOLD_MANIFEST=1 ./deploy.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure
@@ -845,93 +612,105 @@ jobs:
       - name: Post Discord embed (as bot)
         if: always()
         continue-on-error: true
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-        shell: bash
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: ${{ steps.deploy.outcome == 'success' && '🌐 Early web deploy successful' || '💥 Early web deploy failed' }}
+          color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description-file: deploy.log
+          attach-file: deploy-raw.log
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
         run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
+          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
+          exit 1
 
-          if [ -f deploy.log ] && [ -s deploy.log ]; then
-            LOG=$(cat deploy.log)
-          else
-            LOG="(no log captured — SSH step failed before any output; see workflow run)"
-          fi
+  # ── Deploy production (finalize) ───────────────────────────────────
+  # Runs once the Release has all its installer artifacts. On the early
+  # path this is a near-no-op that releases the held /manifest.json; on the
+  # gated (semver-incompatible) path it is the full deploy, running LAST so
+  # the tauri.json redirect never points at assets that don't exist yet.
+  # FORCE_DEPLOY re-runs a deploy whose early attempt failed after pulling
+  # (deploy.sh would otherwise early-exit on "no new commits"). Job-level
+  # concurrency serializes deploys across runs (two tags in flight must not
+  # deploy concurrently).
+  deploy:
+    name: Deploy production
+    needs: [release, deploy-gate, deploy-web]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: wasm-deploy
+      cancel-in-progress: false
+    steps:
+      # The composite actions need the repo present.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
 
-          # Discord embed description hard cap is 4096 chars.
-          MAX=3900
-          if [ "${#LOG}" -gt "$MAX" ]; then
-            LOG="${LOG:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
-          fi
+      - name: SSH and run deploy.sh
+        id: deploy
+        continue-on-error: true
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          TAG: ${{ github.ref_name }}
+          FORCE_DEPLOY: ${{ needs.deploy-web.result == 'failure' && '1' || '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # ServerAliveInterval/CountMax keep the SSH connection healthy
+          # while deploy.sh has quiet stretches (docker pulls, ghcr retry
+          # sleeps). Without them the runner's SSH client times out after
+          # a few minutes idle and we get `client_loop: send disconnect:
+          # Broken pipe` mid-deploy.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && FORCE_DEPLOY='$FORCE_DEPLOY' ./deploy.sh 2>&1 && ./deploy.sh --release-manifest '$TAG' 2>&1" 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
 
-          if [ "$DEPLOY_OUTCOME" = "success" ]; then
-            COLOR=5763719   # 0x57F287 green
-            TITLE="🚀 Wasm deploy successful"
-          else
-            COLOR=15548997  # 0xED4245 red
-            TITLE="💥 Wasm deploy failed"
-          fi
+      - name: Fetch raw deploy log on failure
+        if: steps.deploy.outcome != 'success'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
+            echo "(raw log not retrievable from server)"
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RUN_URL" \
-            --arg desc "$LOG" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # A failed notification (stale bot token, Discord outage, network
-          # blip) must never fail the deploy job: capture the HTTP status and
-          # downgrade any non-2xx to a ::warning:: annotation.
-          body=$(mktemp)
-          if [ "$DEPLOY_OUTCOME" != "success" ] && [ -f deploy-raw.log ] && [ -s deploy-raw.log ]; then
-            http=$(curl -sS -X POST \
-              -H "Authorization: Bot $BOT_TOKEN" \
-              -F "payload_json=$PAYLOAD" \
-              -F "files[0]=@deploy-raw.log;type=text/plain" \
-              -o "$body" -w "%{http_code}" \
-              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-          else
-            http=$(curl -sS -X POST \
-              -H "Authorization: Bot $BOT_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              -o "$body" -w "%{http_code}" \
-              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-          fi
-
-          if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-            echo "Discord notification posted (HTTP $http)."
-          else
-            echo "::warning::Discord notification failed (HTTP $http): $(cat "$body" 2>/dev/null); deploy result is unaffected."
-          fi
-          rm -f "$body"
+      - name: Post Discord embed (as bot)
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: ${{ steps.deploy.outcome == 'success' && '🚀 Wasm deploy successful' || '💥 Wasm deploy failed' }}
+          color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description-file: deploy.log
+          attach-file: deploy-raw.log
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

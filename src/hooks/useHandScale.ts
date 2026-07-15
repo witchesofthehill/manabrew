@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 /** Reference viewport width — sizes are authored at this width. */
 const REF_WIDTH = 1440;
@@ -27,6 +28,22 @@ function getSnapshot() {
   return getScale();
 }
 
+/** The hand follows the card-size slider at HALF rate: full-rate growth made
+ *  the fan so wide/tall that its grid blocker swallowed the whole bottom
+ *  battlefield row, and it dwarfed the (2-row-capped) battlefield cards. */
+const HAND_GROWTH_DAMP = 0.5;
+
+export function handSizeMultiplier(cardSizeMultiplier: number): number {
+  return 1 + (cardSizeMultiplier - 1) * HAND_GROWTH_DAMP;
+}
+
+/** Viewport-derived hand scale times the (damped) card-size multiplier.
+ *  Single source of truth for the fan itself (BoardCanvas → setHandScale),
+ *  the hand reserve (GameBoard), and the drag ghosts (Game.tsx) — the fan and
+ *  the grid reserve must never disagree, or a grown fan eats the bottom
+ *  battlefield row through its cell blocker. */
 export function useHandScale() {
-  return useSyncExternalStore(subscribe, getSnapshot, () => 1);
+  const viewportScale = useSyncExternalStore(subscribe, getSnapshot, () => 1);
+  const cardSizeMultiplier = usePreferencesStore((s) => s.cardSizeMultiplier);
+  return viewportScale * handSizeMultiplier(cardSizeMultiplier);
 }

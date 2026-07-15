@@ -18,7 +18,10 @@ export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
 // the row lock in BoardCanvas.reconfigure is what actually picks the scale.
 export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.2;
 export const BATTLEFIELD_MIN_ROWS = 3;
-export const BATTLEFIELD_MAX_ROWS = 4;
+// The card-size multiplier's ceiling: a field may drop to 2 rows of big cards,
+// never 1 — a single row makes the game unplayable (PR #450 review). Compact
+// mode keeps the 3-row lock.
+export const BATTLEFIELD_MIN_ROWS_LARGEST = 2;
 // Panel wider than this fraction of the canvas reserves the whole top row.
 export const OPPONENT_PANEL_FULLWIDTH_FRAC = 0.4;
 

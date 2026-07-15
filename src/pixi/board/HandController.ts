@@ -84,11 +84,14 @@ export class HandController {
   }
 
   setScale(scale: number): void {
-    // Shrink-only cap so a width-derived scale can't make the fan taller than
-    // its region and overflow the battlefield on a short window.
+    // Growth-only cap: an enlarged fan can't take more than a fraction of the
+    // region's height, but the cap never pushes the fan below the authored
+    // base size (scale 1) — short fields keep the same fan they always had.
     const zoneH = this.host.getPlayZone().height;
     const maxScale =
-      zoneH > 0 ? (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH : scale;
+      zoneH > 0
+        ? Math.max(1, (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH)
+        : scale;
     this.vScale = Math.min(scale, maxScale);
   }
 

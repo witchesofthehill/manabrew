@@ -1,21 +1,31 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.88-bookworm AS builder
-
+# cargo-chef dependency layer — see manabrew-server's Dockerfile for why.
+FROM rust:1.88-bookworm AS chef
+RUN cargo install cargo-chef --locked
 WORKDIR /build
+
+# Stub the workspace members cargo metadata validates but manabrew-hub never links.
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY manabrew-rs/ manabrew-rs/
+COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
+RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
+COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
+COPY xtask/ xtask/
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+COPY --from=planner /build/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json -p manabrew-hub
 
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
-
-# Stub the workspace members cargo metadata validates but manabrew-hub never links.
 COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
 RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 COPY xtask/ xtask/
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/build/target \
-    cargo build --release -p manabrew-hub \
+RUN cargo build --release -p manabrew-hub \
     && cp /build/target/release/manabrew-hub /usr/local/bin/manabrew-hub
 
 FROM debian:bookworm-slim

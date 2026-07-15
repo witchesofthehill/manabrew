@@ -26,6 +26,10 @@ on:
         description: "Extra image tag to push (in addition to the git ref)"
         required: false
         default: ""
+      build_ironsmith:
+        description: "Build the Ironsmith trusted-runtime WASM into the web image (slow — off by default)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -49,8 +53,16 @@ jobs:
             dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
           - image: manabrew-web
             dockerfile: Dockerfile.web
+            # Route mana symbols through the web image's own same-origin Caddy
+            # proxy (ops/Caddyfile → /scryfall-symbols/) instead of fetching
+            # svgs.scryfall.io directly, which trips CORS. The proxy ships in
+            # every web image, so this is safe for self-hosters too.
+            build-args: |
+              VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
           - image: manabrew-node
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+          - image: manabrew-hub
+            dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,8 +74,15 @@ jobs:
       # so force-check-out the sources into the build context. Only the web image
       # needs it. If this fetch fails the web image still builds with the runtime
       # dark, so it must not fail the job.
+      #
+      # DEFAULT DARK: the WASM build is the expensive part of this workflow
+      # (Scryfall sync + registry + wasm-pack), and Ironsmith ships opt-in +
+      # experimental, so skip it unless explicitly requested — set the repo
+      # variable BUILD_IRONSMITH_WASM=true (persistent) or run this workflow
+      # manually with build_ironsmith checked. Skipping leaves the submodule
+      # absent → the Dockerfile stage emits an empty pkg → the runtime ships dark.
       - name: Check out ironsmith submodule (web image)
-        if: matrix.image == 'manabrew-web'
+        if: matrix.image == 'manabrew-web' && (vars.BUILD_IRONSMITH_WASM == 'true' || inputs.build_ironsmith == true)
         run: git -c submodule.ironsmith.update=checkout submodule update --init ironsmith || true
 
       - name: Set up Docker Buildx
@@ -94,6 +113,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
           # amd64 only: the web image compiles Rust→WASM + a Node/Astro build,
           # which is impractical under arm64 QEMU emulation. Add
           # linux/arm64 here (on a native arm runner) if you need it.

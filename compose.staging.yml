@@ -3,9 +3,11 @@
 # the `:staging` images in CI and rolls them out with the SAME deploy.sh as
 # production (DEPLOY_BRANCH=staging MANABREW_IMAGE_TAG=staging
 # COMPOSE_FILE=compose.staging.yml). It mirrors compose.production.yml service
-# for service; the only deltas are the default image tag (`staging`), the edge
-# Caddyfile (ops/staging.Caddyfile, staging.manabrew.app hostnames) and the
-# relay host the web runtime points at (relay-staging.manabrew.app).
+# for service; the only deltas are the default image tag (`staging`) and the
+# hostnames — which are NOT baked in: the app / relay / api hosts come from the
+# box .env (STAGING_APP_HOST / STAGING_RELAY_HOST / STAGING_API_HOST), consumed
+# by ops/staging.Caddyfile ({$...}) and the web runtime relay config. So moving
+# the stack to another domain is a .env edit, no code change.
 services:
   manabrew:
     image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-staging}
@@ -19,7 +21,12 @@ services:
       - caddy-config:/config
     environment:
       HUB_ADMIN_PASSWORD_HASH:
-      RELAY_HOST: relay-staging.manabrew.app
+      # Caddy ({$...} in staging.Caddyfile) reads these for the site addresses
+      # + ACME certs; RELAY_HOST reuses the relay one for the app's config.js.
+      STAGING_APP_HOST: "${STAGING_APP_HOST:?STAGING_APP_HOST is required}"
+      STAGING_RELAY_HOST: "${STAGING_RELAY_HOST:?STAGING_RELAY_HOST is required}"
+      STAGING_API_HOST: "${STAGING_API_HOST:?STAGING_API_HOST is required}"
+      RELAY_HOST: "${STAGING_RELAY_HOST}"
       RELAY_PORT: "443"
       RELAY_PASSWORD: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"

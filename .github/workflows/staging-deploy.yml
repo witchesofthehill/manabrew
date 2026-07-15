@@ -1,17 +1,23 @@
 name: Staging deploy
 
-# Deploys the `staging` branch to the dedicated staging VM (staging.manabrew.app),
-# a standalone mini-production that behaves exactly like the production rollout:
+# Deploys the `staging` branch to the dedicated staging VM, a standalone
+# mini-production that behaves exactly like the production rollout:
 #   1. build + push the four self-hosting images tagged `staging` to ghcr
 #      (docker-images.yml does the same on v* tags for the release `latest`
-#      images) — the web image bakes the staging endpoints,
+#      images),
 #   2. SSH to the staging VM and run the SAME deploy.sh as production, pointed
 #      at the staging branch / staging compose / staging image tag.
 #
+# No hostname is hardcoded here. The one build-time endpoint (the hub API URL
+# baked into the web bundle) comes from the repo variable STAGING_HUB_API_URL;
+# every other host is runtime and lives in the box .env (STAGING_APP_HOST /
+# STAGING_RELAY_HOST / STAGING_API_HOST), so the domain can change without
+# touching this workflow.
+#
 # The staging VM is a separate machine with its own SSH key (STAGING_DEPLOY_*
-# secrets) and its own DNS (staging / relay-staging / api-staging.manabrew.app).
-# It needs the repo checked out at STAGING_DEPLOY_PATH on the `staging` branch
-# with a box-local .env (MANABREW_SERVER_KEY, …), exactly like the prod host.
+# secrets). It needs the repo checked out at STAGING_DEPLOY_PATH on the
+# `staging` branch with a box-local .env (MANABREW_SERVER_KEY, the STAGING_*_HOST
+# trio, …), exactly like the prod host.
 on:
   push:
     branches: [staging]
@@ -25,8 +31,9 @@ jobs:
   # ── Build & push the :staging images ───────────────────────────────
   # Mirrors docker-images.yml's matrix. Shares its per-image gha cache scopes,
   # so the release builds' dependency layers are reused here and vice versa.
-  # The web image bakes the staging hub endpoint and the same-origin symbol
-  # proxy; the relay is configured at runtime (compose RELAY_HOST), like prod.
+  # The web image bakes the hub endpoint (from the STAGING_HUB_API_URL repo
+  # variable) and the same-origin symbol proxy; the relay is configured at
+  # runtime (compose RELAY_HOST), like prod.
   build-images:
     name: Build & push ${{ matrix.image }} (staging tag)
     if: github.repository == 'witchesofthehill/manabrew'
@@ -45,7 +52,7 @@ jobs:
             dockerfile: Dockerfile.web
             build-args: |
               VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
-              VITE_HUB_API_URL=https://api-staging.manabrew.app
+              VITE_HUB_API_URL=${{ vars.STAGING_HUB_API_URL }}
           - image: manabrew-node
             dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
           - image: manabrew-hub

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Swords } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { fetchHubDeck, unpublishDeck } from "@/api/hub";
+import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { groupCards } from "@/views/myDecks.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
@@ -51,6 +53,7 @@ export function HubDeckPreviewDialog({
   onUnpublished,
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const published = usePublishedDecksStore((s) => s.published);
@@ -92,6 +95,19 @@ export function HubDeckPreviewDialog({
     navigate("/deck-editor");
   }
 
+  function handleCopyLink() {
+    if (!deckId) return;
+    const url = `${window.location.origin}/hub?deck=${encodeURIComponent(deckId)}`;
+    void navigator.clipboard.writeText(url);
+    toast.success("Share link copied — anyone can open and play this deck");
+  }
+
+  function handlePlaytest() {
+    if (!detail) return;
+    onClose();
+    quickPlaytest(detail.deck);
+  }
+
   async function handleUnpublish() {
     if (!mine) return;
     setBusy(true);
@@ -109,48 +125,58 @@ export function HubDeckPreviewDialog({
   }
 
   return (
-    <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="truncate">{detail?.name ?? "Loading…"}</span>
-            {detail && <FormatBadge formatId={detail.format ?? "commander"} />}
-          </DialogTitle>
-          <DialogDescription>
-            {detail
-              ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
-              : (error ?? "Fetching deck from the hub…")}
-          </DialogDescription>
-        </DialogHeader>
-        {detail && (
-          <ScrollArea className="max-h-[50dvh] pr-3">
-            <div className="space-y-3">
-              <CardSection title="Commanders" cards={detail.deck.commanders ?? []} />
-              <CardSection title="Main deck" cards={detail.deck.cards} />
-              <CardSection title="Sideboard" cards={detail.deck.sideboard} />
-            </div>
-          </ScrollArea>
-        )}
-        <DialogFooter className="gap-2">
-          {mine && (
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={busy || !detail}
-              onClick={handleUnpublish}
-              className="mr-auto"
-            >
-              {busy ? "Removing…" : "Remove from hub"}
-            </Button>
+    <>
+      <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="truncate">{detail?.name ?? "Loading…"}</span>
+              {detail && <FormatBadge formatId={detail.format ?? "commander"} />}
+            </DialogTitle>
+            <DialogDescription>
+              {detail
+                ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
+                : (error ?? "Fetching deck from the hub…")}
+            </DialogDescription>
+          </DialogHeader>
+          {detail && (
+            <ScrollArea className="max-h-[50dvh] pr-3">
+              <div className="space-y-3">
+                <CardSection title="Commanders" cards={detail.deck.commanders ?? []} />
+                <CardSection title="Main deck" cards={detail.deck.cards} />
+                <CardSection title="Sideboard" cards={detail.deck.sideboard} />
+              </div>
+            </ScrollArea>
           )}
-          <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
-            Open read-only
-          </Button>
-          <Button size="sm" disabled={!detail} onClick={handleSave}>
-            Save to My Decks
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="gap-2">
+            {mine && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={busy || !detail}
+                onClick={handleUnpublish}
+                className="mr-auto"
+              >
+                {busy ? "Removing…" : "Remove from hub"}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
+              Copy link
+            </Button>
+            <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
+              Open read-only
+            </Button>
+            <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
+              Save to My Decks
+            </Button>
+            <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
+              <Swords className="mr-1 h-3.5 w-3.5" />
+              Playtest
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {playtestDialog}
+    </>
   );
 }

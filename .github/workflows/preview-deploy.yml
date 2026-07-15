@@ -1,8 +1,19 @@
 name: Preview deploy
 
-# TODO: Stale would need some love might not work proper
 # PRs labelled `deploy-preview` are deployed to staging.manabrew.app.
 # Closing the PR or removing the label tears the preview down.
+#
+# The staging box can no longer build images (same reason production
+# switched to pulling: the web image is a ~1h WASM+Vite build that doesn't
+# fit the host), so CI builds the three staging images here and pushes them
+# to ghcr as `pr-<num>` tags; the box only pulls. The web image bakes the
+# staging VITE_* args (relay-staging host + the relay password from the
+# MANABREW_SERVER_KEY secret), so its `pr-*` tags are staging-flavored —
+# don't reuse them elsewhere. Layer caches share docker-images.yml's scopes,
+# so the release builds' dependency layers are reused here and vice versa.
+#
+# Fork PRs are skipped: they get neither a package-write token nor the SSH
+# secrets.
 on:
   pull_request:
     types: [labeled, synchronize, reopened, closed, unlabeled]
@@ -12,19 +23,87 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-images:
+    name: Build & push ${{ matrix.image }} (pr tag)
     if: |
-      (github.event.action == 'labeled' && github.event.label.name == 'deploy-preview')
-      || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
-          && contains(github.event.pull_request.labels.*.name, 'deploy-preview'))
+      github.event.pull_request.head.repo.full_name == github.repository
+      && ((github.event.action == 'labeled' && github.event.label.name == 'deploy-preview')
+          || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
+              && contains(github.event.pull_request.labels.*.name, 'deploy-preview')))
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: manabrew-server
+            dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+          - image: manabrew-web
+            dockerfile: Dockerfile.web
+          - image: manabrew-node
+            dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Staging build args mirror what compose.staging.yml used to bake on
+      # the box. Only the web image is configured at build time; the relay
+      # and node take everything via runtime env from the compose file.
+      - name: Staging build args (web only)
+        id: args
+        run: |
+          if [ "${{ matrix.image }}" = "manabrew-web" ]; then
+            {
+              echo 'build_args<<ARGS_EOF'
+              echo 'VITE_RELAY_HOST=relay-staging.manabrew.app'
+              echo 'VITE_RELAY_PORT=443'
+              echo 'VITE_RELAY_PASSWORD=${{ secrets.MANABREW_SERVER_KEY }}'
+              echo 'VITE_MANAGED_RELAY=1'
+              echo 'VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/'
+              echo 'VITE_HOSTED_AI_ENABLED=true'
+              echo 'ARGS_EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo 'build_args=' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:pr-${{ github.event.pull_request.number }}
+          build-args: ${{ steps.args.outputs.build_args }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    needs: build-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
       issues: write
     steps:
-      - name: SSH and build PR preview
+      - name: SSH and roll out PR preview
         id: deploy
         continue-on-error: true
         env:
@@ -60,13 +139,14 @@ jobs:
           # Reuse prod's MANABREW_SERVER_KEY (symlink follows rotations).
           [ -L .env ] || ln -sf "${DEPLOY_PATH}/ops/production.secrets" .env
 
+          # The checkout only feeds compose.staging.yml + ops/ configs now —
+          # images come prebuilt from ghcr, so no submodules and no build.
           git fetch origin "pull/${PR_NUMBER}/head" --force
           git checkout --detach --force ${PR_SHA}
 
-          git submodule sync --recursive
-          git submodule update --init --recursive --depth 1
-
-          docker compose -p manabrew-staging -f compose.staging.yml up -d --build --remove-orphans
+          export STAGING_IMAGE_TAG="pr-${PR_NUMBER}"
+          docker compose -p manabrew-staging -f compose.staging.yml pull --quiet
+          docker compose -p manabrew-staging -f compose.staging.yml up -d --remove-orphans
           # Record which PR owns the single slot so another PR's teardown
           # doesn't kill this preview.
           echo "${PR_NUMBER}" > "\$STAGING/.preview-pr"
@@ -95,7 +175,9 @@ jobs:
         run: exit 1
 
   teardown:
-    # Closing the PR, or removing the deploy-preview label.
+    # Closing the PR, or removing the deploy-preview label. The pr-<num>
+    # image tags are left on ghcr (deleting package versions needs an admin
+    # token); they're overwritten on the next preview of the same PR.
     if: |
       github.event.action == 'closed'
       || (github.event.action == 'unlabeled' && github.event.label.name == 'deploy-preview')
@@ -127,6 +209,7 @@ jobs:
               echo "slot owned by PR \${OWNER:-none}, not ${PR_NUMBER}; leaving it up"
               exit 0
           fi
+          export STAGING_IMAGE_TAG="pr-${PR_NUMBER}"
           docker compose -p manabrew-staging -f compose.staging.yml down --remove-orphans
           rm -f .preview-pr
           echo "torn down preview for PR ${PR_NUMBER}"

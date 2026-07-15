@@ -344,16 +344,20 @@ export function BoardCanvas({
     // Each region is scaled to fill its OWN height — a single shared scale let
     // the tightest field (self, after the hand-fan reserve) shrink everyone, so
     // the roomier opponent fields wasted space. Every field follows the card
-    // size multiplier (100% = 3-row board), clamped per field to a single-row
+    // size multiplier (100% = 3-row board), clamped per field to a 2-row
     // fill; compact locks to 3 rows regardless.
     const scaleFloor = compact
       ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
       : BATTLEFIELD_CARD_SCALE_FLOOR;
     // The region's playArea insets the usable zone by the playmat pad on every
-    // edge before laying rows; compact subtracts it here too, or the 3-row
-    // scale overshoots and the grid floors to 2 rows.
+    // edge before laying rows, so the pad must come off before picking the
+    // scale on EVERY platform — the exact joint solve fills the height it is
+    // given, and an un-trimmed height makes the real grid floor a row short
+    // (a 2-row fill rendered as a single row). The old desktop path only
+    // survived without the trim because its two-pass band estimate under-sized
+    // cards enough to leave slack.
     const playmatTrim = (usable: number, width: number) =>
-      compact ? Math.max(1, usable - playmatPad(width, usable) * 2) : usable;
+      Math.max(1, usable - playmatPad(width, usable) * 2);
     const selfUsable = playmatTrim(
       Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
       layout.self.width,
@@ -379,19 +383,15 @@ export function BoardCanvas({
         )
       : battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier);
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
-    // The hand fan scales with the viewport (`useHandScale`, authored at
-    // 1440px — wiring the React→Pixi hand migration lost, leaving the fan at
-    // reference size on every display) times the card-size multiplier, so the
-    // slider keeps growing the hand past the battlefield's 2-row cap. The
-    // grown fan overlaps the field bottom instead of shrinking it: the hand
-    // reserve stays viewport-only (scaling it with the slider would shrink
-    // the 2-row fill — the board would get SMALLER as the slider rises) and
-    // the fan's blocker rect keeps cards out from underneath. Growth is
-    // capped at a fraction of the field height in HandController.setScale.
-    // Compact keeps the fixed fan its mobile layout was tuned for. Applied
-    // after configure so a rebuilt HandController picks it up and the
-    // zone-height cap re-evaluates.
-    s.setHandScale(compact ? 1 : handViewportScale * cardSizeMultiplier);
+    // The hand fan gets `useHandScale` — viewport factor times the DAMPED
+    // card-size multiplier — the exact number the hand reserve (GameBoard)
+    // and drag ghosts are computed from, so the fan and the grid can never
+    // disagree (a fan bigger than its reserve swallows the bottom battlefield
+    // row through its cell blocker). Growth is additionally capped at a
+    // fraction of the field height in HandController.setScale. Compact keeps
+    // the fixed fan its mobile layout was tuned for. Applied after configure
+    // so a rebuilt HandController picks it up and the cap re-evaluates.
+    s.setHandScale(compact ? 1 : handViewportScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,

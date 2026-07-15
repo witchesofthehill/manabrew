@@ -54,8 +54,9 @@ interface PreferencesState {
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
   // geometric max under the 2-rows-minimum rule (a 1-row board is
   // unplayable). Each field clamps against its own height; the hand
-  // (viewport-scaled × multiplier) keeps growing past the battlefield's cap,
-  // up to a fraction of the field height (BoardCanvas.reconfigure).
+  // (viewport-scaled, following the slider at half rate — useHandScale)
+  // grows past the battlefield's cap, up to a fraction of the field height
+  // (BoardCanvas.reconfigure).
   cardSizeMultiplier: number;
   setCardSizeMultiplier: (multiplier: number) => void;
 

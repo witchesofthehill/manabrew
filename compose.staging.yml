@@ -19,6 +19,9 @@ services:
       - ./ops/staging.Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+    # Lets the Caddyfile's /_deploy route reach the host's webhook receiver.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       HUB_ADMIN_PASSWORD_HASH:
       # Caddy ({$...} in staging.Caddyfile) reads these for the site addresses

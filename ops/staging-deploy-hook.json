@@ -1,0 +1,26 @@
+[
+  {
+    "id": "deploy-staging",
+    "execute-command": "{{ getenv \"DEPLOY_PATH\" }}/ops/staging-deploy-hook.sh",
+    "command-working-directory": "{{ getenv \"DEPLOY_PATH\" }}",
+    "response-message": "staging deploy triggered",
+    "trigger-rule": {
+      "and": [
+        {
+          "match": {
+            "type": "payload-hmac-sha256",
+            "secret": "{{ getenv \"DEPLOY_HOOK_SECRET\" }}",
+            "parameter": { "source": "header", "name": "X-Hub-Signature-256" }
+          }
+        },
+        {
+          "match": {
+            "type": "value",
+            "value": "refs/heads/staging",
+            "parameter": { "source": "payload", "name": "ref" }
+          }
+        }
+      ]
+    }
+  }
+]

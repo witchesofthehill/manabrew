@@ -1,0 +1,29 @@
+# Staging deploy webhook receiver (adnanh/webhook). Install on the staging VM:
+#   apt-get install -y webhook            # or download the static binary
+#   cp ops/staging-deploy-hook.service /etc/systemd/system/
+#   # edit DEPLOY_PATH / User below to match this box, then:
+#   systemctl daemon-reload && systemctl enable --now staging-deploy-hook
+#
+# Listens on 9099 (all interfaces) so Caddy in the manabrew container can reach
+# it via host.docker.internal. Keep 9099 OFF the public firewall — only 80/443
+# should be exposed; the webhook is reached only through Caddy's /_deploy route.
+[Unit]
+Description=Manabrew staging deploy webhook receiver
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+# Adjust these two to the box. User must be in the `docker` group and own the
+# checkout at DEPLOY_PATH. The EnvironmentFile supplies DEPLOY_HOOK_SECRET
+# (and DISCORD_WEBHOOK_URL, reused for deploy notifications) from the box .env.
+Environment=DEPLOY_PATH=/opt/manabrew-staging
+EnvironmentFile=/opt/manabrew-staging/.env
+User=deploy
+ExecStart=/usr/bin/webhook -template \
+  -hooks /opt/manabrew-staging/ops/staging-deploy-hook.json \
+  -ip 0.0.0.0 -port 9099 -hotreload -verbose
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

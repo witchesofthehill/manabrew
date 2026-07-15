@@ -34,8 +34,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
         mkdir -p pkg; \
     fi
 
-# --- Builder: Rust + Node to build WASM and bundle the Vite app ---
-FROM rust:1.88-slim AS builder
+# --- Base: Rust + Node toolchain shared by the planner and builder stages ---
+FROM rust:1.88-slim AS base
 
 # Install Node.js 20 and build tools
 RUN apt-get update && \
@@ -47,13 +47,37 @@ RUN apt-get update && \
 
 # Install wasm32 target and wasm-pack (pinned; newer versions track latest rustc)
 RUN rustup target add wasm32-unknown-unknown && \
-    cargo install wasm-pack --version 0.13.1 --locked
+    cargo install wasm-pack --version 0.13.1 --locked && \
+    cargo install cargo-chef --locked
 
 WORKDIR /build
+
+# --- Planner: cargo-chef dependency recipe from the manifests alone ---
+# See manabrew-server's Dockerfile for why chef. This build is the ~1h one
+# that gates the early web deploy, so its dependency layers matter most.
+FROM base AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY .cargo/ ./.cargo/
+COPY src-tauri/ ./src-tauri/
+COPY manabrew-rs/ ./manabrew-rs/
+COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
+COPY xtask/ ./xtask/
+RUN cargo chef prepare --recipe-path recipe.json
+
+# --- Builder: Rust + Node to build WASM and bundle the Vite app ---
+FROM base AS builder
 
 # Install JS deps first for layer caching
 COPY package.json yarn.lock ./
 RUN corepack enable && yarn install --frozen-lockfile
+
+# Cook the dependency graph for each compile `yarn build:web` performs: the
+# native cardset-archive builder, the wasm engine, and the (debug) xtask that
+# drives gen:types. Only a real dependency change invalidates these layers.
+COPY --from=planner /build/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json -p forge-cardset-archive --features build
+RUN cargo chef cook --release --recipe-path recipe.json --target wasm32-unknown-unknown -p wasm
+RUN cargo chef cook --recipe-path recipe.json -p xtask
 
 # Copy the rest of the sources needed for the web build
 COPY Cargo.toml Cargo.lock ./
@@ -108,16 +132,10 @@ ENV VITE_SCRYFALL_SYMBOL_BASE=${VITE_SCRYFALL_SYMBOL_BASE}
 ENV VITE_HOSTED_AI_ENABLED=${VITE_HOSTED_AI_ENABLED}
 ENV VITE_HUB_API_URL=${VITE_HUB_API_URL}
 
-# Build WASM + Vite bundle (outputs to dist/).
-#
-# BuildKit cache mounts make src/-only changes ~5-10× faster: cargo's
-# downloaded crate index, git deps and incremental target dir survive
-# across builds even though the layer above (COPY src/) invalidates the
-# Docker layer cache. Mirrors the pattern manabrew-server's Dockerfile uses.
-RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
-    --mount=type=cache,target=/build/target,sharing=locked \
-    yarn build:web
+# Build WASM + Vite bundle (outputs to dist/). Dependencies come precompiled
+# from the chef cook layers above (cache mounts would shadow them and don't
+# survive CI runners anyway), so this compiles workspace crates only.
+RUN yarn build:web
 
 # --- Website: landing page (manabrew.app) + docs (docs.manabrew.app),
 # Astro + Starlight, two builds out of one package ---

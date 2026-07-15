@@ -2,22 +2,19 @@
 # Runs under /opt/manabrew-staging, joins the prod docker network. Own
 # manabrew-server so a backend-breaking PR is previewable without touching
 # the live relay.
+#
+# Images are built in CI (preview-deploy.yml pushes `pr-<num>` tags to ghcr —
+# the staging web image bakes the staging VITE_* args, unlike the release
+# `manabrew-web` tags) and pulled here: the box no longer has the disk or CPU
+# to build the web image locally, same as production. STAGING_IMAGE_TAG is
+# exported by the deploy script.
 services:
   manabrew-staging:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-      args:
-        VITE_RELAY_HOST: relay-staging.manabrew.app
-        VITE_RELAY_PORT: "443"
-        VITE_RELAY_PASSWORD: ${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}
-        VITE_MANAGED_RELAY: "1"
-        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
-        # Make the hosted (Java) engine available on staging so the Settings
-        # engine toggle shows. Actual use is per-user (preferHostedEngine);
-        # default play stays client-side.
-        VITE_HOSTED_AI_ENABLED: "true"
+    image: ghcr.io/witchesofthehill/manabrew-web:${STAGING_IMAGE_TAG:?STAGING_IMAGE_TAG is required}
     restart: unless-stopped
+    environment:
+      # Set DESIGN_SYSTEM=1 on the box to expose /design-system on the preview.
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
     expose:
       - "80"
     volumes:
@@ -26,9 +23,7 @@ services:
       - manabrew-server-staging
 
   manabrew-server-staging:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+    image: ghcr.io/witchesofthehill/manabrew-server:${STAGING_IMAGE_TAG:?STAGING_IMAGE_TAG is required}
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
@@ -52,9 +47,7 @@ services:
   # Hosted Java engine for the staging preview, so the Settings engine toggle
   # has a node to talk to. Its room is `hosted` (unlisted in the lobby).
   self-hosted-node-staging:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+    image: ghcr.io/witchesofthehill/manabrew-node:${STAGING_IMAGE_TAG:?STAGING_IMAGE_TAG is required}
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server-staging:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"

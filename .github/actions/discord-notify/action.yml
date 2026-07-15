@@ -1,0 +1,145 @@
+name: Discord notify
+description: >-
+  Post an embed to a Discord channel as the deploy bot. Skips silently when
+  the bot token or channel id is empty, retries transient failures with
+  backoff, and never fails the calling job — a lost notification must not
+  fail a build or deploy.
+
+inputs:
+  bot-token:
+    description: Discord bot token (empty skips the notification)
+    required: false
+    default: ""
+  channel-id:
+    description: Discord channel id (empty skips the notification)
+    required: false
+    default: ""
+  title:
+    description: Embed title
+    required: true
+  color:
+    description: Embed color as a decimal integer
+    required: true
+  url:
+    description: Link target for the embed title
+    required: true
+  description:
+    description: Embed description (truncated to Discord's limit)
+    required: false
+    default: ""
+  description-file:
+    description: >-
+      Path of a file whose content becomes the embed description. Takes
+      precedence over `description` when the file exists and is non-empty.
+    required: false
+    default: ""
+  actor:
+    description: GitHub login shown as the embed author
+    required: true
+  sha:
+    description: Commit SHA shown (shortened) in the embed footer
+    required: true
+  attach-file:
+    description: Optional path of a text file to attach to the message
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Post embed
+      shell: bash
+      env:
+        BOT_TOKEN: ${{ inputs.bot-token }}
+        CHANNEL_ID: ${{ inputs.channel-id }}
+        TITLE: ${{ inputs.title }}
+        COLOR: ${{ inputs.color }}
+        URL: ${{ inputs.url }}
+        DESC: ${{ inputs.description }}
+        DESC_FILE: ${{ inputs.description-file }}
+        ACTOR: ${{ inputs.actor }}
+        COMMIT_SHA: ${{ inputs.sha }}
+        ATTACH_FILE: ${{ inputs.attach-file }}
+      run: |
+        if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
+          echo "Bot token or channel id not set; skipping notification."
+          exit 0
+        fi
+
+        if [ -n "$DESC_FILE" ] && [ -s "$DESC_FILE" ]; then
+          DESC=$(cat "$DESC_FILE")
+        fi
+
+        # Discord embed description hard cap is 4096 chars.
+        MAX=3900
+        if [ "${#DESC}" -gt "$MAX" ]; then
+          DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for details)"
+        fi
+
+        SHORT_SHA="${COMMIT_SHA:0:7}"
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        PAYLOAD=$(jq -n \
+          --arg title "$TITLE" \
+          --arg url "$URL" \
+          --arg desc "$DESC" \
+          --arg footer "manabrew · $SHORT_SHA" \
+          --arg actor "$ACTOR" \
+          --arg actor_url "https://github.com/${ACTOR}" \
+          --arg avatar_url "https://github.com/${ACTOR}.png?size=64" \
+          --arg timestamp "$TIMESTAMP" \
+          --argjson color "$COLOR" \
+          '{
+            embeds: [{
+              title: $title,
+              url: $url,
+              description: $desc,
+              color: $color,
+              author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
+              footer: { text: $footer },
+              timestamp: $timestamp
+            }]
+          }')
+
+        # Write PAYLOAD to a file and let curl read the body bytes verbatim.
+        # Passing via -d "$PAYLOAD" goes through Windows argv encoding
+        # (Bash → CreateProcess UTF-16 → curl), which mangles raw-UTF-8 emoji
+        # in the JSON and trips Discord error 50109 (invalid JSON). Mac/Linux
+        # argv preserves UTF-8 so it didn't surface there.
+        REQ=$(mktemp)
+        printf '%s' "$PAYLOAD" > "$REQ"
+        body=$(mktemp)
+
+        attempt=0
+        delay=2
+        while :; do
+          attempt=$((attempt + 1))
+          if [ -n "$ATTACH_FILE" ] && [ -s "$ATTACH_FILE" ]; then
+            http=$(curl -sS -X POST \
+              -H "Authorization: Bot $BOT_TOKEN" \
+              -F "payload_json=<$REQ" \
+              -F "files[0]=@$ATTACH_FILE;type=text/plain" \
+              -o "$body" -w "%{http_code}" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+          else
+            http=$(curl -sS -X POST \
+              -H "Authorization: Bot $BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data-binary "@$REQ" \
+              -o "$body" -w "%{http_code}" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+          fi
+
+          if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+            echo "Discord notification posted (HTTP $http)."
+            break
+          fi
+
+          echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
+          if [ "$attempt" -ge 3 ]; then
+            echo "::warning::Giving up on Discord notification after $attempt attempts; the build/deploy itself is unaffected."
+            break
+          fi
+          sleep "$delay"
+          delay=$((delay * 2))
+        done
+        rm -f "$REQ" "$body"

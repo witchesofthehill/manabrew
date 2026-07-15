@@ -1,0 +1,142 @@
+name: Cache warm
+
+# build-checks.yml only runs on pull_request, and Actions caches saved from a
+# PR run are scoped to that PR's branch — invisible to every other PR. Nothing
+# else compiles on main, so without this workflow the first push of every PR
+# starts from a cold cache. Each job here mirrors the build commands and
+# rust-cache shared-key of a build-checks job and saves main-scoped caches,
+# which every PR run (and every tag build) can restore.
+#
+# Steady-state cost is low: rust-cache skips saving when its key (toolchain +
+# lockfile) already has an entry, so most merges are a warm no-op rebuild.
+# Release bump commits only move version numbers (churning the lockfile), so
+# they are skipped to avoid re-saving near-identical multi-GB caches on every
+# merge.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cache-warm
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: Warm engine & parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: engine
+
+      - name: Build engine crates + parity (release)
+        run: >
+          cargo build --release
+          -p forge-foundation
+          -p forge-carddb
+          -p manabrew-engine
+          -p manabrew-agent-interface
+          -p parity --features parity/serve
+
+      - name: Build engine test artifacts
+        run: cargo test --release -pmanabrew-engine  --lib --no-run
+
+  relay:
+    name: Warm relay & node
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: relay
+
+      - name: Build cardset archive
+        run: cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive
+
+      - name: Build relay and node
+        run: cargo build --release -p manabrew-server -p self-hosted-node
+
+      - name: Build networking test artifacts
+        run: cargo test --release -p networking-tests --test networking_regression --no-run
+
+  web-wasm:
+    name: Warm wasm & xtask
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: web-wasm
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      # Same key recipe as build-checks' typescript job — keep them in sync so
+      # PR runs hit the cache warmed here.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
+      - name: Build wasm + cardset archive
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
+        run: yarn build:wasm
+
+      - name: Warm xtask (gen:types)
+        run: yarn gen:types

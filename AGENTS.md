@@ -109,7 +109,7 @@ chore: bump prettier
 perf(carddb): avoid re-parsing SVars on card load
 ```
 
-The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan` in that order (plus `Demo` for UI changes). Installers are not built per-PR — every merge to main releases via `cargo xtask release`, and the resulting `v*` tag runs the full publish pipeline (`publish.yml`: build installers → populate the Release → deploy production last).
+The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan` in that order (plus `Demo` for UI changes). Installers are not built per-PR — every merge to main releases via `cargo xtask release`, and the resulting `v*` tag runs the full publish pipeline (`publish.yml`: build installers → populate the Release → deploy production). Relay-compatible releases deploy the web stack early (in parallel with the installer builds) with the served `/manifest.json` held back until the installers publish; a semver-incompatible bump of `manabrew-protocol`/`manabrew-server`/`manabrew-hub` falls back to deploying only after the Release has all its assets.
 
 ## Workflow rules
 

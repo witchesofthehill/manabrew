@@ -12,6 +12,9 @@ services:
   manabrew-staging:
     image: ghcr.io/witchesofthehill/manabrew-web:${STAGING_IMAGE_TAG:?STAGING_IMAGE_TAG is required}
     restart: unless-stopped
+    environment:
+      # Set DESIGN_SYSTEM=1 on the box to expose /design-system on the preview.
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
     expose:
       - "80"
     volumes:

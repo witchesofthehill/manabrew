@@ -1,13 +1,14 @@
 # Staging Workflow
 
 Staging is a **mirror of production**. It runs on its own VM — a separate
-machine with its own SSH key and its own DNS — but it is deployed by the exact
-same engine as production: the identical `deploy.sh` smart rollout, the same
-four ghcr images (built per-push, tagged `:staging` instead of the release
-`latest`), and a `compose.staging.yml` that clones `compose.production.yml`
-service-for-service (web + relay + hub + hosted node, its own TLS edge). The
-only differences are the branch it tracks, the image tag, and the hostnames —
-nothing behavioural.
+machine with its own SSH key and its own DNS — deployed the same shape as
+production: the same four ghcr images (built per-push, tagged `:staging` instead
+of the release `latest`), a `compose.staging.yml` that clones
+`compose.production.yml` service-for-service (web + relay + hub + hosted node,
+its own TLS edge), and a lean rollout script (`deploy-staging.sh`) that mirrors
+`deploy.sh`'s image-pull + health-checked recreate + rollback without the
+release-only machinery. The only differences are the branch it tracks, the image
+tag, and the hostnames — nothing behavioural.
 
 Its purpose: give changes a production-shaped home to bake in **before** they
 reach real users, so a backend-breaking or infra-breaking change is caught on a
@@ -31,8 +32,8 @@ box that looks exactly like prod but isn't prod.
 3. **`staging` deploys automatically.** Any push to `staging` triggers
    `.github/workflows/staging-deploy.yml`, which builds the `:staging` images,
    connects the runner to **Twingate** (the VM only accepts SSH through
-   Twingate), then SSHes in and runs the production `deploy.sh` against the
-   `staging` branch. Result lands on the staging hosts.
+   Twingate), then SSHes in and runs `deploy-staging.sh` against the `staging`
+   branch. Result lands on the staging hosts.
 4. **Every merge to `main`, the latest `main` is merged into `staging`.** This
    keeps staging honest: it is always _`main` + whatever is still pending on
    staging_, never a stale fork that has silently drifted from production. The
@@ -55,7 +56,7 @@ git push origin staging
 | Aspect        | Production               | Staging                                           |
 | ------------- | ------------------------ | ------------------------------------------------- |
 | Trigger       | `v*` tag (release)       | push to `staging` branch                          |
-| Deploy engine | `deploy.sh` over SSH     | **the same** `deploy.sh`, `DEPLOY_BRANCH=staging` |
+| Deploy engine | `deploy.sh` over SSH     | `deploy-staging.sh` (lean sibling of `deploy.sh`) |
 | Deploy reach  | CI SSHes the box         | CI connects Twingate, then SSHes the box          |
 | Compose file  | `compose.production.yml` | `compose.staging.yml` (clone)                     |
 | Images        | ghcr `:latest`           | ghcr `:staging`                                   |
@@ -63,10 +64,13 @@ git push origin staging
 | Hosts         | hardcoded `manabrew.app` | from env (`STAGING_APP/RELAY/API_HOST`)           |
 | Box           | production VM + key      | staging VM, SSH gated by Twingate                 |
 
-Because `deploy.sh` is shared, staging inherits production's change-detection,
-ghcr pull-retry, relay binary-diff gate (a relay restart drops live games, so
-it only restarts when the binary actually changed), and health-checked rollout
-with automatic rollback.
+`deploy-staging.sh` keeps the parts of production's rollout that matter for a
+mirror — ghcr image pull with retry, a health-checked `compose up --wait`, and
+automatic rollback to the previous images on an unhealthy deploy — but drops the
+release-only machinery `deploy.sh` carries (manifest hold / `--release-manifest`,
+updater + sidestore, observability/parity profiles, the relay binary-diff gate).
+On staging a relay recreate is fine, so `up -d` just recreates whatever image
+changed.
 
 ## Deploy reach (Twingate)
 
@@ -133,4 +137,5 @@ docker compose -f compose.staging.yml --profile hosted-ai up -d self-hosted-node
 
 - `docs/DEPLOY.md` — production/operator deployment notes.
 - `.github/workflows/staging-deploy.yml` — the staging pipeline (build + deploy).
-- `deploy.sh` — the shared rollout script (`DEPLOY_BRANCH` / `CADDYFILE_PATH`).
+- `deploy-staging.sh` — the staging rollout script (run on the VM over SSH).
+- `deploy.sh` — production's rollout script (staging does **not** use it).

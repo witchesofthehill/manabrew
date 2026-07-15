@@ -6,8 +6,9 @@ name: Staging deploy
 #      (docker-images.yml does the same on v* tags for the release `latest`
 #      images),
 #   2. connect to Twingate (the VM only accepts SSH through Twingate — no public
-#      SSH), then SSH in and run the SAME deploy.sh as production, pointed at the
-#      staging branch / staging compose / staging image tag.
+#      SSH), then SSH in and run deploy-staging.sh — the lean sibling of
+#      production's deploy.sh (pull branch + :staging images + health-checked
+#      recreate + rollback, without the release/manifest machinery).
 #
 # No hostname is hardcoded here. The one build-time endpoint (the hub API URL
 # baked into the web bundle) comes from the repo variable STAGING_HUB_API_URL;
@@ -87,9 +88,8 @@ jobs:
 
   # ── Deploy to the staging VM (over Twingate) ───────────────────────
   # Connects the runner to Twingate with a service-account key, then runs the
-  # identical production deploy.sh over SSH, with DEPLOY_BRANCH, COMPOSE_FILE,
-  # MANABREW_IMAGE_TAG and CADDYFILE_PATH pointing it at staging. deploy.sh's
-  # ghcr pull-retry waits out the image builds above.
+  # lean deploy-staging.sh over SSH (pull branch + :staging images + health-
+  # checked recreate + rollback — no production release machinery).
   deploy:
     name: Deploy staging
     needs: [build-images]
@@ -111,7 +111,7 @@ jobs:
         with:
           service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
 
-      - name: SSH and run deploy.sh (staging)
+      - name: SSH and run deploy-staging.sh
         id: deploy
         continue-on-error: true
         env:
@@ -126,13 +126,13 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
           # ServerAliveInterval/CountMax keep the SSH connection healthy while
-          # deploy.sh has quiet stretches (docker pulls, ghcr retry sleeps).
+          # deploy-staging.sh has quiet stretches (docker pulls, ghcr retry sleeps).
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && DEPLOY_BRANCH=staging MANABREW_IMAGE_TAG=staging COMPOSE_FILE=compose.staging.yml CADDYFILE_PATH=ops/staging.Caddyfile ./deploy.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure
@@ -144,7 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
+            "$USER@$HOST:/tmp/deploy-staging-raw.log" deploy-raw.log || \
             echo "(raw log not retrievable from server)"
 
       - name: Post Discord embed (as bot)

@@ -84,14 +84,6 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    # GitHub push webhook → the host's deploy receiver (ops/staging-deploy-hook.*
-    # over systemd). host.docker.internal reaches the host (extra_hosts in
-    # compose.staging.yml); the receiver, not Caddy, verifies the HMAC. Strips
-    # /_deploy so GitHub's URL is <host>/_deploy/hooks/deploy-staging.
-    handle_path /_deploy/* {
-        reverse_proxy host.docker.internal:9099
-    }
-
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

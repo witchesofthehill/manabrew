@@ -102,15 +102,15 @@ export default function Companion() {
       className={cn(
         "flex h-full min-h-0 flex-col",
         focus
-          ? "fixed inset-0 z-50 h-[100dvh] w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"
-          : "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]",
+          ? "fixed inset-0 z-50 h-[100dvh] w-screen bg-background pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
+          : "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
       )}
     >
       {showChrome && (
         <div
           className={cn(
             focus &&
-              "absolute left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)] top-[env(safe-area-inset-top)] z-40 shadow-xl",
+              "absolute left-[var(--safe-area-inset-left)] right-[var(--safe-area-inset-right)] top-[var(--safe-area-inset-top)] z-40 shadow-xl",
           )}
         >
           <CompanionBar

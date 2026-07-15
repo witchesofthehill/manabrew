@@ -1520,7 +1520,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"
+      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -1834,7 +1834,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {awaitingAttackTarget && (
-        <div className="pointer-events-none absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">
               Pick a target — click an opponent or planeswalker
@@ -1852,7 +1852,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {promptType === "chooseBoardTargets" &&
         (boardTargets?.spellIds.length ?? 0) > 0 &&
         !spellStackModalOpen && (
-          <div className="pointer-events-none absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
+          <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
             <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
               <span className="text-sm font-semibold tracking-wide">
                 Click a glowing spell on the stack to counter it
@@ -1868,7 +1868,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         )}
 
       {gameView.step === "first_strike_damage" && (
-        <div className="pointer-events-none absolute top-[calc(1rem+env(safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
             <span className="text-xs text-muted-foreground">

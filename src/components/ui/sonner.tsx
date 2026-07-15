@@ -13,16 +13,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       offset={{
-        top: "calc(env(safe-area-inset-top) + 24px)",
-        right: "calc(env(safe-area-inset-right) + 24px)",
-        bottom: "calc(env(safe-area-inset-bottom) + 24px)",
-        left: "calc(env(safe-area-inset-left) + 24px)",
+        top: "calc(var(--safe-area-inset-top) + 24px)",
+        right: "calc(var(--safe-area-inset-right) + 24px)",
+        bottom: "calc(var(--safe-area-inset-bottom) + 24px)",
+        left: "calc(var(--safe-area-inset-left) + 24px)",
       }}
       mobileOffset={{
-        top: "calc(env(safe-area-inset-top) + 16px)",
-        right: "calc(env(safe-area-inset-right) + 16px)",
-        bottom: "calc(env(safe-area-inset-bottom) + 16px)",
-        left: "calc(env(safe-area-inset-left) + 16px)",
+        top: "calc(var(--safe-area-inset-top) + 16px)",
+        right: "calc(var(--safe-area-inset-right) + 16px)",
+        bottom: "calc(var(--safe-area-inset-bottom) + 16px)",
+        left: "calc(var(--safe-area-inset-left) + 16px)",
       }}
       toastOptions={{
         classNames: {

@@ -24,6 +24,10 @@ interface Window {
     // HOSTED_AI_ENABLED. Overrides the build-time VITE_HOSTED_AI_ENABLED.
     hostedAiEnabled?: boolean;
   };
+  // Injected by the Tauri Android shell (MainActivity) — the native window
+  // insets, since Android's WebView does not surface them to env(safe-area-*).
+  // See platform/androidSafeArea.ts.
+  __ANDROID_SAFE_AREA__?: { getInsets(): string };
 }
 
 declare const __APP_VERSION__: string;

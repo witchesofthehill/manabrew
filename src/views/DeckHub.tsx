@@ -7,7 +7,7 @@ import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
 import type { HubSort } from "@/api/hub";
-import { useHubDeckPlaytest } from "@/hooks/useQuickPlaytest";
+import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useHubStore } from "@/stores/useHubStore";
 import { FORMAT_DISPLAY } from "@/lib/constants";
 
@@ -48,7 +48,8 @@ export default function DeckHub() {
   const list = useHubStore((s) => s.list);
   const listError = useHubStore((s) => s.listError);
   const fetchDecks = useHubStore((s) => s.fetchDecks);
-  const hubPlaytest = useHubDeckPlaytest();
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -189,6 +190,7 @@ export default function DeckHub() {
         }}
         onUnpublished={() => setRefreshKey((k) => k + 1)}
       />
+      {playtestDialog}
     </div>
   );
 }

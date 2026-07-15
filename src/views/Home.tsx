@@ -36,8 +36,8 @@ function SectionHeader({ title, to, linkLabel }: { title: string; to: string; li
 
 export default function Home() {
   const navigate = useNavigate();
-  const quickPlaytest = useQuickPlaytest();
-  const hubPlaytest = useHubDeckPlaytest();
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
   const savedDecks = useDeckStore((s) => s.savedDecks);
   const clearDeck = useDeckStore((s) => s.clearDeck);
   const presetDecks = usePresetDecks();
@@ -173,6 +173,7 @@ export default function Home() {
       </div>
 
       <HubDeckPreviewDialog deckId={previewId} onClose={() => setPreviewId(null)} />
+      {playtestDialog}
     </div>
   );
 }

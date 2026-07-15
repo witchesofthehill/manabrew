@@ -72,7 +72,7 @@ export default function DeckEditor() {
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
-  const quickPlaytest = useQuickPlaytest();
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const navigate = useNavigate();
 
   function handleOpenPreset(deck: DeckType) {
@@ -562,6 +562,8 @@ export default function DeckEditor() {
           onOpenChange={setImportDialogOpen}
           onImport={handleTextImport}
         />
+
+        {playtestDialog}
 
         {publishingDeck && (
           <PublishDeckDialog

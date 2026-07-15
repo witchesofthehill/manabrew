@@ -53,7 +53,7 @@ export function HubDeckPreviewDialog({
   onUnpublished,
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
-  const quickPlaytest = useQuickPlaytest();
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const published = usePublishedDecksStore((s) => s.published);
@@ -125,55 +125,58 @@ export function HubDeckPreviewDialog({
   }
 
   return (
-    <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="truncate">{detail?.name ?? "Loading…"}</span>
-            {detail && <FormatBadge formatId={detail.format ?? "commander"} />}
-          </DialogTitle>
-          <DialogDescription>
-            {detail
-              ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
-              : (error ?? "Fetching deck from the hub…")}
-          </DialogDescription>
-        </DialogHeader>
-        {detail && (
-          <ScrollArea className="max-h-[50dvh] pr-3">
-            <div className="space-y-3">
-              <CardSection title="Commanders" cards={detail.deck.commanders ?? []} />
-              <CardSection title="Main deck" cards={detail.deck.cards} />
-              <CardSection title="Sideboard" cards={detail.deck.sideboard} />
-            </div>
-          </ScrollArea>
-        )}
-        <DialogFooter className="gap-2">
-          {mine && (
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={busy || !detail}
-              onClick={handleUnpublish}
-              className="mr-auto"
-            >
-              {busy ? "Removing…" : "Remove from hub"}
-            </Button>
+    <>
+      <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="truncate">{detail?.name ?? "Loading…"}</span>
+              {detail && <FormatBadge formatId={detail.format ?? "commander"} />}
+            </DialogTitle>
+            <DialogDescription>
+              {detail
+                ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
+                : (error ?? "Fetching deck from the hub…")}
+            </DialogDescription>
+          </DialogHeader>
+          {detail && (
+            <ScrollArea className="max-h-[50dvh] pr-3">
+              <div className="space-y-3">
+                <CardSection title="Commanders" cards={detail.deck.commanders ?? []} />
+                <CardSection title="Main deck" cards={detail.deck.cards} />
+                <CardSection title="Sideboard" cards={detail.deck.sideboard} />
+              </div>
+            </ScrollArea>
           )}
-          <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
-            Copy link
-          </Button>
-          <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
-            Open read-only
-          </Button>
-          <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-            Save to My Decks
-          </Button>
-          <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
-            <Swords className="mr-1 h-3.5 w-3.5" />
-            Playtest
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="gap-2">
+            {mine && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={busy || !detail}
+                onClick={handleUnpublish}
+                className="mr-auto"
+              >
+                {busy ? "Removing…" : "Remove from hub"}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
+              Copy link
+            </Button>
+            <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
+              Open read-only
+            </Button>
+            <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
+              Save to My Decks
+            </Button>
+            <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
+              <Swords className="mr-1 h-3.5 w-3.5" />
+              Playtest
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {playtestDialog}
+    </>
   );
 }

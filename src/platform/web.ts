@@ -535,7 +535,7 @@ class WebGameApi implements IGameApi {
       deck: params.deck,
       startingLife: params.startingLife,
       commanderName: params.commanderName,
-      opponentDeck: params.opponentDeck,
+      opponentDecks: params.opponentDecks,
     });
   }
 

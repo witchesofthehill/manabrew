@@ -134,7 +134,7 @@ use manabrew_agent_interface::agent_impl::PromptAgent;
 #[wasm_bindgen]
 pub fn run_interactive_game(
     human_deck_json: JsValue,
-    ai_deck_json: JsValue,
+    ai_decks_json: JsValue,
     config_json: JsValue,
     shared_buffer: JsValue,
 ) -> Result<JsValue, JsError> {
@@ -152,8 +152,11 @@ pub fn run_interactive_game(
 
     let human_deck: WireDeck = serde_wasm_bindgen::from_value(human_deck_json)
         .map_err(|e| JsError::new(&format!("Failed to parse human deck: {}", e)))?;
-    let ai_deck: WireDeck = serde_wasm_bindgen::from_value(ai_deck_json)
-        .map_err(|e| JsError::new(&format!("Failed to parse AI deck: {}", e)))?;
+    let ai_decks: Vec<WireDeck> = serde_wasm_bindgen::from_value(ai_decks_json)
+        .map_err(|e| JsError::new(&format!("Failed to parse AI decks: {}", e)))?;
+    if ai_decks.is_empty() {
+        return Err(JsError::new("At least one AI deck is required"));
+    }
 
     let config: GameConfig = if config_json.is_undefined() || config_json.is_null() {
         GameConfig::default()
@@ -167,17 +170,30 @@ pub fn run_interactive_game(
         .dyn_into()
         .map_err(|_| JsError::new("Expected SharedArrayBuffer"))?;
 
-    // Two seats: the human (seat 0, local) and an AI opponent (seat 1). Routed
+    // Seat 0 is the local human; every other seat is an in-process AI. Routed
     // through the shared host runtime so deck zoning, token setup, and the
     // final game-over prompt match the multiplayer + Tauri paths exactly —
     // single-player no longer dumps every card straight into the library.
-    let prepared_players = prepare_players(
-        &["You".to_string(), "AI Opponent".to_string()],
-        &[human_deck, ai_deck],
-        &[config.commander_name.clone(), None],
-        card_db,
-        starting_life,
-    );
+    let mut names = vec!["You".to_string()];
+    let mut decks = vec![human_deck];
+    let mut commander_names = vec![config.commander_name.clone()];
+    for (index, ai_deck) in ai_decks.into_iter().enumerate() {
+        names.push(if index == 0 {
+            "AI Opponent".to_string()
+        } else {
+            format!("AI Opponent {}", index + 1)
+        });
+        commander_names.push(
+            ai_deck
+                .commanders
+                .as_ref()
+                .and_then(|commanders| commanders.first())
+                .map(|commander| commander.identity.name.clone()),
+        );
+        decks.push(ai_deck);
+    }
+    let prepared_players =
+        prepare_players(&names, &decks, &commander_names, card_db, starting_life);
 
     let game_id = format!("wasm-interactive-{}", js_sys::Date::now() as u64);
     let game_id_for_agents = game_id.clone();

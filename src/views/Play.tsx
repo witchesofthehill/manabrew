@@ -125,7 +125,7 @@ export default function Play() {
             } else {
               // Tauri (graalvm build) defaults to the bundled Forge engine; the
               // store falls back to Manabrew if the local Forge host can't start.
-              startGame(playerDeck, formatId, commanderName, opponentDeck, "Forge");
+              startGame(playerDeck, formatId, commanderName, [opponentDeck], "Forge");
             }
           }}
         />
@@ -140,7 +140,7 @@ export default function Play() {
               pending.playerDeck,
               pending.formatId,
               pending.commanderName,
-              pending.opponentDeck,
+              [pending.opponentDeck],
               engine,
             );
           }}

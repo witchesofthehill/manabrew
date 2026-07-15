@@ -11,7 +11,10 @@ export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
 export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
-export const CARD_SIZE_MULTIPLIER_MAX = 3;
+// Under the 2-rows-minimum battlefield rule, a 2-row fill is only ~1.35-1.5x
+// the classic 3-row size on ANY display — a knob past 150% would be a lie
+// (the old 300% top was one: everything saturated around 150%).
+export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
 
 interface PreferencesState {
   appThemePreset: string;
@@ -47,12 +50,12 @@ interface PreferencesState {
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
-  // One knob for battlefield card size on ALL fields. 1 = the classic 3-row
-  // board; 3 = 300%. Each field clamps to a 2-row fill of its own height (a
-  // 1-row board is unplayable), so on small windows large multipliers
-  // saturate early. The hand keeps its classic size and only grows past it on
-  // displays tall enough for battlefield cards to outgrow it
-  // (BoardCanvas.reconfigure).
+  // One knob for card size: battlefield cards on ALL fields plus the hand
+  // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
+  // geometric max under the 2-rows-minimum rule (a 1-row board is
+  // unplayable). Each field clamps against its own height; the hand
+  // (viewport-scaled × multiplier) keeps growing past the battlefield's cap,
+  // up to a fraction of the field height (BoardCanvas.reconfigure).
   cardSizeMultiplier: number;
   setCardSizeMultiplier: (multiplier: number) => void;
 
@@ -128,6 +131,13 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   // wins on rehydrate. Without this, users who once had the empty default
   // saved would never get a generated name.
   if (next.serverUsername === "") delete next.serverUsername;
+  // Values saved while the slider still went to 300% clamp to the new max.
+  if (typeof next.cardSizeMultiplier === "number") {
+    next.cardSizeMultiplier = Math.max(
+      CARD_SIZE_MULTIPLIER_MIN,
+      Math.min(CARD_SIZE_MULTIPLIER_MAX, next.cardSizeMultiplier),
+    );
+  }
   return next as Partial<PreferencesState>;
 }
 

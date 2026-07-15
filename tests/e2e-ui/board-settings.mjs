@@ -103,10 +103,11 @@ const readPref = (key) =>
     }
   }, key);
 
-await page.locator("[data-modal-panel] input[type=range]").first().fill("300");
+await page.locator("[data-modal-panel] input[type=range]").first().fill("150");
 await page.waitForTimeout(300);
-if ((await readPref("cardSizeMultiplier")) !== 3) await fail("cardSizeMultiplier did not persist");
-console.log("ok: card size slider persists (300%)");
+if ((await readPref("cardSizeMultiplier")) !== 1.5)
+  await fail("cardSizeMultiplier did not persist");
+console.log("ok: card size slider persists (150%)");
 
 await page.getByRole("button", { name: /^Locked$/ }).click();
 await page.waitForTimeout(200);
@@ -117,7 +118,7 @@ console.log("ok: zone pile lock persists");
 await page.getByRole("button", { name: /^Done$/ }).click();
 // Long settle: the rescale re-fetches card textures at the new resolution.
 await page.waitForTimeout(4000);
-if (SHOT) await page.screenshot({ path: `${SHOT}/board-300.png` });
+if (SHOT) await page.screenshot({ path: `${SHOT}/board-150.png` });
 
 // ── 4. ScryModal big hover preview ──────────────────────────────────────────
 // Inject a surveil-style scry prompt with real cards from the live gameView.

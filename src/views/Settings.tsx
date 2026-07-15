@@ -893,6 +893,13 @@ export default function Settings() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MIN)}
+                    >
+                      75%
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => prefs.setCardSizeMultiplier(1)}
                     >
                       100%
@@ -900,27 +907,26 @@ export default function Settings() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => prefs.setCardSizeMultiplier(2)}
+                      onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MAX)}
                     >
-                      200%
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => prefs.setCardSizeMultiplier(3)}
-                    >
-                      300%
+                      150%
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Scales cards on every battlefield. 100% is the classic 3-row board; large sizes
-                    are clamped so at least 2 rows always fit each field.
+                    Scales cards on every battlefield and your hand fan. 100% is the classic 3-row
+                    board; battlefield cards cap at a 2-row fill so the board stays playable, while
+                    the hand keeps growing past them.
                   </p>
                 </div>
                 <div className="w-[120px] shrink-0 flex justify-center">
                   <BattlefieldStylePreview
                     style={prefs.battlefieldCardStyle}
-                    width={Math.round(40 + ((prefs.cardSizeMultiplier - 0.75) / 2.25) * 80)}
+                    width={Math.round(
+                      48 +
+                        ((prefs.cardSizeMultiplier - CARD_SIZE_MULTIPLIER_MIN) /
+                          (CARD_SIZE_MULTIPLIER_MAX - CARD_SIZE_MULTIPLIER_MIN)) *
+                          72,
+                    )}
                   />
                 </div>
               </div>

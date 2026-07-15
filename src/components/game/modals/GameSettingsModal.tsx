@@ -58,7 +58,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
       <Modal.Body className="space-y-5">
         <SettingRow
           label={`Card size (${Math.round(prefs.cardSizeMultiplier * 100)}%)`}
-          hint="Scales cards on every battlefield. 100% is the classic 3-row board; large sizes are clamped so at least 2 rows always fit each field."
+          hint="Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill, the hand keeps growing past them."
         >
           <input
             type="range"

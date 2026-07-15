@@ -13,6 +13,7 @@ import { battlefieldScaleForMultiplier, combatRowReserve, maxScaleForRows } from
 import { playmatPad } from "./board/PlaymatLayer";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
+import { useHandScale } from "@/hooks/useHandScale";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
@@ -25,8 +26,6 @@ import {
   PIXI_MAX_FPS,
   Z_HAND_ACTIONS_MENU,
 } from "./constants";
-import { CARD_H } from "@/components/game/game.constants";
-import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
@@ -179,6 +178,7 @@ export function BoardCanvas({
   const cardSizeMultiplier = usePreferencesStore((s) => s.cardSizeMultiplier);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
   const lockZoneTiles = usePreferencesStore((s) => s.lockZoneTiles);
+  const handViewportScale = useHandScale();
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
@@ -379,11 +379,19 @@ export function BoardCanvas({
         )
       : battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier);
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
-    // The hand fan holds its classic (authored) size and the battlefield grows
-    // up to meet it — the fan only enlarges past that on displays tall enough
-    // for battlefield cards to outgrow it. Applied after configure so a
-    // rebuilt HandController picks it up and the zone-height cap re-evaluates.
-    s.setHandScale(Math.max(1, (selfScale * CARD_H) / HAND_CARD_BASE.cardH));
+    // The hand fan scales with the viewport (`useHandScale`, authored at
+    // 1440px — wiring the React→Pixi hand migration lost, leaving the fan at
+    // reference size on every display) times the card-size multiplier, so the
+    // slider keeps growing the hand past the battlefield's 2-row cap. The
+    // grown fan overlaps the field bottom instead of shrinking it: the hand
+    // reserve stays viewport-only (scaling it with the slider would shrink
+    // the 2-row fill — the board would get SMALLER as the slider rises) and
+    // the fan's blocker rect keeps cards out from underneath. Growth is
+    // capped at a fraction of the field height in HandController.setScale.
+    // Compact keeps the fixed fan its mobile layout was tuned for. Applied
+    // after configure so a rebuilt HandController picks it up and the
+    // zone-height cap re-evaluates.
+    s.setHandScale(compact ? 1 : handViewportScale * cardSizeMultiplier);
     const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,
@@ -400,6 +408,7 @@ export function BoardCanvas({
   }, [
     playersKey,
     cardSizeMultiplier,
+    handViewportScale,
     selfHeightFraction,
     compact,
     selfBottomReserve,

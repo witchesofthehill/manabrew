@@ -1,0 +1,171 @@
+name: Staging deploy
+
+# Deploys the `staging` branch to the dedicated staging VM, a standalone
+# mini-production that behaves exactly like the production rollout:
+#   1. build + push the four self-hosting images tagged `staging` to ghcr
+#      (docker-images.yml does the same on v* tags for the release `latest`
+#      images),
+#   2. connect to Twingate (the VM only accepts SSH through Twingate — no public
+#      SSH), then SSH in and run the SAME deploy.sh as production, pointed at the
+#      staging branch / staging compose / staging image tag.
+#
+# No hostname is hardcoded here. The one build-time endpoint (the hub API URL
+# baked into the web bundle) comes from the repo variable STAGING_HUB_API_URL;
+# every other host is runtime and lives in the box .env (STAGING_APP_HOST /
+# STAGING_RELAY_HOST / STAGING_API_HOST), so the domain can change without
+# touching this workflow.
+#
+# The staging VM is a separate machine reached via Twingate (TWINGATE_SERVICE_KEY
+# service-account key) with its own SSH key (STAGING_DEPLOY_* secrets). It needs
+# the repo checked out at STAGING_DEPLOY_PATH on the `staging` branch with a
+# box-local .env (MANABREW_SERVER_KEY, the STAGING_*_HOST trio, …).
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  # ── Build & push the :staging images ───────────────────────────────
+  # Mirrors docker-images.yml's matrix. Shares its per-image gha cache scopes,
+  # so the release builds' dependency layers are reused here and vice versa.
+  # The web image bakes the hub endpoint (from the STAGING_HUB_API_URL repo
+  # variable) and the same-origin symbol proxy; the relay is configured at
+  # runtime (compose RELAY_HOST), like prod.
+  build-images:
+    name: Build & push ${{ matrix.image }} (staging tag)
+    if: github.repository == 'witchesofthehill/manabrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: manabrew-server
+            dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+          - image: manabrew-web
+            dockerfile: Dockerfile.web
+            build-args: |
+              VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
+              VITE_HUB_API_URL=${{ vars.STAGING_HUB_API_URL }}
+          - image: manabrew-node
+            dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+          - image: manabrew-hub
+            dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:staging
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # ── Deploy to the staging VM (over Twingate) ───────────────────────
+  # Connects the runner to Twingate with a service-account key, then runs the
+  # identical production deploy.sh over SSH, with DEPLOY_BRANCH, COMPOSE_FILE,
+  # MANABREW_IMAGE_TAG and CADDYFILE_PATH pointing it at staging. deploy.sh's
+  # ghcr pull-retry waits out the image builds above.
+  deploy:
+    name: Deploy staging
+    needs: [build-images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: staging-vm-deploy
+      cancel-in-progress: false
+    steps:
+      # The composite Discord action needs the repo present.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      # The VM only accepts SSH through Twingate; the connection stays up for the
+      # rest of the job, so the SSH step below reaches the internal host.
+      - name: Connect to Twingate
+        uses: twingate/github-action@v1
+        with:
+          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
+
+      - name: SSH and run deploy.sh (staging)
+        id: deploy
+        continue-on-error: true
+        env:
+          SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # ServerAliveInterval/CountMax keep the SSH connection healthy while
+          # deploy.sh has quiet stretches (docker pulls, ghcr retry sleeps).
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && DEPLOY_BRANCH=staging MANABREW_IMAGE_TAG=staging COMPOSE_FILE=compose.staging.yml CADDYFILE_PATH=ops/staging.Caddyfile ./deploy.sh 2>&1" 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Fetch raw deploy log on failure
+        if: steps.deploy.outcome != 'success'
+        env:
+          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
+            echo "(raw log not retrievable from server)"
+
+      - name: Post Discord embed (as bot)
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          # Dedicated staging channel (same bot as the prod deploy embeds).
+          channel-id: ${{ secrets.DISCORD_STAGING_CHANNEL_ID }}
+          title: ${{ steps.deploy.outcome == 'success' && '🧪 Staging deploy successful' || '💥 Staging deploy failed' }}
+          color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description-file: deploy.log
+          attach-file: deploy-raw.log
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: |
+          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
+          exit 1

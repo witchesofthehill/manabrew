@@ -1,7 +1,8 @@
 # Self-contained, prod-like stack for a single standalone machine — the whole
 # app plus its own relay, on their own bridge network, with ports published.
-# Unlike compose.staging.yml (which joins the prod network and sits behind the
-# prod ingress), this needs nothing external. Driven by ./deploy-local.sh.
+# Unlike compose.staging.yml (a managed mini-production on the staging VM,
+# fronted by its own TLS edge on the staging.manabrew.app hostnames), this
+# builds locally and needs nothing external. Driven by ./deploy-local.sh.
 #
 # The web image serves on :80 with the COOP/COEP headers the WASM engine needs
 # (ops/standalone.Caddyfile, baked in) and reads its relay endpoint at runtime

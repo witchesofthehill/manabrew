@@ -154,7 +154,7 @@ export function AppShell() {
                 variant="ghost"
                 className={cn(
                   "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
-                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
+                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 pointer-coarse:translate-x-0 pointer-coarse:w-6 transition-all duration-150",
                   "hover:bg-card",
                 )}
                 onClick={toggleSidebar}

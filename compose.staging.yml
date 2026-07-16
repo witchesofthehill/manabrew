@@ -91,7 +91,7 @@ services:
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       RUST_LOG: "self_hosted_node=info"
     mem_limit: 1g
-    cpus: 1.0
+    cpu_shares: 512
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped

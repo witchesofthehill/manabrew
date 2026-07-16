@@ -128,7 +128,10 @@ docker compose -f "$COMPOSE_FILE" exec -T "$WEB_SERVICE" \
     caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >> "$RAW_LOG" 2>&1 \
     || echo "caddy reload skipped/failed (see raw log)" >> "$RAW_LOG"
 
-CHANGELOG=$(git log --pretty=format:'- %s (%h, %an)' "${PREV}..${CURR}" 2>/dev/null | head -c 1500)
+# No pipe here: `| head -c` SIGPIPEs git log on large merge ranges, and with
+# pipefail + the ERR trap that flagged an already-healthy rollout as failed.
+CHANGELOG=$(git log --pretty=format:'- %s (%h, %an)' "${PREV}..${CURR}" 2>/dev/null || true)
+CHANGELOG=${CHANGELOG:0:1500}
 [ -z "$CHANGELOG" ] && CHANGELOG="(no new commits — image-only redeploy)"
 
 cat <<EOF

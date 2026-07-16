@@ -79,7 +79,7 @@ release-only machinery `deploy.sh` carries (manifest hold / `--release-manifest`
 updater + sidestore, observability/parity profiles, the relay binary-diff gate).
 On staging a relay recreate is fine, so `up -d` just recreates whatever image
 changed. `SERVICES` / `WEB_SERVICE` env parameterize the service names so the
-same script drives both this slot and the VM slot below.
+same script drives both this slot and the manual VM slot below.
 
 ## Secrets and hosts
 
@@ -97,16 +97,39 @@ same script drives both this slot and the VM slot below.
   live in `ops/Caddyfile`, which the prod box serves from its `main` checkout —
   a change there reaches the box with the next release (or a manual hot-sync).
 
-## The optional VM slot (label `deploy-vm`)
+## The optional VM slot (manual, on the VM)
 
-A second, isolated environment on a separate VM (Twingate-gated SSH, own domain
-via `STAGING_*_HOST` env) is available per-PR: add the **`deploy-vm`** label to
-a PR and `.github/workflows/vm-deploy.yml` builds that PR's images as
-`pr-<num>` tags and deploys them there with
-`COMPOSE_FILE=compose.staging-vm.yml` (edge: `ops/staging-vm.Caddyfile`).
-Single slot — the last labeled PR wins; unlabeling or closing the PR tears the
-stack down. Useful for experiments that shouldn't touch the staging slot, e.g.
-spinning up node fleets from a branch.
+A second, isolated environment on a separate VM (own domain via
+`STAGING_*_HOST` in its `.env`, edge: `ops/staging-vm.Caddyfile`) — useful for
+experiments that shouldn't touch the staging slot, e.g. spinning up node
+fleets. No CI drives it; deploy by running the shared rollout script **on the
+VM itself**:
+
+```bash
+cd <checkout>          # the repo clone on the VM
+COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh
+```
+
+That pulls `origin/staging` plus the `:staging` ghcr images (built by every
+push to `staging`) and rolls out with the usual health gate + rollback.
+Variants:
+
+```bash
+# a different branch's code (compose/ops configs come from the checkout;
+# images are whatever tag you point at — only tags CI has pushed exist):
+DEPLOY_BRANCH=my-branch COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh
+
+# a release image set instead of staging:
+MANABREW_IMAGE_TAG=latest COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh
+
+# tear the stack down:
+docker compose -f compose.staging-vm.yml down --remove-orphans
+```
+
+`COMPOSE_FILE` must be passed explicitly — the script's default
+(`compose.staging.yml`) is the prod-box slot, whose compose expects the prod
+docker network and fails fast on the VM. The VM's `.env` (hub auth secrets
+etc.) is maintained by hand now that no workflow reaches the box.
 
 ## First-time setup (ops)
 
@@ -134,6 +157,5 @@ docker compose -f compose.staging.yml --profile hosted-ai up -d self-hosted-node
 
 - `docs/DEPLOY.md` — production/operator deployment notes.
 - `.github/workflows/staging-deploy.yml` — the staging pipeline (build + deploy).
-- `.github/workflows/vm-deploy.yml` — the label-gated VM slot.
-- `deploy-staging.sh` — the shared rollout script (staging slot + VM slot).
+- `deploy-staging.sh` — the shared rollout script (staging slot; run by hand for the VM slot).
 - `deploy.sh` — production's rollout script (staging does **not** use it).

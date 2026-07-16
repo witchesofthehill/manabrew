@@ -67,6 +67,11 @@ if [ -z "${DEPLOY_STAGING_ORIG_PREV:-}" ] && [ "$PREV" != "$CURR" ] \
     exec bash "$0" "$@"
 fi
 
+if [ ! -f "$COMPOSE_FILE" ]; then
+    echo "❌ $COMPOSE_FILE does not exist on this ref — merge the branch that introduced it and redeploy."
+    exit 1
+fi
+
 # ── Pull the CI-built images ─────────────────────────────────────────
 # The deploy job needs build-images, so these normally exist already; the retry
 # is a safety net if ghcr is briefly behind.

@@ -1,25 +1,25 @@
 name: Staging deploy
 
-# Deploys the `staging` branch to the dedicated staging VM, a standalone
-# mini-production that behaves exactly like the production rollout:
-#   1. build + push the four self-hosting images tagged `staging` to ghcr
+# Deploys the `staging` branch to staging.manabrew.app — a staging slot on the
+# PRODUCTION box (/opt/manabrew-staging, compose.staging.yml on the prod docker
+# network, fronted by prod Caddy's staging.manabrew.app / relay-staging vhosts):
+#   1. build + push the self-hosting images tagged `staging` to ghcr
 #      (docker-images.yml does the same on v* tags for the release `latest`
 #      images),
-#   2. connect to Twingate (the VM only accepts SSH through Twingate — no public
-#      SSH), then SSH in and run deploy-staging.sh — the lean sibling of
-#      production's deploy.sh (pull branch + :staging images + health-checked
-#      recreate + rollback, without the release/manifest machinery).
+#   2. SSH into the prod box (same DEPLOY_* secrets as publish.yml) and run
+#      deploy-staging.sh — the lean sibling of production's deploy.sh (pull
+#      branch + :staging images + health-checked recreate + rollback).
 #
-# No hostname is hardcoded here. The one build-time endpoint (the hub API URL
-# baked into the web bundle) comes from the repo variable STAGING_HUB_API_URL;
-# every other host is runtime and lives in the box .env (STAGING_APP_HOST /
-# STAGING_RELAY_HOST / STAGING_API_HOST), so the domain can change without
-# touching this workflow.
+# The web bundle bakes VITE_HUB_API_URL from the repo variable
+# STAGING_HUB_API_URL (= https://staging.manabrew.app).
 #
-# The staging VM is a separate machine reached via Twingate (TWINGATE_SERVICE_KEY
-# service-account key) with its own SSH key (STAGING_DEPLOY_* secrets). It needs
-# the repo checked out at STAGING_DEPLOY_PATH on the `staging` branch with a
-# box-local .env (MANABREW_SERVER_KEY, the STAGING_*_HOST trio, …).
+# The staging slot's /opt/manabrew-staging/.env is written by this workflow's
+# secret-sync step (MANABREW_SERVER_KEY + hub auth secrets) — it must NOT be a
+# symlink to prod's ops/production.secrets, so the slot never inherits prod's
+# OAuth apps or hub config.
+#
+# The optional per-PR VM slot (label `deploy-vm`, Twingate SSH,
+# compose.staging-vm.yml) lives in vm-deploy.yml.
 on:
   push:
     branches: [staging]
@@ -86,17 +86,17 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
-  # ── Deploy to the staging VM (over Twingate) ───────────────────────
-  # Connects the runner to Twingate with a service-account key, then runs the
-  # lean deploy-staging.sh over SSH (pull branch + :staging images + health-
-  # checked recreate + rollback — no production release machinery).
+  # ── Deploy the staging slot on the prod box ────────────────────────
+  # Direct SSH with the production deploy key, then runs the lean
+  # deploy-staging.sh in /opt/manabrew-staging (pull branch + :staging images +
+  # health-checked recreate + rollback — no production release machinery).
   deploy:
     name: Deploy staging
     needs: [build-images]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
-      group: staging-vm-deploy
+      group: staging-box-deploy
       cancel-in-progress: false
     steps:
       # The composite Discord action needs the repo present.
@@ -104,26 +104,22 @@ jobs:
         with:
           sparse-checkout: .github
 
-      # The VM only accepts SSH through Twingate; the connection stays up for the
-      # rest of the job, so the SSH step below reaches the internal host.
-      - name: Connect to Twingate
-        uses: twingate/github-action@v1
-        with:
-          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
-
       - name: SSH and run deploy-staging.sh
         id: deploy
         continue-on-error: true
         env:
-          SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
-          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
-          USER: ${{ secrets.STAGING_DEPLOY_USER }}
-          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
-          # Hub auth (accounts) secrets, synced into the box .env below. The
-          # STAGING_OAUTH_GITHUB_* names avoid GitHub Actions' reserved GITHUB_
-          # secret prefix; on the box they land under the hub's env names. An
-          # unset secret leaves the box .env untouched for that key, so a
-          # provider stays off until its app is registered.
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
+          # Synced into the slot's .env below. MANABREW_SERVER_KEY is included
+          # because the slot's .env is standalone — it must NOT symlink prod's
+          # secrets file. The STAGING_OAUTH_GITHUB_* names avoid GitHub
+          # Actions' reserved GITHUB_ secret prefix; on the box they land under
+          # the hub's env names. An unset secret leaves the .env untouched for
+          # that key, so a provider stays off until its app is registered.
+          AUTH_MANABREW_SERVER_KEY: ${{ secrets.MANABREW_SERVER_KEY }}
+          AUTH_HUB_ADMIN_PASSWORD_HASH: ${{ secrets.HUB_ADMIN_PASSWORD_HASH }}
           AUTH_GITHUB_CLIENT_ID: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_ID }}
           AUTH_GITHUB_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_SECRET }}
           AUTH_DISCORD_CLIENT_ID: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_ID }}
@@ -137,6 +133,8 @@ jobs:
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
           AUTH_ENV=""
           add_auth() { if [ -n "$2" ]; then AUTH_ENV="${AUTH_ENV}$1=$2"$'\n'; fi; }
+          add_auth MANABREW_SERVER_KEY "$AUTH_MANABREW_SERVER_KEY"
+          add_auth HUB_ADMIN_PASSWORD_HASH "$AUTH_HUB_ADMIN_PASSWORD_HASH"
           add_auth GITHUB_CLIENT_ID "$AUTH_GITHUB_CLIENT_ID"
           add_auth GITHUB_CLIENT_SECRET "$AUTH_GITHUB_CLIENT_SECRET"
           add_auth DISCORD_CLIENT_ID "$AUTH_DISCORD_CLIENT_ID"
@@ -146,7 +144,7 @@ jobs:
             printf '%s' "$AUTH_ENV" | ssh -i ~/.ssh/deploy_key \
                 -o StrictHostKeyChecking=yes \
                 "$USER@$HOST" \
-              "cd '$DEPLOY_PATH' && touch .env && while IFS= read -r line; do key=\${line%%=*}; { grep -v \"^\${key}=\" .env || true; } > .env.tmp; mv .env.tmp .env; printf '%s\n' \"\$line\" >> .env; done"
+              "cd '$DEPLOY_PATH' && { [ -L .env ] && rm .env || true; } && touch .env && chmod 600 .env && while IFS= read -r line; do key=\${line%%=*}; { grep -v \"^\${key}=\" .env || true; } > .env.tmp; mv .env.tmp .env; printf '%s\n' \"\$line\" >> .env; done && chmod 600 .env"
           fi
           # ServerAliveInterval/CountMax keep the SSH connection healthy while
           # deploy-staging.sh has quiet stretches (docker pulls, ghcr retry sleeps).
@@ -155,14 +153,14 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && SERVICES='manabrew-staging manabrew-server-staging manabrew-hub-staging' WEB_SERVICE=manabrew-staging ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure
         if: steps.deploy.outcome != 'success'
         env:
-          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
-          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
         continue-on-error: true
         run: |
           set -euo pipefail

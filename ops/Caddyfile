@@ -190,6 +190,22 @@ api.manabrew.app {
     }
 }
 
+# Staging slot (compose.staging.yml under /opt/manabrew-staging, same docker
+# network) — deployed from the `staging` branch by staging-deploy.yml. 502s
+# while the slot is down.
+staging.manabrew.app {
+    reverse_proxy manabrew-staging:80
+}
+
+relay-staging.manabrew.app {
+    reverse_proxy manabrew-server-staging:9443 {
+        health_uri /health
+        health_port 9444
+        health_interval 15s
+        health_timeout 3s
+    }
+}
+
 # Observability ingress (`observability` compose profile). PUSHGATEWAY_PASSWORD_HASH
 # unset → the placeholder default matches no password: locked, not broken config.
 grafana.manabrew.app {

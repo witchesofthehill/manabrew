@@ -1,10 +1,18 @@
-# In-stack edge for the staging slot on the prod box (compose.staging.yml).
-# Plain :80 — the prod Caddy (ops/Caddyfile) terminates TLS for
-# staging.manabrew.app and proxies here by service name over the shared
-# docker network. Release-only routes (/manifest.json, /tauri.json,
-# /sidestore, /status.json) are omitted — staging serves neither the updater
-# manifest nor SideStore.
-:80 {
+# Edge config for the optional staging VM (compose.staging-vm.yml). Mirrors the
+# play/relay/api blocks of ops/Caddyfile, but served over plain HTTP on :80:
+# the staging VM sits behind an external reverse proxy (nginx) that terminates
+# TLS for the three hostnames and forwards to this Caddy — so the `http://`
+# prefix keeps Caddy from attempting ACME on a box that isn't publicly
+# reachable. The three hosts MUST be distinct (each is its own vhost); they come
+# from the box .env via compose (STAGING_APP_HOST / STAGING_RELAY_HOST /
+# STAGING_API_HOST), so moving domains is a .env edit. The fronting proxy must
+# preserve the app's COOP/COEP headers and upgrade websockets for the relay.
+# Release-only routes (/manifest.json, /tauri.json, /sidestore, /status.json)
+# are omitted — staging serves neither the updater manifest nor SideStore.
+#   {$STAGING_APP_HOST}   → wasm app  (/srv/manabrew)
+#   {$STAGING_RELAY_HOST} → relay
+#   {$STAGING_API_HOST}   → deck hub + stats API
+http://{$STAGING_APP_HOST} {
     root * /srv/manabrew
 
     encode zstd gzip
@@ -81,12 +89,13 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    # Deck hub + auth API, same-origin under the staging host. The hub's OAuth
-    # callback is /api/auth/callback/*; the SPA's own /auth/callback route is
-    # untouched.
+    # Deck hub + auth API, same-origin under the app host. The box edge only
+    # routes the app hostname reliably, so the api rides it as a path prefix
+    # instead of the {$STAGING_API_HOST} vhost below. /api/auth/callback/* is
+    # the hub's OAuth callback; the SPA's own /auth/callback is untouched.
     @hub path /api/*
     handle @hub {
-        reverse_proxy manabrew-hub-staging:9500 {
+        reverse_proxy manabrew-hub:9500 {
             health_uri /health
             health_interval 15s
             health_timeout 3s
@@ -98,7 +107,7 @@
         basic_auth {
             admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
         }
-        reverse_proxy manabrew-hub-staging:9500
+        reverse_proxy manabrew-hub:9500
     }
 
     handle {
@@ -109,5 +118,28 @@
         }
         try_files {path} /index.html
         file_server
+    }
+}
+
+http://{$STAGING_RELAY_HOST} {
+    reverse_proxy manabrew-server:9443 {
+        health_uri /health
+        health_port 9444
+        health_interval 15s
+        health_timeout 3s
+    }
+}
+
+# Deck hub + stats API. HUB_ADMIN_PASSWORD_HASH unset → the placeholder
+# default matches no password: /admin/* is locked, not broken config.
+http://{$STAGING_API_HOST} {
+    @admin path /admin/*
+    basic_auth @admin {
+        admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy manabrew-hub:9500 {
+        health_uri /health
+        health_interval 15s
+        health_timeout 3s
     }
 }

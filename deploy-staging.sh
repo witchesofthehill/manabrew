@@ -16,7 +16,6 @@ cd "$REPO_DIR"
 BRANCH="${DEPLOY_BRANCH:-staging}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.staging.yml}"
 export MANABREW_IMAGE_TAG="${MANABREW_IMAGE_TAG:-staging}"
-GHCR_OWNER="witchesofthehill"
 RAW_LOG="/tmp/deploy-staging-raw.log"
 : > "$RAW_LOG"
 
@@ -72,7 +71,10 @@ fi
 # The deploy job needs build-images, so these normally exist already; the retry
 # is a safety net if ghcr is briefly behind.
 export DOCKER_BUILDKIT=1
-SERVICES="manabrew manabrew-server manabrew-hub"
+# SERVICES/WEB_SERVICE default to the VM stack's names; the prod-box staging
+# slot (compose.staging.yml, -staging suffixed services) overrides both.
+SERVICES="${SERVICES:-manabrew manabrew-server manabrew-hub}"
+WEB_SERVICE="${WEB_SERVICE:-manabrew}"
 echo "Pulling :${MANABREW_IMAGE_TAG} images ($SERVICES)…" >> "$RAW_LOG"
 PULLED=false
 for attempt in $(seq 1 20); do
@@ -87,13 +89,16 @@ $PULLED || { echo "❌ ghcr image pull failed after retries — aborting."; exit
 # ── Health-checked rollout with rollback ─────────────────────────────
 # Snapshot each running service's current image so an unhealthy rollout can be
 # re-tagged back. `up -d` only recreates services whose image/config changed.
+# The ghcr ref per service comes from the compose file itself, so any stack
+# (VM names or -staging suffixed) resolves without a hardcoded map.
+ghcr_ref() {
+    docker compose -f "$COMPOSE_FILE" config "$1" 2>/dev/null \
+        | awk '/^ *image:/ {print $2; exit}'
+}
 declare -A ROLLBACK_IMG=()
-declare -A GHCR_REF=(
-    [manabrew]="ghcr.io/${GHCR_OWNER}/manabrew-web:${MANABREW_IMAGE_TAG}"
-    [manabrew-server]="ghcr.io/${GHCR_OWNER}/manabrew-server:${MANABREW_IMAGE_TAG}"
-    [manabrew-hub]="ghcr.io/${GHCR_OWNER}/manabrew-hub:${MANABREW_IMAGE_TAG}"
-)
+declare -A GHCR_REF=()
 for svc in $SERVICES; do
+    GHCR_REF[$svc]=$(ghcr_ref "$svc")
     cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || true)
     [ -n "$cid" ] && ROLLBACK_IMG[$svc]=$(docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || true)
 done
@@ -116,7 +121,7 @@ fi
 
 # The Caddyfile is bind-mounted and caddy doesn't watch it; a recreate already
 # picks up changes, but reload covers the case where the web image was unchanged.
-docker compose -f "$COMPOSE_FILE" exec -T manabrew \
+docker compose -f "$COMPOSE_FILE" exec -T "$WEB_SERVICE" \
     caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >> "$RAW_LOG" 2>&1 \
     || echo "caddy reload skipped/failed (see raw log)" >> "$RAW_LOG"
 

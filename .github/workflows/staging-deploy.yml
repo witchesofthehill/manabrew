@@ -158,6 +158,41 @@ jobs:
             "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
+      # Post-rollout stack diagnostics in the run log: container states, hub
+      # logs, and a caddy→hub probe over the compose network (the exact path
+      # the api vhost proxies), so a 502 at the edge is debuggable without box
+      # access.
+      - name: Stack diagnostics
+        if: always()
+        continue-on-error: true
+        env:
+          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+        run: |
+          set -uo pipefail
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && bash -s" <<'DIAG'
+          echo "=== compose ps ==="
+          docker compose -f compose.staging.yml ps
+          echo "=== container networks ==="
+          docker ps --format '{{.Names}}' | while read -r name; do
+            printf '%s: ' "$name"
+            docker inspect --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$name"
+            echo
+          done
+          echo "=== hub logs (last 40) ==="
+          docker compose -f compose.staging.yml logs --no-color --tail 40 manabrew-hub
+          echo "=== caddy -> hub probe ==="
+          docker compose -f compose.staging.yml exec -T manabrew sh -c \
+            'wget -qO- http://manabrew-hub:9500/health || echo "UNREACHABLE from caddy container"'
+          echo
+          echo "=== caddy -> hub providers ==="
+          docker compose -f compose.staging.yml exec -T manabrew sh -c \
+            'wget -qO- http://manabrew-hub:9500/api/auth/providers || echo "UNREACHABLE"'
+          echo
+          DIAG
+
       - name: Fetch raw deploy log on failure
         if: steps.deploy.outcome != 'success'
         env:

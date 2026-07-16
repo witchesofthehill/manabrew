@@ -84,6 +84,16 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       EVENTS_DB_PATH: "/var/manabrew/events/events.db"
       RUST_LOG: "manabrew_hub=info"
+      # Auth (/api/auth/*). Client ids/secrets live in ops/production.secrets;
+      # an unset client id disables that provider. No RESEND_API_KEY →
+      # magic-link codes are logged instead of emailed.
+      HUB_PUBLIC_URL: "https://api.manabrew.app"
+      WEB_APP_URL: "https://play.manabrew.app"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+      DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
       - ./ops/observability/data/events:/var/manabrew/events:ro

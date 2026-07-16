@@ -50,10 +50,23 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
 else
     git remote set-url origin "https://github.com/${REPO_SLUG}.git"
 fi
-PREV=$(git rev-parse --short HEAD)
+# DEPLOY_STAGING_ORIG_PREV preserves the pre-fetch commit across the self-update
+# re-exec below, so the re-run still reports the right range instead of an empty
+# "no new commits" changelog.
+PREV="${DEPLOY_STAGING_ORIG_PREV:-$(git rev-parse --short HEAD)}"
 git fetch origin "$BRANCH" >> "$RAW_LOG" 2>&1
 git checkout -f -B "$BRANCH" FETCH_HEAD >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
+
+# Self-update: the checkout may have changed this very script, but bash already
+# has the old copy in memory — without this, script edits only take effect the
+# NEXT deploy. Re-exec the updated script once (guarded so it can't loop).
+if [ -z "${DEPLOY_STAGING_ORIG_PREV:-}" ] && [ "$PREV" != "$CURR" ] \
+   && ! git diff --quiet "${PREV}..${CURR}" -- deploy-staging.sh; then
+    echo "deploy-staging.sh changed in this pull — re-exec'ing the updated script" >> "$RAW_LOG"
+    export DEPLOY_STAGING_ORIG_PREV="$PREV"
+    exec bash "$0" "$@"
+fi
 
 # ── Pull the CI-built images ─────────────────────────────────────────
 # The deploy job needs build-images, so these normally exist already; the retry

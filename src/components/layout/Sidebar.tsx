@@ -5,6 +5,7 @@ import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
 import {
+  CircleUserRound,
   Github,
   Globe,
   HeartPulse,
@@ -22,6 +23,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
+import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { SidebarUpdate } from "./SidebarUpdate";
 
@@ -31,6 +34,9 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const account = useAuthStore((s) => s.account);
+  const authStatus = useAuthStore((s) => s.status);
+  const showSignIn = useSignInDialog((s) => s.show);
 
   return (
     <div
@@ -218,6 +224,25 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </div>
       </div>
       <SidebarUpdate />
+      <div className="px-3 py-1">
+        {authStatus === "signedIn" && account ? (
+          <NavLink to="/settings" onClick={onNavigate}>
+            <Button variant="ghost" className="w-full justify-start whitespace-nowrap">
+              <CircleUserRound className="mr-2 h-4 w-4 shrink-0" />
+              <span className="truncate">@{account.handle}</span>
+            </Button>
+          </NavLink>
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full justify-start whitespace-nowrap"
+            onClick={() => showSignIn()}
+          >
+            <CircleUserRound className="mr-2 h-4 w-4 shrink-0" />
+            Sign in
+          </Button>
+        )}
+      </div>
       <div className="mt-auto flex w-full flex-col gap-1.5 px-4 py-4 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Get in touch

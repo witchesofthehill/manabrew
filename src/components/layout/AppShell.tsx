@@ -11,6 +11,8 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
+import { SignInDialog } from "@/components/auth/SignInDialog";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { DESKTOP_QUERY } from "@/lib/responsive";
@@ -50,6 +52,10 @@ export function AppShell() {
     const cleanup = setupListeners();
     return cleanup;
   }, [setupListeners]);
+
+  useEffect(() => {
+    void useAuthStore.getState().hydrate();
+  }, []);
 
   useGameSessionResume();
   useStatusBanner();
@@ -101,6 +107,7 @@ export function AppShell() {
       <StatusBanner />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <IronsmithUnsupportedDeckModal />
+      <SignInDialog />
       {!isDesktop && (
         <header
           className={cn(

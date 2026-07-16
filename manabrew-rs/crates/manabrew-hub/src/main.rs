@@ -1,3 +1,4 @@
+mod auth;
 mod config;
 mod rate_limit;
 mod routes;
@@ -34,6 +35,9 @@ async fn main() {
         stats: StatsCache::new(config.events_db_path.clone()),
         limiter: RateLimiter::new(config.publish_per_hour),
         publish_per_day: config.publish_per_day,
+        auth_limiter: RateLimiter::new(config.auth.auth_emails_per_hour),
+        auth: config.auth.clone(),
+        http: reqwest::Client::new(),
     });
     let addr = format!("{}:{}", config.host, config.port);
     let listener = tokio::net::TcpListener::bind(&addr)

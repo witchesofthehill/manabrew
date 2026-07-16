@@ -1,37 +1,70 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import type { User } from "@/types/manabrew";
+import { fetchMe, signOutSession, AuthRequestError } from "@/api/auth";
+import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
+
+export type AuthStatus = "unknown" | "signedOut" | "signedIn";
 
 interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
   token: string | null;
+  account: AuthAccount | null;
+  identities: AuthIdentity[];
+  status: AuthStatus;
   lastServer: string;
   lastUsername: string;
-  login: (user: User, token: string) => void;
-  logout: () => void;
-  setLastConnection: (server: string, username: string) => void;
+  signIn: (token: string, account: AuthAccount) => void;
+  setAccount: (account: AuthAccount) => void;
+  hydrate: () => Promise<void>;
+  refresh: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
-      (set) => ({
-        user: null,
-        isAuthenticated: false,
+      (set, get) => ({
         token: null,
+        account: null,
+        identities: [],
+        status: "unknown",
         lastServer: "",
         lastUsername: "",
-        login: (user, token) => set({ user, isAuthenticated: true, token }),
-        logout: () => set({ user: null, isAuthenticated: false, token: null }),
-        setLastConnection: (lastServer, lastUsername) => set({ lastServer, lastUsername }),
+        signIn: (token, account) => set({ token, account, status: "signedIn" }),
+        setAccount: (account) => set({ account }),
+        hydrate: async () => {
+          const token = get().token;
+          if (!token) {
+            set({ status: "signedOut" });
+            return;
+          }
+          await get().refresh();
+        },
+        refresh: async () => {
+          const token = get().token;
+          if (!token) return;
+          try {
+            const me = await fetchMe(token);
+            set({ account: me.account, identities: me.identities, status: "signedIn" });
+          } catch (err) {
+            if (err instanceof AuthRequestError && err.status === 401) {
+              set({ token: null, account: null, identities: [], status: "signedOut" });
+            }
+          }
+        },
+        signOut: async () => {
+          const token = get().token;
+          set({ token: null, account: null, identities: [], status: "signedOut" });
+          if (token) {
+            await signOutSession(token).catch(() => {});
+          }
+        },
       }),
       {
         name: "manabrew-auth-storage",
         partialize: (state) => ({
           lastServer: state.lastServer,
           lastUsername: state.lastUsername,
-          token: state.token, // Maybe don't persist token for security, but usually convenient
+          token: state.token,
         }),
       },
     ),

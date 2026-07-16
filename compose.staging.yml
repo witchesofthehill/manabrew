@@ -25,6 +25,7 @@ services:
       - "80"
     volumes:
       - ./ops/staging.Caddyfile:/etc/caddy/Caddyfile:ro
+    mem_limit: 128m
     depends_on:
       - manabrew-server-staging
 
@@ -42,8 +43,8 @@ services:
       - "9443"
       - "9444"
     restart: unless-stopped
-    mem_limit: 1g
-    cpus: 1.5
+    mem_limit: 512m
+    cpus: 1.0
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
@@ -89,6 +90,8 @@ services:
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       RUST_LOG: "self_hosted_node=info"
+    mem_limit: 1g
+    cpus: 1.0
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped

@@ -1404,7 +1404,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1717013242",
         "border_crop": "https://cards.scryfall.io/border_crop/front/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1717013242"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Fell Mire",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "normal": "https://cards.scryfall.io/normal/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "large": "https://cards.scryfall.io/large/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "png": "https://cards.scryfall.io/png/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.png?1783911234",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234"
+        }
+      }
     },
     {
       "name": "Bridgeworks Battle // Tanglespan Bridgeworks",
@@ -1428,7 +1442,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1717013318",
         "border_crop": "https://cards.scryfall.io/border_crop/front/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1717013318"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Tanglespan Bridgeworks",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "normal": "https://cards.scryfall.io/normal/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "large": "https://cards.scryfall.io/large/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "png": "https://cards.scryfall.io/png/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.png?1783911228",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228"
+        }
+      }
     },
     {
       "name": "Springheart Nantuko",

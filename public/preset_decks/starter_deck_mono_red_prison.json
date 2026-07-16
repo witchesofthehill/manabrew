@@ -158,7 +158,21 @@
           "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Reflection of Kiki-Jiki",
+        "manaCost": "",
+        "typeLine": "Enchantment Creature — Goblin Shaman",
+        "oracleText": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "normal": "https://cards.scryfall.io/normal/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "large": "https://cards.scryfall.io/large/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "png": "https://cards.scryfall.io/png/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.png?1783923875",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875"
+        }
+      }
     },
     {
       "name": "The One Ring",
@@ -241,7 +255,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1717013301",
         "border_crop": "https://cards.scryfall.io/border_crop/front/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1717013301"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Volcanic Fissure",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1783911228",
+          "normal": "https://cards.scryfall.io/normal/back/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1783911228",
+          "large": "https://cards.scryfall.io/large/back/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1783911228",
+          "png": "https://cards.scryfall.io/png/back/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.png?1783911228",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1783911228",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/5/0/50686ac7-346c-43d1-bdaa-28d46a12ad93.jpg?1783911228"
+        }
+      }
     },
     {
       "name": "Pyrogoyf",

@@ -634,7 +634,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1604193214",
         "border_crop": "https://cards.scryfall.io/border_crop/front/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1604193214"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Sejiri Glacier",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {W}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1783929413",
+          "normal": "https://cards.scryfall.io/normal/back/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1783929413",
+          "large": "https://cards.scryfall.io/large/back/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1783929413",
+          "png": "https://cards.scryfall.io/png/back/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.png?1783929413",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1783929413",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/f/2/f25d56f9-aa54-4657-9ac9-e93fbba3e715.jpg?1783929413"
+        }
+      }
     },
     {
       "name": "Kabira Takedown // Kabira Plateau",
@@ -658,7 +672,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1604195985",
         "border_crop": "https://cards.scryfall.io/border_crop/front/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1604195985"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Kabira Plateau",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {W}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1783929423",
+          "normal": "https://cards.scryfall.io/normal/back/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1783929423",
+          "large": "https://cards.scryfall.io/large/back/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1783929423",
+          "png": "https://cards.scryfall.io/png/back/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.png?1783929423",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1783929423",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/3/6/366e9845-019d-47cc-adb8-8fbbaad35b6d.jpg?1783929423"
+        }
+      }
     },
     {
       "name": "Sea Gate Restoration // Sea Gate, Reborn",
@@ -682,7 +710,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1604250788",
         "border_crop": "https://cards.scryfall.io/border_crop/front/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1604250788"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Sea Gate, Reborn",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "normal": "https://cards.scryfall.io/normal/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "large": "https://cards.scryfall.io/large/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "png": "https://cards.scryfall.io/png/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.png?1783929396",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396"
+        }
+      }
     },
     {
       "name": "Malakir Rebirth // Malakir Mire",
@@ -706,7 +748,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1604195984",
         "border_crop": "https://cards.scryfall.io/border_crop/front/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1604195984"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Malakir Mire",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {B}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1783929378",
+          "normal": "https://cards.scryfall.io/normal/back/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1783929378",
+          "large": "https://cards.scryfall.io/large/back/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1783929378",
+          "png": "https://cards.scryfall.io/png/back/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.png?1783929378",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1783929378",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/0/609d3ecf-f88d-4268-a8d3-4bf2bcf5df60.jpg?1783929378"
+        }
+      }
     },
     {
       "name": "Agadeem's Awakening // Agadeem, the Undercrypt",
@@ -730,7 +786,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1604195226",
         "border_crop": "https://cards.scryfall.io/border_crop/front/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1604195226"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Agadeem, the Undercrypt",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1783929388",
+          "normal": "https://cards.scryfall.io/normal/back/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1783929388",
+          "large": "https://cards.scryfall.io/large/back/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1783929388",
+          "png": "https://cards.scryfall.io/png/back/6/7/67f4c93b-080c-4196-b095-6a120a221988.png?1783929388",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1783929388",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/7/67f4c93b-080c-4196-b095-6a120a221988.jpg?1783929388"
+        }
+      }
     },
     {
       "name": "Inventors' Fair",
@@ -2318,7 +2388,21 @@
           "name": "Gnome Soldier",
           "component": "token"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Barracks of the Thousand",
+        "manaCost": "",
+        "typeLine": "Legendary Artifact Land",
+        "oracleText": "(Transforms from Thousand Moons Smithy.)\n{T}: Add {W}.\nWhenever you cast an artifact or creature spell using mana produced by Barracks of the Thousand, create a white Gnome Soldier artifact creature token with \"This token's power and toughness are each equal to the number of artifacts and/or creatures you control.\"",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/8/9/89a0f7fe-6bff-4c0a-b419-1f4f457c194c.jpg?1783913691",
+          "normal": "https://cards.scryfall.io/normal/back/8/9/89a0f7fe-6bff-4c0a-b419-1f4f457c194c.jpg?1783913691",
+          "large": "https://cards.scryfall.io/large/back/8/9/89a0f7fe-6bff-4c0a-b419-1f4f457c194c.jpg?1783913691",
+          "png": "https://cards.scryfall.io/png/back/8/9/89a0f7fe-6bff-4c0a-b419-1f4f457c194c.png?1783913691",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/8/9/89a0f7fe-6bff-4c0a-b419-1f4f457c194c.jpg?1783913691",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/8/9/89a0f7fe-6bff-4c0a-b419-1f4f457c194c.jpg?1783913691"
+        }
+      }
     },
     {
       "name": "Illustrious Wanderglyph",
@@ -2459,7 +2543,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1717013194",
         "border_crop": "https://cards.scryfall.io/border_crop/front/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1717013194"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Soporific Springs",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "normal": "https://cards.scryfall.io/normal/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "large": "https://cards.scryfall.io/large/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "png": "https://cards.scryfall.io/png/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.png?1783911236",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236"
+        }
+      }
     },
     {
       "name": "Dawn's Truce",

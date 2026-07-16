@@ -55,6 +55,31 @@ pub struct CardRulesSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub is_double_faced: Option<bool>,
+    /// The back face of a double-faced card (transform / modal_dfc), captured at
+    /// deck import from Scryfall so rendering never needs a live lookup. The
+    /// front-face fields above remain the card's identity; this is purely
+    /// additive. `None` for single-faced cards and older decks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub back_face: Option<CardFaceSummary>,
+}
+
+/// One face of a double-faced card, in the same shape the UI renders a front
+/// face from. Carried for the *back* face on `CardRulesSummary` (the front face
+/// is the flattened fields on the card itself).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "deck/index.ts")]
+pub struct CardFaceSummary {
+    pub name: String,
+    #[serde(default)]
+    pub mana_cost: String,
+    #[serde(default)]
+    pub type_line: String,
+    #[serde(default)]
+    pub oracle_text: String,
+    #[serde(default)]
+    pub uris: CardImageUris,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

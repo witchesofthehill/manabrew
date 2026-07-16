@@ -119,12 +119,35 @@ jobs:
           HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
           USER: ${{ secrets.STAGING_DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          # Hub auth (accounts) secrets, synced into the box .env below. The
+          # STAGING_OAUTH_GITHUB_* names avoid GitHub Actions' reserved GITHUB_
+          # secret prefix; on the box they land under the hub's env names. An
+          # unset secret leaves the box .env untouched for that key, so a
+          # provider stays off until its app is registered.
+          AUTH_GITHUB_CLIENT_ID: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_ID }}
+          AUTH_GITHUB_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_SECRET }}
+          AUTH_DISCORD_CLIENT_ID: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_ID }}
+          AUTH_DISCORD_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_SECRET }}
+          AUTH_RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          AUTH_ENV=""
+          add_auth() { if [ -n "$2" ]; then AUTH_ENV="${AUTH_ENV}$1=$2"$'\n'; fi; }
+          add_auth GITHUB_CLIENT_ID "$AUTH_GITHUB_CLIENT_ID"
+          add_auth GITHUB_CLIENT_SECRET "$AUTH_GITHUB_CLIENT_SECRET"
+          add_auth DISCORD_CLIENT_ID "$AUTH_DISCORD_CLIENT_ID"
+          add_auth DISCORD_CLIENT_SECRET "$AUTH_DISCORD_CLIENT_SECRET"
+          add_auth RESEND_API_KEY "$AUTH_RESEND_API_KEY"
+          if [ -n "$AUTH_ENV" ]; then
+            printf '%s' "$AUTH_ENV" | ssh -i ~/.ssh/deploy_key \
+                -o StrictHostKeyChecking=yes \
+                "$USER@$HOST" \
+              "cd '$DEPLOY_PATH' && touch .env && while IFS= read -r line; do key=\${line%%=*}; { grep -v \"^\${key}=\" .env || true; } > .env.tmp; mv .env.tmp .env; printf '%s\n' \"\$line\" >> .env; done"
+          fi
           # ServerAliveInterval/CountMax keep the SSH connection healthy while
           # deploy-staging.sh has quiet stretches (docker pulls, ghcr retry sleeps).
           ssh -i ~/.ssh/deploy_key \

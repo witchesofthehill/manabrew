@@ -31,7 +31,8 @@ services:
       RELAY_PASSWORD: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
-      HUB_API_URL: "https://${STAGING_API_HOST}"
+      # Hub API is same-origin on staging (path-routed on the app host).
+      HUB_API_URL: "https://${STAGING_APP_HOST}"
     depends_on:
       - manabrew-server
 
@@ -73,10 +74,10 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       EVENTS_DB_PATH: "/var/manabrew/events/events.db"
       RUST_LOG: "manabrew_hub=info"
-      # Auth (/api/auth/*). OAuth apps need callbacks on the staging api host;
-      # unset client ids disable that provider. No RESEND_API_KEY → magic-link
-      # codes are logged instead of emailed.
-      HUB_PUBLIC_URL: "https://${STAGING_API_HOST:?STAGING_API_HOST is required}"
+      # Auth (/api/auth/*). The hub is path-routed on the app host, so OAuth
+      # callbacks live there too; unset client ids disable that provider. No
+      # RESEND_API_KEY → magic-link codes are logged instead of emailed.
+      HUB_PUBLIC_URL: "https://${STAGING_APP_HOST:?STAGING_APP_HOST is required}"
       WEB_APP_URL: "https://${STAGING_APP_HOST:?STAGING_APP_HOST is required}"
       GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
       GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"

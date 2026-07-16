@@ -89,6 +89,27 @@ http://{$STAGING_APP_HOST} {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    # Deck hub + auth API, same-origin under the app host. The box edge only
+    # routes the app hostname reliably, so the api rides it as a path prefix
+    # instead of the {$STAGING_API_HOST} vhost below. /api/auth/callback/* is
+    # the hub's OAuth callback; the SPA's own /auth/callback is untouched.
+    @hub path /api/*
+    handle @hub {
+        reverse_proxy manabrew-hub:9500 {
+            health_uri /health
+            health_interval 15s
+            health_timeout 3s
+        }
+    }
+
+    @hubadmin path /admin/*
+    handle @hubadmin {
+        basic_auth {
+            admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+        }
+        reverse_proxy manabrew-hub:9500
+    }
+
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

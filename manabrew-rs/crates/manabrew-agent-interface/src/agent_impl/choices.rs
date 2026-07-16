@@ -5,7 +5,10 @@ use manabrew_engine::spellability::SpellAbility;
 
 use manabrew_engine::game::GameState;
 
-use crate::game_view_dto::{card_to_dto, CardDto, TargetingIntent};
+use crate::game_view_dto::{
+    card_to_dto, target_ref_card, target_ref_player, zone_kind_of, CardDto, GameViewDtoExt,
+    TargetingIntent,
+};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::*;
 
@@ -516,17 +519,20 @@ pub(super) fn reveal_cards<T: Responder>(
     if cards.is_empty() {
         return;
     }
-    let cards = cards
-        .iter()
-        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &zone.to_string()))
-        .collect();
+    let cards = cards.iter().map(|&id| card_to_dto(game, id)).collect();
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(
         PromptInput::RevealCards(manabrew_protocol::prompts::reveal::RevealCardsInput {
+            presentation: PromptPresentation {
+                title: message,
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards,
-            zone: zone.to_string(),
+            zone: zone_kind_of(zone),
             owner_player_id: crate::ids_codec::player_id_str(owner),
-            message,
         }),
         None,
     );
@@ -573,8 +579,8 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
 
 fn game_entity_to_target_ref(entity: &GameEntity) -> TargetRef {
     match entity {
-        GameEntity::Card(id) => TargetRef::card(card_id_str(*id)),
-        GameEntity::Player(id) => TargetRef::player(crate::ids_codec::player_id_str(*id)),
+        GameEntity::Card(id) => target_ref_card(card_id_str(*id)),
+        GameEntity::Player(id) => target_ref_player(crate::ids_codec::player_id_str(*id)),
     }
 }
 
@@ -599,6 +605,13 @@ pub(super) fn choose_color<T: Responder>(
 ) -> Option<String> {
     agent.send_prompt(
         PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+            presentation: PromptPresentation {
+                title: "Choose a color".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             valid_colors: valid_colors.to_vec(),
             amount: 1,
             repeat_allowed: false,
@@ -1001,7 +1014,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
                 .iter()
                 .find(|c| c.id == id)
                 .map(|c| (*c).clone())
-                .unwrap_or_else(|| card_to_dto(game, cid, "library"))
+                .unwrap_or_else(|| card_to_dto(game, cid))
         })
         .collect();
     // Deduplicate
@@ -1052,7 +1065,7 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
                 .iter()
                 .find(|c| c.id == id)
                 .map(|c| (*c).clone())
-                .unwrap_or_else(|| card_to_dto(game, cid, "library"))
+                .unwrap_or_else(|| card_to_dto(game, cid))
         })
         .collect();
     let mut seen = std::collections::HashSet::new();

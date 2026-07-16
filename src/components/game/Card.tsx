@@ -9,7 +9,8 @@ import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
 import { isHorizontalCard } from "@/lib/cardLayout";
-import { CARD_BADGES } from "./game.constants";
+import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
+import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
@@ -37,7 +38,7 @@ function CardBadge({ label, style }: { label: string; style: string }) {
 }
 
 interface CardProps {
-  card: CardDto;
+  card: CardDto & { zoneId?: string };
   className?: string;
   style?: CSSProperties;
   isTapped?: boolean;
@@ -64,8 +65,9 @@ function CardComponent({
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const deckCard = asDeckCard(deck, card);
 
-  const imageUrl = deckCard.uris[resolution];
-  const displayName = card.identity.name;
+  const faceless = isFacelessCard(card);
+  const imageUrl = faceless ? CARD_BACK_IMAGE_URL : deckCard.uris[resolution];
+  const displayName = faceless ? "Face-down card" : card.identity.name;
   const themeColors = useTheme().gameTheme;
 
   const creature = isCreature(card);

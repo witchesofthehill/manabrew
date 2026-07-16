@@ -6,6 +6,7 @@ import type {
   PlayerDeckInfo,
   Prompt,
   PromptOutput,
+  ProtocolError,
   SealedConfig,
   StateUpdate,
 } from "@/protocol";
@@ -135,10 +136,11 @@ export interface RoomRelayEnvelope<TPayload = unknown> {
 }
 
 export type StateEnvelope =
-  | { kind: "state"; state: StateUpdate }
+  | { kind: "state"; forPlayer?: string; state: StateUpdate }
   | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
-  | { kind: "response"; fromPlayer: string; action: PromptOutput }
+  | { kind: "error"; forPlayer: string; error: ProtocolError }
+  | { kind: "response"; fromPlayer: string; promptId: number; action: PromptOutput }
   | { kind: "directive"; fromPlayer: string; directive: DirectiveInput }
   | { kind: "log"; fromPlayer: string; entry: unknown }
   | { kind: "snapshot"; fromPlayer: string; entry: unknown }

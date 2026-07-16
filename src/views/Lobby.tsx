@@ -28,7 +28,7 @@ import type {
   ServerErrorCode,
   ServerErrorPayload,
 } from "@/types/server";
-import type { GameViewDto } from "@/protocol/game";
+import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck } from "@/protocol/deck";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
@@ -78,7 +78,7 @@ interface ManualTabletopLaunchPayload {
   hostPlayer: string;
   playerOrder: string[];
   startingLife: number;
-  initialGameView: GameViewDto;
+  initialGameView: ClientGameView;
 }
 
 interface SelectedAiDeck {

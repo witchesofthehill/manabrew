@@ -42,6 +42,7 @@ export interface StartMultiplayerGameParams {
 export interface RespondParams {
   action: PromptOutput;
   playerSlot: string | null;
+  promptId: number;
 }
 
 export interface SendDirectiveParams {

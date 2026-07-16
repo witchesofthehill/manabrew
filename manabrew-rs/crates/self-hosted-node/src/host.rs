@@ -122,12 +122,16 @@ struct HostSnapshot {
     resume_token: Option<String>,
     game: Option<GameStart>,
     last_state: Option<Value>,
+    last_state_by_slot: HashMap<String, Value>,
     pending_prompts: HashMap<String, Value>,
 }
 
 type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
 
 const RECONNECT_BACKOFF_SECS: [u64; 6] = [1, 2, 4, 8, 15, 30];
+
+/// Pseudo-seat used by per-recipient backends for the public (spectator) view.
+pub(crate) const OBSERVER_SEAT: usize = usize::MAX;
 const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(3);
 const BOT_STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -554,22 +558,43 @@ async fn reestablish_room(
         client.send(&ClientMessage::ResumeRoom(request)).await?;
         match wait_for_room_resumed(client).await? {
             Some(room) => {
-                let (last_state, prompts) = {
+                let (last_state, seat_states, prompts, player_order) = {
                     let mut snap = snapshot.lock().map_err(|error| error.to_string())?;
                     snap.room_info = Some(room);
                     (
                         snap.last_state.clone(),
+                        snap.last_state_by_slot.clone(),
                         snap.pending_prompts.values().cloned().collect::<Vec<_>>(),
+                        snap.game
+                            .as_ref()
+                            .map(|game| game.player_order.clone())
+                            .unwrap_or_default(),
                     )
                 };
                 if let Some(state) = last_state {
                     client
-                        .send(&ClientMessage::BroadcastState { state })
+                        .send(&ClientMessage::BroadcastState {
+                            state,
+                            target_player: None,
+                        })
+                        .await?;
+                }
+                for (slot, state) in seat_states {
+                    let target_player =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned());
+                    client
+                        .send(&ClientMessage::BroadcastState {
+                            state,
+                            target_player,
+                        })
                         .await?;
                 }
                 for prompt in prompts {
                     client
-                        .send(&ClientMessage::BroadcastState { state: prompt })
+                        .send(&ClientMessage::BroadcastState {
+                            state: prompt,
+                            target_player: None,
+                        })
                         .await?;
                 }
                 info!(room_id, "room resumed; snapshot re-broadcast");
@@ -682,6 +707,7 @@ fn clear_game_snapshot(snapshot: &SharedHostSnapshot, game_id: &str) {
         {
             snap.game = None;
             snap.last_state = None;
+            snap.last_state_by_slot.clear();
             snap.pending_prompts.clear();
         }
     }
@@ -1317,13 +1343,19 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_remote_prompt_forwarder(outbound_tx.clone(), snapshot.clone(), remote_prompt_rx);
+            spawn_remote_prompt_forwarder(
+                outbound_tx.clone(),
+                snapshot.clone(),
+                remote_prompt_rx,
+                None,
+            );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
                 outbound_tx.clone(),
                 game_over_rx,
                 engine_session.clone(),
                 game_id.clone(),
+                None,
             );
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
@@ -1381,13 +1413,19 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_remote_prompt_forwarder(outbound_tx.clone(), snapshot.clone(), remote_prompt_rx);
+            spawn_remote_prompt_forwarder(
+                outbound_tx.clone(),
+                snapshot.clone(),
+                remote_prompt_rx,
+                Some(player_names.clone()),
+            );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
                 outbound_tx.clone(),
                 game_over_rx,
                 engine_session.clone(),
                 game_id.clone(),
+                Some(player_names.clone()),
             );
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
@@ -1561,7 +1599,10 @@ fn finish_hosted_engine(
     if let Some(message) = fatal {
         if still_owner {
             if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
-                let _ = outbound_tx.send(ClientMessage::BroadcastState { state });
+                let _ = outbound_tx.send(ClientMessage::BroadcastState {
+                    state,
+                    target_player: None,
+                });
             }
             let _ = outbound_tx.send(ClientMessage::EndGame {
                 game_id: game_id.to_string(),
@@ -1574,6 +1615,7 @@ fn finish_hosted_engine(
         if snap.game.as_ref().is_some_and(|g| g.game_id == game_id) {
             snap.game = None;
             snap.last_state = None;
+            snap.last_state_by_slot.clear();
             snap.pending_prompts.clear();
         }
     }
@@ -1596,6 +1638,7 @@ fn route_remote_response(
     };
     let StateEnvelope::Response {
         from_player,
+        prompt_id,
         action: action_value,
     } = envelope
     else {
@@ -1637,7 +1680,7 @@ fn route_remote_response(
                 debug!(from_player, player_index, "no response channel for player");
                 return;
             };
-            if let Err(error) = tx.send(ClientToServerMessage::Response { action }) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1660,7 +1703,7 @@ fn route_remote_response(
                 from_player,
                 player_index, "routing relay response to java engine"
             );
-            if let Err(error) = tx.send(ClientToServerMessage::Response { action }) {
+            if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1693,37 +1736,62 @@ fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     snapshot: SharedHostSnapshot,
     remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
+    seat_usernames: Option<Vec<String>>,
 ) {
     thread::spawn(move || {
-        // State/Display have no `forPlayer` and are identical for every player,
-        // so the engine's per-agent fan-out produces N consecutive identical
-        // copies. Broadcast each once.
+        let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
         let mut last_state: Option<Value> = None;
         let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
+            let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
             let slot = player_slot(player_index);
-            let envelope = StateEnvelope::for_agent_message(slot.clone(), &message);
+            let envelope = match &message {
+                AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
+                    for_player: None,
+                    state: serde_json::to_value(state_update).unwrap_or(Value::Null),
+                },
+                _ => StateEnvelope::for_agent_message(slot.clone(), &message),
+            };
             let Ok(state) = serde_json::to_value(envelope) else {
                 continue;
             };
             match &message {
+                AgentMessage::State(_) if per_seat => {
+                    if last_state_by_seat.get(&player_index) == Some(&state) {
+                        continue;
+                    }
+                    last_state_by_seat.insert(player_index, state.clone());
+                }
                 AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                 AgentMessage::State(_) => last_state = Some(state.clone()),
                 AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
                 AgentMessage::Display(_) => last_display = Some(state.clone()),
-                AgentMessage::Prompt(_) => {}
+                AgentMessage::Prompt(_) | AgentMessage::Error(_) => {}
             }
             if let Ok(mut snap) = snapshot.lock() {
                 match &message {
+                    AgentMessage::State(_) if per_seat => {
+                        snap.last_state_by_slot.insert(slot, state.clone());
+                    }
                     AgentMessage::State(_) => snap.last_state = Some(state.clone()),
                     AgentMessage::Prompt(_) => {
                         snap.pending_prompts.insert(slot, state.clone());
                     }
-                    AgentMessage::Display(_) => {}
+                    AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
             }
+            let target_player = if per_seat && matches!(message, AgentMessage::State(_)) {
+                seat_usernames
+                    .as_ref()
+                    .and_then(|names| names.get(player_index).cloned())
+            } else {
+                None
+            };
             if outbound_tx
-                .send(ClientMessage::BroadcastState { state })
+                .send(ClientMessage::BroadcastState {
+                    state,
+                    target_player,
+                })
                 .is_err()
             {
                 break;
@@ -1737,6 +1805,7 @@ fn spawn_game_over_forwarder(
     game_over_rx: std_mpsc::Receiver<HostedGameOver>,
     session_handle: SharedEngineSession,
     game_id: String,
+    seat_usernames: Option<Vec<String>>,
 ) {
     thread::spawn(move || {
         while let Ok(game_over) = game_over_rx.recv() {
@@ -1753,20 +1822,44 @@ fn spawn_game_over_forwarder(
                 );
                 continue;
             }
+            let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
             let mut last_state: Option<Value> = None;
             for (player_index, message) in game_over.messages {
-                let envelope =
-                    StateEnvelope::for_agent_message(player_slot(player_index), &message);
+                let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
+                let envelope = match &message {
+                    AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
+                        for_player: None,
+                        state: serde_json::to_value(state_update).unwrap_or(Value::Null),
+                    },
+                    _ => StateEnvelope::for_agent_message(player_slot(player_index), &message),
+                };
                 let Ok(state) = serde_json::to_value(envelope) else {
                     continue;
                 };
                 match &message {
+                    AgentMessage::State(_) if per_seat => {
+                        if last_state_by_seat.get(&player_index) == Some(&state) {
+                            continue;
+                        }
+                        last_state_by_seat.insert(player_index, state.clone());
+                    }
                     AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
                     AgentMessage::State(_) => last_state = Some(state.clone()),
-                    AgentMessage::Display(_) | AgentMessage::Prompt(_) => {}
+                    AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
+                    }
                 }
+                let target_player = if per_seat && matches!(message, AgentMessage::State(_)) {
+                    seat_usernames
+                        .as_ref()
+                        .and_then(|names| names.get(player_index).cloned())
+                } else {
+                    None
+                };
                 if outbound_tx
-                    .send(ClientMessage::BroadcastState { state })
+                    .send(ClientMessage::BroadcastState {
+                        state,
+                        target_player,
+                    })
                     .is_err()
                 {
                     return;
@@ -1784,7 +1877,10 @@ fn spawn_game_over_forwarder(
                 continue;
             };
             if outbound_tx
-                .send(ClientMessage::BroadcastState { state })
+                .send(ClientMessage::BroadcastState {
+                    state,
+                    target_player: None,
+                })
                 .is_err()
             {
                 return;
@@ -1901,6 +1997,7 @@ impl RelayClient {
         };
         self.send(&ClientMessage::BroadcastState {
             state: serde_json::to_value(envelope)?,
+            target_player: None,
         })
         .await
     }

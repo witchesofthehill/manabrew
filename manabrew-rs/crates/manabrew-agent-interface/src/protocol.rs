@@ -16,6 +16,8 @@ pub use manabrew_protocol::protocol::*;
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum StateEnvelope {
     State {
+        #[serde(rename = "forPlayer", default, skip_serializing_if = "Option::is_none")]
+        for_player: Option<String>,
         state: Value,
     },
     Display {
@@ -30,10 +32,11 @@ pub enum StateEnvelope {
         prompt: Value,
     },
     /// Player answers a prompt. `action` is `PlayerAction` for Rust; raw value
-    /// for the Java bridge.
     Response {
         #[serde(rename = "fromPlayer")]
         from_player: String,
+        #[serde(rename = "promptId", default)]
+        prompt_id: u32,
         action: Value,
     },
     Directive {
@@ -55,6 +58,13 @@ pub enum StateEnvelope {
     },
     Fatal {
         message: String,
+    },
+    /// Engine rejects a response (stale prompt, wrong player, unknown action).
+    /// `error` is `ProtocolError`; recoverable unless the session is terminated.
+    Error {
+        #[serde(rename = "forPlayer")]
+        for_player: String,
+        error: Value,
     },
     /// Out-of-band message tunneled through the relay (manual tabletop launch,
     /// self-hosted-node control plane, heartbeats, …). The relay never
@@ -87,6 +97,7 @@ impl StateEnvelope {
         use crate::prompt::AgentMessage;
         match message {
             AgentMessage::State(state) => StateEnvelope::State {
+                for_player: Some(for_player),
                 state: serde_json::to_value(state).unwrap_or(Value::Null),
             },
             AgentMessage::Display(event) => StateEnvelope::Display {
@@ -95,6 +106,10 @@ impl StateEnvelope {
             AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {
                 for_player,
                 prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
+            },
+            AgentMessage::Error(error) => StateEnvelope::Error {
+                for_player,
+                error: serde_json::to_value(error).unwrap_or(Value::Null),
             },
         }
     }

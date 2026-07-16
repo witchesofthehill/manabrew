@@ -25,16 +25,27 @@ derive game-state meaning from their textual form.
   itself carries no `gameView`.
 - Use the identifier scheme above, or an alternative that satisfies the
   per-session uniqueness contract.
-- Accept any response whose shape matches a prompt it emitted.
+- **Validate every response** against the open prompt: the echoed `promptId`
+  must match, the `action` family must match the prompt's `type`, and any
+  echoed action id must have been advertised by that prompt. Reject anything
+  else with an [`error`](/protocol/#errors) and re-send the open prompt.
+- Treat `promptId` `0` as an engine-internal absent-player default (timeout,
+  disconnect); never interpret it as answering a real prompt.
 
 ## What a conforming client must do
 
 - Render any state snapshot it receives without assuming engine-specific
   extensions.
 - Treat identifiers as opaque.
-- Send a response to every prompt that requires a decision. (`gameOver` is
-  terminal and takes no response; acknowledgement prompts like `revealCards` and
-  `diceRolled` take a simple "acknowledged" response.)
+- Send a response to every prompt that requires a decision, echoing the
+  prompt's `promptId`. (`gameOver` is terminal and takes no response;
+  acknowledgement prompts like `revealCards` and `diceRolled` take a simple
+  "acknowledged" response.)
+- Echo only action ids the prompt advertised — never synthesize ids.
+- Act only on prompts, errors, and addressed states whose `forPlayer` is its
+  own seat (see [Transport](/protocol/transport/)).
+- On an `error` message, treat the re-sent prompt as still open and let the
+  player answer again.
 - Treat an unknown prompt `type` as a **soft error** — surface it, but never
   crash on it.
 

@@ -33,7 +33,7 @@ use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage};
 #[cfg(forge_backend)]
 use manabrew_agent_interface::prompt::{
     AgentPrompt, ChooseActionOutput, DiceRolledOutput, DirectiveInput, GameOverInput, PromptInput,
-    PromptOutput, StateUpdate,
+    PromptOutput, ProtocolError, ProtocolErrorCode, ResponseViolation, StateUpdate,
 };
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{MulliganOutput, MulliganPutBackOutput};
@@ -86,12 +86,15 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
-        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
 
-    let snapshot_json = session.get_snapshot()?;
+    let snapshot_json = session.get_snapshot(Some(0))?;
     let snapshot: Value = serde_json::from_str(&snapshot_json)
         .map_err(|err| format!("failed to parse java-forge smoke snapshot: {err}"))?;
     info!(
@@ -432,12 +435,12 @@ impl JavaEngineHandle {
         guard.is_game_over(session_id)
     }
 
-    pub fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+    pub fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let bridge = self.bridge_for(session_id)?;
         let mut guard = bridge
             .lock()
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
-        guard.get_snapshot(session_id)
+        guard.get_snapshot(session_id, viewer)
     }
 
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -582,6 +585,7 @@ mod graal_ffi {
         pub fn forge_get_snapshot(
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
+            viewer: c_int,
         ) -> *mut c_char;
         pub fn forge_get_game_over(
             thread: *mut graal_isolatethread_t,
@@ -713,10 +717,12 @@ impl GraalEngineHandle {
         Ok(value.trim() == "true")
     }
 
-    fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+    fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let session = cstring(session_id)?;
-        self.bridge
-            .decode(unsafe { graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr()) })
+        let viewer = viewer.map_or(-1, |v| v as c_int);
+        self.bridge.decode(unsafe {
+            graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
+        })
     }
 
     fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -1022,7 +1028,7 @@ fn run_hosted_engine_game_inner(
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<ClientToServerMessage>> =
         remote_response_rxs.into_iter().collect();
-    let mut last_prompt_id: Option<u32> = None;
+    let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
 
     loop {
@@ -1038,6 +1044,7 @@ fn run_hosted_engine_game_inner(
                 match rx.try_recv() {
                     Ok(ClientToServerMessage::Response {
                         action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
+                        ..
                     }) => {
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
@@ -1050,7 +1057,64 @@ fn run_hosted_engine_game_inner(
                             }
                         }
                     }
-                    Ok(ClientToServerMessage::Response { action }) => {
+                    Ok(ClientToServerMessage::Response { prompt_id, action }) => {
+                        // prompt_id 0 is transport-synthesized: the
+                        // absent-player default, exempt from validation.
+                        if prompt_id != 0 {
+                            let Some(prompt) =
+                                last_prompt.as_ref().filter(|p| p.prompt_id == prompt_id)
+                            else {
+                                reject_response(
+                                    &remote_prompt_tx,
+                                    *player_index,
+                                    last_prompt.as_ref().filter(|p| {
+                                        self::player_index(&p.deciding_player_id) == *player_index
+                                    }),
+                                    ProtocolErrorCode::StalePrompt,
+                                    format!("response for prompt {prompt_id} is not open"),
+                                );
+                                continue;
+                            };
+                            if self::player_index(&prompt.deciding_player_id) != *player_index {
+                                reject_response(
+                                    &remote_prompt_tx,
+                                    *player_index,
+                                    None,
+                                    ProtocolErrorCode::WrongPlayer,
+                                    format!(
+                                        "prompt {prompt_id} is for {}",
+                                        prompt.deciding_player_id
+                                    ),
+                                );
+                                continue;
+                            }
+                            match prompt.input.validate_response(&action) {
+                                Ok(()) => {}
+                                Err(ResponseViolation::WrongPromptType) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::WrongPromptType,
+                                        "response output does not match the prompt type"
+                                            .to_string(),
+                                    );
+                                    continue;
+                                }
+                                Err(ResponseViolation::UnknownActionId(id)) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::UnknownActionId,
+                                        format!(
+                                            "action id {id:?} was not advertised by the prompt"
+                                        ),
+                                    );
+                                    continue;
+                                }
+                            }
+                        }
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1081,17 +1145,22 @@ fn run_hosted_engine_game_inner(
         if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
-            if last_prompt_id != Some(prompt.prompt_id) {
-                last_prompt_id = Some(prompt.prompt_id);
+            if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
-                    let state = AgentMessage::State(state_via_handle(&engine, &session_id)?);
                     let prompt_msg = AgentMessage::Prompt(prompt);
                     for &agent_index in remote_response_rxs.keys() {
-                        let _ = remote_prompt_tx.send((agent_index, state.clone()));
+                        let state = AgentMessage::State(state_via_handle(
+                            &engine,
+                            &session_id,
+                            Some(agent_index),
+                        )?);
+                        let _ = remote_prompt_tx.send((agent_index, state));
                         let _ = remote_prompt_tx.send((agent_index, prompt_msg.clone()));
                     }
+                    send_observer_state(&engine, &session_id, &remote_prompt_tx);
                     pending_roll_acks = remote_response_rxs.len();
                     if pending_roll_acks == 0 {
                         let ack = serde_json::to_string(&PromptOutput::DiceRolled(
@@ -1107,11 +1176,19 @@ fn run_hosted_engine_game_inner(
                         engine.submit_action(&session_id, &action_json)?;
                     }
                 } else {
-                    let state = AgentMessage::State(state_via_handle(&engine, &session_id)?);
+                    for &agent_index in remote_response_rxs.keys() {
+                        let state = AgentMessage::State(state_via_handle(
+                            &engine,
+                            &session_id,
+                            Some(agent_index),
+                        )?);
+                        if remote_prompt_tx.send((agent_index, state)).is_err() {
+                            return Ok(());
+                        }
+                    }
+                    send_observer_state(&engine, &session_id, &remote_prompt_tx);
                     let prompt_msg = AgentMessage::Prompt(prompt);
-                    if remote_prompt_tx.send((player, state)).is_err()
-                        || remote_prompt_tx.send((player, prompt_msg)).is_err()
-                    {
+                    if remote_prompt_tx.send((player, prompt_msg)).is_err() {
                         return Ok(());
                     }
                 }
@@ -1121,16 +1198,21 @@ fn run_hosted_engine_game_inner(
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
             let mut final_messages = Vec::new();
-            match state_via_handle(&engine, &session_id) {
-                Ok(state_update) => {
-                    let state = AgentMessage::State(state_update);
-                    for &agent_index in remote_response_rxs.keys() {
-                        final_messages.push((agent_index, state.clone()));
+            for &agent_index in remote_response_rxs.keys() {
+                match state_via_handle(&engine, &session_id, Some(agent_index)) {
+                    Ok(state_update) => {
+                        final_messages.push((agent_index, AgentMessage::State(state_update)));
+                    }
+                    Err(error) => {
+                        warn!(%error, agent_index, "game over: final snapshot unavailable; sending game-over prompt only");
                     }
                 }
-                Err(error) => {
-                    warn!(%error, "game over: final snapshot unavailable; sending game-over prompt only");
-                }
+            }
+            if let Ok(state_update) = state_via_handle(&engine, &session_id, None) {
+                final_messages.push((
+                    crate::host::OBSERVER_SEAT,
+                    AgentMessage::State(state_update),
+                ));
             }
             let game_over = AgentMessage::Prompt(game_over_prompt());
             for &agent_index in remote_response_rxs.keys() {
@@ -1164,6 +1246,23 @@ fn wait_for_prompt<B: JavaBridge>(
 }
 
 #[cfg(forge_backend)]
+fn send_observer_state(
+    engine: &ForgeEngine,
+    session_id: &str,
+    remote_prompt_tx: &std_mpsc::Sender<(usize, AgentMessage)>,
+) {
+    match state_via_handle(engine, session_id, None) {
+        Ok(state_update) => {
+            let _ = remote_prompt_tx.send((
+                crate::host::OBSERVER_SEAT,
+                AgentMessage::State(state_update),
+            ));
+        }
+        Err(error) => warn!(%error, "observer snapshot unavailable"),
+    }
+}
+
+#[cfg(forge_backend)]
 fn player_index(deciding_player_id: &str) -> usize {
     deciding_player_id
         .strip_prefix("player-")
@@ -1172,11 +1271,33 @@ fn player_index(deciding_player_id: &str) -> usize {
 }
 
 #[cfg(forge_backend)]
+fn reject_response(
+    remote_prompt_tx: &std_mpsc::Sender<(usize, AgentMessage)>,
+    seat: usize,
+    reopen_prompt: Option<&AgentPrompt>,
+    code: ProtocolErrorCode,
+    message: String,
+) {
+    let _ = remote_prompt_tx.send((
+        seat,
+        AgentMessage::Error(ProtocolError {
+            code,
+            message,
+            prompt_id: reopen_prompt.map(|p| p.prompt_id),
+        }),
+    ));
+    if let Some(prompt) = reopen_prompt {
+        let _ = remote_prompt_tx.send((seat, AgentMessage::Prompt(prompt.clone())));
+    }
+}
+
+#[cfg(forge_backend)]
 fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
         PromptInput::ChooseAction(_) => {
             Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until: None,
+                exhaust_stack: false,
             }))
         }
         _ => None,
@@ -1194,8 +1315,12 @@ fn game_over_prompt() -> AgentPrompt {
 }
 
 #[cfg(forge_backend)]
-fn state_via_handle(engine: &ForgeEngine, session_id: &str) -> Result<StateUpdate, String> {
-    let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id)?)
+fn state_via_handle(
+    engine: &ForgeEngine,
+    session_id: &str,
+    viewer: Option<usize>,
+) -> Result<StateUpdate, String> {
+    let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id, viewer)?)
         .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
     Ok(StateUpdate { game_view })
 }
@@ -1308,6 +1433,7 @@ impl JavaScenario {
                         } else {
                             Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                                 until: None,
+                                exhaust_stack: false,
                             })))
                         }
                     }
@@ -1351,7 +1477,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None, exhaust_stack: false })))
                         }
                     }
                     other => Err(format!(
@@ -1399,7 +1525,7 @@ fn run_scenario_loop<B: JavaBridge>(
             continue;
         }
 
-        let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot()?)
+        let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot(Some(0))?)
             .map_err(|err| format!("failed to parse java scenario snapshot: {err}"))?;
         let normalized_prompt = serde_json::to_value(&prompt).map_err(|err| err.to_string())?;
         info!(
@@ -1676,7 +1802,7 @@ fn run_self_play_loop<B: JavaBridge>(
 
 #[cfg(feature = "java-forge")]
 fn parse_snapshot<B: JavaBridge>(session: &mut JavaForgeSession<B>) -> Result<Value, String> {
-    let snapshot_json = session.get_snapshot()?;
+    let snapshot_json = session.get_snapshot(Some(0))?;
     serde_json::from_str(&snapshot_json)
         .map_err(|err| format!("failed to parse java self-play snapshot: {err}"))
 }
@@ -1780,10 +1906,15 @@ fn prompt_card_ids(prompt: &Value, field: &str, count: usize) -> Result<Vec<Stri
 
 #[cfg(feature = "java-forge")]
 fn battlefield_contains(game_view: &GameViewDto, card_name: &str) -> bool {
-    game_view
-        .battlefield
-        .iter()
-        .any(|card| card.identity.name == card_name && card.controller_id == "player-0")
+    use manabrew_agent_interface::game_view_dto::{CardView, ZoneKind};
+    game_view.zones.iter().any(|zone| {
+        zone.zone == ZoneKind::Battlefield
+            && zone.owner_id == "player-0"
+            && zone.cards.iter().any(|card| match card {
+                CardView::Visible(dto) => dto.identity.name == card_name,
+                CardView::Hidden { .. } => false,
+            })
+    })
 }
 
 pub trait JavaBridge {
@@ -1795,7 +1926,7 @@ pub trait JavaBridge {
         session_id: &str,
         player_index: usize,
     ) -> Result<Option<String>, String>;
-    fn get_snapshot(&mut self, session_id: &str) -> Result<String, String>;
+    fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
     fn abort_game(&mut self, session_id: &str) -> Result<(), String>;
@@ -1837,9 +1968,9 @@ impl<B: JavaBridge> JavaForgeSession<B> {
         self.bridge.get_prompt(&session_id, player_index)
     }
 
-    pub fn get_snapshot(&mut self) -> Result<String, String> {
+    pub fn get_snapshot(&mut self, viewer: Option<usize>) -> Result<String, String> {
         let session_id = self.require_session_id()?.to_string();
-        self.bridge.get_snapshot(&session_id)
+        self.bridge.get_snapshot(&session_id, viewer)
     }
 
     pub fn is_game_over(&mut self) -> Result<bool, String> {
@@ -1884,7 +2015,11 @@ impl JavaBridge for UnavailableJavaBridge {
         Err(unsupported_message().to_string())
     }
 
-    fn get_snapshot(&mut self, _session_id: &str) -> Result<String, String> {
+    fn get_snapshot(
+        &mut self,
+        _session_id: &str,
+        _viewer: Option<usize>,
+    ) -> Result<String, String> {
         Err(unsupported_message().to_string())
     }
 
@@ -2123,8 +2258,11 @@ impl JavaBridge for SubprocessBridge {
         Ok((!prompt.is_empty()).then_some(prompt))
     }
 
-    fn get_snapshot(&mut self, session_id: &str) -> Result<String, String> {
-        let body = json!({ "command": "getSnapshot", "sessionId": session_id });
+    fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
+        let mut body = json!({ "command": "getSnapshot", "sessionId": session_id });
+        if let Some(viewer) = viewer {
+            body["viewer"] = json!(viewer);
+        }
         self.call(&body.to_string())
     }
 

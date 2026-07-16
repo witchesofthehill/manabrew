@@ -80,8 +80,9 @@ impl BotAgent for SimpleAi {
                     None => ChooseActionOutput::Pass {
                         until: Some(PassUntil {
                             player_id: prompt.deciding_player_id.clone(),
-                            phase: "main1".to_string(),
+                            phase: manabrew_protocol::game::StepKind::Main1,
                         }),
+                        exhaust_stack: false,
                     },
                 }))
             }
@@ -183,7 +184,7 @@ impl BotAgent for SimpleAi {
                     chosen_indices: (0..take.min(options.len())).collect(),
                 }))
             }
-            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed }) => {
+            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed, .. }) => {
                 let mut chosen: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
                 if repeat_allowed {
                     if let Some(c) = valid_colors.first() {
@@ -249,9 +250,9 @@ impl BotAgent for SimpleAi {
                     chosen_card_ids: cards.iter().take(take).map(|c| c.id.clone()).collect(),
                 }))
             }
-            PromptInput::ReorderCards(manabrew_protocol::prompts::reorder_cards::ReorderCardsInput { cards, .. }) => {
-                Some(PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision {
-                    ordered_card_ids: cards.iter().map(|c| c.id.clone()).collect(),
+            PromptInput::Reorder(manabrew_protocol::prompts::reorder::ReorderInput { items, .. }) => {
+                Some(PromptOutput::Reorder(ReorderOutput::ReorderDecision {
+                    ordered_ids: items.iter().map(|item| item.id.clone()).collect(),
                 }))
             }
             PromptInput::GameOver(manabrew_protocol::prompts::game_over::GameOverInput { .. }) => None,

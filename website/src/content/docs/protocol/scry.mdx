@@ -69,8 +69,8 @@ A two-card Scry, keeping one on top and binning the other:
     "type": "scry",
     "presentation": { "title": "Scry 2", "targets": [] },
     "cards": [
-      { "id": "lib-0", "name": "Island" },
-      { "id": "lib-1", "name": "Counterspell" }
+      { "id": "lib-0", "identity": { "name": "Island" } },
+      { "id": "lib-1", "identity": { "name": "Counterspell" } }
     ],
     "zones": ["libraryTop", "libraryBottom"]
   }
@@ -82,7 +82,21 @@ A two-card Scry, keeping one on top and binning the other:
 
 ```json
 {
+  "kind": "response",
   "promptId": 7,
-  "output": { "type": "scryDecision", "zoneCardIds": [["lib-1"], ["lib-0"]] }
+  "action": {
+    "type": "scry",
+    "output": {
+      "type": "scryDecision",
+      "zoneCardIds": [
+        [
+          "lib-1"
+        ],
+        [
+          "lib-0"
+        ]
+      ]
+    }
+  }
 }
 ```

@@ -8,7 +8,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { getInitials } from "@/components/game/game.utils";
 import { useResolveDeckCard } from "./usePromptSourceCard";
-import type { CardDto, GameViewDto } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
+import type { ClientGameView } from "@/stores/gameStore.types";
 import type { TargetRef } from "@/protocol";
 
 const SEAT_KEYS = ["self", "opponent1", "opponent2", "opponent3"] as const;
@@ -117,7 +118,7 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
 }
 
 function findCardName(
-  gameView: GameViewDto | null | undefined,
+  gameView: ClientGameView | null | undefined,
   cardId: string,
 ): string | undefined {
   if (!gameView) return undefined;

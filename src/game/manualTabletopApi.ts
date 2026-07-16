@@ -6,9 +6,10 @@ import type {
   StartGameParams,
   StartMultiplayerGameParams,
 } from "@/platform";
-import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 import type { Prompt } from "@/protocol";
+import type { ClientCardDto, ClientGameView, ClientPlayerDto } from "@/stores/gameStore.types";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
 
 const MANUAL_GAME_ID = "manual-tabletop";
@@ -19,7 +20,7 @@ function createPlayer(
   isHuman: boolean,
   life: number,
   libraryCount: number,
-): PlayerDto {
+): ClientPlayerDto {
   return {
     id,
     name,
@@ -29,10 +30,13 @@ function createPlayer(
     poison: 0,
     hand: [],
     graveyard: [],
+    library: [],
     exile: [],
     commandZone: [],
     libraryCount,
+    handCount: 0,
     manaPool: {},
+    counters: {},
     commanderDamage: {},
     energyCounters: 0,
     radiationCounters: 0,
@@ -74,7 +78,10 @@ function resolveManualZone(
 }
 
 // Apply `fn` to the battlefield and every player's hand/graveyard/exile/command.
-function mapAllZones(gameView: GameViewDto, fn: (cards: CardDto[]) => CardDto[]): GameViewDto {
+function mapAllZones(
+  gameView: ClientGameView,
+  fn: (cards: ClientCardDto[]) => ClientCardDto[],
+): ClientGameView {
   return {
     ...gameView,
     battlefield: fn(gameView.battlefield),
@@ -88,7 +95,7 @@ function mapAllZones(gameView: GameViewDto, fn: (cards: CardDto[]) => CardDto[])
   };
 }
 
-function createInitialGameView(params: StartGameParams): GameViewDto {
+function createInitialGameView(params: StartGameParams): ClientGameView {
   const human = createPlayer(
     "player-0",
     "PlayerDto 1",
@@ -107,10 +114,11 @@ function createInitialGameView(params: StartGameParams): GameViewDto {
   return {
     gameId: MANUAL_GAME_ID,
     turn: 1,
-    step: "Manual",
+    step: "main1",
     activePlayerId: human.id,
     priorityPlayerId: human.id,
     players: [human, opponent],
+    zones: [],
     battlefield: [],
     stack: [],
     combatAssignments: [],
@@ -118,25 +126,26 @@ function createInitialGameView(params: StartGameParams): GameViewDto {
     winnerId: null,
     monarchId: null,
     initiativeHolderId: null,
+    dayTime: "neither",
   };
 }
 
 function updateVisibleCard(
-  gameView: GameViewDto,
+  gameView: ClientGameView,
   cardId: string,
-  update: (card: CardDto) => CardDto,
-): GameViewDto {
+  update: (card: ClientCardDto) => ClientCardDto,
+): ClientGameView {
   return mapAllZones(gameView, (cards) =>
     cards.map((card) => (card.id === cardId ? update(card) : card)),
   );
 }
 
 function removeVisibleCard(
-  gameView: GameViewDto,
+  gameView: ClientGameView,
   cardId: string,
-): { gameView: GameViewDto; card: CardDto | null } {
-  let removed: CardDto | null = null;
-  const removeFrom = (cards: CardDto[]): CardDto[] =>
+): { gameView: ClientGameView; card: ClientCardDto | null } {
+  let removed: ClientCardDto | null = null;
+  const removeFrom = (cards: ClientCardDto[]): ClientCardDto[] =>
     cards.filter((card) => {
       if (card.id !== cardId) return true;
       removed = card;
@@ -150,13 +159,13 @@ function removeVisibleCard(
 }
 
 function addCardToZone(
-  gameView: GameViewDto,
+  gameView: ClientGameView,
   zoneId: string,
   card: CardDto,
   position?: number,
-): GameViewDto {
-  const withInsertedCard = (cards: CardDto[]): CardDto[] => {
-    const nextCard = { ...card, zoneId };
+): ClientGameView {
+  const withInsertedCard = (cards: ClientCardDto[]): ClientCardDto[] => {
+    const nextCard: ClientCardDto = { ...card, zoneId };
     if (position == null || position < 0 || position >= cards.length) {
       return [...cards, nextCard];
     }
@@ -179,10 +188,10 @@ function addCardToZone(
 }
 
 function updatePlayer(
-  gameView: GameViewDto,
+  gameView: ClientGameView,
   playerId: string,
-  update: (player: PlayerDto) => PlayerDto,
-): GameViewDto {
+  update: (player: ClientPlayerDto) => ClientPlayerDto,
+): ClientGameView {
   return {
     ...gameView,
     players: gameView.players.map((player) => (player.id === playerId ? update(player) : player)),
@@ -190,9 +199,9 @@ function updatePlayer(
 }
 
 function syncVisibleZoneCountsWithLibraries(
-  gameView: GameViewDto,
-  libraries: Record<string, CardDto[]>,
-): GameViewDto {
+  gameView: ClientGameView,
+  libraries: Record<string, ClientCardDto[]>,
+): ClientGameView {
   return {
     ...gameView,
     players: gameView.players.map((player) => ({
@@ -203,9 +212,9 @@ function syncVisibleZoneCountsWithLibraries(
 }
 
 export class ManualTabletopGameApi implements ManualTabletopApi {
-  private gameView: GameViewDto | null = null;
+  private gameView: ClientGameView | null = null;
   private latestPrompt: Prompt | null = null;
-  private libraries: Record<string, CardDto[]> = {};
+  private libraries: Record<string, ClientCardDto[]> = {};
 
   async startGame(params: StartGameParams): Promise<string> {
     this.gameView = createInitialGameView(params);
@@ -244,11 +253,11 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     return this.latestPrompt;
   }
 
-  getGameView(): GameViewDto | null {
+  getGameView(): ClientGameView | null {
     return this.gameView;
   }
 
-  async applyManualAction(action: ManualTabletopAction): Promise<GameViewDto> {
+  async applyManualAction(action: ManualTabletopAction): Promise<ClientGameView> {
     if (!this.gameView && action.type !== "replaceState") {
       throw new Error("No active manual tabletop game.");
     }
@@ -261,7 +270,10 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     return this.gameView;
   }
 
-  private applyAction(gameView: GameViewDto | null, action: ManualTabletopAction): GameViewDto {
+  private applyAction(
+    gameView: ClientGameView | null,
+    action: ManualTabletopAction,
+  ): ClientGameView {
     if (action.type === "replaceState") {
       this.libraries = action.libraries ?? {};
       return action.gameView;
@@ -307,7 +319,6 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
           ...action.card,
           controllerId: action.controllerId,
           ownerId: action.controllerId,
-          zoneId: action.zoneId ?? "battlefield",
           identity: { ...action.card.identity, isToken: action.card.identity.isToken ?? false },
         });
       case "createToken":

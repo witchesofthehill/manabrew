@@ -156,9 +156,9 @@
       "refs": ["BlockableAttackerDto"]
     },
     "ChooseBoardTargetsInput": {
-      "ts": "interface ChooseBoardTargetsInput {\n  candidates: Array<TargetRef>;\n  hostile: boolean;\n  intent: TargetingIntent;\n  minTargets: number;\n  maxTargets: number;\n  chosenTargets: number;\n  label: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBoardTargetsInput {\n    pub candidates: Vec<TargetRef>,\n    #[serde(default)]\n    pub hostile: bool,\n    pub intent: TargetingIntent,\n    pub min_targets: i32,\n    pub max_targets: i32,\n    pub chosen_targets: i32,\n    pub label: String,\n}",
-      "refs": ["TargetRef", "TargetingIntent"]
+      "ts": "interface ChooseBoardTargetsInput {\n  presentation: PromptPresentation;\n  candidates: Array<TargetRef>;\n  hostile: boolean;\n  intent: TargetingIntent;\n  minTargets: number;\n  maxTargets: number;\n  chosenTargets: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBoardTargetsInput {\n    pub presentation: PromptPresentation,\n    pub candidates: Vec<TargetRef>,\n    #[serde(default)]\n    pub hostile: bool,\n    pub intent: TargetingIntent,\n    pub min_targets: i32,\n    pub max_targets: i32,\n    pub chosen_targets: i32,\n}",
+      "refs": ["PromptPresentation", "TargetRef", "TargetingIntent"]
     },
     "ChooseBooleanInput": {
       "ts": "interface ChooseBooleanInput {\n  presentation: PromptPresentation;\n  confirmLabel: string;\n  denyLabel: string;\n}",
@@ -171,9 +171,9 @@
       "refs": ["CardDto", "PromptPresentation"]
     },
     "ChooseColorInput": {
-      "ts": "interface ChooseColorInput {\n  validColors: Array<string>;\n  amount: number;\n  repeatAllowed: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseColorInput {\n    pub valid_colors: Vec<String>,\n    pub amount: u32,\n    pub repeat_allowed: bool,\n}",
-      "refs": []
+      "ts": "interface ChooseColorInput {\n  presentation: PromptPresentation;\n  validColors: Array<string>;\n  amount: number;\n  repeatAllowed: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseColorInput {\n    pub presentation: PromptPresentation,\n    pub valid_colors: Vec<String>,\n    pub amount: u32,\n    pub repeat_allowed: bool,\n}",
+      "refs": ["PromptPresentation"]
     },
     "ChooseCombatDamageAssignmentInput": {
       "ts": "interface ChooseCombatDamageAssignmentInput {\n  attackerId: string;\n  blockerIds: Array<string>;\n  defenderId?: string;\n  totalDamage: number;\n  attackerHasDeathtouch: boolean;\n}",
@@ -241,9 +241,9 @@
       "refs": []
     },
     "DiceRolledInput": {
-      "ts": "interface DiceRolledInput {\n  sides: number;\n  rolls: Array<DiceRollEntry>;\n  title?: string;\n  sourceCardName?: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRolledInput {\n    pub sides: i32,\n    pub rolls: Vec<DiceRollEntry>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub title: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_name: Option<String>,\n}",
-      "refs": ["DiceRollEntry"]
+      "ts": "interface DiceRolledInput {\n  presentation: PromptPresentation;\n  sides: number;\n  rolls: Array<DiceRollEntry>;\n  sourceCardName?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRolledInput {\n    pub presentation: PromptPresentation,\n    pub sides: i32,\n    pub rolls: Vec<DiceRollEntry>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_name: Option<String>,\n}",
+      "refs": ["DiceRollEntry", "PromptPresentation"]
     },
     "DirectiveInput": {
       "ts": "interface DirectiveInput {\n  type: \"concede\";\n}",
@@ -288,9 +288,9 @@
       "refs": ["CardDto"]
     },
     "PayManaCostInput": {
-      "ts": "interface PayManaCostInput {\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  actions: Array<PaymentAction>;\n  description?: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<PaymentAction>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n}",
-      "refs": ["PaymentAction"]
+      "ts": "interface PayManaCostInput {\n  presentation: PromptPresentation;\n  cardId: string;\n  cardName: string;\n  manaCost: string;\n  canConfirmFromPool: boolean;\n  actions: Array<PaymentAction>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub presentation: PromptPresentation,\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<PaymentAction>,\n}",
+      "refs": ["PaymentAction", "PromptPresentation"]
     },
     "PaymentAction": {
       "ts": "type PaymentAction = { id: string } & (\n  | ({ type: \"activateManaAbility\" } & ActivatableAbilityInfo)\n  | { type: \"undoMana\"; cardId: string }\n  | { type: \"useResource\"; cardId: string; resource: PaymentResourceKind }\n  | { type: \"releaseResource\"; cardId: string; resource: PaymentResourceKind }\n  | { type: \"payLife\"; amount: number }\n);",
@@ -343,9 +343,9 @@
       "refs": ["CardDto"]
     },
     "RevealCardsInput": {
-      "ts": "interface RevealCardsInput {\n  cards: Array<CardDto>;\n  zone: ZoneKind;\n  ownerPlayerId: string;\n  message: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct RevealCardsInput {\n    pub cards: Vec<CardDto>,\n    pub zone: ZoneKind,\n    pub owner_player_id: String,\n    pub message: String,\n}",
-      "refs": ["CardDto", "ZoneKind"]
+      "ts": "interface RevealCardsInput {\n  presentation: PromptPresentation;\n  cards: Array<CardDto>;\n  zone: ZoneKind;\n  ownerPlayerId: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct RevealCardsInput {\n    pub presentation: PromptPresentation,\n    pub cards: Vec<CardDto>,\n    pub zone: ZoneKind,\n    pub owner_player_id: String,\n}",
+      "refs": ["CardDto", "PromptPresentation", "ZoneKind"]
     },
     "ScryDestination": {
       "ts": "type ScryDestination =\n  | \"libraryTop\"\n  | \"libraryBottom\"\n  | \"graveyard\"\n  | \"exile\"\n  | \"hand\";",

@@ -36,16 +36,37 @@ if [ -f "$REPO_DIR/.env" ]; then
     set +a
 fi
 
+# ── Fetch + hard-reset to origin/<branch> ────────────────────────────
+# Pin origin to HTTPS regardless of how the box was cloned: the repo is public,
+# so this works anonymously (or token-authed for rate limits) and a box cloned
+# over SSH doesn't need a GitHub key. fetch + `checkout -f -B` force the local
+# branch to exactly match the remote — robust to a diverged/detached/dirty
+# checkout where a plain `pull --ff-only` would bail. Only the compose file +
+# ops/ configs are used from the checkout (images come prebuilt from ghcr), so
+# no submodules and no local build.
+REPO_SLUG="${GITHUB_REPO:-witchesofthehill/manabrew}"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO:-witchesofthehill/manabrew}.git"
+    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO_SLUG}.git"
+else
+    git remote set-url origin "https://github.com/${REPO_SLUG}.git"
 fi
-
-# ── Pull the branch ──────────────────────────────────────────────────
-# Only the compose file + ops/ configs are used from the checkout (images come
-# prebuilt from ghcr), so no submodules and no local build.
-PREV=$(git rev-parse --short HEAD)
-git pull origin "$BRANCH" --ff-only >> "$RAW_LOG" 2>&1
+# DEPLOY_STAGING_ORIG_PREV preserves the pre-fetch commit across the self-update
+# re-exec below, so the re-run still reports the right range instead of an empty
+# "no new commits" changelog.
+PREV="${DEPLOY_STAGING_ORIG_PREV:-$(git rev-parse --short HEAD)}"
+git fetch origin "$BRANCH" >> "$RAW_LOG" 2>&1
+git checkout -f -B "$BRANCH" FETCH_HEAD >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
+
+# Self-update: the checkout may have changed this very script, but bash already
+# has the old copy in memory — without this, script edits only take effect the
+# NEXT deploy. Re-exec the updated script once (guarded so it can't loop).
+if [ -z "${DEPLOY_STAGING_ORIG_PREV:-}" ] && [ "$PREV" != "$CURR" ] \
+   && ! git diff --quiet "${PREV}..${CURR}" -- deploy-staging.sh; then
+    echo "deploy-staging.sh changed in this pull — re-exec'ing the updated script" >> "$RAW_LOG"
+    export DEPLOY_STAGING_ORIG_PREV="$PREV"
+    exec bash "$0" "$@"
+fi
 
 # ── Pull the CI-built images ─────────────────────────────────────────
 # The deploy job needs build-images, so these normally exist already; the retry

@@ -200,11 +200,19 @@ fn main() {
                 targets: Vec::new(),
             },
             options: vec![
-                "Destroy target artifact".to_string(),
-                "Destroy target enchantment".to_string(),
+                choose_from_selection::SelectionOption {
+                    label: "Destroy target artifact".to_string(),
+                    weight: 1,
+                    can_repeat: false,
+                },
+                choose_from_selection::SelectionOption {
+                    label: "Destroy target enchantment".to_string(),
+                    weight: 1,
+                    can_repeat: false,
+                },
             ],
-            min_choices: 1,
-            max_choices: 2,
+            min_total: 1,
+            max_total: 2,
         }),
         DiceRolled(dice_rolled::DiceRolledInput {
             presentation: common::PromptPresentation {

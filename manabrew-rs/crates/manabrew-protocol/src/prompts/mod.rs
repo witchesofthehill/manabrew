@@ -36,7 +36,9 @@ pub use choose_combat_damage_assignment::{
 pub use choose_damage_assignment_order::{
     ChooseDamageAssignmentOrderInput, ChooseDamageAssignmentOrderOutput,
 };
-pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
+pub use choose_from_selection::{
+    ChooseFromSelectionInput, ChooseFromSelectionOutput, SelectionOption,
+};
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
 pub use common::{
     ActivatableAbilityInfo, AlternativeCostKind, AvailableAction, AvailableActionKind,

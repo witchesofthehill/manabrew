@@ -56,9 +56,16 @@ fn send_selection<T: Responder>(
                 source_card_id: source.map(card_id_str),
                 targets: Vec::new(),
             },
-            options,
-            min_choices: min,
-            max_choices: max,
+            options: options
+                .into_iter()
+                .map(|label| SelectionOption {
+                    label,
+                    weight: 1,
+                    can_repeat: false,
+                })
+                .collect(),
+            min_total: min,
+            max_total: max,
         }),
         source,
     );

@@ -174,14 +174,26 @@ impl BotAgent for SimpleAi {
             PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
                 presentation,
                 options,
-                min_choices,
-                max_choices,
+                min_total,
+                max_total,
             }) => {
                 let signature =
-                    format!("select:{}|{min_choices}|{max_choices}|{}", presentation.title, options.len());
-                let take = if self.looping_on(signature) { max_choices } else { min_choices };
+                    format!("select:{}|{min_total}|{max_total}|{}", presentation.title, options.len());
+                let target = if self.looping_on(signature) { max_total } else { min_total };
+                let mut chosen_indices = Vec::new();
+                let mut total = 0;
+                for (index, option) in options.iter().enumerate() {
+                    if total + option.weight > target {
+                        continue;
+                    }
+                    chosen_indices.push(index);
+                    total += option.weight;
+                    if total == target {
+                        break;
+                    }
+                }
                 Some(PromptOutput::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
-                    chosen_indices: (0..take.min(options.len())).collect(),
+                    chosen_indices,
                 }))
             }
             PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed, .. }) => {

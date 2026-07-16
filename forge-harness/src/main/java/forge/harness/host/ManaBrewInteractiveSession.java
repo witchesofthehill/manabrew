@@ -967,7 +967,7 @@ public final class ManaBrewInteractiveSession {
             final int max,
             final String sourceName
     ) {
-        return awaitModeChoice(playerId, options, min, max, sourceName, false);
+        return awaitModeChoice(playerId, unweightedOptions(options), min, max, sourceName, null, null);
     }
 
     List<Integer> awaitModeChoice(
@@ -978,13 +978,31 @@ public final class ManaBrewInteractiveSession {
             final String sourceName,
             final boolean allowRepeat
     ) {
+        return awaitModeChoice(playerId, unweightedOptions(options, allowRepeat), min, max, sourceName, null, null);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
+            final List<SelectionOption> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final String sourceCardId
+    ) {
         requireAttached();
         if (options.isEmpty() && min > 0) {
             throw new IllegalArgumentException("unsatisfiable mode prompt: min " + min + " with no options");
         }
-        final int clampedMin = allowRepeat ? min : Math.min(min, options.size());
-        final int clampedMax = allowRepeat ? max : Math.min(max, options.size());
-        publishOptionPrompt("choose_mode", playerId, options, clampedMin, clampedMax, sourceName, null);
+        final boolean anyRepeatable = options.stream().anyMatch(option -> option.canRepeat);
+        final int totalWeight = options.stream().mapToInt(option -> option.weight).sum();
+        final int clampedMin = anyRepeatable ? min : Math.min(min, totalWeight);
+        final int clampedMax = anyRepeatable ? max : Math.min(max, totalWeight);
+        final String title = sourceName != null ? sourceName : "Choose";
+        final PromptPresentation presentation =
+                new PromptPresentation(title, description, null, sourceCardId, java.util.List.of());
+        publishAgentPrompt("player-" + playerId, sourceCardId,
+                new ChooseFromSelectionInput(presentation, options, clampedMin, clampedMax));
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1003,33 +1021,52 @@ public final class ManaBrewInteractiveSession {
                     selected.add(element.getAsInt());
                 }
             }
-            validateModeIndices(selected, options.size(), clampedMin, clampedMax, allowRepeat);
+            validateModeIndices(selected, options, clampedMin, clampedMax);
             return selected;
         }
         return defaultModeIndices(options, clampedMin);
     }
 
-    private static List<Integer> defaultModeIndices(final List<String> options, final int min) {
+    private static List<SelectionOption> unweightedOptions(final List<String> labels) {
+        return unweightedOptions(labels, false);
+    }
+
+    private static List<SelectionOption> unweightedOptions(final List<String> labels, final boolean canRepeat) {
+        final List<SelectionOption> options = new ArrayList<>();
+        for (final String label : labels) {
+            options.add(new SelectionOption(label, 1, canRepeat));
+        }
+        return options;
+    }
+
+    private static List<Integer> defaultModeIndices(final List<SelectionOption> options, final int min) {
         final List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < min && !options.isEmpty(); i++) {
-            indices.add(Math.min(i, options.size() - 1));
+        int total = 0;
+        for (int i = 0; i < options.size() && total < min; i++) {
+            if (total + options.get(i).weight > min) {
+                continue;
+            }
+            indices.add(i);
+            total += options.get(i).weight;
         }
         return indices;
     }
 
     private static void validateModeIndices(
-            final List<Integer> selected, final int optionCount, final int min, final int max, final boolean allowRepeat) {
-        if (selected.size() < min || selected.size() > max) {
-            throw new IllegalArgumentException("selected option count out of range: " + selected.size());
-        }
+            final List<Integer> selected, final List<SelectionOption> options, final int min, final int max) {
         final Set<Integer> seen = new HashSet<>();
+        int total = 0;
         for (final Integer index : selected) {
-            if (index == null || index < 0 || index >= optionCount) {
+            if (index == null || index < 0 || index >= options.size()) {
                 throw new IllegalArgumentException("option index out of range: " + index);
             }
-            if (!allowRepeat && !seen.add(index)) {
+            if (!seen.add(index) && !options.get(index).canRepeat) {
                 throw new IllegalArgumentException("duplicate option index: " + index);
             }
+            total += options.get(index).weight;
+        }
+        if (total < min || total > max) {
+            throw new IllegalArgumentException("selected option total out of range: " + total);
         }
     }
 
@@ -1802,9 +1839,6 @@ public final class ManaBrewInteractiveSession {
         }
         final String title;
         switch (kind) {
-            case "choose_mode":
-                title = sourceName != null ? sourceName : "Choose";
-                break;
             case "choose_type":
                 title = "Choose a " + (description != null ? description : "type");
                 break;
@@ -1817,7 +1851,8 @@ public final class ManaBrewInteractiveSession {
         final PromptPresentation presentation =
                 new PromptPresentation(title, null, null, null, java.util.List.of());
         publishAgentPrompt(
-                "player-" + playerId, null, new ChooseFromSelectionInput(presentation, options, min, max));
+                "player-" + playerId, null,
+                new ChooseFromSelectionInput(presentation, unweightedOptions(options), min, max));
     }
 
     private void publishBooleanPrompt(

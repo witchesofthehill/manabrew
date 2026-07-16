@@ -20,10 +20,9 @@ import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
-import { stackObjectToCardStub } from "@/components/game/game.utils";
-import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
+import { useSourceCardDto } from "./internal/usePromptSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
 import type { ScryInput, ScryOutput, ScryDestination } from "@/protocol";
@@ -206,19 +205,7 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
   const { presentation, zones } = input;
   const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
-  const gameView = useGameStore((s) => s.gameView);
-  const sourceCard = useMemo<CardDto | undefined>(() => {
-    const id = presentation.sourceCardId;
-    if (!id || !gameView) return undefined;
-    const visible = [
-      ...gameView.battlefield,
-      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
-    ];
-    const gc = visible.find((c) => c.id === id);
-    if (gc) return gc;
-    const stackObj = gameView.stack.find((s) => s.sourceId === id);
-    return stackObj ? (stackObjectToCardStub(stackObj) as CardDto) : undefined;
-  }, [presentation.sourceCardId, gameView]);
+  const sourceCard = useSourceCardDto(presentation.sourceCardId);
   const zoneIds = useMemo(() => zones.map((_, i) => `z${i}`), [zones]);
 
   const [items, setItems] = useState<Record<string, string[]>>(() => ({

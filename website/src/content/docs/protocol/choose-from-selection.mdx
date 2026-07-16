@@ -8,6 +8,13 @@ import ProtocolType from "../../../components/ProtocolType.astro";
 Sent when the player must choose modes of a modal spell — for example, picking
 "choose one or both" on a charm, or selecting the modes of a Command.
 
+Each option carries a `weight`, and the selection is constrained by total
+weight: the sum of the chosen options' weights must land within
+`minTotal`–`maxTotal`. For ordinary modal choices every weight is 1, so the
+totals are simply choice counts. Pawprint cards ("choose up to five {P} worth
+of modes") use the weights as pawprint costs. An option with `canRepeat` may be
+chosen more than once.
+
 ## Arguments
 
 `input.type` is `"chooseFromSelection"`. The remaining fields:
@@ -21,7 +28,7 @@ The control depends on how many options may be chosen.
 <figure class="prompt-figure">
   <img src="/protocol/choose-from-selection.webp" alt="A list of single-choice option buttons" />
   <div class="prompt-figure__caption">
-    For a single choice (`maxChoices` of 1) the options are plain buttons — clicking one sends it
+    For a single choice (`maxTotal` of 1) the options are plain buttons — clicking one sends it
     immediately.
   </div>
 </figure>
@@ -33,9 +40,13 @@ The control depends on how many options may be chosen.
   />
   <div class="prompt-figure__caption">
     For multiple choices each option gets a checkbox and a counter; the player selects within
-    `minChoices`–`maxChoices`, then confirms.
+    `minTotal`–`maxTotal`, then confirms.
   </div>
 </figure>
+
+Clicking a `canRepeat` option adds another copy of it and its row shows the
+count with a stepper to remove copies; the counter tracks the running weight
+total against `maxTotal`.
 
 Beyond six options the list collapses into a type-to-filter field (search and
 pick), keeping long lists manageable.
@@ -46,7 +57,9 @@ pick), keeping long lists manageable.
 type ChooseFromSelectionOutput = { type: "selectionDecision"; chosenIndices: number[] };
 ```
 
-Return the indices (into `options`) of the chosen modes.
+Return the indices (into `options`) of the chosen modes. An index may appear
+more than once only when its option has `canRepeat`, and the summed weights of
+the chosen options must be within `minTotal`–`maxTotal`.
 
 ## Example
 
@@ -60,9 +73,12 @@ Return the indices (into `options`) of the chosen modes.
       "title": "Choose one or both",
       "targets": []
     },
-    "options": ["Destroy target artifact.", "Destroy target enchantment."],
-    "minChoices": 1,
-    "maxChoices": 2
+    "options": [
+      { "label": "Destroy target artifact.", "weight": 1, "canRepeat": false },
+      { "label": "Destroy target enchantment.", "weight": 1, "canRepeat": false }
+    ],
+    "minTotal": 1,
+    "maxTotal": 2
   }
 }
 ```

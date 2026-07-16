@@ -78,8 +78,7 @@ automatic rollback to the previous images on an unhealthy deploy — but drops t
 release-only machinery `deploy.sh` carries (manifest hold / `--release-manifest`,
 updater + sidestore, observability/parity profiles, the relay binary-diff gate).
 On staging a relay recreate is fine, so `up -d` just recreates whatever image
-changed. `SERVICES` / `WEB_SERVICE` env parameterize the service names so the
-same script drives both this slot and the manual VM slot below.
+changed.
 
 ## Secrets and hosts
 
@@ -97,39 +96,22 @@ same script drives both this slot and the manual VM slot below.
   live in `ops/Caddyfile`, which the prod box serves from its `main` checkout —
   a change there reaches the box with the next release (or a manual hot-sync).
 
-## The optional VM slot (manual, on the VM)
+## The optional VM (manual, self-contained)
 
-A second, isolated environment on a separate VM (own domain via
-`STAGING_*_HOST` in its `.env`, edge: `ops/staging-vm.Caddyfile`) — useful for
-experiments that shouldn't touch the staging slot, e.g. spinning up node
-fleets. No CI drives it; deploy by running the shared rollout script **on the
-VM itself**:
-
-```bash
-cd <checkout>          # the repo clone on the VM
-COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh
-```
-
-That pulls `origin/staging` plus the `:staging` ghcr images (built by every
-push to `staging`) and rolls out with the usual health gate + rollback.
-Variants:
+A separate VM can run the whole stack for experiments that shouldn't touch the
+staging slot (node fleets, relay tests). No CI drives it and it needs no
+dedicated compose/Caddyfile: it uses the **selfhost stack**, which builds from
+whatever is checked out on the VM:
 
 ```bash
-# a different branch's code (compose/ops configs come from the checkout;
-# images are whatever tag you point at — only tags CI has pushed exist):
-DEPLOY_BRANCH=my-branch COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh
-
-# a release image set instead of staging:
-MANABREW_IMAGE_TAG=latest COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh
-
-# tear the stack down:
-docker compose -f compose.staging-vm.yml down --remove-orphans
+cd <checkout>                    # the repo clone on the VM
+git fetch origin staging && git checkout -f -B staging FETCH_HEAD
+./deploy-local.sh                # own network, published ports, builds locally
 ```
 
-`COMPOSE_FILE` must be passed explicitly — the script's default
-(`compose.staging.yml`) is the prod-box slot, whose compose expects the prod
-docker network and fails fast on the VM. The VM's `.env` (hub auth secrets
-etc.) is maintained by hand now that no workflow reaches the box.
+See the header of `deploy-local.sh` for the env knobs (`RELAY_HOST`,
+`WEB_PORT`, `MANABREW_SERVER_KEY`, …) and the HTTPS caveat for LAN access. The
+VM's edge/env is maintained by hand; nothing in this repo references it.
 
 ## First-time setup (ops)
 

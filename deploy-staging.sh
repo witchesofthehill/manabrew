@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# deploy-staging.sh — Lean rollout of the staging stack on the staging VM.
-# Pulls the staging branch + the CI-built `:staging` ghcr images and rolls them
-# out with a health-checked recreate + rollback. Deliberately NOT deploy.sh:
-# none of production's release machinery (manifest hold, --release-manifest,
-# sidestore, observability/parity profiles) lives here — staging just tracks a
-# branch and swaps in fresh images. Driven by staging-deploy.yml over SSH.
+# deploy-staging.sh — Lean rollout of the staging slot (/opt/manabrew-staging
+# on the prod box, staging.manabrew.app). Pulls the staging branch + the
+# CI-built `:staging` ghcr images and rolls them out with a health-checked
+# recreate + rollback. Deliberately NOT deploy.sh: none of production's release
+# machinery (manifest hold, --release-manifest, sidestore, observability/parity
+# profiles) lives here — staging just tracks a branch and swaps in fresh
+# images. Driven by staging-deploy.yml over SSH.
 #
 # stdout = clean summary (captured by the workflow and posted to Discord).
 # Raw output goes to /tmp/deploy-staging-raw.log.
@@ -26,8 +27,8 @@ on_failure() {
 }
 trap on_failure ERR
 
-# Box .env: MANABREW_SERVER_KEY, the STAGING_*_HOST trio, optional GITHUB_TOKEN
-# (git pull rate limits) and DISCORD_WEBHOOK_URL.
+# Slot .env: MANABREW_SERVER_KEY + hub auth secrets, written by the workflow's
+# secret sync; optional GITHUB_TOKEN (git pull rate limits).
 if [ -f "$REPO_DIR/.env" ]; then
     set -a
     # shellcheck disable=SC1091
@@ -76,10 +77,8 @@ fi
 # The deploy job needs build-images, so these normally exist already; the retry
 # is a safety net if ghcr is briefly behind.
 export DOCKER_BUILDKIT=1
-# SERVICES/WEB_SERVICE default to the VM stack's names; the prod-box staging
-# slot (compose.staging.yml, -staging suffixed services) overrides both.
-SERVICES="${SERVICES:-manabrew manabrew-server manabrew-hub}"
-WEB_SERVICE="${WEB_SERVICE:-manabrew}"
+SERVICES="manabrew-staging manabrew-server-staging manabrew-hub-staging"
+WEB_SERVICE="manabrew-staging"
 echo "Pulling :${MANABREW_IMAGE_TAG} images ($SERVICES)…" >> "$RAW_LOG"
 PULLED=false
 for attempt in $(seq 1 20); do
@@ -94,8 +93,7 @@ $PULLED || { echo "❌ ghcr image pull failed after retries — aborting."; exit
 # ── Health-checked rollout with rollback ─────────────────────────────
 # Snapshot each running service's current image so an unhealthy rollout can be
 # re-tagged back. `up -d` only recreates services whose image/config changed.
-# The ghcr ref per service comes from the compose file itself, so any stack
-# (VM names or -staging suffixed) resolves without a hardcoded map.
+# The ghcr ref per service comes from the compose file itself.
 ghcr_ref() {
     docker compose -f "$COMPOSE_FILE" config "$1" 2>/dev/null \
         | awk '/^ *image:/ {print $2; exit}'

@@ -18,8 +18,8 @@ name: Staging deploy
 # symlink to prod's ops/production.secrets, so the slot never inherits prod's
 # OAuth apps or hub config.
 #
-# The optional per-PR VM slot (label `deploy-vm`, Twingate SSH,
-# compose.staging-vm.yml) lives in vm-deploy.yml.
+# The optional standalone VM is not CI-driven: run deploy-local.sh on the VM
+# itself (compose.selfhost.yml — self-contained, builds from the checkout).
 on:
   push:
     branches: [staging]
@@ -153,7 +153,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && SERVICES='manabrew-staging manabrew-server-staging manabrew-hub-staging' WEB_SERVICE=manabrew-staging ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure

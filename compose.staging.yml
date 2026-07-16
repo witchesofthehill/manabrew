@@ -1,8 +1,8 @@
 # Staging stack — tracks the `staging` branch, runs on the PRODUCTION box under
 # /opt/manabrew-staging and joins the prod docker network so the prod Caddy
 # (ops/Caddyfile) fronts it at staging.manabrew.app / relay-staging.manabrew.app.
-# Driven by .github/workflows/staging-deploy.yml over direct SSH, same
-# deploy-staging.sh as the optional per-PR VM slot (compose.staging-vm.yml).
+# Driven by .github/workflows/staging-deploy.yml over direct SSH via
+# deploy-staging.sh.
 #
 # No published ports: prod Caddy owns 80/443 on the box. Every service name
 # carries a -staging suffix because it shares docker DNS with the prod project.

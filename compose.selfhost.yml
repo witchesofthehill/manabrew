@@ -19,6 +19,13 @@ services:
         # directly, so symbols don't depend on the box's outbound egress.
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     restart: unless-stopped
+    # Caddy resolves cards./svgs.scryfall.io per proxied request; the deck-cover
+    # prefetch fires dozens at once, and Docker's embedded resolver forwarding to
+    # a home-lab DNS drops that burst (dial tcp: lookup … i/o timeout → 502).
+    # Pin public resolvers so the Scryfall proxies survive the burst.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       # Address the browser uses to reach this box's relay (written into
       # config.js on start). Port 443 → wss://, anything else → ws://.

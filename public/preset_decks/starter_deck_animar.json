@@ -1310,7 +1310,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1604250788",
         "border_crop": "https://cards.scryfall.io/border_crop/front/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1604250788"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Sea Gate, Reborn",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "normal": "https://cards.scryfall.io/normal/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "large": "https://cards.scryfall.io/large/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "png": "https://cards.scryfall.io/png/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.png?1783929396",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/1/9/193071fe-180b-4d35-ba78-9c16675c29fc.jpg?1783929396"
+        }
+      }
     },
     {
       "name": "Shatterskull Smashing // Shatterskull, the Hammer Pass",
@@ -1334,7 +1348,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1604197844",
         "border_crop": "https://cards.scryfall.io/border_crop/front/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1604197844"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Shatterskull, the Hammer Pass",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "normal": "https://cards.scryfall.io/normal/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "large": "https://cards.scryfall.io/large/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "png": "https://cards.scryfall.io/png/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.png?1783929355",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355"
+        }
+      }
     },
     {
       "name": "Forsaken Monument",
@@ -1382,7 +1410,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1604199791",
         "border_crop": "https://cards.scryfall.io/border_crop/front/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1604199791"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Turntimber, Serpentine Wood",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "normal": "https://cards.scryfall.io/normal/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "large": "https://cards.scryfall.io/large/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "png": "https://cards.scryfall.io/png/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.png?1783929333",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/1/61bd69ea-1e9e-46b0-b1a1-ed7fdbe3deb6.jpg?1783929333"
+        }
+      }
     },
     {
       "name": "Cultivate",
@@ -1831,7 +1873,21 @@
           "name": "Drowner of Truth // Drowned Jungle",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Drowned Jungle",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {G} or {U}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/7/a/7a1d3c1d-1373-4ac4-bb26-9780976efc4f.jpg?1783911227",
+          "normal": "https://cards.scryfall.io/normal/back/7/a/7a1d3c1d-1373-4ac4-bb26-9780976efc4f.jpg?1783911227",
+          "large": "https://cards.scryfall.io/large/back/7/a/7a1d3c1d-1373-4ac4-bb26-9780976efc4f.jpg?1783911227",
+          "png": "https://cards.scryfall.io/png/back/7/a/7a1d3c1d-1373-4ac4-bb26-9780976efc4f.png?1783911227",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/7/a/7a1d3c1d-1373-4ac4-bb26-9780976efc4f.jpg?1783911227",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/7/a/7a1d3c1d-1373-4ac4-bb26-9780976efc4f.jpg?1783911227"
+        }
+      }
     },
     {
       "name": "Path of Annihilation",

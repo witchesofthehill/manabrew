@@ -151,7 +151,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1748260617",
         "border_crop": "https://cards.scryfall.io/border_crop/front/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1748260617"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Ral, Leyline Prodigy",
+        "manaCost": "",
+        "typeLine": "Legendary Planeswalker — Ral",
+        "oracleText": "Ral enters with an additional loyalty counter on him for each instant and sorcery spell you've cast this turn.\n+1: Until your next turn, instant and sorcery spells you cast cost {1} less to cast.\n−2: Ral deals 2 damage divided as you choose among one or two targets. Draw a card if you control a blue permanent other than Ral.\n−8: Exile the top eight cards of your library. You may cast instant and sorcery spells from among them this turn without paying their mana costs.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228",
+          "normal": "https://cards.scryfall.io/normal/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228",
+          "large": "https://cards.scryfall.io/large/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228",
+          "png": "https://cards.scryfall.io/png/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.png?1783911228",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/4/3/438d8a26-ddc9-4829-8aff-22d6af6575cf.jpg?1783911228"
+        }
+      }
     },
     {
       "name": "Manamorphose",
@@ -424,7 +438,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1604198379",
         "border_crop": "https://cards.scryfall.io/border_crop/front/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1604198379"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Valakut Stoneforge",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "normal": "https://cards.scryfall.io/normal/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "large": "https://cards.scryfall.io/large/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "png": "https://cards.scryfall.io/png/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.png?1783929350",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350"
+        }
+      }
     },
     {
       "name": "Grapeshot",

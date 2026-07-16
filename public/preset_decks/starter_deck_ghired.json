@@ -538,7 +538,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1604197844",
         "border_crop": "https://cards.scryfall.io/border_crop/front/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1604197844"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Shatterskull, the Hammer Pass",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "normal": "https://cards.scryfall.io/normal/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "large": "https://cards.scryfall.io/large/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "png": "https://cards.scryfall.io/png/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.png?1783929355",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355"
+        }
+      }
     },
     {
       "name": "Arcane Signet",
@@ -1002,7 +1016,21 @@
           "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Reflection of Kiki-Jiki",
+        "manaCost": "",
+        "typeLine": "Enchantment Creature — Goblin Shaman",
+        "oracleText": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/d/6dee0388-a78d-4b3c-a0c5-25655e14115e.jpg?1783923746",
+          "normal": "https://cards.scryfall.io/normal/back/6/d/6dee0388-a78d-4b3c-a0c5-25655e14115e.jpg?1783923746",
+          "large": "https://cards.scryfall.io/large/back/6/d/6dee0388-a78d-4b3c-a0c5-25655e14115e.jpg?1783923746",
+          "png": "https://cards.scryfall.io/png/back/6/d/6dee0388-a78d-4b3c-a0c5-25655e14115e.png?1783923746",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/d/6dee0388-a78d-4b3c-a0c5-25655e14115e.jpg?1783923746",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/d/6dee0388-a78d-4b3c-a0c5-25655e14115e.jpg?1783923746"
+        }
+      }
     },
     {
       "name": "Eiganjo, Seat of the Empire",
@@ -1318,7 +1346,21 @@
           "name": "Etali, Primal Conqueror // Etali, Primal Sickness",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Etali, Primal Sickness",
+        "manaCost": "",
+        "typeLine": "Legendary Creature — Phyrexian Elder Dinosaur",
+        "oracleText": "Trample, indestructible\nWhenever Etali deals combat damage to a player, they get that many poison counters. (A player with ten or more poison counters loses the game.)",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/3/e/3e97c609-3932-4428-96d4-1c97e61f0abb.jpg?1783916922",
+          "normal": "https://cards.scryfall.io/normal/back/3/e/3e97c609-3932-4428-96d4-1c97e61f0abb.jpg?1783916922",
+          "large": "https://cards.scryfall.io/large/back/3/e/3e97c609-3932-4428-96d4-1c97e61f0abb.jpg?1783916922",
+          "png": "https://cards.scryfall.io/png/back/3/e/3e97c609-3932-4428-96d4-1c97e61f0abb.png?1783916922",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/3/e/3e97c609-3932-4428-96d4-1c97e61f0abb.jpg?1783916922",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/3/e/3e97c609-3932-4428-96d4-1c97e61f0abb.jpg?1783916922"
+        }
+      }
     },
     {
       "name": "Delighted Halfling",
@@ -1770,7 +1812,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1717013161",
         "border_crop": "https://cards.scryfall.io/border_crop/front/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1717013161"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Witch-Blessed Meadow",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {W}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1783911236",
+          "normal": "https://cards.scryfall.io/normal/back/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1783911236",
+          "large": "https://cards.scryfall.io/large/back/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1783911236",
+          "png": "https://cards.scryfall.io/png/back/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.png?1783911236",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1783911236",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/2/62061e7c-cf19-4f03-b8fa-2bdba62d6b0b.jpg?1783911236"
+        }
+      }
     },
     {
       "name": "Bridgeworks Battle // Tanglespan Bridgeworks",
@@ -1794,7 +1850,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1717013318",
         "border_crop": "https://cards.scryfall.io/border_crop/front/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1717013318"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Tanglespan Bridgeworks",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "normal": "https://cards.scryfall.io/normal/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "large": "https://cards.scryfall.io/large/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "png": "https://cards.scryfall.io/png/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.png?1783911228",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/e/b/ebef3db0-2b58-4581-a79c-fbca9a059e63.jpg?1783911228"
+        }
+      }
     },
     {
       "name": "Springheart Nantuko",
@@ -2581,7 +2651,21 @@
           "name": "Brigid, Clachan's Heart // Brigid, Doun's Mind",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Brigid, Doun's Mind",
+        "manaCost": "",
+        "typeLine": "Legendary Creature — Kithkin Soldier",
+        "oracleText": "{T}: Add X {G} or X {W}, where X is the number of other creatures you control.\nAt the beginning of your first main phase, you may pay {W}. If you do, transform Brigid.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517",
+          "normal": "https://cards.scryfall.io/normal/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517",
+          "large": "https://cards.scryfall.io/large/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517",
+          "png": "https://cards.scryfall.io/png/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.png?1783904517",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/c/b/cb7d5bbb-4f68-4e38-8bb0-a95af21b24c8.jpg?1783904517"
+        }
+      }
     },
     {
       "name": "Forest",

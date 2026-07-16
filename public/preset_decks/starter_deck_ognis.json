@@ -622,7 +622,21 @@
           "name": "Ixalan Checklist",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Treasure Cove",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "(Transforms from Treasure Map.)\n{T}: Add {C}.\n{T}, Sacrifice a Treasure: Draw a card.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/c/0/c0f9c733-0818-4a03-8f0c-a163d09e0fff.jpg?1783935704",
+          "normal": "https://cards.scryfall.io/normal/back/c/0/c0f9c733-0818-4a03-8f0c-a163d09e0fff.jpg?1783935704",
+          "large": "https://cards.scryfall.io/large/back/c/0/c0f9c733-0818-4a03-8f0c-a163d09e0fff.jpg?1783935704",
+          "png": "https://cards.scryfall.io/png/back/c/0/c0f9c733-0818-4a03-8f0c-a163d09e0fff.png?1783935704",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/c/0/c0f9c733-0818-4a03-8f0c-a163d09e0fff.jpg?1783935704",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/c/0/c0f9c733-0818-4a03-8f0c-a163d09e0fff.jpg?1783935704"
+        }
+      }
     },
     {
       "name": "Grand Warlord Radha",
@@ -1077,7 +1091,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1669839373",
         "border_crop": "https://cards.scryfall.io/border_crop/front/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1669839373"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Searstep Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "normal": "https://cards.scryfall.io/normal/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "large": "https://cards.scryfall.io/large/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "png": "https://cards.scryfall.io/png/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.png?1783928185",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185"
+        }
+      }
     },
     {
       "name": "Darkbore Pathway // Slitherbore Pathway",
@@ -1101,7 +1129,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1669839402",
         "border_crop": "https://cards.scryfall.io/border_crop/front/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1669839402"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Slitherbore Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "normal": "https://cards.scryfall.io/normal/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "large": "https://cards.scryfall.io/large/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "png": "https://cards.scryfall.io/png/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.png?1783928184",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/8/7/87a4e5fe-161f-42da-9ca2-67c8e8970e94.jpg?1783928184"
+        }
+      }
     },
     {
       "name": "Goldspan Dragon",
@@ -1687,7 +1729,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1643593558",
         "border_crop": "https://cards.scryfall.io/border_crop/front/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1643593558"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Ulvenwald Behemoth",
+        "manaCost": "",
+        "typeLine": "Creature — Beast Horror",
+        "oracleText": "Trample, haste\nOther creatures you control get +1/+1 and have trample and haste.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1783924806",
+          "normal": "https://cards.scryfall.io/normal/back/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1783924806",
+          "large": "https://cards.scryfall.io/large/back/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1783924806",
+          "png": "https://cards.scryfall.io/png/back/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.png?1783924806",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1783924806",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/5/f/5fdf5fc4-69c8-4a59-9095-c2feefb64371.jpg?1783924806"
+        }
+      }
     },
     {
       "name": "Rakdos Charm",

@@ -13,6 +13,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        # Serve mana symbols same-origin through this box's Caddy
+        # (ops/standalone.Caddyfile) instead of fetching svgs.scryfall.io
+        # directly, so symbols don't depend on the box's outbound egress.
+        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     restart: unless-stopped
     environment:
       # Address the browser uses to reach this box's relay (written into

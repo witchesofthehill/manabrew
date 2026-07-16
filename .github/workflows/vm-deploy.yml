@@ -1,0 +1,214 @@
+name: VM deploy
+
+# PRs labelled `deploy-vm` are deployed to the optional staging VM
+# (compose.staging-vm.yml, hostnames from the VM's .env, e.g.
+# manabrew.federicovivaldo.com). Closing the PR or removing the label tears
+# the slot down. Single slot: the last labelled PR wins.
+#
+# The staging BRANCH deploys elsewhere (staging.manabrew.app on the prod box,
+# staging-deploy.yml); this workflow is for experiments that shouldn't touch
+# that slot — trying a PR's relay/node changes against a full stack, spinning
+# up node fleets from a branch, and so on.
+#
+# CI builds the images as `pr-<num>` ghcr tags (the VM doesn't build); the web
+# image bakes VITE_HUB_API_URL from the repo variable VM_APP_URL (hub is
+# same-origin on the VM's app host). Layer caches share docker-images.yml's
+# scopes. Fork PRs are skipped: they get neither a package-write token nor
+# the SSH secrets.
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened, closed, unlabeled]
+
+concurrency:
+  group: vm-deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-images:
+    name: Build & push ${{ matrix.image }} (pr tag)
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository
+      && ((github.event.action == 'labeled' && github.event.label.name == 'deploy-vm')
+          || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
+              && contains(github.event.pull_request.labels.*.name, 'deploy-vm')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: manabrew-server
+            dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+          - image: manabrew-web
+            dockerfile: Dockerfile.web
+            build-args: |
+              VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/
+              VITE_HUB_API_URL=${{ vars.VM_APP_URL }}
+          - image: manabrew-node
+            dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+          - image: manabrew-hub
+            dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  deploy:
+    needs: build-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    concurrency:
+      group: vm-slot
+      cancel-in-progress: false
+    steps:
+      # The VM only accepts SSH through Twingate; the connection stays up for
+      # the rest of the job.
+      - name: Connect to Twingate
+        uses: twingate/github-action@v1
+        with:
+          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
+
+      - name: SSH and roll out the PR to the VM
+        id: deploy
+        continue-on-error: true
+        env:
+          SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # Hub auth secrets for the VM slot's .env — same mapping as the
+          # staging slot; unset secrets leave the .env untouched.
+          AUTH_GITHUB_CLIENT_ID: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_ID }}
+          AUTH_GITHUB_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_SECRET }}
+          AUTH_DISCORD_CLIENT_ID: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_ID }}
+          AUTH_DISCORD_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_SECRET }}
+          AUTH_RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          AUTH_ENV=""
+          add_auth() { if [ -n "$2" ]; then AUTH_ENV="${AUTH_ENV}$1=$2"$'\n'; fi; }
+          add_auth GITHUB_CLIENT_ID "$AUTH_GITHUB_CLIENT_ID"
+          add_auth GITHUB_CLIENT_SECRET "$AUTH_GITHUB_CLIENT_SECRET"
+          add_auth DISCORD_CLIENT_ID "$AUTH_DISCORD_CLIENT_ID"
+          add_auth DISCORD_CLIENT_SECRET "$AUTH_DISCORD_CLIENT_SECRET"
+          add_auth RESEND_API_KEY "$AUTH_RESEND_API_KEY"
+          if [ -n "$AUTH_ENV" ]; then
+            printf '%s' "$AUTH_ENV" | ssh -i ~/.ssh/deploy_key \
+                -o StrictHostKeyChecking=yes \
+                "$USER@$HOST" \
+              "cd '$DEPLOY_PATH' && touch .env && while IFS= read -r line; do key=\${line%%=*}; { grep -v \"^\${key}=\" .env || true; } > .env.tmp; mv .env.tmp .env; printf '%s\n' \"\$line\" >> .env; done"
+          fi
+          # deploy-staging.sh fetches the given ref and rolls out with pull +
+          # health-checked up + rollback; pull/<num>/head works as a refspec.
+          # A PR cut before compose.staging-vm.yml existed fails fast inside
+          # the script (missing compose file) instead of deploying prod names.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && DEPLOY_BRANCH='pull/${PR_NUMBER}/head' MANABREW_IMAGE_TAG='pr-${PR_NUMBER}' COMPOSE_FILE=compose.staging-vm.yml ./deploy-staging.sh 2>&1 && echo '${PR_NUMBER}' > .vm-pr" 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Comment VM URL
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          VM_APP_URL: ${{ vars.VM_APP_URL }}
+        with:
+          script: |
+            const ok = process.env.DEPLOY_OUTCOME === 'success';
+            const url = process.env.VM_APP_URL || 'the staging VM';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: ok
+                ? `🧪 VM slot deployed: ${url} (${sha}) — unlabel \`deploy-vm\` or close the PR to tear it down.`
+                : `💥 VM deploy failed for ${sha} — see [run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`,
+            });
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: exit 1
+
+  teardown:
+    # Closing the PR, or removing the deploy-vm label. The pr-<num> image tags
+    # are left on ghcr; they're overwritten on the next deploy of the same PR.
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository
+      && (github.event.action == 'closed'
+          || (github.event.action == 'unlabeled' && github.event.label.name == 'deploy-vm'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: vm-slot
+      cancel-in-progress: false
+    steps:
+      - name: Connect to Twingate
+        uses: twingate/github-action@v1
+        with:
+          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
+
+      - name: SSH and tear down the slot (only if this PR owns it)
+        env:
+          SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && bash -s" <<TEARDOWN
+          set -euo pipefail
+          OWNER="\$(cat .vm-pr 2>/dev/null || echo '')"
+          if [ "\$OWNER" != "${PR_NUMBER}" ]; then
+              echo "slot owned by PR \${OWNER:-none}, not ${PR_NUMBER}; leaving it up"
+              exit 0
+          fi
+          MANABREW_IMAGE_TAG="pr-${PR_NUMBER}" docker compose -f compose.staging-vm.yml down --remove-orphans
+          rm -f .vm-pr
+          echo "torn down VM slot for PR ${PR_NUMBER}"
+          TEARDOWN

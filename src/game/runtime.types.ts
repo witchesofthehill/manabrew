@@ -2,7 +2,7 @@ import type { IGameApi } from "@/platform";
 import type { CardDto } from "@/protocol/game";
 import type { ClientCardDto, ClientGameView } from "@/stores/gameStore.types";
 
-export type GameRuntimeKind = "manabrew" | "forge" | "manual-tabletop";
+export type GameRuntimeKind = "manabrew" | "forge" | "ironsmith" | "manual-tabletop";
 
 export type SeatControllerKind =
   | "local-human"

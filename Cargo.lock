@@ -3748,7 +3748,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.2.5"
+version = "0.2.7"
 dependencies = [
  "futures-util",
  "manabrew-agent-interface",
@@ -3764,7 +3764,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "1.5.2"
+version = "1.10.0"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3792,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.2.4"
+version = "0.2.6"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -3835,6 +3835,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "manabrew-hub"
+version = "0.2.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "manabrew-protocol",
+ "rand 0.8.6",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "ts-rs",
+ "uuid",
+]
+
+[[package]]
 name = "manabrew-protocol"
 version = "1.0.0"
 dependencies = [
@@ -3846,7 +3867,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.4.1"
+version = "0.5.1"
 dependencies = [
  "axum",
  "chrono",
@@ -3868,7 +3889,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.2.4"
+version = "0.2.6"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -6263,7 +6284,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.4.1"
+version = "0.4.3"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -7791,6 +7812,7 @@ dependencies = [
  "pin-project-lite",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -8350,7 +8372,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.2.5"
+version = "0.2.7"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",
@@ -9814,10 +9836,12 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "lexopt",
+ "manabrew-hub",
  "semver",
  "serde",
  "serde_json",
  "toml_edit 0.22.27",
+ "ts-rs",
 ]
 
 [[package]]

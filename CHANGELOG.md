@@ -1,5 +1,71 @@
 # Changelog
 
+## [1.10.0](https://github.com/witchesofthehill/manabrew/compare/v1.9.4...v1.10.0) (2026-07-15)
+
+### Features
+
+* **ui:** add in-app design system reference route ([#383](https://github.com/witchesofthehill/manabrew/issues/383)) ([dc74707](https://github.com/witchesofthehill/manabrew/commit/dc7470773bbfd3f0609a0ad4dd8802d450d2ccbe))
+
+## [1.9.4](https://github.com/witchesofthehill/manabrew/compare/v1.9.3...v1.9.4) (2026-07-15)
+
+### Fixes
+
+* **web:** 2-row fill actually renders 2 rows; damp hand growth to half rate ([#458](https://github.com/witchesofthehill/manabrew/issues/458)) ([71c1e9b](https://github.com/witchesofthehill/manabrew/commit/71c1e9bdc8cedd97d30e00d7623a25d695da7cdb))
+
+## [1.9.3](https://github.com/witchesofthehill/manabrew/compare/v1.9.2...v1.9.3) (2026-07-15)
+
+### Fixes
+
+* **web:** viewport + slider-scaled hand fan, honest 75-150% size range ([#457](https://github.com/witchesofthehill/manabrew/issues/457)) ([b0701ee](https://github.com/witchesofthehill/manabrew/commit/b0701ee858e2c00a8dd64c1f1dd9691eee9ebe02))
+
+## [1.9.2](https://github.com/witchesofthehill/manabrew/compare/v1.9.1...v1.9.2) (2026-07-15)
+
+### Fixes
+
+* **web:** serve scryfall card images through a same-origin proxy ([#456](https://github.com/witchesofthehill/manabrew/issues/456)) ([497bb6a](https://github.com/witchesofthehill/manabrew/commit/497bb6a3f07d4cdba84a45425502ba00731fa799))
+
+## [1.9.1](https://github.com/witchesofthehill/manabrew/compare/v1.9.0...v1.9.1) (2026-07-14)
+
+### Fixes
+
+* **web:** restore hosted-ai + scryfall symbols in the generic ghcr image ([#455](https://github.com/witchesofthehill/manabrew/issues/455)) ([837892c](https://github.com/witchesofthehill/manabrew/commit/837892cff8a2bd5dd2044d651b8a7ddfc667c47b))
+
+## [1.9.0](https://github.com/witchesofthehill/manabrew/compare/v1.8.1...v1.9.0) (2026-07-14)
+
+### Features
+
+* **ironsmith:** gate as experimental opt-in + clean up unsupported-deck flow ([#451](https://github.com/witchesofthehill/manabrew/issues/451)) ([13cc3fd](https://github.com/witchesofthehill/manabrew/commit/13cc3fd8630ee1612f32ba2776f71eb39e82e8bb))
+
+## [1.8.1](https://github.com/witchesofthehill/manabrew/compare/v1.8.0...v1.8.1) (2026-07-14)
+
+### Fixes
+
+* **ui:** hit custom mb cache to avoid cdn corruption on scryfall side ([#452](https://github.com/witchesofthehill/manabrew/issues/452)) ([17d3644](https://github.com/witchesofthehill/manabrew/commit/17d36448913bf165f3a7f3179d5399727884066f))
+
+## [1.8.0](https://github.com/witchesofthehill/manabrew/compare/v1.7.0...v1.8.0) (2026-07-14)
+
+### Features
+
+* **web:** in-game board settings, unified card sizing, scry hover preview ([#450](https://github.com/witchesofthehill/manabrew/issues/450)) ([4eef170](https://github.com/witchesofthehill/manabrew/commit/4eef1706445d9d563ab6e6f10c338afb5431ae08))
+
+## [1.7.0](https://github.com/witchesofthehill/manabrew/compare/v1.6.0...v1.7.0) (2026-07-13)
+
+### Features
+
+* **hub:** deck hub backend + top-decks stats api ([#421](https://github.com/witchesofthehill/manabrew/issues/421)) ([81b6776](https://github.com/witchesofthehill/manabrew/commit/81b6776a4ffd13cb94a8694e6d16014c513e8bef))
+
+## [1.6.0](https://github.com/witchesofthehill/manabrew/compare/v1.5.3...v1.6.0) (2026-07-13)
+
+### Features
+
+* **engine:** ironsmith runtime ([#371](https://github.com/witchesofthehill/manabrew/issues/371)) ([2f57d5e](https://github.com/witchesofthehill/manabrew/commit/2f57d5ea2e5db018b402b79932bc5f910b41c909))
+
+## [1.5.3](https://github.com/witchesofthehill/manabrew/compare/v1.5.2...v1.5.3) (2026-07-12)
+
+### Fixes
+
+* **ui:** silly mistake on reload ([#444](https://github.com/witchesofthehill/manabrew/issues/444)) ([7d83a19](https://github.com/witchesofthehill/manabrew/commit/7d83a19e4570076c0f4229b782d13bcd5cb2227b))
+
 ## [1.5.2](https://github.com/witchesofthehill/manabrew/compare/v1.5.1...v1.5.2) (2026-07-12)
 
 ### Fixes

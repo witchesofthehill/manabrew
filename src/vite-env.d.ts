@@ -19,6 +19,13 @@ interface ImportMeta {
 interface Window {
   __MANABREW_RUNTIME__?: {
     relay?: { host?: string; port?: number; password?: string };
+    // Runtime toggle for the Forge "Play vs AI" hosted engine. The published
+    // web image ships this off; the deployment's entrypoint sets it from
+    // HOSTED_AI_ENABLED. Overrides the build-time VITE_HOSTED_AI_ENABLED.
+    hostedAiEnabled?: boolean;
+    /** Opt-in per deployment (RELAY entrypoint / config.js) to expose the
+     *  dev-only /design-system reference route on a production build. */
+    designSystem?: boolean;
   };
 }
 

@@ -38,6 +38,7 @@ groups:
                     params: [1]
 
       - uid: node-fleet-silent
+        isPaused: true
         title: node fleet silent
         condition: C
         for: 5m
@@ -69,6 +70,7 @@ groups:
                     params: [900]
 
       - uid: node-rooms-below-expected
+        isPaused: true
         title: hosted rooms below expected
         condition: C
         for: 10m
@@ -253,3 +255,34 @@ groups:
                 - evaluator:
                     type: lt
                     params: [1]
+
+      - uid: stuck-room-suspected
+        title: stuck room suspected
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: warning
+        annotations:
+          summary: abandoned in-game rooms reaped well above baseline — a hosted node is likely serving a wedged room players cannot start
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 7200
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum(increase(manabrew_relay_games_ended_total{reason="abandoned"}[2h]))
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [6]

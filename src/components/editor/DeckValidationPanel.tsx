@@ -23,7 +23,7 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
 
   const unsupportedErrors = hasUnsupported
     ? [
-        `${unsupportedList.length} card${unsupportedList.length === 1 ? "" : "s"} not implemented by the engine — playable build blocked, save as draft only: ${unsupportedList.join(", ")}`,
+        `${unsupportedList.length} card${unsupportedList.length === 1 ? "" : "s"} not implemented by the engine - playable build blocked, save as draft only: ${unsupportedList.join(", ")}`,
       ]
     : [];
   const errors = [...unsupportedErrors, ...validation.errors];

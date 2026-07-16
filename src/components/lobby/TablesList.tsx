@@ -649,13 +649,24 @@ export function TablesList({
                         Incompatible
                       </LobbyTag>
                     )}
-                    <LobbyTag tone={room.engine === "Forge" ? "blue" : "sky"} className="shrink-0">
+                    <LobbyTag
+                      tone={
+                        room.engine === "Forge"
+                          ? "blue"
+                          : room.engine === "Ironsmith"
+                            ? "amber"
+                            : "sky"
+                      }
+                      className="shrink-0"
+                    >
                       {room.engine === "Forge" ? (
                         <Anvil className="h-3 w-3" />
+                      ) : room.engine === "Ironsmith" ? (
+                        <GameIcon name="anvil" className="h-3 w-3" />
                       ) : (
                         <Cpu className="h-3 w-3" />
                       )}
-                      {room.engine === "Forge" ? "Forge" : "Manabrew"}
+                      {room.engine}
                     </LobbyTag>
                     {room.format !== "Any" && (
                       <LobbyTag tone={modeTone} className="shrink-0">

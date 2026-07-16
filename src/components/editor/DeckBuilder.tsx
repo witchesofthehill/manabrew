@@ -1,4 +1,5 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { Button } from "@/components/ui/button";
 import { PrintPickerModal } from "./PrintPickerModal";
@@ -31,6 +32,7 @@ import {
   ChevronDown,
   FileBox,
   ClipboardCopy,
+  Share2,
   Palette,
   Bookmark,
   BookmarkMinus,
@@ -273,6 +275,7 @@ export function DeckBuilder({
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const importPresetToMyDecks = useDeckStore((s) => s.importPresetToMyDecks);
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
@@ -1059,6 +1062,12 @@ export function DeckBuilder({
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setPublishOpen(true)}
+                  disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
+                >
+                  <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleSaveDraft}>
                   <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
@@ -1358,6 +1367,12 @@ export function DeckBuilder({
           />
         )}
         <DeckLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} />
+        <PublishDeckDialog
+          open={publishOpen}
+          onOpenChange={setPublishOpen}
+          deck={currentDeck}
+          localDeckId={currentDeckId}
+        />
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

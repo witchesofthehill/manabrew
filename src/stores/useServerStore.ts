@@ -6,6 +6,7 @@ import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { claimTabSession, holdTabSession, type TabSessionHolder } from "@/lib/tabSession";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
@@ -431,7 +432,8 @@ export const useServerStore = create<ServerState>()(
             // LeaveRoom was in flight must not re-enroll us in the room.
             const inRoom = get().currentRoom?.room_id === payload.room.room_id;
             const joining = pendingJoin?.roomId === payload.room.room_id;
-            if (inRoom || joining) {
+            const reclaiming = peekActiveGameSession()?.roomId === payload.room.room_id;
+            if (inRoom || joining || reclaiming) {
               set({ currentRoom: payload.room });
             }
             settlePendingJoin(null, payload.room.room_id);

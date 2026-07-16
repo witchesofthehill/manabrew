@@ -9,10 +9,11 @@ import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridLayout";
+import { battlefieldScaleForMultiplier, combatRowReserve, maxScaleForRows } from "./GridLayout";
 import { playmatPad } from "./board/PlaymatLayer";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
+import { useHandScale } from "@/hooks/useHandScale";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
@@ -174,8 +175,10 @@ export function BoardCanvas({
   const latestLayoutRef = useRef<BoardCanvasLayout | null>(null);
   const selfBottomReserveRef = useRef(selfBottomReserve ?? 0);
 
-  const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
+  const cardSizeMultiplier = usePreferencesStore((s) => s.cardSizeMultiplier);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
+  const lockZoneTiles = usePreferencesStore((s) => s.lockZoneTiles);
+  const handViewportScale = useHandScale();
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
@@ -340,42 +343,55 @@ export function BoardCanvas({
     s.setCompactMode(compact ?? false);
     // Each region is scaled to fill its OWN height — a single shared scale let
     // the tightest field (self, after the hand-fan reserve) shrink everyone, so
-    // the roomier opponent fields wasted space. Self follows the card-scale
-    // preference; opponents lock to 3 rows beneath the always-reserved combat
-    // band (two passes: the band height depends on the scale it reserves).
+    // the roomier opponent fields wasted space. Every field follows the card
+    // size multiplier (100% = 3-row board), clamped per field to a 2-row
+    // fill; compact locks to 3 rows regardless.
     const scaleFloor = compact
       ? BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT
       : BATTLEFIELD_CARD_SCALE_FLOOR;
     // The region's playArea insets the usable zone by the playmat pad on every
-    // edge before laying rows; compact subtracts it here too, or the 3-row
-    // scale overshoots and the grid floors to 2 rows.
+    // edge before laying rows, so the pad must come off before picking the
+    // scale on EVERY platform — the exact joint solve fills the height it is
+    // given, and an un-trimmed height makes the real grid floor a row short
+    // (a 2-row fill rendered as a single row). The old desktop path only
+    // survived without the trim because its two-pass band estimate under-sized
+    // cards enough to leave slack.
     const playmatTrim = (usable: number, width: number) =>
-      compact ? Math.max(1, usable - playmatPad(width, usable) * 2) : usable;
+      Math.max(1, usable - playmatPad(width, usable) * 2);
     const selfUsable = playmatTrim(
       Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
       layout.self.width,
     );
-    const selfBand = compact
-      ? combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS))
-      : combatRowReserve(battlefieldFillScale(selfUsable, fraction));
+    const compactSelfBand = combatRowReserve(maxScaleForRows(selfUsable, BATTLEFIELD_MIN_ROWS));
     const selfScale = compact
       ? Math.max(
           scaleFloor,
-          maxScaleForRows(Math.max(1, selfUsable - selfBand), BATTLEFIELD_MIN_ROWS),
+          maxScaleForRows(Math.max(1, selfUsable - compactSelfBand), BATTLEFIELD_MIN_ROWS),
         )
-      : battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
+      : battlefieldScaleForMultiplier(selfUsable, cardSizeMultiplier);
     // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
     // the full field height (the avatar's top-left cells are blocked instead).
     const oppUsables = layout.opponents.map((o) =>
       playmatTrim(Math.max(1, o.rect.height), o.rect.width),
     );
     const oppUsable = oppUsables.length ? Math.min(...oppUsables) : selfUsable;
-    const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
-    const oppScale = Math.max(
-      scaleFloor,
-      maxScaleForRows(Math.max(1, oppUsable - band), BATTLEFIELD_MIN_ROWS),
-    );
+    const compactOppBand = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
+    const oppScale = compact
+      ? Math.max(
+          scaleFloor,
+          maxScaleForRows(Math.max(1, oppUsable - compactOppBand), BATTLEFIELD_MIN_ROWS),
+        )
+      : battlefieldScaleForMultiplier(oppUsable, cardSizeMultiplier);
     s.configure(players, layout, { self: selfScale, opponent: oppScale });
+    // The hand fan gets `useHandScale` — viewport factor times the DAMPED
+    // card-size multiplier — the exact number the hand reserve (GameBoard)
+    // and drag ghosts are computed from, so the fan and the grid can never
+    // disagree (a fan bigger than its reserve swallows the bottom battlefield
+    // row through its cell blocker). Growth is additionally capped at a
+    // fraction of the field height in HandController.setScale. Compact keeps
+    // the fixed fan its mobile layout was tuned for. Applied after configure
+    // so a rebuilt HandController picks it up and the cap re-evaluates.
+    s.setHandScale(compact ? 1 : handViewportScale);
     const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,
@@ -389,7 +405,15 @@ export function BoardCanvas({
     latestLayoutRef.current = next;
     onLayoutRef.current?.(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, fraction, selfHeightFraction, compact, selfBottomReserve, showPlayerBars]);
+  }, [
+    playersKey,
+    cardSizeMultiplier,
+    handViewportScale,
+    selfHeightFraction,
+    compact,
+    selfBottomReserve,
+    showPlayerBars,
+  ]);
 
   useEffect(() => {
     reconfigure();
@@ -504,6 +528,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setCardStyle(cardStyle);
   }, [scene, cardStyle]);
+
+  useEffect(() => {
+    scene?.setZoneTilesLocked(lockZoneTiles);
+  }, [scene, lockZoneTiles]);
 
   useEffect(() => {
     if (!scene) return;

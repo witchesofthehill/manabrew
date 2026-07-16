@@ -2,7 +2,7 @@
 // and writes a JSON the docs' <ProtocolType> component renders as TypeScript /
 // Rust tabs with a "References" line linking nested types.
 //
-// Run: node scripts/gen-protocol-doc-types.mjs   (after `yarn gen:protocol`)
+// Run: node scripts/gen-protocol-doc-types.mjs   (after `yarn gen:types`)
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, statSync } from "node:fs";
 import { join, dirname, sep as SEP } from "node:path";
 import { fileURLToPath } from "node:url";

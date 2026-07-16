@@ -10,6 +10,7 @@ import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { DESKTOP_QUERY } from "@/lib/responsive";
@@ -99,6 +100,7 @@ export function AppShell() {
     <div className="h-[100dvh] overflow-hidden flex flex-col">
       <StatusBanner />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <IronsmithUnsupportedDeckModal />
       {!isDesktop && (
         <header
           className={cn(

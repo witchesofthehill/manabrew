@@ -23,6 +23,8 @@ export {
   selectGameRuntime,
 } from "./runtimeRegistry";
 export { ManualTabletopGameApi } from "./manualTabletopApi";
+export { IronsmithTrustedGameApi, IronsmithUnsupportedDeckError } from "./ironsmithRuntime";
+export type { IronsmithDeckIssue } from "./ironsmithRuntime";
 export {
   applyManualTabletopAction,
   getActiveManualRoomHost,

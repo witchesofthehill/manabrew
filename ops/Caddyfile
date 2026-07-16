@@ -67,6 +67,23 @@ play.manabrew.app {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    # Card image proxy: cards.scryfall.io intermittently serves cached objects
+    # without CORS headers, which breaks the app's cors-mode fetches (WebGL
+    # textures need cors-clean pixels). Served same-origin here, CORS never
+    # applies. Mirrors the symbols proxy above.
+    @scryimg path_regexp scryimg ^/scryfall-img/(.*)$
+    handle @scryimg {
+        rewrite * /{re.scryimg.1}
+        reverse_proxy https://cards.scryfall.io {
+            header_up Host cards.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
     @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
     handle @spellbook {
         rewrite * /{re.spellbook.1}
@@ -159,6 +176,20 @@ relay.manabrew.app {
     }
 }
 
+# Deck hub + stats API. HUB_ADMIN_PASSWORD_HASH unset → the placeholder
+# default matches no password: /admin/* is locked, not broken config.
+api.manabrew.app {
+    @admin path /admin/*
+    basic_auth @admin {
+        admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy manabrew-hub:9500 {
+        health_uri /health
+        health_interval 15s
+        health_timeout 3s
+    }
+}
+
 # Observability ingress (`observability` compose profile). PUSHGATEWAY_PASSWORD_HASH
 # unset → the placeholder default matches no password: locked, not broken config.
 grafana.manabrew.app {
@@ -177,17 +208,4 @@ loki.manabrew.app {
         metrics {$PUSHGATEWAY_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
     }
     reverse_proxy loki:3100
-}
-
-staging.manabrew.app {
-    reverse_proxy manabrew-staging:80
-}
-
-relay-staging.manabrew.app {
-    reverse_proxy manabrew-server-staging:9443 {
-        health_uri /health
-        health_port 9444
-        health_interval 15s
-        health_timeout 3s
-    }
 }

@@ -10,6 +10,12 @@ export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
+export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
+// Under the 2-rows-minimum battlefield rule, a 2-row fill is only ~1.35-1.5x
+// the classic 3-row size on ANY display — a knob past 150% would be a lie
+// (the old 300% top was one: everything saturated around 150%).
+export const CARD_SIZE_MULTIPLIER_MAX = 1.5;
+
 interface PreferencesState {
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
@@ -44,8 +50,20 @@ interface PreferencesState {
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
-  battlefieldCardScale: number;
-  setBattlefieldCardScale: (fraction: number) => void;
+  // One knob for card size: battlefield cards on ALL fields plus the hand
+  // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
+  // geometric max under the 2-rows-minimum rule (a 1-row board is
+  // unplayable). Each field clamps against its own height; the hand
+  // (viewport-scaled, following the slider at half rate — useHandScale)
+  // grows past the battlefield's cap, up to a fraction of the field height
+  // (BoardCanvas.reconfigure).
+  cardSizeMultiplier: number;
+  setCardSizeMultiplier: (multiplier: number) => void;
+
+  // Freezes the deck/graveyard/exile/command tiles in place so a drag can't
+  // accidentally reposition them; tap-to-open keeps working.
+  lockZoneTiles: boolean;
+  setLockZoneTiles: (value: boolean) => void;
 
   // Only the Pixi battlefield reads this; hand, stack, and modals always use
   // the image.
@@ -56,6 +74,13 @@ interface PreferencesState {
   // (cards move, state indicators stay).
   inGameAnimations: boolean;
   setInGameAnimations: (value: boolean) => void;
+
+  // Opt-in for the experimental Ironsmith trusted engine. Off by default so the
+  // engine ships dark in prod; the runtime registry and lobby tile also gate on
+  // the compile flag + `IRONSMITH_WASM_AVAILABLE`, so this only surfaces it
+  // where the real wasm is bundled.
+  ironsmithRuntimeEnabled: boolean;
+  setIronsmithRuntimeEnabled: (value: boolean) => void;
 
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
@@ -85,9 +110,11 @@ const PERSISTED_PREFERENCE_KEYS = [
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
-  "battlefieldCardScale",
+  "cardSizeMultiplier",
+  "lockZoneTiles",
   "battlefieldCardStyle",
   "inGameAnimations",
+  "ironsmithRuntimeEnabled",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -105,6 +132,13 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   // wins on rehydrate. Without this, users who once had the empty default
   // saved would never get a generated name.
   if (next.serverUsername === "") delete next.serverUsername;
+  // Values saved while the slider still went to 300% clamp to the new max.
+  if (typeof next.cardSizeMultiplier === "number") {
+    next.cardSizeMultiplier = Math.max(
+      CARD_SIZE_MULTIPLIER_MIN,
+      Math.min(CARD_SIZE_MULTIPLIER_MAX, next.cardSizeMultiplier),
+    );
+  }
   return next as Partial<PreferencesState>;
 }
 
@@ -161,15 +195,26 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
 
-          battlefieldCardScale: 0.5,
-          setBattlefieldCardScale: (battlefieldCardScale) =>
-            set({ battlefieldCardScale: Math.max(0, Math.min(1, battlefieldCardScale)) }),
+          cardSizeMultiplier: 1,
+          setCardSizeMultiplier: (cardSizeMultiplier) =>
+            set({
+              cardSizeMultiplier: Math.max(
+                CARD_SIZE_MULTIPLIER_MIN,
+                Math.min(CARD_SIZE_MULTIPLIER_MAX, cardSizeMultiplier),
+              ),
+            }),
+
+          lockZoneTiles: false,
+          setLockZoneTiles: (lockZoneTiles) => set({ lockZoneTiles }),
 
           battlefieldCardStyle: "realistic",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
+
+          ironsmithRuntimeEnabled: false,
+          setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

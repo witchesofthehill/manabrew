@@ -33,6 +33,7 @@ pub struct PlayerDeckInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[allow(clippy::large_enum_variant)]
 pub enum ClientMessage {
     Authenticate {
         username: String,
@@ -364,4 +365,5 @@ pub enum EngineKind {
     #[default]
     Manabrew,
     Forge,
+    Ironsmith,
 }

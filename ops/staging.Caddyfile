@@ -1,4 +1,18 @@
-:80 {
+# Edge config for the staging VM (compose.staging.yml). Mirrors the
+# play/relay/api blocks of ops/Caddyfile, but served over plain HTTP on :80:
+# the staging VM sits behind an external reverse proxy (nginx) that terminates
+# TLS for the three hostnames and forwards to this Caddy — so the `http://`
+# prefix keeps Caddy from attempting ACME on a box that isn't publicly
+# reachable. The three hosts MUST be distinct (each is its own vhost); they come
+# from the box .env via compose (STAGING_APP_HOST / STAGING_RELAY_HOST /
+# STAGING_API_HOST), so moving domains is a .env edit. The fronting proxy must
+# preserve the app's COOP/COEP headers and upgrade websockets for the relay.
+# Release-only routes (/manifest.json, /tauri.json, /sidestore, /status.json)
+# are omitted — staging serves neither the updater manifest nor SideStore.
+#   {$STAGING_APP_HOST}   → wasm app  (/srv/manabrew)
+#   {$STAGING_RELAY_HOST} → relay
+#   {$STAGING_API_HOST}   → deck hub + stats API
+http://{$STAGING_APP_HOST} {
     root * /srv/manabrew
 
     encode zstd gzip
@@ -25,11 +39,35 @@
         file_server
     }
 
+    # Runtime relay config (rewritten from RELAY_* env on start) — never cache it.
+    @config path /config.js
+    handle @config {
+        header Cache-Control "no-store"
+        file_server
+    }
+
     @scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
     handle @scryfall {
         rewrite * /card-symbols/{re.scryfall.1}
         reverse_proxy https://svgs.scryfall.io {
             header_up Host svgs.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # Card image proxy: cards.scryfall.io intermittently serves cached objects
+    # without CORS headers, which breaks the app's cors-mode fetches (WebGL
+    # textures need cors-clean pixels). Served same-origin here, CORS never
+    # applies. Mirrors the symbols proxy above.
+    @scryimg path_regexp scryimg ^/scryfall-img/(.*)$
+    handle @scryimg {
+        rewrite * /{re.scryimg.1}
+        reverse_proxy https://cards.scryfall.io {
+            header_up Host cards.scryfall.io
             header_down -Access-Control-Allow-Origin
             header_down -Cross-Origin-Resource-Policy
             header_down -Cache-Control
@@ -59,5 +97,28 @@
         }
         try_files {path} /index.html
         file_server
+    }
+}
+
+http://{$STAGING_RELAY_HOST} {
+    reverse_proxy manabrew-server:9443 {
+        health_uri /health
+        health_port 9444
+        health_interval 15s
+        health_timeout 3s
+    }
+}
+
+# Deck hub + stats API. HUB_ADMIN_PASSWORD_HASH unset → the placeholder
+# default matches no password: /admin/* is locked, not broken config.
+http://{$STAGING_API_HOST} {
+    @admin path /admin/*
+    basic_auth @admin {
+        admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+    }
+    reverse_proxy manabrew-hub:9500 {
+        health_uri /health
+        health_interval 15s
+        health_timeout 3s
     }
 }

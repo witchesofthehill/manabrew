@@ -1,5 +1,6 @@
 import { getHubApiUrl } from "@/config/webRuntimeConfig";
 import { platformFetch } from "@/lib/platformFetch";
+import { useAuthStore } from "@/stores/useAuthStore";
 import type {
   HubDeckDetail,
   HubDeckList,
@@ -22,11 +23,17 @@ export interface HubListParams {
 const MANAGEMENT_TOKEN_HEADER = "X-Management-Token";
 
 async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
-  const response = await platformFetch(`${getHubApiUrl()}${path}`, init);
+  const token = useAuthStore.getState().token;
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await platformFetch(`${getHubApiUrl()}${path}`, { ...init, headers });
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     if (response.status === 429) {
       throw new Error("Too many publishes from your connection — try again later.");
+    }
+    if (response.status === 401) {
+      throw new Error("Sign in to publish decks to the hub.");
     }
     throw new Error(message || `Hub request failed (${response.status})`);
   }
@@ -71,4 +78,8 @@ export async function unpublishDeck(id: string, managementToken: string): Promis
 
 export function fetchTopDecks(window: TopDecksWindow, limit = 25): Promise<TopDeckStat[]> {
   return hubJson<TopDeckStat[]>(`/api/stats/top-decks?window=${window}&limit=${limit}`);
+}
+
+export function fetchMyDecks(): Promise<HubDeckList> {
+  return hubJson<HubDeckList>("/api/hub/my-decks");
 }

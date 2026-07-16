@@ -1,13 +1,18 @@
 # Edge config for the staging VM (compose.staging.yml). Mirrors the
-# play/relay/api blocks of ops/Caddyfile, with automatic HTTPS. Hostnames are
-# NOT hardcoded — they come from the box .env via compose (STAGING_APP_HOST /
-# STAGING_RELAY_HOST / STAGING_API_HOST), so moving domains is a .env edit.
+# play/relay/api blocks of ops/Caddyfile, but served over plain HTTP on :80:
+# the staging VM sits behind an external reverse proxy (nginx) that terminates
+# TLS for the three hostnames and forwards to this Caddy — so the `http://`
+# prefix keeps Caddy from attempting ACME on a box that isn't publicly
+# reachable. The three hosts MUST be distinct (each is its own vhost); they come
+# from the box .env via compose (STAGING_APP_HOST / STAGING_RELAY_HOST /
+# STAGING_API_HOST), so moving domains is a .env edit. The fronting proxy must
+# preserve the app's COOP/COEP headers and upgrade websockets for the relay.
 # Release-only routes (/manifest.json, /tauri.json, /sidestore, /status.json)
 # are omitted — staging serves neither the updater manifest nor SideStore.
 #   {$STAGING_APP_HOST}   → wasm app  (/srv/manabrew)
 #   {$STAGING_RELAY_HOST} → relay
 #   {$STAGING_API_HOST}   → deck hub + stats API
-{$STAGING_APP_HOST} {
+http://{$STAGING_APP_HOST} {
     root * /srv/manabrew
 
     encode zstd gzip
@@ -95,7 +100,7 @@
     }
 }
 
-{$STAGING_RELAY_HOST} {
+http://{$STAGING_RELAY_HOST} {
     reverse_proxy manabrew-server:9443 {
         health_uri /health
         health_port 9444
@@ -106,7 +111,7 @@
 
 # Deck hub + stats API. HUB_ADMIN_PASSWORD_HASH unset → the placeholder
 # default matches no password: /admin/* is locked, not broken config.
-{$STAGING_API_HOST} {
+http://{$STAGING_API_HOST} {
     @admin path /admin/*
     basic_auth @admin {
         admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}

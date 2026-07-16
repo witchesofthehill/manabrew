@@ -187,7 +187,12 @@
     "DeckCard": {
       "ts": "interface DeckCard {\n  identity: DeckCardIdentity;\n  uris: CardImageUris;\n  allParts?: Array<CardPart>;\n  color: string;\n  colorIdentity: Array<string>;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  keywords?: Array<string>;\n  power?: string;\n  toughness?: string;\n  text: string;\n  layout?: string;\n  isDoubleFaced?: boolean;\n  /**\n   * The back face of a double-faced card (transform / modal_dfc), captured at\n   * deck import from Scryfall so rendering never needs a live lookup. The\n   * front-face fields above remain the card's identity; this is purely\n   * additive. `None` for single-faced cards and older decks.\n   */\n  backFace?: CardFaceSummary;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCard {\n    pub identity: DeckCardIdentity,\n    #[serde(flatten)]\n    pub rules: CardRulesSummary,\n    #[serde(default)]\n    pub uris: CardImageUris,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub all_parts: Option<Vec<CardPart>>,\n}",
-      "refs": ["CardFaceSummary", "CardImageUris", "CardPart", "DeckCardIdentity"]
+      "refs": [
+        "CardFaceSummary",
+        "CardImageUris",
+        "CardPart",
+        "DeckCardIdentity"
+      ]
     },
     "DeckCardIdentity": {
       "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  foil?: boolean;\n}",

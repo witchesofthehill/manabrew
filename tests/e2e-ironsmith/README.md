@@ -11,12 +11,8 @@ create room, pick deck) are engine-generic and reusable for any multiplayer flow
 
 ## Prerequisites
 
-1. **Ironsmith submodule built + synced** (the runtime wasm):
-   ```bash
-   git submodule update --init ironsmith
-   ./ironsmith/rebuild-wasm.sh          # first run needs the Scryfall sync
-   yarn sync:ironsmith
-   ```
+1. **Ironsmith wasm installed.** It ships as the `ironsmith-wasm` npm dependency,
+   so a plain `yarn install` pulls it — no submodule or local wasm build.
 2. **Enable the engine.** The `ironsmithRuntime` compile flag is on, but the
    engine is opt-in: turn it **On** under Settings → _Ironsmith engine
    (experimental)_ (persists the `ironsmithRuntimeEnabled` preference). The tests

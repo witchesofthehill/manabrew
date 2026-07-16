@@ -348,7 +348,21 @@
           "name": "Path of Mettle // Metzali, Tower of Triumph",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Metzali, Tower of Triumph",
+        "manaCost": "",
+        "typeLine": "Legendary Land",
+        "oracleText": "(Transforms from Path of Mettle.)\n{T}: Add one mana of any color.\n{1}{R}, {T}: Metzali deals 2 damage to each opponent.\n{2}{W}, {T}: Choose a creature at random that attacked this turn. Destroy that creature.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/6/6/66d9d524-3611-48d9-86c9-48e509e8ae70.jpg?1783935278",
+          "normal": "https://cards.scryfall.io/normal/back/6/6/66d9d524-3611-48d9-86c9-48e509e8ae70.jpg?1783935278",
+          "large": "https://cards.scryfall.io/large/back/6/6/66d9d524-3611-48d9-86c9-48e509e8ae70.jpg?1783935278",
+          "png": "https://cards.scryfall.io/png/back/6/6/66d9d524-3611-48d9-86c9-48e509e8ae70.png?1783935278",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/6/6/66d9d524-3611-48d9-86c9-48e509e8ae70.jpg?1783935278",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/6/6/66d9d524-3611-48d9-86c9-48e509e8ae70.jpg?1783935278"
+        }
+      }
     },
     {
       "name": "Clifftop Retreat",

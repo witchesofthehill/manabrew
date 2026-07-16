@@ -947,7 +947,21 @@
           "name": "Angel Warrior",
           "component": "token"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Emeria, Shattered Skyclave",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {W}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/c/4/c470539a-9cc7-4175-8f7c-c982b6072b6d.jpg?1783929425",
+          "normal": "https://cards.scryfall.io/normal/back/c/4/c470539a-9cc7-4175-8f7c-c982b6072b6d.jpg?1783929425",
+          "large": "https://cards.scryfall.io/large/back/c/4/c470539a-9cc7-4175-8f7c-c982b6072b6d.jpg?1783929425",
+          "png": "https://cards.scryfall.io/png/back/c/4/c470539a-9cc7-4175-8f7c-c982b6072b6d.png?1783929425",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/c/4/c470539a-9cc7-4175-8f7c-c982b6072b6d.jpg?1783929425",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/c/4/c470539a-9cc7-4175-8f7c-c982b6072b6d.jpg?1783929425"
+        }
+      }
     },
     {
       "name": "Shatterskull Smashing // Shatterskull, the Hammer Pass",
@@ -971,7 +985,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1604197844",
         "border_crop": "https://cards.scryfall.io/border_crop/front/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1604197844"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Shatterskull, the Hammer Pass",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "normal": "https://cards.scryfall.io/normal/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "large": "https://cards.scryfall.io/large/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "png": "https://cards.scryfall.io/png/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.png?1783929355",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/b/c/bc7239ea-f8aa-4a6f-87bd-c35359635673.jpg?1783929355"
+        }
+      }
     },
     {
       "name": "Arcane Signet",
@@ -2394,7 +2422,21 @@
           "name": "Kraken",
           "component": "token"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Caetus, Sea Tyrant of Segovia",
+        "manaCost": "",
+        "typeLine": "Legendary Creature — Serpent",
+        "oracleText": "Noncreature spells you cast have convoke. (Your creatures can help cast those spells. Each creature you tap while casting a noncreature spell pays for {1} or one mana of that creature's color.)\nAt the beginning of your end step, untap up to four target creatures.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/9/d/9df3e743-7bb8-482a-afd1-4d51119d416c.jpg?1783917037",
+          "normal": "https://cards.scryfall.io/normal/back/9/d/9df3e743-7bb8-482a-afd1-4d51119d416c.jpg?1783917037",
+          "large": "https://cards.scryfall.io/large/back/9/d/9df3e743-7bb8-482a-afd1-4d51119d416c.jpg?1783917037",
+          "png": "https://cards.scryfall.io/png/back/9/d/9df3e743-7bb8-482a-afd1-4d51119d416c.png?1783917037",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/9/d/9df3e743-7bb8-482a-afd1-4d51119d416c.jpg?1783917037",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/9/d/9df3e743-7bb8-482a-afd1-4d51119d416c.jpg?1783917037"
+        }
+      }
     },
     {
       "name": "City on Fire",

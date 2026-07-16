@@ -624,7 +624,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1764121420",
         "border_crop": "https://cards.scryfall.io/border_crop/front/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1764121420"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Aang and La, Ocean's Fury",
+        "manaCost": "",
+        "typeLine": "Legendary Creature — Avatar Spirit Ally",
+        "oracleText": "Reach, trample\nWhenever Aang and La attack, put a +1/+1 counter on each tapped creature you control.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1783904937",
+          "normal": "https://cards.scryfall.io/normal/back/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1783904937",
+          "large": "https://cards.scryfall.io/large/back/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1783904937",
+          "png": "https://cards.scryfall.io/png/back/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.png?1783904937",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1783904937",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/8/2/82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4.jpg?1783904937"
+        }
+      }
     }
   ]
 }

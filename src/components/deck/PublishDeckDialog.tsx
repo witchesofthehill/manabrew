@@ -9,11 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { publishDeck, unpublishDeck } from "@/api/hub";
-import { stripUsernameTag } from "@/lib/username";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import {
   findPublishedByLocalDeckId,
   usePublishedDecksStore,
@@ -27,8 +25,6 @@ interface PublishDeckDialogProps {
   deck: EditorDeck;
   localDeckId: string | null;
 }
-
-const MAX_AUTHOR_LEN = 50;
 
 function toPublishableDeck(deck: EditorDeck): Deck {
   const { customTags: _customTags, cardTags: _cardTags, ...wireDeck } = deck;
@@ -48,22 +44,24 @@ export function PublishDeckDialog({
   deck,
   localDeckId,
 }: PublishDeckDialogProps) {
-  const serverUsername = usePreferencesStore((s) => s.serverUsername);
+  const account = useAuthStore((s) => s.account);
+  const authStatus = useAuthStore((s) => s.status);
+  const showSignIn = useSignInDialog((s) => s.show);
   const published = usePublishedDecksStore((s) => s.published);
   const addPublished = usePublishedDecksStore((s) => s.addPublished);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
-  const [author, setAuthor] = useState(() => stripUsernameTag(serverUsername));
   const [busy, setBusy] = useState(false);
 
   const existing = findPublishedByLocalDeckId(published, localDeckId);
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
-  const trimmedAuthor = author.trim();
+  const signedIn = authStatus === "signedIn" && account !== null;
 
   async function handlePublish() {
+    if (!account) return;
     setBusy(true);
     try {
       const response = await publishDeck({
-        author: trimmedAuthor,
+        author: account.handle,
         deck: toPublishableDeck(deck),
       });
       addPublished({
@@ -97,6 +95,11 @@ export function PublishDeckDialog({
     }
   }
 
+  function handleSignIn() {
+    onOpenChange(false);
+    showSignIn();
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -108,18 +111,17 @@ export function PublishDeckDialog({
               : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}
           </DialogDescription>
         </DialogHeader>
-        {!existing && (
-          <div className="space-y-2">
-            <Label htmlFor="hub-author">Author name</Label>
-            <Input
-              id="hub-author"
-              value={author}
-              maxLength={MAX_AUTHOR_LEN}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="How you want to be credited"
-            />
-          </div>
-        )}
+        {!existing &&
+          (signedIn ? (
+            <p className="text-sm text-muted-foreground">
+              Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Publishing needs a Manabrew account, so the deck stays yours and you can remove it
+              from any device.
+            </p>
+          ))}
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
@@ -128,13 +130,13 @@ export function PublishDeckDialog({
             <Button variant="destructive" size="sm" disabled={busy} onClick={handleUnpublish}>
               {busy ? "Removing…" : "Remove from hub"}
             </Button>
-          ) : (
-            <Button
-              size="sm"
-              disabled={busy || trimmedAuthor.length === 0 || deck.cards.length === 0}
-              onClick={handlePublish}
-            >
+          ) : signedIn ? (
+            <Button size="sm" disabled={busy || deck.cards.length === 0} onClick={handlePublish}>
               {busy ? "Publishing…" : "Publish"}
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleSignIn}>
+              Sign in
             </Button>
           )}
         </DialogFooter>

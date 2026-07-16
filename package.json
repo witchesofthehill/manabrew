@@ -23,7 +23,7 @@
     "ensure:wasm": "node scripts/ensure-wasm.mjs",
     "sync:ironsmith": "node scripts/sync-ironsmith-wasm.mjs",
     "ensure:harness": "node scripts/harness.mjs ensure",
-    "gen:types": "cargo xtask gen-types && prettier --write src/protocol src/api/hubTypes.ts",
+    "gen:types": "cargo xtask gen-types && prettier --write src/protocol src/api/hubTypes.ts src/api/authTypes.ts",
     "gen:protocol-docs": "yarn gen:types && node scripts/gen-protocol-doc-types.mjs",
     "vite:dev": "yarn gen:types && yarn sync:ironsmith && vite",
     "vite:build": "yarn gen:types && yarn sync:ironsmith && tsc -b && vite build",

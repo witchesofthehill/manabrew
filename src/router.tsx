@@ -26,6 +26,7 @@ import About from "@/views/About";
 import Search from "@/views/Search";
 import DeckHub from "@/views/DeckHub";
 import Home from "@/views/Home";
+import AuthCallback from "@/views/AuthCallback";
 
 export const router = createBrowserRouter([
   {
@@ -189,6 +190,14 @@ export const router = createBrowserRouter([
               This feature is currently under development.
             </p>
           </div>
+        ),
+      },
+      {
+        path: "auth/callback",
+        element: (
+          <ErrorBoundary context="Auth">
+            <AuthCallback />
+          </ErrorBoundary>
         ),
       },
       {

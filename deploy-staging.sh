@@ -36,15 +36,23 @@ if [ -f "$REPO_DIR/.env" ]; then
     set +a
 fi
 
+# ── Fetch + hard-reset to origin/<branch> ────────────────────────────
+# Pin origin to HTTPS regardless of how the box was cloned: the repo is public,
+# so this works anonymously (or token-authed for rate limits) and a box cloned
+# over SSH doesn't need a GitHub key. fetch + `checkout -f -B` force the local
+# branch to exactly match the remote — robust to a diverged/detached/dirty
+# checkout where a plain `pull --ff-only` would bail. Only the compose file +
+# ops/ configs are used from the checkout (images come prebuilt from ghcr), so
+# no submodules and no local build.
+REPO_SLUG="${GITHUB_REPO:-witchesofthehill/manabrew}"
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPO:-witchesofthehill/manabrew}.git"
+    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO_SLUG}.git"
+else
+    git remote set-url origin "https://github.com/${REPO_SLUG}.git"
 fi
-
-# ── Pull the branch ──────────────────────────────────────────────────
-# Only the compose file + ops/ configs are used from the checkout (images come
-# prebuilt from ghcr), so no submodules and no local build.
 PREV=$(git rev-parse --short HEAD)
-git pull origin "$BRANCH" --ff-only >> "$RAW_LOG" 2>&1
+git fetch origin "$BRANCH" >> "$RAW_LOG" 2>&1
+git checkout -f -B "$BRANCH" FETCH_HEAD >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
 
 # ── Pull the CI-built images ─────────────────────────────────────────

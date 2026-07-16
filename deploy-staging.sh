@@ -77,7 +77,7 @@ fi
 # The deploy job needs build-images, so these normally exist already; the retry
 # is a safety net if ghcr is briefly behind.
 export DOCKER_BUILDKIT=1
-SERVICES="manabrew-staging manabrew-server-staging manabrew-hub-staging"
+SERVICES="manabrew-staging manabrew-server-staging manabrew-hub-staging self-hosted-node-staging"
 WEB_SERVICE="manabrew-staging"
 echo "Pulling :${MANABREW_IMAGE_TAG} images ($SERVICES)…" >> "$RAW_LOG"
 PULLED=false

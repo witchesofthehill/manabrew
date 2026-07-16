@@ -127,13 +127,9 @@ The staging slot needs, once:
 4. `/opt/manabrew-staging` cloned on the `staging` branch (the workflow's
    deploy script hard-resets it every run).
 
-The hosted Java "Play vs AI" node is under the `hosted-ai` compose profile and
-is not auto-started. Start it once on the box:
-
-```bash
-cd /opt/manabrew-staging
-docker compose -f compose.staging.yml --profile hosted-ai up -d self-hosted-node-staging
-```
+The hosted "Play vs AI" node (`self-hosted-node-staging`) is a regular service
+in the staging compose — unlike production's profile-gated node, it deploys
+with the rest of the slot so the lobby always has its hosted room.
 
 ## See also
 

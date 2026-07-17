@@ -719,7 +719,7 @@ impl GraalEngineHandle {
 
     fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let session = cstring(session_id)?;
-        let viewer = viewer.map_or(-1, |v| v as c_int);
+        let viewer = viewer.map_or(-1, |v| v as std::os::raw::c_int);
         self.bridge.decode(unsafe {
             graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
         })

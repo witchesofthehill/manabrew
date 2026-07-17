@@ -11,7 +11,7 @@ import {
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { Pencil, Share2, Trash2 } from "lucide-react";
+import { Pencil, Play, Share2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -28,6 +28,7 @@ interface DeckGridCardProps {
   onDelete?: () => void;
   onRename?: () => void;
   onPublish?: () => void;
+  onPlay?: () => void;
   readOnly?: boolean;
 }
 
@@ -37,6 +38,7 @@ export function DeckGridCard({
   onDelete,
   onRename,
   onPublish,
+  onPlay,
   readOnly = false,
 }: DeckGridCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -57,7 +59,22 @@ export function DeckGridCard({
         <DeckCoverImage cover={cover} alt={cover?.identity.name ?? deck.deck.name} />
 
         {/* Darkening overlay so bottom info is always readable */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
+
+        {onPlay && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute left-1.5 top-1.5 z-20 h-8 bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
+            onClick={(event) => {
+              event.stopPropagation();
+              onPlay();
+            }}
+          >
+            <Play className="h-3.5 w-3.5" />
+            Play
+          </Button>
+        )}
 
         {/* Action buttons — visible on hover */}
         {!readOnly && (
@@ -111,7 +128,7 @@ export function DeckGridCard({
         <div className="absolute bottom-0 left-0 right-0 px-2 pt-6 pb-2 z-10">
           <p
             className={cn(
-              "text-white text-sm font-semibold truncate leading-tight",
+              "text-text-on-tinted text-sm font-semibold truncate leading-tight",
               titleColorClass,
               DECK_NAME_SHADOW_CLASS,
             )}
@@ -124,7 +141,9 @@ export function DeckGridCard({
             {deck.deck.labels?.map((label) => (
               <DeckLabelBadge key={label.name} label={label} size="sm" />
             ))}
-            <span className="ml-auto text-[10px] text-white/85">{displayCards.length} cards</span>
+            <span className="ml-auto text-[10px] text-text-on-tinted/85">
+              {displayCards.length} cards
+            </span>
           </div>
         </div>
       </div>

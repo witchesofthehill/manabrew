@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
-import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
 import { EngineChoiceModal } from "@/components/lobby/EngineChoiceModal";
+import { MultiplayerPlay } from "@/components/play/MultiplayerPlay";
+import { OfflinePlay } from "@/components/play/OfflinePlay";
+import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
+import { PlayHome } from "@/components/play/PlayHome";
+import { DeckPlayActions } from "@/components/play/DeckPlayActions";
 import Game from "./Game";
 import { getPlatform } from "@/platform";
 import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { ROUTES } from "@/lib/constants";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 
@@ -26,6 +31,14 @@ export default function Play() {
   const [pendingAiStart, setPendingAiStart] = useState<PendingAiStart | null>(null);
 
   const routeState = location.state;
+  const deckRoute = matchPath(`${ROUTES.PLAY_DECK}/:localSavedDeckId`, location.pathname);
+  const preSelectedDeckId =
+    routeState &&
+    typeof routeState === "object" &&
+    "preSelectedDeckId" in routeState &&
+    typeof routeState.preSelectedDeckId === "string"
+      ? routeState.preSelectedDeckId
+      : undefined;
   const mpState = useMemo(
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
@@ -41,7 +54,12 @@ export default function Play() {
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
-      navigate("/lobby", { replace: true });
+      navigate(ROUTES.LOBBY, { replace: true });
+      return;
+    }
+    if (gameWasActive.current) {
+      gameWasActive.current = false;
+      navigate(ROUTES.PLAY, { replace: true });
     }
   }, [isGameActive, mpState, navigate]);
 
@@ -90,7 +108,7 @@ export default function Play() {
   if (isGameActive) {
     return (
       <div className="h-full min-h-0 no-scrollbar">
-        <Game exitTo="/play" />
+        <Game exitTo={ROUTES.PLAY} />
       </div>
     );
   }
@@ -107,29 +125,40 @@ export default function Play() {
     );
   }
 
-  // Single-player: fighting-game style deck selector
+  if (location.pathname === ROUTES.PLAY_OFFLINE) {
+    return <OfflinePlay />;
+  }
+
+  if (location.pathname === ROUTES.PLAY_MULTIPLAYER) {
+    return <MultiplayerPlay />;
+  }
+
+  if (deckRoute?.params.localSavedDeckId) {
+    return <DeckPlayActions savedDeckId={deckRoute.params.localSavedDeckId} />;
+  }
+
+  if (location.pathname === ROUTES.PLAY) {
+    return <PlayHome />;
+  }
+
+  if (location.pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
+    return <Navigate to={ROUTES.PLAY} replace />;
+  }
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <img
-        aria-hidden
-        src="/manabrew_brewery_1.png"
-        alt=""
-        draggable={false}
-        className="pointer-events-none absolute inset-0 size-full select-none object-cover opacity-50 blur-sm 2xl:blur-md [@media(min-width:1920px)]:blur-lg [@media(min-width:2560px)]:blur-xl"
+      <OfflinePlaySetup
+        preSelectedDeckId={preSelectedDeckId}
+        onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
+          if (getPlatform().type === "web") {
+            setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
+          } else {
+            // Tauri (graalvm build) defaults to the bundled Forge engine; the
+            // store falls back to Manabrew if the local Forge host can't start.
+            startGame(playerDeck, formatId, commanderName, opponentDeck, "Forge");
+          }
+        }}
       />
-      <div className="relative h-full">
-        <DeckVsSelector
-          onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-            if (getPlatform().type === "web") {
-              setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
-            } else {
-              // Tauri (graalvm build) defaults to the bundled Forge engine; the
-              // store falls back to Manabrew if the local Forge host can't start.
-              startGame(playerDeck, formatId, commanderName, opponentDeck, "Forge");
-            }
-          }}
-        />
-      </div>
       {pendingAiStart && (
         <EngineChoiceModal
           hostedAvailable={isHostedEngineAvailable()}

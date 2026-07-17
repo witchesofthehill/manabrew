@@ -1,9 +1,9 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
 import { isFeatureEnabled } from "@/featureFlags";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
-import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "@/lib/constants";
+import { DISCORD_INVITE_URL, GITHUB_REPO_URL, ROUTES, WEBSITE_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
 import {
   Github,
@@ -14,7 +14,6 @@ import {
   Info,
   Layers,
   LibraryBig,
-  Package,
   Palette,
   Settings,
   Swords,
@@ -31,6 +30,17 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const { pathname } = useLocation();
+  const isPlayRoute = [
+    ROUTES.PLAY,
+    ROUTES.LOBBY,
+    ROUTES.LIMITED,
+    ROUTES.DRAFT,
+    ROUTES.SEALED,
+    ROUTES.WINSTON,
+    ROUTES.GAUNTLET,
+    ROUTES.GAME,
+  ].some((route) => pathname === route || pathname.startsWith(`${route}/`));
 
   return (
     <div
@@ -45,29 +55,16 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             <ManaBrewLogo size={256} className="w-full h-auto rounded-xl" />
           </div>
           <div className="space-y-1">
-            <NavLink to="/play" onClick={onNavigate}>
-              {({ isActive }) => (
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start whitespace-nowrap"
-                >
-                  <Swords className="mr-2 h-4 w-4 shrink-0" />
-                  Play
-                </Button>
-              )}
+            <NavLink to={ROUTES.PLAY} onClick={onNavigate}>
+              <Button
+                variant={isPlayRoute ? "secondary" : "ghost"}
+                className="w-full justify-start whitespace-nowrap"
+              >
+                <Swords className="mr-2 h-4 w-4 shrink-0" />
+                Play
+              </Button>
             </NavLink>
-            <NavLink to="/lobby" onClick={onNavigate}>
-              {({ isActive }) => (
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start whitespace-nowrap"
-                >
-                  <Globe className="mr-2 h-4 w-4 shrink-0" />
-                  Online
-                </Button>
-              )}
-            </NavLink>
-            <NavLink to="/search" onClick={onNavigate}>
+            <NavLink to={ROUTES.SEARCH} onClick={onNavigate}>
               {({ isActive }) => (
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
@@ -78,7 +75,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Button>
               )}
             </NavLink>
-            <NavLink to="/deck-editor" onClick={onNavigate}>
+            <NavLink to={ROUTES.DECK_EDITOR} onClick={onNavigate}>
               {({ isActive }) => (
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
@@ -90,7 +87,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
               )}
             </NavLink>
             {isFeatureEnabled("deckHub") && (
-              <NavLink to="/hub" onClick={onNavigate}>
+              <NavLink to={ROUTES.HUB} onClick={onNavigate}>
                 {({ isActive }) => (
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
@@ -102,7 +99,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 )}
               </NavLink>
             )}
-            <NavLink to="/companion" onClick={onNavigate}>
+            <NavLink to={ROUTES.COMPANION} onClick={onNavigate}>
               {({ isActive }) => (
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
@@ -113,18 +110,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Button>
               )}
             </NavLink>
-            <NavLink to="/limited" onClick={onNavigate}>
-              {({ isActive }) => (
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start whitespace-nowrap"
-                >
-                  <Package className="mr-2 h-4 w-4 shrink-0" />
-                  Limited
-                </Button>
-              )}
-            </NavLink>
-            <NavLink to="/matches" onClick={onNavigate}>
+            <NavLink to={ROUTES.MATCHES} onClick={onNavigate}>
               {({ isActive }) => (
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
@@ -141,7 +127,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           <div className="px-3 py-2">
             <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">Sandbox</h2>
             <div className="space-y-1">
-              <NavLink to="/tabletop" onClick={onNavigate}>
+              <NavLink to={ROUTES.TABLETOP} onClick={onNavigate}>
                 {({ isActive }) => (
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
@@ -169,7 +155,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 Preferences
               </Button>
             ) : (
-              <NavLink to="/settings" onClick={onNavigate}>
+              <NavLink to={ROUTES.SETTINGS} onClick={onNavigate}>
                 {({ isActive }) => (
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
@@ -181,7 +167,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 )}
               </NavLink>
             )}
-            <NavLink to="/about" onClick={onNavigate}>
+            <NavLink to={ROUTES.ABOUT} onClick={onNavigate}>
               {({ isActive }) => (
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
@@ -193,7 +179,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
               )}
             </NavLink>
             {DESIGN_SYSTEM_ENABLED && (
-              <NavLink to="/design-system" onClick={onNavigate}>
+              <NavLink to={ROUTES.DESIGN_SYSTEM} onClick={onNavigate}>
                 {({ isActive }) => (
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
@@ -229,7 +215,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </Button>
           <span className="shrink-0 text-muted-foreground">|</span>
           <Button asChild variant="ghost" size="icon" className="shrink-0" title="Website">
-            <a href="https://manabrew.app" target="_blank" rel="noreferrer">
+            <a href={WEBSITE_URL} target="_blank" rel="noreferrer">
               <Globe className="h-4 w-4" />
               <span className="sr-only">Website</span>
             </a>

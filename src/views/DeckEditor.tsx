@@ -17,7 +17,7 @@ import {
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { isFeatureEnabled } from "@/featureFlags";
-import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
+import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME, ROUTES } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
 import type { DeckCard } from "@/protocol/deck";
 import type { Deck as DeckType } from "@/protocol/deck";
@@ -73,6 +73,11 @@ export default function DeckEditor() {
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as {
+    directToEditor?: boolean;
+    openNewDeckDialog?: boolean;
+  } | null;
 
   function handleOpenPreset(deck: DeckType) {
     setSearchParams({ deck: `preset:${deck.id ?? deck.name}` });
@@ -87,8 +92,18 @@ export default function DeckEditor() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
+  const [choiceDialogOpen, setChoiceDialogOpen] = useState(
+    () => routeState?.openNewDeckDialog ?? false,
+  );
   const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
+
+  useEffect(() => {
+    if (!routeState?.openNewDeckDialog) return;
+    navigate(
+      { pathname: location.pathname, search: location.search },
+      { replace: true, state: null },
+    );
+  }, [location.pathname, location.search, navigate, routeState?.openNewDeckDialog]);
 
   useKeybindings({
     "card-search-focus": () => {
@@ -114,15 +129,12 @@ export default function DeckEditor() {
     });
   }
   const hasUnsavedChanges = useDeckUnsavedChanges();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
 
   const [stateView, setStateView] = useState<"list" | "editor">(() => {
     if (useDeckStore.getState().isReadOnly) return "editor";
-    return (location.state as { directToEditor?: boolean } | null)?.directToEditor
-      ? "editor"
-      : "list";
+    return routeState?.directToEditor ? "editor" : "list";
   });
   // True when readonly was triggered by an in-page preset click (no route
   // navigation), so Back restores the grid instead of popping history.
@@ -471,6 +483,11 @@ export default function DeckEditor() {
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
                     onPublish={isFeatureEnabled("deckHub") ? () => setPublishingDeck(s) : undefined}
+                    onPlay={
+                      s.deck.format === "draft" || s.deck.format === "sealed"
+                        ? undefined
+                        : () => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)
+                    }
                   />
                 ))}
               </div>

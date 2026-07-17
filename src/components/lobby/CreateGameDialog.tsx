@@ -61,7 +61,8 @@ export function CreateGameDialog({
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) =>
+      saved.id === preSelectedDeckId || getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
@@ -142,7 +143,9 @@ export function CreateGameDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeck]);
 
-  const selectedDeckEntry = allDecks.find((d) => d.id === selectedDeck);
+  const selectedDeckEntry = allDecks.find(
+    (d) => d.id === selectedDeck && d.formatId === selectedFormat.id,
+  );
   const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
   const selectedPartnerLabel =
     selectedDeckCommanders.length === 2
@@ -169,14 +172,34 @@ export function CreateGameDialog({
 
   const needsCommander = selectedFormat.deckRules.requiresCommander;
   const commanderValid = !needsCommander || selectedCommander !== "";
-  const isReady = !!selectedDeckEntry && commanderValid;
+  const selectedDeckIsVisible = [...filteredUserDecks, ...filteredPresetEntries].some(
+    (entry) => entry.id === selectedDeck,
+  );
+  const selectedDeckValidation = selectedDeckEntry
+    ? selectedDeckEntry.isPreset
+      ? { legal: true, errors: [] as string[] }
+      : validateDeckSections(
+          {
+            deck: selectedDeckEntry.sourceDeck,
+            commanderName: selectedCommander || selectedDeckEntry.commanderName,
+          },
+          selectedFormat,
+        )
+    : { legal: false, errors: [] as string[] };
+  const isReady = selectedDeckIsVisible && selectedDeckValidation.legal && commanderValid;
 
   function handleCreate(
-    entry: (typeof allDecks)[number] | undefined = selectedDeckEntry,
+    entry: (typeof allDecks)[number] | undefined = selectedDeckIsVisible
+      ? selectedDeckEntry
+      : undefined,
     commanderOverride?: string,
   ) {
     if (!entry) {
       toast.error("Please select a deck");
+      return;
+    }
+    if (entry.formatId !== selectedFormat.id) {
+      toast.error("Please select a deck for this format");
       return;
     }
     if (entry.sourceDeck.cards.length === 0 && (entry.sourceDeck.commanders?.length ?? 0) === 0) {
@@ -193,6 +216,7 @@ export function CreateGameDialog({
         );
     if (!validation.legal) {
       toast.warning(validation.errors[0] ?? "Deck is not legal in this format");
+      return;
     }
     if (needsCommander && !(commander || entry.commanderName)) {
       toast.error("Please select a commander");
@@ -371,7 +395,7 @@ export function CreateGameDialog({
                   placeholder="Filter decks..."
                   value={deckSearch}
                   onChange={(e) => setDeckSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"

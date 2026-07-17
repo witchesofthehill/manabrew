@@ -44,10 +44,10 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/lobby" replace />,
+        element: <Navigate to="/play" replace />,
       },
       {
-        path: "play",
+        path: "play/*",
         element: (
           <ErrorBoundary context="Play">
             <Play />

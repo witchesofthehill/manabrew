@@ -18,16 +18,15 @@ import { StatusBanner } from "./StatusBanner";
 import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
+import { ROUTES } from "@/lib/constants";
 
 // Order mirrors the primary nav in Sidebar; drives prev/next page shortcuts.
 const NAV_ROUTES = [
-  "/play",
-  "/lobby",
-  "/search",
-  "/deck-editor",
-  "/companion",
-  "/limited",
-  "/matches",
+  ROUTES.PLAY,
+  ROUTES.SEARCH,
+  ROUTES.DECK_EDITOR,
+  ROUTES.COMPANION,
+  ROUTES.MATCHES,
 ];
 
 export function AppShell() {
@@ -39,9 +38,9 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const isGameActive = useGameStore((s) => s.isGameActive);
-  const isTabletopRoute = location.pathname.startsWith("/tabletop");
-  const isGameRoute = location.pathname.startsWith("/game") || isGameActive;
-  const isCompanionRoute = location.pathname.startsWith("/companion");
+  const isTabletopRoute = location.pathname.startsWith(ROUTES.TABLETOP);
+  const isGameRoute = location.pathname.startsWith(ROUTES.GAME) || isGameActive;
+  const isCompanionRoute = location.pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
   const hideNavChrome = isGameRoute && !isTabletopRoute;
 
@@ -73,7 +72,7 @@ export function AppShell() {
     "nav-prev-page": () => goToAdjacentPage(-1),
     "nav-next-page": () => goToAdjacentPage(1),
     "open-settings": () => {
-      if (!isGameActive) navigate("/settings");
+      if (!isGameActive) navigate(ROUTES.SETTINGS);
     },
     "show-shortcuts": () => setShortcutsOpen((v) => !v),
   });
@@ -88,7 +87,7 @@ export function AppShell() {
   // Collapse sidebar when a game starts, expand when it ends (return
   // to menu). The URL may stay at /play or /lobby, so watching the
   // store flag is more reliable than the pathname alone.
-  const shouldCollapseSidebar = isGameActive || location.pathname.startsWith("/game");
+  const shouldCollapseSidebar = isGameActive || location.pathname.startsWith(ROUTES.GAME);
   const syncSidebar = useEffectEvent((collapse: boolean) => {
     setSidebarCollapsed(collapse);
   });

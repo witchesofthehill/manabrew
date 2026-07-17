@@ -9,12 +9,13 @@ import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ROUTES } from "@/lib/constants";
 import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat, validateDeckSections } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck } from "@/protocol/deck";
 import { ArrowLeft, Hand, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
-import { resolveCoverCard } from "../deck/deckCover.utils";
+import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 
 interface SelectedDeck {
   id: string;
@@ -28,6 +29,7 @@ interface SelectedDeck {
 }
 
 interface DeckVsSelectorProps {
+  preSelectedDeckId?: string;
   onStart: (
     playerDeck: Deck,
     opponentDeck: Deck,
@@ -48,17 +50,44 @@ function pickRandom<T>(arr: readonly T[]): T | undefined {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps) {
+export function DeckVsSelector({
+  preSelectedDeckId,
+  onStart,
+  onStartTabletop,
+}: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
-  const [stage, setStage] = useState<"format" | "decks">("format");
-  const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(null);
-  const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
-  const [pickingSide, setPickingSide] = useState<PickingSide>("player");
-  const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(null);
-  const [deckSearch, setDeckSearch] = useState("");
   const { savedDecks, currentDeck } = useDeckStore();
+  const preSelectedSavedDeck = savedDecks.find((saved) => saved.id === preSelectedDeckId);
+  const preSelectedFormatId = preSelectedSavedDeck?.deck.format ?? "standard";
+  const preSelectedFormat = getFormat(preSelectedFormatId);
+  const preSelectedCommanderName = preSelectedSavedDeck?.deck.commanders?.[0]?.identity.name;
+  const preSelectedDeckEntry: SelectedDeck | null =
+    preSelectedSavedDeck &&
+    preSelectedFormat &&
+    validateDeckSections(
+      { deck: preSelectedSavedDeck.deck, commanderName: preSelectedCommanderName },
+      preSelectedFormat,
+    ).legal
+      ? {
+          id: preSelectedSavedDeck.id,
+          name: preSelectedSavedDeck.deck.name,
+          sourceDeck: preSelectedSavedDeck.deck,
+          formatId: preSelectedFormatId,
+          commanderName: preSelectedCommanderName,
+        }
+      : null;
+  const [stage, setStage] = useState<"format" | "decks">(preSelectedDeckEntry ? "decks" : "format");
+  const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(preSelectedDeckEntry);
+  const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
+  const [pickingSide, setPickingSide] = useState<PickingSide>(
+    preSelectedDeckEntry ? "opponent" : "player",
+  );
+  const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
+    preSelectedDeckEntry?.formatId ?? null,
+  );
+  const [deckSearch, setDeckSearch] = useState("");
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
@@ -74,7 +103,8 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) =>
+      saved.id === preSelectedDeckId || getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
@@ -213,12 +243,12 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-2 border-b bg-muted/5 flex items-center gap-2 flex-shrink-0">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-shrink-0 items-center gap-2 border-b bg-muted/5 px-4 py-2">
         <button
           type="button"
           onClick={() => setStage("format")}
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex min-h-8 items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-10"
         >
           <ArrowLeft className="h-3 w-3" />
           Change format
@@ -227,7 +257,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
         <FormatBadge formatId={selectedFormat} />
       </div>
 
-      <div className="px-4 pt-3 pb-2 flex-shrink-0">
+      <div className="flex-shrink-0 px-4 pb-2 pt-3">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -244,7 +274,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
             Your Decks
@@ -253,7 +283,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
             <p className="text-xs text-muted-foreground italic py-2">
               No decks yet — build one in{" "}
               <Link
-                to="/deck-editor"
+                to={ROUTES.DECK_EDITOR}
                 className="text-primary underline-offset-2 hover:underline not-italic"
               >
                 My Decks
@@ -348,8 +378,8 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
         </div>
       </div>
 
-      <div className="px-4 py-3 border-t flex items-center justify-between gap-3 bg-muted/10 flex-shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-3 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
             label="YOU"
             icon={<User className="h-3 w-3" />}
@@ -376,7 +406,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     e.stopPropagation();
                     handleRandomOpponent();
                   }}
-                  className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-10"
                   title="Random AI deck"
                 >
                   <Shuffle className="h-3 w-3" />
@@ -385,20 +415,25 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
             }
           />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
           {FEATURES.tabletop && onStartTabletop && (
             <Button
               size="sm"
               variant="outline"
               onClick={handleTabletop}
               disabled={!canStartTabletop}
-              className="gap-1.5"
+              className="w-full gap-1.5 sm:w-auto"
             >
               <Hand className="h-3.5 w-3.5" />
               Tabletop
             </Button>
           )}
-          <Button size="sm" onClick={handleFight} disabled={!isReady} className="gap-1.5">
+          <Button
+            size="sm"
+            onClick={handleFight}
+            disabled={!isReady}
+            className="w-full gap-1.5 sm:w-auto"
+          >
             <Swords className="h-3.5 w-3.5" />
             Fight!
           </Button>
@@ -430,11 +465,9 @@ function DeckSlot({
   placeholderExtra,
 }: DeckSlotProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={cn(
-        "group inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors",
+        "group inline-flex min-h-8 min-w-0 max-w-[14rem] items-stretch rounded-md border text-xs transition-colors pointer-coarse:min-h-10 sm:min-w-24",
         isActive ? "ring-1" : "border-border/40 hover:border-border hover:bg-muted/40",
       )}
       style={{
@@ -444,42 +477,39 @@ function DeckSlot({
           : undefined,
       }}
     >
-      <span
-        className="inline-flex items-center gap-0.5 font-bold text-[10px] uppercase tracking-wider"
-        style={{ color: sideColor }}
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {icon}
-        {label}
-      </span>
+        <span
+          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-[10px] uppercase tracking-wider"
+          style={{ color: sideColor }}
+        >
+          {icon}
+          {label}
+        </span>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            deck ? "font-medium text-foreground/90" : "italic text-muted-foreground",
+          )}
+        >
+          {deck?.name ?? "pick a deck"}
+        </span>
+      </button>
       {deck ? (
-        <>
-          <span className="truncate font-medium text-foreground/90">{deck.name}</span>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClear();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                onClear();
-              }
-            }}
-            className="ml-0.5 inline-flex h-3.5 w-3.5 cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive"
-            title="Clear"
-          >
-            <X className="h-2.5 w-2.5" />
-          </span>
-        </>
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-10"
+          title="Clear"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
       ) : (
-        <>
-          <span className="italic text-muted-foreground">pick a deck</span>
-          {placeholderExtra}
-        </>
+        placeholderExtra
       )}
-    </button>
+    </div>
   );
 }

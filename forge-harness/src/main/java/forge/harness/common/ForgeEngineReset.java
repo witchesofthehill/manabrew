@@ -32,7 +32,11 @@ public final class ForgeEngineReset {
             Class<?> clazz = Class.forName(className);
             Field field = clazz.getDeclaredField(fieldName);
             field.setAccessible(true);
-            field.setInt(null, 0);
+            if (field.get(null) instanceof java.util.concurrent.atomic.AtomicInteger counter) {
+                counter.set(0);
+            } else {
+                field.setInt(null, 0);
+            }
         } catch (ClassNotFoundException | NoSuchFieldException e) {
             // Class or field absent in this Forge build — nothing to reset.
         } catch (Exception e) {

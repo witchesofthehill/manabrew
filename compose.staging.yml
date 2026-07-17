@@ -88,9 +88,14 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-Any}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
-      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
+      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-4}"
+      # One engine process serves every staging game slot. GAMES_PER_JVM drives
+      # the java-forge image in use today; SHARED_ISOLATE is inert there and
+      # takes over if the image ever flips to the graal-forge build.
+      SELF_HOSTED_NODE_GAMES_PER_JVM: "${SELF_HOSTED_NODE_GAMES_PER_JVM:-4}"
+      SELF_HOSTED_NODE_SHARED_ISOLATE: "${SELF_HOSTED_NODE_SHARED_ISOLATE:-1}"
       RUST_LOG: "self_hosted_node=info"
-    mem_limit: 1g
+    mem_limit: 2g
     cpu_shares: 512
     depends_on:
       - manabrew-server-staging

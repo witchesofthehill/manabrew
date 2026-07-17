@@ -2,6 +2,7 @@ import { ArrowRight, FlaskConical, LibraryBig, Swords, Users } from "lucide-reac
 import { Link } from "react-router-dom";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
+import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { PLAY_ACTION_CARD_CLASS } from "@/components/play/play.styles";
 import { isFeatureEnabled } from "@/featureFlags";
 import { ROUTES } from "@/lib/constants";
@@ -97,6 +98,8 @@ export function PlayHome() {
               </span>
             </section>
           )}
+
+          <PlayHomeLinks />
         </div>
       </div>
     </div>

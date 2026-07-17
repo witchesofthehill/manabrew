@@ -16,12 +16,6 @@ export interface KeybindingDef {
 
 export const KEYBINDINGS: KeybindingDef[] = [
   {
-    id: "toggle-sidebar",
-    label: "Toggle navigation sidebar",
-    category: "Navigation",
-    defaultCombo: { key: "b", meta: true },
-  },
-  {
     id: "nav-prev-page",
     label: "Previous page",
     category: "Navigation",

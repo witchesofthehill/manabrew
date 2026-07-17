@@ -232,10 +232,17 @@ pub fn run_self_play(
 type SharedBridge = Arc<Mutex<SubprocessBridge>>;
 
 #[cfg(feature = "java-forge")]
+struct PoolSlot {
+    bridge: SharedBridge,
+    active: usize,
+}
+
+#[cfg(feature = "java-forge")]
 pub struct JavaEnginePool {
     config: JavaRuntimeConfig,
-    max_size: usize,
-    free: Mutex<Vec<SharedBridge>>,
+    max_sessions: usize,
+    sessions_per_process: usize,
+    slots: Mutex<Vec<PoolSlot>>,
     in_use: Mutex<HashMap<String, SharedBridge>>,
 }
 
@@ -247,18 +254,31 @@ pub struct JavaEngineHandle {
 
 #[cfg(feature = "java-forge")]
 impl JavaEnginePool {
-    pub fn start(config: &JavaRuntimeConfig, max_size: usize) -> Result<Arc<Self>, String> {
-        let max_size = max_size.max(1);
-        let mut free = Vec::with_capacity(max_size);
-        for slot in 0..max_size {
-            info!(slot, max_size, "pre-warming java subprocess");
+    pub fn start(
+        config: &JavaRuntimeConfig,
+        max_sessions: usize,
+        sessions_per_process: usize,
+    ) -> Result<Arc<Self>, String> {
+        let max_sessions = max_sessions.max(1);
+        let sessions_per_process = sessions_per_process.max(1);
+        let processes = max_sessions.div_ceil(sessions_per_process);
+        let mut slots = Vec::with_capacity(processes);
+        for slot in 0..processes {
+            info!(
+                slot,
+                processes, sessions_per_process, "pre-warming java subprocess"
+            );
             let bridge = SubprocessBridge::spawn(config)?;
-            free.push(Arc::new(Mutex::new(bridge)));
+            slots.push(PoolSlot {
+                bridge: Arc::new(Mutex::new(bridge)),
+                active: 0,
+            });
         }
         Ok(Arc::new(Self {
             config: config.clone(),
-            max_size,
-            free: Mutex::new(free),
+            max_sessions,
+            sessions_per_process,
+            slots: Mutex::new(slots),
             in_use: Mutex::new(HashMap::new()),
         }))
     }
@@ -273,9 +293,9 @@ impl JavaEnginePool {
 #[cfg(feature = "java-forge")]
 impl Drop for JavaEnginePool {
     fn drop(&mut self) {
-        let free = self.free.get_mut().map(std::mem::take).unwrap_or_default();
-        for bridge in free {
-            if let Ok(mutex) = Arc::try_unwrap(bridge) {
+        let slots = self.slots.get_mut().map(std::mem::take).unwrap_or_default();
+        for slot in slots {
+            if let Ok(mutex) = Arc::try_unwrap(slot.bridge) {
                 if let Ok(inner) = mutex.into_inner() {
                     inner.shutdown();
                 }
@@ -289,14 +309,22 @@ impl JavaEnginePool {
     fn acquire(&self) -> Result<SharedBridge, String> {
         let deadline = Instant::now() + Duration::from_secs(60);
         loop {
-            let popped = {
-                let mut free = self
-                    .free
+            let claimed = {
+                let mut slots = self
+                    .slots
                     .lock()
-                    .map_err(|_| "java engine free queue poisoned".to_string())?;
-                free.pop()
+                    .map_err(|_| "java engine slots poisoned".to_string())?;
+                let mut claimed = None;
+                for slot in slots.iter_mut() {
+                    if slot.active < self.sessions_per_process {
+                        slot.active += 1;
+                        claimed = Some(Arc::clone(&slot.bridge));
+                        break;
+                    }
+                }
+                claimed
             };
-            if let Some(bridge) = popped {
+            if let Some(bridge) = claimed {
                 let alive = bridge
                     .lock()
                     .ok()
@@ -306,18 +334,13 @@ impl JavaEnginePool {
                     return Ok(bridge);
                 }
                 warn!("discarding dead java subprocess from pool");
-                drop(bridge);
-                if let Ok(replacement) = SubprocessBridge::spawn(&self.config) {
-                    if let Ok(mut free) = self.free.lock() {
-                        free.push(Arc::new(Mutex::new(replacement)));
-                    }
-                }
+                self.replace_slot(&bridge);
                 continue;
             }
             if Instant::now() >= deadline {
                 return Err(format!(
-                    "java engine pool exhausted (max_size={}); no free subprocess after 60s",
-                    self.max_size
+                    "java engine pool exhausted (max_sessions={}); no free session slot after 60s",
+                    self.max_sessions
                 ));
             }
             std::thread::sleep(Duration::from_millis(50));
@@ -325,6 +348,22 @@ impl JavaEnginePool {
     }
 
     fn release(&self, bridge: SharedBridge) {
+        let now_idle = {
+            let mut slots = match self.slots.lock() {
+                Ok(slots) => slots,
+                Err(_) => return,
+            };
+            match slots.iter_mut().find(|s| Arc::ptr_eq(&s.bridge, &bridge)) {
+                Some(slot) => {
+                    slot.active = slot.active.saturating_sub(1);
+                    slot.active == 0
+                }
+                None => return,
+            }
+        };
+        if !now_idle {
+            return;
+        }
         let healthy = {
             let mut guard = match bridge.lock() {
                 Ok(guard) => guard,
@@ -332,21 +371,29 @@ impl JavaEnginePool {
             };
             guard.is_alive() && guard.reset().is_ok()
         };
-        if healthy {
-            if let Ok(mut free) = self.free.lock() {
-                free.push(bridge);
-                return;
-            }
+        if !healthy {
+            warn!("java subprocess unhealthy at idle; respawning");
+            self.replace_slot(&bridge);
         }
-        drop(bridge);
+    }
+
+    fn replace_slot(&self, dead: &SharedBridge) {
+        let Ok(mut slots) = self.slots.lock() else {
+            return;
+        };
+        let Some(index) = slots.iter().position(|s| Arc::ptr_eq(&s.bridge, dead)) else {
+            return;
+        };
         match SubprocessBridge::spawn(&self.config) {
             Ok(replacement) => {
-                if let Ok(mut free) = self.free.lock() {
-                    free.push(Arc::new(Mutex::new(replacement)));
-                }
+                slots[index] = PoolSlot {
+                    bridge: Arc::new(Mutex::new(replacement)),
+                    active: 0,
+                };
             }
             Err(error) => {
-                warn!(%error, "failed to respawn java subprocess after release");
+                warn!(%error, "failed to respawn java subprocess; retiring pool slot");
+                slots.remove(index);
             }
         }
     }
@@ -497,15 +544,22 @@ pub fn init_engine() -> Result<(), String> {
         return Ok(());
     }
     let config = JavaRuntimeConfig::from_env();
-    // SELF_HOSTED_NODE_MAX_GAMES doubles as the subprocess pool size: each room
-    // checks out one java subprocess for its lifetime, so the pool ceiling is
-    // also the concurrent-room ceiling for this node.
-    let max_size = env::var("SELF_HOSTED_NODE_MAX_GAMES")
+    // SELF_HOSTED_NODE_MAX_GAMES is the concurrent-session ceiling for this node.
+    // SELF_HOSTED_NODE_GAMES_PER_JVM multiplexes that many sessions into each
+    // subprocess (the engine is concurrency-safe since the endstep patches), so
+    // the pool spawns ceil(max_games / games_per_jvm) processes. Default 1 keeps
+    // the historical one-subprocess-per-game shape.
+    let max_sessions = env::var("SELF_HOSTED_NODE_MAX_GAMES")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|n| *n >= 1)
         .unwrap_or(1);
-    let pool = JavaEnginePool::start(&config, max_size)?;
+    let sessions_per_process = env::var("SELF_HOSTED_NODE_GAMES_PER_JVM")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(1);
+    let pool = JavaEnginePool::start(&config, max_sessions, sessions_per_process)?;
     JAVA_ENGINE
         .set(pool)
         .map_err(|_| "java engine already initialized".to_string())
@@ -564,6 +618,11 @@ mod graal_ffi {
             thread: *mut *mut graal_isolatethread_t,
         ) -> c_int;
         pub fn graal_tear_down_isolate(thread: *mut graal_isolatethread_t) -> c_int;
+        pub fn graal_attach_thread(
+            isolate: *mut graal_isolate_t,
+            thread: *mut *mut graal_isolatethread_t,
+        ) -> c_int;
+        pub fn graal_detach_thread(thread: *mut graal_isolatethread_t) -> c_int;
         pub fn forge_initialize(
             thread: *mut graal_isolatethread_t,
             assets_dir: *const c_char,
@@ -613,13 +672,24 @@ struct ForgeReply {
     error: Option<String>,
 }
 
-// One GraalVM isolate hosts the in-process Forge engine. It is created on, and
-// confined to, the hosted-engine thread (isolate threads are not portable), so
-// the handle is Rc/!Send by design.
+// A GraalVM isolate hosts the in-process Forge engine. The `thread` handle is
+// bound to the hosted-engine thread that created or attached it (isolate
+// threads are not portable), so the handle is Rc/!Send by design. In shared
+// mode one isolate serves all rooms: the first creator initializes Forge, later
+// rooms attach their own thread to it and sessions coexist in the adapter.
 #[cfg(feature = "graal-forge")]
 struct GraalBridge {
     thread: *mut graal_ffi::graal_isolatethread_t,
+    attached: bool,
 }
+
+#[cfg(feature = "graal-forge")]
+struct SharedIsolate(*mut graal_ffi::graal_isolate_t);
+#[cfg(feature = "graal-forge")]
+unsafe impl Send for SharedIsolate {}
+
+#[cfg(feature = "graal-forge")]
+static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync::Mutex::new(None);
 
 #[cfg(feature = "graal-forge")]
 impl GraalBridge {
@@ -632,7 +702,45 @@ impl GraalBridge {
         if rc != 0 {
             return Err(format!("graal_create_isolate failed with code {rc}"));
         }
-        Ok(Self { thread })
+        Ok(Self {
+            thread,
+            attached: false,
+        })
+    }
+
+    fn create_in_shared_isolate(assets_dir: &Path) -> Result<Self, String> {
+        let mut guard = SHARED_GRAAL_ISOLATE
+            .lock()
+            .map_err(|_| "shared graal isolate poisoned".to_string())?;
+        if let Some(shared) = guard.as_ref() {
+            let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+            let rc = unsafe { graal_ffi::graal_attach_thread(shared.0, &mut thread) };
+            if rc != 0 {
+                return Err(format!("graal_attach_thread failed with code {rc}"));
+            }
+            return Ok(Self {
+                thread,
+                attached: true,
+            });
+        }
+        let mut isolate: *mut graal_ffi::graal_isolate_t = std::ptr::null_mut();
+        let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+        let rc = unsafe {
+            graal_ffi::graal_create_isolate(std::ptr::null_mut(), &mut isolate, &mut thread)
+        };
+        if rc != 0 {
+            return Err(format!("graal_create_isolate failed with code {rc}"));
+        }
+        let mut bridge = Self {
+            thread,
+            attached: false,
+        };
+        let assets = cstring(&assets_dir.to_string_lossy())?;
+        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        bridge.attached = true;
+        *guard = Some(SharedIsolate(isolate));
+        info!("shared graal isolate initialized");
+        Ok(bridge)
     }
 
     fn decode(&self, raw: *mut std::os::raw::c_char) -> Result<String, String> {
@@ -658,7 +766,11 @@ impl GraalBridge {
 #[cfg(feature = "graal-forge")]
 impl Drop for GraalBridge {
     fn drop(&mut self) {
-        unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+        if self.attached {
+            unsafe { graal_ffi::graal_detach_thread(self.thread) };
+        } else {
+            unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+        }
     }
 }
 
@@ -671,9 +783,21 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        let bridge = GraalBridge::create()?;
-        let assets = cstring(&assets_dir.to_string_lossy())?;
-        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        // SELF_HOSTED_NODE_SHARED_ISOLATE=1 hosts every room's game in one
+        // isolate (safe since the endstep concurrency patches), so the card db
+        // loads once. Default keeps the historical isolate-per-game shape.
+        let shared = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+            .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let bridge = if shared {
+            GraalBridge::create_in_shared_isolate(assets_dir)?
+        } else {
+            let bridge = GraalBridge::create()?;
+            let assets = cstring(&assets_dir.to_string_lossy())?;
+            bridge
+                .decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+            bridge
+        };
         Ok(Self {
             bridge: std::rc::Rc::new(bridge),
         })
@@ -719,7 +843,7 @@ impl GraalEngineHandle {
 
     fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let session = cstring(session_id)?;
-        let viewer = viewer.map_or(-1, |v| v as c_int);
+        let viewer = viewer.map_or(-1, |v| v as std::os::raw::c_int);
         self.bridge.decode(unsafe {
             graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
         })
@@ -754,7 +878,12 @@ pub fn run_concurrent_self_play(
     concurrency: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
-    let pool = JavaEnginePool::start(&config, concurrency.max(1))?;
+    let games_per_process = env::var("SELF_HOSTED_NODE_GAMES_PER_JVM")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(1);
+    let pool = JavaEnginePool::start(&config, concurrency.max(1), games_per_process)?;
     info!(
         concurrency,
         "java-engine started; launching concurrent games"

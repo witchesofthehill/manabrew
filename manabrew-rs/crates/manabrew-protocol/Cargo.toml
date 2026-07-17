@@ -1,8 +1,11 @@
 [package]
 name = "manabrew-protocol"
-version = "1.0.0"
+version = "0.42.0"
 edition = "2021"
 license.workspace = true
+repository.workspace = true
+homepage = "https://docs.manabrew.app/protocol/"
+documentation = "https://docs.rs/manabrew-protocol"
 description = "Wire protocol for manabrew multiplayer"
 
 [[bin]]

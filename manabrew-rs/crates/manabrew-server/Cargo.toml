@@ -10,7 +10,7 @@ name = "manabrew-server"
 path = "src/main.rs"
 
 [dependencies]
-manabrew-protocol = { path = "../manabrew-protocol", version = "0.42.0" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "1.0.0" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.24"
 futures-util = "0.3"

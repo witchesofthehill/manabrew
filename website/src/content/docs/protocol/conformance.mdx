@@ -48,9 +48,3 @@ derive game-state meaning from their textual form.
   player answer again.
 - Treat an unknown prompt `type` as a **soft error** — surface it, but never
   crash on it.
-
-## Extensions
-
-Implementations MAY add fields beyond those documented; conforming consumers
-MUST ignore unknown fields. Extension fields SHOULD use a vendor prefix (e.g.
-`x-vendor-feature`) to avoid colliding with future revisions of the protocol.

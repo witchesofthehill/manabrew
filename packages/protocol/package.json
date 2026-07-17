@@ -1,6 +1,6 @@
 {
   "name": "@manabrew/protocol",
-  "version": "0.42.0",
+  "version": "1.0.0",
   "description": "TypeScript types for the Manabrew wire protocol — the engine↔client message contract for the Manabrew Magic: The Gathering client.",
   "license": "AGPL-3.0-or-later",
   "repository": {

@@ -5,7 +5,6 @@ export const ROUTES = {
   PLAY: "/play",
   PLAY_OFFLINE: "/play/offline",
   PLAY_OFFLINE_CONSTRUCTED: "/play/offline/constructed",
-  PLAY_MULTIPLAYER: "/play/multiplayer",
   PLAY_DECK: "/play/deck",
   LIMITED: "/limited",
   TABLETOP: "/tabletop",

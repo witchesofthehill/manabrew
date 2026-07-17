@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { EngineChoiceModal } from "@/components/lobby/EngineChoiceModal";
-import { MultiplayerPlay } from "@/components/play/MultiplayerPlay";
 import { OfflinePlay } from "@/components/play/OfflinePlay";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
 import { PlayHome } from "@/components/play/PlayHome";
@@ -127,10 +126,6 @@ export default function Play() {
 
   if (location.pathname === ROUTES.PLAY_OFFLINE) {
     return <OfflinePlay />;
-  }
-
-  if (location.pathname === ROUTES.PLAY_MULTIPLAYER) {
-    return <MultiplayerPlay />;
   }
 
   if (deckRoute?.params.localSavedDeckId) {

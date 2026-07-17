@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
 import { HostedTablesSection } from "@/components/lobby/HostedTablesSection";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
+import { OpenTableCard } from "@/components/lobby/OpenTableCard";
 import { needsFormatChoice } from "@/components/lobby/tables.utils";
 import {
   DropdownMenu,
@@ -22,18 +23,14 @@ import {
   Bot,
   X,
   ChevronDown,
-  BadgeCheck,
-  Lock,
-  Cpu,
-  Anvil,
   Search,
   Copy,
   Check,
+  Table2,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
-import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
@@ -60,44 +57,6 @@ const HOSTED_JOIN_RETRY_CODES: ReadonlySet<string> = new Set([
   SERVER_ERROR_CODE.RoomFull,
   SERVER_ERROR_CODE.RoomNotFound,
 ]);
-
-const TAG_CLASSES: Record<string, string> = {
-  official: "bg-primary text-primary-foreground",
-  blue: "bg-format-badge-blue/15 text-format-badge-blue",
-  amber: "bg-format-badge-amber/15 text-format-badge-amber",
-  emerald: "bg-format-badge-emerald/15 text-format-badge-emerald",
-  rose: "bg-format-badge-rose/15 text-format-badge-rose",
-  slate: "bg-format-badge-slate/15 text-format-badge-slate",
-  zinc: "bg-format-badge-zinc/15 text-format-badge-zinc",
-  purple: "bg-format-badge-purple/15 text-format-badge-purple",
-  teal: "bg-format-badge-teal/15 text-format-badge-teal",
-  orange: "bg-format-badge-orange/15 text-format-badge-orange",
-  sky: "bg-format-badge-sky/15 text-format-badge-sky",
-  indigo: "bg-format-badge-indigo/15 text-format-badge-indigo",
-  neutral: "bg-muted text-muted-foreground",
-};
-
-function LobbyTag({
-  tone,
-  className,
-  children,
-}: {
-  tone: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold leading-tight",
-        TAG_CLASSES[tone] ?? TAG_CLASSES.neutral,
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
 
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -637,6 +596,7 @@ export function TablesList({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search tables"
               placeholder="Search tables…"
               className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             />
@@ -669,134 +629,30 @@ export function TablesList({
 
               {visibleRooms.length > 0 && (
                 <section className="space-y-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Open Tables
-                  </h2>
-                  <div className="divide-y overflow-hidden rounded-lg border bg-card/40">
-                    {visibleRooms.map((room) => {
-                      const isMyRoom = room.room_id === currentRoom?.room_id;
-                      const isCompatible = room.protocol_version === PROTOCOL_VERSION;
-                      const canJoin =
-                        isCompatible &&
-                        !inRoom &&
-                        room.status === "Lobby" &&
-                        room.players.length < room.max_players;
-                      const isFull = room.players.length >= room.max_players;
-                      const format = getFormat(room.format.toLowerCase());
-                      const modeLabel = format?.name ?? room.format;
-                      const modeTone = format?.badgeColor ?? "neutral";
-                      const limitedLabel = room.draft_config
-                        ? (room.draft_config.cube_name ?? room.draft_config.set_code)
-                        : room.sealed_config
-                          ? room.sealed_config.set_code
-                          : null;
-                      const showHost = !room.official && !room.hosted;
-
-                      return (
-                        <div
-                          key={room.room_id}
-                          className={cn(
-                            "flex flex-wrap items-center gap-2 px-3 py-2 transition-colors sm:flex-nowrap sm:gap-2.5",
-                            isMyRoom && "bg-primary/5",
-                            !isMyRoom && canJoin && "hover:bg-muted/40",
-                            !isCompatible && "opacity-60",
-                          )}
-                        >
-                          {(room.official || room.password_protected) && (
-                            <div className="flex items-center gap-1 shrink-0">
-                              {room.official && (
-                                <span title="Official table" className="inline-flex">
-                                  <BadgeCheck className="h-4 w-4 text-primary" />
-                                </span>
-                              )}
-                              {room.password_protected && (
-                                <span title="Password-protected table" className="inline-flex">
-                                  <Lock className="h-3.5 w-3.5 text-format-badge-amber" />
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium sm:flex-none">
-                            {room.room_name}
-                          </span>
-
-                          {!isCompatible && (
-                            <LobbyTag tone="rose" className="shrink-0">
-                              Incompatible
-                            </LobbyTag>
-                          )}
-                          <LobbyTag
-                            tone={
-                              room.engine === "Forge"
-                                ? "blue"
-                                : room.engine === "Ironsmith"
-                                  ? "amber"
-                                  : "sky"
-                            }
-                            className="shrink-0"
-                          >
-                            {room.engine === "Forge" ? (
-                              <Anvil className="h-3 w-3" />
-                            ) : room.engine === "Ironsmith" ? (
-                              <GameIcon name="anvil" className="h-3 w-3" />
-                            ) : (
-                              <Cpu className="h-3 w-3" />
-                            )}
-                            {room.engine}
-                          </LobbyTag>
-                          {room.format !== "Any" && (
-                            <LobbyTag tone={modeTone} className="shrink-0">
-                              {modeLabel}
-                            </LobbyTag>
-                          )}
-                          {limitedLabel && (
-                            <LobbyTag
-                              tone="purple"
-                              className="uppercase max-w-[7rem] truncate shrink-0"
-                            >
-                              {limitedLabel}
-                            </LobbyTag>
-                          )}
-                          {showHost && (
-                            <span className="hidden truncate text-[11px] text-muted-foreground sm:block max-w-[9rem]">
-                              by {room.host}
-                            </span>
-                          )}
-
-                          <div className="ml-auto flex shrink-0 items-center gap-2">
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Users className="h-3 w-3" />
-                              <span>
-                                {room.players.length}/{room.max_players}
-                              </span>
-                            </div>
-                            {isMyRoom ? (
-                              <Badge variant="secondary" className="text-[10px]">
-                                Joined
-                              </Badge>
-                            ) : canJoin ? (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="h-6 text-[11px] px-2"
-                                disabled={joiningRoomId === room.room_id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  requestJoin(room);
-                                }}
-                              >
-                                {joiningRoomId === room.room_id ? "Joining..." : "Join"}
-                              </Button>
-                            ) : room.status === "InGame" ? (
-                              <span className="text-[10px] text-muted-foreground">Playing</span>
-                            ) : isFull ? (
-                              <span className="text-[10px] text-muted-foreground">Full</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Table2 aria-hidden="true" className="h-3.5 w-3.5" />
+                        Open Tables
+                      </h2>
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Pick a table and take a seat
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {visibleRooms.length} {visibleRooms.length === 1 ? "table" : "tables"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-3">
+                    {visibleRooms.map((room) => (
+                      <OpenTableCard
+                        key={room.room_id}
+                        room={room}
+                        currentRoomId={currentRoom?.room_id ?? null}
+                        joining={joiningRoomId === room.room_id}
+                        onJoin={requestJoin}
+                      />
+                    ))}
                   </div>
                 </section>
               )}

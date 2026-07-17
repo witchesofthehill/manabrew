@@ -1,6 +1,6 @@
 import { TablesList } from "@/components/lobby/TablesList";
 import { UserList, type ConnectionState } from "@/components/lobby/UserList";
-import { CreateRoomDialog, type RoomKind } from "@/components/lobby/CreateRoomDialog";
+import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
@@ -112,20 +112,12 @@ export default function Lobby() {
   const location = useLocation();
   const navigate = useNavigate();
   const initialRouteState = location.state as {
-    createTable?: unknown;
     preferredSavedDeckId?: unknown;
-    showPlayers?: unknown;
   } | null;
-  const requestedCreateTableKind = initialRouteState?.createTable;
-  const initialCreateTableKind: RoomKind | null =
-    requestedCreateTableKind === "match" || requestedCreateTableKind === "limited"
-      ? requestedCreateTableKind
-      : null;
   const initialPreferredSavedDeckId =
     typeof initialRouteState?.preferredSavedDeckId === "string"
       ? initialRouteState.preferredSavedDeckId
       : undefined;
-  const initialShowPlayers = initialRouteState?.showPlayers === true;
   const {
     connected,
     connecting,
@@ -161,17 +153,14 @@ export default function Lobby() {
       : "disconnected";
   const { currentDeck, savedDecks } = useDeckStore();
   const { startManualTabletopGame, startManualRoomHost, endGame } = useGameStore();
-  const [createRoomOpen, setCreateRoomOpen] = useState(() => initialCreateTableKind != null);
-  const [createTableKind, setCreateTableKind] = useState<RoomKind>(
-    () => initialCreateTableKind ?? "match",
-  );
+  const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
   const [deckDialogOpen, setDeckDialogOpen] = useState(false);
   const [aiDeckDialogOpen, setAiDeckDialogOpen] = useState(false);
   const [refreshingLobby, setRefreshingLobby] = useState(false);
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const [playersCollapsed, setPlayersCollapsed] = useState(false);
-  const [playersDrawerOpen, setPlayersDrawerOpen] = useState(initialShowPlayers);
+  const [playersDrawerOpen, setPlayersDrawerOpen] = useState(false);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
@@ -180,20 +169,9 @@ export default function Lobby() {
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
 
   useEffect(() => {
-    if (!initialCreateTableKind && !initialPreferredSavedDeckId && !initialShowPlayers) return;
+    if (!initialPreferredSavedDeckId) return;
     navigate(location.pathname, { replace: true, state: null });
-  }, [
-    initialCreateTableKind,
-    initialPreferredSavedDeckId,
-    initialShowPlayers,
-    location.pathname,
-    navigate,
-  ]);
-
-  function openCreateTable(kind: RoomKind = "match") {
-    setCreateTableKind(kind);
-    setCreateRoomOpen(true);
-  }
+  }, [initialPreferredSavedDeckId, location.pathname, navigate]);
 
   // Leaving tears down the embedded Forge node (stopRoom), which kills the
   // game for everyone still playing — by design. Make the host confirm it.
@@ -567,7 +545,7 @@ export default function Lobby() {
         {/* ── Header ── */}
         <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2 sm:flex-nowrap sm:gap-3 sm:px-4">
           <Button variant="ghost" size="sm" asChild className="shrink-0">
-            <Link to={ROUTES.PLAY_MULTIPLAYER}>
+            <Link to={ROUTES.PLAY}>
               <ArrowLeft className="h-4 w-4" />
               Play
             </Link>
@@ -583,7 +561,7 @@ export default function Lobby() {
               <Button
                 size="sm"
                 className="h-7 text-xs"
-                onClick={() => openCreateTable()}
+                onClick={() => setCreateRoomOpen(true)}
                 disabled={currentRoom != null}
               >
                 Create Table
@@ -666,7 +644,7 @@ export default function Lobby() {
             currentRoom={currentRoom}
             roomPassword={roomPassword}
             username={username}
-            onNewGame={() => openCreateTable()}
+            onNewGame={() => setCreateRoomOpen(true)}
             onRefresh={refreshLobbyData}
             refreshing={refreshingLobby}
             refreshDisabled={!connected || connecting}
@@ -706,7 +684,7 @@ export default function Lobby() {
       {myUsername && !isDesktop && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
           <SheetContent side="right" className="w-80 max-w-[88vw] p-0">
-            <SheetTitle className="sr-only">Players and friends</SheetTitle>
+            <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}
               rooms={rooms}
@@ -720,14 +698,7 @@ export default function Lobby() {
         </Sheet>
       )}
 
-      <CreateRoomDialog
-        open={createRoomOpen}
-        initialKind={createTableKind}
-        onOpenChange={(open) => {
-          setCreateRoomOpen(open);
-          if (!open) setCreateTableKind("match");
-        }}
-      />
+      <CreateRoomDialog open={createRoomOpen} onOpenChange={setCreateRoomOpen} />
       <CreateGameDialog
         open={deckDialogOpen}
         onOpenChange={setDeckDialogOpen}

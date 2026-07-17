@@ -47,7 +47,7 @@ export function PlayHome() {
               </span>
             </Link>
 
-            <Link to={ROUTES.PLAY_MULTIPLAYER} className={MODE_CLASS}>
+            <Link to={ROUTES.LOBBY} className={MODE_CLASS}>
               <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary">
                 <Users className="h-5 w-5" />
               </span>

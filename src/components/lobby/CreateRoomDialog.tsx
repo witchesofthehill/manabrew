@@ -86,7 +86,7 @@ const defaultMatchPlayers = (format: GameFormat) => (format === "Commander" ? 4 
 // Capped at 90s: the engine auto-passes a silent seat after 120s
 const RECONNECT_TIMEOUT_OPTIONS = [30, 60, 90] as const;
 
-export type RoomKind = "match" | "limited";
+type RoomKind = "match" | "limited";
 
 type LimitedKind = "draft" | "sealed" | "winston" | "cube";
 
@@ -132,14 +132,9 @@ const LIMITED_KINDS: LimitedKindMeta[] = [
 interface CreateRoomDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialKind?: RoomKind;
 }
 
-export function CreateRoomDialog({
-  open,
-  onOpenChange,
-  initialKind = "match",
-}: CreateRoomDialogProps) {
+export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { connected, createRoom, username } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
   const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
@@ -149,7 +144,7 @@ export function CreateRoomDialog({
   const [roomPassword, setRoomPassword] = useState("");
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
-  const [kind, setKind] = useState<RoomKind>(initialKind);
+  const [kind, setKind] = useState<RoomKind>("match");
   const [limitedKind, setLimitedKind] = useState<LimitedKind>("draft");
   const [roomName, setRoomName] = useState("");
   const [matchPlayersOverride, setMatchPlayersOverride] = useState<number | null>(null);
@@ -247,8 +242,8 @@ export function CreateRoomDialog({
   }, [sealedSet]);
 
   useEffect(() => {
-    setKind(initialKind);
     if (open) return;
+    setKind("match");
     setEngine(isTauri ? "Forge" : "Manabrew");
     setRoomPassword("");
     setLimitedKind("draft");
@@ -268,7 +263,7 @@ export function CreateRoomDialog({
     setSealedSet("");
     setSealedNumBoosters(6);
     setSealedSeed("");
-  }, [initialKind, open, isTauri]);
+  }, [open, isTauri]);
 
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";

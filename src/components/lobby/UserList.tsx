@@ -172,7 +172,7 @@ export function UserList({
   return (
     <div className="flex flex-col h-full">
       <div className="px-4 h-14 border-b shrink-0 flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Players &amp; Friends</h3>
+        <h3 className="font-semibold text-sm">Players</h3>
         <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
           {players.length}
         </span>

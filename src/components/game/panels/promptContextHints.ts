@@ -47,8 +47,6 @@ export function getPromptContextLines(
       if (cost.delveCount) lines.push(`Delved for {${cost.delveCount}}`);
       return lines;
     }
-    case "chooseTargetSpell":
-      return ["Tap a glowing spell on the stack to counter it"];
     default:
       return [];
   }

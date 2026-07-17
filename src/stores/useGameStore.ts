@@ -17,9 +17,8 @@ import { startHostedAiGame, startTauriForgeAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
-import type { GameState } from "./gameStore.types";
+import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
-import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
@@ -33,7 +32,7 @@ function isManualTabletopApi(
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
 
-function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardDto {
+function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): ClientCardDto {
   const { identity, ...rest } = card;
   return {
     ...GAME_CARD_DEFAULTS,
@@ -58,9 +57,9 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardD
 }
 
 function seedManualDeck(
-  gameView: GameViewDto,
+  gameView: ClientGameView,
   deck: Deck,
-): { gameView: GameViewDto; libraries: Record<string, CardDto[]> } {
+): { gameView: ClientGameView; libraries: Record<string, ClientCardDto[]> } {
   const playerId = gameView.players[0]?.id ?? "player-0";
   const openingHandSize = Math.min(7, deck.cards.length);
   const hand = deck.cards
@@ -136,6 +135,7 @@ async function initializeGame({
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
+      seatAddressedStates: false,
       relinquishedPriority: false,
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
@@ -195,6 +195,7 @@ async function initializeGame({
     deferredQueue: [],
     isFlashing: false,
     isWaitingForResponse: false,
+    seatAddressedStates: false,
     relinquishedPriority: false,
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
@@ -227,6 +228,7 @@ export const useGameStore = create<GameState>()(
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
+      seatAddressedStates: false,
       relinquishedPriority: false,
       gameConfig: null,
       selfConceded: false,
@@ -312,7 +314,7 @@ export const useGameStore = create<GameState>()(
         });
       },
 
-      startManualRoomClient: async (localPlayerSlot: string, initialGameView?: GameViewDto) => {
+      startManualRoomClient: async (localPlayerSlot: string, initialGameView?: ClientGameView) => {
         selectGameRuntime("manual-tabletop");
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) {
@@ -404,6 +406,7 @@ export const useGameStore = create<GameState>()(
             deferredQueue: [],
             isFlashing: false,
             isWaitingForResponse: false,
+            seatAddressedStates: false,
             relinquishedPriority: false,
             selfConceded: false,
             debugInfo: "Starting multiplayer game...",
@@ -472,8 +475,9 @@ export const useGameStore = create<GameState>()(
             debugInfo: `Responding: ${output.type}`,
           });
           const { myPlayerSlot } = get();
+          const promptId = Number(get().currentPrompt?.promptId ?? 0);
           const runtime = getSelectedGameRuntime();
-          await runtime.api.respond({ action, playerSlot: myPlayerSlot });
+          await runtime.api.respond({ action, playerSlot: myPlayerSlot, promptId });
         } catch (e) {
           set({
             isWaitingForResponse: false,
@@ -516,6 +520,7 @@ export const useGameStore = create<GameState>()(
           deferredQueue: [],
           isFlashing: false,
           isWaitingForResponse: false,
+          seatAddressedStates: false,
           relinquishedPriority: false,
           selfConceded: false,
           isMultiplayer: false,

@@ -1,6 +1,7 @@
 import type { CardDto, StackObjectDto } from "@/protocol/game";
 import type { CardRulesSummary } from "@/types/manabrew";
-import type { AvailableAction } from "@/protocol/prompts/common";
+import type { AvailableAction, PaymentAction } from "@/protocol/prompts/common";
+import type { ClientCardDto } from "@/stores/gameStore.types";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { PROMPT_LABELS } from "./game.constants";
@@ -9,9 +10,11 @@ export function isPermanentSpellCard(card: Pick<CardDto, "types">): boolean {
   return !card.types.includes("Instant") && !card.types.includes("Sorcery");
 }
 
-export function manaAbilityInfos(actions: AvailableAction[]): ManaAbilityActionInfo[] {
+export function manaAbilityInfos(
+  actions: Array<AvailableAction | PaymentAction>,
+): ManaAbilityActionInfo[] {
   return actions.flatMap((a) =>
-    a.type === "activateAbility" && a.isManaAbility
+    a.type === "activateManaAbility" || (a.type === "activateAbility" && a.isManaAbility)
       ? [
           {
             cardId: a.cardId,
@@ -58,7 +61,7 @@ export type ScryfallImageSize = "small" | "normal" | "large" | "png" | "border_c
 /** CardDto view of a stack-resident source for rendering. Owner/controller
  *  come from the StackObjectDto; printing identity comes from the wire so
  *  `asDeckCard` can resolve the image. */
-export function stackObjectToCardStub(obj: StackObjectDto): CardDto {
+export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,

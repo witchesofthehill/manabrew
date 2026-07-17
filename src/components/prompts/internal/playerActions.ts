@@ -13,9 +13,9 @@ export function passOutput(
     case "chooseBlockers":
       return { type: "declareBlockers", assignments: [] };
     case "chooseAction":
-      return { type: "pass", until: until ?? undefined };
+      return { type: "pass", until: until ?? undefined, exhaustStack: false };
     default:
-      return { type: "pass", until: undefined };
+      return { type: "pass", until: undefined, exhaustStack: false };
   }
 }
 

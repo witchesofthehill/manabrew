@@ -6,11 +6,20 @@ use crate::prompts::common::PromptPresentation;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/chooseFromSelection.ts")]
+pub struct SelectionOption {
+    pub label: String,
+    pub weight: usize,
+    pub can_repeat: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/chooseFromSelection.ts")]
 pub struct ChooseFromSelectionInput {
     pub presentation: PromptPresentation,
-    pub options: Vec<String>,
-    pub min_choices: usize,
-    pub max_choices: usize,
+    pub options: Vec<SelectionOption>,
+    pub min_total: usize,
+    pub max_total: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

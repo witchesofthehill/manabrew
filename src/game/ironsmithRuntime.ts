@@ -699,7 +699,7 @@ function botPromptOutput(prompt: Prompt): PromptOutput | null {
       };
     }
     case "chooseAction":
-      return { type: "chooseAction", output: { type: "pass" } };
+      return { type: "chooseAction", output: { type: "pass", exhaustStack: false } };
     case "payManaCost":
       return { type: "payManaCost", output: { type: "cancel" } };
     case "chooseBoardTargets":
@@ -717,7 +717,7 @@ function botPromptOutput(prompt: Prompt): PromptOutput | null {
     case "chooseBoolean":
       return { type: "chooseBoolean", output: { type: "decision", value: false } };
     case "chooseFromSelection": {
-      const count = Math.max(0, Math.min(prompt.input.minChoices, prompt.input.options.length));
+      const count = Math.max(0, Math.min(prompt.input.minTotal, prompt.input.options.length));
       return {
         type: "chooseFromSelection",
         output: {
@@ -747,12 +747,12 @@ function botPromptOutput(prompt: Prompt): PromptOutput | null {
           chosenCardIds: prompt.input.cards.slice(0, prompt.input.min).map((card) => card.id),
         },
       };
-    case "reorderCards":
+    case "reorder":
       return {
-        type: "reorderCards",
+        type: "reorder",
         output: {
           type: "reorderDecision",
-          orderedCardIds: prompt.input.cards.map((card) => card.id),
+          orderedIds: prompt.input.items.map((item) => item.id),
         },
       };
     case "revealCards":

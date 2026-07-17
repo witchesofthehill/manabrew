@@ -1,5 +1,5 @@
 import { getPlatform } from "@/platform";
-import type { GameViewDto } from "@/protocol/game";
+import type { ClientGameView } from "@/stores/gameStore.types";
 import type { ManualTabletopAction, SeatController } from "./runtime.types";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
@@ -14,7 +14,7 @@ export type RoomHostPayload =
   | {
       type: "manualState";
       mode: RoomHostMode;
-      gameView: GameViewDto;
+      gameView: ClientGameView;
     }
   | {
       type: "manualAction";
@@ -44,7 +44,7 @@ export class BroadcastRoomHost {
     this.seats = config.seats;
   }
 
-  async broadcastManualState(gameView: GameViewDto): Promise<void> {
+  async broadcastManualState(gameView: ClientGameView): Promise<void> {
     await this.broadcast({
       type: "manualState",
       mode: this.mode,

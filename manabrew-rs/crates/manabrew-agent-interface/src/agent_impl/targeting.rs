@@ -2,8 +2,10 @@ use forge_foundation::ZoneType;
 use manabrew_engine::agent::TargetChoice;
 use manabrew_engine::ids::{CardId, PlayerId};
 
-use crate::game_view_dto::TargetingIntent;
-use crate::ids_codec::{parse_card_id, parse_player_id, stack_id_str};
+use crate::game_view_dto::{
+    intent_is_hostile, target_ref_card, target_ref_player, target_ref_spell, TargetingIntent,
+};
+use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, stack_id_str};
 use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
@@ -13,16 +15,23 @@ fn board_targets(
     hostile: bool,
     intent: TargetingIntent,
     label: String,
+    source: Option<CardId>,
 ) -> PromptInput {
     PromptInput::ChooseBoardTargets(
         manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
+            presentation: PromptPresentation {
+                title: label,
+                description: None,
+                text: None,
+                source_card_id: source.map(card_id_str),
+                targets: Vec::new(),
+            },
             candidates,
             hostile,
             intent,
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
-            label,
         },
     )
 }
@@ -40,18 +49,24 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
     while !remaining.is_empty() {
         let candidates: Vec<TargetRef> = PromptAgent::<T>::card_ids(&remaining)
             .into_iter()
-            .map(TargetRef::card)
+            .map(target_ref_card)
             .collect();
         agent.send_prompt(
             PromptInput::ChooseBoardTargets(
                 manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
+                    presentation: PromptPresentation {
+                        title: label.to_string(),
+                        description: None,
+                        text: None,
+                        source_card_id: source.map(card_id_str),
+                        targets: Vec::new(),
+                    },
                     candidates,
                     hostile: false,
                     intent,
                     min_targets: 0,
                     max_targets: total,
                     chosen_targets: chosen.len() as i32,
-                    label: label.to_string(),
                 },
             ),
             source,
@@ -92,10 +107,10 @@ pub(super) fn choose_target_player<T: Responder>(
 ) -> Option<PlayerId> {
     let candidates = PromptAgent::<T>::player_ids(valid)
         .into_iter()
-        .map(TargetRef::player)
+        .map(target_ref_player)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string()),
+        board_targets(candidates, hostile, intent, intent.to_string(), source),
         source,
     );
     agent.recv_player_choice_or_first(valid)
@@ -111,10 +126,10 @@ pub(super) fn choose_target_card<T: Responder>(
 ) -> Option<CardId> {
     let candidates = PromptAgent::<T>::card_ids(valid)
         .into_iter()
-        .map(TargetRef::card)
+        .map(target_ref_card)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string()),
+        board_targets(candidates, hostile, intent, intent.to_string(), source),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -131,10 +146,16 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
 ) -> Option<CardId> {
     let candidates = PromptAgent::<T>::card_ids(valid)
         .into_iter()
-        .map(TargetRef::card)
+        .map(target_ref_card)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, intent.is_hostile(), intent, intent.to_string()),
+        board_targets(
+            candidates,
+            intent_is_hostile(intent),
+            intent,
+            intent.to_string(),
+            source,
+        ),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -151,15 +172,15 @@ pub(super) fn choose_target_any<T: Responder>(
 ) -> TargetChoice {
     let mut candidates: Vec<TargetRef> = PromptAgent::<T>::player_ids(valid_players)
         .into_iter()
-        .map(TargetRef::player)
+        .map(target_ref_player)
         .collect();
     candidates.extend(
         PromptAgent::<T>::card_ids(valid_cards)
             .into_iter()
-            .map(TargetRef::card),
+            .map(target_ref_card),
     );
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string()),
+        board_targets(candidates, hostile, intent, intent.to_string(), source),
         source,
     );
     match agent.recv_action() {
@@ -194,10 +215,16 @@ pub(super) fn choose_target_spell<T: Responder>(
     let intent = TargetingIntent::Counter;
     let candidates = valid
         .iter()
-        .map(|&id| TargetRef::spell(stack_id_str(id)))
+        .map(|&id| target_ref_spell(stack_id_str(id)))
         .collect();
     agent.send_prompt(
-        board_targets(candidates, intent.is_hostile(), intent, intent.to_string()),
+        board_targets(
+            candidates,
+            intent_is_hostile(intent),
+            intent,
+            intent.to_string(),
+            source,
+        ),
         source,
     );
     agent.recv_spell_choice_or_first(valid)
@@ -211,7 +238,7 @@ pub(super) fn choose_sacrifice<T: Responder>(
 ) -> Option<CardId> {
     let candidates = PromptAgent::<T>::card_ids(valid)
         .into_iter()
-        .map(TargetRef::card)
+        .map(target_ref_card)
         .collect();
     agent.send_prompt(
         board_targets(
@@ -219,6 +246,7 @@ pub(super) fn choose_sacrifice<T: Responder>(
             true,
             TargetingIntent::Sacrifice,
             TargetingIntent::Sacrifice.to_string(),
+            source,
         ),
         source,
     );

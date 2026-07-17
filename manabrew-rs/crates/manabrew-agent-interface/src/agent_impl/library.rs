@@ -9,10 +9,7 @@ use crate::prompt::*;
 use super::{PromptAgent, Responder};
 
 fn library_dtos(game: &GameState, cards: &[CardId]) -> Vec<CardDto> {
-    cards
-        .iter()
-        .map(|&id| card_to_dto(game, id, "library"))
-        .collect()
+    cards.iter().map(|&id| card_to_dto(game, id)).collect()
 }
 
 fn send_scry<T: Responder>(
@@ -125,27 +122,30 @@ pub(super) fn choose_reorder_library<T: Responder>(
     _player: PlayerId,
     cards: &[CardId],
 ) -> Vec<CardId> {
-    let prompt_cards = library_dtos(game, cards);
+    let items = cards
+        .iter()
+        .map(|&id| ReorderItem {
+            id: card_id_str(id),
+            card: card_to_dto(game, id),
+            oracle: None,
+        })
+        .collect();
     agent.send_prompt(
-        PromptInput::ReorderCards(
-            manabrew_protocol::prompts::reorder_cards::ReorderCardsInput {
-                presentation: PromptPresentation {
-                    title: "Reorder".to_string(),
-                    description: Some("Arrange these cards on top of your library.".to_string()),
-                    text: None,
-                    source_card_id: None,
-                    targets: Vec::new(),
-                },
-                cards: prompt_cards,
-                target_label: "Top of Library".to_string(),
-                top_of_deck: true,
+        PromptInput::Reorder(manabrew_protocol::prompts::reorder::ReorderInput {
+            presentation: PromptPresentation {
+                title: "Reorder".to_string(),
+                description: Some("Arrange these cards on top of your library.".to_string()),
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
             },
-        ),
+            items,
+        }),
         None,
     );
     match agent.recv_action() {
-        PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision { ordered_card_ids }) => {
-            let parsed: Vec<CardId> = ordered_card_ids
+        PromptOutput::Reorder(ReorderOutput::ReorderDecision { ordered_ids }) => {
+            let parsed: Vec<CardId> = ordered_ids
                 .iter()
                 .filter_map(|s| parse_card_id(s))
                 .collect();

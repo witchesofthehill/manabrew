@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::game::TargetingIntent;
+use crate::game::{Mana, TargetingIntent};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -21,38 +21,60 @@ pub struct PromptPresentation {
     pub targets: Vec<TargetRef>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+/// Mirrors the engine's `AlternativeCost` (itself a mirror of Java's).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
-pub struct PlayOptionDto {
-    pub card_id: String,
-    pub mode: String,
-    pub mode_label: String,
+pub enum AlternativeCostKind {
+    Flashback,
+    Spectacle,
+    Evoke,
+    Dash,
+    Blitz,
+    Escape,
+    Overload,
+    Madness,
+    Foretell,
+    Emerge,
+    Suspend,
+    Morph,
+    Megamorph,
+    Bestow,
+    Warp,
+    SacrificeAlt,
+    Plot,
+    Awaken,
+    Disturb,
+    Harmonize,
+    Freerunning,
+    Impending,
+    Mayhem,
+    #[serde(rename = "moreThanMeetsTheEye")]
+    MTMtE,
+    Mutate,
+    Prowl,
+    Sneak,
+    Surge,
+    WebSlinging,
+    Plotted,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+/// Mirrors the engine's `PlayCardMode`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "prompts/common.ts")]
-pub enum ManaColor {
-    #[serde(rename = "W")]
-    White,
-    #[serde(rename = "U")]
-    Blue,
-    #[serde(rename = "B")]
-    Black,
-    #[serde(rename = "R")]
-    Red,
-    #[serde(rename = "G")]
-    Green,
-    #[serde(rename = "C")]
-    Colorless,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "prompts/common.ts")]
-pub struct Mana {
-    pub color: ManaColor,
-    pub amount: i32,
+pub enum PlayCardMode {
+    Normal,
+    BackFaceLand,
+    RoomRightSplit,
+    Alternative { cost: AlternativeCostKind },
+    StaticAlternative,
+    ForetellExile,
+    UnlockDoor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -81,17 +103,11 @@ pub struct ActivatableAbilityInfo {
 pub enum AvailableActionKind {
     Cast {
         card_id: String,
-        mode: String,
-        mode_label: String,
+        mode: PlayCardMode,
+        label: String,
     },
     ActivateAbility(ActivatableAbilityInfo),
     UndoMana {
-        card_id: String,
-    },
-    Delve {
-        card_id: String,
-    },
-    Undelve {
         card_id: String,
     },
 }
@@ -103,6 +119,49 @@ pub struct AvailableAction {
     #[serde(flatten)]
     #[ts(flatten)]
     pub kind: AvailableActionKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum PaymentResourceKind {
+    Convoke,
+    Improvise,
+    Delve,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum PaymentActionKind {
+    ActivateManaAbility(ActivatableAbilityInfo),
+    UndoMana {
+        card_id: String,
+    },
+    UseResource {
+        card_id: String,
+        resource: PaymentResourceKind,
+    },
+    ReleaseResource {
+        card_id: String,
+        resource: PaymentResourceKind,
+    },
+    PayLife {
+        amount: u32,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct PaymentAction {
+    pub id: String,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub kind: PaymentActionKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -181,33 +240,4 @@ pub struct TargetRef {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub oracle: Option<String>,
-}
-
-impl TargetRef {
-    pub fn card(id: String) -> Self {
-        Self {
-            kind: TargetKind::Card,
-            id,
-            intent: None,
-            oracle: None,
-        }
-    }
-
-    pub fn player(id: String) -> Self {
-        Self {
-            kind: TargetKind::Player,
-            id,
-            intent: None,
-            oracle: None,
-        }
-    }
-
-    pub fn spell(id: String) -> Self {
-        Self {
-            kind: TargetKind::Spell,
-            id,
-            intent: None,
-            oracle: None,
-        }
-    }
 }

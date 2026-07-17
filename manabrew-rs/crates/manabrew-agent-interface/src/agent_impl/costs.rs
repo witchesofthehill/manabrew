@@ -163,18 +163,24 @@ pub(super) fn pay_mana_cost<T: Responder>(
     let mut actions = mana_payment_actions(mana_ability_options);
     for &land in untappable_lands {
         let id = card_id_str(land);
-        actions.push(AvailableAction {
+        actions.push(PaymentAction {
             id: format!("untap:{id}"),
-            kind: AvailableActionKind::UndoMana { card_id: id },
+            kind: PaymentActionKind::UndoMana { card_id: id },
         });
     }
 
     agent.send_prompt(
         PromptInput::PayManaCost(
             manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
+                presentation: PromptPresentation {
+                    title: card_name.to_string(),
+                    description: None,
+                    text: None,
+                    source_card_id: Some(card_id_s.clone()),
+                    targets: Vec::new(),
+                },
                 card_id: card_id_s,
                 card_name: card_name.to_string(),
-                description: None,
                 mana_cost: mana_cost_display.to_string(),
                 can_confirm_from_pool,
                 actions,
@@ -193,7 +199,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
 
 pub(super) fn mana_payment_actions(
     mana_ability_options: &[ManaAbilityOption],
-) -> Vec<AvailableAction> {
+) -> Vec<PaymentAction> {
     mana_ability_options
         .iter()
         .flat_map(|opt| {
@@ -205,6 +211,10 @@ pub(super) fn mana_payment_actions(
                 opt.produced_mana.clone(),
                 opt.produced_mana_amount,
             )
+        })
+        .map(|(id, info)| PaymentAction {
+            id,
+            kind: PaymentActionKind::ActivateManaAbility(info),
         })
         .collect()
 }
@@ -246,6 +256,13 @@ pub(super) fn specify_mana_combo<T: Responder>(
 
     agent.send_prompt(
         PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+            presentation: PromptPresentation {
+                title: "Choose mana color".to_string(),
+                description: None,
+                text: None,
+                source_card_id: source.map(card_id_str),
+                targets: Vec::new(),
+            },
             valid_colors: available_colors.to_vec(),
             amount: amount as u32,
             repeat_allowed: true,

@@ -64,20 +64,21 @@ final class PriorityFastForward {
         }
     }
 
+    /** Keep in sync with the protocol StepKind serde names (manabrew-protocol game/mod.rs). */
     private static PhaseType parseStep(final String step) {
         switch (step) {
             case "untap": return PhaseType.UNTAP;
             case "upkeep": return PhaseType.UPKEEP;
             case "draw": return PhaseType.DRAW;
             case "main1": return PhaseType.MAIN1;
-            case "begin_combat": return PhaseType.COMBAT_BEGIN;
-            case "declare_attackers": return PhaseType.COMBAT_DECLARE_ATTACKERS;
-            case "declare_blockers": return PhaseType.COMBAT_DECLARE_BLOCKERS;
-            case "first_strike_damage": return PhaseType.COMBAT_FIRST_STRIKE_DAMAGE;
-            case "combat_damage": return PhaseType.COMBAT_DAMAGE;
-            case "end_combat": return PhaseType.COMBAT_END;
+            case "combatBegin": return PhaseType.COMBAT_BEGIN;
+            case "combatDeclareAttackers": return PhaseType.COMBAT_DECLARE_ATTACKERS;
+            case "combatDeclareBlockers": return PhaseType.COMBAT_DECLARE_BLOCKERS;
+            case "combatFirstStrikeDamage": return PhaseType.COMBAT_FIRST_STRIKE_DAMAGE;
+            case "combatDamage": return PhaseType.COMBAT_DAMAGE;
+            case "combatEnd": return PhaseType.COMBAT_END;
             case "main2": return PhaseType.MAIN2;
-            case "end": return PhaseType.END_OF_TURN;
+            case "endOfTurn": return PhaseType.END_OF_TURN;
             case "cleanup": return PhaseType.CLEANUP;
             default: return null;
         }

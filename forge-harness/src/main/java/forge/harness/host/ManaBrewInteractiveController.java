@@ -10,6 +10,7 @@ import forge.harness.common.HarnessPlayHooks;
 import forge.harness.common.HarnessPlayPlumbing;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
+import forge.harness.protocol.SelectionOption;
 
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
@@ -962,11 +963,29 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public List<AbilitySub> chooseModeForAbility(
             final SpellAbility sa, final List<AbilitySub> possible, final int min, final int num, final boolean allowRepeat) {
-        final List<String> labels = new ArrayList<>();
+        final List<SelectionOption> options = new ArrayList<>();
         for (final AbilitySub mode : possible) {
-            labels.add(mode == null ? "Mode" : mode.toString());
+            if (mode == null) {
+                options.add(new SelectionOption("Mode", 1, allowRepeat));
+                continue;
+            }
+            final int weight = mode.hasParam("Pawprint")
+                    ? AbilityUtils.calculateAmount(mode.getHostCard(), mode.getParam("Pawprint"), mode)
+                    : 1;
+            final String label = mode.hasParam("Pawprint")
+                    ? "{P}".repeat(weight) + " — " + mode
+                    : mode.toString();
+            options.add(new SelectionOption(label, weight, allowRepeat));
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, num, sourceName(sa), allowRepeat);
+        final String description;
+        if (sa.hasParam("Pawprint")) {
+            description = "Choose " + (min == 0 ? "up to " : "") + Lang.getNumeral(num) + " {P} worth of modes."
+                    + (allowRepeat ? " You may choose the same mode more than once." : "");
+        } else {
+            description = null;
+        }
+        final List<Integer> chosen =
+                session.awaitModeChoice(me(), options, min, num, sourceName(sa), description, sourceCardId(sa));
         return EngineHandler.selectModes(possible, chosen, allowRepeat);
     }
 

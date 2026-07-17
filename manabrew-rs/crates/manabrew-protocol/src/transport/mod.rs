@@ -11,6 +11,7 @@ pub enum AgentMessage {
     State(StateUpdate),
     Display(DisplayEvent),
     Prompt(AgentPrompt),
+    Error(ProtocolError),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -28,11 +29,42 @@ pub enum DirectiveInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "transport/messages.ts")]
 pub enum ClientToServerMessage {
-    Response { action: PromptOutput },
-    Directive { directive: DirectiveInput },
+    Response {
+        prompt_id: u32,
+        action: PromptOutput,
+    },
+    Directive {
+        directive: DirectiveInput,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "transport/messages.ts")]
+pub enum ProtocolErrorCode {
+    StalePrompt,
+    WrongPlayer,
+    WrongPromptType,
+    UnknownActionId,
+    InvalidShape,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "transport/messages.ts")]
+pub struct ProtocolError {
+    pub code: ProtocolErrorCode,
+    pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub prompt_id: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

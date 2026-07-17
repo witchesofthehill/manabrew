@@ -1,8 +1,10 @@
 //! Emits one example of every `PromptInput` variant as JSONL — the corpus
 //! the UI prompt-handling test replays. A new variant won't compile until added.
-use manabrew_agent_interface::game_view_dto::TargetingIntent;
+use manabrew_agent_interface::game_view_dto::{
+    target_ref_card, target_ref_player, target_ref_spell, TargetingIntent, ZoneKind,
+};
 use manabrew_agent_interface::prompt::{
-    AgentPrompt, AvailableAction, AvailableActionKind, PromptInput,
+    AgentPrompt, AvailableAction, AvailableActionKind, Mana, ManaColor, PlayCardMode, PromptInput,
 };
 use manabrew_protocol::prompts::*;
 
@@ -33,16 +35,16 @@ fn main() {
                     id: "0".into(),
                     kind: AvailableActionKind::Cast {
                         card_id: "card-1".into(),
-                        mode: "normal".into(),
-                        mode_label: "Cast normally".into(),
+                        mode: PlayCardMode::Normal,
+                        label: "Cast normally".into(),
                     },
                 },
                 AvailableAction {
                     id: "1".into(),
                     kind: AvailableActionKind::Cast {
                         card_id: "card-2".into(),
-                        mode: "normal".into(),
-                        mode_label: "Play land".into(),
+                        mode: PlayCardMode::Normal,
+                        label: "Play land".into(),
                     },
                 },
                 AvailableAction {
@@ -53,8 +55,8 @@ fn main() {
                         description: "{T}: Add {G}.".into(),
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
-                        produced_mana: Some(vec![common::Mana {
-                            color: common::ManaColor::Green,
+                        produced_mana: Some(vec![Mana {
+                            color: ManaColor::Green,
                             amount: 1,
                         }]),
                     }),
@@ -77,24 +79,36 @@ fn main() {
             error: None,
         }),
         ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput {
+            presentation: common::PromptPresentation {
+                title: "Damage".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             candidates: vec![
-                common::TargetRef::player("player-1".into()),
-                common::TargetRef::card("card-1".into()),
-                common::TargetRef::spell("stack-1".into()),
+                target_ref_player("player-1".into()),
+                target_ref_card("card-1".into()),
+                target_ref_spell("stack-1".into()),
             ],
             hostile: false,
             intent: TargetingIntent::default(),
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
-            label: "Damage".to_string(),
         }),
         GameOver(game_over::GameOverInput {}),
         RevealCards(reveal::RevealCardsInput {
+            presentation: common::PromptPresentation {
+                title: "Look at these cards".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards: vec![],
-            zone: String::new(),
+            zone: ZoneKind::Library,
             owner_player_id: String::new(),
-            message: String::new(),
         }),
         Scry(scry::ScryInput {
             presentation: common::PromptPresentation {
@@ -111,6 +125,13 @@ fn main() {
             ],
         }),
         ChooseColor(choose_color::ChooseColorInput {
+            presentation: common::PromptPresentation {
+                title: "Choose a color".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             valid_colors: vec![],
             amount: 1,
             repeat_allowed: false,
@@ -143,9 +164,15 @@ fn main() {
             },
         ),
         PayManaCost(pay_mana_cost::PayManaCostInput {
+            presentation: common::PromptPresentation {
+                title: "Lightning Bolt".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             card_id: String::new(),
             card_name: String::new(),
-            description: None,
             mana_cost: String::new(),
             can_confirm_from_pool: false,
             actions: vec![],
@@ -173,16 +200,30 @@ fn main() {
                 targets: Vec::new(),
             },
             options: vec![
-                "Destroy target artifact".to_string(),
-                "Destroy target enchantment".to_string(),
+                choose_from_selection::SelectionOption {
+                    label: "Destroy target artifact".to_string(),
+                    weight: 1,
+                    can_repeat: false,
+                },
+                choose_from_selection::SelectionOption {
+                    label: "Destroy target enchantment".to_string(),
+                    weight: 1,
+                    can_repeat: false,
+                },
             ],
-            min_choices: 1,
-            max_choices: 2,
+            min_total: 1,
+            max_total: 2,
         }),
         DiceRolled(dice_rolled::DiceRolledInput {
+            presentation: common::PromptPresentation {
+                title: "Dice roll".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             sides: 0,
             rolls: vec![],
-            title: None,
             source_card_name: None,
         }),
         ChooseCards(choose_cards::ChooseCardsInput {
@@ -197,7 +238,7 @@ fn main() {
             min: 0,
             max: 0,
         }),
-        ReorderCards(reorder_cards::ReorderCardsInput {
+        Reorder(reorder::ReorderInput {
             presentation: common::PromptPresentation {
                 title: "Reorder".to_string(),
                 description: None,
@@ -205,9 +246,7 @@ fn main() {
                 source_card_id: None,
                 targets: Vec::new(),
             },
-            cards: vec![],
-            target_label: "Top of Library".to_string(),
-            top_of_deck: true,
+            items: vec![],
         }),
     ];
 

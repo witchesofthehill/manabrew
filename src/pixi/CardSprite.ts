@@ -2,6 +2,7 @@ import {
   Container,
   Sprite,
   Texture,
+  ImageSource,
   Graphics,
   Text,
   TextStyle,
@@ -10,7 +11,7 @@ import {
   type DestroyOptions,
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_W, CARD_H, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
 import {
@@ -28,6 +29,8 @@ import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePref
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asDeckCard } from "@/lib/decks";
+import { isFacelessCard } from "@/lib/gameCard";
+import { fetchImageElement } from "@/api/scryfall";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
@@ -267,6 +270,18 @@ const resolvePTBgColor = (card: CardDto): number => {
   if (debuffed) return hexToNum(pt.debuffed);
   return hexToNum(pt.neutral);
 };
+
+let cardBackTexture: Texture | null = null;
+let cardBackPromise: Promise<Texture> | null = null;
+
+export function loadCardBack(): Promise<Texture> {
+  if (cardBackTexture) return Promise.resolve(cardBackTexture);
+  cardBackPromise ??= fetchImageElement(CARD_BACK_IMAGE_URL).then((img) => {
+    cardBackTexture = new Texture({ source: new ImageSource({ resource: img }) });
+    return cardBackTexture;
+  });
+  return cardBackPromise;
+}
 
 export class CardSprite extends Container {
   card: CardDto;
@@ -604,9 +619,11 @@ export class CardSprite extends Container {
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     let tex: Texture;
     try {
-      tex = await useScryfallStore
-        .getState()
-        .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
+      tex = isFacelessCard(this.card)
+        ? await loadCardBack()
+        : await useScryfallStore
+            .getState()
+            .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
     } catch {
       tex = Texture.EMPTY;
     }

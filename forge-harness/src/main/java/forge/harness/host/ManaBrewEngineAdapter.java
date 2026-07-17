@@ -125,8 +125,8 @@ public final class ManaBrewEngineAdapter {
         return prompt == null ? "" : prompt;
     }
 
-    public String getSnapshot(final String sessionId) {
-        return getSession(sessionId).getSnapshotJson();
+    public String getSnapshot(final String sessionId, final int viewer) {
+        return getSession(sessionId).getSnapshotJson(viewer);
     }
 
     public String getGameOver(final String sessionId) {

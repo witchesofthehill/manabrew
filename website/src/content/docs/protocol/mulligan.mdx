@@ -9,7 +9,7 @@ Sent at the start of the game (and after each mulligan) to ask whether the
 player keeps their opening hand. Unlike the modal prompts, the reference client
 renders this in the bottom action slot as **Keep** / **Mulligan** buttons.
 
-![The mulligan prompt in the Manabrew client](/protocol/mulligan.svg)
+![The mulligan prompt in the Manabrew client](/protocol/mulligan.webp)
 
 ## Arguments
 
@@ -45,5 +45,15 @@ type MulliganOutput = { type: "mulliganDecision"; keep: boolean };
 ```
 
 ```json
-{ "promptId": 1, "output": { "type": "mulliganDecision", "keep": true } }
+{
+  "kind": "response",
+  "promptId": 1,
+  "action": {
+    "type": "mulligan",
+    "output": {
+      "type": "mulliganDecision",
+      "keep": true
+    }
+  }
+}
 ```

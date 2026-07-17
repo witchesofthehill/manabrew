@@ -5,9 +5,15 @@
  */
 
 import { create } from "zustand";
+import type { StepKind } from "@/protocol";
+import { PHASES } from "@/components/game/game.constants";
 
-const DEFAULT_SELF_STOPS = new Set(["main1", "declare_attackers", "main2"]);
-const DEFAULT_OPPONENT_STOPS = new Set(["end"]);
+const DEFAULT_SELF_STOPS = new Set<string>([
+  "main1",
+  "combatDeclareAttackers",
+  "main2",
+] satisfies StepKind[]);
+export const DEFAULT_OPPONENT_STOPS = new Set<string>(["endOfTurn"] satisfies StepKind[]);
 
 interface PhaseStopState {
   selfStops: Set<string>;
@@ -46,20 +52,7 @@ export const usePhaseStopStore = create<PhaseStopState>((set, get) => ({
   },
 }));
 
-const PHASE_ORDER = [
-  "upkeep",
-  "draw",
-  "main1",
-  "begin_combat",
-  "declare_attackers",
-  "declare_blockers",
-  "first_strike_damage",
-  "combat_damage",
-  "end_combat",
-  "main2",
-  "end",
-  "cleanup",
-];
+const PHASE_ORDER: readonly StepKind[] = PHASES.filter((p) => p.id !== "untap").map((p) => p.id);
 
 /**
  * Walk forward through (player, phase) slots in turn order — starting just
@@ -71,11 +64,11 @@ const PHASE_ORDER = [
 export function getNextStop(
   playerOrder: string[],
   activePlayerId: string,
-  currentStep: string,
+  currentStep: StepKind,
   myId: string,
   selfStops: Set<string>,
   getOpponentStops: (opponentId: string) => Set<string>,
-): { playerId: string; phase: string } | null {
+): { playerId: string; phase: StepKind } | null {
   const n = playerOrder.length;
   const startIdx = playerOrder.indexOf(activePlayerId);
   if (n === 0 || startIdx === -1) return null;

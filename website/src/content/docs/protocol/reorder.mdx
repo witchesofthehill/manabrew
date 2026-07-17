@@ -1,0 +1,116 @@
+---
+title: "reorder"
+description: Arrange a group of cards or simultaneous triggers into a chosen order.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when a player arranges a group of things in an order they choose — putting the
+two cards from Brainstorm back on top of the library, ordering the cards a scry-style
+effect leaves on top, or stacking several abilities that triggered at the same time.
+
+Each `ReorderItem` carries an optional `oracle` string. This is useful, for example, when calling 
+reorder to decide which triggers resolves first. The oracle text can be used 
+as a textual cue to the player about which trigger this is referring to.
+
+![The reorder prompt in the Manabrew client](/protocol/reorder.webp)
+
+## Arguments
+
+`input.type` is `"reorder"`. The remaining fields:
+
+<ProtocolType slug="reorder" />
+
+## Response
+
+```ts
+type ReorderOutput = { type: "reorderDecision"; orderedIds: string[] };
+```
+
+Return the `items` ids in their final order — the first id ends up on top.
+
+## Example
+
+Putting two cards back on top of the library after Brainstorm:
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "reorder",
+    "presentation": { "title": "Put back on top", "targets": [] },
+    "items": [
+      { "id": "hand-2", "card": { "id": "hand-2", "identity": { "name": "Ponder" } } },
+      { "id": "hand-5", "card": { "id": "hand-5", "identity": { "name": "Brainstorm" } } }
+    ]
+  }
+}
+```
+
+The response lists the same card `id`s in the desired draw order:
+
+```json
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "reorder",
+    "output": {
+      "type": "reorderDecision",
+      "orderedIds": ["hand-5", "hand-2"]
+    }
+  }
+}
+```
+
+## Example — ordering triggers
+
+The deciding player is piloting a Teval, the Balanced Scale deck. A card leaves their
+graveyard (they reanimated a creature), and both Teval and Teval's Judgment carry the
+same "whenever one or more cards leave your graveyard" trigger — so both go on the
+stack and the player orders them. `oracle` carries each trigger's text; the first id
+in the response resolves first (on top of the stack).
+
+```json
+{
+  "promptId": 12,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "reorder",
+    "presentation": {
+      "title": "Order your graveyard triggers",
+      "text": "A card left your graveyard. The first resolves on top.",
+      "targets": []
+    },
+    "items": [
+      {
+        "id": "trigger-teval",
+        "card": { "id": "bf-teval", "identity": { "name": "Teval, the Balanced Scale" } },
+        "oracle": "Whenever one or more cards leave your graveyard, create a 2/2 black Zombie Druid creature token."
+      },
+      {
+        "id": "trigger-judgment",
+        "card": { "id": "bf-judgment", "identity": { "name": "Teval's Judgment" } },
+        "oracle": "Whenever one or more cards leave your graveyard, choose one that hasn't been chosen this turn — • Draw a card. • Create a Treasure token. • Create a 2/2 black Zombie Druid creature token."
+      }
+    ]
+  }
+}
+```
+
+Resolving Teval's token before the Judgment's mode choice:
+
+```json
+{
+  "kind": "response",
+  "promptId": 12,
+  "action": {
+    "type": "reorder",
+    "output": {
+      "type": "reorderDecision",
+      "orderedIds": ["trigger-teval", "trigger-judgment"]
+    }
+  }
+}
+```

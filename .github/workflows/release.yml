@@ -38,6 +38,8 @@ jobs:
   release:
     name: Version, tag, release
     runs-on: ubuntu-latest
+    outputs:
+      protocol_bumped: ${{ steps.detect-protocol.outputs.bumped }}
     if: >
       github.repository == 'witchesofthehill/manabrew' &&
       (github.event_name == 'workflow_dispatch' ||
@@ -75,6 +77,17 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: cargo xtask release
 
+      # `cargo xtask release` tags each bumped crate at HEAD (`<crate>-vX.Y.Z`);
+      # the protocol tag is the signal that its version moved this run.
+      - name: Detect protocol bump
+        id: detect-protocol
+        run: |
+          if git tag --points-at HEAD | grep -q '^manabrew-protocol-v'; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Publishes every publishable crate whose version is not on crates.io
       # yet (idempotent; partial failures — e.g. crates.io's new-crate rate
       # limit — heal on the next release run). No-ops without the token.
@@ -82,3 +95,12 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo xtask publish
+
+  # When the protocol crate bumped, publish it to crates.io + npm together (the
+  # crate publish above already covers crates.io idempotently; this also ships
+  # the generated `@manabrew/protocol` TypeScript types at the same version).
+  publish-protocol:
+    needs: release
+    if: needs.release.outputs.protocol_bumped == 'true'
+    uses: ./.github/workflows/publish-protocol.yml
+    secrets: inherit

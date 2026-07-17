@@ -173,7 +173,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
   const humanPlayerId = gameView.players[0]?.id;
 
   return (
-    <div className="absolute right-2 bottom-2 z-30 w-[320px] max-h-[60%] overflow-y-auto rounded-md border bg-background/95 shadow-sm backdrop-blur">
+    <div className="absolute right-[calc(0.5rem+var(--safe-area-inset-right))] bottom-[calc(0.5rem+var(--safe-area-inset-bottom))] z-30 w-[320px] max-h-[60%] overflow-y-auto rounded-md border bg-background/95 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <Badge variant="outline" className="gap-1.5">
           <Sparkles className="h-3 w-3" />

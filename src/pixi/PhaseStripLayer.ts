@@ -8,6 +8,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
+import { isCoarsePointer } from "@/lib/responsive";
 import {
   STRIP_TURN_ALPHA,
   STRIP_COMPACT_EXPAND_TIMEOUT_MS,
@@ -456,7 +457,7 @@ export class PhaseStripLayer {
     const showPill = this.compact && !this.expanded;
     this.cellsContainer.visible = !showPill;
     this.pillContainer.visible = showPill;
-    this.forceShowIndicators = this.compact && this.expanded;
+    this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
 
     // Find combat cell index
     const combatIdx = this.cells.findIndex((c) => !!c.subPhases);

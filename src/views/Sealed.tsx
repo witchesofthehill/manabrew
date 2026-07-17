@@ -52,7 +52,7 @@ export default function Sealed() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">{activeSealed.deckName}</h1>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">

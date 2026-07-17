@@ -11,7 +11,7 @@ export function LandscapeGate() {
   const small = useMediaQuery(LANDSCAPE_GATE_MAX_WIDTH_QUERY);
 
   useEffect(() => {
-    if (!coarse) return;
+    if (!coarse || !small) return;
     const orientation = screen.orientation as
       | (ScreenOrientation & {
           lock?: (o: string) => Promise<void>;
@@ -20,7 +20,7 @@ export function LandscapeGate() {
       | undefined;
     orientation?.lock?.("landscape").catch(() => undefined);
     return () => orientation?.unlock?.();
-  }, [coarse]);
+  }, [coarse, small]);
 
   if (!coarse || !portrait || !small) return null;
   return createPortal(

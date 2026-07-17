@@ -108,7 +108,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
               type="button"
               key={color}
               onClick={() => adjustMana(player.id, color, 1)}
-              className="grid size-7 place-items-center rounded-md hover:bg-accent"
+              className="grid size-7 place-items-center rounded-md hover:bg-accent pointer-coarse:size-9"
               aria-label={`Add ${color} mana`}
             >
               <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />

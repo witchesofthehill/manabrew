@@ -216,7 +216,7 @@ export function PlayerTile({
             ) : (
               <button
                 type="button"
-                className="pointer-events-auto select-none text-[clamp(2rem,22cqi,5.5rem)] font-black leading-none tabular-nums drop-shadow-md"
+                className="pointer-events-auto select-none text-[clamp(2rem,22cqi,8rem)] font-black leading-none tabular-nums drop-shadow-md"
                 onClick={() => setLifeEditing(true)}
                 aria-label="Edit life total"
               >

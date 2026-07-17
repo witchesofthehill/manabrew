@@ -81,7 +81,9 @@ import {
 import { PlaymatLayer, playmatPad } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
+import { isCoarsePointer } from "@/lib/responsive";
 
+const COARSE_POINTER = isCoarsePointer();
 const COMBAT_ROW_BOT_ICON = "robot-antennas";
 
 type Point = ScreenPos;
@@ -1441,12 +1443,12 @@ export class BoardRegion {
 
   private touchHitPadScreen(): number {
     const grid = this.gridInfo;
-    if (!this.compactZones || !grid) return 0;
+    if (!COARSE_POINTER || !grid) return 0;
     return Math.max(0, Math.min((grid.cellW - grid.cardW) / 2, (grid.cellH - grid.cardH) / 2));
   }
 
   private applyTouchChrome(sprite: CardSprite): void {
-    if (!this.compactZones) {
+    if (!COARSE_POINTER) {
       sprite.setHitPad(0);
       sprite.setChromeScale(1);
       return;

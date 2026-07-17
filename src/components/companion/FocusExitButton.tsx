@@ -44,7 +44,7 @@ export function FocusExitButton({ onExit, onShowChrome }: FocusExitButtonProps) 
       onPointerDown={wake}
       onTouchStart={wake}
       className={cn(
-        "pointer-events-auto fixed right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+12px)] z-[60] flex items-center gap-1 rounded-full border border-border bg-card/90 px-1 py-1 shadow-xl backdrop-blur transition-opacity",
+        "pointer-events-auto fixed right-[calc(var(--safe-area-inset-right)+12px)] top-[calc(var(--safe-area-inset-top)+12px)] z-[60] flex items-center gap-1 rounded-full border border-border bg-card/90 px-1 py-1 shadow-xl backdrop-blur transition-opacity",
         bright ? "opacity-100" : "opacity-40",
       )}
     >

@@ -104,7 +104,7 @@ export function AppShell() {
       {!isDesktop && (
         <header
           className={cn(
-            "flex items-center gap-2 border-b bg-background px-3 py-2 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.5rem)]",
+            "flex items-center gap-2 border-b bg-background px-3 py-2 pl-[calc(var(--safe-area-inset-left)+0.75rem)] pr-[calc(var(--safe-area-inset-right)+0.75rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
             hideNavChrome && "hidden",
           )}
         >
@@ -154,7 +154,7 @@ export function AppShell() {
                 variant="ghost"
                 className={cn(
                   "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
-                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
+                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 pointer-coarse:translate-x-0 pointer-coarse:w-6 transition-all duration-150",
                   "hover:bg-card",
                 )}
                 onClick={toggleSidebar}
@@ -168,7 +168,22 @@ export function AppShell() {
               </Button>
             </div>
           )}
-          <main className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}>
+          <main
+            className={cn(
+              "h-full overflow-auto",
+              !isImmersiveRoute &&
+                cn(
+                  "pb-[var(--safe-area-inset-bottom)] pr-[var(--safe-area-inset-right)]",
+                  isDesktop
+                    ? cn(
+                        "pt-[var(--safe-area-inset-top)]",
+                        sidebarCollapsed && "pl-[var(--safe-area-inset-left)]",
+                      )
+                    : "pl-[var(--safe-area-inset-left)]",
+                ),
+              isImmersiveRoute && "!p-0 !overflow-hidden",
+            )}
+          >
             <Outlet />
           </main>
         </div>

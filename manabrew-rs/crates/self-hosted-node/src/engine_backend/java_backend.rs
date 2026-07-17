@@ -618,6 +618,11 @@ mod graal_ffi {
             thread: *mut *mut graal_isolatethread_t,
         ) -> c_int;
         pub fn graal_tear_down_isolate(thread: *mut graal_isolatethread_t) -> c_int;
+        pub fn graal_attach_thread(
+            isolate: *mut graal_isolate_t,
+            thread: *mut *mut graal_isolatethread_t,
+        ) -> c_int;
+        pub fn graal_detach_thread(thread: *mut graal_isolatethread_t) -> c_int;
         pub fn forge_initialize(
             thread: *mut graal_isolatethread_t,
             assets_dir: *const c_char,
@@ -667,13 +672,24 @@ struct ForgeReply {
     error: Option<String>,
 }
 
-// One GraalVM isolate hosts the in-process Forge engine. It is created on, and
-// confined to, the hosted-engine thread (isolate threads are not portable), so
-// the handle is Rc/!Send by design.
+// A GraalVM isolate hosts the in-process Forge engine. The `thread` handle is
+// bound to the hosted-engine thread that created or attached it (isolate
+// threads are not portable), so the handle is Rc/!Send by design. In shared
+// mode one isolate serves all rooms: the first creator initializes Forge, later
+// rooms attach their own thread to it and sessions coexist in the adapter.
 #[cfg(feature = "graal-forge")]
 struct GraalBridge {
     thread: *mut graal_ffi::graal_isolatethread_t,
+    attached: bool,
 }
+
+#[cfg(feature = "graal-forge")]
+struct SharedIsolate(*mut graal_ffi::graal_isolate_t);
+#[cfg(feature = "graal-forge")]
+unsafe impl Send for SharedIsolate {}
+
+#[cfg(feature = "graal-forge")]
+static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync::Mutex::new(None);
 
 #[cfg(feature = "graal-forge")]
 impl GraalBridge {
@@ -686,7 +702,45 @@ impl GraalBridge {
         if rc != 0 {
             return Err(format!("graal_create_isolate failed with code {rc}"));
         }
-        Ok(Self { thread })
+        Ok(Self {
+            thread,
+            attached: false,
+        })
+    }
+
+    fn create_in_shared_isolate(assets_dir: &Path) -> Result<Self, String> {
+        let mut guard = SHARED_GRAAL_ISOLATE
+            .lock()
+            .map_err(|_| "shared graal isolate poisoned".to_string())?;
+        if let Some(shared) = guard.as_ref() {
+            let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+            let rc = unsafe { graal_ffi::graal_attach_thread(shared.0, &mut thread) };
+            if rc != 0 {
+                return Err(format!("graal_attach_thread failed with code {rc}"));
+            }
+            return Ok(Self {
+                thread,
+                attached: true,
+            });
+        }
+        let mut isolate: *mut graal_ffi::graal_isolate_t = std::ptr::null_mut();
+        let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+        let rc = unsafe {
+            graal_ffi::graal_create_isolate(std::ptr::null_mut(), &mut isolate, &mut thread)
+        };
+        if rc != 0 {
+            return Err(format!("graal_create_isolate failed with code {rc}"));
+        }
+        let mut bridge = Self {
+            thread,
+            attached: false,
+        };
+        let assets = cstring(&assets_dir.to_string_lossy())?;
+        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        bridge.attached = true;
+        *guard = Some(SharedIsolate(isolate));
+        info!("shared graal isolate initialized");
+        Ok(bridge)
     }
 
     fn decode(&self, raw: *mut std::os::raw::c_char) -> Result<String, String> {
@@ -712,7 +766,11 @@ impl GraalBridge {
 #[cfg(feature = "graal-forge")]
 impl Drop for GraalBridge {
     fn drop(&mut self) {
-        unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+        if self.attached {
+            unsafe { graal_ffi::graal_detach_thread(self.thread) };
+        } else {
+            unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+        }
     }
 }
 
@@ -725,9 +783,21 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        let bridge = GraalBridge::create()?;
-        let assets = cstring(&assets_dir.to_string_lossy())?;
-        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        // SELF_HOSTED_NODE_SHARED_ISOLATE=1 hosts every room's game in one
+        // isolate (safe since the endstep concurrency patches), so the card db
+        // loads once. Default keeps the historical isolate-per-game shape.
+        let shared = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+            .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let bridge = if shared {
+            GraalBridge::create_in_shared_isolate(assets_dir)?
+        } else {
+            let bridge = GraalBridge::create()?;
+            let assets = cstring(&assets_dir.to_string_lossy())?;
+            bridge
+                .decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+            bridge
+        };
         Ok(Self {
             bridge: std::rc::Rc::new(bridge),
         })
@@ -773,7 +843,7 @@ impl GraalEngineHandle {
 
     fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let session = cstring(session_id)?;
-        let viewer = viewer.map_or(-1, |v| v as c_int);
+        let viewer = viewer.map_or(-1, |v| v as std::os::raw::c_int);
         self.bridge.decode(unsafe {
             graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
         })

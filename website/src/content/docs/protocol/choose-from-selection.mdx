@@ -11,7 +11,7 @@ Sent when the player must choose modes of a modal spell — for example, picking
 Each option carries a `weight`, and the selection is constrained by total
 weight: the sum of the chosen options' weights must land within
 `minTotal`–`maxTotal`. For ordinary modal choices every weight is 1, so the
-totals are simply choice counts. Pawprint cards ("choose up to five {P} worth
+totals are simply choice counts. Pawprint cards ("choose up to five \{P\} worth
 of modes") use the weights as pawprint costs. An option with `canRepeat` may be
 chosen more than once.
 
@@ -41,6 +41,16 @@ The control depends on how many options may be chosen.
   <div class="prompt-figure__caption">
     For multiple choices each option gets a checkbox and a counter; the player selects within
     `minTotal`–`maxTotal`, then confirms.
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img
+    src="/protocol/choose-from-selection-cost.webp"
+    alt="Mode rows prefixed with pawprint pips and a running total against a budget"
+  />
+  <div class="prompt-figure__caption">
+      For more complex situations, it is possible to use the additional fields `canRepeat` and `weight` to properly prompt for a response.
   </div>
 </figure>
 

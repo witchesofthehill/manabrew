@@ -13,7 +13,7 @@
     "manabrew-engine": "0.2.1",
     "manabrew-engine-macros": "0.2.0",
     "manabrew-hub": "0.2.0",
-    "manabrew-protocol": "0.7.0",
+    "manabrew-protocol": "1.0.0",
     "manabrew-server": "0.5.1",
     "manabrew_game_runtime": "0.2.6",
     "parity": "0.2.3",

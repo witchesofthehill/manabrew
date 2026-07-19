@@ -439,7 +439,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1669839386",
         "border_crop": "https://cards.scryfall.io/border_crop/front/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1669839386"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Grimclimb Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {B}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1783929313",
+          "normal": "https://cards.scryfall.io/normal/back/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1783929313",
+          "large": "https://cards.scryfall.io/large/back/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1783929313",
+          "png": "https://cards.scryfall.io/png/back/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.png?1783929313",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1783929313",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/d/2/d24c3d51-795d-4c01-a34a-3280fccd2d78.jpg?1783929313"
+        }
+      }
     },
     {
       "name": "Shadowy Backstreet",

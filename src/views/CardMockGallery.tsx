@@ -117,7 +117,6 @@ export default function CardMockGallery() {
   return (
     <div className="h-full overflow-auto p-6 space-y-6">
       <header className="flex items-center gap-4 flex-wrap">
-        <h1 className="text-xl font-bold">Battlefield card face — dev gallery</h1>
         <div className="inline-flex rounded-md border border-border overflow-hidden">
           {(["realistic", "art", "frame"] as GalleryVariant[]).map((v) => (
             <button

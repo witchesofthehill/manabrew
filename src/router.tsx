@@ -26,6 +26,7 @@ import About from "@/views/About";
 import Search from "@/views/Search";
 import DeckHub from "@/views/DeckHub";
 import Home from "@/views/Home";
+import AuthCallback from "@/views/AuthCallback";
 
 export const router = createBrowserRouter([
   {
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "play",
+        path: "play/*",
         element: (
           <ErrorBoundary context="Play">
             <Play />
@@ -184,11 +185,19 @@ export const router = createBrowserRouter([
         element: (
           <div className="flex flex-col items-center justify-center h-full text-center gap-3">
             <div className="text-4xl opacity-20">🚧</div>
-            <h2 className="text-lg font-semibold">Active Matches</h2>
+            <h2 className="text-lg font-semibold">Coming soon</h2>
             <p className="text-sm text-muted-foreground">
               This feature is currently under development.
             </p>
           </div>
+        ),
+      },
+      {
+        path: "auth/callback",
+        element: (
+          <ErrorBoundary context="Auth">
+            <AuthCallback />
+          </ErrorBoundary>
         ),
       },
       {

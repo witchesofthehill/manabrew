@@ -48,6 +48,7 @@ function normalizeGameView(
 
   const players: ClientPlayerDto[] = rawPlayers.map((player) => ({
     ...player,
+    status: player.status ?? "playing",
     hand: cardsOf(player.id, "hand"),
     handCount: zoneOf(player.id, "hand")?.count ?? 0,
     graveyard: cardsOf(player.id, "graveyard"),

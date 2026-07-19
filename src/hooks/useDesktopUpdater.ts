@@ -30,7 +30,7 @@ export async function installDesktopUpdate() {
     await relaunch();
   } catch (err) {
     console.error("[Updater] install failed", err);
-    toast.error("Update failed to install. You can retry from the sidebar.");
+    toast.error("Update failed to install. You can retry from the home page.");
     setFailed();
   }
 }

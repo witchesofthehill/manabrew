@@ -141,11 +141,6 @@ fi
 # / cardset build fails with "cardsfolder does not exist: forge/forge-gui/res".
 git submodule sync --recursive >> "$RAW_LOG" 2>&1 || true
 git submodule update --init --recursive >> "$RAW_LOG" 2>&1
-# Ironsmith is `update = none` (so it never inflates the other build paths), so
-# the line above skips it. Force-check-out its working tree — git only, no
-# toolchains — so Dockerfile.web's ironsmith stage can compile the WASM from it.
-# Best-effort: a fetch failure leaves the dir empty and Ironsmith ships dark.
-git -c submodule.ironsmith.update=checkout submodule update --init ironsmith >> "$RAW_LOG" 2>&1 || true
 
 # ── Manifest hold (early deploys) ────────────────────────────────────
 # HOLD_MANIFEST=1 (publish.yml's deploy-web job) rolls the stack out ahead of
@@ -262,10 +257,6 @@ while IFS= read -r file; do
         src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|yarn.lock|vite.config.ts|tsconfig*.json|index.html|website/*)
             WEB_CHANGED=true ;;
         manabrew-rs/crates/wasm/*)
-            WEB_CHANGED=true ;;
-        # An Ironsmith submodule bump moves the `ironsmith` gitlink; rebuild the
-        # web image so its ironsmith stage recompiles the WASM.
-        ironsmith|scripts/sync-ironsmith-wasm.mjs)
             WEB_CHANGED=true ;;
     esac
     case "$file" in

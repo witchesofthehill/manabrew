@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -154,6 +154,8 @@ export default function LimitedDeckBuilder({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [saveDeckName, setSaveDeckName] = useState(defaultDeckName);
+  const [savingDeck, setSavingDeck] = useState(false);
+  const savingDeckRef = useRef(false);
 
   useEffect(() => {
     onChange?.({
@@ -169,9 +171,8 @@ export default function LimitedDeckBuilder({
 
   const validationIssues = useMemo(() => {
     const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-    const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
-    return validateLimitedDeck(mainCards, sideboardCards, targetMainSize);
-  }, [main, sideboard, fullPool, targetMainSize]);
+    return validateLimitedDeck(mainCards, targetMainSize);
+  }, [main, fullPool, targetMainSize]);
 
   const moveTo = useCallback((idx: number, target: LimitedZone) => {
     setMain((m) => (target === "main" ? addUnique(m, idx) : m.filter((i) => i !== idx)));
@@ -352,8 +353,7 @@ export default function LimitedDeckBuilder({
     moveTo(data.index, target);
   };
 
-  const loadDeck = useDeckStore((s) => s.loadDeck);
-  const saveCurrentDeck = useDeckStore((s) => s.saveCurrentDeck);
+  const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
 
   const openSaveDialog = () => {
     setSaveDeckName(defaultDeckName);
@@ -361,57 +361,54 @@ export default function LimitedDeckBuilder({
   };
 
   const handleSaveToMyDecks = async () => {
-    const name = saveDeckName.trim();
-    if (!name) {
-      toast.error("Deck name cannot be empty.");
-      return;
-    }
-    const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
-    const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
-    if (mainCards.length === 0 && sideboardCards.length === 0) {
-      toast.error("Add some cards before saving.");
-      return;
-    }
-    if (requireCompleteToSave && mainCards.length < targetMainSize) {
-      toast.error(
-        `Main deck needs ${targetMainSize - mainCards.length} more card${
-          targetMainSize - mainCards.length === 1 ? "" : "s"
-        }.`,
-      );
-      return;
-    }
-    if (validationIssues.some((i) => i.kind === "too_many_copies")) {
-      toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
-      return;
-    }
-    const leftoverCards = unused
-      .map((i) => fullPool[i])
-      .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
+    if (savingDeckRef.current) return;
+    savingDeckRef.current = true;
+    setSavingDeck(true);
+    try {
+      const name = saveDeckName.trim();
+      if (!name) {
+        toast.error("Deck name cannot be empty.");
+        return;
+      }
+      const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
+      const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
+      if (mainCards.length === 0 && sideboardCards.length === 0) {
+        toast.error("Add some cards before saving.");
+        return;
+      }
+      if (requireCompleteToSave && mainCards.length < targetMainSize) {
+        toast.error(
+          `Main deck needs ${targetMainSize - mainCards.length} more card${
+            targetMainSize - mainCards.length === 1 ? "" : "s"
+          }.`,
+        );
+        return;
+      }
+      const leftoverCards = unused
+        .map((i) => fullPool[i])
+        .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
 
-    const [resolvedMain, resolvedSide, resolvedMaybe] = await Promise.all([
-      resolveDeckCards(mainCards),
-      resolveDeckCards(sideboardCards),
-      resolveDeckCards(leftoverCards),
-    ]);
-    const deck: Deck = {
-      name,
-      format,
-      cards: resolvedMain,
-      sideboard: resolvedSide,
-      draft: resolvedMain.length < targetMainSize,
-    };
-    if (resolvedMaybe.length > 0) deck.maybeboard = resolvedMaybe;
-    loadDeck(deck);
-    saveCurrentDeck();
-    setSaveDialogOpen(false);
-    toast.success(
-      resolvedMaybe.length > 0
-        ? `Saved "${name}" to My Decks (${resolvedMaybe.length} card${
-            resolvedMaybe.length === 1 ? "" : "s"
-          } parked in maybeboard).`
-        : `Saved "${name}" to My Decks.`,
-    );
-    onSaved?.(name);
+      const [resolvedMain, resolvedSide] = await Promise.all([
+        resolveDeckCards(mainCards),
+        resolveDeckCards([...sideboardCards, ...leftoverCards]),
+      ]);
+      const deck: Deck = {
+        name,
+        format,
+        cards: resolvedMain,
+        sideboard: resolvedSide,
+        draft: resolvedMain.length < targetMainSize,
+      };
+      addSavedDeck(deck);
+      setSaveDialogOpen(false);
+      toast.success(`Saved "${name}" to My Decks.`);
+      onSaved?.(name);
+    } catch {
+      toast.error("Couldn't save the deck. Try again.");
+    } finally {
+      savingDeckRef.current = false;
+      setSavingDeck(false);
+    }
   };
 
   return (
@@ -465,18 +462,8 @@ export default function LimitedDeckBuilder({
             groupMode={groupMode}
             zone="main"
             emptyMessage="Drag cards here, or click pool cards to add."
-            highlight={
-              main.length === targetMainSize
-                ? "border-primary"
-                : main.length > targetMainSize
-                  ? "border-destructive"
-                  : "border-border/70"
-            }
-            warnOnDrop={
-              activeDrag && main.length >= targetMainSize && !main.includes(activeDrag.index)
-                ? `Main full (${targetMainSize})`
-                : null
-            }
+            highlight={main.length >= targetMainSize ? "border-primary" : "border-border/70"}
+            warnOnDrop={null}
             onCardClick={(idx) => cycleZone(idx, "main")}
             preview={preview}
           />
@@ -492,7 +479,7 @@ export default function LimitedDeckBuilder({
           <div className="hidden min-h-0 flex-col gap-3 lg:flex">
             <LimitedHoverPreviewPane preview={preview} />
             {validationIssues.length > 0 && (
-              <ul className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-2 text-[11px] text-yellow-100">
+              <ul className="rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
                 {validationIssues.map((issue) => (
                   <li key={`${issue.kind}-${issue.message}`}>⚠ {issue.message}</li>
                 ))}
@@ -510,7 +497,12 @@ export default function LimitedDeckBuilder({
         {activeDrag && <DragPreview card={activeDrag.card} index={activeDrag.index} />}
       </DragOverlay>
 
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+      <Dialog
+        open={saveDialogOpen}
+        onOpenChange={(open) => {
+          if (!savingDeck) setSaveDialogOpen(open);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Save to My Decks</DialogTitle>
@@ -524,9 +516,10 @@ export default function LimitedDeckBuilder({
               id="limited-save-name"
               value={saveDeckName}
               onChange={(e) => setSaveDeckName(e.target.value)}
+              disabled={savingDeck}
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !savingDeck) {
                   e.preventDefault();
                   handleSaveToMyDecks();
                 }
@@ -541,7 +534,7 @@ export default function LimitedDeckBuilder({
                   "rounded border p-2 text-xs",
                   requireCompleteToSave
                     ? "border-destructive/60 bg-destructive/10 text-destructive"
-                    : "border-yellow-500/40 bg-yellow-500/10 text-yellow-100",
+                    : "border-warning/40 bg-warning/10 text-warning",
                 )}
               >
                 {requireCompleteToSave ? "✗" : "⚠"} Main deck is {targetMainSize - main.length} card
@@ -552,24 +545,20 @@ export default function LimitedDeckBuilder({
                   : " Saving will flag the deck as a draft."}
               </p>
             )}
-            {validationIssues.some((i) => i.kind === "too_many_copies") && (
-              <p className="rounded border border-destructive/60 bg-destructive/10 p-2 text-xs text-destructive">
-                ✗ Deck violates the 4-of rule. Remove duplicates before saving.
-              </p>
-            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setSaveDialogOpen(false)}
+              disabled={savingDeck}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleSaveToMyDecks}
-              disabled={
-                (requireCompleteToSave && main.length < targetMainSize) ||
-                validationIssues.some((i) => i.kind === "too_many_copies")
-              }
+              disabled={savingDeck || (requireCompleteToSave && main.length < targetMainSize)}
             >
-              Save
+              {savingDeck ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

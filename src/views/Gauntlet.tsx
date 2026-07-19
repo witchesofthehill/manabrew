@@ -146,11 +146,11 @@ export default function Gauntlet() {
   return (
     <div className="flex h-full flex-col gap-4 p-6">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Gauntlet — {activeGauntlet.kind === "sealed" ? "Sealed" : "Draft"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-sm">
+          <p className="font-semibold text-foreground">
+            {activeGauntlet.kind === "sealed" ? "Sealed" : "Draft"} gauntlet
+          </p>
+          <p className="text-muted-foreground">
             Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
             {activeGauntlet.wins} · Losses {activeGauntlet.losses}{" "}
             {activeGauntlet.completed ? "· Complete" : ""}
@@ -162,9 +162,6 @@ export default function Gauntlet() {
               Sideboard
             </Button>
           )}
-          <Button variant="outline" onClick={() => navigate("/limited")}>
-            Back
-          </Button>
         </div>
       </header>
 

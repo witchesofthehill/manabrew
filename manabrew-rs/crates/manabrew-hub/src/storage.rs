@@ -21,6 +21,7 @@ pub struct NewHubDeck {
     pub deck_json: String,
     pub management_token_hash: String,
     pub publish_ip: String,
+    pub account_id: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,6 +29,53 @@ pub enum DeleteOutcome {
     Deleted,
     Forbidden,
     NotFound,
+}
+
+#[derive(Debug, Clone)]
+pub struct AccountRow {
+    pub id: String,
+    pub handle: String,
+    pub handle_set: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct IdentityRow {
+    pub account_id: String,
+    pub provider: String,
+    pub email: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct OAuthStateRow {
+    pub provider: String,
+    pub mode: String,
+    pub client: String,
+    pub link_account_id: Option<String>,
+    pub return_to: String,
+}
+
+pub struct NewOAuthState<'a> {
+    pub state_hash: &'a str,
+    pub provider: &'a str,
+    pub mode: &'a str,
+    pub client: &'a str,
+    pub link_account_id: Option<&'a str>,
+    pub return_to: &'a str,
+    pub created_at: &'a str,
+    pub expires_at: &'a str,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum HandleOutcome {
+    Updated,
+    Conflict,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoginCodeOutcome {
+    Verified,
+    Invalid,
 }
 
 pub struct Storage {
@@ -38,6 +86,7 @@ impl Storage {
     pub fn open(path: &str) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
         conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))?;
+        conn.execute_batch("PRAGMA foreign_keys=ON")?;
         let storage = Self { conn };
         storage.init_schema()?;
         Ok(storage)
@@ -46,6 +95,7 @@ impl Storage {
     #[cfg(test)]
     pub fn open_memory() -> SqlResult<Self> {
         let conn = Connection::open_in_memory()?;
+        conn.execute_batch("PRAGMA foreign_keys=ON")?;
         let storage = Self { conn };
         storage.init_schema()?;
         Ok(storage)
@@ -74,8 +124,78 @@ impl Storage {
             CREATE INDEX IF NOT EXISTS idx_hub_decks_browse ON hub_decks(unlisted, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_hub_decks_format ON hub_decks(format);
             CREATE INDEX IF NOT EXISTS idx_hub_decks_ip_day ON hub_decks(publish_ip, created_at);
+            CREATE TABLE IF NOT EXISTS accounts (
+                id         TEXT PRIMARY KEY,
+                handle     TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                handle_set INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS identities (
+                id               TEXT PRIMARY KEY,
+                account_id       TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                provider         TEXT NOT NULL,
+                provider_user_id TEXT NOT NULL,
+                email            TEXT,
+                email_verified   INTEGER NOT NULL DEFAULT 0,
+                created_at       TEXT NOT NULL,
+                UNIQUE(provider, provider_user_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_identities_account ON identities(account_id);
+            CREATE INDEX IF NOT EXISTS idx_identities_email
+                ON identities(email COLLATE NOCASE) WHERE email_verified = 1;
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id);
+            CREATE TABLE IF NOT EXISTS login_tokens (
+                code_hash  TEXT PRIMARY KEY,
+                email      TEXT NOT NULL,
+                attempts   INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                request_ip TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_login_tokens_email
+                ON login_tokens(email COLLATE NOCASE, created_at);
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state_hash      TEXT PRIMARY KEY,
+                provider        TEXT NOT NULL,
+                mode            TEXT NOT NULL,
+                client          TEXT NOT NULL,
+                link_account_id TEXT,
+                return_to       TEXT NOT NULL,
+                created_at      TEXT NOT NULL,
+                expires_at      TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS auth_codes (
+                code_hash  TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
             ",
+        )?;
+        self.ensure_column(
+            "hub_decks",
+            "account_id",
+            "ALTER TABLE hub_decks ADD COLUMN account_id TEXT;
+             CREATE INDEX idx_hub_decks_account ON hub_decks(account_id);",
         )
+    }
+
+    fn ensure_column(&self, table: &str, column: &str, ddl: &str) -> SqlResult<()> {
+        let exists: u32 = self.conn.query_row(
+            "SELECT count(*) FROM pragma_table_info(?1) WHERE name = ?2",
+            params![table, column],
+            |row| row.get(0),
+        )?;
+        if exists == 0 {
+            self.conn.execute_batch(ddl)?;
+        }
+        Ok(())
     }
 
     pub fn insert_deck(&self, deck: &NewHubDeck) -> SqlResult<()> {
@@ -83,8 +203,8 @@ impl Storage {
         self.conn.execute(
             "INSERT INTO hub_decks (id, name, author, description, format, commanders, colors,
                 card_count, cover_card_name, cover_image_url, deck_json, management_token_hash,
-                publish_ip, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                publish_ip, created_at, account_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 s.id,
                 s.name,
@@ -100,6 +220,7 @@ impl Storage {
                 deck.management_token_hash,
                 deck.publish_ip,
                 s.created_at,
+                deck.account_id,
             ],
         )?;
         Ok(())
@@ -215,6 +336,370 @@ impl Storage {
             |row| row.get(0),
         )
     }
+
+    pub fn deck_owner(&self, id: &str) -> SqlResult<Option<Option<String>>> {
+        self.conn
+            .query_row(
+                "SELECT account_id FROM hub_decks WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()
+    }
+
+    pub fn delete_deck_owned(&self, id: &str, account_id: &str) -> SqlResult<DeleteOutcome> {
+        match self.deck_owner(id)? {
+            None => Ok(DeleteOutcome::NotFound),
+            Some(owner) if owner.as_deref() != Some(account_id) => Ok(DeleteOutcome::Forbidden),
+            Some(_) => {
+                self.conn
+                    .execute("DELETE FROM hub_decks WHERE id = ?1", params![id])?;
+                Ok(DeleteOutcome::Deleted)
+            }
+        }
+    }
+
+    pub fn list_account_decks(
+        &self,
+        account_id: &str,
+        limit: u32,
+    ) -> SqlResult<Vec<HubDeckSummary>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, author, description, format, commanders, colors, card_count,
+                    cover_card_name, cover_image_url, created_at
+             FROM hub_decks WHERE account_id = ?1 ORDER BY created_at DESC LIMIT ?2",
+        )?;
+        let decks = stmt
+            .query_map(params![account_id, limit], map_summary)?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok(decks)
+    }
+
+    pub fn create_account(&self, account: &AccountRow) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO accounts (id, handle, handle_set, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                account.id,
+                account.handle,
+                account.handle_set as i64,
+                account.created_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_account(&self, id: &str) -> SqlResult<Option<AccountRow>> {
+        self.conn
+            .query_row(
+                "SELECT id, handle, handle_set, created_at FROM accounts WHERE id = ?1",
+                params![id],
+                map_account,
+            )
+            .optional()
+    }
+
+    pub fn update_handle(&self, id: &str, handle: &str) -> SqlResult<HandleOutcome> {
+        let result = self.conn.execute(
+            "UPDATE accounts SET handle = ?2, handle_set = 1 WHERE id = ?1",
+            params![id, handle],
+        );
+        match result {
+            Ok(_) => Ok(HandleOutcome::Updated),
+            Err(error) if is_unique_violation(&error) => Ok(HandleOutcome::Conflict),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn insert_identity(
+        &self,
+        account_id: &str,
+        provider: &str,
+        provider_user_id: &str,
+        email: Option<&str>,
+        email_verified: bool,
+        now: &str,
+    ) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO identities (id, account_id, provider, provider_user_id, email,
+                email_verified, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                uuid::Uuid::new_v4().to_string(),
+                account_id,
+                provider,
+                provider_user_id,
+                email,
+                email_verified as i64,
+                now
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn identity_by_provider(
+        &self,
+        provider: &str,
+        provider_user_id: &str,
+    ) -> SqlResult<Option<IdentityRow>> {
+        self.conn
+            .query_row(
+                "SELECT account_id, provider, email FROM identities
+                 WHERE provider = ?1 AND provider_user_id = ?2",
+                params![provider, provider_user_id],
+                map_identity,
+            )
+            .optional()
+    }
+
+    pub fn account_id_by_verified_email(&self, email: &str) -> SqlResult<Option<String>> {
+        self.conn
+            .query_row(
+                "SELECT account_id FROM identities
+                 WHERE email = ?1 COLLATE NOCASE AND email_verified = 1
+                 ORDER BY created_at ASC LIMIT 1",
+                params![email],
+                |row| row.get(0),
+            )
+            .optional()
+    }
+
+    pub fn list_identities(&self, account_id: &str) -> SqlResult<Vec<IdentityRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT account_id, provider, email FROM identities
+             WHERE account_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let identities = stmt
+            .query_map(params![account_id], map_identity)?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok(identities)
+    }
+
+    pub fn delete_identity(&self, account_id: &str, provider: &str) -> SqlResult<bool> {
+        let changed = self.conn.execute(
+            "DELETE FROM identities WHERE account_id = ?1 AND provider = ?2",
+            params![account_id, provider],
+        )?;
+        Ok(changed > 0)
+    }
+
+    pub fn insert_session(
+        &self,
+        token_hash: &str,
+        account_id: &str,
+        now: &str,
+        expires_at: &str,
+    ) -> SqlResult<()> {
+        self.conn
+            .execute("DELETE FROM sessions WHERE expires_at <= ?1", params![now])?;
+        self.conn.execute(
+            "INSERT INTO sessions (token_hash, account_id, created_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![token_hash, account_id, now, expires_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn session_account(&self, token_hash: &str, now: &str) -> SqlResult<Option<AccountRow>> {
+        self.conn
+            .query_row(
+                "SELECT a.id, a.handle, a.handle_set, a.created_at
+                 FROM sessions s JOIN accounts a ON a.id = s.account_id
+                 WHERE s.token_hash = ?1 AND s.expires_at > ?2",
+                params![token_hash, now],
+                map_account,
+            )
+            .optional()
+    }
+
+    pub fn extend_session(
+        &self,
+        token_hash: &str,
+        threshold: &str,
+        expires_at: &str,
+    ) -> SqlResult<()> {
+        self.conn.execute(
+            "UPDATE sessions SET expires_at = ?3
+             WHERE token_hash = ?1 AND expires_at < ?2",
+            params![token_hash, threshold, expires_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_session(&self, token_hash: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM sessions WHERE token_hash = ?1",
+            params![token_hash],
+        )?;
+        Ok(())
+    }
+
+    pub fn insert_login_token(
+        &self,
+        code_hash: &str,
+        email: &str,
+        now: &str,
+        expires_at: &str,
+        request_ip: &str,
+    ) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM login_tokens WHERE expires_at <= ?1",
+            params![now],
+        )?;
+        self.conn.execute(
+            "INSERT OR REPLACE INTO login_tokens (code_hash, email, attempts, created_at,
+                expires_at, request_ip)
+             VALUES (?1, ?2, 0, ?3, ?4, ?5)",
+            params![code_hash, email, now, expires_at, request_ip],
+        )?;
+        Ok(())
+    }
+
+    pub fn login_tokens_since(&self, email: &str, since: &str) -> SqlResult<u32> {
+        self.conn.query_row(
+            "SELECT count(*) FROM login_tokens
+             WHERE email = ?1 COLLATE NOCASE AND created_at >= ?2",
+            params![email, since],
+            |row| row.get(0),
+        )
+    }
+
+    pub fn take_login_code(
+        &self,
+        email: &str,
+        code_hash: &str,
+        now: &str,
+    ) -> SqlResult<LoginCodeOutcome> {
+        let matched = self.conn.execute(
+            "DELETE FROM login_tokens
+             WHERE email = ?1 COLLATE NOCASE AND code_hash = ?2 AND expires_at > ?3",
+            params![email, code_hash, now],
+        )?;
+        if matched > 0 {
+            return Ok(LoginCodeOutcome::Verified);
+        }
+        self.conn.execute(
+            "UPDATE login_tokens SET attempts = attempts + 1
+             WHERE email = ?1 COLLATE NOCASE AND expires_at > ?2",
+            params![email, now],
+        )?;
+        self.conn.execute(
+            "DELETE FROM login_tokens WHERE email = ?1 COLLATE NOCASE AND attempts >= 5",
+            params![email],
+        )?;
+        Ok(LoginCodeOutcome::Invalid)
+    }
+
+    pub fn insert_oauth_state(&self, state: &NewOAuthState) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM oauth_states WHERE expires_at <= ?1",
+            params![state.created_at],
+        )?;
+        self.conn.execute(
+            "INSERT INTO oauth_states (state_hash, provider, mode, client, link_account_id,
+                return_to, created_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                state.state_hash,
+                state.provider,
+                state.mode,
+                state.client,
+                state.link_account_id,
+                state.return_to,
+                state.created_at,
+                state.expires_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn take_oauth_state(
+        &self,
+        state_hash: &str,
+        now: &str,
+    ) -> SqlResult<Option<OAuthStateRow>> {
+        let row = self
+            .conn
+            .query_row(
+                "SELECT provider, mode, client, link_account_id, return_to
+                 FROM oauth_states WHERE state_hash = ?1 AND expires_at > ?2",
+                params![state_hash, now],
+                |row| {
+                    Ok(OAuthStateRow {
+                        provider: row.get(0)?,
+                        mode: row.get(1)?,
+                        client: row.get(2)?,
+                        link_account_id: row.get(3)?,
+                        return_to: row.get(4)?,
+                    })
+                },
+            )
+            .optional()?;
+        self.conn.execute(
+            "DELETE FROM oauth_states WHERE state_hash = ?1",
+            params![state_hash],
+        )?;
+        Ok(row)
+    }
+
+    pub fn insert_auth_code(
+        &self,
+        code_hash: &str,
+        account_id: &str,
+        now: &str,
+        expires_at: &str,
+    ) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM auth_codes WHERE expires_at <= ?1",
+            params![now],
+        )?;
+        self.conn.execute(
+            "INSERT INTO auth_codes (code_hash, account_id, created_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![code_hash, account_id, now, expires_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn take_auth_code(&self, code_hash: &str, now: &str) -> SqlResult<Option<String>> {
+        let account_id: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT account_id FROM auth_codes WHERE code_hash = ?1 AND expires_at > ?2",
+                params![code_hash, now],
+                |row| row.get(0),
+            )
+            .optional()?;
+        self.conn.execute(
+            "DELETE FROM auth_codes WHERE code_hash = ?1",
+            params![code_hash],
+        )?;
+        Ok(account_id)
+    }
+}
+
+fn map_account(row: &Row) -> SqlResult<AccountRow> {
+    Ok(AccountRow {
+        id: row.get(0)?,
+        handle: row.get(1)?,
+        handle_set: row.get::<_, i64>(2)? != 0,
+        created_at: row.get(3)?,
+    })
+}
+
+fn map_identity(row: &Row) -> SqlResult<IdentityRow> {
+    Ok(IdentityRow {
+        account_id: row.get(0)?,
+        provider: row.get(1)?,
+        email: row.get(2)?,
+    })
+}
+
+pub fn is_unique_violation(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(e, _)
+            if e.code == rusqlite::ErrorCode::ConstraintViolation
+    )
 }
 
 fn map_summary(row: &Row) -> SqlResult<HubDeckSummary> {
@@ -270,6 +755,7 @@ mod tests {
             deck_json: r#"{"name":"x","cards":[],"sideboard":[]}"#.into(),
             management_token_hash: "hash".into(),
             publish_ip: ip.into(),
+            account_id: "acct-1".into(),
         }
     }
 

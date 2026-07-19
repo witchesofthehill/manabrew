@@ -7,7 +7,7 @@
 // per-seat views, the prompt pipeline, and bot integration.
 //
 // Prereqs (see README.md): relay on :9443, web client on :1420 (or set BASE),
-// ironsmith submodule built + synced, and the `ironsmithRuntime` flag ON.
+// ironsmith-wasm installed (npm dep), and Ironsmith enabled in Settings.
 //
 // Usage:
 //   node tests/e2e-ironsmith/ironsmith-multiplayer.mjs

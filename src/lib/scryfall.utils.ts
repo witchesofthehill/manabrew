@@ -1,4 +1,4 @@
-import type { DeckCard } from "@/protocol/deck";
+import type { CardFaceSummary, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
@@ -53,6 +53,30 @@ function detectIsDoubleFaced(sc: ScryfallCard): boolean {
   return !!(sc.card_faces && sc.card_faces.length >= 2 && sc.card_faces[1]?.image_uris);
 }
 
+/** Capture the back face (name/text/mana/type + images) so the deck carries it
+ *  and rendering never needs a live Scryfall lookup. Only for real two-image
+ *  faces (same gate as `detectIsDoubleFaced`), so split/adventure/flip/room —
+ *  which share one image — return undefined. */
+function buildBackFaceSummary(sc: ScryfallCard): CardFaceSummary | undefined {
+  const back = sc.card_faces?.[1];
+  const img = back?.image_uris;
+  if (!back || !img) return undefined;
+  return {
+    name: back.name,
+    manaCost: back.mana_cost ?? "",
+    typeLine: back.type_line ?? "",
+    oracleText: back.oracle_text ?? "",
+    uris: {
+      small: img.small,
+      normal: img.normal,
+      large: img.large,
+      png: img.png,
+      art_crop: img.art_crop,
+      border_crop: img.border_crop,
+    },
+  };
+}
+
 export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
   const id = sc.id;
   const { supertypes, types, subtypes } = parseTypeLine(getFrontTypeLine(sc));
@@ -77,6 +101,7 @@ export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
     text: getFrontOracleText(sc),
     uris,
     isDoubleFaced: detectIsDoubleFaced(sc) || undefined,
+    backFace: buildBackFaceSummary(sc),
     layout: sc.layout || undefined,
     allParts: sc.all_parts?.map((p) => ({ name: p.name, component: p.component })) ?? [],
   };

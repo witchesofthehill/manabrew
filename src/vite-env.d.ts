@@ -26,6 +26,10 @@ interface Window {
     /** Opt-in per deployment (RELAY entrypoint / config.js) to expose the
      *  dev-only /design-system reference route on a production build. */
     designSystem?: boolean;
+    /** Deck hub + auth API origin for this deployment (from HUB_API_URL).
+     *  Overrides the build-time VITE_HUB_API_URL / api.manabrew.app default so
+     *  a staging web image talks to its own hub, not production's. */
+    hubApiUrl?: string;
   };
   // Injected by the Tauri Android shell (MainActivity) — the native window
   // insets, since Android's WebView does not surface them to env(safe-area-*).

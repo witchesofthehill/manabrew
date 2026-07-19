@@ -360,7 +360,21 @@
           "name": "Outland Liberator // Frenzied Trapbreaker",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Frenzied Trapbreaker",
+        "manaCost": "",
+        "typeLine": "Creature — Werewolf",
+        "oracleText": "{1}, Sacrifice this creature: Destroy target artifact or enchantment.\nWhenever this creature attacks, destroy target artifact or enchantment defending player controls.\nNightbound (If a player casts at least two spells during their own turn, it becomes day next turn.)",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/f/8/f86b7c7e-825a-4634-8a85-3b56f112188c.jpg?1783925525",
+          "normal": "https://cards.scryfall.io/normal/back/f/8/f86b7c7e-825a-4634-8a85-3b56f112188c.jpg?1783925525",
+          "large": "https://cards.scryfall.io/large/back/f/8/f86b7c7e-825a-4634-8a85-3b56f112188c.jpg?1783925525",
+          "png": "https://cards.scryfall.io/png/back/f/8/f86b7c7e-825a-4634-8a85-3b56f112188c.png?1783925525",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/f/8/f86b7c7e-825a-4634-8a85-3b56f112188c.jpg?1783925525",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/f/8/f86b7c7e-825a-4634-8a85-3b56f112188c.jpg?1783925525"
+        }
+      }
     },
     {
       "name": "Boseiju, Who Endures",

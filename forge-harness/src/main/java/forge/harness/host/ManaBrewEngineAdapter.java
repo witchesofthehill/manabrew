@@ -78,7 +78,11 @@ public final class ManaBrewEngineAdapter {
         rules.setAppliedVariants(variants);
         rules.setSimTimeout(120);
 
-        ForgeEngineReset.resetAllIdCounters();
+        // Resetting global counters under a live session would collide its ids;
+        // multiplexed processes only reset between idle periods.
+        if (sessions.isEmpty()) {
+            ForgeEngineReset.resetAllIdCounters();
+        }
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();

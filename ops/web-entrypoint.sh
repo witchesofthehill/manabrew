@@ -9,6 +9,8 @@ set -e
 #     option, off in the published image.
 #   designSystem: from DESIGN_SYSTEM — exposes the dev-only /design-system
 #     reference route on a production build, off by default.
+#   hubApiUrl: from HUB_API_URL — deck hub + auth API origin; unset leaves the
+#     app on its compiled-in VITE_HUB_API_URL / api.manabrew.app default.
 {
 	echo 'window.__MANABREW_RUNTIME__ = {'
 	if [ -n "${RELAY_HOST:-}" ]; then
@@ -20,6 +22,9 @@ set -e
 	case "$(printf '%s' "${DESIGN_SYSTEM:-}" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on) echo '  designSystem: true,' ;;
 	esac
+	if [ -n "${HUB_API_URL:-}" ]; then
+		echo "  hubApiUrl: \"${HUB_API_URL}\","
+	fi
 	echo '};'
 } >/srv/manabrew/config.js
 

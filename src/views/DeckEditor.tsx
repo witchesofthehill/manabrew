@@ -20,7 +20,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME, ROUTES } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
-import type { DeckCard } from "@/protocol/deck";
+import type { DeckCard, DeckFormat } from "@/protocol/deck";
 import type { Deck as DeckType } from "@/protocol/deck";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { useBlocker, useLocation, useSearchParams } from "react-router";
@@ -245,6 +245,7 @@ export default function DeckEditor() {
   async function handleTextImport(
     entries: ParsedDeckEntry[],
     name: string,
+    formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
   ) {
     const customName = name.trim();
@@ -298,9 +299,10 @@ export default function DeckEditor() {
     const id = addSavedDeck({
       name: deckName,
       format:
-        commanders.length > 0
+        formatId ??
+        (commanders.length > 0
           ? "commander"
-          : inferImportedFormat(cards.map((c) => c.identity.name)),
+          : inferImportedFormat(cards.map((c) => c.identity.name))),
       cards,
       sideboard,
       maybeboard,

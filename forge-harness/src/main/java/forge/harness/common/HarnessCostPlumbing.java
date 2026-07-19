@@ -103,7 +103,15 @@ public final class HarnessCostPlumbing {
             if (!shouldAsk || ability == null || isSpellPaymentContext(ability)) {
                 return true;
             }
-            return controller.confirmPayment(part, part.toString(), ability);
+            return controller.confirmPayment(part, describePayment(part), ability);
+        }
+
+        private String describePayment(final CostPart part) {
+            final String amount = part.getAmount();
+            if (amount == null || part.convertAmount() != null) {
+                return part.toString();
+            }
+            return part.toString().replace(amount, String.valueOf(part.getAbilityAmount(ability)));
         }
 
         private CardCollectionView chooseCards(final CardCollectionView pool, final int amount, final String title) {

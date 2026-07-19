@@ -23,6 +23,7 @@ import {
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
+import { PulseRing } from "./effects/PulseRing";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePreferencesStore";
@@ -316,6 +317,7 @@ export class CardSprite extends Container {
   private chromeScale = 1;
   private lastRing: { color: number; alpha: number } | null = null;
   private lastOwnerRing: number | null = null;
+  private pulseRing = new PulseRing();
   private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private ptContainer: Container;
@@ -367,6 +369,7 @@ export class CardSprite extends Container {
 
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
+    this.addChild(this.pulseRing.gfx);
 
     this.contentContainer = new Container();
     this.addChild(this.contentContainer);
@@ -536,7 +539,11 @@ export class CardSprite extends Container {
     // the summoning-sick / phased desaturate filter greys the card body but leaves
     // the interaction ring at full color.
     for (const child of [...this.children]) {
-      if (child !== this.ringGfx && child !== this.contentContainer) {
+      if (
+        child !== this.ringGfx &&
+        child !== this.pulseRing.gfx &&
+        child !== this.contentContainer
+      ) {
         this.contentContainer.addChild(child);
       }
     }
@@ -905,6 +912,7 @@ export class CardSprite extends Container {
     // If the card is removed mid-stomp the GSAP tween would keep mutating a
     // destroyed sprite's fxScale forever; kill it before teardown.
     gsap.killTweensOf(this.fxScale);
+    this.pulseRing.destroy();
     if (this.sickFilter) {
       this.sickFilter.destroy();
       this.sickFilter = null;
@@ -1296,9 +1304,20 @@ export class CardSprite extends Container {
 
   setRing(color: number | null, alpha = 1): void {
     this.lastRing = color == null ? null : { color, alpha };
+    this.pulseRing.hide();
     this.ringGfx.clear();
     if (color == null) return;
     this.drawRingStroke(color, alpha);
+  }
+
+  setPlayableRing(color: number | null): void {
+    if (color == null) {
+      this.pulseRing.hide();
+      return;
+    }
+    this.lastRing = null;
+    this.ringGfx.clear();
+    this.pulseRing.show(0, 0, this.cw, this.ch, CARD_RADIUS, color);
   }
 
   setOwnerRing(color: number | null): void {
@@ -1322,26 +1341,8 @@ export class CardSprite extends Container {
     });
   }
 
-  setHighlight(
-    active: boolean,
-    color = hexToNum(activeTheme.gameTheme.cardRing),
-    alpha = 0.3,
-  ): void {
-    this.ringGfx.clear();
-    if (!active) return;
-    this.drawRingStroke(color, 1);
-    this.ringGfx.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
-    this.ringGfx.fill({ color, alpha });
-  }
-
   private drawRingStroke(color: number, alpha: number): void {
-    this.ringGfx.roundRect(
-      -RING_INSET,
-      -RING_INSET,
-      this.cw + RING_INSET * 2,
-      this.ch + RING_INSET * 2,
-      RING_RADIUS,
-    );
+    this.ringGfx.roundRect(0, 0, this.cw, this.ch, CARD_RADIUS);
     this.ringGfx.stroke({ color, width: 2 * this.chromeScale, alpha });
   }
 }

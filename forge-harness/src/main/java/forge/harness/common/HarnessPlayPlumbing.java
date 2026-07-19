@@ -78,6 +78,11 @@ public final class HarnessPlayPlumbing {
             sa = GameActionUtil.addExtraKeywordCost(sa);
         }
 
+        needX = true;
+        if (!announceType(sa) || !announceValuesLikeX(sa)) {
+            return false;
+        }
+
         final Cost cost = sa.getPayCosts();
         if (costPlumbing.payWithControllerDecision(cost, sa, effect)) {
             AbilityUtils.resolve(sa);

@@ -1,5 +1,5 @@
 import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
-import gsap from "gsap";
+import { gsap } from "../effects/gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
 import { CardSprite } from "../CardSprite";

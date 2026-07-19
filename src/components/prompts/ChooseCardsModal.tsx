@@ -10,7 +10,7 @@ import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
-import { useSourceCardDto } from "./internal/usePromptSourceCard";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { CardDto } from "@/protocol/game";
 import type { ChooseCardsInput } from "@/protocol";
 
@@ -60,7 +60,7 @@ export function ChooseCardsModal({
   onConfirm,
 }: ChooseCardsModalProps) {
   const cards = rawCards as CardDto[];
-  const sourceCard = useSourceCardDto(presentation.sourceCardId);
+  const { preview: sourcePreview, presentation: display } = useModalSourceCard(presentation);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const chosen = [...selected];
@@ -84,16 +84,9 @@ export function ChooseCardsModal({
 
   return (
     <Modal maxWidth="max-w-3xl" maxHeight="">
-      {sourceCard && (
-        <div className="pointer-events-none absolute top-0 left-full ml-6 drop-shadow-2xl">
-          <Card card={sourceCard} bare className="w-[240px]" />
-        </div>
-      )}
+      {sourcePreview}
       <div className="p-5">
-        <PromptPresentation
-          presentation={{ ...presentation, sourceCardId: undefined }}
-          forceHorizontal
-        />
+        <PromptPresentation presentation={display} forceHorizontal />
       </div>
 
       <div

@@ -16,7 +16,6 @@ import {
   HAND_BOTTOM_SINK_FRAC_COMPACT,
   HAND_HOVER_HOLD_MS,
   HAND_LERP,
-  PLAYABLE_HIGHLIGHT_ALPHA,
   PLAYABLE_RING_ALPHA,
   SNAP_HAND_SCALE,
   SNAP_PX,
@@ -236,7 +235,7 @@ export class HandController {
             },
       );
 
-      this.applyHighlight(sprite, card, isHovered, selectionMode, isSelected);
+      this.applyHighlight(sprite, card, selectionMode, isSelected);
     }
     this.hitZones = hitZones;
     this.drawHoverDebug();
@@ -546,7 +545,6 @@ export class HandController {
   private applyHighlight(
     sprite: CardSprite,
     card: CardDto,
-    isHovered: boolean,
     selectionMode = false,
     isSelected = false,
   ): void {
@@ -561,9 +559,7 @@ export class HandController {
       sprite.setRing(null);
       return;
     }
-    const ring = hexToNum(this.host.getTheme().gameTheme.cardRing);
-    if (isHovered) sprite.setHighlight(true, ring, PLAYABLE_HIGHLIGHT_ALPHA);
-    else sprite.setRing(ring, PLAYABLE_RING_ALPHA);
+    sprite.setPlayableRing(hexToNum(this.host.getTheme().gameTheme.cardRing));
   }
 
   private recalcTargets(): void {

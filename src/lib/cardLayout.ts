@@ -28,8 +28,8 @@ export function isHorizontalCard(opts: {
 }): boolean {
   if (isHorizontalLayout(opts.layout)) return true;
   if (opts.types?.some((t) => HORIZONTAL_TYPES.has(t))) return true;
-  const tl = opts.typeLine ?? "";
-  return [...HORIZONTAL_TYPES].some((t) => tl.includes(t));
+  const typeWords = new Set((opts.typeLine ?? "").split(/[^A-Za-z]+/));
+  return [...HORIZONTAL_TYPES].some((t) => typeWords.has(t));
 }
 
 export function isSidewaysArtLayout(layout: string | undefined): boolean {

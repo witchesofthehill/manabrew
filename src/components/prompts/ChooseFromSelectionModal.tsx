@@ -3,13 +3,12 @@ import { Minus, Plus } from "lucide-react";
 
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/game/Card";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { MODAL_INPUT } from "@/components/game/game.styles";
 import { cn } from "@/lib/utils";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { PromptPresentation } from "./internal/PromptPresentation";
-import { useSourceCardDto } from "./internal/usePromptSourceCard";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseFromSelectionInput, ChooseFromSelectionOutput } from "@/protocol";
 
@@ -20,8 +19,8 @@ export function ChooseFromSelectionModal({
   input,
   respond,
 }: PromptProps<ChooseFromSelectionInput, ChooseFromSelectionOutput>) {
-  const { options, minTotal, maxTotal, presentation } = input;
-  const sourceCard = useSourceCardDto(presentation.sourceCardId);
+  const { options, minTotal, maxTotal } = input;
+  const { preview, presentation } = useModalSourceCard(input.presentation);
   const [counts, setCounts] = useState<Map<number, number>>(new Map());
   const [filter, setFilter] = useState("");
   const filterRef = useRef<HTMLInputElement>(null);
@@ -87,13 +86,9 @@ export function ChooseFromSelectionModal({
 
   return (
     <Modal maxWidth="max-w-lg" maxHeight="max-h-[75dvh]">
-      {sourceCard && (
-        <div className="pointer-events-none absolute top-0 left-full ml-6 drop-shadow-2xl">
-          <Card card={sourceCard} bare className="w-[240px]" />
-        </div>
-      )}
+      {preview}
       <div className="shrink-0 p-5">
-        <PromptPresentation presentation={{ ...presentation, sourceCardId: undefined }} />
+        <PromptPresentation presentation={presentation} />
       </div>
       {showFilter && (
         <div className="shrink-0 px-5 pb-2">

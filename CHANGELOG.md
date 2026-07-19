@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12.4](https://github.com/witchesofthehill/manabrew/compare/v1.12.3...v1.12.4) (2026-07-19)
+
+### Fixes
+
+* x cost prompting, prompt displays, grid ([#509](https://github.com/witchesofthehill/manabrew/issues/509)) ([395a943](https://github.com/witchesofthehill/manabrew/commit/395a9439dc7496d2e32a5db024cf9676ac66e253))
+
 ## [1.12.3](https://github.com/witchesofthehill/manabrew/compare/v1.12.2...v1.12.3) (2026-07-19)
 
 ### Fixes

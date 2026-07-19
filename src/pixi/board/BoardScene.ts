@@ -103,6 +103,8 @@ export interface BoardPlayerSpec {
 /** Delimiter auto-focus easing (tweak freely). `FACTOR` is the fraction of the
  *  remaining distance closed each frame; `SNAP` is the width-fraction threshold
 test
+
+
  *  at which the ease finishes and pins to the target. */
 const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 

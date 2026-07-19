@@ -29,16 +29,20 @@ Decks are stored locally in your browser (or the desktop app's local storage)
 
 ## Single-player
 
-Pick **Play**, choose a format, then pick your deck and an opponent deck for
-the AI (or let it pick at random) and start the game. The AI plays the same
-engine you do.
+Pick **Play** and hit **Play vs AI** — on the Quick Play card or on any deck
+in Your Decks — to jump straight into a game with your last-used engine and
+an AI opponent picked for you. For a fresh setup, choose a format, pick your
+deck (the AI opponent comes pre-filled — swap it if you like) and start. The
+app remembers your format, engine, deck, and opponent for next time. The AI
+plays the same engine you do.
 
 ## Multiplayer
 
 Create a room from the lobby — name it, optionally set a password, choose the
-player count (2–8) and a reconnection timeout (30, 60, or 90 seconds). Other
-players join from the public room list; the host starts the game once seats
-fill.
+player count (2–8) and a reconnection timeout (30, 60, or 90 seconds). The
+lobby remembers your last table setup and pre-selects your last-played deck
+when it's legal in the room's format. Other players join from the public room
+list; the host starts the game once seats fill.
 
 If you disconnect mid-game (tab closed, network blip), you have the room's
 reconnection window to come back: reopen the app and it resumes your seat,

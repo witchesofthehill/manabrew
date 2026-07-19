@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
+import { QuickPlayHero } from "@/components/play/QuickPlayHero";
 import { PLAY_ACTION_CARD_CLASS } from "@/components/play/play.styles";
 import { isFeatureEnabled } from "@/featureFlags";
+import { useQuickPlay } from "@/hooks/useQuickPlay";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +16,8 @@ const MODE_CLASS = cn(
 );
 
 export function PlayHome() {
+  const quickPlay = useQuickPlay();
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <BreweryBackdrop />
@@ -31,6 +35,8 @@ export function PlayHome() {
               Bring a deck to the forge, challenge the house, or gather your party online.
             </p>
           </header>
+
+          <QuickPlayHero onQuickPlay={quickPlay} />
 
           <section className="grid gap-4 md:grid-cols-2">
             <Link to={ROUTES.PLAY_OFFLINE} className={MODE_CLASS}>
@@ -64,7 +70,7 @@ export function PlayHome() {
             </Link>
           </section>
 
-          <PlayDeckShelf />
+          <PlayDeckShelf onQuickPlay={quickPlay} />
 
           {isFeatureEnabled("deckHub") ? (
             <Link

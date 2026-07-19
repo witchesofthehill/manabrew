@@ -243,14 +243,21 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
   useEffect(() => {
     if (open) return;
-    setKind("match");
-    setEngine(isTauri ? "Forge" : "Manabrew");
+    const last = usePreferencesStore.getState().lastRoomSetup;
+    setKind(last?.kind ?? "match");
+    setEngine(
+      last?.engine && (last.engine !== "Ironsmith" || ironsmithEnabled)
+        ? last.engine
+        : isTauri
+          ? "Forge"
+          : "Manabrew",
+    );
     setRoomPassword("");
-    setLimitedKind("draft");
+    setLimitedKind(last?.limitedKind ?? "draft");
     setRoomName("");
-    setMatchPlayersOverride(null);
-    setLimitedPlayers(8);
-    setFormat("Standard");
+    setMatchPlayersOverride(last?.kind === "match" ? last.players : null);
+    setLimitedPlayers(last?.kind === "limited" ? (last.players ?? 8) : 8);
+    setFormat(last?.format ?? "Standard");
     setReconnectTimeoutS(DEFAULT_RECONNECT_TIMEOUT_S);
     setDraftSet("");
     setDraftRounds(3);
@@ -263,7 +270,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setSealedSet("");
     setSealedNumBoosters(6);
     setSealedSeed("");
-  }, [open, isTauri]);
+  }, [open, isTauri, ironsmithEnabled]);
 
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
@@ -331,6 +338,13 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         reconnectTimeoutS,
         password,
       );
+      usePreferencesStore.getState().setLastRoomSetup({
+        kind,
+        limitedKind,
+        format,
+        engine: submittedEngine,
+        players: kind === "limited" ? limitedPlayers : matchPlayersOverride,
+      });
       onOpenChange(false);
       setRoomName("");
     } finally {

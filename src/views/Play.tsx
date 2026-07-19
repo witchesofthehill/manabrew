@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
-import { EngineChoiceModal } from "@/components/lobby/EngineChoiceModal";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { OfflinePlay } from "@/components/play/OfflinePlay";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
 import { PlayHome } from "@/components/play/PlayHome";
@@ -11,15 +11,7 @@ import { getPlatform } from "@/platform";
 import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { ROUTES } from "@/lib/constants";
-import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
-
-interface PendingAiStart {
-  playerDeck: Deck;
-  opponentDeck: Deck;
-  formatId?: string;
-  commanderName?: string;
-}
 
 export default function Play() {
   const location = useLocation();
@@ -27,7 +19,6 @@ export default function Play() {
   const { isGameActive, startGame, startMultiplayerGame, setMultiplayerState } = useGameStore();
   const multiplayerStarted = useRef(false);
   const gameWasActive = useRef(false);
-  const [pendingAiStart, setPendingAiStart] = useState<PendingAiStart | null>(null);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
 
@@ -147,32 +138,16 @@ export default function Play() {
       <OfflinePlaySetup
         preSelectedDeckId={preSelectedDeckId}
         onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-          if (getPlatform().type === "web") {
-            setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
-          } else {
-            // Tauri (graalvm build) defaults to the bundled Forge engine; the
-            // store falls back to Manabrew if the local Forge host can't start.
-            startGame(playerDeck, formatId, commanderName, opponentDeck, "Forge");
-          }
+          // Tauri (graalvm build) defaults to the bundled Forge engine; the
+          // store falls back to Manabrew if the local Forge host can't start.
+          const engine: EngineKind =
+            getPlatform().type === "tauri"
+              ? "Forge"
+              : (usePreferencesStore.getState().lastOfflineEngine ??
+                (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
+          startGame(playerDeck, formatId, commanderName, opponentDeck, engine);
         }}
       />
-      {pendingAiStart && (
-        <EngineChoiceModal
-          hostedAvailable={isHostedEngineAvailable()}
-          onChoose={(engine: EngineKind) => {
-            const pending = pendingAiStart;
-            setPendingAiStart(null);
-            startGame(
-              pending.playerDeck,
-              pending.formatId,
-              pending.commanderName,
-              pending.opponentDeck,
-              engine,
-            );
-          }}
-          onCancel={() => setPendingAiStart(null)}
-        />
-      )}
     </div>
   );
 }

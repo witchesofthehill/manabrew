@@ -7,7 +7,11 @@ import { useDeckStore } from "@/stores/useDeckStore";
 
 const RECENT_DECK_COUNT = 4;
 
-export function PlayDeckShelf() {
+interface PlayDeckShelfProps {
+  onQuickPlay: (savedDeckId: string) => void;
+}
+
+export function PlayDeckShelf({ onQuickPlay }: PlayDeckShelfProps) {
   const navigate = useNavigate();
   const savedDecks = useDeckStore((state) => state.savedDecks);
   const recentDecks = savedDecks
@@ -59,7 +63,7 @@ export function PlayDeckShelf() {
               <DeckGridCard
                 deck={deck}
                 onOpen={() => openDeck(deck.id)}
-                onPlay={() => openDeck(deck.id)}
+                onPlay={() => void onQuickPlay(deck.id)}
                 readOnly
               />
             </div>

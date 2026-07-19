@@ -17,6 +17,7 @@ import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
+import { getDeckFingerprint } from "@/lib/decks";
 import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
 import { getPlatform } from "@/platform";
@@ -148,6 +149,14 @@ export default function Lobby() {
   const { startManualTabletopGame, startManualRoomHost, endGame } = useGameStore();
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
+  const lastPlayedSavedDeck = savedDecks.find((saved) => saved.id === prefs.lastPlayedDeckId);
+  const deckDialogPreSelectedId =
+    preferredSavedDeckId ??
+    (lastPlayedSavedDeck &&
+    (lastPlayedSavedDeck.deck.format ?? "standard") ===
+      (currentRoom?.format ? currentRoom.format.toLowerCase() : "standard")
+      ? lastPlayedSavedDeck.id
+      : undefined);
   const [deckDialogOpen, setDeckDialogOpen] = useState(false);
   const [aiDeckDialogOpen, setAiDeckDialogOpen] = useState(false);
   const [refreshingLobby, setRefreshingLobby] = useState(false);
@@ -305,6 +314,11 @@ export default function Lobby() {
   async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
     try {
       await setDeckSelection(deckName, deck, commanderName);
+      const fingerprint = getDeckFingerprint(deck);
+      const savedId = savedDecks.find(
+        (saved) => getDeckFingerprint(saved.deck) === fingerprint,
+      )?.id;
+      if (savedId) prefs.setLastPlayedDeckId(savedId);
       const controllerName =
         currentRoom?.players.find((player) => !player.is_bot)?.username ??
         currentRoom?.players[0]?.username;
@@ -687,7 +701,7 @@ export default function Lobby() {
         onOpenChange={setDeckDialogOpen}
         mode="lobby"
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
-        preSelectedDeckId={preferredSavedDeckId}
+        preSelectedDeckId={deckDialogPreSelectedId}
         onStart={(deck, _formatId, commanderName) => {
           void handleDeckSelection(deck.name, deck, commanderName);
         }}

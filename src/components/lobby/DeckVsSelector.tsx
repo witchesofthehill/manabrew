@@ -1,8 +1,14 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { FEATURES } from "@/lib/features";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
@@ -10,11 +16,29 @@ import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
+import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat, validateDeckSections } from "@/lib/formats";
+import { getPlatform } from "@/platform";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import { ArrowLeft, Hand, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
+import type { EngineKind } from "@/types/server";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Cloud,
+  Cpu,
+  Hand,
+  Search,
+  Shuffle,
+  Swords,
+  User,
+  Bot,
+  X,
+} from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 
 interface SelectedDeck {
@@ -23,6 +47,7 @@ interface SelectedDeck {
   desc?: string;
   color?: string;
   sourceDeck: Deck;
+  source: "preset" | "user";
   formatId?: string;
   commanderName?: string;
   coverCardName?: string;
@@ -74,20 +99,35 @@ export function DeckVsSelector({
           id: preSelectedSavedDeck.id,
           name: preSelectedSavedDeck.deck.name,
           sourceDeck: preSelectedSavedDeck.deck,
+          source: "user" as const,
           formatId: preSelectedFormatId,
           commanderName: preSelectedCommanderName,
         }
       : null;
-  const [stage, setStage] = useState<"format" | "decks">(preSelectedDeckEntry ? "decks" : "format");
+  const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
+  const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
+  const lastOfflineEngine = usePreferencesStore((state) => state.lastOfflineEngine);
+  const setLastOfflineEngine = usePreferencesStore((state) => state.setLastOfflineEngine);
+  const rememberedFormatId =
+    !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
+      ? lastOfflineFormatId
+      : null;
+  const [stage, setStage] = useState<"format" | "decks">(
+    preSelectedDeckEntry || rememberedFormatId ? "decks" : "format",
+  );
   const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(preSelectedDeckEntry);
   const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
   const [pickingSide, setPickingSide] = useState<PickingSide>(
     preSelectedDeckEntry ? "opponent" : "player",
   );
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
-    preSelectedDeckEntry?.formatId ?? null,
+    preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );
   const [deckSearch, setDeckSearch] = useState("");
+  const opponentTouchedRef = useRef(false);
+  const isWeb = getPlatform().type === "web";
+  const hostedAvailable = isHostedEngineAvailable();
+  const offlineEngine: EngineKind = lastOfflineEngine ?? (hostedAvailable ? "Forge" : "Manabrew");
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
@@ -122,6 +162,7 @@ export function DeckVsSelector({
       id,
       name: deck.name,
       sourceDeck: deck,
+      source: "user" as const,
       formatId: deck.format ?? "standard",
       commanderName: deck.commanders?.[0]?.identity.name,
     };
@@ -159,6 +200,28 @@ export function DeckVsSelector({
     setOpponentDeck(null);
   }
 
+  useEffect(() => {
+    if (stage !== "decks" || !selectedFormat || opponentDeck || opponentTouchedRef.current) return;
+    const resolved = resolveAiOpponent({
+      presets: presetDecks,
+      savedDecks,
+      formatId: selectedFormat,
+      last: lastAiOpponent,
+    });
+    if (!resolved) return;
+    setOpponentDeck({
+      id: resolved.id,
+      name: resolved.deck.name,
+      desc: resolved.deck.description,
+      color: resolved.deck.color,
+      sourceDeck: resolved.deck,
+      source: resolved.source === "preset" ? "preset" : "user",
+      formatId: selectedFormat,
+      commanderName: resolved.deck.commanders?.[0]?.identity.name,
+      coverCardName: resolved.deck.coverCardName,
+    });
+  }, [stage, selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
+
   function assignDeck(selected: SelectedDeck) {
     if (pickingSide === "player") {
       setPlayerDeck(selected);
@@ -166,6 +229,7 @@ export function DeckVsSelector({
       return;
     }
 
+    opponentTouchedRef.current = true;
     setOpponentDeck(selected);
   }
 
@@ -178,6 +242,7 @@ export function DeckVsSelector({
       desc: deck.description,
       color: deck.color,
       sourceDeck: deck,
+      source: "preset",
       formatId: selectedFormat,
       commanderName: deck.commanders?.[0]?.identity.name,
       coverCardName: deck.coverCardName,
@@ -193,12 +258,14 @@ export function DeckVsSelector({
     const random = pickRandom(formatFilteredPresets);
     if (!random) return;
     const id = random.id ?? random.name;
+    opponentTouchedRef.current = true;
     setOpponentDeck({
       id,
       name: random.name,
       desc: random.description,
       color: random.color,
       sourceDeck: random,
+      source: "preset",
       formatId: selectedFormat,
       commanderName: random.commanders?.[0]?.identity.name,
       coverCardName: random.coverCardName,
@@ -213,6 +280,16 @@ export function DeckVsSelector({
     if (empty) {
       toast.error(`"${empty.name}" has no cards`);
       return;
+    }
+    const prefs = usePreferencesStore.getState();
+    if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);
+    if (playerDeck.source === "user" && playerDeck.id !== "current") {
+      prefs.setLastPlayedDeckId(playerDeck.id);
+    }
+    if (opponentDeck.source === "preset") {
+      prefs.setLastAiOpponent({ kind: "preset", id: opponentDeck.id });
+    } else if (opponentDeck.id !== "current") {
+      prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.id });
     }
     onStart(
       playerDeck.sourceDeck,
@@ -235,6 +312,7 @@ export function DeckVsSelector({
     return (
       <FormatPicker
         onSelect={(id) => {
+          opponentTouchedRef.current = false;
           setSelectedFormat(id);
           setStage("decks");
         }}
@@ -397,7 +475,10 @@ export function DeckVsSelector({
             sideColor="var(--player-colors-opponent1)"
             isActive={pickingSide === "opponent"}
             onClick={() => setPickingSide("opponent")}
-            onClear={() => setOpponentDeck(null)}
+            onClear={() => {
+              opponentTouchedRef.current = true;
+              setOpponentDeck(null);
+            }}
             placeholderExtra={
               !opponentDeck && (
                 <button
@@ -416,6 +497,43 @@ export function DeckVsSelector({
           />
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
+          {isWeb && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto">
+                  {offlineEngine === "Forge" ? (
+                    <Cloud className="h-3.5 w-3.5" />
+                  ) : (
+                    <Cpu className="h-3.5 w-3.5" />
+                  )}
+                  {offlineEngine}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onSelect={() => setLastOfflineEngine("Forge")}
+                  disabled={!hostedAvailable}
+                  className="gap-1.5 text-xs"
+                >
+                  <Cloud className="h-3.5 w-3.5" />
+                  Forge
+                  {hostedAvailable && (
+                    <span className="text-[9px] text-muted-foreground">recommended</span>
+                  )}
+                  {offlineEngine === "Forge" && <Check className="ml-auto h-3 w-3" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setLastOfflineEngine("Manabrew")}
+                  className="gap-1.5 text-xs"
+                >
+                  <Cpu className="h-3.5 w-3.5" />
+                  Manabrew
+                  {offlineEngine === "Manabrew" && <Check className="ml-auto h-3 w-3" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {FEATURES.tabletop && onStartTabletop && (
             <Button
               size="sm"

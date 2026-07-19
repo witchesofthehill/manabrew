@@ -10,10 +10,6 @@ A [`StateUpdate`](/protocol/transport/) carries one field, `gameView` — a comp
 game state: the client throws away its previous view and re-renders the board
 from each one.
 
-:::note[Work in progress]
-The `GameViewDto` is still a work in progress. We're working hard to get it right and lean.
-:::
-
 ## GameViewDto
 
 The whole-game snapshot: turn structure, both players, the battlefield, the stack,
@@ -23,10 +19,45 @@ and game-end state.
 
 ## PlayerDto
 
-One player's public and private state — life, counters, and the cards in each of
-their zones.
+One player's scalar state — life, counters, mana pool, statuses. Cards live in
+the top-level `zones` list, not on the player.
 
 <ProtocolType type="PlayerDto" />
+
+## ZoneDto and CardView — visibility
+
+Cards arrive as one `ZoneDto` per `(zone, owner)` pair (battlefield entries are
+bucketed by controller). Each zone's `cards` are `CardView`s ordered top-first
+where the order is public knowledge, and `count` is the zone's true size:
+zones whose bulk is hidden from the recipient elide those entries, so
+`count >= cards.length`.
+
+<ProtocolType type="ZoneDto" />
+
+<ProtocolType type="CardView" />
+
+An engine that computes **per-recipient views** (see
+[Transport](/protocol/transport/)) applies visibility per card:
+
+- **Hands** — visible entries only for the owner (or under reveal effects);
+  other seats get the `count` alone.
+- **Library** — `count` only, plus the top card as a visible entry when the
+  recipient may look at it (e.g. "play with the top card of your library
+  revealed").
+- **Face-down exile** (foretell and similar) — a `hidden` entry per card, so
+  clients render an anonymous face-down card without learning its identity.
+- **Face-down battlefield permanents** (morphs) — never hidden entries: the
+  permanent itself is public. Recipients who may not see the face get a
+  **redacted** `CardDto` — blank `identity`, no text or costs — while public
+  state (counters, tapped, power/toughness) stays. Clients render a face-down
+  card with an empty `identity.name` as a card back.
+
+## StepKind
+
+Where the turn currently stands — `GameViewDto.step`. Also referenced by
+[`chooseAction`](/protocol/choose-action/)'s pass-until response.
+
+<ProtocolType type="StepKind" />
 
 ## CardDto
 

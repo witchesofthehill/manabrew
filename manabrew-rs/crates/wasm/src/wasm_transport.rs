@@ -132,6 +132,9 @@ impl WasmTransport {
             AgentMessage::Prompt(prompt) => {
                 serde_json::json!({ "kind": "prompt", "prompt": prompt })
             }
+            AgentMessage::Error(error) => {
+                serde_json::json!({ "kind": "error", "error": error })
+            }
         };
         let json = serde_json::to_vec(&tagged).unwrap_or_default();
         if !self.write_data(&json) {
@@ -186,8 +189,10 @@ impl WasmTransport {
                         js_sys::Atomics::store(&self.signal, 0, SIGNAL_IDLE).unwrap_or(0);
                         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
                         return ClientToServerMessage::Response {
+                            prompt_id: 0,
                             action: PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                                 until: None,
+                                exhaust_stack: false,
                             }),
                         };
                     }
@@ -212,7 +217,11 @@ impl WasmTransport {
                 .into(),
             );
             ClientToServerMessage::Response {
-                action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+                prompt_id: 0,
+                action: PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                    until: None,
+                    exhaust_stack: false,
+                }),
             }
         })
     }

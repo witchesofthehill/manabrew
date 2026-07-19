@@ -10,9 +10,7 @@ which attackers may be blocked, which of the defender's creatures can block, and
 any constraints — for example, an attacker with menace that must be blocked by
 two or more creatures, or a creature that must be blocked if able.
 
-:::note[Answered on the board]
-The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
-:::
+![The chooseBlockers prompt in the Manabrew client](/protocol/declare-blockers.webp)
 
 ## Arguments
 
@@ -60,10 +58,19 @@ assignments that share the same `attackerId`. Creatures left back are omitted.
 
 ```json
 {
+  "kind": "response",
   "promptId": 9,
-  "output": {
-    "type": "declareBlockers",
-    "assignments": [{ "blockerId": "bf-7", "attackerId": "bf-3" }]
+  "action": {
+    "type": "chooseBlockers",
+    "output": {
+      "type": "declareBlockers",
+      "assignments": [
+        {
+          "blockerId": "bf-7",
+          "attackerId": "bf-3"
+        }
+      ]
+    }
   }
 }
 ```

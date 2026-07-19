@@ -26,7 +26,6 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
-COMPOSE_FILE="${COMPOSE_FILE:-compose.selfhost.yml}"
 export RELAY_HOST="${RELAY_HOST:-localhost}"
 export RELAY_PORT="${RELAY_PORT:-9443}"
 export WEB_PORT="${WEB_PORT:-80}"
@@ -39,6 +38,14 @@ if [ -f "$REPO_DIR/.env" ]; then
     source "$REPO_DIR/.env"
     set +a
 fi
+
+# deploy-local always builds and runs THIS checkout. A box that also runs the
+# staging/prod deploy keeps COMPOSE_FILE=compose.staging.yml + MANABREW_IMAGE_TAG
+# in .env; sourced above they would silently redirect us to the prebuilt-image
+# stack instead of building the local branch. Pin the self-host compose (and drop
+# the image tag) after .env so that never happens.
+export COMPOSE_FILE="compose.selfhost.yml"
+unset MANABREW_IMAGE_TAG
 
 # The web image builds the card dataset from the forge submodule's res/ tree.
 git submodule sync --recursive || true

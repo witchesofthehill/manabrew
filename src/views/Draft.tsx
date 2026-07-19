@@ -95,7 +95,7 @@ export default function Draft() {
   return (
     <div className="flex h-full flex-col gap-4 p-6">
       <LandscapeGate />
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">Booster Draft</h1>
           <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

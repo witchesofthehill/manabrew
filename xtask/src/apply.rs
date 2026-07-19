@@ -109,6 +109,24 @@ pub fn apply(ws: &Workspace, root: &Path, plan: &[Entry]) -> Result<()> {
         }
     }
 
+    // Members held out of the release set still depend on released crates by
+    // path+version; sync those requirements (never a version bump) so a bumped
+    // dependency doesn't leave the workspace unresolvable.
+    for manifest in &ws.unmanaged_manifests {
+        let path = root.join(manifest);
+        let text = fs::read_to_string(&path)?;
+        let mut doc: DocumentMut = text
+            .parse()
+            .with_context(|| format!("parsing {}", manifest.display()))?;
+        let before = doc.to_string();
+        for entry in plan {
+            sync_dep_requirement(&mut doc, &entry.name, &entry.next);
+        }
+        if doc.to_string() != before {
+            fs::write(&path, doc.to_string())?;
+        }
+    }
+
     if let Some(app) = plan.iter().find(|e| e.name == APP_PACKAGE) {
         for file in APP_MIRROR_FILES {
             let path = root.join(file);

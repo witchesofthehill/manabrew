@@ -61,5 +61,17 @@ Return a map of color → number of times chosen, with the counts summing to `am
 ```
 
 ```json
-{ "promptId": 7, "output": { "type": "colorDecision", "chosenColors": { "R": 1 } } }
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "chooseColor",
+    "output": {
+      "type": "colorDecision",
+      "chosenColors": {
+        "R": 1
+      }
+    }
+  }
+}
 ```

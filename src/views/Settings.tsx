@@ -498,12 +498,12 @@ export default function Settings() {
       <h1 className="text-2xl font-bold">Preferences</h1>
 
       <section className="space-y-4">
-        <div className="flex items-center gap-6 border-b">
+        <div className="flex items-center gap-6 border-b overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab("preferences")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "preferences"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -515,7 +515,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("theme")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "theme"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -527,7 +527,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("prompts")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "prompts"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -539,7 +539,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("server")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "server"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -551,7 +551,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("keybindings")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "keybindings"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -563,7 +563,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("cache")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "cache"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")

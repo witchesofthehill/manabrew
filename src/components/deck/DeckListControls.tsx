@@ -144,7 +144,7 @@ export function DeckListControls({
               title={`Filter by ${COLOR_LABEL[color]}`}
               onClick={() => onColorToggle(color)}
               className={cn(
-                "h-4 w-4 rounded-full border-2 transition-all overflow-hidden shrink-0 focus:outline-none",
+                "h-4 w-4 rounded-full border-2 transition-all overflow-hidden shrink-0 focus:outline-none pointer-coarse:h-6 pointer-coarse:w-6",
                 active
                   ? "border-primary scale-110"
                   : "border-transparent opacity-40 hover:opacity-70",

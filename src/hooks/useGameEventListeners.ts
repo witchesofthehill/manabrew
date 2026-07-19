@@ -12,8 +12,13 @@ import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
-import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
-import type { Prompt, StateUpdate } from "@/protocol";
+import {
+  applyDisplay,
+  applyPrompt,
+  applyProtocolError,
+  applyState,
+} from "@/stores/gameStore.constants";
+import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
 import type { AuthResultPayload, RoomMessagePayload } from "@/types/server";
@@ -113,10 +118,11 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
 }
 
 /**
- * Sets up platform event listeners for the three engine→UI message families:
- * `state` (game view), `display` (animations) and `prompt` (decisions).
+ * Sets up platform event listeners for the four engine→UI message families:
+ * `state` (game view), `display` (animations), `prompt` (decisions) and
+ * `error` (a rejected response — the engine re-sends the open prompt after it).
  * State and display are applied for whichever player they are addressed to;
- * a prompt only becomes actionable when it is addressed to this player.
+ * a prompt or error only becomes actionable when it is addressed to this player.
  */
 export function useGameEventListeners() {
   useEffect(() => {
@@ -164,6 +170,18 @@ export function useGameEventListeners() {
         }),
       );
 
+      const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
+        if (!error?.code) return;
+        applyProtocolError(error, source, setState);
+        toast.error(`Action rejected (${error.code}) — try again`);
+      };
+
+      unsubscribers.push(
+        platform.events.on<ProtocolError>("game:error", (payload) => {
+          handleProtocolError(payload, "Event");
+        }),
+      );
+
       unsubscribers.push(
         platform.events.on<Prompt>("game:prompt", (payload) => {
           const prompt = normalizeEnginePrompt(payload);
@@ -201,10 +219,20 @@ export function useGameEventListeners() {
 
       // Relay (non-host) seats receive state/display/prompt addressed per player.
       unsubscribers.push(
-        platform.events.on<{ state: StateUpdate }>("game:remote_state", (payload) => {
-          if (!payload.state?.gameView) return;
-          applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
-        }),
+        platform.events.on<{ forPlayer?: string; state: StateUpdate }>(
+          "game:remote_state",
+          (payload) => {
+            if (!payload.state?.gameView) return;
+            if (payload.forPlayer) {
+              if (payload.forPlayer !== getState().myPlayerSlot) return;
+              if (!getState().seatAddressedStates) setState({ seatAddressedStates: true });
+            } else if (getState().seatAddressedStates) {
+              // Public (spectator) broadcast; this seat gets addressed views.
+              return;
+            }
+            applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
+          },
+        ),
       );
 
       unsubscribers.push(
@@ -223,6 +251,16 @@ export function useGameEventListeners() {
             if (!prompt) return;
             if (getState().selfConceded) return;
             applyPrompt(prompt, "Remote", setState, getState);
+          },
+        ),
+      );
+
+      unsubscribers.push(
+        platform.events.on<{ forPlayer: string; error: ProtocolError }>(
+          "game:remote_error",
+          (payload) => {
+            if (payload.forPlayer !== getState().myPlayerSlot) return;
+            handleProtocolError(payload.error, "Remote");
           },
         ),
       );

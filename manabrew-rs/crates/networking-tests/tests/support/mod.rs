@@ -444,11 +444,13 @@ impl Client {
         let Ok(agent_prompt) = serde_json::from_value::<AgentPrompt>(prompt) else {
             return Ok(None);
         };
+        let prompt_id = agent_prompt.prompt_id;
         let Some(action) = self.ai.decide(agent_prompt) else {
             return Ok(None);
         };
         Ok(Some(StateEnvelope::Response {
             from_player: for_player,
+            prompt_id,
             action: serde_json::to_value(&action).map_err(|e| e.to_string())?,
         }))
     }
@@ -557,6 +559,7 @@ impl Client {
             &mut self.write,
             &ClientMessage::BroadcastState {
                 state: serde_json::to_value(envelope).map_err(|e| e.to_string())?,
+                target_player: None,
             },
         )
         .await

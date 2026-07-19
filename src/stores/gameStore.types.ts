@@ -1,6 +1,6 @@
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
@@ -8,6 +8,35 @@ import type { EngineKind, GameFormat } from "@/types/server";
 import type { IronsmithDeckIssue } from "@/game";
 
 export type { DisplayEvent };
+
+/** The engine sends `zones: ZoneDto[]` with per-recipient `CardView` visibility.
+ *  The board reads the classic flat shape (a battlefield array, per-player zone
+ *  lists, scalar counters), so `normalizeGameView` denormalizes each state into
+ *  this client view-model. `zoneId` is re-stamped from the owning zone. Hidden
+ *  entries survive only where an anonymous card must render (face-down exile),
+ *  as faceless stubs; elsewhere the zone count carries the hidden bulk. */
+export type ClientCardDto = CardDto & { zoneId: string };
+
+export type ClientPlayerDto = PlayerDto & {
+  hand: ClientCardDto[];
+  graveyard: ClientCardDto[];
+  exile: ClientCardDto[];
+  commandZone: ClientCardDto[];
+  /** Visible library cards only (e.g. a revealed top card); the bulk is libraryCount. */
+  library: ClientCardDto[];
+  libraryCount: number;
+  handCount: number;
+  poison: number;
+  energyCounters: number;
+  radiationCounters: number;
+  experienceCounters: number;
+  ticketCounters: number;
+};
+
+export type ClientGameView = Omit<GameViewDto, "players"> & {
+  players: ClientPlayerDto[];
+  battlefield: ClientCardDto[];
+};
 
 export interface GameConfig {
   formatId: string;
@@ -19,12 +48,12 @@ export interface GameConfig {
  *  incoming message (display / state / prompt) becomes one of these. */
 export interface DeferredSnapshot {
   displayEvents: DisplayEvent[];
-  gameView: GameViewDto | null;
+  gameView: ClientGameView | null;
   prompt: Prompt | null;
 }
 
 export interface GameState {
-  gameView: GameViewDto | null;
+  gameView: ClientGameView | null;
   currentPrompt: Prompt | null;
   gameLog: GameLogEntry[];
   snapshots: GameSnapshotEntry[];
@@ -49,6 +78,7 @@ export interface GameState {
   isFlashing: boolean;
   /** True after respond() is called and before the next prompt arrives — prevents double-submit. */
   isWaitingForResponse: boolean;
+  seatAddressedStates: boolean;
   /** Optimistic: true from when the local player passes/declines a decision until the next prompt
    *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
   relinquishedPriority: boolean;
@@ -69,7 +99,7 @@ export interface GameState {
    *  Never synced — it only affects this client's board. Cleared on game end. */
   hiddenPlaymats: Set<string>;
   togglePlaymatHidden: (playerId: string) => void;
-  updateGameView: (view: GameViewDto) => void;
+  updateGameView: (view: ClientGameView) => void;
   setGameConfig: (config: GameConfig) => void;
   // Actions
   startGame: (
@@ -81,7 +111,10 @@ export interface GameState {
   ) => Promise<void>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
-  startManualRoomClient: (localPlayerSlot: string, initialGameView?: GameViewDto) => Promise<void>;
+  startManualRoomClient: (
+    localPlayerSlot: string,
+    initialGameView?: ClientGameView,
+  ) => Promise<void>;
   stopManualRoomSync: () => void;
   startMultiplayerGame: (
     playerNames: string[],

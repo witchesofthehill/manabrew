@@ -109,9 +109,9 @@ public final class ManaBrewInteractiveSession {
         return latestPromptJson;
     }
 
-    public String getSnapshotJson() {
+    public String getSnapshotJson(final int viewer) {
         requireAttached();
-        return snapshotJson();
+        return InteractiveSnapshotExtractor.snapshotJson(game, castingAbility, sessionId, viewer);
     }
 
     void beginCast(final SpellAbility sa) {
@@ -120,11 +120,6 @@ public final class ManaBrewInteractiveSession {
 
     void endCast() {
         this.castingAbility = null;
-    }
-
-    private String snapshotJson() {
-        final int viewer = SnapshotExtractor.playerIndex(game, game.getPhaseHandler().getPriorityPlayer());
-        return InteractiveSnapshotExtractor.snapshotJson(game, castingAbility, sessionId, viewer);
     }
 
     public boolean isGameOver() {
@@ -544,7 +539,8 @@ public final class ManaBrewInteractiveSession {
                     java.util.List.of(roll), java.util.List.of(roll), java.util.List.of(), p == winner));
         }
         publishAgentPrompt("player-" + playerId, null,
-                new DiceRolledInput(sides, rollEntries, "Roll for first player", null));
+                new DiceRolledInput(
+                        presentation("Roll for first player", null, null), sides, rollEntries, null));
     }
 
     private void publishManaPaymentPrompt(
@@ -561,7 +557,7 @@ public final class ManaBrewInteractiveSession {
             final boolean canPayLife,
             final int lifeToPay
     ) {
-        final List<AvailableAction> actionList = new java.util.ArrayList<>();
+        final List<PaymentAction> actionList = new java.util.ArrayList<>();
         for (final SpellAbility sa : tappableSources) {
             final Card host = sa.getHostCard();
             if (host == null) {
@@ -577,33 +573,38 @@ public final class ManaBrewInteractiveSession {
                 final String actionId = choice.color != null
                         ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
                         : "tap:" + cardId + ":" + abilityIndex;
-                actionList.add(new AvailableAction_activateAbility(
+                actionList.add(new PaymentAction_activateManaAbility(
                         actionId, cardId, abilityIndex, description, true, cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
-            actionList.add(new AvailableAction_activateAbility(
+            actionList.add(new PaymentAction_activateManaAbility(
                     "tap:" + cardId, cardId, 0, card.getName(), true, null, null));
         }
         for (final Card card : untappableCards) {
             final String cardId = SnapshotExtractor.javaCardId(card);
-            actionList.add(new AvailableAction_undoMana("untap:" + cardId, cardId));
+            actionList.add(new PaymentAction_undoMana("untap:" + cardId, cardId));
         }
         for (final Card card : delveSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             if (delvedCards != null && delvedCards.contains(card)) {
-                actionList.add(new AvailableAction_undelve("undelve:" + cardId, cardId));
+                actionList.add(new PaymentAction_releaseResource(
+                        "undelve:" + cardId, cardId, PaymentResourceKind.DELVE));
             } else {
-                actionList.add(new AvailableAction_delve("delve:" + cardId, cardId));
+                actionList.add(new PaymentAction_useResource(
+                        "delve:" + cardId, cardId, PaymentResourceKind.DELVE));
             }
         }
+        final String payCardId = payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "";
+        final String payCardName =
+                payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "";
         publishAgentPrompt("player-" + playerId, null, new PayManaCostInput(
-                payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "",
-                payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "",
+                presentation(payCardName, null, payCardId.isEmpty() ? null : payCardId),
+                payCardId, payCardName,
                 remainingCost != null ? remainingCost : "",
-                canConfirm, actionList, null));
+                canConfirm, actionList));
     }
 
     List<String> awaitManaCombo(
@@ -613,7 +614,9 @@ public final class ManaBrewInteractiveSession {
             final String sourceName
     ) {
         publishAgentPrompt("player-" + playerId, null,
-                new ChooseColorInput(new java.util.ArrayList<>(availableColors), amount, true));
+                new ChooseColorInput(
+                        presentation("Choose mana color", null, null),
+                        new java.util.ArrayList<>(availableColors), amount, true));
 
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -964,7 +967,7 @@ public final class ManaBrewInteractiveSession {
             final int max,
             final String sourceName
     ) {
-        return awaitModeChoice(playerId, options, min, max, sourceName, false);
+        return awaitModeChoice(playerId, unweightedOptions(options), min, max, sourceName, null, null);
     }
 
     List<Integer> awaitModeChoice(
@@ -975,13 +978,31 @@ public final class ManaBrewInteractiveSession {
             final String sourceName,
             final boolean allowRepeat
     ) {
+        return awaitModeChoice(playerId, unweightedOptions(options, allowRepeat), min, max, sourceName, null, null);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
+            final List<SelectionOption> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final String sourceCardId
+    ) {
         requireAttached();
         if (options.isEmpty() && min > 0) {
             throw new IllegalArgumentException("unsatisfiable mode prompt: min " + min + " with no options");
         }
-        final int clampedMin = allowRepeat ? min : Math.min(min, options.size());
-        final int clampedMax = allowRepeat ? max : Math.min(max, options.size());
-        publishOptionPrompt("choose_mode", playerId, options, clampedMin, clampedMax, sourceName, null);
+        final boolean anyRepeatable = options.stream().anyMatch(option -> option.canRepeat);
+        final int totalWeight = options.stream().mapToInt(option -> option.weight).sum();
+        final int clampedMin = anyRepeatable ? min : Math.min(min, totalWeight);
+        final int clampedMax = anyRepeatable ? max : Math.min(max, totalWeight);
+        final String title = sourceName != null ? sourceName : "Choose";
+        final PromptPresentation presentation =
+                new PromptPresentation(title, description, null, sourceCardId, java.util.List.of());
+        publishAgentPrompt("player-" + playerId, sourceCardId,
+                new ChooseFromSelectionInput(presentation, options, clampedMin, clampedMax));
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1000,33 +1021,52 @@ public final class ManaBrewInteractiveSession {
                     selected.add(element.getAsInt());
                 }
             }
-            validateModeIndices(selected, options.size(), clampedMin, clampedMax, allowRepeat);
+            validateModeIndices(selected, options, clampedMin, clampedMax);
             return selected;
         }
         return defaultModeIndices(options, clampedMin);
     }
 
-    private static List<Integer> defaultModeIndices(final List<String> options, final int min) {
+    private static List<SelectionOption> unweightedOptions(final List<String> labels) {
+        return unweightedOptions(labels, false);
+    }
+
+    private static List<SelectionOption> unweightedOptions(final List<String> labels, final boolean canRepeat) {
+        final List<SelectionOption> options = new ArrayList<>();
+        for (final String label : labels) {
+            options.add(new SelectionOption(label, 1, canRepeat));
+        }
+        return options;
+    }
+
+    private static List<Integer> defaultModeIndices(final List<SelectionOption> options, final int min) {
         final List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < min && !options.isEmpty(); i++) {
-            indices.add(Math.min(i, options.size() - 1));
+        int total = 0;
+        for (int i = 0; i < options.size() && total < min; i++) {
+            if (total + options.get(i).weight > min) {
+                continue;
+            }
+            indices.add(i);
+            total += options.get(i).weight;
         }
         return indices;
     }
 
     private static void validateModeIndices(
-            final List<Integer> selected, final int optionCount, final int min, final int max, final boolean allowRepeat) {
-        if (selected.size() < min || selected.size() > max) {
-            throw new IllegalArgumentException("selected option count out of range: " + selected.size());
-        }
+            final List<Integer> selected, final List<SelectionOption> options, final int min, final int max) {
         final Set<Integer> seen = new HashSet<>();
+        int total = 0;
         for (final Integer index : selected) {
-            if (index == null || index < 0 || index >= optionCount) {
+            if (index == null || index < 0 || index >= options.size()) {
                 throw new IllegalArgumentException("option index out of range: " + index);
             }
-            if (!allowRepeat && !seen.add(index)) {
+            if (!seen.add(index) && !options.get(index).canRepeat) {
                 throw new IllegalArgumentException("duplicate option index: " + index);
             }
+            total += options.get(index).weight;
+        }
+        if (total < min || total > max) {
+            throw new IllegalArgumentException("selected option total out of range: " + total);
         }
     }
 
@@ -1510,8 +1550,10 @@ public final class ManaBrewInteractiveSession {
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
+                        presentation("Sacrifice", null,
+                                source == null ? null : SnapshotExtractor.javaCardId(source)),
                         candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
-                        min, max, chosen, "Sacrifice"));
+                        min, max, chosen));
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(
@@ -1696,7 +1738,7 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
             if (sa.isLandAbility() || sa.isSpell()) {
-                actionsArray.add(new AvailableAction_cast(id, cardId, id, label));
+                actionsArray.add(new AvailableAction_cast(id, cardId, new PlayCardMode_normal(), label));
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
@@ -1790,14 +1832,13 @@ public final class ManaBrewInteractiveSession {
     ) {
         if ("choose_color".equals(kind)) {
             publishAgentPrompt("player-" + playerId, null,
-                    new ChooseColorInput(new java.util.ArrayList<>(options), 1, false));
+                    new ChooseColorInput(
+                            presentation("Choose a color", null, null),
+                            new java.util.ArrayList<>(options), 1, false));
             return;
         }
         final String title;
         switch (kind) {
-            case "choose_mode":
-                title = sourceName != null ? sourceName : "Choose";
-                break;
             case "choose_type":
                 title = "Choose a " + (description != null ? description : "type");
                 break;
@@ -1810,7 +1851,8 @@ public final class ManaBrewInteractiveSession {
         final PromptPresentation presentation =
                 new PromptPresentation(title, null, null, null, java.util.List.of());
         publishAgentPrompt(
-                "player-" + playerId, null, new ChooseFromSelectionInput(presentation, options, min, max));
+                "player-" + playerId, null,
+                new ChooseFromSelectionInput(presentation, unweightedOptions(options), min, max));
     }
 
     private void publishBooleanPrompt(
@@ -1877,7 +1919,7 @@ public final class ManaBrewInteractiveSession {
                 ? "player-" + SnapshotExtractor.playerIndex(game, owner)
                 : "player-" + playerId;
         publishAgentPrompt("player-" + playerId, null, revealInput(
-                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, richCards(cards, false)));
+                zoneKind(zone), messagePrefix, ownerPlayerId, richCards(cards, false)));
     }
 
     private void publishRevealCardViewsPrompt(
@@ -1903,18 +1945,40 @@ public final class ManaBrewInteractiveSession {
             }
         }
         publishAgentPrompt("player-" + playerId, null, revealInput(
-                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, cardArray));
+                zoneKind(zone), messagePrefix, ownerPlayerId, cardArray));
     }
 
     private RevealCardsInput revealInput(
-            final String zone,
+            final ZoneKind zone,
             final String message,
             final String ownerPlayerId,
             final List<CardDto> cards
     ) {
         return new RevealCardsInput(
-                cards, zone == null ? "unknown" : zone, ownerPlayerId,
-                message == null ? "Look at these cards" : message);
+                presentation(message == null ? "Look at these cards" : message, null, null),
+                cards, zone == null ? ZoneKind.LIBRARY : zone, ownerPlayerId);
+    }
+
+    private static ZoneKind zoneKind(final ZoneType zone) {
+        if (zone == null) {
+            return ZoneKind.LIBRARY;
+        }
+        switch (zone) {
+            case Hand:
+                return ZoneKind.HAND;
+            case Graveyard:
+            case Flashback:
+                return ZoneKind.GRAVEYARD;
+            case Battlefield:
+            case Merged:
+                return ZoneKind.BATTLEFIELD;
+            case Exile:
+                return ZoneKind.EXILE;
+            case Command:
+                return ZoneKind.COMMAND;
+            default:
+                return ZoneKind.LIBRARY;
+        }
     }
 
     private void publishNumberPrompt(
@@ -1940,12 +2004,13 @@ public final class ManaBrewInteractiveSession {
             final String sourceCardId
     ) {
         final String title = sourceName != null ? sourceName : "Reorder";
-        final String targetLabel = destination != null
-                ? destination.name()
-                : (topOfDeck ? "Top of Library" : "Bottom of Library");
-        publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderCardsInput(
-                presentation(title, "Arrange these cards in order.", sourceCardId),
-                richCards(cards, false), targetLabel, topOfDeck));
+        final List<ReorderItem> items = new java.util.ArrayList<>();
+        for (final Card card : cards) {
+            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, card, false);
+            items.add(new ReorderItem(dto.id, dto, null));
+        }
+        publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderInput(
+                presentation(title, "Arrange these cards in order.", sourceCardId), items));
     }
 
     private void publishLibraryPrompt(
@@ -2117,12 +2182,13 @@ public final class ManaBrewInteractiveSession {
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
+                        presentation(intentLabel(intent), null,
+                                source == null ? null : SnapshotExtractor.javaCardId(source)),
                         candidateRefs, isHostileIntent(intent),
                         enumFromWire(intent, TargetingIntent.class),
                         ability != null ? ability.getMinTargets() : 0,
                         ability != null ? ability.getMaxTargets() : 0,
-                        ability != null ? ability.getTargets().size() : 0,
-                        intentLabel(intent)));
+                        ability != null ? ability.getTargets().size() : 0));
     }
 
     private static TargetRef targetRef(final String kind, final String id) {

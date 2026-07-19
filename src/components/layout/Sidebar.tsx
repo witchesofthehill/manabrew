@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
+import { isFeatureEnabled } from "@/featureFlags";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
@@ -39,7 +40,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         className,
       )}
     >
-      <div className="flex-1 min-h-0 space-y-4 overflow-x-hidden overflow-y-auto py-4">
+      <div className="flex-1 min-h-0 space-y-4 overflow-x-hidden overflow-y-auto pl-[var(--safe-area-inset-left)] pt-[calc(1rem+var(--safe-area-inset-top))] pb-[calc(1rem+var(--safe-area-inset-bottom))]">
         <div className="px-3 py-2">
           <div className="mb-2 px-4">
             <ManaBrewLogo size={256} className="w-full h-auto rounded-xl" />
@@ -100,17 +101,19 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 </Button>
               )}
             </NavLink>
-            <NavLink to="/hub" onClick={onNavigate}>
-              {({ isActive }) => (
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className="w-full justify-start whitespace-nowrap"
-                >
-                  <LibraryBig className="mr-2 h-4 w-4 shrink-0" />
-                  Deck Hub
-                </Button>
-              )}
-            </NavLink>
+            {isFeatureEnabled("deckHub") && (
+              <NavLink to="/hub" onClick={onNavigate}>
+                {({ isActive }) => (
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className="w-full justify-start whitespace-nowrap"
+                  >
+                    <LibraryBig className="mr-2 h-4 w-4 shrink-0" />
+                    Deck Hub
+                  </Button>
+                )}
+              </NavLink>
+            )}
             <NavLink to="/companion" onClick={onNavigate}>
               {({ isActive }) => (
                 <Button

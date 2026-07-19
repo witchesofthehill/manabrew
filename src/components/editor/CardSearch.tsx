@@ -324,7 +324,7 @@ function FilterBtn({
       title={title}
       onClick={onClick}
       className={cn(
-        "h-6 min-w-[1.5rem] px-1.5 rounded text-xs font-semibold border transition-colors select-none",
+        "h-6 min-w-[1.5rem] px-1.5 rounded text-xs font-semibold border transition-colors select-none pointer-coarse:h-8 pointer-coarse:min-w-8",
         active
           ? "bg-primary text-primary-foreground border-primary"
           : "bg-background text-muted-foreground border-border hover:bg-muted",
@@ -353,7 +353,7 @@ function ManaFilterBtn({
       title={title}
       onClick={onClick}
       className={cn(
-        "h-7 w-7 rounded-full border-2 transition-all select-none flex items-center justify-center p-0.5",
+        "h-7 w-7 rounded-full border-2 transition-all select-none flex items-center justify-center p-0.5 pointer-coarse:h-9 pointer-coarse:w-9",
         active
           ? "border-primary ring-2 ring-primary/30 scale-110"
           : "border-transparent opacity-70 hover:opacity-100 hover:scale-105",
@@ -656,7 +656,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
   return (
     <div className="flex flex-col h-full w-full">
       {/* Filters */}
-      <div className="p-3 border-b space-y-2 shrink-0">
+      <div className="p-3 border-b space-y-2 shrink-0 max-h-[60%] overflow-y-auto">
         <div className="flex gap-2">
           {onClose && (
             <Button
@@ -953,7 +953,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
             {/* ── Printing & Availability ── */}
             <FilterSeparator label="Printing & Availability" />
 
-            <FilterRow>
+            <FilterRow className="flex-wrap">
               <FilterLabel>Set</FilterLabel>
               <SetSelect value={advanced.set} onChange={(v) => setAdv("set", v)} className="w-48" />
               <FilterLabel>Artist</FilterLabel>

@@ -27,6 +27,10 @@ interface Window {
      *  dev-only /design-system reference route on a production build. */
     designSystem?: boolean;
   };
+  // Injected by the Tauri Android shell (MainActivity) — the native window
+  // insets, since Android's WebView does not surface them to env(safe-area-*).
+  // See platform/androidSafeArea.ts.
+  __ANDROID_SAFE_AREA__?: { getInsets(): string };
 }
 
 declare const __APP_VERSION__: string;

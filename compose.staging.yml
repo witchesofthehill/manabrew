@@ -12,6 +12,13 @@ services:
   manabrew:
     image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-staging}
     restart: unless-stopped
+    # Caddy resolves cards./svgs.scryfall.io per proxied request; the deck-cover
+    # prefetch fires dozens at once, and Docker's embedded resolver forwarding to
+    # a constrained DNS drops that burst (dial tcp: lookup … i/o timeout → 502).
+    # Pin public resolvers so the Scryfall proxies survive the burst.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     ports:
       - "80:80"
       - "443:443"

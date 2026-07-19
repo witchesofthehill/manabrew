@@ -8,7 +8,8 @@ import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { FLASH_CARD_SIZE } from "./game.styles";
-import { CARD_BADGES } from "./game.constants";
+import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
+import { isFacelessCard } from "@/lib/gameCard";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
@@ -276,7 +277,10 @@ export function CardPreview({
   });
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
-  const imageUrl = deckCard.uris[imageSize] || front?.imageUris?.[imageSize];
+  const faceless = isFacelessCard(card);
+  const imageUrl = faceless
+    ? CARD_BACK_IMAGE_URL
+    : deckCard.uris[imageSize] || front?.imageUris?.[imageSize];
   const hasFlippableFaces =
     cardFaces.isFlippable && !!front?.imageUris?.[imageSize] && !!back?.imageUris?.[imageSize];
   const doubleFacedData = hasFlippableFaces

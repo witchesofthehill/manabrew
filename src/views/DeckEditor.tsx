@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { isFeatureEnabled } from "@/featureFlags";
 import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
 import type { DeckCard } from "@/protocol/deck";
@@ -474,7 +475,7 @@ export default function DeckEditor() {
                     onPlaytest={() => quickPlaytest(s.deck)}
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
-                    onPublish={() => setPublishingDeck(s)}
+                    onPublish={isFeatureEnabled("deckHub") ? () => setPublishingDeck(s) : undefined}
                   />
                 ))}
               </div>

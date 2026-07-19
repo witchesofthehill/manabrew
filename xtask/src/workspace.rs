@@ -41,6 +41,10 @@ pub struct Package {
 pub struct Workspace {
     pub root: PathBuf,
     pub packages: Vec<Package>,
+    /// Manifests of workspace members kept out of the release set
+    /// (`IGNORED_PACKAGES`) but whose path-dep version requirements must still
+    /// be synced when a dependency bumps, or the workspace stops resolving.
+    pub unmanaged_manifests: Vec<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -86,8 +90,11 @@ impl Workspace {
             .collect();
 
         let mut packages = Vec::new();
+        let mut unmanaged_manifests = Vec::new();
         for p in &meta.packages {
             if IGNORED_PACKAGES.contains(&p.name.as_str()) {
+                unmanaged_manifests
+                    .push(p.manifest_path.strip_prefix(&root).unwrap().to_path_buf());
                 continue;
             }
             let internal_deps = p
@@ -115,7 +122,11 @@ impl Workspace {
             });
         }
         packages.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(Workspace { root, packages })
+        Ok(Workspace {
+            root,
+            packages,
+            unmanaged_manifests,
+        })
     }
 
     pub fn get(&self, name: &str) -> Option<&Package> {

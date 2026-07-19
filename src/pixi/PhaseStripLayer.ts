@@ -73,6 +73,8 @@ const INDICATOR_GAP = 4;
 const INDICATOR_MARGIN = 3; // distance from cell edge
 const INDICATOR_HIT_H = 12;
 const INDICATOR_GHOST_ALPHA = 0.35;
+// My stops only fire on my turn — fade them while an opponent is acting.
+const INDICATOR_OFF_TURN_ALPHA = 0.55;
 
 // Text styles — seeded from the current theme; kept in sync by setTheme()
 const _initTheme = getTheme().gameTheme;
@@ -103,6 +105,7 @@ interface PhaseIndicatorData {
   selfCy: number;
   oppCy: number;
   selfEnabled: boolean;
+  selfOffTurn: boolean;
   selfColor: number;
   oppCount: number;
   oppEnabled: boolean[];
@@ -623,6 +626,7 @@ export class PhaseStripLayer {
         selfCy: y + CELL_H + INDICATOR_MARGIN + INDICATOR_H / 2,
         oppCy: y - INDICATOR_MARGIN - INDICATOR_H / 2,
         selfEnabled: phaseIds.some((ph) => state.selfEnabledPhases.has(ph)),
+        selfOffTurn: !isMeActive,
         selfColor,
         oppCount: state.opponents.length,
         oppEnabled: state.opponents.map((opp) => {
@@ -692,7 +696,11 @@ export class PhaseStripLayer {
         cell.selfIndicator.roundRect(d.cx - d.cellW / 2, d.selfCy - h / 2, d.cellW, h, h / 2);
         cell.selfIndicator.fill({
           color: d.selfColor,
-          alpha: d.selfEnabled ? 1 : INDICATOR_GHOST_ALPHA,
+          alpha: d.selfEnabled
+            ? d.selfOffTurn
+              ? INDICATOR_OFF_TURN_ALPHA
+              : 1
+            : INDICATOR_GHOST_ALPHA,
         });
       }
 

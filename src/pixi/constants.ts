@@ -132,7 +132,6 @@ export const GHOST_STROKE_ALPHA = 0.55;
 export const GHOST_FILL_ALPHA = 0.08;
 
 export const PLAYABLE_RING_ALPHA = 0.85;
-export const PLAYABLE_HIGHLIGHT_ALPHA = 0.3;
 export const MANA_BUTTON_ALPHA = 0.45;
 export const MANA_BUTTON_HOVER_ALPHA = 0.75;
 export const MANA_BUTTON_STROKE_ALPHA = 0.2;

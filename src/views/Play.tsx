@@ -28,9 +28,11 @@ export default function Play() {
   const multiplayerStarted = useRef(false);
   const gameWasActive = useRef(false);
   const [pendingAiStart, setPendingAiStart] = useState<PendingAiStart | null>(null);
+  const pathname =
+    location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
 
   const routeState = location.state;
-  const deckRoute = matchPath(`${ROUTES.PLAY_DECK}/:localSavedDeckId`, location.pathname);
+  const deckRoute = matchPath(`${ROUTES.PLAY_DECK}/:localSavedDeckId`, pathname);
   const preSelectedDeckId =
     routeState &&
     typeof routeState === "object" &&
@@ -124,7 +126,7 @@ export default function Play() {
     );
   }
 
-  if (location.pathname === ROUTES.PLAY_OFFLINE) {
+  if (pathname === ROUTES.PLAY_OFFLINE) {
     return <OfflinePlay />;
   }
 
@@ -132,11 +134,11 @@ export default function Play() {
     return <DeckPlayActions savedDeckId={deckRoute.params.localSavedDeckId} />;
   }
 
-  if (location.pathname === ROUTES.PLAY) {
+  if (pathname === ROUTES.PLAY) {
     return <PlayHome />;
   }
 
-  if (location.pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
+  if (pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
     return <Navigate to={ROUTES.PLAY} replace />;
   }
 

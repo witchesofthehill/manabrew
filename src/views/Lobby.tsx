@@ -6,7 +6,7 @@ import { LeaveGameModal } from "@/components/game/modals";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useServerStore } from "@/stores/useServerStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
@@ -38,14 +38,7 @@ import {
 } from "@/game";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  ArrowLeft,
-  Settings,
-  RefreshCw,
-  Users,
-  PanelRightClose,
-  PanelRightOpen,
-} from "lucide-react";
+import { Settings, RefreshCw, Users, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { DESKTOP_QUERY } from "@/lib/responsive";
@@ -542,20 +535,10 @@ export default function Lobby() {
   return (
     <div className="flex h-full w-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* ── Header ── */}
-        <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-2 sm:flex-nowrap sm:gap-3 sm:px-4">
-          <Button variant="ghost" size="sm" asChild className="shrink-0">
-            <Link to={ROUTES.PLAY}>
-              <ArrowLeft className="h-4 w-4" />
-              Play
-            </Link>
-          </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-serif text-xl font-light sm:text-2xl">Multiplayer</h1>
-            <p className="hidden text-xs text-muted-foreground sm:block">
-              Browse compatible tables or create your own.
-            </p>
-          </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2 sm:flex-nowrap sm:gap-3 sm:px-4">
+          <p className="hidden min-w-0 flex-1 text-xs text-muted-foreground sm:block">
+            Browse compatible tables or create your own.
+          </p>
           {connected && (
             <div className="flex items-center gap-1">
               <Button

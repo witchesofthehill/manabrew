@@ -1,8 +1,7 @@
-import { ArrowLeft, ArrowRight, Boxes, Swords } from "lucide-react";
+import { ArrowRight, Boxes, Swords } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { PLAY_ACTION_CARD_CLASS } from "@/components/play/play.styles";
-import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -14,13 +13,6 @@ export function OfflinePlay() {
       <BreweryBackdrop />
       <div className="relative z-10 h-full overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 py-5 sm:px-8 sm:py-9">
-          <Button variant="ghost" size="sm" asChild className="mb-8 self-start">
-            <Link to={ROUTES.PLAY}>
-              <ArrowLeft className="h-4 w-4" />
-              Play
-            </Link>
-          </Button>
-
           <header className="mb-6 max-w-2xl sm:mb-9">
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
               Offline Play

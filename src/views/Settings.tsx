@@ -494,8 +494,6 @@ export default function Settings() {
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 lg:px-8 space-y-8">
-      <h1 className="text-2xl font-bold">Preferences</h1>
-
       <section className="space-y-4">
         <div className="flex items-center gap-6 border-b overflow-x-auto no-scrollbar">
           <button

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { LandscapeGate } from "@/components/LandscapeGate";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftPodButton } from "@/components/limited/DraftPodButton";
@@ -10,6 +11,7 @@ import { DraftingView } from "@/views/Draft";
 import { submitHostPick, teardownHost } from "@/game/draftHost";
 import { submitPeerPick } from "@/game/draftPeer";
 import { useLimitedStore } from "@/stores/useLimitedStore";
+import { ROUTES } from "@/lib/constants";
 import {
   type MpDraftPlayerPool,
   useMultiplayerDraftStore,
@@ -35,7 +37,7 @@ export default function MultiplayerDraft() {
   }, [conspiracyHooks.length, fetchConspiracyHooks]);
 
   useEffect(() => {
-    if (mode === "idle") navigate("/lobby");
+    if (mode === "idle") navigate(ROUTES.LOBBY, { replace: true });
   }, [mode, navigate]);
 
   useEffect(() => {
@@ -46,6 +48,18 @@ export default function MultiplayerDraft() {
       useMultiplayerDraftStore.getState().clear();
     };
   }, []);
+
+  function leave(destination: string) {
+    if (amHost) teardownHost(mode !== "complete");
+    clear();
+    navigate(destination);
+  }
+
+  useTopBarOverride({
+    title: mode === "complete" ? "Build Draft Deck" : undefined,
+    onBack: () => leave(ROUTES.LOBBY),
+    onHome: () => leave(ROUTES.PLAY),
+  });
 
   const handlePick = async (card: DraftCard) => {
     if (!state?.awaitingHuman || pickPending) return;
@@ -66,10 +80,7 @@ export default function MultiplayerDraft() {
       <CompletionView
         pools={finalPools}
         myPool={myPool?.pool ?? []}
-        onExit={() => {
-          if (amHost) teardownHost();
-          clear();
-        }}
+        onExit={() => leave(ROUTES.LOBBY)}
       />
     );
   }
@@ -89,50 +100,37 @@ export default function MultiplayerDraft() {
     <div className="flex h-full flex-col gap-4 p-6">
       <LandscapeGate />
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Multiplayer Draft</h1>
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>
-              Round {state.round} / {state.totalRounds} · Pick {state.pickNumber}
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span>
+            Round {state.round} / {state.totalRounds} · Pick {state.pickNumber}
+          </span>
+          {mySeatAssignment && (
+            <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
+              Seat {mySeatAssignment.seat} · {mySeatAssignment.displayName}
             </span>
-            {mySeatAssignment && (
-              <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
-                Seat {mySeatAssignment.seat} · {mySeatAssignment.displayName}
-              </span>
-            )}
-            {amHost && (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                Host
-              </span>
-            )}
-            {state.isComplete ? (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                Complete
-              </span>
-            ) : state.awaitingHuman ? (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                Your pick
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Waiting…
-              </span>
-            )}
-          </p>
-        </div>
+          )}
+          {amHost && (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              Host
+            </span>
+          )}
+          {state.isComplete ? (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              Complete
+            </span>
+          ) : state.awaitingHuman ? (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              Your pick
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Waiting…
+            </span>
+          )}
+        </p>
         <div className="flex items-center gap-2">
           <DraftPodButton seats={state.seatSummaries} />
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (amHost) teardownHost(true);
-              clear();
-              navigate("/lobby");
-            }}
-          >
-            Back to lobby
-          </Button>
         </div>
       </header>
 
@@ -163,8 +161,7 @@ function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
     <div className="flex h-full flex-col gap-4 p-6">
       <LandscapeGate />
       <header className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Draft complete · Build your deck</h1>
+        <div className="max-w-3xl">
           <p className="text-sm text-muted-foreground">
             Drag from your picks into Main / Sideboard. Use "Save to My Decks" when you're happy
             with the 40 — saved decks open from the Decks view like any other.

@@ -1,17 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Boxes,
-  Crown,
-  Dice5,
-  Hourglass,
-  Layers,
-  Shuffle,
-  Sparkles,
-  Swords,
-  Wand2,
-  X,
-} from "lucide-react";
+import { Boxes, Crown, Dice5, Hourglass, Layers, Shuffle, Swords, Wand2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,15 +190,9 @@ export default function Limited() {
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto px-6 py-6">
       <header className="flex items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">Limited</h1>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Open packs, build a deck on the fly, then play a quick gauntlet against AI opponents.
-          </p>
-        </div>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Open packs, build a deck on the fly, then play a quick gauntlet against AI opponents.
+        </p>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{draftableSets.length} sets available</span>
         </div>

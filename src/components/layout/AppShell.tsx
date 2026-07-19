@@ -9,6 +9,7 @@ import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { StatusBanner } from "./StatusBanner";
 import { TopBar } from "./TopBar";
+import { TopBarOverrideContext, type TopBarOverride } from "./TopBarOverride";
 import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
@@ -25,6 +26,7 @@ const NAV_ROUTES = [
 
 export function AppShell() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [topBarOverride, setTopBarOverride] = useState<TopBarOverride | null>(null);
   const setupListeners = useServerStore((s) => s.setupListeners);
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,6 +36,12 @@ export function AppShell() {
   const isCompanionRoute = location.pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
   const hideNavChrome = isGameRoute && !isTabletopRoute;
+  const activeTopBarOverride =
+    topBarOverride?.locationKey === location.key &&
+    topBarOverride.pathname === location.pathname &&
+    topBarOverride.search === location.search
+      ? topBarOverride
+      : undefined;
 
   // Register Tauri event listeners at app level so they're always active.
   useEffect(() => {
@@ -64,22 +72,24 @@ export function AppShell() {
   });
 
   return (
-    <div className="h-[100dvh] overflow-hidden flex flex-col">
-      <StatusBanner />
-      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-      <IronsmithUnsupportedDeckModal />
-      {!hideNavChrome && <TopBar />}
-      <main
-        className={cn(
-          "flex-1 min-h-0 overflow-auto",
-          !isImmersiveRoute &&
-            "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
-          isImmersiveRoute && "!p-0 !overflow-hidden",
-          isTabletopRoute && isGameRoute && "[--safe-area-inset-top:0px]",
-        )}
-      >
-        <Outlet />
-      </main>
-    </div>
+    <TopBarOverrideContext.Provider value={setTopBarOverride}>
+      <div className="h-[100dvh] overflow-hidden flex flex-col">
+        <StatusBanner />
+        <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+        <IronsmithUnsupportedDeckModal />
+        {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
+        <main
+          className={cn(
+            "flex-1 min-h-0 overflow-auto",
+            !isImmersiveRoute &&
+              "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
+            isImmersiveRoute && "!p-0 !overflow-hidden",
+            isTabletopRoute && isGameRoute && "[--safe-area-inset-top:0px]",
+          )}
+        >
+          <Outlet />
+        </main>
+      </div>
+    </TopBarOverrideContext.Provider>
   );
 }

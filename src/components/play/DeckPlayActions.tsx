@@ -51,13 +51,6 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
       <BreweryBackdrop />
       <div className="relative z-10 h-full overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-5 sm:px-8 sm:py-9">
-          <Button variant="ghost" size="sm" asChild className="mb-5 self-start sm:mb-7">
-            <Link to={ROUTES.PLAY}>
-              <ArrowLeft className="h-4 w-4" />
-              Your Decks
-            </Link>
-          </Button>
-
           <section className="group grid min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-2xl backdrop-blur-md lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
             <div className="relative min-h-56 overflow-hidden bg-muted sm:min-h-80 lg:min-h-[30rem]">
               <DeckCoverImage

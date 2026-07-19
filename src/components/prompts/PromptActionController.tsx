@@ -83,6 +83,8 @@ interface PromptActionControllerProps {
     delveCount?: number;
     delveAvailable?: boolean;
     onOpenDelve?: () => void;
+    lifeToPay?: number;
+    onPayLife?: () => void;
   } | null;
   onPayManaCost?: () => void;
   onAutoManaCost?: () => void;

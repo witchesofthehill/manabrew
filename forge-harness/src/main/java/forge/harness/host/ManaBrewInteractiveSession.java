@@ -597,6 +597,9 @@ public final class ManaBrewInteractiveSession {
                         "delve:" + cardId, cardId, PaymentResourceKind.DELVE));
             }
         }
+        if (canPayLife) {
+            actionList.add(new PaymentAction_payLife("pay-life", lifeToPay));
+        }
         final String payCardId = payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "";
         final String payCardName =
                 payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "";

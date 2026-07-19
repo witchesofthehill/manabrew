@@ -1,0 +1,78 @@
+import type { ComponentType } from "react";
+import {
+  Gamepad2,
+  Github,
+  Hand,
+  HeartPulse,
+  Info,
+  Layers,
+  LibraryBig,
+  MoreHorizontal,
+  Palette,
+  Search,
+  Settings,
+  Wrench,
+} from "lucide-react";
+import { DiscordIcon } from "@/components/icons/DiscordIcon";
+import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
+import { isFeatureEnabled } from "@/featureFlags";
+import { DISCORD_INVITE_URL, GITHUB_REPO_URL, ROUTES } from "@/lib/constants";
+import { FEATURES } from "@/lib/features";
+
+export interface NavDestination {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  external?: boolean;
+}
+
+export interface NavMenu {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  items: NavDestination[];
+}
+
+export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
+  const direct: NavDestination[] = [];
+  const menus: NavMenu[] = [];
+
+  if (isFeatureEnabled("deckHub")) {
+    menus.push({
+      id: "decks",
+      label: "Decks",
+      icon: Layers,
+      items: [
+        { to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers },
+        { to: ROUTES.HUB, label: "Deck Hub", icon: LibraryBig },
+      ],
+    });
+  } else {
+    direct.push({ to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers });
+  }
+
+  const tools: NavDestination[] = [
+    { to: ROUTES.SEARCH, label: "Card Search", icon: Search },
+    { to: ROUTES.COMPANION, label: "Life Tracker", icon: HeartPulse },
+    { to: ROUTES.MATCHES, label: "Active Matches", icon: Gamepad2 },
+  ];
+  if (FEATURES.tabletop) {
+    tools.push({ to: ROUTES.TABLETOP, label: "Tabletop", icon: Hand });
+  }
+  menus.push({ id: "tools", label: "Tools", icon: Wrench, items: tools });
+
+  const more: NavDestination[] = [
+    { to: ROUTES.SETTINGS, label: "Preferences", icon: Settings },
+    { to: ROUTES.ABOUT, label: "About", icon: Info },
+  ];
+  if (DESIGN_SYSTEM_ENABLED) {
+    more.push({ to: ROUTES.DESIGN_SYSTEM, label: "Design System", icon: Palette });
+  }
+  more.push(
+    { to: DISCORD_INVITE_URL, label: "Discord", icon: DiscordIcon, external: true },
+    { to: GITHUB_REPO_URL, label: "GitHub", icon: Github, external: true },
+  );
+  menus.push({ id: "more", label: "More", icon: MoreHorizontal, items: more });
+
+  return { direct, menus };
+}

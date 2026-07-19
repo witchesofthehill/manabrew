@@ -6,6 +6,8 @@ import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { ManaBrewLogo } from "./ManaBrewLogo";
+import { NavSheet } from "./NavSheet";
+import { TopBarNav } from "./TopBarNav";
 import type { TopBarOverride } from "./TopBarOverride";
 
 interface RouteChrome {
@@ -151,24 +153,28 @@ export function TopBar({ override }: TopBarProps) {
           </h1>
         </>
       )}
-      {phase !== "idle" && version && (
-        <Button
-          size="sm"
-          disabled={downloading}
-          onClick={() => void installDesktopUpdate()}
-          className="ml-auto shrink-0 animate-update-glow"
-        >
-          {downloading ? (
-            <Loader2 className="h-4 w-4 animate-spin min-[400px]:mr-2" />
-          ) : (
-            <ArrowDownToLine className="h-4 w-4 min-[400px]:mr-2" />
-          )}
-          <span className="hidden min-[400px]:inline">{updateLabel}</span>
-          <span className="min-[400px]:hidden">
-            {downloading && progress != null ? `${progress}%` : "Update"}
-          </span>
-        </Button>
-      )}
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <TopBarNav />
+        <NavSheet />
+        {phase !== "idle" && version && (
+          <Button
+            size="sm"
+            disabled={downloading}
+            onClick={() => void installDesktopUpdate()}
+            className="shrink-0 animate-update-glow"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin min-[400px]:mr-2" />
+            ) : (
+              <ArrowDownToLine className="h-4 w-4 min-[400px]:mr-2" />
+            )}
+            <span className="hidden min-[400px]:inline">{updateLabel}</span>
+            <span className="min-[400px]:hidden">
+              {downloading && progress != null ? `${progress}%` : "Update"}
+            </span>
+          </Button>
+        )}
+      </div>
     </header>
   );
 }

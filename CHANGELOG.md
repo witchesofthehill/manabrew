@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12.3](https://github.com/witchesofthehill/manabrew/compare/v1.12.2...v1.12.3) (2026-07-19)
+
+### Fixes
+
+* **forge:** offer phyrexian life payment in action space ([#462](https://github.com/witchesofthehill/manabrew/issues/462)) ([ad76eef](https://github.com/witchesofthehill/manabrew/commit/ad76eefcb8d8344334650f71f295e9f82c3653d0))
+
 ## [1.12.2](https://github.com/witchesofthehill/manabrew/compare/v1.12.1...v1.12.2) (2026-07-19)
 
 ## [1.12.1](https://github.com/witchesofthehill/manabrew/compare/v1.12.0...v1.12.1) (2026-07-17)

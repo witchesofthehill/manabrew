@@ -91,7 +91,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         this.session = session;
         this.costPlumbing = new HarnessCostPlumbing(this, this, player);
         this.autoPay = new AutoPay(player, costPlumbing, true);
-        this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing);
+        this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing, true);
     }
 
     private int me() {
@@ -155,7 +155,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             probingPayability = true;
             try {
                 all = ChoiceSpace.sortNative(
-                        new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
+                        new ArrayList<>(ActionSpace.getPossibleActions(player, true, true)),
                         ParityOrder.actionComparator());
             } finally {
                 probingPayability = false;
@@ -1884,11 +1884,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 }
                 case PAY_LIFE: {
                     if (player.canPayLife(2, effect, sa)) {
-                        if (unpaid.payPhyrexian()) {
-                            sa.setSpendPhyrexianMana(true);
-                            player.payLife(2, sa, effect);
-                        } else if (player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK)) {
-                            unpaid.decreaseShard(ManaCostShard.BLACK, 1);
+                        final ManaCostShard shard =
+                                ActionSpace.chooseLifePaymentShard(unpaid, sa, player, effect);
+                        if (shard != null) {
+                            unpaid.decreaseShard(shard, 1);
+                            if (shard.isPhyrexian()) {
+                                sa.setSpendPhyrexianMana(true);
+                            }
                             player.payLife(2, sa, effect);
                         }
                     }

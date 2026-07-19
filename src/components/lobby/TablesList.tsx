@@ -643,7 +643,7 @@ export function TablesList({
                       {visibleRooms.length} {visibleRooms.length === 1 ? "table" : "tables"}
                     </span>
                   </div>
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-3">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),22rem))] justify-start gap-3">
                     {visibleRooms.map((room) => (
                       <OpenTableCard
                         key={room.room_id}

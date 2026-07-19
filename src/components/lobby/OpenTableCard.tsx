@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Anvil, BadgeCheck, Cpu, LockKeyhole, UserRoundPlus } from "lucide-react";
+import { Anvil, BadgeCheck, Cpu, LockKeyhole, UserRoundPlus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GameIcon } from "@/components/game/GameIcon";
@@ -47,6 +47,13 @@ function TableTag({
   );
 }
 
+function EngineMark({ engine, className }: { engine: RoomInfo["engine"]; className?: string }) {
+  if (engine === "Forge") return <Anvil aria-hidden="true" className={className} />;
+  if (engine === "Ironsmith")
+    return <GameIcon aria-hidden="true" name="anvil" className={className} />;
+  return <Cpu aria-hidden="true" className={className} />;
+}
+
 interface OpenTableCardProps {
   room: RoomInfo;
   currentRoomId: string | null;
@@ -61,16 +68,12 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
   const canJoin = isCompatible && currentRoomId == null && room.status === "Lobby" && !isFull;
   const format = getFormat(room.format.toLowerCase());
   const modeLabel = format?.name ?? room.format;
-  const modeTone = format?.badgeColor ?? "neutral";
   const limitedLabel = room.draft_config
     ? (room.draft_config.cube_name ?? room.draft_config.set_code)
     : room.sealed_config
       ? room.sealed_config.set_code
       : null;
   const showHost = !room.official && !room.hosted;
-  const isForgeEngine = room.engine === "Forge";
-  const isIronsmithEngine = room.engine === "Ironsmith";
-  const engineTone = isForgeEngine ? "blue" : isIronsmithEngine ? "amber" : "sky";
 
   return (
     <article
@@ -103,6 +106,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5 text-format-badge-amber" />
           </span>
         )}
+        {!isCompatible && <TableTag tone="rose">Incompatible</TableTag>}
       </div>
       {showHost && (
         <p className="-mt-1.5 truncate text-[11px] text-muted-foreground">
@@ -110,54 +114,48 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
         </p>
       )}
 
-      <OpenTableSeats players={room.players} maxPlayers={room.max_players} />
+      <OpenTableSeats
+        players={room.players}
+        maxPlayers={room.max_players}
+        joinable={canJoin}
+        onTakeSeat={() => onJoin(room)}
+        centerContent={
+          <span className="flex flex-col items-center gap-0.5">
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground/85">
+              <EngineMark engine={room.engine} className="h-3 w-3" />
+              {room.engine}
+            </span>
+            <span className="max-w-28 truncate text-[10px] text-muted-foreground">
+              {limitedLabel ?? modeLabel}
+            </span>
+          </span>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-1">
-        {!isCompatible && <TableTag tone="rose">Incompatible</TableTag>}
-        <TableTag tone={engineTone}>
-          {isForgeEngine ? (
-            <Anvil aria-hidden="true" className="h-3 w-3" />
-          ) : isIronsmithEngine ? (
-            <GameIcon aria-hidden="true" name="anvil" className="h-3 w-3" />
-          ) : (
-            <Cpu aria-hidden="true" className="h-3 w-3" />
-          )}
-          {room.engine}
-        </TableTag>
-        {room.format !== "Any" && <TableTag tone={modeTone}>{modeLabel}</TableTag>}
-        {limitedLabel && (
-          <TableTag tone="purple" className="max-w-[7rem] truncate uppercase">
-            {limitedLabel}
-          </TableTag>
-        )}
-      </div>
-
-      <div className="mt-auto">
+      <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Users aria-hidden="true" className="h-3.5 w-3.5" />
+          {room.players.length}/{room.max_players} seated
+        </span>
         {isMyRoom ? (
-          <div className="flex h-8 items-center justify-center">
-            <Badge variant="secondary" className="text-[10px]">
-              Joined
-            </Badge>
-          </div>
+          <Badge variant="secondary" className="text-[10px]">
+            Seated
+          </Badge>
         ) : canJoin ? (
           <Button
             size="sm"
-            className="w-full gap-1.5"
+            className="gap-1.5"
             disabled={joining}
             aria-busy={joining}
             onClick={() => onJoin(room)}
           >
             <UserRoundPlus aria-hidden="true" className="h-3.5 w-3.5" />
-            {joining ? "Joining..." : "Take a Seat"}
+            {joining ? "Joining..." : "Take a seat"}
           </Button>
         ) : room.status === "InGame" ? (
-          <div className="flex h-8 items-center justify-center text-xs text-muted-foreground">
-            Playing
-          </div>
+          <span className="text-xs text-muted-foreground">Playing</span>
         ) : isFull ? (
-          <div className="flex h-8 items-center justify-center text-xs text-muted-foreground">
-            Full
-          </div>
+          <span className="text-xs text-muted-foreground">Full</span>
         ) : null}
       </div>
     </article>

@@ -92,18 +92,21 @@ impl GameReplayCache {
     }
 
     fn observe_outcome(&mut self, envelope: &Value) {
-        let Some(state) = envelope.get("state") else {
+        let Some(game_view) = envelope
+            .get("state")
+            .and_then(|state| state.get("gameView"))
+        else {
             return;
         };
-        if state.get("gameOver").and_then(Value::as_bool) != Some(true) {
+        if game_view.get("gameOver").and_then(Value::as_bool) != Some(true) {
             return;
         }
         self.outcome.game_over = true;
-        self.outcome.winner_slot = state
+        self.outcome.winner_slot = game_view
             .get("winnerId")
             .and_then(Value::as_str)
             .map(str::to_string);
-        if let Some(players) = state.get("players").and_then(Value::as_array) {
+        if let Some(players) = game_view.get("players").and_then(Value::as_array) {
             self.outcome.conceded_slots = players
                 .iter()
                 .filter(|player| player.get("status").and_then(Value::as_str) == Some("conceded"))

@@ -125,11 +125,11 @@ public final class ActionSpace {
                 final boolean hasManaCost = sa.getPayCosts() != null && sa.getPayCosts().hasManaCost();
                 final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
                 final boolean canPayMana = !hasManaCost
-                        || (reservedSacrifices.isEmpty()
-                        ? (lifePaymentFallback
-                        ? canPayManaCostWithLifeFallback(sa, player)
-                        : ComputerUtilMana.canPayManaCost(sa, player, 0, false))
-                        : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+                        || (lifePaymentFallback
+                        ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
+                        : (reservedSacrifices.isEmpty()
+                        ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
+                        : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices)));
                 final boolean validTargets = hasValidTargets(sa);
                 // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
                 // is permissive in engine core. Add an explicit mana-feasibility check.
@@ -203,12 +203,21 @@ public final class ActionSpace {
     }
 
     static boolean canPayManaCostWithLifeFallback(final SpellAbility sa, final Player player) {
-        if (ComputerUtilMana.canPayManaCost(sa, player, 0, false)) {
+        return canPayManaCostWithLifeFallback(sa, player, getFixedReservedSacrifices(sa));
+    }
+
+    private static boolean canPayManaCostWithLifeFallback(
+            final SpellAbility sa,
+            final Player player,
+            final Set<Card> reservedSacrifices
+    ) {
+        if (reservedSacrifices.isEmpty() && ComputerUtilMana.canPayManaCost(sa, player, 0, false)) {
             return true;
         }
         final ManaCostBeingPaid base =
                 ComputerUtilMana.calculateManaCost(sa.getPayCosts(), sa, player, true, 0, false);
-        return canPayManaCostWithLifeFallback(base, sa, player, false, 0, new HashSet<>());
+        return canPayManaCostWithLifeFallback(
+                base, sa, player, false, reservedSacrifices, 0, new HashSet<>());
     }
 
     public static ManaCostShard chooseLifePaymentShard(
@@ -217,7 +226,8 @@ public final class ActionSpace {
             final Player player,
             final boolean effect
     ) {
-        final boolean lifeForBlack = player.hasKeyword("PayLifeInsteadOf:B");
+        final boolean lifeForBlack =
+                player.hasKeyword("PayLifeInsteadOf:B") && cost.hasAnyKind(ManaAtom.BLACK);
         ManaCostShard first = null;
         for (final ManaCostShard shard : ManaCostShard.values()) {
             if (cost.getUnpaidShards(shard) == 0 || !canPayShardWithLife(shard, lifeForBlack)) {
@@ -228,7 +238,8 @@ public final class ActionSpace {
             }
             final ManaCostBeingPaid reduced = new ManaCostBeingPaid(cost);
             reduced.decreaseShard(shard, 1);
-            if (canPayManaCostWithLifeFallback(reduced, sa, player, effect, 1, new HashSet<>())) {
+            if (canPayManaCostWithLifeFallback(
+                    reduced, sa, player, effect, getFixedReservedSacrifices(sa), 1, new HashSet<>())) {
                 return shard;
             }
         }
@@ -240,10 +251,11 @@ public final class ActionSpace {
             final SpellAbility sa,
             final Player player,
             final boolean effect,
+            final Set<Card> reservedSacrifices,
             final int committedLifePayments,
             final Set<String> failedStates
     ) {
-        if (canPayManaOnly(cost, sa, player, effect)) {
+        if (canPayManaOnly(cost, sa, player, effect, reservedSacrifices)) {
             return true;
         }
         final int nextLifePayments = committedLifePayments + 1;
@@ -254,7 +266,8 @@ public final class ActionSpace {
         if (!failedStates.add(state)) {
             return false;
         }
-        final boolean lifeForBlack = player.hasKeyword("PayLifeInsteadOf:B");
+        final boolean lifeForBlack =
+                player.hasKeyword("PayLifeInsteadOf:B") && cost.hasAnyKind(ManaAtom.BLACK);
         for (final ManaCostShard shard : ManaCostShard.values()) {
             if (cost.getUnpaidShards(shard) == 0 || !canPayShardWithLife(shard, lifeForBlack)) {
                 continue;
@@ -262,7 +275,7 @@ public final class ActionSpace {
             final ManaCostBeingPaid reduced = new ManaCostBeingPaid(cost);
             reduced.decreaseShard(shard, 1);
             if (canPayManaCostWithLifeFallback(
-                    reduced, sa, player, effect, nextLifePayments, failedStates)) {
+                    reduced, sa, player, effect, reservedSacrifices, nextLifePayments, failedStates)) {
                 return true;
             }
         }
@@ -277,8 +290,12 @@ public final class ActionSpace {
             final ManaCostBeingPaid cost,
             final SpellAbility sa,
             final Player player,
-            final boolean effect
+            final boolean effect,
+            final Set<Card> reservedSacrifices
     ) {
+        if (!reservedSacrifices.isEmpty()) {
+            return canPayManaCostFromCurrentSources(cost.toManaCost(), sa, player, reservedSacrifices);
+        }
         final boolean hadPolicy = sa.hasParam("AIPhyrexianPayment");
         final String policy = sa.getParam("AIPhyrexianPayment");
         sa.putParam("AIPhyrexianPayment", "Never");

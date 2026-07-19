@@ -1884,11 +1884,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 }
                 case PAY_LIFE: {
                     if (player.canPayLife(2, effect, sa)) {
-                        if (unpaid.payPhyrexian()) {
-                            sa.setSpendPhyrexianMana(true);
-                            player.payLife(2, sa, effect);
-                        } else if (player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK)) {
-                            unpaid.decreaseShard(ManaCostShard.BLACK, 1);
+                        final ManaCostShard shard =
+                                ActionSpace.chooseLifePaymentShard(unpaid, sa, player, effect);
+                        if (shard != null) {
+                            unpaid.decreaseShard(shard, 1);
+                            if (shard.isPhyrexian()) {
+                                sa.setSpendPhyrexianMana(true);
+                            }
                             player.payLife(2, sa, effect);
                         }
                     }

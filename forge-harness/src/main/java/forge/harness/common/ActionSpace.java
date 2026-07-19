@@ -14,7 +14,6 @@ import forge.game.card.CardLists;
 import forge.game.card.CardPredicates;
 import forge.game.mana.ManaCostBeingPaid;
 import forge.game.player.Player;
-import forge.game.player.PlayerPredicates;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.AlternativeCost;
 import forge.game.spellability.SpellAbility;
@@ -207,45 +206,91 @@ public final class ActionSpace {
         if (ComputerUtilMana.canPayManaCost(sa, player, 0, false)) {
             return true;
         }
-        if (!phyrexianLifePaymentAllowed(sa, player)) {
-            return false;
-        }
         final ManaCostBeingPaid base =
                 ComputerUtilMana.calculateManaCost(sa.getPayCosts(), sa, player, true, 0, false);
+        return canPayManaCostWithLifeFallback(base, sa, player, false, 0, new HashSet<>());
+    }
+
+    public static ManaCostShard chooseLifePaymentShard(
+            final ManaCostBeingPaid cost,
+            final SpellAbility sa,
+            final Player player,
+            final boolean effect
+    ) {
         final boolean lifeForBlack = player.hasKeyword("PayLifeInsteadOf:B");
-        int lifePayable = 0;
-        for (final ManaCostShard shard : base.getUnpaidShards()) {
-            if (shard.isPhyrexian() || (lifeForBlack && shard == ManaCostShard.BLACK)) {
-                lifePayable++;
+        ManaCostShard first = null;
+        for (final ManaCostShard shard : ManaCostShard.values()) {
+            if (cost.getUnpaidShards(shard) == 0 || !canPayShardWithLife(shard, lifeForBlack)) {
+                continue;
+            }
+            if (first == null) {
+                first = shard;
+            }
+            final ManaCostBeingPaid reduced = new ManaCostBeingPaid(cost);
+            reduced.decreaseShard(shard, 1);
+            if (canPayManaCostWithLifeFallback(reduced, sa, player, effect, 1, new HashSet<>())) {
+                return shard;
             }
         }
-        for (int k = 1; k <= lifePayable; k++) {
-            if (!player.canPayLife(2 * k, false, sa)) {
-                return false;
+        return first;
+    }
+
+    private static boolean canPayManaCostWithLifeFallback(
+            final ManaCostBeingPaid cost,
+            final SpellAbility sa,
+            final Player player,
+            final boolean effect,
+            final int committedLifePayments,
+            final Set<String> failedStates
+    ) {
+        if (canPayManaOnly(cost, sa, player, effect)) {
+            return true;
+        }
+        final int nextLifePayments = committedLifePayments + 1;
+        if (!player.canPayLife(2 * nextLifePayments, effect, sa)) {
+            return false;
+        }
+        final String state = committedLifePayments + ":" + cost;
+        if (!failedStates.add(state)) {
+            return false;
+        }
+        final boolean lifeForBlack = player.hasKeyword("PayLifeInsteadOf:B");
+        for (final ManaCostShard shard : ManaCostShard.values()) {
+            if (cost.getUnpaidShards(shard) == 0 || !canPayShardWithLife(shard, lifeForBlack)) {
+                continue;
             }
-            final ManaCostBeingPaid reduced = new ManaCostBeingPaid(base);
-            for (int i = 0; i < k; i++) {
-                if (!reduced.payPhyrexian()) {
-                    reduced.decreaseShard(ManaCostShard.BLACK, 1);
-                }
-            }
-            if (ComputerUtilMana.canPayManaCost(reduced, sa, player, false)) {
+            final ManaCostBeingPaid reduced = new ManaCostBeingPaid(cost);
+            reduced.decreaseShard(shard, 1);
+            if (canPayManaCostWithLifeFallback(
+                    reduced, sa, player, effect, nextLifePayments, failedStates)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean phyrexianLifePaymentAllowed(final SpellAbility sa, final Player player) {
-        final String param = sa.getParam("AIPhyrexianPayment");
-        if ("Never".equals(param)) {
-            return false;
+    private static boolean canPayShardWithLife(final ManaCostShard shard, final boolean lifeForBlack) {
+        return shard.isPhyrexian() || (lifeForBlack && shard == ManaCostShard.BLACK);
+    }
+
+    private static boolean canPayManaOnly(
+            final ManaCostBeingPaid cost,
+            final SpellAbility sa,
+            final Player player,
+            final boolean effect
+    ) {
+        final boolean hadPolicy = sa.hasParam("AIPhyrexianPayment");
+        final String policy = sa.getParam("AIPhyrexianPayment");
+        sa.putParam("AIPhyrexianPayment", "Never");
+        try {
+            return ComputerUtilMana.canPayManaCost(cost, sa, player, effect);
+        } finally {
+            if (hadPolicy) {
+                sa.putParam("AIPhyrexianPayment", policy);
+            } else {
+                sa.removeParam("AIPhyrexianPayment");
+            }
         }
-        if (param != null && param.startsWith("OnFatalDamage.")) {
-            final int dmg = Integer.parseInt(param.substring(14));
-            return player.getOpponents().stream().anyMatch(PlayerPredicates.lifeLessOrEqualTo(dmg));
-        }
-        return true;
     }
 
     public static boolean canPayManaCostFromCurrentSources(

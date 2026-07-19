@@ -87,19 +87,17 @@ export const CAST_DRAG_HAND_SINK_PX = 200;
 
 export const EXIT_FADE_LERP = 0.2;
 export const EXIT_SHRINK = 0.95;
-export const COMBAT_STAGE_PADDING_PX = 6;
-export const COMBAT_ROW_PAD_Y = 8;
+export const COMBAT_STAGE_PADDING_PX = 2;
+export const COMBAT_ROW_PAD_Y = 4;
+export const FIELD_INNER_EDGE_PAD_PX = 8;
 // The local grid + its card-scale reserve only this fraction of the hand-fan
 // height (the fan extends partly below the field and renders on top), so the
 // bottom row can grow down behind the hand. The action overlay keeps the full
 // reserve so it never sits under the hand.
-export const HAND_RESERVE_TRIM = 0.65;
+export const HAND_RESERVE_TRIM = 0.85;
 export const HAND_RESERVE_TRIM_COMPACT = 0.4;
 export const HAND_BOTTOM_SINK_FRAC = 0.45;
 export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
-// Extra upward tilt for the local player's staged creatures — the self region
-// sits right at the bar, so its creatures can come up a touch further.
-export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
 export const COMBAT_ROW_STEP_FRAC = 1.12;
 export const Z_STAGED_REGION = 8000;

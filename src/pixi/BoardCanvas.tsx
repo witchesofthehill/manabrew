@@ -21,6 +21,7 @@ import {
   BATTLEFIELD_CARD_SCALE_FLOOR,
   BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT,
   BATTLEFIELD_MIN_ROWS,
+  FIELD_INNER_EDGE_PAD_PX,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
   PIXI_MAX_FPS,
@@ -93,9 +94,6 @@ interface BoardCanvasProps {
   attackerOptions?: { attackerId: string; validTargetIds: string[] }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
-  /** Fraction of usable height for the local player's bottom region; defaults to
-   *  the layout's built-in fraction when omitted. */
-  selfHeightFraction?: number;
   compact?: boolean;
   /** The opponent whose field auto-expands (their turn), or `null` for an even
    *  split (our turn). The scene owns + eases the delimiters; this sets the
@@ -145,7 +143,6 @@ export function BoardCanvas({
   attackerOptions,
   phaseStrip,
   phaseStripCallbacks,
-  selfHeightFraction,
   compact,
   focusedOpponentId,
   combatFocusIds,
@@ -339,7 +336,13 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction, compact ?? false);
+    const layout = computeBoardLayout(
+      w,
+      h,
+      opponentCount,
+      selfBottomReserve ?? 0,
+      compact ?? false,
+    );
     s.setCompactMode(compact ?? false);
     // Each region is scaled to fill its OWN height — a single shared scale let
     // the tightest field (self, after the hand-fan reserve) shrink everyone, so
@@ -357,7 +360,7 @@ export function BoardCanvas({
     // survived without the trim because its two-pass band estimate under-sized
     // cards enough to leave slack.
     const playmatTrim = (usable: number, width: number) =>
-      Math.max(1, usable - playmatPad(width, usable) * 2);
+      Math.max(1, usable - playmatPad(width, usable) - FIELD_INNER_EDGE_PAD_PX);
     const selfUsable = playmatTrim(
       Math.max(1, layout.self.height - (selfBottomReserve ?? 0)),
       layout.self.width,
@@ -409,7 +412,6 @@ export function BoardCanvas({
     playersKey,
     cardSizeMultiplier,
     handViewportScale,
-    selfHeightFraction,
     compact,
     selfBottomReserve,
     showPlayerBars,

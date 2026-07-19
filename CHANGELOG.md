@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.11.0](https://github.com/witchesofthehill/manabrew/compare/v1.10.0...v1.11.0) (2026-07-17)
+
+### Features
+
+* **ui:** respect safe-area insets across all screens ([#463](https://github.com/witchesofthehill/manabrew/issues/463)) ([dc5c178](https://github.com/witchesofthehill/manabrew/commit/dc5c178a88d4e13b8d1e4b48bd3b95f450910a69))
+
 ## [1.10.0](https://github.com/witchesofthehill/manabrew/compare/v1.9.4...v1.10.0) (2026-07-15)
 
 ### Features

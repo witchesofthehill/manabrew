@@ -4,6 +4,7 @@ import {
   revertDeckToLastSaved,
 } from "@/components/editor/deckBuilder.unsavedChanges";
 import { CardSearch } from "@/components/editor/CardSearch";
+import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import {
   DndContext,
@@ -16,7 +17,8 @@ import {
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
+import { isFeatureEnabled } from "@/featureFlags";
+import { DROP_ZONE, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME, ROUTES } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
 import type { DeckCard } from "@/protocol/deck";
 import type { Deck as DeckType } from "@/protocol/deck";
@@ -74,9 +76,16 @@ export default function DeckEditor() {
   const presetDecks = usePresetDecks();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as {
+    directToEditor?: boolean;
+    openImport?: boolean;
+    openNewDeckDialog?: boolean;
+    deckEditorFromList?: boolean;
+  } | null;
 
   function handleOpenPreset(deck: DeckType) {
-    setSearchParams({ deck: presetDeckParamId(deck) });
+    setSearchParams({ deck: presetDeckParamId(deck) }, { state: { deckEditorFromList: true } });
   }
 
   const presetSavedDecksUnfiltered: SavedDeck[] = presetDecks.map((deck) => ({
@@ -84,24 +93,29 @@ export default function DeckEditor() {
     deck,
     savedAt: 0,
   }));
-  const location = useLocation();
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
-  const [importDialogOpen, setImportDialogOpen] = useState(() =>
-    Boolean((location.state as { openImport?: boolean } | null)?.openImport),
+  const [importDialogOpen, setImportDialogOpen] = useState(() => routeState?.openImport ?? false);
+  const [choiceDialogOpen, setChoiceDialogOpen] = useState(
+    () => routeState?.openNewDeckDialog ?? false,
   );
-  const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
   const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
 
-  useKeybindings({
-    "card-search-focus": () => {
-      setShowSearch(true);
-      setSearchFocusSignal((n) => n + 1);
-    },
-    "deck-editor-toggle-preview": () => togglePreview(),
-    "go-back": () => handleBack(),
-  });
+  useEffect(() => {
+    if (!routeState?.openImport && !routeState?.openNewDeckDialog) return;
+    navigate(
+      { pathname: location.pathname, search: location.search },
+      { replace: true, state: null },
+    );
+  }, [
+    location.pathname,
+    location.search,
+    navigate,
+    routeState?.openImport,
+    routeState?.openNewDeckDialog,
+  ]);
+
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(
     () =>
@@ -123,13 +137,8 @@ export default function DeckEditor() {
 
   const [stateView, setStateView] = useState<"list" | "editor">(() => {
     if (useDeckStore.getState().isReadOnly) return "editor";
-    return (location.state as { directToEditor?: boolean } | null)?.directToEditor
-      ? "editor"
-      : "list";
+    return routeState?.directToEditor ? "editor" : "list";
   });
-  // True when readonly was triggered by an in-page preset click (no route
-  // navigation), so Back restores the grid instead of popping history.
-  const [readonlyEnteredInPage, setReadonlyEnteredInPage] = useState(false);
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;
   const [showBackConfirm, setShowBackConfirm] = useState(false);
@@ -160,17 +169,34 @@ export default function DeckEditor() {
   useEffect(() => {
     const deckParam = searchParams.get("deck");
     if (!deckParam) {
+      const closedQueryEditor = restoredParamRef.current !== null;
       restoredParamRef.current = null;
+      if (closedQueryEditor) {
+        clearDeck();
+        setStateView("list");
+        return;
+      }
+      if (!isReadOnly && stateView === "editor" && currentDeckId) {
+        setSearchParams({ deck: currentDeckId }, { replace: true, state: routeState ?? undefined });
+      }
       return;
     }
-    if (restoredParamRef.current === deckParam) return;
+    if (restoredParamRef.current === deckParam) {
+      if (!isReadOnly && currentDeckId && currentDeckId !== deckParam) {
+        restoredParamRef.current = currentDeckId;
+        setSearchParams({ deck: currentDeckId }, { replace: true, state: routeState ?? undefined });
+      } else if (!isReadOnly && !currentDeckId) {
+        restoredParamRef.current = null;
+        setSearchParams({}, { replace: true, state: routeState ?? undefined });
+      }
+      return;
+    }
 
     if (deckParam.startsWith(PRESET_DECK_ID_PREFIX)) {
       const presetId = deckParam.slice(PRESET_DECK_ID_PREFIX.length);
       const preset = presetDecks.find((d) => (d.id ?? d.name) === presetId);
       if (!preset) return;
       loadPresetDeck(preset);
-      setReadonlyEnteredInPage(true);
       setStateView("editor");
       restoredParamRef.current = deckParam;
       return;
@@ -181,15 +207,20 @@ export default function DeckEditor() {
     loadSavedDeck(deckParam);
     setStateView("editor");
     restoredParamRef.current = deckParam;
-  }, [searchParams, presetDecks, savedDecks, loadPresetDeck, loadSavedDeck]);
+  }, [
+    searchParams,
+    presetDecks,
+    savedDecks,
+    loadPresetDeck,
+    loadSavedDeck,
+    clearDeck,
+    isReadOnly,
+    stateView,
+    currentDeckId,
+    setSearchParams,
+    routeState,
+  ]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    if (isReadOnly ? false : stateView !== "editor") return;
-    if (!currentDeckId) return;
-    if (searchParams.get("deck") === currentDeckId) return;
-    setSearchParams({ deck: currentDeckId }, { replace: true });
-  }, [currentDeckId, stateView, isReadOnly, searchParams, setSearchParams]);
 
   function toggleColor(color: string) {
     setColorFilter((prev) =>
@@ -207,11 +238,11 @@ export default function DeckEditor() {
   });
 
   function handleSelectDeck(id: string) {
-    setSearchParams({ deck: id });
+    setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
   }
 
   function handleNewDeck() {
-    setSearchParams({});
+    setSearchParams({}, { replace: true, state: null });
     clearDeck();
     setDeckName(DEFAULT_DECK_NAME);
     setView("editor");
@@ -299,25 +330,46 @@ export default function DeckEditor() {
     handleSelectDeck(id);
   }
 
+  function returnToDeckList() {
+    const historyIndex = window.history.state?.idx;
+    const popEditorEntry =
+      routeState?.deckEditorFromList === true &&
+      typeof historyIndex === "number" &&
+      historyIndex > 0;
+    setView("list");
+    if (popEditorEntry) {
+      navigate(-1);
+    } else {
+      setSearchParams({}, { replace: true, state: null });
+    }
+  }
+
   function handleBack() {
     if (isReadOnly) {
       useDeckStore.getState().clearDeck();
-      if (readonlyEnteredInPage) {
-        setReadonlyEnteredInPage(false);
-        setSearchParams({});
-        setView("list");
-      } else {
-        navigate(-1);
-      }
+      returnToDeckList();
       return;
     }
     if (hasUnsavedChanges) {
       setShowBackConfirm(true);
     } else {
-      setSearchParams({});
-      setView("list");
+      returnToDeckList();
     }
   }
+
+  useTopBarOverride({
+    title: view === "editor" ? "Deck Editor" : undefined,
+    onBack: view === "editor" ? handleBack : undefined,
+  });
+
+  useKeybindings({
+    "card-search-focus": () => {
+      setShowSearch(true);
+      setSearchFocusSignal((n) => n + 1);
+    },
+    "deck-editor-toggle-preview": () => togglePreview(),
+    "go-back": view === "editor" ? handleBack : () => navigate(ROUTES.PLAY),
+  });
 
   function handleDelete(id: string) {
     deleteSavedDeck(id);
@@ -432,10 +484,6 @@ export default function DeckEditor() {
     return (
       <>
         <div className="h-full flex flex-col">
-          <div className="px-4 py-3 border-b shrink-0 flex items-center">
-            <h2 className="text-lg font-semibold flex-1">My Decks</h2>
-          </div>
-
           <DeckListControls
             search={search}
             onSearchChange={setSearch}
@@ -474,7 +522,12 @@ export default function DeckEditor() {
                     onPlaytest={() => quickPlaytest(s.deck)}
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
-                    onPublish={() => setPublishingDeck(s)}
+                    onPublish={isFeatureEnabled("deckHub") ? () => setPublishingDeck(s) : undefined}
+                    onPlay={
+                      s.deck.format === "draft" || s.deck.format === "sealed"
+                        ? undefined
+                        : () => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)
+                    }
                   />
                 ))}
               </div>
@@ -621,7 +674,6 @@ export default function DeckEditor() {
           <div className="overflow-hidden flex-1 min-h-0 min-w-0">
             <DeckBuilder
               onToggleSearch={() => setShowSearch((v) => !v)}
-              onBack={handleBack}
               previewSlot={previewSlot}
               setPreviewSlot={setPreviewSlot}
               previewCollapsed={previewCollapsed}
@@ -665,8 +717,7 @@ export default function DeckEditor() {
                 onClick={() => {
                   revertDeckToLastSaved();
                   setShowBackConfirm(false);
-                  setSearchParams({});
-                  setView("list");
+                  returnToDeckList();
                 }}
               >
                 Leave Without Saving

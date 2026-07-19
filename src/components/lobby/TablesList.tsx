@@ -1,10 +1,13 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
+import { HostedTablesSection } from "@/components/lobby/HostedTablesSection";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
+import { OpenTableCard } from "@/components/lobby/OpenTableCard";
+import { needsFormatChoice } from "@/components/lobby/tables.utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,20 +23,19 @@ import {
   Bot,
   X,
   ChevronDown,
-  BadgeCheck,
-  Lock,
-  Cpu,
-  Anvil,
   Search,
   Copy,
   Check,
+  Table2,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
-import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
+import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
+import type { ServerErrorCode } from "@/types/server";
+import { toast } from "sonner";
 
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
 
@@ -48,58 +50,13 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Commander",
   "Brawl",
   "Oathbreaker",
-  "Draft",
-  "Sealed",
 ];
 
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];
-
-const TAG_CLASSES: Record<string, string> = {
-  official: "bg-primary text-primary-foreground",
-  blue: "bg-format-badge-blue/15 text-format-badge-blue",
-  amber: "bg-format-badge-amber/15 text-format-badge-amber",
-  emerald: "bg-format-badge-emerald/15 text-format-badge-emerald",
-  rose: "bg-format-badge-rose/15 text-format-badge-rose",
-  slate: "bg-format-badge-slate/15 text-format-badge-slate",
-  zinc: "bg-format-badge-zinc/15 text-format-badge-zinc",
-  purple: "bg-format-badge-purple/15 text-format-badge-purple",
-  teal: "bg-format-badge-teal/15 text-format-badge-teal",
-  orange: "bg-format-badge-orange/15 text-format-badge-orange",
-  sky: "bg-format-badge-sky/15 text-format-badge-sky",
-  indigo: "bg-format-badge-indigo/15 text-format-badge-indigo",
-  neutral: "bg-muted text-muted-foreground",
-};
-
-function LobbyTag({
-  tone,
-  className,
-  children,
-}: {
-  tone: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold leading-tight",
-        TAG_CLASSES[tone] ?? TAG_CLASSES.neutral,
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-function needsFormatChoice(room: RoomInfo) {
-  return (
-    room.format === "Any" &&
-    !room.draft_config &&
-    !room.sealed_config &&
-    room.players.every((p) => p.is_bot)
-  );
-}
+const HOSTED_JOIN_RETRY_CODES: ReadonlySet<string> = new Set([
+  SERVER_ERROR_CODE.RoomFull,
+  SERVER_ERROR_CODE.RoomNotFound,
+]);
 
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -153,6 +110,7 @@ export function TablesList({
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
+  const [hostedFormatRooms, setHostedFormatRooms] = useState<RoomInfo[] | null>(null);
   const [formatAfterJoin, setFormatAfterJoin] = useState(false);
   const [search, setSearch] = useState("");
   const [copiedPassword, setCopiedPassword] = useState(false);
@@ -193,12 +151,39 @@ export function TablesList({
     setJoiningRoomId(roomId);
     try {
       await onJoinRoom(roomId, password, format);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
+      toast.error(message ?? "Couldn't join the table.");
+    } finally {
+      setJoiningRoomId(null);
+    }
+  }
+
+  async function handleJoinHostedRooms(roomCandidates: RoomInfo[], format: GameFormat) {
+    if (joiningRoomId) return;
+    try {
+      for (const room of roomCandidates) {
+        setJoiningRoomId(room.room_id);
+        try {
+          await onJoinRoom(room.room_id, undefined, format);
+          return;
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "";
+          if (HOSTED_JOIN_RETRY_CODES.has(code)) continue;
+          const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
+          toast.error(message ?? "Couldn't join the hosted table.");
+          return;
+        }
+      }
+      toast.error("Hosted capacity changed. Choose a table again.");
     } finally {
       setJoiningRoomId(null);
     }
   }
 
   function requestJoin(room: RoomInfo) {
+    setHostedFormatRooms(null);
     if (room.password_protected) {
       setPasswordRoom(room);
     } else if (needsFormatChoice(room)) {
@@ -207,6 +192,14 @@ export function TablesList({
     } else {
       void handleJoinRoom(room.room_id);
     }
+  }
+
+  function requestHostedJoin(roomCandidates: RoomInfo[]) {
+    const targetRoom = roomCandidates[0];
+    if (!targetRoom) return;
+    setFormatAfterJoin(false);
+    setHostedFormatRooms(roomCandidates);
+    setFormatRoom(targetRoom);
   }
 
   async function joinThenChooseFormat(room: RoomInfo, password: string) {
@@ -218,19 +211,51 @@ export function TablesList({
   }
 
   const trimmedSearch = search.trim().toLowerCase();
-  const visibleRooms = rooms
+  const hostedRoomsByEngine = rooms.reduce<Map<RoomInfo["engine"], RoomInfo[]>>((groups, room) => {
+    const canAggregate =
+      room.official &&
+      room.hosted &&
+      room.status === "Lobby" &&
+      room.players.length === 0 &&
+      room.room_id !== currentRoom?.room_id &&
+      !room.password_protected &&
+      !room.draft_config &&
+      !room.sealed_config &&
+      room.format === "Any" &&
+      room.protocol_version === PROTOCOL_VERSION;
+    if (!canAggregate) return groups;
+    const engineRooms = groups.get(room.engine) ?? [];
+    engineRooms.push(room);
+    groups.set(room.engine, engineRooms);
+    return groups;
+  }, new Map());
+  const hostedRoomGroups = [...hostedRoomsByEngine.entries()];
+  const aggregatedRoomIds = new Set(
+    hostedRoomGroups.flatMap(([, engineRooms]) => engineRooms.map((r) => r.room_id)),
+  );
+  const ordinaryRooms = rooms
+    .filter((room) => !aggregatedRoomIds.has(room.room_id))
     .filter(
       (room) =>
         room.room_id === currentRoom?.room_id ||
         !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()),
     )
-    .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
-    .filter(
-      (room) =>
-        !trimmedSearch ||
-        room.room_name.toLowerCase().includes(trimmedSearch) ||
-        room.host.toLowerCase().includes(trimmedSearch),
-    );
+    .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id);
+  const visibleHostedRoomGroups = hostedRoomGroups.filter(
+    ([engine, engineRooms]) =>
+      !trimmedSearch ||
+      engine.toLowerCase().includes(trimmedSearch) ||
+      "hosted tables".includes(trimmedSearch) ||
+      engineRooms.some((room) => room.room_name.toLowerCase().includes(trimmedSearch)),
+  );
+  const visibleRooms = ordinaryRooms.filter(
+    (room) =>
+      !trimmedSearch ||
+      room.room_name.toLowerCase().includes(trimmedSearch) ||
+      room.host.toLowerCase().includes(trimmedSearch),
+  );
+  const hasTables = hostedRoomGroups.length > 0 || ordinaryRooms.length > 0;
+  const hasVisibleTables = visibleHostedRoomGroups.length > 0 || visibleRooms.length > 0;
 
   return (
     <div className="h-full flex flex-col">
@@ -245,7 +270,7 @@ export function TablesList({
                 {currentRoom.password_protected && roomPassword && (
                   <button
                     type="button"
-                    title="Copy room password"
+                    title="Copy table password"
                     onClick={async () => {
                       try {
                         await navigator.clipboard.writeText(roomPassword);
@@ -407,7 +432,7 @@ export function TablesList({
                           <GameIcon
                             name="overlord-helm"
                             className="h-3 w-3 text-commander shrink-0"
-                            title="Room host — controls seats, bots & start"
+                            title="Table host — controls seats, bots & start"
                           />
                         )}
                       </div>
@@ -564,14 +589,15 @@ export function TablesList({
       )}
 
       {/* Room search */}
-      {!inRoom && rooms.length > 0 && (
+      {!inRoom && hasTables && (
         <div className="px-4 pt-1 pb-1 shrink-0">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search rooms…"
+              aria-label="Search tables"
+              placeholder="Search tables…"
               className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
             />
           </div>
@@ -581,142 +607,55 @@ export function TablesList({
       {/* Room list */}
       <ScrollArea className="flex-1">
         <div className="px-4 pb-4 pt-2">
-          {visibleRooms.length === 0 ? (
+          {!hasVisibleTables ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🎮</div>
               <p className="text-sm text-muted-foreground">
-                {rooms.length === 0 ? "No rooms available" : "No rooms match your search"}
+                {hasTables ? "No tables match your search" : "No tables available"}
               </p>
-              {rooms.length === 0 && (
+              {!hasTables && (
                 <p className="text-xs text-muted-foreground/60 mt-1">
-                  Create a new room to start playing
+                  Create a new table to start playing
                 </p>
               )}
             </div>
           ) : (
-            <div className="divide-y overflow-hidden rounded-lg border bg-card/40">
-              {visibleRooms.map((room) => {
-                const isMyRoom = room.room_id === currentRoom?.room_id;
-                const isCompatible = room.protocol_version === PROTOCOL_VERSION;
-                const canJoin =
-                  isCompatible &&
-                  !inRoom &&
-                  room.status === "Lobby" &&
-                  room.players.length < room.max_players;
-                const isFull = room.players.length >= room.max_players;
-                const format = getFormat(room.format.toLowerCase());
-                const modeLabel = format?.name ?? room.format;
-                const modeTone = format?.badgeColor ?? "neutral";
-                const limitedLabel = room.draft_config
-                  ? (room.draft_config.cube_name ?? room.draft_config.set_code)
-                  : room.sealed_config
-                    ? room.sealed_config.set_code
-                    : null;
-                const showHost = !room.official && !room.hosted;
+            <div className="space-y-5">
+              <HostedTablesSection
+                roomGroups={visibleHostedRoomGroups}
+                joiningRoomId={joiningRoomId}
+                onJoin={requestHostedJoin}
+              />
 
-                return (
-                  <div
-                    key={room.room_id}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 transition-colors",
-                      isMyRoom && "bg-primary/5",
-                      !isMyRoom && canJoin && "hover:bg-muted/40 cursor-pointer",
-                      !isCompatible && "opacity-60",
-                    )}
-                    onClick={() => {
-                      if (canJoin) requestJoin(room);
-                    }}
-                  >
-                    {(room.official || room.password_protected) && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        {room.official && (
-                          <span title="Official room" className="inline-flex">
-                            <BadgeCheck className="h-4 w-4 text-primary" />
-                          </span>
-                        )}
-                        {room.password_protected && (
-                          <span title="Private room" className="inline-flex">
-                            <Lock className="h-3.5 w-3.5 text-format-badge-amber" />
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <span className="font-medium text-sm truncate min-w-0">{room.room_name}</span>
-
-                    {!isCompatible && (
-                      <LobbyTag tone="rose" className="shrink-0">
-                        Incompatible
-                      </LobbyTag>
-                    )}
-                    <LobbyTag
-                      tone={
-                        room.engine === "Forge"
-                          ? "blue"
-                          : room.engine === "Ironsmith"
-                            ? "amber"
-                            : "sky"
-                      }
-                      className="shrink-0"
-                    >
-                      {room.engine === "Forge" ? (
-                        <Anvil className="h-3 w-3" />
-                      ) : room.engine === "Ironsmith" ? (
-                        <GameIcon name="anvil" className="h-3 w-3" />
-                      ) : (
-                        <Cpu className="h-3 w-3" />
-                      )}
-                      {room.engine}
-                    </LobbyTag>
-                    {room.format !== "Any" && (
-                      <LobbyTag tone={modeTone} className="shrink-0">
-                        {modeLabel}
-                      </LobbyTag>
-                    )}
-                    {limitedLabel && (
-                      <LobbyTag tone="purple" className="uppercase max-w-[7rem] truncate shrink-0">
-                        {limitedLabel}
-                      </LobbyTag>
-                    )}
-                    {showHost && (
-                      <span className="hidden truncate text-[11px] text-muted-foreground sm:block max-w-[9rem]">
-                        by {room.host}
-                      </span>
-                    )}
-
-                    <div className="ml-auto flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>
-                          {room.players.length}/{room.max_players}
-                        </span>
-                      </div>
-                      {isMyRoom ? (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Joined
-                        </Badge>
-                      ) : canJoin ? (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="h-6 text-[11px] px-2"
-                          disabled={joiningRoomId === room.room_id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            requestJoin(room);
-                          }}
-                        >
-                          {joiningRoomId === room.room_id ? "Joining..." : "Join"}
-                        </Button>
-                      ) : room.status === "InGame" ? (
-                        <span className="text-[10px] text-muted-foreground">Playing</span>
-                      ) : isFull ? (
-                        <span className="text-[10px] text-muted-foreground">Full</span>
-                      ) : null}
+              {visibleRooms.length > 0 && (
+                <section className="space-y-2">
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Table2 aria-hidden="true" className="h-3.5 w-3.5" />
+                        Open Tables
+                      </h2>
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Pick a table and take a seat
+                      </p>
                     </div>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {visibleRooms.length} {visibleRooms.length === 1 ? "table" : "tables"}
+                    </span>
                   </div>
-                );
-              })}
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-3">
+                    {visibleRooms.map((room) => (
+                      <OpenTableCard
+                        key={room.room_id}
+                        room={room}
+                        currentRoomId={currentRoom?.room_id ?? null}
+                        joining={joiningRoomId === room.room_id}
+                        onJoin={requestJoin}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </div>
@@ -730,10 +669,15 @@ export function TablesList({
 
       <ChooseFormatDialog
         room={formatRoom}
-        onClose={() => setFormatRoom(null)}
+        onClose={() => {
+          setFormatRoom(null);
+          setHostedFormatRooms(null);
+        }}
         onSelect={(room, format) => {
           if (formatAfterJoin) {
             onSetFormat?.(format);
+          } else if (hostedFormatRooms) {
+            void handleJoinHostedRooms(hostedFormatRooms, format);
           } else {
             void handleJoinRoom(room.room_id, undefined, format);
           }

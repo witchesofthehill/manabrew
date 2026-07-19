@@ -70,7 +70,7 @@ export function Modal({
     <div
       className={cn(
         "fixed inset-0 z-[9000] flex items-center justify-center bg-black/60 backdrop-blur-sm",
-        "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]",
+        "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]",
         touchGameSurface && "game-touch-surface",
         backdropClassName,
       )}
@@ -86,7 +86,7 @@ export function Modal({
           "relative bg-card border rounded-xl shadow-2xl flex flex-col w-full mx-4 animate-in fade-in zoom-in-95 duration-200",
           maxWidth,
           maxHeight ||
-            "max-h-[calc(100dvh-1rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]",
+            "max-h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))]",
           className,
         )}
         onClick={(e) => e.stopPropagation()}

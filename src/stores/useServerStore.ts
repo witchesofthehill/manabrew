@@ -93,6 +93,16 @@ interface ServerState {
 export const JOIN_REJECTED_INCORRECT_PASSWORD = SERVER_ERROR_CODE.IncorrectPassword;
 
 const JOIN_CONFIRM_TIMEOUT_MS = 7000;
+const JOIN_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
+  SERVER_ERROR_CODE.RoomNotFound,
+  SERVER_ERROR_CODE.RoomFull,
+  SERVER_ERROR_CODE.IncorrectPassword,
+  SERVER_ERROR_CODE.AlreadyInRoom,
+  SERVER_ERROR_CODE.GameAlreadyStarted,
+  SERVER_ERROR_CODE.AuthFailed,
+  SERVER_ERROR_CODE.AuthTimeout,
+  SERVER_ERROR_CODE.WebSocket,
+]);
 
 interface PendingJoin {
   roomId: string;
@@ -110,12 +120,13 @@ function releaseTabSession() {
 }
 
 function settlePendingJoin(error: Error | null, roomId?: string) {
-  if (!pendingJoin) return;
-  if (roomId && pendingJoin.roomId !== roomId) return;
+  if (!pendingJoin) return false;
+  if (roomId && pendingJoin.roomId !== roomId) return false;
   clearTimeout(pendingJoin.timer);
   const { settle } = pendingJoin;
   pendingJoin = null;
   settle(error);
+  return true;
 }
 
 export const useServerStore = create<ServerState>()(
@@ -488,17 +499,11 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
-            if (payload.code === SERVER_ERROR_CODE.IncorrectPassword) {
-              settlePendingJoin(new Error(SERVER_ERROR_CODE.IncorrectPassword));
+            if (
+              JOIN_FAILURE_CODES.has(payload.code as ServerErrorCode) &&
+              settlePendingJoin(new Error(payload.code))
+            )
               return;
-            }
-            // Settle immediately instead of letting the join confirm time out:
-            // the post-restart rejoin loop retries until the host resurrects
-            // the room, and each retry must fail fast, not wait 7s.
-            if (payload.code === SERVER_ERROR_CODE.RoomNotFound) {
-              settlePendingJoin(new Error(SERVER_ERROR_CODE.RoomNotFound));
-              return;
-            }
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,
@@ -519,6 +524,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
             if (payload?.terminal) {
+              settlePendingJoin(new Error("disconnected"));
               detachDraftPeer();
               teardownDraftHost();
               useMultiplayerDraftStore.getState().clear();

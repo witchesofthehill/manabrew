@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Check, ChevronDown, ImagePlus, Pencil } from "lucide-react";
+import { Check, ChevronDown, ImagePlus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,7 +19,7 @@ import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
 import type { DeckFormat } from "@/protocol/deck";
 
-export function DeckHero({ onBack }: { onBack?: () => void }) {
+export function DeckHero() {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
@@ -68,17 +68,6 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
         )}
       />
 
-      {onBack && (
-        <button
-          type="button"
-          className="absolute left-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background/60 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
-          title="Back to My Decks"
-          onClick={onBack}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-      )}
-
       {!isReadOnly && (
         <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
           <button
@@ -116,7 +105,7 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
         />
       )}
 
-      <div className={cn("relative flex flex-col gap-1.5 px-5 pb-4", onBack ? "pt-16" : "pt-10")}>
+      <div className="relative flex flex-col gap-1.5 px-5 pb-4 pt-10">
         <div className="flex flex-wrap items-center gap-1.5">
           {isReadOnly ? (
             <FormatBadge formatId={currentDeck.format ?? "standard"} />

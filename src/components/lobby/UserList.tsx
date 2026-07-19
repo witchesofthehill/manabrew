@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { Wifi, WifiOff, Loader2, Search } from "lucide-react";
-import type { PlayerInfo, RoomInfo } from "@/types/server";
+import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
+import type { PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
+import { toast } from "sonner";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected";
 
@@ -41,8 +43,8 @@ const CONNECTION_STATUS: Record<
 };
 
 function playerStatus(room: RoomInfo | undefined): string {
-  if (!room) return "Chilling";
-  return room.status === "InGame" ? "In game" : "In lobby";
+  if (!room) return "Available";
+  return room.status === "InGame" ? "In game" : "At a table";
 }
 
 export function UserList({
@@ -77,7 +79,7 @@ export function UserList({
     const room = rooms.find((r) => r.room_id === p.room_id);
     return room?.status === "InGame";
   });
-  const chilling = filteredOthers.filter((p) => {
+  const available = filteredOthers.filter((p) => {
     const room = rooms.find((r) => r.room_id === p.room_id);
     return room?.status !== "InGame";
   });
@@ -87,6 +89,11 @@ export function UserList({
     setJoiningRoomId(roomId);
     try {
       await onJoinRoom(roomId, password);
+    } catch (error) {
+      if (password) throw error;
+      const code = error instanceof Error ? error.message : "";
+      const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
+      toast.error(message ?? "Couldn't join the table.");
     } finally {
       setJoiningRoomId(null);
     }
@@ -217,7 +224,7 @@ export function UserList({
           )}
 
           {renderSection("Playing", playing.length, playing)}
-          {renderSection("Chilling", chilling.length, chilling)}
+          {renderSection("Available", available.length, available)}
 
           {!myUsername && others.length === 0 && (
             <p className="text-xs text-muted-foreground italic text-center py-6">

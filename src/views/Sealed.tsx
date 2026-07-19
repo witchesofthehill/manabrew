@@ -52,9 +52,9 @@ export default function Sealed() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold">{activeSealed.deckName}</h1>
+          <p className="font-semibold text-foreground">{activeSealed.deckName}</p>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>
               {activeSealed.cards.length} cards opened · {activeSealed.aiDecks.length} AI decks
@@ -66,9 +66,6 @@ export default function Sealed() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate("/limited")}>
-            Back
-          </Button>
           <Button
             disabled={isStarting || !id || activeSealed.aiDecks.length === 0 || mainShortBy > 0}
             title={

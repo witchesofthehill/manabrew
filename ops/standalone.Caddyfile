@@ -16,6 +16,21 @@
 		file_server
 	}
 
+	# Mana symbol proxy: served same-origin so symbols never depend on the
+	# box's direct egress to svgs.scryfall.io and stay COEP-clean. The app
+	# points here via VITE_SCRYFALL_SYMBOL_BASE=/scryfall-symbols/.
+	@scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
+	handle @scryfall {
+		rewrite * /card-symbols/{re.scryfall.1}
+		reverse_proxy https://svgs.scryfall.io {
+			header_up Host svgs.scryfall.io
+			header_down -Access-Control-Allow-Origin
+			header_down -Cross-Origin-Resource-Policy
+			header_down -Cache-Control
+		}
+		header Cache-Control "public, max-age=604800"
+		header Cross-Origin-Resource-Policy "same-origin"
+	}
 
 	# Card image proxy: cards.scryfall.io intermittently serves cached objects
 	# without CORS headers, which breaks the app's cors-mode fetches (WebGL

@@ -54,8 +54,8 @@ and play the games online in the same room.
 
 ## Companion: paper-play life tracker
 
-Playing with physical cards? The **Companion** view (in the sidebar) is a
-tabletop life tracker for 2–6 players: preset starting totals (20/40/60),
-poison, energy, and custom counters, commander damage, per-player layouts you
-can drag, rotate and scale, a dice roller, and a game log. It's designed to
-sit flat on the table between players.
+Playing with physical cards? The **Companion** view (in the Home screen's
+Tools area) is a tabletop life tracker for 2–6 players: preset starting
+totals (20/40/60), poison, energy, and custom counters, commander damage,
+per-player layouts you can drag, rotate and scale, a dice roller, and a game
+log. It's designed to sit flat on the table between players.

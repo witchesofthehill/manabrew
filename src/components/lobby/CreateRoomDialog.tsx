@@ -17,6 +17,7 @@ import type { CubeImportResult } from "@/types/limited";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
 import { cn } from "@/lib/utils";
+import { DOCS_URL } from "@/lib/constants";
 import {
   Boxes,
   Coins,
@@ -76,18 +77,6 @@ const FORMATS: {
     icon: Wand2,
     description: "60-card singleton, planeswalker cmdr",
   },
-  {
-    value: "Draft",
-    label: "Draft",
-    icon: Boxes,
-    description: "40-card decks built from a draft",
-  },
-  {
-    value: "Sealed",
-    label: "Sealed",
-    icon: Boxes,
-    description: "40-card decks built from a sealed pool",
-  },
 ];
 
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
@@ -146,7 +135,7 @@ interface CreateRoomDialogProps {
 }
 
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
-  const { createRoom, username } = useServerStore();
+  const { connected, createRoom, username } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
   const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
   const ironsmithEnabled =
@@ -184,7 +173,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
   const [creating, setCreating] = useState(false);
 
-  const defaultName = `${username ?? "Player"}'s Room`;
+  const defaultName = `${username ?? "Player"}'s Table`;
   const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
   const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
@@ -260,6 +249,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setLimitedKind("draft");
     setRoomName("");
     setMatchPlayersOverride(null);
+    setLimitedPlayers(8);
     setFormat("Standard");
     setReconnectTimeoutS(DEFAULT_RECONNECT_TIMEOUT_S);
     setDraftSet("");
@@ -287,7 +277,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     (!isBoosterDraft || (!!draftSet && unsupportedSet !== draftSet)) &&
     (!isCube || !!importedCube) &&
     (!isSealed || (!!sealedSet && unsupportedSealedSet !== sealedSet));
-  const canSubmit = limitedKindEnabled && draftConfigReady;
+  const canSubmit = connected && limitedKindEnabled && draftConfigReady;
 
   async function handleImportCube() {
     if (!cubeInput.trim()) return;
@@ -357,9 +347,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         )}
       >
         <div className="px-6 pt-6 pb-4 shrink-0">
-          <DialogTitle className="text-lg">Create Room</DialogTitle>
+          <DialogTitle className="text-lg">Create Table</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Set up a new game room for others to join.
+            Set up a new table for others to join.
           </DialogDescription>
         </div>
 
@@ -377,7 +367,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           >
             {/* Room kind */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Room type</Label>
+              <Label className="text-xs font-medium">Table type</Label>
               <div className="grid grid-cols-2 gap-2">
                 <RoomKindCard
                   selected={kind === "match"}
@@ -417,7 +407,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
             {/* Room name */}
             <div className="space-y-1.5">
               <Label htmlFor="room-name" className="text-xs font-medium">
-                Room Name
+                Table Name
               </Label>
               <Input
                 id="room-name"
@@ -439,7 +429,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 type="password"
                 value={roomPassword}
                 onChange={(e) => setRoomPassword(e.target.value)}
-                placeholder="Leave blank for an open room"
+                placeholder="Leave blank for an open table"
                 className="h-9"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               />
@@ -462,7 +452,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   onClick={() => setEngine("Manabrew")}
                   className={cn(
                     "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
-                    engine === "Manabrew"
+                    kind === "limited" || engine === "Manabrew"
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/30 hover:bg-muted/30",
                   )}
@@ -472,16 +462,18 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                       name="beer-stein"
                       className={cn(
                         "h-3.5 w-3.5",
-                        engine === "Manabrew" ? "text-primary" : "text-muted-foreground",
+                        kind === "limited" || engine === "Manabrew"
+                          ? "text-primary"
+                          : "text-muted-foreground",
                       )}
                     />
                     <span className="text-xs font-medium">Manabrew</span>
                     <Badge variant="outline" className="text-[9px]">
-                      in-browser
+                      {kind === "limited" ? "Limited engine" : "in-browser"}
                     </Badge>
                   </div>
                   <span className="text-[10px] text-muted-foreground leading-tight">
-                    Manabrew's own engine, running locally. Instant, no network.
+                    Manabrew's own engine, hosted by the table creator.
                   </span>
                 </button>
                 {kind === "match" && ironsmithEnabled && (
@@ -515,7 +507,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                       </Badge>
                     </div>
                     <span className="text-[10px] text-muted-foreground leading-tight">
-                      Ironsmith WASM hosted by the room creator. Partial card support.
+                      Ironsmith WASM hosted by the table creator. Partial card support.
                     </span>
                   </button>
                 )}
@@ -560,7 +552,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                       <span className="text-[10px] text-muted-foreground leading-tight">
                         Full card support. Available on
                         <a
-                          href="https://docs.manabrew.app/getting-started/"
+                          href={`${DOCS_URL}/getting-started/`}
                           target="_blank"
                           rel="noreferrer"
                           className="underline underline-offset-2"
@@ -568,9 +560,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                           {" "}
                           Desktop{". "}
                         </a>
-                        Or join a Forge room from the list, alternatively,{" "}
+                        Or join a Forge table from the list, alternatively,{" "}
                         <a
-                          href="https://docs.manabrew.app/self-hosting/"
+                          href={`${DOCS_URL}/self-hosting/`}
                           target="_blank"
                           rel="noreferrer"
                           className="underline underline-offset-2"
@@ -589,7 +581,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     {kind !== "match"
                       ? "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."
                       : engine === "Ironsmith"
-                        ? "Ironsmith is experimental with partial card support — some decks won't run yet. Rooms use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
+                        ? "Ironsmith is experimental with partial card support — some decks won't run yet. Tables use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
                         : "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."}
                   </p>
                 </div>
@@ -874,8 +866,10 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   : isSealed && !sealedSet
                     ? "Pick a set for sealed"
                     : isCube && !importedCube
-                      ? "Import a cube before creating the room"
-                      : undefined
+                      ? "Import a cube before creating the table"
+                      : !connected
+                        ? "Connect to multiplayer before creating a table"
+                        : undefined
             }
           >
             {creating ? (
@@ -883,7 +877,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
             ) : (
               <Swords className="h-3.5 w-3.5" />
             )}
-            {creating ? "Creating..." : "Create Room"}
+            {creating ? "Creating..." : "Create Table"}
           </Button>
         </div>
       </DialogContent>

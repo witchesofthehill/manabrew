@@ -45,7 +45,7 @@ export default function Companion() {
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <GameIcon icon="healing" className="size-14 text-muted-foreground" />
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Life tracker</h1>
+          <h2 className="text-xl font-semibold">Start tracking</h2>
           <p className="max-w-sm text-sm text-muted-foreground">
             Track life, counters, commander damage and table layout for paper play. One device
             passes around the table.
@@ -102,14 +102,15 @@ export default function Companion() {
       className={cn(
         "flex h-full min-h-0 flex-col",
         focus
-          ? "fixed inset-0 z-50 h-[100dvh] w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"
-          : "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]",
+          ? "fixed inset-0 z-50 h-[100dvh] w-screen bg-background pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
+          : "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
       )}
     >
       {showChrome && (
         <div
           className={cn(
-            focus && "absolute inset-x-0 top-[env(safe-area-inset-top)] z-40 shadow-xl",
+            focus &&
+              "absolute left-[var(--safe-area-inset-left)] right-[var(--safe-area-inset-right)] top-[var(--safe-area-inset-top)] z-40 shadow-xl",
           )}
         >
           <CompanionBar

@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isFeatureEnabled } from "@/featureFlags";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 
 const CardMockGallery = import.meta.env.DEV ? lazy(() => import("@/views/CardMockGallery")) : null;
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "play",
+        path: "play/*",
         element: (
           <ErrorBoundary context="Play">
             <Play />
@@ -95,14 +96,18 @@ export const router = createBrowserRouter([
           </ErrorBoundary>
         ),
       },
-      {
-        path: "hub",
-        element: (
-          <ErrorBoundary context="Deck Hub">
-            <DeckHub />
-          </ErrorBoundary>
-        ),
-      },
+      ...(isFeatureEnabled("deckHub")
+        ? [
+            {
+              path: "hub",
+              element: (
+                <ErrorBoundary context="Deck Hub">
+                  <DeckHub />
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
       {
         path: "game/:gameId",
         element: (
@@ -180,7 +185,7 @@ export const router = createBrowserRouter([
         element: (
           <div className="flex flex-col items-center justify-center h-full text-center gap-3">
             <div className="text-4xl opacity-20">🚧</div>
-            <h2 className="text-lg font-semibold">Active Matches</h2>
+            <h2 className="text-lg font-semibold">Coming soon</h2>
             <p className="text-sm text-muted-foreground">
               This feature is currently under development.
             </p>

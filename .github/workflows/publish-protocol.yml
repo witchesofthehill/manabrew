@@ -1,0 +1,93 @@
+name: Publish protocol
+
+# Publishes the wire protocol to both registries from a single source of truth:
+# the Rust crate `manabrew-protocol` to crates.io, and the TypeScript types it
+# generates (`@manabrew/protocol`) to npm — both at the crate's version.
+#
+# Triggers:
+#   workflow_call     — release.yml calls this after a release that bumped the
+#                       protocol crate.
+#   workflow_dispatch — manual publish.
+#
+# Idempotent: a version already on a registry is skipped, so re-runs are safe
+# (crates.io is also published by `cargo xtask publish` on every release —
+# whichever runs first wins, the other skips).
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-protocol-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: crates.io + npm
+    runs-on: ubuntu-latest
+    if: github.repository == 'witchesofthehill/manabrew'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: engine
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Read version
+        id: ver
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version' manabrew-rs/crates/manabrew-protocol/Cargo.toml \
+            | sed -E 's/version *= *"([^"]+)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing manabrew-protocol / @manabrew/protocol @ $VERSION"
+
+      - name: Publish crate to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          if curl -sf -o /dev/null \
+            -A "manabrew-ci (github.com/witchesofthehill/manabrew)" \
+            "https://crates.io/api/v1/crates/manabrew-protocol/$V"; then
+            echo "manabrew-protocol $V already on crates.io — skip"
+          else
+            cargo publish -p manabrew-protocol --no-verify
+          fi
+
+      - name: Generate TypeScript bindings
+        run: cargo run -q -p manabrew-protocol --bin gen-protocol -- packages/protocol/src
+
+      - name: Build npm package
+        working-directory: packages/protocol
+        run: |
+          npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+          npm install
+          npm run build
+
+      - name: Publish to npm
+        working-directory: packages/protocol
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          if npm view "@manabrew/protocol@$V" version >/dev/null 2>&1; then
+            echo "@manabrew/protocol $V already on npm — skip"
+          else
+            npm publish
+          fi

@@ -25,6 +25,7 @@ pub struct GameReplayCache {
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
     pub last_state: Option<Value>,
+    pub last_state_by_slot: HashMap<String, Value>,
     pub pending_prompts: HashMap<String, Value>,
     pub queued_responses: HashMap<String, Vec<Value>>,
     pub outcome: ObservedOutcome,
@@ -44,6 +45,7 @@ impl GameReplayCache {
             player_decks,
             starting_life,
             last_state: None,
+            last_state_by_slot: HashMap::new(),
             pending_prompts: HashMap::new(),
             queued_responses: HashMap::new(),
             outcome: ObservedOutcome::default(),
@@ -54,7 +56,13 @@ impl GameReplayCache {
         match envelope.get("kind").and_then(Value::as_str) {
             Some("state") => {
                 self.observe_outcome(envelope);
-                self.last_state = Some(envelope.clone());
+                match envelope.get("forPlayer").and_then(Value::as_str) {
+                    Some(slot) => {
+                        self.last_state_by_slot
+                            .insert(slot.to_string(), envelope.clone());
+                    }
+                    None => self.last_state = Some(envelope.clone()),
+                }
             }
             Some("prompt") => {
                 if let Some(slot) = envelope.get("forPlayer").and_then(Value::as_str) {
@@ -84,18 +92,21 @@ impl GameReplayCache {
     }
 
     fn observe_outcome(&mut self, envelope: &Value) {
-        let Some(state) = envelope.get("state") else {
+        let Some(game_view) = envelope
+            .get("state")
+            .and_then(|state| state.get("gameView"))
+        else {
             return;
         };
-        if state.get("gameOver").and_then(Value::as_bool) != Some(true) {
+        if game_view.get("gameOver").and_then(Value::as_bool) != Some(true) {
             return;
         }
         self.outcome.game_over = true;
-        self.outcome.winner_slot = state
+        self.outcome.winner_slot = game_view
             .get("winnerId")
             .and_then(Value::as_str)
             .map(str::to_string);
-        if let Some(players) = state.get("players").and_then(Value::as_array) {
+        if let Some(players) = game_view.get("players").and_then(Value::as_array) {
             self.outcome.conceded_slots = players
                 .iter()
                 .filter(|player| player.get("status").and_then(Value::as_str) == Some("conceded"))

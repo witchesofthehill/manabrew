@@ -20,7 +20,7 @@ export function StatusBanner() {
   const { Icon, border, accent } = SEVERITY[current.severity];
 
   return (
-    <div className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.5rem)] z-50 w-[min(92vw,32rem)] -translate-x-1/2">
+    <div className="pointer-events-none fixed left-1/2 top-[calc(var(--safe-area-inset-top)+0.5rem)] z-50 w-[min(92vw,32rem)] -translate-x-1/2">
       <div
         className={cn(
           "pointer-events-auto flex items-start gap-2.5 rounded-lg border bg-card/95 px-3.5 py-2.5 shadow-lg backdrop-blur",

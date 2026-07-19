@@ -2,7 +2,7 @@ use manabrew_engine::agent::{CombatCostAction, ManaAbilityOption};
 use manabrew_engine::combat::DefenderId;
 use manabrew_engine::ids::{CardId, PlayerId};
 
-use crate::game_view_dto::{CardDto, TargetingIntent};
+use crate::game_view_dto::{CardDto, GameViewDtoExt, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::mana_action_id::parse_tap_action_id;
 use crate::prompt::*;
@@ -233,28 +233,33 @@ pub(super) fn pay_combat_cost<T: Responder>(
     let attacker_name = agent
         .latest_view
         .as_ref()
-        .and_then(|v| v.battlefield.iter().find(|c| c.id == attacker_id))
+        .and_then(|v| v.all_zone_cards().find(|c| c.id == attacker_id))
         .map(|c| c.identity.name.clone())
         .unwrap_or_default();
     let mut actions = mana_payment_actions(mana_ability_options);
     for &land in untappable_lands {
         let id = card_id_str(land);
-        actions.push(AvailableAction {
+        actions.push(PaymentAction {
             id: format!("untap:{id}"),
-            kind: AvailableActionKind::UndoMana { card_id: id },
+            kind: PaymentActionKind::UndoMana { card_id: id },
         });
     }
 
     agent.send_prompt(
         PromptInput::PayManaCost(
             manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
+                presentation: PromptPresentation {
+                    title: attacker_name.clone(),
+                    description: None,
+                    text: (!description.trim().is_empty()).then(|| description.to_string()),
+                    source_card_id: Some(attacker_id.clone()),
+                    targets: Vec::new(),
+                },
                 card_id: attacker_id,
                 card_name: attacker_name,
-                description: Some(description.to_string()),
                 mana_cost: format!("{{{cost}}}"),
                 can_confirm_from_pool: mana_pool_total >= cost,
                 actions,
-                life_to_pay: None,
             },
         ),
         None,

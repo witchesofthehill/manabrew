@@ -38,9 +38,10 @@ export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (pro
 
 export const forcedAllSelections: PromptResolver<"chooseFromSelection"> = (prompt) => {
   const opts = prompt.input.options;
-  const min = prompt.input.minChoices;
-  const max = prompt.input.maxChoices;
+  const min = prompt.input.minTotal;
+  const max = prompt.input.maxTotal;
   if (opts.length === 0) return { kind: "force-show" };
+  if (opts.some((o) => o.canRepeat || o.weight !== 1)) return { kind: "force-show" };
   if (min !== max || min !== opts.length) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -127,12 +128,12 @@ export const emptyScry: PromptResolver<"scry"> = (prompt) => {
   };
 };
 
-export const singleCardOrder: PromptResolver<"reorderCards"> = (prompt) => {
-  const ids = prompt.input.cards.map((c) => c.id);
+export const singleCardOrder: PromptResolver<"reorder"> = (prompt) => {
+  const ids = prompt.input.items.map((i) => i.id);
   if (ids.length > 1) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "reorderDecision", orderedCardIds: ids },
+    respond: { type: "reorderDecision", orderedIds: ids },
     reason: `≤1 card to order (${ids.length})`,
   };
 };

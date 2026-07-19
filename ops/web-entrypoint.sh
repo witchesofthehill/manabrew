@@ -7,6 +7,8 @@ set -e
 #     VITE_RELAY_* default; port defaults to 443 for wss://, set 9443 for ws://).
 #   hostedAiEnabled: from HOSTED_AI_ENABLED — gates the Forge "Play vs AI"
 #     option, off in the published image.
+#   designSystem: from DESIGN_SYSTEM — exposes the dev-only /design-system
+#     reference route on a production build, off by default.
 {
 	echo 'window.__MANABREW_RUNTIME__ = {'
 	if [ -n "${RELAY_HOST:-}" ]; then
@@ -14,6 +16,9 @@ set -e
 	fi
 	case "$(printf '%s' "${HOSTED_AI_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on) echo '  hostedAiEnabled: true,' ;;
+	esac
+	case "$(printf '%s' "${DESIGN_SYSTEM:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) echo '  designSystem: true,' ;;
 	esac
 	echo '};'
 } >/srv/manabrew/config.js

@@ -33,6 +33,8 @@ services:
       # Enable the Forge "Play vs AI" hosted engine option (the published image
       # ships it off). Run the node with `--profile hosted-ai` for it to work.
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
+      # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:

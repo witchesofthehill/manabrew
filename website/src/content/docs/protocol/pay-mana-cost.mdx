@@ -12,7 +12,7 @@ paying alternative costs such as delve. Every available step is one entry in
 and the engine re-sends an updated `payManaCost` prompt until the cost is met,
 then the client sends a final `pay`.
 
-![The payManaCost prompt in the Manabrew client](/protocol/pay-mana-cost.svg)
+![The payManaCost prompt in the Manabrew client](/protocol/pay-mana.webp)
 
 ## Arguments
 
@@ -26,17 +26,16 @@ then the client sends a final `pay`.
 type PayManaCostOutput =
   | { type: "act"; actionId: string }
   | { type: "pay"; auto: boolean }
-  | { type: "payLife" }
   | { type: "cancel" };
 ```
 
 Send `{ type: "act", actionId }` with the `id` of an entry in `actions` to take
-an incremental step — tapping a mana source, untapping one (`undoMana`), or
-delving/un-delving a graveyard card — and the engine answers with an updated
-`payManaCost` prompt. The client never builds an `actionId`; it only echoes one
-the prompt offered. Send `{ type: "pay", auto }` to finalize (`auto: true` lets
-the engine auto-tap the remaining sources), `payLife` to pay a Phyrexian cost
-with life, or `cancel` to back out of the payment entirely.
+an incremental step — tapping a mana source, untapping one (`undoMana`),
+delving/un-delving a graveyard card, or paying life for a Phyrexian cost
+(`payLife`) — and the engine answers with an updated `payManaCost` prompt. The
+client never builds an `actionId`; it only echoes one the prompt offered. Send
+`{ type: "pay", auto }` to finalize (`auto: true` lets the engine auto-tap the
+remaining sources), or `cancel` to back out of the payment entirely.
 
 ## Example
 
@@ -67,7 +66,14 @@ with life, or `cancel` to back out of the payment entirely.
 
 ```json
 {
+  "kind": "response",
   "promptId": 7,
-  "output": { "type": "act", "actionId": "tap:perm-9:0" }
+  "action": {
+    "type": "payManaCost",
+    "output": {
+      "type": "act",
+      "actionId": "tap:perm-9:0"
+    }
+  }
 }
 ```

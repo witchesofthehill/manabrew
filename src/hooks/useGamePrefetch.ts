@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { prefetchCards } from "@/stores/useScryfallStore";
 import { asDeckCard, getDeckCardPool } from "@/lib/decks";
-import type { GameViewDto } from "@/protocol/game";
+import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck, DeckCard } from "@/protocol/deck";
 
 /** Cards whose textures must be decoded before the game UI flips on:
@@ -11,7 +11,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
  *  pass — `getCardTexture` is idempotent so the critical entries aren't
  *  re-fetched. */
 function cardsToPrefetchImmediately(
-  view: GameViewDto,
+  view: ClientGameView,
   gameDecks: Record<string, Deck>,
 ): DeckCard[] {
   const cards: DeckCard[] = [];

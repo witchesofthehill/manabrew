@@ -84,26 +84,6 @@ impl PhaseType {
         self.index() > other.index()
     }
 
-    /// Parse a frontend step string (e.g. "main1", "declare_attackers") to PhaseType.
-    pub fn from_step_string(s: &str) -> Option<Self> {
-        match s {
-            "untap" => Some(PhaseType::Untap),
-            "upkeep" => Some(PhaseType::Upkeep),
-            "draw" => Some(PhaseType::Draw),
-            "main1" => Some(PhaseType::Main1),
-            "begin_combat" => Some(PhaseType::CombatBegin),
-            "declare_attackers" => Some(PhaseType::CombatDeclareAttackers),
-            "declare_blockers" => Some(PhaseType::CombatDeclareBlockers),
-            "first_strike_damage" => Some(PhaseType::CombatFirstStrikeDamage),
-            "combat_damage" => Some(PhaseType::CombatDamage),
-            "end_combat" => Some(PhaseType::CombatEnd),
-            "main2" => Some(PhaseType::Main2),
-            "end" => Some(PhaseType::EndOfTurn),
-            "cleanup" => Some(PhaseType::Cleanup),
-            _ => None,
-        }
-    }
-
     /// Script-compatible name used in card definition files.
     pub fn script_name(self) -> &'static str {
         match self {

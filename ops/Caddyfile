@@ -209,16 +209,3 @@ loki.manabrew.app {
     }
     reverse_proxy loki:3100
 }
-
-staging.manabrew.app {
-    reverse_proxy manabrew-staging:80
-}
-
-relay-staging.manabrew.app {
-    reverse_proxy manabrew-server-staging:9443 {
-        health_uri /health
-        health_port 9444
-        health_interval 15s
-        health_timeout 3s
-    }
-}

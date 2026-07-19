@@ -2,8 +2,11 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isFeatureEnabled } from "@/featureFlags";
+import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 
 const CardMockGallery = import.meta.env.DEV ? lazy(() => import("@/views/CardMockGallery")) : null;
+const DesignSystem = DESIGN_SYSTEM_ENABLED ? lazy(() => import("@/views/DesignSystem")) : null;
 import Lobby from "@/views/Lobby";
 import DeckEditor from "@/views/DeckEditor";
 
@@ -83,14 +86,18 @@ export const router = createBrowserRouter([
           </ErrorBoundary>
         ),
       },
-      {
-        path: "hub",
-        element: (
-          <ErrorBoundary context="Deck Hub">
-            <DeckHub />
-          </ErrorBoundary>
-        ),
-      },
+      ...(isFeatureEnabled("deckHub")
+        ? [
+            {
+              path: "hub",
+              element: (
+                <ErrorBoundary context="Deck Hub">
+                  <DeckHub />
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
       {
         path: "game/:gameId",
         element: (
@@ -199,6 +206,20 @@ export const router = createBrowserRouter([
                 <ErrorBoundary context="Card Mock">
                   <Suspense fallback={null}>
                     <CardMockGallery />
+                  </Suspense>
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
+      ...(DesignSystem
+        ? [
+            {
+              path: "design-system",
+              element: (
+                <ErrorBoundary context="Design System">
+                  <Suspense fallback={null}>
+                    <DesignSystem />
                   </Suspense>
                 </ErrorBoundary>
               ),

@@ -1,17 +1,16 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
-import { stackObjectToCardStub } from "@/components/game/game.utils";
 import { CHOOSE_CARD_TILE_SIZE } from "@/components/game/game.styles";
-import { useGameStore } from "@/stores/useGameStore";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
+import { useSourceCardDto } from "./internal/usePromptSourceCard";
 import type { CardDto } from "@/protocol/game";
 import type { ChooseCardsInput } from "@/protocol";
 
@@ -61,19 +60,7 @@ export function ChooseCardsModal({
   onConfirm,
 }: ChooseCardsModalProps) {
   const cards = rawCards as CardDto[];
-  const gameView = useGameStore((s) => s.gameView);
-  const sourceCard = useMemo<CardDto | undefined>(() => {
-    const id = presentation.sourceCardId;
-    if (!id || !gameView) return undefined;
-    const visible = [
-      ...gameView.battlefield,
-      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
-    ];
-    const gc = visible.find((c) => c.id === id);
-    if (gc) return gc;
-    const stackObj = gameView.stack.find((s) => s.sourceId === id);
-    return stackObj ? (stackObjectToCardStub(stackObj) as CardDto) : undefined;
-  }, [presentation.sourceCardId, gameView]);
+  const sourceCard = useSourceCardDto(presentation.sourceCardId);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const chosen = [...selected];

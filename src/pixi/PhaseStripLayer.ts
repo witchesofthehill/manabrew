@@ -8,11 +8,14 @@ import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
+import { isCoarsePointer } from "@/lib/responsive";
 import {
   STRIP_TURN_ALPHA,
   STRIP_COMPACT_EXPAND_TIMEOUT_MS,
   STRIP_EXPANDED_BG_ALPHA,
 } from "./constants";
+import { PHASES as STEP_DEFS } from "@/components/game/game.constants";
+import type { StepKind } from "@/protocol";
 
 /** Display cells. "combat" is a merged cell that represents all combat sub-phases. */
 interface PhaseSpec {
@@ -24,38 +27,24 @@ interface PhaseSpec {
   indicatorPhases?: string[];
 }
 
-const COMBAT_SUB_PHASES = [
-  "begin_combat",
-  "declare_attackers",
-  "declare_blockers",
-  "first_strike_damage",
-  "combat_damage",
-  "end_combat",
-];
+const COMBAT_SUB_PHASES = STEP_DEFS.filter((p) => p.combat).map((p) => p.id);
 
-const COMBAT_LABELS: Record<string, string> = {
-  begin_combat: "BC",
-  declare_attackers: "ATK",
-  declare_blockers: "BLK",
-  first_strike_damage: "1ST",
-  combat_damage: "DMG",
-  end_combat: "EC",
-};
+const COMBAT_LABELS: Record<string, string> = Object.fromEntries(
+  STEP_DEFS.filter((p) => p.combat).map((p) => [p.id, p.short]),
+);
 
-const PHASES: PhaseSpec[] = [
-  { id: "upkeep", short: "UP" },
-  { id: "draw", short: "DR" },
-  { id: "main1", short: "M1" },
-  {
-    id: "combat",
-    short: "COMBAT",
-    subPhases: COMBAT_SUB_PHASES,
-    indicatorPhases: ["declare_attackers"],
-  },
-  { id: "main2", short: "M2" },
-  { id: "end", short: "END" },
-  { id: "cleanup", short: "CL" },
-];
+const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p): PhaseSpec[] => {
+  if (!p.combat) return [{ id: p.id, short: p.short }];
+  if (p.id !== COMBAT_SUB_PHASES[0]) return [];
+  return [
+    {
+      id: "combat",
+      short: "COMBAT",
+      subPhases: COMBAT_SUB_PHASES,
+      indicatorPhases: ["combatDeclareAttackers" satisfies StepKind],
+    },
+  ];
+});
 
 const CELL_W = 60;
 const COMBAT_CELL_W = 84;
@@ -456,7 +445,7 @@ export class PhaseStripLayer {
     const showPill = this.compact && !this.expanded;
     this.cellsContainer.visible = !showPill;
     this.pillContainer.visible = showPill;
-    this.forceShowIndicators = this.compact && this.expanded;
+    this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
 
     // Find combat cell index
     const combatIdx = this.cells.findIndex((c) => !!c.subPhases);

@@ -1,14 +1,28 @@
 #!/usr/bin/env bash
-# deploy.sh — Smart rebuild of the Wasm/web stack on the production host.
-# Scope: builds manabrew (Wasm + React, served by caddy), manabrew-server, and
-# optionally parity-dashboard. Native Tauri installers (.dmg / .exe) are
-# built separately by .github/workflows/publish.yml.
-# Triggered by the final `deploy` job of .github/workflows/publish.yml
-# via SSH on every release tag (or a manual dispatch with `deploy` ticked).
-# Docker BuildKit layer caching handles unchanged layers within each build.
+# deploy.sh — Smart rollout of the Wasm/web stack on the production host.
+# Scope: pulls + rolls out manabrew (Wasm + React, served by caddy),
+# manabrew-server, manabrew-hub, and optionally parity-dashboard. Native
+# Tauri installers (.dmg / .exe) are built separately by
+# .github/workflows/publish.yml.
+#
+# Invocations (all from publish.yml over SSH, or manually on the host):
+#   ./deploy.sh                          full rollout of whatever main has
+#   HOLD_MANIFEST=1 ./deploy.sh          early rollout (deploy-web job): same,
+#                                        but keeps serving the previous
+#                                        release's /manifest.json until the
+#                                        installers are published
+#   ./deploy.sh --release-manifest vX.Y.Z
+#                                        flip the served /manifest.json to
+#                                        that tag's (final deploy job, after
+#                                        the Release has its assets)
+#   ./deploy.sh --only grafana           pull + recreate just the named
+#                                        compose service(s); no change
+#                                        classification, no early-exit
+#   FORCE_DEPLOY=1 ./deploy.sh           skip the "no new commits" early exit
+#                                        (recovery after a failed early run)
 #
 # stdout = clean summary (captured by the workflow and posted to Discord).
-# Raw build output goes to /tmp/deploy-raw.log.
+# Raw output goes to /tmp/deploy-raw.log.
 set -euo pipefail
 
 on_failure() {
@@ -23,6 +37,45 @@ cd "$REPO_DIR"
 
 COMPOSE_FILE="${COMPOSE_FILE:-compose.production.yml}"
 RAW_LOG="/tmp/deploy-raw.log"
+
+HOLD_MARKER="ops/.manifest-hold"
+
+# ── Manifest release mode ────────────────────────────────────────────
+# (Appends to RAW_LOG without truncating: this runs right after a full
+# deploy in the same SSH command, and must not wipe that deploy's log.)
+# Run by publish.yml's final deploy job once the tag's installers are
+# attached to the GitHub Release. Writes that tag's ops/manifest.json bytes
+# in place — the file is single-file bind-mounted into caddy, so replacing it
+# (rename/git checkout) would strand the mount on the old inode — and drops
+# the hold left by an early HOLD_MANIFEST=1 deploy. With two releases in
+# flight the hold advances to this tag instead: the served manifest never
+# gets ahead of the newest release whose installers actually exist.
+if [ "${1:-}" = "--release-manifest" ]; then
+    TAG="${2:?usage: deploy.sh --release-manifest <tag>}"
+    git fetch origin tag "$TAG" --no-tags >> "$RAW_LOG" 2>&1 || true
+    git show "${TAG}:ops/manifest.json" > ops/manifest.json
+    if [ "$(git rev-parse "${TAG}^{commit}")" = "$(git rev-parse HEAD)" ]; then
+        rm -f "$HOLD_MARKER"
+        echo "📣 Served /manifest.json released for ${TAG}."
+    else
+        git rev-parse --short "${TAG}^{commit}" > "$HOLD_MARKER"
+        echo "📣 Served /manifest.json advanced to ${TAG}; hold kept (HEAD is newer)."
+    fi
+    exit 0
+fi
+
+# ── Single-service mode ──────────────────────────────────────────────
+# `deploy.sh --only <service> [service...]` pulls the latest config (git) and
+# image, then recreates just the named services — e.g. `--only grafana` after
+# a dashboard/provisioning change, without touching the relay or web. The
+# actual work happens after the shared pull/hold handling below.
+ONLY_SERVICES=""
+if [ "${1:-}" = "--only" ]; then
+    shift
+    [ $# -gt 0 ] || { echo "usage: deploy.sh --only <service> [service...]"; exit 1; }
+    ONLY_SERVICES="$*"
+fi
+
 : > "$RAW_LOG"   # truncate
 
 # ── Load .env files ──────────────────────────────────────────────────
@@ -56,6 +109,14 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
 fi
 
 # ── Pull latest changes ──────────────────────────────────────────────
+# An active manifest hold leaves ops/manifest.json rewritten to an older
+# release's bytes, which would make the --ff-only pull bail when the incoming
+# release commit touches the same file. Restore HEAD's bytes in place first;
+# the hold is re-applied right after the pull.
+if [ -f "$HOLD_MARKER" ]; then
+    git show HEAD:ops/manifest.json > ops/manifest.json
+fi
+
 # DEPLOY_ORIG_PREV preserves the pre-pull commit across the self-update re-exec
 # below, so the re-run still deploys the right range instead of early-exiting as
 # "no new commits".
@@ -86,7 +147,46 @@ git submodule update --init --recursive >> "$RAW_LOG" 2>&1
 # Best-effort: a fetch failure leaves the dir empty and Ironsmith ships dark.
 git -c submodule.ironsmith.update=checkout submodule update --init ironsmith >> "$RAW_LOG" 2>&1 || true
 
-if [ "$PREV" = "$CURR" ]; then
+# ── Manifest hold (early deploys) ────────────────────────────────────
+# HOLD_MANIFEST=1 (publish.yml's deploy-web job) rolls the stack out ahead of
+# the installer builds. Installed apps poll /manifest.json to detect they are
+# behind, and /tauri.json redirects to the *latest* GitHub Release's assets —
+# which don't exist yet at that point. So keep serving the pre-pull release's
+# manifest (in-place write: the file is single-file bind-mounted into caddy)
+# until `deploy.sh --release-manifest <tag>` releases it. An existing hold is
+# never advanced here: with two releases in flight, the served manifest stays
+# at the oldest one whose installers are fully published.
+if [ -n "${HOLD_MANIFEST:-}" ] && [ ! -f "$HOLD_MARKER" ]; then
+    git rev-parse --short "$PREV" > "$HOLD_MARKER"
+fi
+if [ -f "$HOLD_MARKER" ]; then
+    git show "$(cat "$HOLD_MARKER"):ops/manifest.json" > ops/manifest.json
+    echo "/manifest.json held at $(cat "$HOLD_MARKER") until the installers publish" >> "$RAW_LOG"
+fi
+
+# ── Single-service rollout (--only) ──────────────────────────────────
+if [ -n "$ONLY_SERVICES" ]; then
+    PROFILE_FLAG=""
+    case " $ONLY_SERVICES " in *" parity-dashboard "*) PROFILE_FLAG="--profile parity" ;; esac
+    case " $ONLY_SERVICES " in
+        *" grafana "*|*" prometheus "*|*" loki "*|*" alloy "*|*" pushgateway "*|*" events-ingester "*)
+            PROFILE_FLAG="$PROFILE_FLAG --profile observability" ;;
+    esac
+    echo "Pulling images for: $ONLY_SERVICES" >> "$RAW_LOG"
+    # shellcheck disable=SC2086
+    docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG pull --quiet $ONLY_SERVICES >> "$RAW_LOG" 2>&1 || true
+    # --force-recreate: these services' configs are bind-mounted (grafana
+    # provisioning, prometheus rules, ...), so `up -d` alone would consider an
+    # unchanged image up-to-date and never pick the new config up.
+    # shellcheck disable=SC2086
+    docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --no-deps --force-recreate $ONLY_SERVICES >> "$RAW_LOG" 2>&1
+    echo "🎯 **Single-service rollout complete** (\`${CURR}\`)"
+    echo "🔁 Recreated: ${ONLY_SERVICES}"
+    echo "📄 **Log:** \`${RAW_LOG}\`"
+    exit 0
+fi
+
+if [ "$PREV" = "$CURR" ] && [ -z "${FORCE_DEPLOY:-}" ]; then
     echo "😴 No new commits. Nothing to deploy."
     exit 0
 fi
@@ -343,6 +443,11 @@ if $RELAY_UNCHANGED; then
     RELAY_NOTE=$'🛡️ **Relay:** binary unchanged — not restarted, live games preserved\n'
 fi
 
+HOLD_NOTE=""
+if [ -f "$HOLD_MARKER" ]; then
+    HOLD_NOTE=$'🔒 **Manifest:** held at previous release until the installers publish\n'
+fi
+
 # Build change flags string (with per-stack emoji)
 CHANGES=""
 $JAVA_CHANGED      && CHANGES="${CHANGES} ☕ Java"
@@ -362,7 +467,7 @@ cat <<EOF
 📦 **Changed:** ${CHANGES}
 🔁 **Services rebuilt:**
 ${SERVICES_FMT}
-${RELAY_NOTE}⏱️ **Build time:** ${BUILD_DURATION}s
+${RELAY_NOTE}${HOLD_NOTE}⏱️ **Build time:** ${BUILD_DURATION}s
 📄 **Log:** \`${RAW_LOG}\`
 
 📝 **Changelog:**

@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { PawprintIcon } from "@/components/icons/PawprintIcon";
 import type { ManaCode } from "@/types/scryfall";
 
 /**
@@ -20,6 +21,10 @@ const SIZE_CLASSES = {
 } as const;
 
 export type ManaSymbolSize = keyof typeof SIZE_CLASSES;
+
+// Bare glyphs with no colored disc render as inline currentColor SVGs so
+// they stay visible on dark themes; the hosted Scryfall SVG is baked black.
+const INLINE_GLYPHS: Partial<Record<ManaCode, typeof PawprintIcon>> = { P: PawprintIcon };
 
 /** Parse a mana cost string into individual symbol tokens. */
 function parseManaSymbols(cost: string): ManaCode[] {
@@ -52,16 +57,21 @@ export function ManaSymbols({ cost, size = "md", className }: ManaSymbolsProps) 
 
   return (
     <span className={cn("inline-flex items-center gap-0.5 ml-2 mr-2", className)}>
-      {symbols.map((sym, i) => (
-        <ScryfallImg
-          key={`${sym}-${i}`}
-          src={manaSymbolUrl(sym)}
-          alt={`{${sym}}`}
-          title={`{${sym}}`}
-          className={sizeClass}
-          loading="lazy"
-        />
-      ))}
+      {symbols.map((sym, i) => {
+        const InlineGlyph = INLINE_GLYPHS[sym];
+        return InlineGlyph ? (
+          <InlineGlyph key={`${sym}-${i}`} className={cn(sizeClass, "shrink-0")} />
+        ) : (
+          <ScryfallImg
+            key={`${sym}-${i}`}
+            src={manaSymbolUrl(sym)}
+            alt={`{${sym}}`}
+            title={`{${sym}}`}
+            className={sizeClass}
+            loading="lazy"
+          />
+        );
+      })}
     </span>
   );
 }

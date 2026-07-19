@@ -6,7 +6,9 @@ export const COARSE_POINTER_QUERY = "(pointer: coarse)";
 
 export const PORTRAIT_QUERY = "(orientation: portrait)";
 
-export const LANDSCAPE_GATE_MAX_WIDTH_QUERY = "(max-width: 1023px)";
+// Phone-width cutoff: tablets (portrait ≥ ~744px) have room to play in portrait
+// and must not be forced to rotate; only phone-sized viewports are gated.
+export const LANDSCAPE_GATE_MAX_WIDTH_QUERY = "(max-width: 640px)";
 
 export const LONG_PRESS_PREVIEW_MS = 450;
 export const LONG_PRESS_CANCEL_DIST_SQ = 100;

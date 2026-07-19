@@ -1,34 +1,48 @@
-# Per-PR preview stack, driven by .github/workflows/preview-deploy.yml.
-# Runs under /opt/manabrew-staging, joins the prod docker network. Own
-# manabrew-server so a backend-breaking PR is previewable without touching
-# the live relay.
+# Staging stack — a standalone mini-production on the staging VM, tracking the
+# `staging` branch. Driven by .github/workflows/staging-deploy.yml, which builds
+# the `:staging` images in CI and rolls them out with the SAME deploy.sh as
+# production (DEPLOY_BRANCH=staging MANABREW_IMAGE_TAG=staging
+# COMPOSE_FILE=compose.staging.yml). It mirrors compose.production.yml service
+# for service; the only deltas are the default image tag (`staging`) and the
+# hostnames — which are NOT baked in: the app / relay / api hosts come from the
+# box .env (STAGING_APP_HOST / STAGING_RELAY_HOST / STAGING_API_HOST), consumed
+# by ops/staging.Caddyfile ({$...}) and the web runtime relay config. So moving
+# the stack to another domain is a .env edit, no code change.
 services:
-  manabrew-staging:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-      args:
-        VITE_RELAY_HOST: relay-staging.manabrew.app
-        VITE_RELAY_PORT: "443"
-        VITE_RELAY_PASSWORD: ${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}
-        VITE_MANAGED_RELAY: "1"
-        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
-        # Make the hosted (Java) engine available on staging so the Settings
-        # engine toggle shows. Actual use is per-user (preferHostedEngine);
-        # default play stays client-side.
-        VITE_HOSTED_AI_ENABLED: "true"
+  manabrew:
+    image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-staging}
     restart: unless-stopped
-    expose:
-      - "80"
+    # Caddy resolves cards./svgs.scryfall.io per proxied request; the deck-cover
+    # prefetch fires dozens at once, and Docker's embedded resolver forwarding to
+    # a constrained DNS drops that burst (dial tcp: lookup … i/o timeout → 502).
+    # Pin public resolvers so the Scryfall proxies survive the burst.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
       - ./ops/staging.Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      HUB_ADMIN_PASSWORD_HASH:
+      # Caddy ({$...} in staging.Caddyfile) reads these for the site addresses
+      # + ACME certs; RELAY_HOST reuses the relay one for the app's config.js.
+      STAGING_APP_HOST: "${STAGING_APP_HOST:?STAGING_APP_HOST is required}"
+      STAGING_RELAY_HOST: "${STAGING_RELAY_HOST:?STAGING_RELAY_HOST is required}"
+      STAGING_API_HOST: "${STAGING_API_HOST:?STAGING_API_HOST is required}"
+      RELAY_HOST: "${STAGING_RELAY_HOST}"
+      RELAY_PORT: "443"
+      RELAY_PASSWORD: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
     depends_on:
-      - manabrew-server-staging
+      - manabrew-server
 
-  manabrew-server-staging:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+  manabrew-server:
+    image: ghcr.io/witchesofthehill/manabrew-server:${MANABREW_IMAGE_TAG:-staging}
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
@@ -37,10 +51,18 @@ services:
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"
+      MANABREW_EVENTS_DIR: "/var/manabrew/events"
+      MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
+      MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-20}"
+    volumes:
+      - ./ops/observability/data/events:/var/manabrew/events
+      - ./ops/observability/data/captures:/var/manabrew/captures
     expose:
       - "9443"
       - "9444"
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.5
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
@@ -49,26 +71,44 @@ services:
       retries: 3
       start_period: 5s
 
-  # Hosted Java engine for the staging preview, so the Settings engine toggle
-  # has a node to talk to. Its room is `hosted` (unlisted in the lobby).
-  self-hosted-node-staging:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+  manabrew-hub:
+    image: ghcr.io/witchesofthehill/manabrew-hub:${MANABREW_IMAGE_TAG:-staging}
     environment:
-      SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server-staging:9443"
+      HUB_HOST: "0.0.0.0"
+      HUB_PORT: "9500"
+      HUB_DB_PATH: "/var/manabrew/hub/hub.db"
+      EVENTS_DB_PATH: "/var/manabrew/events/events.db"
+      RUST_LOG: "manabrew_hub=info"
+    volumes:
+      - ./ops/hub-data:/var/manabrew/hub
+      - ./ops/observability/data/events:/var/manabrew/events:ro
+    expose:
+      - "9500"
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9500/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  self-hosted-node:
+    profiles:
+      - hosted-ai
+    image: ghcr.io/witchesofthehill/manabrew-node:${MANABREW_IMAGE_TAG:-staging}
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
-      # Pool size of Java subprocesses; each room runs in its own JVM.
-      # Staging box has 3GB RAM, so pool at 1 until we size up.
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
+      SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:
-      - manabrew-server-staging
+      - manabrew-server
     restart: unless-stopped
 
-networks:
-  default:
-    external: true
-    name: manabrew_default
+volumes:
+  caddy-data:
+  caddy-config:

@@ -52,5 +52,15 @@ Return `true` to accept and `false` to decline.
 ```
 
 ```json
-{ "promptId": 7, "output": { "type": "decision", "value": true } }
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "chooseBoolean",
+    "output": {
+      "type": "decision",
+      "value": true
+    }
+  }
+}
 ```

@@ -1,7 +1,6 @@
 import {
   Container,
   Graphics,
-  ImageSource,
   Rectangle,
   Sprite,
   Text,
@@ -12,9 +11,9 @@ import type { CardDto } from "@/protocol/game";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
 import { applyIcon } from "../panelIcons";
-import { CardSprite } from "../CardSprite";
-import { fetchImageElement } from "@/api/scryfall";
-import { CARD_W, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { CardSprite, loadCardBack } from "../CardSprite";
+
+import { CARD_W } from "@/components/game/game.constants";
 import { CARD_RADIUS } from "../constants";
 import { LongPressGesture } from "../LongPressGesture";
 
@@ -58,18 +57,6 @@ interface Tile {
   iconSprite: Sprite;
   badge: Sprite | null;
   countText: Text;
-}
-
-let cardBackTexture: Texture | null = null;
-let cardBackPromise: Promise<Texture> | null = null;
-
-function loadCardBack(): Promise<Texture> {
-  if (cardBackTexture) return Promise.resolve(cardBackTexture);
-  cardBackPromise ??= fetchImageElement(CARD_BACK_IMAGE_URL).then((img) => {
-    cardBackTexture = new Texture({ source: new ImageSource({ resource: img }) });
-    return cardBackTexture;
-  });
-  return cardBackPromise;
 }
 
 const DRAG_THRESHOLD_PX = 4;
@@ -277,7 +264,7 @@ export class BoardZoneTiles {
         tile.face = null;
       }
       if (!tile.back) {
-        tile.back = new Sprite(cardBackTexture ?? Texture.EMPTY);
+        tile.back = new Sprite(Texture.EMPTY);
         tile.container.addChildAt(tile.back, 0);
         this.ensureCardBack();
       }

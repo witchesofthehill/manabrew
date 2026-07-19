@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use forge_foundation::ZoneType;
 use manabrew_engine::game::GameState;
@@ -99,10 +99,30 @@ fn classify_put_counter(sa: &SpellAbility) -> TargetingIntent {
     }
 }
 
+pub fn intent_is_hostile(intent: TargetingIntent) -> bool {
+    matches!(
+        intent,
+        TargetingIntent::Damage
+            | TargetingIntent::Destroy
+            | TargetingIntent::Sacrifice
+            | TargetingIntent::Exile
+            | TargetingIntent::Bounce
+            | TargetingIntent::Mill
+            | TargetingIntent::Discard
+            | TargetingIntent::Counter
+            | TargetingIntent::Tap
+            | TargetingIntent::Debuff
+            | TargetingIntent::LoseLife
+            | TargetingIntent::GainControl
+            | TargetingIntent::Fight
+            | TargetingIntent::Hostile
+    )
+}
+
 /// Determine if a spell ability's effect is hostile based on its API type.
 /// Kept for backwards compatibility; new code should use `targeting_intent_of`.
 pub fn is_hostile_api(sa: &SpellAbility) -> bool {
-    targeting_intent_of(sa).is_hostile()
+    intent_is_hostile(targeting_intent_of(sa))
 }
 
 fn collect_stack_targets(root: &SpellAbility) -> Vec<TargetRef> {
@@ -155,54 +175,106 @@ fn stack_target_oracle(sa: &SpellAbility) -> Option<String> {
     Some(desc.to_string())
 }
 
-fn mana_pool_to_map(pool: &ManaPool) -> HashMap<String, i32> {
-    let mut m = HashMap::new();
-    m.insert("W".into(), pool.white());
-    m.insert("U".into(), pool.blue());
-    m.insert("B".into(), pool.black());
-    m.insert("R".into(), pool.red());
-    m.insert("G".into(), pool.green());
-    m.insert("C".into(), pool.colorless());
+fn mana_pool_to_map(pool: &ManaPool) -> BTreeMap<ManaColor, u32> {
+    let mut m = BTreeMap::new();
+    for (color, amount) in [
+        (ManaColor::White, pool.white()),
+        (ManaColor::Blue, pool.blue()),
+        (ManaColor::Black, pool.black()),
+        (ManaColor::Red, pool.red()),
+        (ManaColor::Green, pool.green()),
+        (ManaColor::Colorless, pool.colorless()),
+    ] {
+        if amount > 0 {
+            m.insert(color, amount as u32);
+        }
+    }
     m
 }
 
-fn phase_to_step(phase: forge_foundation::PhaseType) -> &'static str {
+fn phase_to_step(phase: forge_foundation::PhaseType) -> StepKind {
     use forge_foundation::PhaseType::*;
     match phase {
-        Untap => "untap",
-        Upkeep => "upkeep",
-        Draw => "draw",
-        Main1 => "main1",
-        CombatBegin => "begin_combat",
-        CombatDeclareAttackers => "declare_attackers",
-        CombatDeclareBlockers => "declare_blockers",
-        CombatFirstStrikeDamage => "first_strike_damage",
-        CombatDamage => "combat_damage",
-        CombatEnd => "end_combat",
-        Main2 => "main2",
-        EndOfTurn => "end",
-        Cleanup => "cleanup",
+        Untap => StepKind::Untap,
+        Upkeep => StepKind::Upkeep,
+        Draw => StepKind::Draw,
+        Main1 => StepKind::Main1,
+        CombatBegin => StepKind::CombatBegin,
+        CombatDeclareAttackers => StepKind::CombatDeclareAttackers,
+        CombatDeclareBlockers => StepKind::CombatDeclareBlockers,
+        CombatFirstStrikeDamage => StepKind::CombatFirstStrikeDamage,
+        CombatDamage => StepKind::CombatDamage,
+        CombatEnd => StepKind::CombatEnd,
+        Main2 => StepKind::Main2,
+        EndOfTurn => StepKind::EndOfTurn,
+        Cleanup => StepKind::Cleanup,
     }
 }
 
-/// Parse a frontend step string back to a PhaseType.
-pub fn step_to_phase(step: &str) -> Option<forge_foundation::PhaseType> {
+pub(crate) fn step_to_phase(step: StepKind) -> forge_foundation::PhaseType {
     use forge_foundation::PhaseType::*;
     match step {
-        "untap" => Some(Untap),
-        "upkeep" => Some(Upkeep),
-        "draw" => Some(Draw),
-        "main1" => Some(Main1),
-        "begin_combat" => Some(CombatBegin),
-        "declare_attackers" => Some(CombatDeclareAttackers),
-        "declare_blockers" => Some(CombatDeclareBlockers),
-        "first_strike_damage" => Some(CombatFirstStrikeDamage),
-        "combat_damage" => Some(CombatDamage),
-        "end_combat" => Some(CombatEnd),
-        "main2" => Some(Main2),
-        "end" => Some(EndOfTurn),
-        "cleanup" => Some(Cleanup),
-        _ => None,
+        StepKind::Untap => Untap,
+        StepKind::Upkeep => Upkeep,
+        StepKind::Draw => Draw,
+        StepKind::Main1 => Main1,
+        StepKind::CombatBegin => CombatBegin,
+        StepKind::CombatDeclareAttackers => CombatDeclareAttackers,
+        StepKind::CombatDeclareBlockers => CombatDeclareBlockers,
+        StepKind::CombatFirstStrikeDamage => CombatFirstStrikeDamage,
+        StepKind::CombatDamage => CombatDamage,
+        StepKind::CombatEnd => CombatEnd,
+        StepKind::Main2 => Main2,
+        StepKind::EndOfTurn => EndOfTurn,
+        StepKind::Cleanup => Cleanup,
+    }
+}
+
+pub fn zone_kind_of(zone: ZoneType) -> ZoneKind {
+    match zone {
+        ZoneType::Hand | ZoneType::ExtraHand => ZoneKind::Hand,
+        ZoneType::Graveyard | ZoneType::Flashback => ZoneKind::Graveyard,
+        ZoneType::Battlefield | ZoneType::Merged => ZoneKind::Battlefield,
+        ZoneType::Exile => ZoneKind::Exile,
+        ZoneType::Command => ZoneKind::Command,
+        _ => ZoneKind::Library,
+    }
+}
+
+pub fn target_ref_card(id: String) -> TargetRef {
+    TargetRef {
+        kind: TargetKind::Card,
+        id,
+        intent: None,
+        oracle: None,
+    }
+}
+
+pub fn target_ref_player(id: String) -> TargetRef {
+    TargetRef {
+        kind: TargetKind::Player,
+        id,
+        intent: None,
+        oracle: None,
+    }
+}
+
+pub fn target_ref_spell(id: String) -> TargetRef {
+    TargetRef {
+        kind: TargetKind::Spell,
+        id,
+        intent: None,
+        oracle: None,
+    }
+}
+
+fn day_time_of(game: &GameState) -> DayTime {
+    if game.is_neither_day_nor_night() {
+        DayTime::Neither
+    } else if game.is_night {
+        DayTime::Night
+    } else {
+        DayTime::Day
     }
 }
 
@@ -216,7 +288,7 @@ fn should_show_command_zone_card(game: &GameState, cid: CardId) -> bool {
             .any(|subtype| subtype.eq_ignore_ascii_case("Effect")))
 }
 
-pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
+pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
     let card = game.card(cid);
     let types: Vec<String> = card
         .type_line
@@ -238,11 +310,11 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
     let base_toughness = card.base_toughness;
 
     // Collect non-zero counters, using the variant name as key (e.g. "P1P1", "M1M1", "Loyalty")
-    let counters: HashMap<String, i32> = card
+    let counters: BTreeMap<String, u32> = card
         .counters
         .iter()
         .filter(|(_, &v)| v > 0)
-        .map(|(k, &v)| (format!("{k:?}"), v))
+        .map(|(k, &v)| (format!("{k:?}"), v as u32))
         .collect();
 
     // Build ability text from abilities
@@ -330,7 +402,6 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
         text,
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),
-        zone_id: zone_label.to_string(),
         tapped: card.tapped,
         is_crewed: card.is_crewed,
         is_attacking: card.attacking_player.is_some(),
@@ -366,6 +437,11 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
             .attachments
             .iter()
             .map(|&aid| card_id_str(aid))
+            .collect(),
+        merged_card_ids: card
+            .melded_with
+            .iter()
+            .map(|&mid| card_id_str(mid))
             .collect(),
         phased_out: card.phased_out,
         exerted: card.exerted,
@@ -424,6 +500,8 @@ pub trait GameViewDtoExt {
         human_player: PlayerId,
         game_id: &str,
     ) -> Self;
+
+    fn all_zone_cards(&self) -> impl Iterator<Item = &CardDto>;
 }
 
 impl GameViewDtoExt for GameViewDto {
@@ -434,6 +512,21 @@ impl GameViewDtoExt for GameViewDto {
         game_id: &str,
     ) -> Self {
         let mut players = Vec::new();
+        let mut zones: Vec<ZoneDto> = Vec::new();
+        let visible_zone = |zone: ZoneType, kind: ZoneKind, pid: PlayerId| -> ZoneDto {
+            let cards: Vec<CardView> = game
+                .cards_in_zone(zone, pid)
+                .iter()
+                .map(|&cid| CardView::Visible(card_to_dto(game, cid)))
+                .collect();
+            let count = cards.len();
+            ZoneDto {
+                zone: kind,
+                owner_id: player_id_str(pid),
+                cards,
+                count,
+            }
+        };
         for &pid in &game.player_order {
             let ps = game.player(pid);
             let pool = mana_pools.get(pid.index()).cloned().unwrap_or_default();
@@ -442,19 +535,42 @@ impl GameViewDtoExt for GameViewDto {
                 .iter()
                 .map(|(&card_raw_id, &dmg)| (card_id_str(CardId(card_raw_id)), dmg))
                 .collect();
-            let zone_cards = |zone: ZoneType, zone_name: &str| -> Vec<CardDto> {
-                game.cards_in_zone(zone, pid)
-                    .iter()
-                    .map(|&cid| card_to_dto(game, cid, zone_name))
-                    .collect()
-            };
-            let command_zone: Vec<CardDto> = game
+
+            zones.push(visible_zone(ZoneType::Hand, ZoneKind::Hand, pid));
+            zones.push(visible_zone(ZoneType::Graveyard, ZoneKind::Graveyard, pid));
+            zones.push(visible_zone(ZoneType::Exile, ZoneKind::Exile, pid));
+            let command_cards: Vec<CardView> = game
                 .cards_in_zone(ZoneType::Command, pid)
                 .iter()
                 .copied()
                 .filter(|&cid| should_show_command_zone_card(game, cid))
-                .map(|cid| card_to_dto(game, cid, "command"))
+                .map(|cid| CardView::Visible(card_to_dto(game, cid)))
                 .collect();
+            zones.push(ZoneDto {
+                zone: ZoneKind::Command,
+                owner_id: player_id_str(pid),
+                count: command_cards.len(),
+                cards: command_cards,
+            });
+            // Library bulk is hidden; only the count is public.
+            zones.push(ZoneDto {
+                zone: ZoneKind::Library,
+                owner_id: player_id_str(pid),
+                cards: Vec::new(),
+                count: game.cards_in_zone(ZoneType::Library, pid).len(),
+            });
+
+            let mut counters = BTreeMap::new();
+            for (kind, value) in [
+                (PlayerCounterKind::Poison, ps.poison_counters),
+                (PlayerCounterKind::Energy, ps.energy_counters),
+                (PlayerCounterKind::Radiation, ps.radiation_counters),
+            ] {
+                if value > 0 {
+                    counters.insert(kind, value as u32);
+                }
+            }
+
             players.push(PlayerDto {
                 id: player_id_str(pid),
                 name: ps.name.clone(),
@@ -467,30 +583,37 @@ impl GameViewDtoExt for GameViewDto {
                 },
                 is_human: pid == human_player,
                 life: ps.life,
-                poison: ps.poison_counters,
-                hand: zone_cards(ZoneType::Hand, "hand"),
-                graveyard: zone_cards(ZoneType::Graveyard, "graveyard"),
-                exile: zone_cards(ZoneType::Exile, "exile"),
-                command_zone,
-                library_count: game.cards_in_zone(ZoneType::Library, pid).len(),
+                counters,
                 mana_pool: mana_pool_to_map(&pool),
                 commander_damage,
-                energy_counters: ps.energy_counters,
-                radiation_counters: ps.radiation_counters,
                 has_city_blessing: ps.has_city_blessing,
                 ring_level: ps.ring_level,
                 speed: ps.speed,
-                experience_counters: 0,
-                ticket_counters: 0,
             });
         }
 
-        // Battlefield -- all players
-        let mut battlefield = Vec::new();
-        for &pid in &game.player_order {
-            for &cid in game.cards_in_zone(ZoneType::Battlefield, pid) {
-                battlefield.push(card_to_dto(game, cid, "battlefield"));
+        // Battlefield -- bucketed by controller.
+        let mut battlefield_by_controller: HashMap<String, Vec<CardView>> = HashMap::new();
+        for &owner in &game.player_order {
+            for &cid in game.cards_in_zone(ZoneType::Battlefield, owner) {
+                let controller_id = player_id_str(game.card(cid).controller);
+                battlefield_by_controller
+                    .entry(controller_id)
+                    .or_default()
+                    .push(CardView::Visible(card_to_dto(game, cid)));
             }
+        }
+        for &pid in &game.player_order {
+            let owner_id = player_id_str(pid);
+            let cards = battlefield_by_controller
+                .remove(&owner_id)
+                .unwrap_or_default();
+            zones.push(ZoneDto {
+                zone: ZoneKind::Battlefield,
+                owner_id,
+                count: cards.len(),
+                cards,
+            });
         }
 
         // Stack
@@ -531,7 +654,7 @@ impl GameViewDtoExt for GameViewDto {
         GameViewDto {
             game_id: game_id.to_string(),
             turn: game.turn.turn_number,
-            step: phase_to_step(game.turn.phase).to_string(),
+            step: phase_to_step(game.turn.phase),
             combat_assignments: game
                 .turn
                 .combat_block_assignments
@@ -544,12 +667,22 @@ impl GameViewDtoExt for GameViewDto {
             active_player_id: player_id_str(game.active_player()),
             priority_player_id: player_id_str(game.turn.priority_player),
             players,
-            battlefield,
+            zones,
             stack,
             game_over: game.game_over,
             winner_id: game.winner.map(player_id_str),
             monarch_id: game.monarch.map(player_id_str),
             initiative_holder_id: game.initiative_holder.map(player_id_str),
+            day_time: day_time_of(game),
         }
+    }
+
+    fn all_zone_cards(&self) -> impl Iterator<Item = &CardDto> {
+        self.zones.iter().flat_map(|zone| {
+            zone.cards.iter().filter_map(|card| match card {
+                CardView::Visible(dto) => Some(dto),
+                CardView::Hidden { .. } => None,
+            })
+        })
     }
 }

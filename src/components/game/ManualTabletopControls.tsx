@@ -8,7 +8,7 @@ import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { applyManualTabletopAction, type ManualTabletopApi } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
-import type { CardDto, GameViewDto } from "@/protocol/game";
+import type { ClientCardDto, ClientGameView } from "@/stores/gameStore.types";
 import type { ScryfallCard } from "@/types/scryfall";
 import {
   Archive,
@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 interface ManualTabletopControlsProps {
-  gameView: GameViewDto;
+  gameView: ClientGameView;
   api: ManualTabletopApi;
 }
 
@@ -40,7 +40,7 @@ function createManualCard(
   controllerId: string,
   isToken: boolean,
   scryfallCard?: ScryfallCard,
-): CardDto {
+): ClientCardDto {
   const base = scryfallCard ? scryfallToDeckCard(scryfallCard) : null;
 
   return {
@@ -159,7 +159,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
     setSearchResults([]);
   };
 
-  const moveCard = (card: CardDto, zoneId: string) =>
+  const moveCard = (card: ClientCardDto, zoneId: string) =>
     applyAction({
       type: "moveCard",
       cardId: card.id,
@@ -173,7 +173,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
   const humanPlayerId = gameView.players[0]?.id;
 
   return (
-    <div className="absolute right-2 bottom-2 z-30 w-[320px] max-h-[60%] overflow-y-auto rounded-md border bg-background/95 shadow-sm backdrop-blur">
+    <div className="absolute right-[calc(0.5rem+var(--safe-area-inset-right))] bottom-[calc(0.5rem+var(--safe-area-inset-bottom))] z-30 w-[320px] max-h-[60%] overflow-y-auto rounded-md border bg-background/95 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <Badge variant="outline" className="gap-1.5">
           <Sparkles className="h-3 w-3" />

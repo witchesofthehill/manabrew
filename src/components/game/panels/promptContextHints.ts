@@ -49,8 +49,6 @@ export function getPromptContextLines(
       if (cost.lifeToPay) lines.push(`Tap ${cost.lifeToPay} Life to pay with life`);
       return lines;
     }
-    case "chooseTargetSpell":
-      return ["Tap a glowing spell on the stack to counter it"];
     default:
       return [];
   }

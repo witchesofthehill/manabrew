@@ -106,7 +106,7 @@ public class DeterministicController extends PlayerController implements Harness
         this.currentTurn = 0;
         this.costPlumbing = new HarnessCostPlumbing(this, this, this.player);
         this.autoPay = new AutoPay(this.player, this.costPlumbing);
-        this.playPlumbing = new HarnessPlayPlumbing(this, this.player, this.costPlumbing);
+        this.playPlumbing = new HarnessPlayPlumbing(this, this.player, this.costPlumbing, false);
     }
 
     public int getCurrentTurn() {

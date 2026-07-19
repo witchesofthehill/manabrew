@@ -95,6 +95,10 @@ yarn parity <test-name>          # see parity AGENTS.md
 yarn scan                         # Java vs Rust file coverage
 ```
 
+Any `manabrew-protocol` type change needs three regens: `yarn gen:types` (ts-rs → `src/protocol/`, gitignored), `yarn build:harness` (Java prompt DTOs, gitignored), and `yarn gen:protocol-docs` (`website/src/generated/protocol-types.json`, **committed** — CI fails the PR if stale).
+
+Known debt (as of 2026-07): `yarn lint:rust` (`cargo clippy --workspace -D warnings`) fails on a cold cache with ~110 pre-existing warnings in `manabrew-engine`, `forge-limited`, and `manabrew-server` (mostly `unused_variables`, `needless_bool`). Warm incremental caches hide them until a dependency edit forces a re-check, so a lint failure in crates your diff never touched is probably this — verify against `main` before assuming your change caused it. The parity regression suite (`regression.json`) likewise has pre-existing failing entries (e.g. `kaalia_regression`, `keyword_advanced`, `starter_*`); baseline on `main` before attributing failures to your change.
+
 ## Cardset archive
 
 Every engine entrypoint (Tauri runtime, parity binary, self-hosted node, debugger) mmaps a single rkyv archive at startup: `src-tauri/resources/cardset.rkyv`. It bundles cards, tokens, editions, and block data. Path override: `CARDSET_ARCHIVE` env var. The web build has its own content-addressed copy at `public/wasm/cardset.<sha8>.rkyv` (resolved via `public/wasm/cardset.manifest.json`) produced by `yarn build:wasm`.

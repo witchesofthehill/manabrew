@@ -26,17 +26,16 @@ then the client sends a final `pay`.
 type PayManaCostOutput =
   | { type: "act"; actionId: string }
   | { type: "pay"; auto: boolean }
-  | { type: "payLife" }
   | { type: "cancel" };
 ```
 
 Send `{ type: "act", actionId }` with the `id` of an entry in `actions` to take
-an incremental step — tapping a mana source, untapping one (`undoMana`), or
-delving/un-delving a graveyard card — and the engine answers with an updated
-`payManaCost` prompt. The client never builds an `actionId`; it only echoes one
-the prompt offered. Send `{ type: "pay", auto }` to finalize (`auto: true` lets
-the engine auto-tap the remaining sources), `payLife` to pay a Phyrexian cost
-with life, or `cancel` to back out of the payment entirely.
+an incremental step — tapping a mana source, untapping one (`undoMana`),
+delving/un-delving a graveyard card, or paying life for a Phyrexian cost
+(`payLife`) — and the engine answers with an updated `payManaCost` prompt. The
+client never builds an `actionId`; it only echoes one the prompt offered. Send
+`{ type: "pay", auto }` to finalize (`auto: true` lets the engine auto-tap the
+remaining sources), or `cancel` to back out of the payment entirely.
 
 ## Example
 

@@ -262,6 +262,10 @@ final class ManabrewProtocolAdapter {
             flat.addProperty("cardId", actionId.substring("undelve:".length()));
             return flat;
         }
+        if ("pay-life".equals(actionId)) {
+            flat.addProperty("kind", "pay_life");
+            return flat;
+        }
         if (actionId.startsWith("tap:")) {
             return parseTapActionId(actionId.substring("tap:".length()));
         }

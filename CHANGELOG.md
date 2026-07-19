@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.12.2](https://github.com/witchesofthehill/manabrew/compare/v1.12.1...v1.12.2) (2026-07-19)
+
+## [1.12.1](https://github.com/witchesofthehill/manabrew/compare/v1.12.0...v1.12.1) (2026-07-17)
+
+## [1.12.0](https://github.com/witchesofthehill/manabrew/compare/v1.11.0...v1.12.0) (2026-07-17)
+
+### Features
+
+* manabrew-protocol v1 ([#445](https://github.com/witchesofthehill/manabrew/issues/445)) ([059d559](https://github.com/witchesofthehill/manabrew/commit/059d5597620cb610b1793f24ebbd7beba7305349))
+
 ## [1.11.0](https://github.com/witchesofthehill/manabrew/compare/v1.10.0...v1.11.0) (2026-07-17)
 
 ### Features

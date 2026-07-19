@@ -341,7 +341,9 @@ public final class Main {
                                 request.get("playerIndex").getAsInt()));
                             break;
                         case "getSnapshot":
-                            sendOk(adapter.getSnapshot(requireString(request, "sessionId")));
+                            sendOk(adapter.getSnapshot(
+                                requireString(request, "sessionId"),
+                                request.has("viewer") ? request.get("viewer").getAsInt() : -1));
                             break;
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));

@@ -57,9 +57,9 @@ public final class ForgeNative {
     }
 
     @CEntryPoint(name = "forge_get_snapshot")
-    static CCharPointer getSnapshot(IsolateThread thread, CCharPointer sessionId) {
+    static CCharPointer getSnapshot(IsolateThread thread, CCharPointer sessionId, int viewer) {
         try {
-            return ok(ADAPTER.getSnapshot(str(sessionId)));
+            return ok(ADAPTER.getSnapshot(str(sessionId), viewer));
         } catch (Throwable t) {
             return err(t);
         }

@@ -45,17 +45,21 @@ highlighted in place.
 
 ```ts
 type ChooseActionOutput =
-  | { type: "pass"; untilPhase?: string }
-  | { type: "concede" }
+  | { type: "pass"; until?: PassUntil; exhaustStack: boolean }
   | { type: "restoreSnapshot"; checkpointId: number }
   | { type: "act"; actionId: string };
+
+type PassUntil = { playerId: string; phase: StepKind };
 ```
 
 Send `{ type: "act", actionId }` to perform an action by its `id` — including
 tapping a mana source or untapping one (`undoMana`), which appear in `actions`
-like any other entry. Send `pass` to pass priority, optionally `untilPhase` to
-keep passing until a named phase. `concede` and `restoreSnapshot` are control
-actions.
+like any other entry. `actionId` MUST be an `id` advertised in this prompt's
+`actions`; anything else is [rejected](/protocol/#errors).
+Send `pass` to pass priority; the optional `until` asks the engine to keep
+auto-passing until `playerId` reaches `phase` (a [`StepKind`](/protocol/game-view/)).
+Conceding is **not** a response — it is the out-of-band `directive` message
+(see [Transport](/protocol/transport/)), legal at any time.
 
 ## Example
 
@@ -89,7 +93,14 @@ actions.
 
 ```json
 {
+  "kind": "response",
   "promptId": 7,
-  "output": { "type": "pass" }
+  "action": {
+    "type": "chooseAction",
+    "output": {
+      "type": "pass",
+      "exhaustStack": false
+    }
+  }
 }
 ```

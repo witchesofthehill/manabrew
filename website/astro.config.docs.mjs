@@ -61,7 +61,7 @@ export default defineConfig({
                     "protocol/choose-from-selection",
                     "protocol/reveal-cards",
                     "protocol/scry",
-                    "protocol/reorder-cards",
+                    "protocol/reorder",
                     "protocol/dice-rolled",
                   ],
                 },

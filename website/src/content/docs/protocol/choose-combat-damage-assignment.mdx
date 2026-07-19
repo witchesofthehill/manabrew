@@ -10,9 +10,6 @@ possibly the defending player or planeswalker if the attacker has trample. For
 example, a 4/4 trampler blocked by a 2/2 may assign 2 to the blocker and let the
 remaining 2 trample through.
 
-:::note[Answered on the board]
-The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
-:::
 
 ## Arguments
 
@@ -54,13 +51,23 @@ as 1 may be assigned to a blocker before moving on.
 
 ```json
 {
+  "kind": "response",
   "promptId": 13,
-  "output": {
-    "type": "combatDamageAssignmentDecision",
-    "assignments": [
-      { "assigneeId": "bf-7", "damage": 2 },
-      { "assigneeId": "player-1", "damage": 2 }
-    ]
+  "action": {
+    "type": "chooseCombatDamageAssignment",
+    "output": {
+      "type": "combatDamageAssignmentDecision",
+      "assignments": [
+        {
+          "assigneeId": "bf-7",
+          "damage": 2
+        },
+        {
+          "assigneeId": "player-1",
+          "damage": 2
+        }
+      ]
+    }
   }
 }
 ```

@@ -1,5 +1,6 @@
 import type { ChooseBoardTargetsInput } from "@/protocol";
-import type { CardDto, GameViewDto } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
+import type { ClientGameView } from "@/stores/gameStore.types";
 
 /** Candidates from a `chooseBoardTargets` prompt, partitioned into the surfaces
  *  the UI renders them on. Card candidates on the battlefield highlight in place;
@@ -19,7 +20,7 @@ export function validCardIdsInCards(validCardIds: string[], cards?: CardDto[]): 
   return validCardIds.filter((id) => cardIds.has(id));
 }
 
-function findInZones(gv: GameViewDto, id: string): { zone: string; card: CardDto } | null {
+function findInZones(gv: ClientGameView, id: string): { zone: string; card: CardDto } | null {
   for (const p of gv.players) {
     const zones: [string, CardDto[] | undefined][] = [
       ["Graveyard", p.graveyard],
@@ -37,7 +38,7 @@ function findInZones(gv: GameViewDto, id: string): { zone: string; card: CardDto
 
 export function partitionBoardTargets(
   input: ChooseBoardTargetsInput,
-  gameView: GameViewDto | null,
+  gameView: ClientGameView | null,
 ): BoardTargetBuckets {
   const playerIds: string[] = [];
   const battlefieldCardIds: string[] = [];

@@ -144,7 +144,9 @@ export function PromptActionController({
   const showPromptModal = useGameUIStore((s) => s.showPromptModal);
   const currentPromptInput = useGameStore((s) => s.currentPrompt?.input);
   const boardTargetLabel =
-    currentPromptInput?.type === "chooseBoardTargets" ? currentPromptInput.label : undefined;
+    currentPromptInput?.type === "chooseBoardTargets"
+      ? currentPromptInput.presentation.title
+      : undefined;
 
   const renderers: Record<PromptActionViewKey, () => ReactElement> = {
     chooseAction: () => (
@@ -216,7 +218,6 @@ export function PromptActionController({
       const labels: Record<string, string> = {
         ["chooseBoardTargets"]: "Choose a target",
         ["scry"]: "Scry",
-        ["dig"]: "Choose cards",
         ["chooseCards"]: "Choose cards",
       };
       return (

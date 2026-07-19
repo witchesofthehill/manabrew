@@ -64,7 +64,7 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },
   ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseCards"]: { showByDefault: true, resolve: forced.forcedCardChoice },
-  ["reorderCards"]: { showByDefault: true, resolve: forced.singleCardOrder },
+  ["reorder"]: { showByDefault: true, resolve: forced.singleCardOrder },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
   ["diceRolled"]: { showByDefault: true, resolve: informational.ackDiceRolled },
 };

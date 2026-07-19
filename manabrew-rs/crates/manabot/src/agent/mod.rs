@@ -52,12 +52,14 @@ impl Default for BotResponder {
 
 impl Responder for BotResponder {
     fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage {
+        let prompt_id = prompt.prompt_id;
         let action = self
             .agent
             .decide(prompt)
             .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until: None,
+                exhaust_stack: false,
             }));
-        ClientToServerMessage::Response { action }
+        ClientToServerMessage::Response { prompt_id, action }
     }
 }

@@ -12,7 +12,7 @@ paying alternative costs such as delve. Every available step is one entry in
 and the engine re-sends an updated `payManaCost` prompt until the cost is met,
 then the client sends a final `pay`.
 
-![The payManaCost prompt in the Manabrew client](/protocol/pay-mana-cost.svg)
+![The payManaCost prompt in the Manabrew client](/protocol/pay-mana.webp)
 
 ## Arguments
 
@@ -67,7 +67,14 @@ with life, or `cancel` to back out of the payment entirely.
 
 ```json
 {
+  "kind": "response",
   "promptId": 7,
-  "output": { "type": "act", "actionId": "tap:perm-9:0" }
+  "action": {
+    "type": "payManaCost",
+    "output": {
+      "type": "act",
+      "actionId": "tap:perm-9:0"
+    }
+  }
 }
 ```

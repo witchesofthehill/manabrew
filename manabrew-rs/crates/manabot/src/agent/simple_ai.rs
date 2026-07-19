@@ -80,8 +80,9 @@ impl BotAgent for SimpleAi {
                     None => ChooseActionOutput::Pass {
                         until: Some(PassUntil {
                             player_id: prompt.deciding_player_id.clone(),
-                            phase: "main1".to_string(),
+                            phase: manabrew_protocol::game::StepKind::Main1,
                         }),
+                        exhaust_stack: false,
                     },
                 }))
             }
@@ -173,17 +174,29 @@ impl BotAgent for SimpleAi {
             PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
                 presentation,
                 options,
-                min_choices,
-                max_choices,
+                min_total,
+                max_total,
             }) => {
                 let signature =
-                    format!("select:{}|{min_choices}|{max_choices}|{}", presentation.title, options.len());
-                let take = if self.looping_on(signature) { max_choices } else { min_choices };
+                    format!("select:{}|{min_total}|{max_total}|{}", presentation.title, options.len());
+                let target = if self.looping_on(signature) { max_total } else { min_total };
+                let mut chosen_indices = Vec::new();
+                let mut total = 0;
+                for (index, option) in options.iter().enumerate() {
+                    if total + option.weight > target {
+                        continue;
+                    }
+                    chosen_indices.push(index);
+                    total += option.weight;
+                    if total == target {
+                        break;
+                    }
+                }
                 Some(PromptOutput::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
-                    chosen_indices: (0..take.min(options.len())).collect(),
+                    chosen_indices,
                 }))
             }
-            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed }) => {
+            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed, .. }) => {
                 let mut chosen: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
                 if repeat_allowed {
                     if let Some(c) = valid_colors.first() {
@@ -249,9 +262,9 @@ impl BotAgent for SimpleAi {
                     chosen_card_ids: cards.iter().take(take).map(|c| c.id.clone()).collect(),
                 }))
             }
-            PromptInput::ReorderCards(manabrew_protocol::prompts::reorder_cards::ReorderCardsInput { cards, .. }) => {
-                Some(PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision {
-                    ordered_card_ids: cards.iter().map(|c| c.id.clone()).collect(),
+            PromptInput::Reorder(manabrew_protocol::prompts::reorder::ReorderInput { items, .. }) => {
+                Some(PromptOutput::Reorder(ReorderOutput::ReorderDecision {
+                    ordered_ids: items.iter().map(|item| item.id.clone()).collect(),
                 }))
             }
             PromptInput::GameOver(manabrew_protocol::prompts::game_over::GameOverInput { .. }) => None,

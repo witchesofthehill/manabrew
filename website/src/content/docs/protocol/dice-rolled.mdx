@@ -9,7 +9,7 @@ Sent after dice are rolled — spinning the planar die, or a "roll a d20" effect
 like The Deck of Many Things. Informational only; the player acknowledges the
 result to continue.
 
-![The diceRolled prompt in the Manabrew client](/protocol/dice-rolled.svg)
+![The diceRolled prompt in the Manabrew client](/protocol/roll.webp)
 
 ## Arguments
 
@@ -64,5 +64,14 @@ Rolling a d20 with advantage, keeping the higher of two natural rolls:
 ```
 
 ```json
-{ "promptId": 7, "output": { "type": "diceRolledAcknowledged" } }
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "diceRolled",
+    "output": {
+      "type": "diceRolledAcknowledged"
+    }
+  }
+}
 ```

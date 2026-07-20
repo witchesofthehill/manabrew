@@ -5,17 +5,56 @@ import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { QuickPlayHero } from "@/components/play/QuickPlayHero";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
-import { PLAY_ACTION_CARD_CLASS } from "@/components/play/play.styles";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useServerStore } from "@/stores/useServerStore";
 
-const MODE_CLASS = cn(
-  PLAY_ACTION_CARD_CLASS,
-  "relative min-h-40 overflow-hidden p-5 sm:min-h-48 sm:p-6 lg:min-h-52",
-);
+const MODE_CLASS =
+  "group relative flex min-h-40 min-w-0 flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-5 text-left shadow-xl backdrop-blur-md hover:shadow-2xl motion-safe:transition-[transform,border-color,box-shadow] motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none sm:min-h-48 sm:p-6 lg:min-h-52";
+
+const MODE_ACCENTS: Record<string, { chip: string; hoverBorder: string; watermark: string }> = {
+  primary: {
+    chip: "border-primary/40 bg-primary/15 text-primary",
+    hoverBorder: "hover:border-primary/70",
+    watermark: "text-primary",
+  },
+  purple: {
+    chip: "border-format-badge-purple/40 bg-format-badge-purple/15 text-format-badge-purple",
+    hoverBorder: "hover:border-format-badge-purple/60",
+    watermark: "text-format-badge-purple",
+  },
+  sky: {
+    chip: "border-format-badge-sky/40 bg-format-badge-sky/15 text-format-badge-sky",
+    hoverBorder: "hover:border-format-badge-sky/60",
+    watermark: "text-format-badge-sky",
+  },
+};
+
+const MODES = [
+  {
+    to: ROUTES.PLAY_OFFLINE_CONSTRUCTED,
+    label: "Constructed",
+    desc: "Pick a deck and battle the AI.",
+    icon: Swords,
+    tone: "primary",
+  },
+  {
+    to: ROUTES.LIMITED,
+    label: "Draft & Sealed",
+    desc: "Draft, sealed, Winston, and cube.",
+    icon: Boxes,
+    tone: "purple",
+  },
+  {
+    to: ROUTES.LOBBY,
+    label: "Multiplayer",
+    desc: "Find a table or set up a game for your group.",
+    icon: Users,
+    tone: "sky",
+  },
+];
 
 export function PlayHome() {
   const { quickPlay, quickPlayStarter, quickPlayPreset, pendingDeckId } = useQuickPlay();
@@ -55,59 +94,44 @@ export function PlayHome() {
             />
 
             <section className="grid gap-4 md:grid-cols-3">
-              <Link to={ROUTES.PLAY_OFFLINE_CONSTRUCTED} className={MODE_CLASS}>
-                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary">
-                  <Swords className="h-5 w-5" />
-                </span>
-                <span>
-                  <span className="flex min-w-0 items-center justify-between gap-2 font-serif text-2xl font-light">
-                    Constructed
-                    <ArrowRight className="h-5 w-5 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" />
-                  </span>
-                  <span className="mt-1 block text-sm text-muted-foreground">
-                    Pick a deck and battle the AI.
-                  </span>
-                </span>
-              </Link>
-
-              <Link to={ROUTES.LIMITED} className={MODE_CLASS}>
-                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary">
-                  <Boxes className="h-5 w-5" />
-                </span>
-                <span>
-                  <span className="flex min-w-0 items-center justify-between gap-2 font-serif text-2xl font-light">
-                    Draft &amp; Sealed
-                    <ArrowRight className="h-5 w-5 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" />
-                  </span>
-                  <span className="mt-1 block text-sm text-muted-foreground">
-                    Draft, sealed, Winston, and cube.
-                  </span>
-                </span>
-              </Link>
-
-              <Link to={ROUTES.LOBBY} className={MODE_CLASS}>
-                <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary">
-                  <Users className="h-5 w-5" />
-                </span>
-                <span>
-                  <span className="flex min-w-0 items-center justify-between gap-2 font-serif text-2xl font-light">
-                    Multiplayer
-                    <ArrowRight className="h-5 w-5 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" />
-                  </span>
-                  <span className="mt-1 block text-sm text-muted-foreground">
-                    Find a table or set up a game for your group.
-                  </span>
-                  {lobbyTeaser && (
-                    <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-                      </span>
-                      {lobbyTeaser}
+              {MODES.map(({ to, label, desc, icon: Icon, tone }) => {
+                const accent = MODE_ACCENTS[tone] ?? MODE_ACCENTS.primary;
+                return (
+                  <Link key={to} to={to} className={cn(MODE_CLASS, accent.hoverBorder)}>
+                    <Icon
+                      aria-hidden="true"
+                      className={cn(
+                        "absolute -bottom-5 -right-5 h-28 w-28 rotate-12 opacity-[0.07]",
+                        accent.watermark,
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "flex h-11 w-11 items-center justify-center rounded-full border",
+                        accent.chip,
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
                     </span>
-                  )}
-                </span>
-              </Link>
+                    <span className="relative">
+                      <span className="flex min-w-0 items-center justify-between gap-2 font-serif text-2xl font-light">
+                        {label}
+                        <ArrowRight className="h-5 w-5 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" />
+                      </span>
+                      <span className="mt-1 block text-sm text-muted-foreground">{desc}</span>
+                      {to === ROUTES.LOBBY && lobbyTeaser && (
+                        <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                          </span>
+                          {lobbyTeaser}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
+                );
+              })}
             </section>
           </div>
 

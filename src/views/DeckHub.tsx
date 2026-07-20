@@ -67,7 +67,7 @@ export default function DeckHub() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex shrink-0 items-center justify-end gap-1 border-b px-4 py-3">
+      <div className="flex shrink-0 items-center justify-end gap-1 border-b px-4 py-3 sm:px-6 lg:px-8">
         <SegmentedButton active={tab === "browse"} onClick={() => setTab("browse")}>
           <Search className="mr-1 h-4 w-4" />
           Browse
@@ -115,7 +115,7 @@ export default function DeckHub() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="p-4">
+            <div className="p-4 sm:px-6 lg:px-8">
               {listError ? (
                 <p className="text-sm text-destructive">{listError}</p>
               ) : list === null ? (

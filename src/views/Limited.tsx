@@ -188,7 +188,7 @@ export default function Limited() {
   const selectedSet = draftableSets.find((s) => s.code === selectedSetCode) ?? null;
 
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto px-6 py-6">
+    <div className="flex h-full flex-col gap-6 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex items-end justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           Open packs, build a deck on the fly, then play a quick gauntlet against AI opponents.

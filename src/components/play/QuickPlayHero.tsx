@@ -56,7 +56,7 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
   if (!heroById) {
     return (
       <section className="relative min-w-0 overflow-hidden rounded-2xl border border-primary/30 bg-card/90 shadow-2xl backdrop-blur-md">
-        <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-7">
+        <div className="flex min-w-0 flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:p-7">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
               <Zap className="h-3.5 w-3.5" />
@@ -72,7 +72,7 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
               Runs on {engineBadge}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button
               size="lg"
               className="gap-1.5"
@@ -126,9 +126,9 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
     <section className="relative min-w-0 overflow-hidden rounded-2xl border border-primary/30 bg-card/90 shadow-2xl backdrop-blur-md">
       <div className="absolute inset-0" aria-hidden="true">
         <DeckCoverImage cover={cover} alt="" className="opacity-35" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/25" />
       </div>
-      <div className="relative flex min-w-0 flex-col gap-4 p-5 sm:p-7">
+      <div className="relative flex min-h-44 min-w-0 flex-col justify-end gap-4 p-5 sm:min-h-52 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:p-7">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
             <Zap className="h-3.5 w-3.5" />
@@ -158,7 +158,7 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
             </button>
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button
             size="lg"
             className="gap-1.5"

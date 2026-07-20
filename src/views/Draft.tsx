@@ -92,7 +92,7 @@ export default function Draft() {
   const canBuild = activeDraft.pickedPile.length >= 1;
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <LandscapeGate />
       <header className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

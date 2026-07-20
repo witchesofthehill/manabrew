@@ -250,7 +250,7 @@ export function TablesList({
     <div className="h-full flex flex-col">
       {/* Current room card */}
       {currentRoom && (
-        <div className="p-4 border-b">
+        <div className="p-4 border-b sm:px-6 lg:px-8">
           <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -524,7 +524,7 @@ export function TablesList({
 
       {/* Room search */}
       {!inRoom && hasTables && (
-        <div className="px-4 pt-1 pb-1 shrink-0">
+        <div className="px-4 pt-1 pb-1 shrink-0 sm:px-6 lg:px-8">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -540,7 +540,7 @@ export function TablesList({
 
       {/* Room list */}
       <ScrollArea className="flex-1">
-        <div className="px-4 pb-4 pt-2">
+        <div className="px-4 pb-4 pt-2 sm:px-6 lg:px-8">
           {!hasVisibleTables ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🎮</div>

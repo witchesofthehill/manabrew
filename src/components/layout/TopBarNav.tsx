@@ -25,11 +25,12 @@ export function TopBarNav() {
           key={to}
           size="sm"
           variant={isActive(to) ? "secondary" : "ghost"}
+          title={label}
           className="h-8 gap-1.5 px-2 text-xs"
           onClick={() => navigate(to)}
         >
           <Icon className="h-4 w-4" />
-          <span className="hidden lg:inline">{label}</span>
+          <span className="hidden xl:inline">{label}</span>
         </Button>
       ))}
       {menus.map((menu) => {
@@ -41,10 +42,11 @@ export function TopBarNav() {
               <Button
                 size="sm"
                 variant={menuActive ? "secondary" : "ghost"}
+                title={menu.label}
                 className="h-8 gap-1 px-2 text-xs"
               >
                 <MenuIcon className="h-4 w-4" />
-                <span className="hidden lg:inline">{menu.label}</span>
+                <span className="hidden xl:inline">{menu.label}</span>
                 <ChevronDown className="h-3 w-3 opacity-60" />
               </Button>
             </DropdownMenuTrigger>

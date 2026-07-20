@@ -1,10 +1,10 @@
-import { ArrowDownToLine, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, Loader2, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { ROUTES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
@@ -60,7 +60,6 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
     return { title: "Limited", fallback: ROUTES.PLAY };
   }
   if (pathname === ROUTES.COMPANION) return { title: "Life Tracker", fallback: ROUTES.PLAY };
-  if (pathname === ROUTES.MATCHES) return { title: "Active Matches", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.SETTINGS) return { title: "Preferences", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.ABOUT) return { title: "About Manabrew", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.DESIGN_SYSTEM) {
@@ -80,9 +79,11 @@ export function TopBar({ override }: TopBarProps) {
   const phase = useDesktopUpdateStore((s) => s.phase);
   const version = useDesktopUpdateStore((s) => s.version);
   const progress = useDesktopUpdateStore((s) => s.progress);
+  const isGameActive = useGameStore((s) => s.isGameActive);
   const routeChrome = getRouteChrome(location.pathname, location.search);
   const title = override?.title ?? routeChrome.title;
   const isPlayHome = normalizePathname(location.pathname) === ROUTES.PLAY;
+  const isSettingsRoute = normalizePathname(location.pathname) === ROUTES.SETTINGS;
 
   const downloading = phase === "downloading";
   const updateLabel = downloading
@@ -132,15 +133,7 @@ export function TopBar({ override }: TopBarProps) {
         aria-label="Manabrew Home"
         className="relative flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
       >
-        <ManaBrewLogo size={28} className="shrink-0 rounded-lg" />
-        <span
-          className={cn(
-            "truncate text-sm font-semibold tracking-tight",
-            title && "hidden sm:inline",
-          )}
-        >
-          Manabrew
-        </span>
+        <ManaBrewLogo size={36} className="shrink-0 rounded-lg" />
       </button>
       {title && (
         <>
@@ -171,6 +164,17 @@ export function TopBar({ override }: TopBarProps) {
             </span>
           </Button>
         )}
+        <Button
+          size="icon"
+          variant={isSettingsRoute ? "secondary" : "ghost"}
+          className="h-8 w-8"
+          disabled={isGameActive}
+          title={isGameActive ? "Preferences are unavailable during an active game" : "Preferences"}
+          onClick={() => navigate(ROUTES.SETTINGS)}
+        >
+          <Settings className="h-4 w-4" />
+          <span className="sr-only">Preferences</span>
+        </Button>
       </div>
     </header>
   );

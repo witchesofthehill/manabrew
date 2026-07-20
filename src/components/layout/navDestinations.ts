@@ -1,6 +1,5 @@
 import type { ComponentType } from "react";
 import {
-  Gamepad2,
   Github,
   Hand,
   HeartPulse,
@@ -10,8 +9,6 @@ import {
   MoreHorizontal,
   Palette,
   Search,
-  Settings,
-  Wrench,
 } from "lucide-react";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
@@ -51,20 +48,15 @@ export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
     direct.push({ to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers });
   }
 
-  const tools: NavDestination[] = [
+  direct.push(
     { to: ROUTES.SEARCH, label: "Card Search", icon: Search },
     { to: ROUTES.COMPANION, label: "Life Tracker", icon: HeartPulse },
-    { to: ROUTES.MATCHES, label: "Active Matches", icon: Gamepad2 },
-  ];
+  );
   if (FEATURES.tabletop) {
-    tools.push({ to: ROUTES.TABLETOP, label: "Tabletop", icon: Hand });
+    direct.push({ to: ROUTES.TABLETOP, label: "Tabletop", icon: Hand });
   }
-  menus.push({ id: "tools", label: "Tools", icon: Wrench, items: tools });
 
-  const more: NavDestination[] = [
-    { to: ROUTES.SETTINGS, label: "Preferences", icon: Settings },
-    { to: ROUTES.ABOUT, label: "About", icon: Info },
-  ];
+  const more: NavDestination[] = [{ to: ROUTES.ABOUT, label: "About", icon: Info }];
   if (DESIGN_SYSTEM_ENABLED) {
     more.push({ to: ROUTES.DESIGN_SYSTEM, label: "Design System", icon: Palette });
   }

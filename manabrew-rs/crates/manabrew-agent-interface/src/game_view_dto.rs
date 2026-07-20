@@ -73,6 +73,11 @@ fn classify_change_zone(sa: &SpellAbility) -> TargetingIntent {
         {
             TargetingIntent::Friendly
         }
+        Some(ZoneType::Hand) | Some(ZoneType::Library) | Some(ZoneType::Battlefield)
+            if sa.ir.origin_zone == Some(ZoneType::Library) =>
+        {
+            TargetingIntent::Fetch
+        }
         Some(ZoneType::Exile) => TargetingIntent::Exile,
         Some(ZoneType::Hand) | Some(ZoneType::Library) => TargetingIntent::Bounce,
         Some(ZoneType::Graveyard) => TargetingIntent::Destroy,

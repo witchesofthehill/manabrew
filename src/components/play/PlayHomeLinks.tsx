@@ -22,16 +22,24 @@ import {
   WEBSITE_URL,
 } from "@/lib/constants";
 import { FEATURES } from "@/lib/features";
+import { cn } from "@/lib/utils";
 import { useGameStore } from "@/stores/useGameStore";
 
 const TOOL_TILE_CLASS =
-  "group flex min-w-0 flex-col items-start gap-2.5 rounded-xl border border-border/70 bg-card/85 p-3.5 shadow-md backdrop-blur-md hover:border-primary/70 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-4";
+  "group flex min-w-0 flex-col items-start gap-2.5 rounded-xl border border-border/70 bg-card/85 p-4 shadow-md backdrop-blur-md hover:border-primary/70 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5";
 
 const TOOL_ICON_CLASS =
   "flex h-8 w-8 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-primary";
 
 const UTILITY_ROW_CLASS =
-  "flex min-w-0 items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+  "flex min-w-0 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+
+const TOOLS = [
+  { to: ROUTES.SEARCH, label: "Card Search", icon: Search },
+  { to: ROUTES.COMPANION, label: "Life Tracker", icon: HeartPulse },
+  { to: ROUTES.MATCHES, label: "Active Matches", icon: Gamepad2 },
+  ...(FEATURES.tabletop ? [{ to: ROUTES.TABLETOP, label: "Tabletop", icon: Hand }] : []),
+];
 
 export function PlayHomeLinks() {
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -42,45 +50,32 @@ export function PlayHomeLinks() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
           Tools
         </h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Link to={ROUTES.SEARCH} className={TOOL_TILE_CLASS}>
-            <span className={TOOL_ICON_CLASS}>
-              <Search className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium">Card Search</span>
-          </Link>
-          <Link to={ROUTES.COMPANION} className={TOOL_TILE_CLASS}>
-            <span className={TOOL_ICON_CLASS}>
-              <HeartPulse className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium">Life Tracker</span>
-          </Link>
-          <Link to={ROUTES.MATCHES} className={TOOL_TILE_CLASS}>
-            <span className={TOOL_ICON_CLASS}>
-              <Gamepad2 className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium">Active Matches</span>
-          </Link>
-          {FEATURES.tabletop && (
-            <Link to={ROUTES.TABLETOP} className={TOOL_TILE_CLASS}>
-              <span className={TOOL_ICON_CLASS}>
-                <Hand className="h-4 w-4" />
-              </span>
-              <span className="text-sm font-medium">Tabletop</span>
-            </Link>
+        <div
+          className={cn(
+            "grid gap-4",
+            TOOLS.length === 4 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3",
           )}
+        >
+          {TOOLS.map(({ to, label, icon: Icon }) => (
+            <Link key={to} to={to} className={TOOL_TILE_CLASS}>
+              <span className={TOOL_ICON_CLASS}>
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-medium">{label}</span>
+            </Link>
+          ))}
         </div>
       </section>
 
       <section className="overflow-hidden rounded-xl border border-border/60 bg-background/60 backdrop-blur-md">
-        <h2 className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        <h2 className="px-4 pt-4 pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Utilities
         </h2>
         <ul className="divide-y divide-border/50 pb-1">
           <li>
             {isGameActive ? (
               <span
-                className="flex min-w-0 items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground"
+                className="flex min-w-0 items-center gap-3 px-4 py-3 text-sm text-muted-foreground"
                 title="Preferences are unavailable during an active game"
               >
                 <Settings className="h-4 w-4 shrink-0" />
@@ -110,7 +105,7 @@ export function PlayHomeLinks() {
         </ul>
       </section>
 
-      <footer className="flex flex-col gap-3 border-t border-border/50 pt-4">
+      <footer className="flex flex-col gap-3 border-t border-border/50 pt-5">
         <UpdateCallout />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">Manabrew v{APP_VERSION}</span>

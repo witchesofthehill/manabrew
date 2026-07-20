@@ -107,6 +107,7 @@ interface PreferencesState {
   resetGameThemeColorOverrides: () => void;
 
   lastPlayedDeckId: string | null;
+  lastPlayedAtByDeck: Record<string, number>;
   setLastPlayedDeckId: (id: string | null) => void;
 
   lastOfflineEngine: EngineKind | null;
@@ -145,6 +146,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
+  "lastPlayedAtByDeck",
   "lastOfflineEngine",
   "lastOfflineFormatId",
   "lastAiOpponent",
@@ -270,7 +272,14 @@ export const usePreferencesStore = create<PreferencesState>()(
           resetGameThemeColorOverrides: () => set({ gameThemeColorOverrides: {} }),
 
           lastPlayedDeckId: null,
-          setLastPlayedDeckId: (lastPlayedDeckId) => set({ lastPlayedDeckId }),
+          lastPlayedAtByDeck: {},
+          setLastPlayedDeckId: (lastPlayedDeckId) =>
+            set((state) => ({
+              lastPlayedDeckId,
+              lastPlayedAtByDeck: lastPlayedDeckId
+                ? { ...state.lastPlayedAtByDeck, [lastPlayedDeckId]: Date.now() }
+                : state.lastPlayedAtByDeck,
+            })),
 
           lastOfflineEngine: null,
           setLastOfflineEngine: (lastOfflineEngine) => set({ lastOfflineEngine }),

@@ -11,7 +11,7 @@ import {
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { Pencil, Play, Share2, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Play, Share2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -29,6 +29,7 @@ interface DeckGridCardProps {
   onRename?: () => void;
   onPublish?: () => void;
   onPlay?: () => void;
+  playing?: boolean;
   readOnly?: boolean;
 }
 
@@ -39,6 +40,7 @@ export function DeckGridCard({
   onRename,
   onPublish,
   onPlay,
+  playing = false,
   readOnly = false,
 }: DeckGridCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -65,14 +67,19 @@ export function DeckGridCard({
           <Button
             size="sm"
             variant="secondary"
+            disabled={playing}
             className="absolute left-1.5 top-1.5 z-20 h-8 bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
             onClick={(event) => {
               event.stopPropagation();
               onPlay();
             }}
           >
-            <Play className="h-3.5 w-3.5" />
-            Play
+            {playing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            {playing ? "Starting…" : "Play"}
           </Button>
         )}
 

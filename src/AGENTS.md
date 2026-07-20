@@ -13,6 +13,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 | `components/editor/`    | Deck builder.                                                                                                                                                           |
 | `components/deck/`      | Deck card displays, label badges. Stateless.                                                                                                                            |
 | `components/lobby/`     | Room list, chat, deck picker.                                                                                                                                           |
+| `components/play/`      | Play home: quick-play hero, deck shelf, mode cards, rejoin card. Offline constructed setup lives in `lobby/DeckVsSelector.tsx`.                                         |
 | `components/companion/` | Paper-play life tracker — has its own AGENTS.md.                                                                                                                        |
 | `components/layout/`    | App shell, top bar + primary nav (`TopBarNav` menus, `NavSheet` mobile sheet, `navDestinations.ts` model), logo. Visible everywhere — change with care.                 |
 | `components/dev/`       | Dev-only panels, gated behind a flag. Don't import in production paths.                                                                                                 |

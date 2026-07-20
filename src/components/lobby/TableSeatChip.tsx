@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Armchair, Bot, Crown, Plus } from "lucide-react";
+import { Armchair, Bot, Crown, Plus, X } from "lucide-react";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import type { RoomPlayerInfo } from "@/types/server";
@@ -14,6 +14,11 @@ interface TableSeatChipProps {
   isHost: boolean;
   joinable?: boolean;
   onTakeSeat?: () => void;
+  ready?: boolean;
+  isYou?: boolean;
+  onRemove?: () => void;
+  nameLabel?: string;
+  statusLabel?: string;
   style?: CSSProperties;
   className?: string;
 }
@@ -24,6 +29,11 @@ export function TableSeatChip({
   isHost,
   joinable = false,
   onTakeSeat,
+  ready = false,
+  isYou = false,
+  onRemove,
+  nameLabel,
+  statusLabel,
   style,
   className,
 }: TableSeatChipProps) {
@@ -69,19 +79,55 @@ export function TableSeatChip({
       title={label}
       aria-label={`Seat ${seatIndex + 1}: ${label}`}
       style={style}
-      className={cn(
-        "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold shadow-md",
-        player.is_bot ? "bg-muted text-muted-foreground" : "bg-primary/20 text-primary",
-        className,
-      )}
+      className={cn("flex flex-col items-center gap-0.5", className)}
     >
-      {player.is_bot ? (
-        <Bot aria-hidden="true" className="h-3.5 w-3.5" />
-      ) : (
-        seatInitials(player.username)
+      <div
+        className={cn(
+          "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold shadow-md",
+          player.is_bot ? "bg-muted text-muted-foreground" : "bg-primary/20 text-primary",
+          ready && "ring-2 ring-primary/70",
+        )}
+      >
+        {player.is_bot ? (
+          <Bot aria-hidden="true" className="h-3.5 w-3.5" />
+        ) : (
+          seatInitials(player.username)
+        )}
+        {isHost && (
+          <Crown
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 h-3 w-3 text-commander"
+          />
+        )}
+        {onRemove && (
+          <button
+            type="button"
+            title="Remove bot"
+            aria-label={`Remove ${name}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+            className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-destructive"
+          >
+            <X aria-hidden="true" className="h-2.5 w-2.5" />
+          </button>
+        )}
+      </div>
+      {nameLabel && (
+        <span
+          className={cn(
+            "max-w-16 truncate text-[10px] font-medium leading-tight",
+            isYou && "font-semibold text-primary",
+          )}
+        >
+          {nameLabel}
+        </span>
       )}
-      {isHost && (
-        <Crown aria-hidden="true" className="absolute -top-1.5 -right-1.5 h-3 w-3 text-commander" />
+      {statusLabel && (
+        <span className="max-w-16 truncate text-[9px] leading-tight text-muted-foreground">
+          {statusLabel}
+        </span>
       )}
     </div>
   );

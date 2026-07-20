@@ -1,4 +1,4 @@
-import { Bot, Loader2, Plus, SlidersHorizontal, Swords, Zap } from "lucide-react";
+import { Bot, Cloud, Cpu, Loader2, Plus, SlidersHorizontal, Swords, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DeckCoverImage } from "@/components/deck/deckCover";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
@@ -42,6 +42,16 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
     getPlatform().type === "tauri"
       ? "Forge"
       : (lastOfflineEngine ?? (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
+  const engineBadge = (
+    <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground/80">
+      {engineLabel === "Forge" ? (
+        <Cloud aria-hidden="true" className="h-3 w-3" />
+      ) : (
+        <Cpu aria-hidden="true" className="h-3 w-3" />
+      )}
+      {engineLabel}
+    </span>
+  );
 
   if (!heroById) {
     return (
@@ -57,6 +67,9 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
             </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Battle the AI with a ready-made starter deck, or import a deck you already play.
+            </p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              Runs on {engineBadge}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -129,9 +142,8 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
             <span className="text-xs text-muted-foreground">{cardCount} cards</span>
           </div>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-            <span>
-              {engineLabel} · {opponentLabel}
-            </span>
+            {engineBadge}
+            <span>· {opponentLabel}</span>
             <button
               type="button"
               className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"

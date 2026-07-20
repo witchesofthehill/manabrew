@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { TableSeatChip } from "@/components/lobby/TableSeatChip";
+import { stripUsernameTag } from "@/lib/username";
 import type { RoomPlayerInfo } from "@/types/server";
 
 const SEAT_CENTER_PERCENT = 50;
@@ -21,6 +22,11 @@ interface OpenTableSeatsProps {
   joinable?: boolean;
   onTakeSeat?: () => void;
   centerContent?: ReactNode;
+  showSeatLabels?: boolean;
+  openFormat?: boolean;
+  youUsername?: string | null;
+  removableBots?: readonly string[];
+  onRemoveBot?: (username: string) => void;
 }
 
 export function OpenTableSeats({
@@ -29,6 +35,11 @@ export function OpenTableSeats({
   joinable = false,
   onTakeSeat,
   centerContent,
+  showSeatLabels = false,
+  openFormat = false,
+  youUsername,
+  removableBots = [],
+  onRemoveBot,
 }: OpenTableSeatsProps) {
   const controllerName = players.find((player) => !player.is_bot)?.username ?? players[0]?.username;
 
@@ -42,18 +53,43 @@ export function OpenTableSeats({
       <div className="absolute left-1/2 top-1/2 flex h-[48%] w-[60%] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-center">
         {centerContent}
       </div>
-      {Array.from({ length: maxPlayers }, (_, seatIndex) => (
-        <TableSeatChip
-          key={seatIndex}
-          seatIndex={seatIndex}
-          player={players[seatIndex]}
-          isHost={players[seatIndex]?.username === controllerName}
-          joinable={joinable}
-          onTakeSeat={onTakeSeat}
-          style={seatStyle(seatIndex, maxPlayers)}
-          className="absolute -translate-x-1/2 -translate-y-1/2"
-        />
-      ))}
+      {Array.from({ length: maxPlayers }, (_, seatIndex) => {
+        const player = players[seatIndex];
+        const isControllerSeat = player?.username === controllerName;
+        const statusLabel =
+          showSeatLabels && player
+            ? isControllerSeat
+              ? "Host"
+              : openFormat
+                ? player.ready
+                  ? "Ready"
+                  : "Waiting"
+                : player.ready
+                  ? "Ready"
+                  : (player.selected_deck_name ?? "No deck")
+            : undefined;
+        return (
+          <TableSeatChip
+            key={seatIndex}
+            seatIndex={seatIndex}
+            player={player}
+            isHost={isControllerSeat}
+            joinable={joinable}
+            onTakeSeat={onTakeSeat}
+            ready={player ? player.ready || isControllerSeat : false}
+            isYou={!!youUsername && player?.username === youUsername}
+            onRemove={
+              player && removableBots.includes(player.username)
+                ? () => onRemoveBot?.(player.username)
+                : undefined
+            }
+            nameLabel={showSeatLabels && player ? stripUsernameTag(player.username) : undefined}
+            statusLabel={statusLabel}
+            style={seatStyle(seatIndex, maxPlayers)}
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+          />
+        );
+      })}
     </div>
   );
 }

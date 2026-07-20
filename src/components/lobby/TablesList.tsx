@@ -7,6 +7,7 @@ import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
 import { HostedTablesSection } from "@/components/lobby/HostedTablesSection";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { OpenTableCard } from "@/components/lobby/OpenTableCard";
+import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { needsFormatChoice } from "@/components/lobby/tables.utils";
 import {
   DropdownMenu,
@@ -21,18 +22,14 @@ import {
   Shield,
   LogOut,
   Bot,
-  X,
   ChevronDown,
   Search,
   Copy,
   Check,
   Table2,
 } from "lucide-react";
-import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
-import { cn } from "@/lib/utils";
-import { stripUsernameTag } from "@/lib/username";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { ServerErrorCode } from "@/types/server";
 import { toast } from "sonner";
@@ -137,14 +134,9 @@ export function TablesList({
     !!currentRoom?.players.find((p) => p.username === controllerName)?.selected_deck_name;
   const canStart = currentRoom?.status === "Lobby" && allOtherPlayersReady && controllerHasDeck;
   const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
-
-  const orderedPlayers = currentRoom
-    ? [...currentRoom.players].sort((a, b) => {
-        if (a.username === controllerName) return -1;
-        if (b.username === controllerName) return 1;
-        return a.username.localeCompare(b.username);
-      })
-    : [];
+  const readyCount = currentRoom
+    ? currentRoom.players.filter((p) => p.ready || p.username === controllerName).length
+    : 0;
 
   async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
     if (joiningRoomId) return;
@@ -235,12 +227,9 @@ export function TablesList({
   );
   const ordinaryRooms = rooms
     .filter((room) => !aggregatedRoomIds.has(room.room_id))
-    .filter(
-      (room) =>
-        room.room_id === currentRoom?.room_id ||
-        !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()),
-    )
-    .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id);
+    .filter((room) => room.room_id !== currentRoom?.room_id)
+    .filter((room) => !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()))
+    .filter((room) => room.status === "Lobby");
   const visibleHostedRoomGroups = hostedRoomGroups.filter(
     ([engine, engineRooms]) =>
       !trimmedSearch ||
@@ -262,7 +251,7 @@ export function TablesList({
       {/* Current room card */}
       {currentRoom && (
         <div className="p-4 border-b">
-          <div className="rounded-xl border bg-card p-4 space-y-4">
+          <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <Swords className="h-4 w-4 text-primary shrink-0" />
@@ -402,89 +391,26 @@ export function TablesList({
               </div>
             )}
 
-            {/* Player slots */}
-            <div className="grid gap-2 sm:grid-cols-2">
-              {orderedPlayers.map((p) => {
-                const canRemove = mySpawnedBots.includes(p.username);
-                const isPlayerController = p.username === controllerName;
-                return (
-                  <div
-                    key={p.username}
-                    className={cn(
-                      "rounded-lg border px-3 py-2 min-h-[3.25rem] flex items-center gap-2.5 transition-colors",
-                      p.ready || isPlayerController
-                        ? "border-primary/30 bg-primary/5"
-                        : "bg-muted/30",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "h-2 w-2 rounded-full shrink-0",
-                        p.ready || isPlayerController ? "bg-primary" : "bg-muted-foreground/30",
-                      )}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium truncate">
-                          {stripUsernameTag(p.username)}
-                        </span>
-                        {p.username === controllerName && (
-                          <GameIcon
-                            name="overlord-helm"
-                            className="h-3 w-3 text-commander shrink-0"
-                            title="Table host — controls seats, bots & start"
-                          />
-                        )}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {isPlayerController
-                          ? "Controls start"
-                          : isOpenFormat
-                            ? p.ready
-                              ? "Ready"
-                              : "Waiting to ready up"
-                            : (p.selected_deck_name ?? "No deck selected")}
-                      </div>
-                    </div>
-                    {canRemove && isController ? (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => onRemoveBot?.(p.username)}
-                        title="Remove bot"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    ) : (
-                      <Badge
-                        variant={p.ready ? "default" : "outline"}
-                        className={cn(
-                          "text-[9px] px-1.5 shrink-0",
-                          (p.ready || isPlayerController) &&
-                            "bg-primary border-primary text-primary-foreground hover:bg-primary",
-                        )}
-                      >
-                        {isPlayerController ? "Controller" : p.ready ? "Ready" : "Waiting"}
-                      </Badge>
-                    )}
-                  </div>
-                );
-              })}
-              {/* Hidden on Open rooms — draft bots come from the room's
-                  draft_config.fill_with_bots, not this deck-picker flow. */}
-              {isController &&
-                !isOpenFormat &&
-                currentRoom.players.length < currentRoom.max_players &&
-                onAddBot && (
-                  <button
-                    className="rounded-lg border border-dashed px-3 py-2 min-h-[3.25rem] flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
-                    onClick={onAddBot}
-                  >
-                    <Bot className="h-3.5 w-3.5" />
-                    Add Bot
-                  </button>
-                )}
+            <div className="py-3">
+              <OpenTableSeats
+                players={currentRoom.players}
+                maxPlayers={currentRoom.max_players}
+                showSeatLabels
+                openFormat={isOpenFormat}
+                youUsername={username}
+                removableBots={isController ? mySpawnedBots : []}
+                onRemoveBot={onRemoveBot}
+                centerContent={
+                  <span className="flex flex-col items-center gap-0.5">
+                    <span className="text-[11px] font-semibold text-foreground/85">
+                      {readyCount}/{currentRoom.players.length} ready
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {canStart ? "Ready to start" : "Waiting…"}
+                    </span>
+                  </span>
+                }
+              />
             </div>
 
             {/* Actions */}
@@ -494,6 +420,14 @@ export function TablesList({
                   <Shield className="h-3 w-3" /> Select Deck
                 </Button>
               )}
+              {isController &&
+                !isOpenFormat &&
+                currentRoom.players.length < currentRoom.max_players &&
+                onAddBot && (
+                  <Button size="sm" variant="outline" className="gap-1" onClick={onAddBot}>
+                    <Bot className="h-3 w-3" /> Add Bot
+                  </Button>
+                )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -611,9 +545,13 @@ export function TablesList({
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🎮</div>
               <p className="text-sm text-muted-foreground">
-                {hasTables ? "No tables match your search" : "No tables available"}
+                {hasTables
+                  ? "No tables match your search"
+                  : inRoom
+                    ? "No other tables right now"
+                    : "No tables available"}
               </p>
-              {!hasTables && (
+              {!hasTables && !inRoom && (
                 <p className="text-xs text-muted-foreground/60 mt-1">
                   Create a new table to start playing
                 </p>

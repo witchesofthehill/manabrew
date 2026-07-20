@@ -1,7 +1,14 @@
 name: Staging deploy
 
-# Deploys the `staging` branch to the dedicated staging VM, a standalone
-# mini-production that behaves exactly like the production rollout:
+# Label-gated: a PR labelled `deploy-preview` takes the staging slot, the way
+# per-PR previews worked before #470 turned this into a branch auto-deploy.
+# Pushes to `staging` no longer deploy on their own — run this workflow from
+# the Actions tab (workflow_dispatch) to put the `staging` branch back on the
+# box. There is ONE slot, so labelling a second PR replaces whatever is on it;
+# the slot is never torn down, it just holds the last thing deployed.
+#
+# Deploys to the dedicated staging VM, a standalone mini-production that
+# behaves exactly like the production rollout:
 #   1. build + push the four self-hosting images tagged `staging` to ghcr
 #      (docker-images.yml does the same on v* tags for the release `latest`
 #      images),
@@ -21,13 +28,13 @@ name: Staging deploy
 # the repo checked out at STAGING_DEPLOY_PATH on the `staging` branch with a
 # box-local .env (MANABREW_SERVER_KEY, the STAGING_*_HOST trio, …).
 on:
-  push:
-    branches: [staging]
+  pull_request:
+    types: [labeled, synchronize, reopened]
   workflow_dispatch:
 
 concurrency:
-  group: staging-deploy
-  cancel-in-progress: false
+  group: staging-deploy-${{ github.event.pull_request.number || 'manual' }}
+  cancel-in-progress: true
 
 jobs:
   # ── Build & push the :staging images ───────────────────────────────
@@ -36,9 +43,17 @@ jobs:
   # The web image bakes the hub endpoint (from the STAGING_HUB_API_URL repo
   # variable) and the same-origin symbol proxy; the relay is configured at
   # runtime (compose RELAY_HOST), like prod.
+  # Fork PRs are skipped: they get neither a package-write token nor the SSH
+  # and Twingate secrets.
   build-images:
     name: Build & push ${{ matrix.image }} (staging tag)
-    if: github.repository == 'witchesofthehill/manabrew'
+    if: |
+      github.repository == 'witchesofthehill/manabrew'
+      && (github.event_name == 'workflow_dispatch'
+          || (github.event.pull_request.head.repo.full_name == github.repository
+              && ((github.event.action == 'labeled' && github.event.label.name == 'deploy-preview')
+                  || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
+                      && contains(github.event.pull_request.labels.*.name, 'deploy-preview')))))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -60,8 +75,11 @@ jobs:
           - image: manabrew-hub
             dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
     steps:
+      # Build the PR head, not the pull_request merge commit — deploy-staging.sh
+      # checks the head branch out on the box, so the two must agree.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
           submodules: recursive
 
       - name: Set up Docker Buildx
@@ -119,6 +137,10 @@ jobs:
           HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
           USER: ${{ secrets.STAGING_DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          # The PR's head branch, so the box checks out what the images were
+          # built from. Empty on workflow_dispatch → deploy-staging.sh falls
+          # back to its `staging` default.
+          DEPLOY_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
@@ -132,7 +154,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && DEPLOY_BRANCH='$DEPLOY_BRANCH' ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure
@@ -159,7 +181,7 @@ jobs:
           color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           actor: ${{ github.actor }}
-          sha: ${{ github.sha }}
+          sha: ${{ github.event.pull_request.head.sha || github.sha }}
           description: "(no log captured — SSH step failed before any output; see workflow run)"
           description-file: deploy.log
           attach-file: deploy-raw.log

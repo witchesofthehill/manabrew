@@ -7,8 +7,3 @@
 	# clones are unaffected; `git fetch --unshallow` inside forge/ restores
 	# full history if you need to archaeology the Java side.
 	shallow = true
-[submodule "ironsmith"]
-	path = ironsmith
-	url = https://github.com/Chiplis/ironsmith.git
-	branch = main
-	update = none

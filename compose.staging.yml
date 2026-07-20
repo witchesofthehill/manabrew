@@ -82,6 +82,8 @@ services:
       start_period: 5s
 
   self-hosted-node-staging:
+    profiles:
+      - hosted-ai
     image: ghcr.io/witchesofthehill/manabrew-node:${MANABREW_IMAGE_TAG:-staging}
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server-staging:9443"

@@ -1,8 +1,16 @@
 name: Staging deploy
 
-# Deploys the `staging` branch to staging.manabrew.app — a staging slot on the
-# PRODUCTION box (/opt/manabrew-staging, compose.staging.yml on the prod docker
-# network, fronted by prod Caddy's staging.manabrew.app / relay-staging vhosts):
+# Label-gated: a PR labelled `deploy-preview` takes the staging slot, the way
+# per-PR previews worked before #470 turned this into a branch auto-deploy.
+# Pushes to `staging` no longer deploy on their own — run this workflow from the
+# Actions tab (workflow_dispatch) to put the `staging` branch back on the slot.
+# There is ONE slot, so labelling a second PR replaces whatever is on it; the
+# slot is never torn down, it just holds the last thing deployed. Only the
+# `staging` branch gets a hosted-AI node (see deploy-staging.sh).
+#
+# Deploys to staging.manabrew.app — a staging slot on the PRODUCTION box
+# (/opt/manabrew-staging, compose.staging.yml on the prod docker network,
+# fronted by prod Caddy's staging.manabrew.app / relay-staging vhosts):
 #   1. build + push the self-hosting images tagged `staging` to ghcr
 #      (docker-images.yml does the same on v* tags for the release `latest`
 #      images),
@@ -21,13 +29,13 @@ name: Staging deploy
 # The optional standalone VM is not CI-driven: run deploy-local.sh on the VM
 # itself (compose.selfhost.yml — self-contained, builds from the checkout).
 on:
-  push:
-    branches: [staging]
+  pull_request:
+    types: [labeled, synchronize, reopened]
   workflow_dispatch:
 
 concurrency:
-  group: staging-deploy
-  cancel-in-progress: false
+  group: staging-deploy-${{ github.event.pull_request.number || 'manual' }}
+  cancel-in-progress: true
 
 jobs:
   # ── Build & push the :staging images ───────────────────────────────
@@ -36,9 +44,17 @@ jobs:
   # The web image bakes the hub endpoint (from the STAGING_HUB_API_URL repo
   # variable) and the same-origin symbol proxy; the relay is configured at
   # runtime (compose RELAY_HOST), like prod.
+  # Fork PRs are skipped: they get neither a package-write token nor the SSH
+  # secrets for the prod box.
   build-images:
     name: Build & push ${{ matrix.image }} (staging tag)
-    if: github.repository == 'witchesofthehill/manabrew'
+    if: |
+      github.repository == 'witchesofthehill/manabrew'
+      && (github.event_name == 'workflow_dispatch'
+          || (github.event.pull_request.head.repo.full_name == github.repository
+              && ((github.event.action == 'labeled' && github.event.label.name == 'deploy-preview')
+                  || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
+                      && contains(github.event.pull_request.labels.*.name, 'deploy-preview')))))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -60,8 +76,11 @@ jobs:
           - image: manabrew-hub
             dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
     steps:
+      # Build the PR head, not the pull_request merge commit — deploy-staging.sh
+      # checks the head branch out on the box, so the two must agree.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
           submodules: recursive
 
       - name: Set up Docker Buildx
@@ -112,6 +131,11 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
+          # The PR's head branch, so the box checks out what the images were
+          # built from. Empty on workflow_dispatch → deploy-staging.sh falls
+          # back to its `staging` default, which is also the only branch that
+          # gets a hosted-AI node.
+          DEPLOY_BRANCH: ${{ github.event.pull_request.head.ref }}
           # Synced into the slot's .env below. MANABREW_SERVER_KEY is included
           # because the slot's .env is standalone — it must NOT symlink prod's
           # secrets file. The STAGING_OAUTH_GITHUB_* names avoid GitHub
@@ -153,7 +177,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && DEPLOY_BRANCH='$DEPLOY_BRANCH' ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure

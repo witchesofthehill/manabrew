@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveAiOpponent, type ResolvedAiOpponent } from "@/lib/aiOpponent";
 import { ROUTES } from "@/lib/constants";
+import { getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -63,6 +64,21 @@ export function useQuickPlay() {
       try {
         const deck = saved.deck;
         const formatId = deck.format ?? "standard";
+        const format = getFormat(formatId);
+        if (!format) {
+          toast.error("This deck uses an unsupported format.");
+          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`);
+          return;
+        }
+        const validation = validateDeckSections(
+          { deck, commanderName: deck.commanders?.[0]?.identity.name },
+          format,
+        );
+        if (!validation.legal) {
+          toast.warning(validation.errors[0] ?? "This deck is not ready to play.");
+          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`);
+          return;
+        }
         const prefs = usePreferencesStore.getState();
         const opponent = resolveAiOpponent({
           presets: await ensurePresets(),

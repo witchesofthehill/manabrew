@@ -38,3 +38,12 @@ const sessionAtPageLoad = peekActiveGameSession();
 export function activeGameSessionAtPageLoad(): ActiveGameSession | null {
   return sessionAtPageLoad;
 }
+
+export function isActiveGameSessionAtPageLoadCurrent(): boolean {
+  const current = peekActiveGameSession();
+  return (
+    sessionAtPageLoad !== null &&
+    current?.roomId === sessionAtPageLoad.roomId &&
+    current.gameId === sessionAtPageLoad.gameId
+  );
+}

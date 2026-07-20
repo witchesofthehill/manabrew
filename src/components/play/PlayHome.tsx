@@ -1,4 +1,5 @@
 import { ArrowRight, Boxes, FlaskConical, LibraryBig, Swords, Users } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
@@ -7,6 +8,7 @@ import { QuickPlayHero } from "@/components/play/QuickPlayHero";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
+import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useServerStore } from "@/stores/useServerStore";
@@ -58,6 +60,8 @@ const MODES = [
 
 export function PlayHome() {
   const { quickPlay, quickPlayStarter, quickPlayPreset, pendingDeckId } = useQuickPlay();
+  const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
+  const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
   const rooms = useServerStore((state) => state.rooms);
   const players = useServerStore((state) => state.players);
@@ -85,8 +89,16 @@ export function PlayHome() {
             </p>
           </header>
 
-          <div className="flex flex-col gap-4 motion-safe:animate-onboard-fade-up sm:gap-5">
-            <RejoinMatchCard />
+          {resumeSession && (
+            <RejoinMatchCard session={resumeSession} onDismiss={() => setResumeSession(null)} />
+          )}
+
+          <div
+            className={cn(
+              "flex flex-col gap-4 motion-safe:animate-onboard-fade-up sm:gap-5",
+              resumePending && "hidden",
+            )}
+          >
             <QuickPlayHero
               quickPlay={quickPlay}
               quickPlayStarter={quickPlayStarter}
@@ -135,7 +147,10 @@ export function PlayHome() {
             </section>
           </div>
 
-          <div className="motion-safe:animate-onboard-fade-up" style={{ animationDelay: "80ms" }}>
+          <div
+            className={cn("motion-safe:animate-onboard-fade-up", resumePending && "hidden")}
+            style={{ animationDelay: "80ms" }}
+          >
             <PlayDeckShelf
               onQuickPlay={quickPlay}
               onQuickPlayPreset={quickPlayPreset}
@@ -143,7 +158,10 @@ export function PlayHome() {
             />
           </div>
 
-          <div className="motion-safe:animate-onboard-fade-up" style={{ animationDelay: "140ms" }}>
+          <div
+            className={cn("motion-safe:animate-onboard-fade-up", resumePending && "hidden")}
+            style={{ animationDelay: "140ms" }}
+          >
             {isFeatureEnabled("deckHub") ? (
               <Link
                 to={ROUTES.HUB}
@@ -179,7 +197,10 @@ export function PlayHome() {
           </div>
 
           <div
-            className="mt-auto flex flex-col gap-6 motion-safe:animate-onboard-fade-up sm:gap-8"
+            className={cn(
+              "mt-auto flex flex-col gap-6 motion-safe:animate-onboard-fade-up sm:gap-8",
+              resumePending && "hidden",
+            )}
             style={{ animationDelay: "200ms" }}
           >
             <PlayHomeLinks />

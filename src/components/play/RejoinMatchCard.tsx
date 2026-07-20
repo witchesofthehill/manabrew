@@ -1,27 +1,25 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Swords, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
+import { clearActiveGameSession, type ActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { useServerStore } from "@/stores/useServerStore";
 
-export function RejoinMatchCard() {
-  const navigate = useNavigate();
-  const connected = useServerStore((state) => state.connected);
-  const currentRoom = useServerStore((state) => state.currentRoom);
-  const [dismissed, setDismissed] = useState(false);
+interface RejoinMatchCardProps {
+  session: ActiveGameSession;
+  onDismiss: () => void;
+}
 
-  const marker = peekActiveGameSession();
-  if (dismissed || !marker) return null;
-  if (connected && currentRoom && currentRoom.room_id !== marker.roomId) return null;
+export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
+  const navigate = useNavigate();
+  const currentRoom = useServerStore((state) => state.currentRoom);
 
   function dismiss() {
     clearActiveGameSession();
-    if (currentRoom?.room_id === marker?.roomId) {
+    if (currentRoom?.room_id === session.roomId) {
       void useServerStore.getState().leaveRoom();
     }
-    setDismissed(true);
+    onDismiss();
   }
 
   return (
@@ -32,7 +30,7 @@ export function RejoinMatchCard() {
       <div className="min-w-0 flex-1">
         <p className="font-medium">Match in progress</p>
         <p className="truncate text-sm text-muted-foreground">
-          {currentRoom?.room_id === marker.roomId
+          {currentRoom?.room_id === session.roomId
             ? `You're still seated at ${currentRoom.room_name}.`
             : "You're still seated in an online match."}
         </p>

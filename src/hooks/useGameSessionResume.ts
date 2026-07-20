@@ -6,7 +6,7 @@ import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import {
   activeGameSessionAtPageLoad,
   clearActiveGameSession,
-  peekActiveGameSession,
+  isActiveGameSessionAtPageLoadCurrent,
 } from "@/lib/activeGameSession";
 import { peekSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
@@ -34,13 +34,14 @@ export function useGameSessionResume() {
   const settled = useRef(false);
   const resyncRequested = useRef(false);
   const respawnedBots = useRef(new Set<string>());
+  const cancellationHandled = useRef(false);
 
   useEffect(() => {
     rlog("mount: session marker =", session);
   }, [session]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !isActiveGameSessionAtPageLoadCurrent()) return;
     const server = useServerStore.getState();
     if (server.connected || server.connecting) {
       rlog("connect skipped — already", server.connected ? "connected" : "connecting");
@@ -73,7 +74,21 @@ export function useGameSessionResume() {
   }, [session, connected, currentRoom, username]);
 
   useEffect(() => {
+    if (!session || isActiveGameSessionAtPageLoadCurrent()) return;
+    if (!cancellationHandled.current) {
+      if (settled.current) return;
+      cancellationHandled.current = true;
+      settled.current = true;
+      if (currentRoom?.room_id === session.roomId) {
+        void useServerStore.getState().leaveRoom();
+      }
+    }
+    if (gameStarted) useServerStore.setState({ gameStarted: false });
+  }, [session, currentRoom, gameStarted]);
+
+  useEffect(() => {
     if (!session || settled.current || !connected || !currentRoom) return;
+    if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (useGameStore.getState().isGameActive) return;
     if (currentRoom.status !== "InGame") {
       rlog(`resync-effect: room status is '${currentRoom.status}', waiting for InGame`);
@@ -104,6 +119,7 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || session.isHost) return;
+    if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (!connected || !currentRoom || currentRoom.status !== "InGame") return;
     if (currentRoom.room_id !== session.roomId) return;
     const server = getPlatform().server;
@@ -129,6 +145,7 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || settled.current || !gameStarted) return;
+    if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (useGameStore.getState().isGameActive) {
       rlog("gameStarted-effect: game already active, clearing gameStarted flag");
       useServerStore.setState({ gameStarted: false });
@@ -158,9 +175,10 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || settled.current || !connected) return;
+    if (!isActiveGameSessionAtPageLoadCurrent()) return;
     rlog(`fallback-timer: armed, will check in ${NO_GAME_FOUND_AFTER_MS}ms`);
     const timer = setTimeout(() => {
-      if (settled.current || !peekActiveGameSession()) return;
+      if (settled.current || !isActiveGameSessionAtPageLoadCurrent()) return;
       if (useGameStore.getState().isGameActive) {
         rlog("fallback-timer: fired but game is active — no kick");
         return;

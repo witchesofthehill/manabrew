@@ -59,6 +59,10 @@ export function CreateGameDialog({
     if (forced) setSelectedFormat(forced);
   }, [forcedFormatId]);
 
+  useEffect(() => {
+    if (preSelectedDeckId) setSelectedDeck(preSelectedDeckId);
+  }, [preSelectedDeckId]);
+
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
     (saved) =>

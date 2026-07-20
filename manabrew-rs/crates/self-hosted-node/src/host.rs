@@ -40,6 +40,8 @@ type WsWrite = SplitSink<WsStream, Message>;
 type WsRead = SplitStream<WsStream>;
 
 const SELF_HOSTED_NODE_PROTOCOL: &str = "self-hosted-node";
+const PRIVATE_MESSAGE_MISSING_PLAYER: &str =
+    "cannot forward private engine message without a mapped player";
 
 struct RelayClient {
     username: String,
@@ -553,7 +555,7 @@ async fn reestablish_room(
                     (
                         snap.last_state.clone(),
                         snap.last_state_by_slot.clone(),
-                        snap.pending_prompts.values().cloned().collect::<Vec<_>>(),
+                        snap.pending_prompts.clone(),
                         snap.game
                             .as_ref()
                             .map(|game| game.player_order.clone())
@@ -569,20 +571,30 @@ async fn reestablish_room(
                         .await?;
                 }
                 for (slot, state) in seat_states {
-                    let target_player =
-                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned());
+                    let Some(target_player) =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned())
+                    else {
+                        warn!(slot, "cannot replay private state without a mapped player");
+                        continue;
+                    };
                     client
                         .send(&ClientMessage::BroadcastState {
                             state,
-                            target_player,
+                            target_player: Some(target_player),
                         })
                         .await?;
                 }
-                for prompt in prompts {
+                for (slot, prompt) in prompts {
+                    let Some(target_player) =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned())
+                    else {
+                        warn!(slot, "cannot replay prompt without a mapped player");
+                        continue;
+                    };
                     client
                         .send(&ClientMessage::BroadcastState {
                             state: prompt,
-                            target_player: None,
+                            target_player: Some(target_player),
                         })
                         .await?;
                 }
@@ -1327,7 +1339,7 @@ fn maybe_start_hosted_engine(
                 outbound_tx.clone(),
                 snapshot.clone(),
                 remote_prompt_rx,
-                None,
+                Some(player_names.clone()),
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1335,7 +1347,7 @@ fn maybe_start_hosted_engine(
                 game_over_rx,
                 engine_session.clone(),
                 game_id.clone(),
-                None,
+                Some(player_names.clone()),
             );
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
@@ -1760,10 +1772,19 @@ fn spawn_remote_prompt_forwarder(
                     AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
             }
-            let target_player = if per_seat && matches!(message, AgentMessage::State(_)) {
-                seat_usernames
+            let target_player = if per_seat
+                && matches!(
+                    message,
+                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                ) {
+                let Some(target_player) = seat_usernames
                     .as_ref()
                     .and_then(|names| names.get(player_index).cloned())
+                else {
+                    warn!(player_index, PRIVATE_MESSAGE_MISSING_PLAYER);
+                    continue;
+                };
+                Some(target_player)
             } else {
                 None
             };
@@ -1828,10 +1849,19 @@ fn spawn_game_over_forwarder(
                     AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
                     }
                 }
-                let target_player = if per_seat && matches!(message, AgentMessage::State(_)) {
-                    seat_usernames
+                let target_player = if per_seat
+                    && matches!(
+                        message,
+                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                    ) {
+                    let Some(target_player) = seat_usernames
                         .as_ref()
                         .and_then(|names| names.get(player_index).cloned())
+                    else {
+                        warn!(player_index, PRIVATE_MESSAGE_MISSING_PLAYER);
+                        continue;
+                    };
+                    Some(target_player)
                 } else {
                     None
                 };

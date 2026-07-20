@@ -175,7 +175,7 @@ export interface IServerApi {
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
   requestResync(): Promise<void>;
-  broadcastState(state: Record<string, unknown>): Promise<void>;
+  broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;
   removeAiBot(username: string): Promise<void>;

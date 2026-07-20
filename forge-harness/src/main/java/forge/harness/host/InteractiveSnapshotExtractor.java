@@ -343,7 +343,7 @@ public final class InteractiveSnapshotExtractor {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
         final IPaperCard paper = card.getPaperCard();
-       final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
+        final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
         dto.identity = new CardIdentity(
                 normalizeCardName(name),
                 paper != null ? paper.getEdition() : card.getSetCode(),
@@ -430,6 +430,19 @@ public final class InteractiveSnapshotExtractor {
             dto.effectiveManaCost = effectiveManaCost(card);
         }
         return dto;
+    }
+
+    static CardIdentity sourceCardIdentity(final Card card) {
+        final IPaperCard paper = card.getPaperCard();
+        final String name = paper != null ? paper.getName() : card.getName();
+        final String cardNumber = paper != null && !"N.A.".equals(paper.getCollectorNumber())
+                ? paper.getCollectorNumber()
+                : "";
+        return new CardIdentity(
+                normalizeCardName(name),
+                paper != null ? paper.getEdition() : card.getSetCode(),
+                cardNumber,
+                card.isToken());
     }
 
     private static String keywordCost(final Card card, final String name) {

@@ -550,6 +550,7 @@ class WebGameApi implements IGameApi {
     this.myPlayerSlot = `player-${params.enginePlayerIndex}`;
 
     if (params.localIsHost) {
+      this.serverApi?.setEnginePlayerNames(params.playerNames);
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
@@ -732,6 +733,7 @@ class WebServerApi implements IServerApi {
   private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
+  private enginePlayerNames: string[] = [];
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -751,11 +753,26 @@ class WebServerApi implements IServerApi {
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
-        this.broadcastState(envelope);
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       } else if (msg.kind === "error") {
-        this.broadcastState({ kind: "error", forPlayer, error: msg.error });
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) {
+          void this.broadcastState({ kind: "error", forPlayer, error: msg.error }, targetPlayer);
+        }
       }
     });
+  }
+
+  setEnginePlayerNames(playerNames: string[]): void {
+    this.enginePlayerNames = [...playerNames];
+  }
+
+  private enginePlayerName(playerSlot: string): string | undefined {
+    const index = Number(playerSlot.replace("player-", ""));
+    const playerName = Number.isInteger(index) ? this.enginePlayerNames[index] : undefined;
+    if (!playerName) console.error(`No relay player mapped for engine slot ${playerSlot}`);
+    return playerName;
   }
 
   async connect(params: ServerConnectParams): Promise<void> {
@@ -1022,8 +1039,8 @@ class WebServerApi implements IServerApi {
   }
 
   /** Broadcast game state to other players in the room */
-  async broadcastState(state: Record<string, unknown>): Promise<void> {
-    this.send({ type: "BroadcastState", state });
+  async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
+    this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
   async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
@@ -1279,8 +1296,9 @@ class WebServerApi implements IServerApi {
       if (this.lastRelayState !== null) {
         void this.broadcastState({ kind: "state", state: JSON.parse(this.lastRelayState) });
       }
-      for (const envelope of this.pendingRelayPrompts.values()) {
-        void this.broadcastState(envelope);
+      for (const [playerSlot, envelope] of this.pendingRelayPrompts) {
+        const targetPlayer = this.enginePlayerName(playerSlot);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });
       return;

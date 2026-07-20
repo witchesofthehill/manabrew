@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
 import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { ChooseCardsInput } from "@/protocol";
 
 function SelectableCard({
@@ -46,6 +47,7 @@ interface ChooseCardsModalProps {
   presentation: ChooseCardsInput["presentation"];
   min: number;
   max: number;
+  sourceCard?: DeckCard;
   /** Reveal mode: cards are display-only and the footer is a single acknowledge button. */
   reveal?: boolean;
   onConfirm: (chosenCardIds: string[]) => void;
@@ -56,11 +58,16 @@ export function ChooseCardsModal({
   presentation,
   min,
   max,
+  sourceCard,
   reveal = false,
   onConfirm,
 }: ChooseCardsModalProps) {
   const cards = rawCards as CardDto[];
-  const { preview: sourcePreview, presentation: display } = useModalSourceCard(presentation);
+  const {
+    preview: sourcePreview,
+    presentation: display,
+    inlineSourceCard,
+  } = useModalSourceCard(presentation, sourceCard);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const chosen = [...selected];
@@ -86,7 +93,7 @@ export function ChooseCardsModal({
     <Modal maxWidth="max-w-3xl" maxHeight="">
       {sourcePreview}
       <div className="p-5">
-        <PromptPresentation presentation={display} forceHorizontal />
+        <PromptPresentation presentation={display} sourceCard={inlineSourceCard} forceHorizontal />
       </div>
 
       <div

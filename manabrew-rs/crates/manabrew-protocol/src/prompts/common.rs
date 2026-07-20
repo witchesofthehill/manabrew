@@ -1,7 +1,17 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::game::{Mana, TargetingIntent};
+use crate::game::{CardIdentity, Mana, TargetingIntent};
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct SourceCard {
+    pub engine_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub lookup: Option<CardIdentity>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -14,9 +24,6 @@ pub struct PromptPresentation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub text: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub source_card_id: Option<String>,
     #[serde(default)]
     pub targets: Vec<TargetRef>,
 }

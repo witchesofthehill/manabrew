@@ -37,6 +37,7 @@
     "ReorderItem",
     "ScryDestination",
     "SelectionOption",
+    "SourceCard",
     "TargetKind",
     "TargetRef"
   ],
@@ -318,8 +319,8 @@
       "refs": []
     },
     "PromptPresentation": {
-      "ts": "interface PromptPresentation {\n  title: string;\n  description?: string;\n  text?: string;\n  sourceCardId?: string;\n  targets: Array<TargetRef>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PromptPresentation {\n    pub title: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub text: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_id: Option<String>,\n    #[serde(default)]\n    pub targets: Vec<TargetRef>,\n}",
+      "ts": "interface PromptPresentation {\n  title: string;\n  description?: string;\n  text?: string;\n  targets: Array<TargetRef>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PromptPresentation {\n    pub title: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub text: Option<String>,\n    #[serde(default)]\n    pub targets: Vec<TargetRef>,\n}",
       "refs": ["TargetRef"]
     },
     "ReorderInput": {
@@ -351,6 +352,11 @@
       "ts": "interface SelectionOption {\n  label: string;\n  weight: number;\n  canRepeat: boolean;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct SelectionOption {\n    pub label: String,\n    pub weight: usize,\n    pub can_repeat: bool,\n}",
       "refs": []
+    },
+    "SourceCard": {
+      "ts": "interface SourceCard {\n  engineId: string;\n  lookup?: CardIdentity;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct SourceCard {\n    pub engine_id: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub lookup: Option<CardIdentity>,\n}",
+      "refs": ["CardIdentity"]
     },
     "StackObjectDto": {
       "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  identity: CardIdentity;\n  text: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  targets: Array<TargetRef>;\n}",

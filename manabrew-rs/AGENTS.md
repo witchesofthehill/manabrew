@@ -34,6 +34,8 @@ All under `manabrew-rs/crates/`:
 
 Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb` ← `engine` ← everything else. Don't introduce cycles.
 
+Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
+
 ## `manabrew-engine` crate — module map
 
 The engine itself lives at `manabrew-rs/crates/manabrew-engine/src/`. Each module mirrors a Java package under `forge/forge-game/src/main/java/forge/game/`.

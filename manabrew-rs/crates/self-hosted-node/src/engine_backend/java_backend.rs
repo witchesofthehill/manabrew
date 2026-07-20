@@ -1309,7 +1309,7 @@ fn game_over_prompt() -> AgentPrompt {
     AgentPrompt {
         prompt_id: u32::MAX,
         deciding_player_id: "player-0".to_string(),
-        source_card_id: None,
+        source_card: None,
         input: PromptInput::GameOver(GameOverInput {}),
     }
 }

@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 use crate::display::DisplayEvent;
 use crate::game::GameViewDto;
-use crate::prompts::{PromptInput, PromptOutput};
+use crate::prompts::{PromptInput, PromptOutput, SourceCard};
 
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -76,6 +76,6 @@ pub struct AgentPrompt {
     pub deciding_player_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub source_card_id: Option<String>,
+    pub source_card: Option<SourceCard>,
     pub input: PromptInput,
 }

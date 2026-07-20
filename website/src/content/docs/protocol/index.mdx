@@ -83,7 +83,7 @@ Every prompt is wrapped in an `AgentPrompt`:
 interface AgentPrompt {
   promptId: number; // correlate the response back to this prompt
   decidingPlayerId: string; // who must answer
-  sourceCardId?: string; // the card that caused this prompt, if any
+  sourceCard?: SourceCard; // the card that caused this prompt, if any
   input: PromptInput; // the discriminated union below
 }
 ```

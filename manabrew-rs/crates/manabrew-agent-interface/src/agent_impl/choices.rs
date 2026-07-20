@@ -14,16 +14,11 @@ use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
-fn card_choice_presentation(
-    title: &str,
-    description: Option<String>,
-    source: Option<CardId>,
-) -> PromptPresentation {
+fn card_choice_presentation(title: &str, description: Option<String>) -> PromptPresentation {
     PromptPresentation {
         title: title.to_string(),
         description,
         text: None,
-        source_card_id: source.map(card_id_str),
         targets: Vec::new(),
     }
 }
@@ -53,7 +48,6 @@ fn send_selection<T: Responder>(
                 title: title.to_string(),
                 description,
                 text: None,
-                source_card_id: source.map(card_id_str),
                 targets: Vec::new(),
             },
             options: options
@@ -443,7 +437,6 @@ fn send_boolean<T: Responder>(
                     title: title.to_string(),
                     description: None,
                     text: None,
-                    source_card_id: source.map(card_id_str),
                     targets: Vec::new(),
                 },
                 confirm_label: confirm_label.to_string(),
@@ -534,7 +527,6 @@ pub(super) fn reveal_cards<T: Responder>(
                 title: message,
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             cards,
@@ -569,7 +561,6 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
                     description: None,
                     text: (!effect_text.trim().is_empty())
                         .then(|| format!("otherwise: \"{}\"", effect_text.trim())),
-                    source_card_id: source.map(card_id_str),
                     targets: targets.iter().map(game_entity_to_target_ref).collect(),
                 },
                 confirm_label: "Pay".to_string(),
@@ -616,7 +607,6 @@ pub(super) fn choose_color<T: Responder>(
                 title: "Choose a color".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             valid_colors: valid_colors.to_vec(),
@@ -909,7 +899,6 @@ pub(super) fn choose_number<T: Responder>(
                     title: title.to_string(),
                     description: description.map(str::to_string),
                     text: None,
-                    source_card_id: source.map(card_id_str),
                     targets: Vec::new(),
                 },
                 min,
@@ -935,7 +924,7 @@ pub(super) fn choose_discard<T: Responder>(
     let cards = zone_cards_for(agent, hand);
     agent.send_prompt(
         PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
-            presentation: card_choice_presentation("Discard", None, None),
+            presentation: card_choice_presentation("Discard", None),
             cards,
             min: num,
             max: num,
@@ -984,7 +973,7 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
     let cards = zone_cards_for(agent, valid);
     agent.send_prompt(
         PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
-            presentation: card_choice_presentation("Choose cards", None, None),
+            presentation: card_choice_presentation("Choose cards", None),
             cards,
             min,
             max,
@@ -1031,7 +1020,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     let min_choices = if is_optional { 0 } else { 1 };
     agent.send_prompt(
         PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
-            presentation: card_choice_presentation(select_prompt, None, None),
+            presentation: card_choice_presentation(select_prompt, None),
             cards: zone_cards,
             min: min_choices,
             max: 1,
@@ -1080,7 +1069,7 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
 
     agent.send_prompt(
         PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
-            presentation: card_choice_presentation(select_prompt, None, None),
+            presentation: card_choice_presentation(select_prompt, None),
             cards: zone_cards,
             min,
             max,

@@ -1,18 +1,22 @@
 package forge.harness.host;
 
 import com.google.gson.JsonElement;
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import forge.harness.protocol.SourceCard;
 
 import java.util.Map;
 
 /** manabrew-protocol wire marshaling: the AgentPrompt envelope, shared prompt presentation, and PromptOutput-to-internal action decoding. */
 final class ManabrewProtocolAdapter {
+    private static final Gson GSON = new Gson();
+
     private ManabrewProtocolAdapter() {}
 
     static String agentPrompt(
             final long promptId,
             final String decidingPlayerId,
-            final String sourceCardId,
+            final SourceCard sourceCard,
             final JsonObject input
     ) {
         final JsonObject prompt = new JsonObject();
@@ -20,8 +24,8 @@ final class ManabrewProtocolAdapter {
         if (decidingPlayerId != null && !decidingPlayerId.isEmpty()) {
             prompt.addProperty("decidingPlayerId", decidingPlayerId);
         }
-        if (sourceCardId != null) {
-            prompt.addProperty("sourceCardId", sourceCardId);
+        if (sourceCard != null) {
+            prompt.add("sourceCard", GSON.toJsonTree(sourceCard));
         }
         prompt.add("input", input);
         return prompt.toString();

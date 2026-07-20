@@ -10,11 +10,15 @@ import type { ChooseBooleanInput, ChooseBooleanOutput } from "@/protocol";
 export function ChooseBooleanModal({
   input,
   respond,
+  sourceCard,
 }: PromptProps<ChooseBooleanInput, ChooseBooleanOutput>) {
   const decide = (value: boolean) => respond({ type: "decision", value });
   useModalKeyboard({ onSpace: () => decide(true) }, [respond]);
 
-  const { preview, presentation } = useModalSourceCard(input.presentation);
+  const { preview, presentation, inlineSourceCard } = useModalSourceCard(
+    input.presentation,
+    sourceCard,
+  );
   const vertical = isVerticalPresentation(presentation);
 
   return (
@@ -27,6 +31,7 @@ export function ChooseBooleanModal({
       <div className="p-6">
         <PromptPresentation
           presentation={presentation}
+          sourceCard={inlineSourceCard}
           actions={
             <>
               <Button variant="outline" onClick={() => decide(false)}>

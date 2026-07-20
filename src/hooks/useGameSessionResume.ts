@@ -75,16 +75,17 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || isActiveGameSessionAtPageLoadCurrent()) return;
-    if (!cancellationHandled.current) {
-      if (settled.current) return;
+    if (!cancellationHandled.current && !settled.current) {
       cancellationHandled.current = true;
       settled.current = true;
       if (currentRoom?.room_id === session.roomId) {
         void useServerStore.getState().leaveRoom();
       }
     }
-    if (gameStarted) useServerStore.setState({ gameStarted: false });
-  }, [session, currentRoom, gameStarted]);
+    if (gameStarted && useServerStore.getState().gameId === session.gameId) {
+      useServerStore.setState({ gameStarted: false });
+    }
+  }, [session, connected, currentRoom, gameStarted]);
 
   useEffect(() => {
     if (!session || settled.current || !connected || !currentRoom) return;

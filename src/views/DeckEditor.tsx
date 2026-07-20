@@ -518,11 +518,7 @@ export default function DeckEditor() {
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
                     onPublish={isFeatureEnabled("deckHub") ? () => setPublishingDeck(s) : undefined}
-                    onPlay={
-                      s.deck.format === "draft" || s.deck.format === "sealed"
-                        ? undefined
-                        : () => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)
-                    }
+                    onPlay={() => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)}
                   />
                 ))}
               </div>

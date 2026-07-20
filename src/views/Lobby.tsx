@@ -227,13 +227,13 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
-    if (currentRoom?.format === "Draft") {
+    if (currentRoom?.draft_config) {
       useServerStore.setState({ gameStarted: false });
       return;
     }
-    if (currentRoom?.format === "Sealed") {
+    if (currentRoom?.sealed_config) {
       useServerStore.setState({ gameStarted: false });
-      if (currentRoom.status === "InGame" && currentRoom.sealed_config && username) {
+      if (currentRoom.status === "InGame" && username) {
         const room = currentRoom;
         const amHost = room.host === username;
         void startMpSealed({ room, username }).catch((err) => {

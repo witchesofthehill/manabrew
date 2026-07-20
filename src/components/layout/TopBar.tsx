@@ -97,6 +97,16 @@ export function TopBar({ override }: TopBarProps) {
       override.onBack();
       return;
     }
+    const routeState = location.state;
+    if (
+      routeState &&
+      typeof routeState === "object" &&
+      "topBarBackTo" in routeState &&
+      typeof routeState.topBarBackTo === "string"
+    ) {
+      navigate(routeState.topBarBackTo, { replace: true });
+      return;
+    }
     const historyIndex = window.history.state?.idx;
     if (typeof historyIndex === "number" && historyIndex > 0) {
       navigate(-1);

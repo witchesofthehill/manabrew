@@ -253,6 +253,7 @@ export const useGameStore = create<GameState>()(
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
 
       startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
+        if (get().isGameActive) return;
         try {
           await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
         } catch (e) {

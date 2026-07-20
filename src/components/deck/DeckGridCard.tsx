@@ -30,6 +30,7 @@ interface DeckGridCardProps {
   onPublish?: () => void;
   onPlay?: () => void;
   playing?: boolean;
+  playDisabled?: boolean;
   readOnly?: boolean;
 }
 
@@ -41,6 +42,7 @@ export function DeckGridCard({
   onPublish,
   onPlay,
   playing = false,
+  playDisabled = false,
   readOnly = false,
 }: DeckGridCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -67,7 +69,7 @@ export function DeckGridCard({
           <Button
             size="sm"
             variant="secondary"
-            disabled={playing}
+            disabled={playing || playDisabled}
             className="absolute left-1.5 top-1.5 z-20 h-8 bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
             onClick={(event) => {
               event.stopPropagation();

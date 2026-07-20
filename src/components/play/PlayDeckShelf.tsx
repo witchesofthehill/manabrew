@@ -33,12 +33,7 @@ export function PlayDeckShelf({
   const [formatFilter, setFormatFilter] = useState("commander");
   const [collapsedOverride, setCollapsedOverride] = useState<boolean | null>(null);
 
-  const ownedDecks = savedDecks.filter(
-    (savedDeck) =>
-      !savedDeck.deck.draft &&
-      savedDeck.deck.format !== "draft" &&
-      savedDeck.deck.format !== "sealed",
-  );
+  const ownedDecks = savedDecks.filter((savedDeck) => !savedDeck.deck.draft);
   const matchesFormat = (format?: string) =>
     formatFilter === "all" || (format ?? "standard") === formatFilter;
   const filteredDecks = ownedDecks
@@ -118,6 +113,7 @@ export function PlayDeckShelf({
                   onOpen={() => openDeck(deck.id)}
                   onPlay={() => onQuickPlay(deck.id)}
                   playing={pendingDeckId === deck.id}
+                  playDisabled={pendingDeckId !== null}
                   readOnly
                 />
               </div>
@@ -174,9 +170,12 @@ export function PlayDeckShelf({
                     <div key={presetId} className={SHELF_CARD_CLASS}>
                       <DeckGridCard
                         deck={{ id: presetId, deck: preset, savedAt: 0 }}
-                        onOpen={() => onQuickPlayPreset(preset)}
+                        onOpen={() => {
+                          if (pendingDeckId === null) onQuickPlayPreset(preset);
+                        }}
                         onPlay={() => onQuickPlayPreset(preset)}
                         playing={pendingDeckId === presetId}
+                        playDisabled={pendingDeckId !== null}
                         readOnly
                       />
                     </div>

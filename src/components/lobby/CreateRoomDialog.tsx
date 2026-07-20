@@ -77,6 +77,18 @@ const FORMATS: {
     icon: Wand2,
     description: "60-card singleton, planeswalker cmdr",
   },
+  {
+    value: "Draft",
+    label: "Draft",
+    icon: Boxes,
+    description: "40-card decks built from a draft",
+  },
+  {
+    value: "Sealed",
+    label: "Sealed",
+    icon: Boxes,
+    description: "40-card decks built from a sealed pool",
+  },
 ];
 
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;

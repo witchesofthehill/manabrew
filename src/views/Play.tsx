@@ -45,7 +45,10 @@ export default function Play() {
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
-      navigate(ROUTES.LOBBY, { replace: true });
+      navigate(ROUTES.LOBBY, {
+        replace: true,
+        state: { topBarBackTo: ROUTES.PLAY },
+      });
       return;
     }
     if (gameWasActive.current) {

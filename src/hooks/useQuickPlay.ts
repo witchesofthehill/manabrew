@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
@@ -55,11 +55,14 @@ async function launchVsAi(
 export function useQuickPlay() {
   const navigate = useNavigate();
   const [pendingDeckId, setPendingDeckId] = useState<string | null>(null);
+  const pendingRef = useRef(false);
 
   const quickPlay = useCallback(
     async (savedDeckId: string) => {
+      if (pendingRef.current) return;
       const saved = useDeckStore.getState().savedDecks.find((entry) => entry.id === savedDeckId);
       if (!saved) return;
+      pendingRef.current = true;
       setPendingDeckId(savedDeckId);
       try {
         const deck = saved.deck;
@@ -93,6 +96,7 @@ export function useQuickPlay() {
         }
         await launchVsAi(deck, formatId, opponent, savedDeckId);
       } finally {
+        pendingRef.current = false;
         setPendingDeckId(null);
       }
     },
@@ -100,6 +104,8 @@ export function useQuickPlay() {
   );
 
   const quickPlayStarter = useCallback(async () => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     setPendingDeckId(STARTER_DECK_ID);
     try {
       const presets = await ensurePresets();
@@ -124,11 +130,14 @@ export function useQuickPlay() {
       }
       await launchVsAi(playerDeck, formatId, opponent, null);
     } finally {
+      pendingRef.current = false;
       setPendingDeckId(null);
     }
   }, []);
 
   const quickPlayPreset = useCallback(async (preset: Deck) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     const presetId = preset.id ?? preset.name;
     setPendingDeckId(presetId);
     try {
@@ -145,6 +154,7 @@ export function useQuickPlay() {
       }
       await launchVsAi(preset, formatId, opponent, null);
     } finally {
+      pendingRef.current = false;
       setPendingDeckId(null);
     }
   }, []);

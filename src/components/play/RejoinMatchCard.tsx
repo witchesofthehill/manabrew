@@ -1,7 +1,13 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Swords, X } from "lucide-react";
+import { Loader2, Swords, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { clearActiveGameSession, type ActiveGameSession } from "@/lib/activeGameSession";
+import {
+  armActiveGameSession,
+  clearActiveGameSession,
+  type ActiveGameSession,
+} from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { useServerStore } from "@/stores/useServerStore";
 
@@ -13,13 +19,25 @@ interface RejoinMatchCardProps {
 export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
   const navigate = useNavigate();
   const currentRoom = useServerStore((state) => state.currentRoom);
+  const [dismissing, setDismissing] = useState(false);
 
-  function dismiss() {
+  async function dismiss() {
+    if (dismissing) return;
+    setDismissing(true);
     clearActiveGameSession();
-    if (currentRoom?.room_id === session.roomId) {
-      void useServerStore.getState().leaveRoom();
+    try {
+      const server = useServerStore.getState();
+      if (currentRoom?.room_id === session.roomId) {
+        await server.leaveRoom();
+      } else if (!currentRoom && (server.connecting || server.connected)) {
+        await server.disconnect();
+      }
+      onDismiss();
+    } catch {
+      armActiveGameSession(session);
+      setDismissing(false);
+      toast.error("Couldn't abandon the previous match. Try again.");
     }
-    onDismiss();
   }
 
   return (
@@ -36,11 +54,26 @@ export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button size="sm" variant="ghost" className="gap-1" onClick={dismiss}>
-          <X className="h-3.5 w-3.5" />
-          Dismiss
+        <Button
+          size="sm"
+          variant="ghost"
+          className="gap-1"
+          disabled={dismissing}
+          onClick={() => void dismiss()}
+        >
+          {dismissing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <X className="h-3.5 w-3.5" />
+          )}
+          {dismissing ? "Abandoning…" : "Dismiss"}
         </Button>
-        <Button size="sm" className="gap-1.5" onClick={() => navigate(ROUTES.LOBBY)}>
+        <Button
+          size="sm"
+          className="gap-1.5"
+          disabled={dismissing}
+          onClick={() => navigate(ROUTES.LOBBY)}
+        >
           <Swords className="h-3.5 w-3.5" />
           Rejoin
         </Button>

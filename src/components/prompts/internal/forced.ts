@@ -13,7 +13,7 @@ export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (pro
   const input = prompt.input;
   if (canFinishTargeting(input)) return { kind: "force-show" };
 
-  const sourceId = prompt.sourceCard?.engineId;
+  const sourceId = prompt.sourceCard?.id;
   const intent = sourceId ? ctx.targetIntents[sourceId] : undefined;
   if (intent) {
     const match = input.candidates.find((c) => c.kind === intent.kind && c.id === intent.id);

@@ -154,7 +154,7 @@ const DECK = definedUnder("deck_dto.rs").filter((t) => !STATE.includes(t));
 const SHARED = (() => {
   const out = new Set();
   const queue = [
-    "SourceCard",
+    "CardDto",
     ...Object.keys(tsBody)
       .filter((n) => /Input$/.test(n) && n !== "PromptInput")
       .flatMap((n) => rawRefs(n, tsBody[n])),

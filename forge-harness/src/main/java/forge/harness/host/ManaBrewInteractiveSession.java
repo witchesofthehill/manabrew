@@ -2436,16 +2436,16 @@ public final class ManaBrewInteractiveSession {
         return out;
     }
 
-    private SourceCard sourceCard(final String sourceCardId) {
+    private CardDto sourceCard(final String sourceCardId) {
         if (sourceCardId == null) {
             return null;
         }
         for (final Card card : game.getCardsInGame()) {
             if (sourceCardId.equals(SnapshotExtractor.javaCardId(card))) {
-                return new SourceCard(sourceCardId, InteractiveSnapshotExtractor.sourceCardIdentity(card));
+                return InteractiveSnapshotExtractor.cardDto(game, card, false);
             }
         }
-        return new SourceCard(sourceCardId, null);
+        return null;
     }
 
     private static PromptPresentation presentation(final String title, final String description) {

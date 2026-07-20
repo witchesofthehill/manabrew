@@ -18,7 +18,7 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
   const castingCardId = useMemo(() => {
     if (!promptType || !CASTING_PROMPT_TYPES.has(promptType)) return null;
     return (
-      currentPrompt?.sourceCard?.engineId ??
+      currentPrompt?.sourceCard?.id ??
       (promptType === "payManaCost" ? currentPrompt.input.cardId : null)
     );
   }, [promptType, currentPrompt]);

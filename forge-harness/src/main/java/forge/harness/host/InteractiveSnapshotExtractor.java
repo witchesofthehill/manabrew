@@ -432,19 +432,6 @@ public final class InteractiveSnapshotExtractor {
         return dto;
     }
 
-    static CardIdentity sourceCardIdentity(final Card card) {
-        final IPaperCard paper = card.getPaperCard();
-        final String name = paper != null ? paper.getName() : card.getName();
-        final String cardNumber = paper != null && !"N.A.".equals(paper.getCollectorNumber())
-                ? paper.getCollectorNumber()
-                : "";
-        return new CardIdentity(
-                normalizeCardName(name),
-                paper != null ? paper.getEdition() : card.getSetCode(),
-                cardNumber,
-                card.isToken());
-    }
-
     private static String keywordCost(final Card card, final String name) {
         for (final KeywordInterface keyword : card.getKeywords()) {
             final String original = keyword.getOriginal();

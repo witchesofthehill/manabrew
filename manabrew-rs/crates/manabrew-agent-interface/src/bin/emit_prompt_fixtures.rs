@@ -1,7 +1,8 @@
 //! Emits one example of every `PromptInput` variant as JSONL — the corpus
 //! the UI prompt-handling test replays. A new variant won't compile until added.
 use manabrew_agent_interface::game_view_dto::{
-    target_ref_card, target_ref_player, target_ref_spell, CardIdentity, TargetingIntent, ZoneKind,
+    target_ref_card, target_ref_player, target_ref_spell, CardDto, CardIdentity, TargetingIntent,
+    ZoneKind,
 };
 use manabrew_agent_interface::prompt::{
     AgentPrompt, AvailableAction, AvailableActionKind, Mana, ManaColor, PlayCardMode, PromptInput,
@@ -12,14 +13,17 @@ fn wrap(inner: PromptInput) -> AgentPrompt {
     AgentPrompt {
         prompt_id: 0,
         deciding_player_id: "player-0".to_string(),
-        source_card: Some(SourceCard {
-            engine_id: "card-1".to_string(),
-            lookup: Some(CardIdentity {
+        source_card: Some(CardDto {
+            id: "card-1".to_string(),
+            identity: CardIdentity {
                 name: "Lightning Bolt".to_string(),
                 set_code: "M11".to_string(),
                 card_number: "149".to_string(),
                 is_token: false,
-            }),
+            },
+            owner_id: "player-0".to_string(),
+            controller_id: "player-0".to_string(),
+            ..CardDto::default()
         }),
         input: inner,
     }

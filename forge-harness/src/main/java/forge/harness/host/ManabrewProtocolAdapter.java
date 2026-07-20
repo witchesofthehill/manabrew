@@ -3,7 +3,7 @@ package forge.harness.host;
 import com.google.gson.JsonElement;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import forge.harness.protocol.SourceCard;
+import forge.harness.protocol.CardDto;
 
 import java.util.Map;
 
@@ -16,7 +16,7 @@ final class ManabrewProtocolAdapter {
     static String agentPrompt(
             final long promptId,
             final String decidingPlayerId,
-            final SourceCard sourceCard,
+            final CardDto sourceCard,
             final JsonObject input
     ) {
         final JsonObject prompt = new JsonObject();

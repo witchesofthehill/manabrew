@@ -42,7 +42,7 @@ pub use choose_from_selection::{
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
 pub use common::{
     ActivatableAbilityInfo, AlternativeCostKind, AvailableAction, AvailableActionKind,
-    PaymentAction, PaymentActionKind, PaymentResourceKind, PlayCardMode, SourceCard,
+    PaymentAction, PaymentActionKind, PaymentResourceKind, PlayCardMode,
 };
 pub use dice_rolled::{DiceRollEntry, DiceRolledInput, DiceRolledOutput};
 pub use game_over::GameOverInput;

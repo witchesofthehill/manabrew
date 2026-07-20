@@ -7,7 +7,6 @@ import { peekArchivedToken, useCard } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-import type { SourceCard } from "@/protocol";
 
 export function useSourceCardDto(cardId: string | undefined): CardDto | undefined {
   const gameView = useGameStore((s) => s.gameView);
@@ -31,48 +30,47 @@ export function useResolveDeckCard(cardId: string | undefined): DeckCard | undef
   return useMemo(() => (gc ? asDeckCard(gameDecks[gc.ownerId], gc) : undefined), [gc, gameDecks]);
 }
 
-export function useResolveSourceCard(source: SourceCard | undefined): DeckCard | undefined {
+export function useResolveSourceCard(source: CardDto | undefined): DeckCard | undefined {
   const gameDecks = useGameStore((s) => s.gameDecks);
-  const visible = useSourceCardDto(source?.engineId);
-  const lookup = source?.lookup;
+  const identity = source?.identity;
   const deckCard = useMemo(() => {
-    if (visible?.identity.name) {
-      const resolved = asDeckCard(gameDecks[visible.ownerId], visible);
+    if (source?.identity.name) {
+      const resolved = asDeckCard(gameDecks[source.ownerId], source);
       if (resolved.uris.normal || resolved.uris.border_crop) return resolved;
     }
-    if (!lookup?.name) return undefined;
+    if (!identity?.name) return undefined;
     const pool = Object.values(gameDecks).flatMap(getDeckCardPool);
     const exact = pool.find(
       (card) =>
-        lookup.setCode &&
-        lookup.cardNumber &&
-        card.identity.setCode.toLowerCase() === lookup.setCode.toLowerCase() &&
-        card.identity.cardNumber === lookup.cardNumber,
+        identity.setCode &&
+        identity.cardNumber &&
+        card.identity.setCode.toLowerCase() === identity.setCode.toLowerCase() &&
+        card.identity.cardNumber === identity.cardNumber,
     );
     return (
       exact ??
       pool.find(
         (card) =>
-          card.identity.name === lookup.name ||
-          card.identity.name.split(" // ").includes(lookup.name),
+          card.identity.name === identity.name ||
+          card.identity.name.split(" // ").includes(identity.name),
       )
     );
-  }, [gameDecks, lookup, visible]);
+  }, [gameDecks, identity, source]);
   const exact = useCard(
-    deckCard || !lookup?.name
+    deckCard || !identity?.name
       ? null
       : {
-          name: lookup.name,
-          setCode: lookup.setCode || undefined,
-          cardNumber: lookup.cardNumber || undefined,
+          name: identity.name,
+          setCode: identity.setCode || undefined,
+          cardNumber: identity.cardNumber || undefined,
         },
   );
-  const byName = useCard(deckCard || !lookup?.name ? null : { name: lookup.name });
-  const archivedToken = lookup?.isToken
+  const byName = useCard(deckCard || !identity?.name ? null : { name: identity.name });
+  const archivedToken = identity?.isToken
     ? (peekArchivedToken({
-        name: lookup.name,
-        setCode: lookup.setCode,
-        cardNumber: lookup.cardNumber,
+        name: identity.name,
+        setCode: identity.setCode,
+        cardNumber: identity.cardNumber,
       }) ?? undefined)
     : undefined;
 

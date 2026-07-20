@@ -16,7 +16,7 @@ use manabrew_engine::player::actions::PlayerAction as EnginePlayerAction;
 
 use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
-use crate::game_view_dto::{CardIdentity, GameViewDto, GameViewDtoExt, StepKind};
+use crate::game_view_dto::{card_to_dto, CardDto, GameViewDto, GameViewDtoExt, StepKind};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
@@ -86,7 +86,7 @@ pub struct PromptAgent<R: Responder> {
     pub responder: R,
     pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
-    source_card_lookups: HashMap<CardId, CardIdentity>,
+    source_cards: HashMap<CardId, CardDto>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
@@ -101,7 +101,7 @@ impl<R: Responder> PromptAgent<R> {
             responder,
             pending_prompt: None,
             latest_view: None,
-            source_card_lookups: HashMap::new(),
+            source_cards: HashMap::new(),
             pending_restore_checkpoint: None,
             pass_until: None,
             conceded: false,
@@ -114,10 +114,7 @@ impl<R: Responder> PromptAgent<R> {
         AgentPrompt {
             prompt_id: self.next_prompt_id,
             deciding_player_id: player_id_str(self.player_id),
-            source_card: source.map(|card_id| SourceCard {
-                engine_id: card_id_str(card_id),
-                lookup: self.source_card_lookups.get(&card_id).cloned(),
-            }),
+            source_card: source.and_then(|card_id| self.source_cards.get(&card_id).cloned()),
             input: inner,
         }
     }
@@ -459,24 +456,10 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn snapshot_state(&mut self, game: &GameState, mana_pools: &[ManaPool]) {
-        self.source_card_lookups = game
+        self.source_cards = game
             .cards
             .iter()
-            .map(|card| {
-                (
-                    card.id,
-                    CardIdentity {
-                        name: if card.full_name.is_empty() {
-                            card.card_name.clone()
-                        } else {
-                            card.full_name.clone()
-                        },
-                        set_code: card.set_code.clone().unwrap_or_default(),
-                        card_number: card.card_number.clone().unwrap_or_default(),
-                        is_token: card.is_token,
-                    },
-                )
-            })
+            .map(|card| (card.id, card_to_dto(game, card.id)))
             .collect();
         self.latest_view = Some(GameViewDto::from_engine(
             game,

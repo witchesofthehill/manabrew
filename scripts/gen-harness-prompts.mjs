@@ -86,7 +86,7 @@ const refsOf = (body) => {
 // ---- reachable closure from the input types --------------------------------
 
 const reachable = new Set();
-const queue = [...inputTag.keys(), "SourceCard"];
+const queue = [...inputTag.keys(), "CardDto"];
 while (queue.length) {
   const n = queue.pop();
   if (reachable.has(n) || !aliases.has(n) || /Output$/.test(n)) continue;

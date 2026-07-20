@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::display::DisplayEvent;
-use crate::game::GameViewDto;
-use crate::prompts::{PromptInput, PromptOutput, SourceCard};
+use crate::game::{CardDto, GameViewDto};
+use crate::prompts::{PromptInput, PromptOutput};
 
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -76,6 +76,6 @@ pub struct AgentPrompt {
     pub deciding_player_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub source_card: Option<SourceCard>,
+    pub source_card: Option<CardDto>,
     pub input: PromptInput,
 }

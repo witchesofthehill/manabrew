@@ -1,8 +1,6 @@
-import { Bot, Cloud, Cpu, Loader2, Plus, SlidersHorizontal, Swords, Zap } from "lucide-react";
+import { Cloud, Cpu, Loader2, Plus, Shuffle, SlidersHorizontal, Swords, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { DeckCoverImage } from "@/components/deck/deckCover";
-import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { FormatBadge } from "@/components/game/FormatBadge";
+import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { Button } from "@/components/ui/button";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { STARTER_DECK_ID } from "@/hooks/useQuickPlay";
@@ -11,6 +9,10 @@ import { getPlatform } from "@/platform";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
+import type { Deck } from "@/protocol/deck";
+
+const SECTION_CLASS =
+  "min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6";
 
 interface QuickPlayHeroProps {
   quickPlay: (savedDeckId: string) => void;
@@ -55,17 +57,19 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
 
   if (!heroById) {
     return (
-      <section className="relative min-w-0 overflow-hidden rounded-2xl border border-primary/30 bg-card/90 shadow-2xl backdrop-blur-md">
-        <div className="flex min-w-0 flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:p-7">
+      <section className={SECTION_CLASS}>
+        <div className="mb-4">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            <Zap className="h-3.5 w-3.5" />
+            New to the Brewery?
+          </p>
+          <h2 className="mt-1 font-serif text-2xl font-light tracking-tight sm:text-3xl">
+            Your first game is one click away
+          </h2>
+        </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              <Zap className="h-3.5 w-3.5" />
-              New to the Brewery?
-            </p>
-            <h2 className="mt-2 font-serif text-2xl font-light leading-tight tracking-tight sm:text-3xl">
-              Your first game is one click away
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Battle the AI with a ready-made starter deck, or import a deck you already play.
             </p>
             <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -100,74 +104,96 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
       </section>
     );
   }
-
   const deck = heroById.deck;
   const formatId = deck.format ?? "standard";
-  const cover = resolveCoverCard(deck);
-  const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
 
-  let opponentLabel = "vs a random AI deck";
+  let opponentDeck: Deck | null = null;
+  let opponentDeckId: string | null = null;
   if (lastAiOpponent?.kind === "preset") {
     const preset = presets.find(
       (entry) =>
         (entry.id ?? entry.name) === lastAiOpponent.id && (entry.format ?? "standard") === formatId,
     );
-    if (preset) opponentLabel = `vs ${preset.name}`;
+    opponentDeck = preset ?? null;
+    opponentDeckId = preset ? (preset.id ?? preset.name) : null;
   } else if (lastAiOpponent?.kind === "saved") {
     const saved = savedDecks.find((entry) => entry.id === lastAiOpponent.id);
     if (saved && (saved.deck.format ?? "standard") === formatId) {
-      opponentLabel = `vs ${saved.deck.name}`;
+      opponentDeck = saved.deck;
+      opponentDeckId = saved.id;
     }
   }
 
   const pending = pendingDeckId === heroById.id;
 
+  function openMatchup() {
+    navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedDeckId: heroById!.id } });
+  }
+
   return (
-    <section className="relative min-w-0 overflow-hidden rounded-2xl border border-primary/30 bg-card/90 shadow-2xl backdrop-blur-md">
-      <div className="absolute inset-0" aria-hidden="true">
-        <DeckCoverImage cover={cover} alt="" className="opacity-35" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/25" />
+    <section className={SECTION_CLASS}>
+      <div className="mb-4">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+          <Zap className="h-3.5 w-3.5" />
+          Quick Play
+        </p>
+        <h2 className="mt-1 font-serif text-2xl font-light tracking-tight sm:text-3xl">
+          Jump back in
+        </h2>
       </div>
-      <div className="relative flex min-h-44 min-w-0 flex-col justify-end gap-4 p-5 sm:min-h-52 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:p-7">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            <Zap className="h-3.5 w-3.5" />
-            Quick Play
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h2 className="min-w-0 break-words font-serif text-2xl font-light leading-tight tracking-tight sm:text-3xl">
-              {deck.name}
-            </h2>
-            <FormatBadge formatId={formatId} />
-            <span className="text-xs text-muted-foreground">{cardCount} cards</span>
-          </div>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-            {engineBadge}
-            <span>· {opponentLabel}</span>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
-              onClick={() =>
-                navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
-                  state: { preSelectedDeckId: heroById.id },
-                })
-              }
-            >
-              <SlidersHorizontal className="h-3 w-3" />
-              Customize
-            </button>
-          </p>
+
+      <div className="flex items-center justify-center gap-4 sm:gap-10">
+        <div className="w-32 shrink-0 sm:w-44">
+          <DeckGridCard
+            deck={heroById}
+            onOpen={() => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(heroById.id)}`)}
+            readOnly
+          />
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+
+        <div className="flex min-w-0 flex-col items-center gap-2.5 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-primary/40 bg-primary/15 text-primary">
+            <Swords aria-hidden="true" className="h-5 w-5" />
+          </span>
           <Button
             size="lg"
             className="gap-1.5"
             disabled={pendingDeckId !== null}
             onClick={() => quickPlay(heroById.id)}
           >
-            {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5" />}
-            {pending ? "Starting…" : "Play vs AI"}
+            {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}
+            {pending ? "Starting…" : "Quick Play"}
           </Button>
+          <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+            {engineBadge}
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+              onClick={openMatchup}
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              Change matchup
+            </button>
+          </p>
+        </div>
+
+        <div className="w-32 shrink-0 sm:w-44">
+          {opponentDeck && opponentDeckId ? (
+            <DeckGridCard
+              deck={{ id: opponentDeckId, deck: opponentDeck, savedAt: 0 }}
+              onOpen={openMatchup}
+              readOnly
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={openMatchup}
+              className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/70 bg-muted/30 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+            >
+              <Shuffle aria-hidden="true" className="h-5 w-5" />
+              <span className="text-xs font-medium">Random AI deck</span>
+            </button>
+          )}
         </div>
       </div>
     </section>

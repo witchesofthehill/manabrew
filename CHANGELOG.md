@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.12.5](https://github.com/witchesofthehill/manabrew/compare/v1.12.4...v1.12.5) (2026-07-20)
+
 ## [1.12.4](https://github.com/witchesofthehill/manabrew/compare/v1.12.3...v1.12.4) (2026-07-19)
 
 ### Fixes

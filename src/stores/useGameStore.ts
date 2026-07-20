@@ -26,6 +26,11 @@ import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 
+let gameLaunchGeneration = 0;
+let gameLaunchInFlight = false;
+
+class GameLaunchCancelledError extends Error {}
+
 function isManualTabletopApi(
   runtime: GameRuntime,
 ): runtime is GameRuntime & { api: ManualTabletopApi } {
@@ -99,6 +104,7 @@ async function initializeGame({
   set,
   commanderName,
   engine,
+  isLaunchCurrent,
 }: {
   deck: Deck;
   opponentDeck?: Deck;
@@ -107,6 +113,7 @@ async function initializeGame({
   engine?: EngineKind;
   set: (partial: Partial<GameState>) => void;
   get: () => GameState;
+  isLaunchCurrent: () => boolean;
 }): Promise<void> {
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
@@ -148,6 +155,10 @@ async function initializeGame({
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
       });
+      if (!isLaunchCurrent()) {
+        await useServerStore.getState().leaveRoom();
+        throw new GameLaunchCancelledError();
+      }
       resetSelectedGameRuntime();
       const hostedRuntime = getSelectedGameRuntime();
       const hostedDecks: Record<string, Deck> = {};
@@ -169,9 +180,15 @@ async function initializeGame({
         localIsHost: false,
         startingLife: hosted.startingLife,
       });
+      if (!isLaunchCurrent()) {
+        await hostedRuntime.api.endGame();
+        throw new GameLaunchCancelledError();
+      }
       set({ debugInfo: "Forge game started.", isPrefetchingCards: false });
       return;
     } catch (error) {
+      if (error instanceof GameLaunchCancelledError) throw error;
+      if (!isLaunchCurrent()) throw new GameLaunchCancelledError();
       if (platformType !== "tauri") throw error;
       console.error("[store] Forge host unavailable; falling back to Manabrew:", error);
       toast.error("Forge engine unavailable — using the Manabrew engine.");
@@ -210,6 +227,10 @@ async function initializeGame({
     commanderName: commanderName ?? null,
     opponentDeck: opponentDeck ?? null,
   });
+  if (!isLaunchCurrent()) {
+    await runtime.api.endGame();
+    throw new GameLaunchCancelledError();
+  }
   set({ debugInfo: `Game started: ${result}.` });
 }
 
@@ -253,10 +274,23 @@ export const useGameStore = create<GameState>()(
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
 
       startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
-        if (get().isGameActive) return;
+        if (get().isGameActive || gameLaunchInFlight) return false;
+        gameLaunchInFlight = true;
+        const launchGeneration = ++gameLaunchGeneration;
         try {
-          await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
+          await initializeGame({
+            deck,
+            opponentDeck,
+            formatId,
+            commanderName,
+            engine,
+            set,
+            get,
+            isLaunchCurrent: () => launchGeneration === gameLaunchGeneration,
+          });
+          return true;
         } catch (e) {
+          if (e instanceof GameLaunchCancelledError) return false;
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);
           if (e instanceof IronsmithUnsupportedDeckError) {
@@ -264,12 +298,20 @@ export const useGameStore = create<GameState>()(
           } else {
             toast.error(e instanceof Error ? e.message : "Failed to start game");
           }
+          return false;
+        } finally {
+          gameLaunchInFlight = false;
         }
       },
 
       startManualTabletopGame: async (deck, formatId, commanderName) => {
         selectGameRuntime("manual-tabletop");
-        await get().startGame(deck, formatId ?? deck.format ?? "standard", commanderName);
+        const started = await get().startGame(
+          deck,
+          formatId ?? deck.format ?? "standard",
+          commanderName,
+        );
+        if (!started) return;
 
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) return;
@@ -374,12 +416,14 @@ export const useGameStore = create<GameState>()(
         // causing every recv_action in game 1 to return Concede and any
         // user clicks made between the two starts to queue in game 2's
         // channel where they'll be misrouted by `await_display_ack`.
-        if (get().isGameActive) {
+        if (get().isGameActive || gameLaunchInFlight) {
           console.warn(
             "[store] startMultiplayerGame called while a game is already active — ignoring duplicate.",
           );
           return;
         }
+        gameLaunchInFlight = true;
+        const launchGeneration = ++gameLaunchGeneration;
         const gameDecks: Record<string, Deck> = {};
         decks.forEach((d, i) => {
           gameDecks[`player-${i}`] = d;
@@ -428,8 +472,13 @@ export const useGameStore = create<GameState>()(
             hostPlayerSlot,
             botPlayerSlots,
           });
+          if (launchGeneration !== gameLaunchGeneration) {
+            await runtime.api.endGame();
+            return;
+          }
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
         } catch (e) {
+          if (launchGeneration !== gameLaunchGeneration) return;
           set({
             isGameActive: false,
             debugInfo: `Multiplayer start failed: ${e}`,
@@ -442,6 +491,8 @@ export const useGameStore = create<GameState>()(
           } else {
             toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
           }
+        } finally {
+          gameLaunchInFlight = false;
         }
       },
 
@@ -509,6 +560,7 @@ export const useGameStore = create<GameState>()(
       },
 
       endGame: async () => {
+        gameLaunchGeneration += 1;
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;

@@ -30,6 +30,7 @@ export function useGameSessionResume() {
   const currentRoom = useServerStore((s) => s.currentRoom);
   const username = useServerStore((s) => s.username);
   const gameStarted = useServerStore((s) => s.gameStarted);
+  const gameRoomId = useServerStore((s) => s.gameRoomId);
   const session = activeGameSessionAtPageLoad();
   const settled = useRef(false);
   const resyncRequested = useRef(false);
@@ -147,6 +148,17 @@ export function useGameSessionResume() {
   useEffect(() => {
     if (!session || settled.current || !gameStarted) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
+    if (gameRoomId !== session.roomId) {
+      useServerStore.setState({
+        gameStarted: false,
+        gameRoomId: "",
+        gameId: "",
+        playerOrder: [],
+        playerDecks: [],
+      });
+      return;
+    }
+    if (currentRoom?.room_id !== session.roomId) return;
     if (useGameStore.getState().isGameActive) {
       rlog("gameStarted-effect: game already active, clearing gameStarted flag");
       useServerStore.setState({ gameStarted: false });
@@ -172,7 +184,7 @@ export function useGameSessionResume() {
     }
     rlog("gameStarted-effect: navigating to /play");
     navigate("/play", { state: launch.state });
-  }, [session, gameStarted, navigate]);
+  }, [session, gameStarted, gameRoomId, currentRoom, navigate]);
 
   useEffect(() => {
     if (!session || settled.current || !connected) return;

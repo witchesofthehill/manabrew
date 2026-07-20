@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
+import { getFormat } from "@/lib/formats";
 import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { applyDeckFilters } from "@/views/myDecks.utils";
@@ -296,17 +297,19 @@ export default function DeckEditor() {
     }
     const commanderName = commanders.map((c) => c.identity.name).join(" / ");
     const deckName = customName || commanderName || DEFAULT_IMPORT_NAME;
+    const importedFormat =
+      formatId ??
+      (commanders.length > 0
+        ? "commander"
+        : inferImportedFormat(cards.map((c) => c.identity.name)));
+    const keepsCommanders = getFormat(importedFormat)?.deckRules.requiresCommander ?? false;
     const id = addSavedDeck({
       name: deckName,
-      format:
-        formatId ??
-        (commanders.length > 0
-          ? "commander"
-          : inferImportedFormat(cards.map((c) => c.identity.name))),
-      cards,
+      format: importedFormat,
+      cards: keepsCommanders ? cards : [...cards, ...commanders],
       sideboard,
       maybeboard,
-      commanders,
+      commanders: keepsCommanders ? commanders : [],
       attractions: [],
       contraptions: [],
       schemes: [],

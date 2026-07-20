@@ -7,7 +7,11 @@ import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getTopBarNav, type NavDestination } from "./navDestinations";
 
-export function NavSheet() {
+interface NavSheetProps {
+  disabled?: boolean;
+}
+
+export function NavSheet({ disabled = false }: NavSheetProps) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,6 +55,7 @@ export function NavSheet() {
         size="icon"
         variant="ghost"
         className="h-8 w-8 md:hidden"
+        disabled={disabled}
         onClick={() => setOpen(true)}
         title="Menu"
       >

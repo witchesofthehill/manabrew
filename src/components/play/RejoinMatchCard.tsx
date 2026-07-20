@@ -29,7 +29,9 @@ export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
       const server = useServerStore.getState();
       if (currentRoom?.room_id === session.roomId) {
         await server.leaveRoom();
-      } else if (!currentRoom && (server.connecting || server.connected)) {
+      } else if (!currentRoom && server.connected) {
+        await server.leaveRoom();
+      } else if (!currentRoom && server.connecting) {
         await server.disconnect();
       }
       onDismiss();

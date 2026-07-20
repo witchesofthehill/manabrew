@@ -18,6 +18,7 @@ export const STARTER_DECK_ID = "__starter__";
 function offlineEngine(): EngineKind {
   if (getPlatform().type === "tauri") return "Forge";
   const last = usePreferencesStore.getState().lastOfflineEngine;
+  if (last === "Forge" && !isHostedEngineAvailable()) return "Manabrew";
   return last ?? (isHostedEngineAvailable() ? "Forge" : "Manabrew");
 }
 
@@ -35,6 +36,7 @@ async function launchVsAi(
   savedDeckId: string | null,
 ) {
   const prefs = usePreferencesStore.getState();
+  prefs.setLastOfflineFormatId(formatId);
   if (savedDeckId) prefs.setLastPlayedDeckId(savedDeckId);
   prefs.setLastAiOpponent(
     opponent.source === "preset"

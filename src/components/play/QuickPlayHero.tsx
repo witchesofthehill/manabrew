@@ -28,6 +28,7 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
   const lastOfflineEngine = usePreferencesStore((state) => state.lastOfflineEngine);
   const savedDecks = useDeckStore((state) => state.savedDecks);
   const presets = usePresetDecks();
+  const hostedAvailable = isHostedEngineAvailable();
 
   const playable = savedDecks.filter(
     (savedDeck) =>
@@ -43,7 +44,9 @@ export function QuickPlayHero({ quickPlay, quickPlayStarter, pendingDeckId }: Qu
   const engineLabel =
     getPlatform().type === "tauri"
       ? "Forge"
-      : (lastOfflineEngine ?? (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
+      : lastOfflineEngine === "Forge" && !hostedAvailable
+        ? "Manabrew"
+        : (lastOfflineEngine ?? (hostedAvailable ? "Forge" : "Manabrew"));
   const engineBadge = (
     <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground/80">
       {engineLabel === "Forge" ? (

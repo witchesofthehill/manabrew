@@ -16,7 +16,14 @@ import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
 import { ROUTES } from "@/lib/constants";
 
 // Drives previous/next page shortcuts.
-const NAV_ROUTES = [ROUTES.PLAY, ROUTES.SEARCH, ROUTES.DECK_EDITOR, ROUTES.COMPANION];
+const NAV_ROUTES = [
+  ROUTES.PLAY,
+  ROUTES.LOBBY,
+  ROUTES.SEARCH,
+  ROUTES.DECK_EDITOR,
+  ROUTES.COMPANION,
+  ROUTES.LIMITED,
+];
 
 export function AppShell() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -49,7 +56,7 @@ export function AppShell() {
   useEngineHostCloseGuard();
 
   function goToAdjacentPage(delta: number) {
-    if (hideNavChrome) return;
+    if (isGameActive || hideNavChrome) return;
     const current = NAV_ROUTES.findIndex((r) => location.pathname.startsWith(r));
     const base = current === -1 ? 0 : current;
     const next = (base + delta + NAV_ROUTES.length) % NAV_ROUTES.length;

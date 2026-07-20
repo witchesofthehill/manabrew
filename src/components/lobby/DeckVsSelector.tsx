@@ -127,7 +127,10 @@ export function DeckVsSelector({
   const opponentTouchedRef = useRef(false);
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
-  const offlineEngine: EngineKind = lastOfflineEngine ?? (hostedAvailable ? "Forge" : "Manabrew");
+  const offlineEngine: EngineKind =
+    lastOfflineEngine === "Forge" && !hostedAvailable
+      ? "Manabrew"
+      : (lastOfflineEngine ?? (hostedAvailable ? "Forge" : "Manabrew"));
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(

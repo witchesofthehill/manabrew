@@ -108,7 +108,7 @@ export interface GameState {
     commanderName?: string,
     opponentDeck?: Deck,
     engine?: EngineKind,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
   startManualRoomClient: (

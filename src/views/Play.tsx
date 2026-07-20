@@ -145,8 +145,11 @@ export default function Play() {
           const engine: EngineKind =
             getPlatform().type === "tauri"
               ? "Forge"
-              : (usePreferencesStore.getState().lastOfflineEngine ??
-                (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
+              : usePreferencesStore.getState().lastOfflineEngine === "Forge" &&
+                  !isHostedEngineAvailable()
+                ? "Manabrew"
+                : (usePreferencesStore.getState().lastOfflineEngine ??
+                  (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
           startGame(playerDeck, formatId, commanderName, opponentDeck, engine);
         }}
       />

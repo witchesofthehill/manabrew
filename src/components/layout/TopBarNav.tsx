@@ -9,7 +9,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getTopBarNav } from "./navDestinations";
 
-export function TopBarNav() {
+interface TopBarNavProps {
+  disabled?: boolean;
+}
+
+export function TopBarNav({ disabled = false }: TopBarNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { direct, menus } = getTopBarNav();
@@ -27,6 +31,7 @@ export function TopBarNav() {
           variant={isActive(to) ? "secondary" : "ghost"}
           title={label}
           className="h-8 gap-1.5 px-2 text-xs"
+          disabled={disabled}
           onClick={() => navigate(to)}
         >
           <Icon className="h-4 w-4" />
@@ -44,6 +49,7 @@ export function TopBarNav() {
                 variant={menuActive ? "secondary" : "ghost"}
                 title={menu.label}
                 className="h-8 gap-1 px-2 text-xs"
+                disabled={disabled}
               >
                 <MenuIcon className="h-4 w-4" />
                 <span className="hidden xl:inline">{menu.label}</span>

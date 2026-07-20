@@ -58,6 +58,7 @@ interface ServerState {
   players: PlayerInfo[];
 
   gameStarted: boolean;
+  gameRoomId: string;
   gameId: string;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
@@ -144,6 +145,7 @@ export const useServerStore = create<ServerState>()(
       hostingForgeRoom: false,
       players: [],
       gameStarted: false,
+      gameRoomId: "",
       gameId: "",
       playerOrder: [],
       playerDecks: [],
@@ -194,6 +196,7 @@ export const useServerStore = create<ServerState>()(
           username: null,
           currentRoom: null,
           gameStarted: false,
+          gameRoomId: "",
           gameId: "",
           playerOrder: [],
           playerDecks: [],
@@ -301,6 +304,7 @@ export const useServerStore = create<ServerState>()(
           roomPassword: null,
           hostingForgeRoom: false,
           gameStarted: false,
+          gameRoomId: "",
           gameId: "",
           playerOrder: [],
           playerDecks: [],
@@ -487,6 +491,7 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<GameStartedPayload>("server:game_started", (payload) => {
             set({
               gameStarted: true,
+              gameRoomId: payload.room_id,
               gameId: payload.game_id,
               playerOrder: payload.player_order,
               playerDecks: payload.player_decks,
@@ -508,6 +513,7 @@ export const useServerStore = create<ServerState>()(
               set({
                 currentRoom: null,
                 gameStarted: false,
+                gameRoomId: "",
                 gameId: "",
                 playerOrder: [],
                 playerDecks: [],
@@ -535,6 +541,7 @@ export const useServerStore = create<ServerState>()(
                 playerId: null,
                 currentRoom: null,
                 gameStarted: false,
+                gameRoomId: "",
                 gameId: "",
                 playerOrder: [],
                 playerDecks: [],

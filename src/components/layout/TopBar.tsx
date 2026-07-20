@@ -93,6 +93,7 @@ export function TopBar({ override }: TopBarProps) {
     : `Update to ${version}`;
 
   function goBack() {
+    if (isGameActive) return;
     if (override?.onBack) {
       override.onBack();
       return;
@@ -116,6 +117,7 @@ export function TopBar({ override }: TopBarProps) {
   }
 
   function goHome() {
+    if (isGameActive) return;
     if (override?.onHome) {
       override.onHome();
     } else {
@@ -130,6 +132,7 @@ export function TopBar({ override }: TopBarProps) {
           size="icon"
           variant="ghost"
           className="h-8 w-8 shrink-0"
+          disabled={isGameActive}
           onClick={goBack}
           title="Back"
         >
@@ -139,6 +142,7 @@ export function TopBar({ override }: TopBarProps) {
       )}
       <button
         type="button"
+        disabled={isGameActive}
         onClick={goHome}
         aria-label="Manabrew Home"
         className="relative flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
@@ -154,8 +158,8 @@ export function TopBar({ override }: TopBarProps) {
         </>
       )}
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <TopBarNav />
-        <NavSheet />
+        <TopBarNav disabled={isGameActive} />
+        <NavSheet disabled={isGameActive} />
         {phase !== "idle" && version && (
           <Button
             size="sm"

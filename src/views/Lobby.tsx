@@ -124,6 +124,7 @@ export default function Lobby() {
     hostingForgeRoom,
     players,
     gameStarted,
+    gameRoomId,
     playerOrder,
     playerDecks,
     startingLife,
@@ -227,6 +228,17 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
+    if (!currentRoom) return;
+    if (gameRoomId !== currentRoom.room_id) {
+      useServerStore.setState({
+        gameStarted: false,
+        gameRoomId: "",
+        gameId: "",
+        playerOrder: [],
+        playerDecks: [],
+      });
+      return;
+    }
     if (currentRoom?.draft_config) {
       useServerStore.setState({ gameStarted: false });
       return;
@@ -261,7 +273,16 @@ export default function Lobby() {
     }
     useServerStore.setState({ gameStarted: false });
     navigate(ROUTES.PLAY, { state: launch.state });
-  }, [gameStarted, currentRoom, navigate, playerDecks, playerOrder, startingLife, username]);
+  }, [
+    gameStarted,
+    gameRoomId,
+    currentRoom,
+    navigate,
+    playerDecks,
+    playerOrder,
+    startingLife,
+    username,
+  ]);
 
   useEffect(() => {
     const unsubscribe = getPlatform().events.on<RoomMessagePayload>(

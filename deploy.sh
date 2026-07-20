@@ -7,10 +7,11 @@
 #
 # Invocations (all from publish.yml over SSH, or manually on the host):
 #   ./deploy.sh                          full rollout of whatever main has
-#   HOLD_MANIFEST=1 ./deploy.sh          early rollout (deploy-web job): same,
-#                                        but keeps serving the previous
-#                                        release's /manifest.json until the
-#                                        installers are published
+#   HOLD_MANIFEST=1 ./deploy.sh --web-only
+#                                        early rollout (deploy-web job): web
+#                                        container only, keeping the previous
+#                                        release's /manifest.json served until
+#                                        the installers are published
 #   ./deploy.sh --release-manifest vX.Y.Z
 #                                        flip the served /manifest.json to
 #                                        that tag's (final deploy job, after
@@ -19,7 +20,14 @@
 #                                        compose service(s); no change
 #                                        classification, no early-exit
 #   FORCE_DEPLOY=1 ./deploy.sh           skip the "no new commits" early exit
-#                                        (recovery after a failed early run)
+#                                        (the final deploy job always sets it:
+#                                        the early run already advanced HEAD,
+#                                        but relay/hub still need rolling out)
+#
+# MANABREW_IMAGE_TAG pins which ghcr images this rollout pulls. publish.yml
+# passes the release tag, so the pull-retry loop below blocks until THIS
+# release's images are pushed instead of silently re-deploying `latest` —
+# which, mid-release, is still the previous release's build.
 #
 # stdout = clean summary (captured by the workflow and posted to Discord).
 # Raw output goes to /tmp/deploy-raw.log.
@@ -39,6 +47,12 @@ COMPOSE_FILE="${COMPOSE_FILE:-compose.production.yml}"
 RAW_LOG="/tmp/deploy-raw.log"
 
 HOLD_MARKER="ops/.manifest-hold"
+
+# Captured before the .env files are sourced (they are read with `set -a`, so a
+# stale MANABREW_IMAGE_TAG on the host would otherwise clobber what CI passed)
+# and re-exported after, since compose.production.yml resolves the image refs
+# through it.
+GHCR_TAG="${MANABREW_IMAGE_TAG:-latest}"
 
 # ── Manifest release mode ────────────────────────────────────────────
 # (Appends to RAW_LOG without truncating: this runs right after a full
@@ -76,6 +90,18 @@ if [ "${1:-}" = "--only" ]; then
     ONLY_SERVICES="$*"
 fi
 
+# ── Web-only mode ────────────────────────────────────────────────────
+# `deploy.sh --web-only` rolls out the manabrew (web) container and leaves
+# manabrew-server / manabrew-hub on their current images. publish.yml's early
+# deploy job uses it: browsers reload onto the new client immediately, while
+# the relay and hub — the surfaces an already-installed desktop/mobile app
+# talks to — only move in the final deploy, once that release's installers
+# exist for those clients to update to.
+WEB_ONLY=false
+if [ "${1:-}" = "--web-only" ]; then
+    WEB_ONLY=true
+fi
+
 : > "$RAW_LOG"   # truncate
 
 # ── Load .env files ──────────────────────────────────────────────────
@@ -95,6 +121,7 @@ if [ -f "$SERVER_ENV" ]; then
     source "$SERVER_ENV"
     set +a
 fi
+export MANABREW_IMAGE_TAG="$GHCR_TAG"
 
 # Check if parity dashboard profile is active
 SKIP_DASHBOARD=true
@@ -311,11 +338,19 @@ fi
 # pulled here instead of built locally (the web image is a ~1h WASM+Vite build
 # that no longer fits the prod host's disk). Pull with retry: the image workflow
 # runs in parallel with this deploy, so the new images may not be pushed yet.
+#
+# The retry only does its job when MANABREW_IMAGE_TAG names THIS release: a
+# `latest` pull always succeeds instantly against the previous release's images,
+# so the loop never engages and the rollout ships N-1 (issue #510). 60 attempts
+# ≈ 30 min, comfortably over the ~18 min the image builds take.
 RELAY_UNCHANGED=false
-echo "Pulling ghcr images (manabrew manabrew-server manabrew-hub)..." >> "$RAW_LOG"
+PULL_SERVICES="manabrew manabrew-server manabrew-hub"
+$WEB_ONLY && PULL_SERVICES="manabrew"
+echo "Pulling ghcr images at tag ${GHCR_TAG} (${PULL_SERVICES})..." >> "$RAW_LOG"
 PULLED=false
-for attempt in $(seq 1 40); do
-    if docker compose -f "$COMPOSE_FILE" pull --quiet manabrew manabrew-server manabrew-hub >> "$RAW_LOG" 2>&1; then
+for attempt in $(seq 1 60); do
+    # shellcheck disable=SC2086
+    if docker compose -f "$COMPOSE_FILE" pull --quiet $PULL_SERVICES >> "$RAW_LOG" 2>&1; then
         PULLED=true; break
     fi
     echo "  pull attempt $attempt failed (CI images not pushed yet?); retrying in 30s" >> "$RAW_LOG"
@@ -334,28 +369,32 @@ image_changed() {  # $1 service, $2 image ref
     pulled=$(docker image inspect --format '{{.Id}}' "$2" 2>/dev/null || echo "x")
     [ "$running" != "$pulled" ]
 }
-GHCR_TAG="${MANABREW_IMAGE_TAG:-latest}"
 image_changed manabrew "ghcr.io/witchesofthehill/manabrew-web:${GHCR_TAG}" \
     && SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
-image_changed manabrew-hub "ghcr.io/witchesofthehill/manabrew-hub:${GHCR_TAG}" \
-    && SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
 
-# Relay: extra-conservative — restart only when the actual binary differs (an
-# image-digest change from an unrelated base bump must not kill live games).
-RELAY_IMAGE="ghcr.io/witchesofthehill/manabrew-server:${GHCR_TAG}"
-RELAY_CID=$(docker compose -f "$COMPOSE_FILE" ps -q manabrew-server 2>/dev/null || true)
-if [ -n "$RELAY_CID" ]; then
-    RELAY_OLD_IMAGE=$(docker inspect --format '{{.Image}}' "$RELAY_CID")
-    OLD_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_OLD_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
-    NEW_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
-    if [ -n "$OLD_SHA" ] && [ "$OLD_SHA" = "$NEW_SHA" ]; then
-        RELAY_UNCHANGED=true
-        echo "manabrew-server binary unchanged (${NEW_SHA:0:12}) — relay not restarted" >> "$RAW_LOG"
+if $WEB_ONLY; then
+    echo "Web-only rollout — relay + hub deferred to the final deploy" >> "$RAW_LOG"
+else
+    image_changed manabrew-hub "ghcr.io/witchesofthehill/manabrew-hub:${GHCR_TAG}" \
+        && SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-hub"
+
+    # Relay: extra-conservative — restart only when the actual binary differs (an
+    # image-digest change from an unrelated base bump must not kill live games).
+    RELAY_IMAGE="ghcr.io/witchesofthehill/manabrew-server:${GHCR_TAG}"
+    RELAY_CID=$(docker compose -f "$COMPOSE_FILE" ps -q manabrew-server 2>/dev/null || true)
+    if [ -n "$RELAY_CID" ]; then
+        RELAY_OLD_IMAGE=$(docker inspect --format '{{.Image}}' "$RELAY_CID")
+        OLD_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_OLD_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
+        NEW_SHA=$(docker run --rm --entrypoint sha256sum "$RELAY_IMAGE" /usr/local/bin/manabrew-server 2>> "$RAW_LOG" | cut -d' ' -f1 || true)
+        if [ -n "$OLD_SHA" ] && [ "$OLD_SHA" = "$NEW_SHA" ]; then
+            RELAY_UNCHANGED=true
+            echo "manabrew-server binary unchanged (${NEW_SHA:0:12}) — relay not restarted" >> "$RAW_LOG"
+        else
+            SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
+        fi
     else
         SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
     fi
-else
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
 fi
 
 # -- observability stack (config-only; images are pulled, never built) --
@@ -448,6 +487,11 @@ if [ -f "$HOLD_MARKER" ]; then
     HOLD_NOTE=$'🔒 **Manifest:** held at previous release until the installers publish\n'
 fi
 
+WEB_ONLY_NOTE=""
+if $WEB_ONLY; then
+    WEB_ONLY_NOTE=$'🌐 **Web-only:** relay + hub deferred to the final deploy\n'
+fi
+
 # Build change flags string (with per-stack emoji)
 CHANGES=""
 $JAVA_CHANGED      && CHANGES="${CHANGES} ☕ Java"
@@ -465,9 +509,10 @@ cat <<EOF
 > — ${AUTHOR} (${COMMIT_COUNT} commit(s))
 
 📦 **Changed:** ${CHANGES}
+🏷️ **Image tag:** \`${GHCR_TAG}\`
 🔁 **Services rebuilt:**
 ${SERVICES_FMT}
-${RELAY_NOTE}${HOLD_NOTE}⏱️ **Build time:** ${BUILD_DURATION}s
+${RELAY_NOTE}${HOLD_NOTE}${WEB_ONLY_NOTE}⏱️ **Build time:** ${BUILD_DURATION}s
 📄 **Log:** \`${RAW_LOG}\`
 
 📝 **Changelog:**

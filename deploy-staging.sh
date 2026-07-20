@@ -6,6 +6,9 @@
 # sidestore, observability/parity profiles) lives here — staging just tracks a
 # branch and swaps in fresh images. Driven by staging-deploy.yml over SSH.
 #
+# DEPLOY_BRANCH selects what lands in the slot: `staging` (the default, and the
+# only branch that gets a hosted-AI node) or a labelled PR's head branch.
+#
 # stdout = clean summary (captured by the workflow and posted to Discord).
 # Raw output goes to /tmp/deploy-staging-raw.log.
 set -euo pipefail
@@ -19,6 +22,20 @@ export MANABREW_IMAGE_TAG="${MANABREW_IMAGE_TAG:-staging}"
 GHCR_OWNER="witchesofthehill"
 RAW_LOG="/tmp/deploy-staging-raw.log"
 : > "$RAW_LOG"
+
+# ── Hosted AI: staging branch only ───────────────────────────────────
+# The self-hosted node is a Forge JVM — ~500 MiB resident and CPU-bound during
+# games, on a 2-core box that also runs production. The `staging` branch gets
+# one; PR previews (any other branch) do not, so a labelled PR costs ~25 MiB of
+# web + relay + hub instead. The node sits behind the `hosted-ai` compose
+# profile, and `up --remove-orphans` below drops its container when the profile
+# is off — so switching the slot from staging to a preview reclaims it.
+PROFILE_FLAG=""
+HOSTED_AI_NOTE="off (preview — node not started)"
+if [ "$BRANCH" = "staging" ]; then
+    PROFILE_FLAG="--profile hosted-ai"
+    HOSTED_AI_NOTE="on (staging branch)"
+fi
 
 on_failure() {
     echo "💥 **Staging deploy FAILED** at $(date '+%H:%M:%S')"
@@ -98,7 +115,8 @@ for svc in $SERVICES; do
     [ -n "$cid" ] && ROLLBACK_IMG[$svc]=$(docker inspect --format '{{.Image}}' "$cid" 2>/dev/null || true)
 done
 
-if docker compose -f "$COMPOSE_FILE" up -d --remove-orphans --wait --wait-timeout 180 >> "$RAW_LOG" 2>&1; then
+# shellcheck disable=SC2086
+if docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --remove-orphans --wait --wait-timeout 180 >> "$RAW_LOG" 2>&1; then
     echo "✅ rollout healthy" >> "$RAW_LOG"
 else
     echo "⚠️ rollout unhealthy — rolling back to the previous images" | tee -a "$RAW_LOG"
@@ -120,13 +138,25 @@ docker compose -f "$COMPOSE_FILE" exec -T manabrew \
     caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >> "$RAW_LOG" 2>&1 \
     || echo "caddy reload skipped/failed (see raw log)" >> "$RAW_LOG"
 
+# ── Reclaim superseded images ────────────────────────────────────────
+# Every deploy pulls a fresh `:staging` tag, which leaves the previous one
+# dangling (untagged, unreferenced). Nothing reclaimed them before, and this box
+# shares a 20 GB docker volume with production — the web and node images alone
+# are ~190 MB and ~630 MB a pull. `image prune` (no -a) only touches dangling
+# images, so nothing tagged or in use by a running container can be caught, and
+# the rollback re-tag above has already happened by this point.
+RECLAIMED=$(docker image prune -f 2>> "$RAW_LOG" | tail -1)
+echo "🧹 ${RECLAIMED:-nothing to reclaim}" >> "$RAW_LOG"
+
 CHANGELOG=$(git log --pretty=format:'- %s (%h, %an)' "${PREV}..${CURR}" 2>/dev/null | head -c 1500)
 [ -z "$CHANGELOG" ] && CHANGELOG="(no new commits — image-only redeploy)"
 
 cat <<EOF
 🧪 **Staging deploy complete** (\`${PREV}\` → \`${CURR}\`)
 
-🔁 **Rolled out:** ${SERVICES} (tag \`${MANABREW_IMAGE_TAG}\`)
+🔁 **Rolled out:** ${SERVICES} (tag \`${MANABREW_IMAGE_TAG}\`, branch \`${BRANCH}\`)
+🤖 **Hosted AI:** ${HOSTED_AI_NOTE}
+🧹 **Reclaimed:** ${RECLAIMED:-nothing}
 📄 **Log:** \`${RAW_LOG}\`
 
 📝 **Changelog:**

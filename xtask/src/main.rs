@@ -109,9 +109,21 @@ fn main() -> Result<()> {
 }
 
 fn workspace_root() -> Result<PathBuf> {
-    // xtask always runs via `cargo xtask`, so CARGO_MANIFEST_DIR/.. is the root.
-    let dir = std::env::var("CARGO_MANIFEST_DIR").context("run via `cargo xtask`")?;
-    Ok(PathBuf::from(dir).parent().unwrap().to_path_buf())
+    // Under `cargo xtask`, CARGO_MANIFEST_DIR/.. is the root. The prebuilt
+    // binary shipped as a release asset (deploying a box without a Rust
+    // toolchain) has no cargo env — walk up from the cwd instead.
+    if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        return Ok(PathBuf::from(dir).parent().unwrap().to_path_buf());
+    }
+    let mut dir = std::env::current_dir().context("no working directory")?;
+    loop {
+        if dir.join("xtask/Cargo.toml").is_file() {
+            return Ok(dir);
+        }
+        if !dir.pop() {
+            bail!("not inside a manabrew checkout — run from the repo (or via `cargo xtask`)");
+        }
+    }
 }
 
 fn print_help() {

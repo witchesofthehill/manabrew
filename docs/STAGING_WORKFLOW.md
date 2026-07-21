@@ -112,9 +112,19 @@ git fetch origin staging && git checkout -f -B staging FETCH_HEAD
 cargo xtask deploy --local       # own network, published ports, builds locally
 ```
 
-(The VM needs a Rust toolchain for `cargo xtask`; `rustup` is a one-liner.)
-See `xtask/src/deploy.rs` (`deploy_local`) for the env knobs (`RELAY_HOST`,
-`WEB_PORT`, `MANABREW_SERVER_KEY`, …) and the HTTPS caveat for LAN access. The
+No Rust toolchain on the box? Every release ships the deploy tool prebuilt:
+
+```bash
+curl -fL -o /usr/local/bin/manabrew-xtask \
+  https://github.com/witchesofthehill/manabrew/releases/latest/download/manabrew-xtask-linux-x86_64
+chmod +x /usr/local/bin/manabrew-xtask
+manabrew-xtask deploy --local    # run from anywhere inside the checkout
+```
+
+(Built on Ubuntu 22.04 — runs on 22.04+/Debian 12+. It still needs the repo
+checkout: `--local` builds the images from it.) See `xtask/src/deploy.rs`
+(`deploy_local`) for the env knobs (`RELAY_HOST`, `WEB_PORT`,
+`MANABREW_SERVER_KEY`, …) and the HTTPS caveat for LAN access. The
 VM's edge/env is maintained by hand; nothing in this repo references it.
 
 ## First-time setup (ops)

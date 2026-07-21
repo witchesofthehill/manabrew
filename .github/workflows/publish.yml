@@ -386,13 +386,33 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [macos-dmg, windows-exe]
-    runs-on: ubuntu-latest
+    # 22.04, not latest: the xtask binary attached below links the runner's
+    # glibc, and building on the older baseline keeps it runnable on
+    # Ubuntu 22.04+ / Debian 12+ boxes (the selfhost VM path).
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      # Prebuilt deploy tool: lets a box run `manabrew-xtask deploy --local`
+      # (or --staging/--only) from a plain checkout with docker only — no
+      # Rust toolchain needed on the machine.
+      - name: Build xtask binary (release asset)
+        run: |
+          cargo build --release -p xtask
+          mkdir -p release-assets
+          cp target/release/xtask release-assets/manabrew-xtask-linux-x86_64
 
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
@@ -427,6 +447,7 @@ jobs:
             release-assets/windows/**/*.exe.sig
             release-assets/windows/**/*.msi
             release-assets/tauri.json
+            release-assets/manabrew-xtask-linux-x86_64
             ops/manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

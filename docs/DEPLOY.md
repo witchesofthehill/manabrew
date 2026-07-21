@@ -219,7 +219,10 @@ Verify:
 
 ## Manual Deploy
 
-From any machine with SSH access to the box (the runner does exactly this):
+From any machine with SSH access to the box (the runner does exactly this).
+No Rust toolchain? Every release attaches the tool prebuilt
+(`manabrew-xtask-linux-x86_64`) — download it once and use `manabrew-xtask`
+in place of `cargo xtask`:
 
 ```bash
 # full rollout of a release tag

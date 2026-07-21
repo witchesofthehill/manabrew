@@ -125,6 +125,7 @@ fn print_help() {
          e2e-ui [scripts…]         run the Playwright UI e2e suite (needs the relay\n                            \
          on :9443 and `yarn dev:web` on :1420; see tests/e2e-ui/README.md)\n  \
          deploy --tag vX.Y.Z       roll the production stack out over SSH\n                            \
-         [--web-only | --gate | --only <svc…>] [--host H] [--path P]"
+         [--web-only | --gate | --only <svc…>] [--host H] [--path P]\n                            \
+         --staging [--branch B]: the staging slot; --local: this machine"
     );
 }

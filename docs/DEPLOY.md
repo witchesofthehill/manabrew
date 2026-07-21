@@ -229,6 +229,12 @@ cargo xtask deploy --tag vX.Y.Z --host <ssh-host> --path /opt/manabrew
 # recreate one bind-mount-configured service (e.g. after a grafana
 # provisioning change), no tag checkout required
 cargo xtask deploy --tag vX.Y.Z --only grafana --host <ssh-host> --path /opt/manabrew
+
+# the staging slot (what staging-deploy.yml runs)
+cargo xtask deploy --staging --branch <branch> --host <ssh-host> --path /opt/manabrew-staging
+
+# build + run THIS checkout on THIS machine (selfhost VM / laptop)
+cargo xtask deploy --local
 ```
 
 The command rsyncs the tracked config at the tag, pulls the tag's images

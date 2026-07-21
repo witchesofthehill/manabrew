@@ -7,8 +7,8 @@ prod Caddy at **staging.manabrew.app** (relay at
 `relay-staging.manabrew.app`, hub API same-origin under
 `https://staging.manabrew.app/api/*`). Same ghcr images as a release would
 ship (built per-push, tagged `:staging`), same rollout mechanics
-(`deploy-staging.sh`: image pull with retry, health-checked `up --wait`,
-rollback), no release-only machinery. The differences are the branch it
+(`cargo xtask deploy --staging`: image pull with retry, health-checked
+`up --wait`, rollback), no release-only machinery. The differences are the branch it
 tracks, the image tag, the hostnames, and that prod's Caddy terminates TLS for
 it — nothing behavioural.
 
@@ -31,10 +31,12 @@ infra that looks exactly like prod but isn't prod.
    front of the staging environment. A change can go to `staging` before its
    PR to `main` has landed, so it can be exercised end-to-end while review is
    still in flight.
-3. **`staging` deploys automatically.** Any push to `staging` triggers
-   `.github/workflows/staging-deploy.yml`, which builds the `:staging` images,
-   syncs the slot's secrets into `/opt/manabrew-staging/.env`, then SSHes into
-   the prod box (production `DEPLOY_*` secrets) and runs `deploy-staging.sh`.
+3. **The slot is label-gated.** A PR labelled `deploy-preview` takes the
+   slot via `.github/workflows/staging-deploy.yml`, which builds the
+   `:staging` images, syncs the slot's secrets into
+   `/opt/manabrew-staging/.env`, then runs `cargo xtask deploy --staging`
+   from the runner (production `DEPLOY_*` secrets). `workflow_dispatch` puts
+   the `staging` branch back on the slot.
 4. **Every merge to `main`, the latest `main` is merged into `staging`.** This
    keeps staging honest: it is always _`main` + whatever is still pending on
    staging_, never a stale fork that has silently drifted from production. The
@@ -56,8 +58,8 @@ git push origin staging
 
 | Aspect        | Production               | Staging                                                    |
 | ------------- | ------------------------ | ---------------------------------------------------------- |
-| Trigger       | `v*` tag (release)       | push to `staging` branch                                   |
-| Deploy engine | `deploy.sh` over SSH     | `deploy-staging.sh` (lean sibling of `deploy.sh`)          |
+| Trigger       | `v*` tag (release)       | `deploy-preview` label / `workflow_dispatch`               |
+| Deploy engine | `cargo xtask deploy`     | `cargo xtask deploy --staging` (same command, slot target) |
 | Compose file  | `compose.production.yml` | `compose.staging.yml` (services `*-staging`)               |
 | Images        | ghcr `:latest`           | ghcr `:staging`                                            |
 | Edge / TLS    | `ops/Caddyfile`          | prod Caddy vhosts → in-stack `ops/staging.Caddyfile` (:80) |
@@ -72,11 +74,12 @@ own throwaway DB (`/opt/manabrew-staging/ops/hub-data/hub.db`) and its own
 OAuth apps — the slot's `.env` is a real file written by the workflow's
 secret-sync step, **never** a symlink to prod's `ops/production.secrets`.
 
-`deploy-staging.sh` keeps the parts of production's rollout that matter for a
-mirror — ghcr image pull with retry, a health-checked `compose up --wait`, and
-automatic rollback to the previous images on an unhealthy deploy — but drops the
-release-only machinery `deploy.sh` carries (manifest hold / `--release-manifest`,
-updater + sidestore, observability/parity profiles, the relay binary-diff gate).
+`cargo xtask deploy --staging` keeps the parts of production's rollout that
+matter for a mirror — ghcr image pull with retry, a health-checked
+`compose up --wait`, and automatic re-tag rollback to the previous images on an
+unhealthy deploy — but drops the release-only machinery the production mode
+carries (updater + sidestore, observability/parity profiles, the relay
+binary-diff gate).
 On staging a relay recreate is fine, so `up -d` just recreates whatever image
 changed.
 
@@ -106,10 +109,11 @@ whatever is checked out on the VM:
 ```bash
 cd <checkout>                    # the repo clone on the VM
 git fetch origin staging && git checkout -f -B staging FETCH_HEAD
-./deploy-local.sh                # own network, published ports, builds locally
+cargo xtask deploy --local       # own network, published ports, builds locally
 ```
 
-See the header of `deploy-local.sh` for the env knobs (`RELAY_HOST`,
+(The VM needs a Rust toolchain for `cargo xtask`; `rustup` is a one-liner.)
+See `xtask/src/deploy.rs` (`deploy_local`) for the env knobs (`RELAY_HOST`,
 `WEB_PORT`, `MANABREW_SERVER_KEY`, …) and the HTTPS caveat for LAN access. The
 VM's edge/env is maintained by hand; nothing in this repo references it.
 
@@ -124,16 +128,16 @@ The staging slot needs, once:
 3. **Repo secrets**: `MANABREW_SERVER_KEY` (already used by other workflows)
    plus the `STAGING_OAUTH_*` hub auth secrets; repo variable
    `STAGING_HUB_API_URL`.
-4. `/opt/manabrew-staging` cloned on the `staging` branch (the workflow's
-   deploy script hard-resets it every run).
+4. An `/opt/manabrew-staging` directory owned by the deploy user (the
+   deploy rsyncs the tracked config into it every run; no git checkout is
+   consulted).
 
-The hosted "Play vs AI" node (`self-hosted-node-staging`) is a regular service
-in the staging compose — unlike production's profile-gated node, it deploys
-with the rest of the slot so the lobby always has its hosted room.
+The hosted "Play vs AI" node (`self-hosted-node-staging`) sits behind the
+`hosted-ai` compose profile and only the `staging` branch enables it — a PR
+preview costs web + relay + hub, not a Forge JVM on the prod box.
 
 ## See also
 
 - `docs/DEPLOY.md` — production/operator deployment notes.
 - `.github/workflows/staging-deploy.yml` — the staging pipeline (build + deploy).
-- `deploy-staging.sh` — the shared rollout script (staging slot; run by hand for the VM slot).
-- `deploy.sh` — production's rollout script (staging does **not** use it).
+- `xtask/src/deploy.rs` — the one deploy command (prod / staging slot / local).

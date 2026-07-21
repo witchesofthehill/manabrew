@@ -6,7 +6,7 @@ name: Staging deploy
 # Actions tab (workflow_dispatch) to put the `staging` branch back on the slot.
 # There is ONE slot, so labelling a second PR replaces whatever is on it; the
 # slot is never torn down, it just holds the last thing deployed. Only the
-# `staging` branch gets a hosted-AI node (see deploy-staging.sh).
+# `staging` branch gets a hosted-AI node (see xtask/src/deploy.rs).
 #
 # Deploys to staging.manabrew.app — a staging slot on the PRODUCTION box
 # (/opt/manabrew-staging, compose.staging.yml on the prod docker network,
@@ -15,8 +15,8 @@ name: Staging deploy
 #      (docker-images.yml does the same on v* tags for the release `latest`
 #      images),
 #   2. SSH into the prod box (same DEPLOY_* secrets as publish.yml) and run
-#      deploy-staging.sh — the lean sibling of production's deploy.sh (pull
-#      branch + :staging images + health-checked recreate + rollback).
+#      `cargo xtask deploy --staging` FROM THE RUNNER (rsync config +
+#      :staging images + health-checked recreate + re-tag rollback).
 #
 # The web bundle bakes VITE_HUB_API_URL from the repo variable
 # STAGING_HUB_API_URL (= https://staging.manabrew.app).
@@ -26,8 +26,9 @@ name: Staging deploy
 # symlink to prod's ops/production.secrets, so the slot never inherits prod's
 # OAuth apps or hub config.
 #
-# The optional standalone VM is not CI-driven: run deploy-local.sh on the VM
-# itself (compose.selfhost.yml — self-contained, builds from the checkout).
+# The optional standalone VM is not CI-driven: run `cargo xtask deploy
+# --local` on the VM itself (compose.selfhost.yml — self-contained, builds
+# from the checkout).
 on:
   pull_request:
     types: [labeled, synchronize, reopened]
@@ -76,8 +77,8 @@ jobs:
           - image: manabrew-hub
             dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
     steps:
-      # Build the PR head, not the pull_request merge commit — deploy-staging.sh
-      # checks the head branch out on the box, so the two must agree.
+      # Build the PR head, not the pull_request merge commit — the deploy job
+      # checks out and rsyncs the same head, so the two must agree.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
@@ -106,9 +107,10 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   # ── Deploy the staging slot on the prod box ────────────────────────
-  # Direct SSH with the production deploy key, then runs the lean
-  # deploy-staging.sh in /opt/manabrew-staging (pull branch + :staging images +
-  # health-checked recreate + rollback — no production release machinery).
+  # `cargo xtask deploy --staging` runs on the RUNNER at the deployed ref's
+  # checkout: rsync the tracked config to /opt/manabrew-staging, pull the
+  # `:staging` images, health-checked recreate + re-tag rollback. No scripts
+  # and no git on the box — same model as the production deploy.
   deploy:
     name: Deploy staging
     needs: [build-images]
@@ -118,12 +120,21 @@ jobs:
       group: staging-box-deploy
       cancel-in-progress: false
     steps:
-      # The composite Discord action needs the repo present.
+      # The deployed ref's checkout: xtask rsyncs its tracked config, so this
+      # must be the same ref build-images built.
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - name: SSH and run deploy-staging.sh
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      - name: Deploy staging (xtask, from the runner)
         id: deploy
         continue-on-error: true
         env:
@@ -131,10 +142,9 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
-          # The PR's head branch, so the box checks out what the images were
-          # built from. Empty on workflow_dispatch → deploy-staging.sh falls
-          # back to its `staging` default, which is also the only branch that
-          # gets a hosted-AI node.
+          # The PR's head branch; empty on workflow_dispatch → xtask's
+          # `staging` default, which is also the only branch that gets a
+          # hosted-AI node.
           DEPLOY_BRANCH: ${{ github.event.pull_request.head.ref }}
           # Synced into the slot's .env below. MANABREW_SERVER_KEY is included
           # because the slot's .env is standalone — it must NOT symlink prod's
@@ -170,27 +180,16 @@ jobs:
                 "$USER@$HOST" \
               "cd '$DEPLOY_PATH' && { [ -L .env ] && rm .env || true; } && touch .env && chmod 600 .env && while IFS= read -r line; do key=\${line%%=*}; { grep -v \"^\${key}=\" .env || true; } > .env.tmp; mv .env.tmp .env; printf '%s\n' \"\$line\" >> .env; done && chmod 600 .env"
           fi
-          # ServerAliveInterval/CountMax keep the SSH connection healthy while
-          # deploy-staging.sh has quiet stretches (docker pulls, ghcr retry sleeps).
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=120 \
-              "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && DEPLOY_BRANCH='$DEPLOY_BRANCH' ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
+          {
+            echo "Host staging-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          cargo xtask deploy --staging --branch "${DEPLOY_BRANCH:-staging}" \
+            --host staging-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
-
-      - name: Fetch raw deploy log on failure
-        if: steps.deploy.outcome != 'success'
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "$USER@$HOST:/tmp/deploy-staging-raw.log" deploy-raw.log || \
-            echo "(raw log not retrievable from server)"
 
       - name: Post Discord embed (as bot)
         if: always()
@@ -205,9 +204,8 @@ jobs:
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           actor: ${{ github.actor }}
           sha: ${{ github.sha }}
-          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description: "(no log captured — the deploy failed before any output; see workflow run)"
           description-file: deploy.log
-          attach-file: deploy-raw.log
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

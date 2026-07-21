@@ -12,6 +12,11 @@
 //!   (default)    full deploy: web + hub, relay only when its binary changed
 //!   --only S...  pull + force-recreate the named compose services (config
 //!                changes to bind-mounted files, e.g. grafana provisioning)
+//!   --staging    roll the staging slot out (compose.staging.yml on the prod
+//!                box, `:staging` images); --branch names what is deployed —
+//!                only the `staging` branch gets a hosted-AI node
+//!   --local      build and run this checkout on THIS machine
+//!                (compose.selfhost.yml — own relay, published ports)
 
 use std::path::Path;
 
@@ -37,11 +42,27 @@ const OBS_CONFIG_PATHS: [&str; 2] = ["ops/observability", "scripts/ingest-events
 const PULL_ATTEMPTS: u32 = 60;
 const PULL_RETRY_SECS: u32 = 30;
 
+const STAGING_COMPOSE: &str = "compose.staging.yml";
+const STAGING_WEB: &str = "manabrew-staging";
+const STAGING_NODE: &str = "self-hosted-node-staging";
+const STAGING_SERVICES: [&str; 3] = [
+    "manabrew-staging",
+    "manabrew-server-staging",
+    "manabrew-hub-staging",
+];
+// staging-deploy.yml's deploy job `needs` the image builds in the SAME
+// workflow, so unlike prod this retry is only a safety net.
+const STAGING_PULL_ATTEMPTS: u32 = 20;
+
+const SELFHOST_COMPOSE: &str = "compose.selfhost.yml";
+
 enum Mode {
     Full,
     WebOnly,
     Gate,
     Only(Vec<String>),
+    Staging { branch: String },
+    Local,
 }
 
 struct Opts {
@@ -55,8 +76,11 @@ struct Opts {
 pub fn run_cmd(root: &Path, args: &[String]) -> Result<()> {
     let opts = parse(args)?;
 
-    if let Mode::Gate = opts.mode {
-        return gate(root, &opts.tag).map(|_| ());
+    match &opts.mode {
+        Mode::Gate => return gate(root, &opts.tag).map(|_| ()),
+        Mode::Local => return deploy_local(root),
+        Mode::Staging { branch } => return deploy_staging(root, &opts, &branch.clone()),
+        _ => {}
     }
 
     assert_tag_checkout(root, &opts)?;
@@ -92,6 +116,19 @@ fn parse(args: &[String]) -> Result<Opts> {
             "--path" => path = Some(value("--path")?),
             "--web-only" => mode = Mode::WebOnly,
             "--gate" => mode = Mode::Gate,
+            "--local" => mode = Mode::Local,
+            "--staging" => {
+                mode = Mode::Staging {
+                    branch: "staging".to_string(),
+                }
+            }
+            "--branch" => {
+                let b = value("--branch")?;
+                match &mut mode {
+                    Mode::Staging { branch } => *branch = b,
+                    _ => bail!("--branch only applies to --staging"),
+                }
+            }
             "--allow-untagged" => allow_untagged = true,
             "--only" => {
                 let services: Vec<String> = it.clone().cloned().collect();
@@ -104,14 +141,23 @@ fn parse(args: &[String]) -> Result<Opts> {
             other => bail!("unknown deploy argument `{other}`"),
         }
     }
-    let tag = tag.context("--tag vX.Y.Z is required")?;
-    if !tag.strip_prefix('v').is_some_and(|rest| {
-        rest.chars()
-            .all(|c| c.is_ascii_alphanumeric() || ".-".contains(c))
-    }) {
-        bail!("`{tag}` does not look like a release tag");
-    }
-    if matches!(mode, Mode::Gate) {
+    // The staging slot's images are always `:staging`; the local stack builds
+    // from the checkout and pins no tag at all.
+    let tag = match &mode {
+        Mode::Staging { .. } => tag.unwrap_or_else(|| "staging".to_string()),
+        Mode::Local => tag.unwrap_or_else(|| "local".to_string()),
+        _ => {
+            let tag = tag.context("--tag vX.Y.Z is required")?;
+            if !tag.strip_prefix('v').is_some_and(|rest| {
+                rest.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || ".-".contains(c))
+            }) {
+                bail!("`{tag}` does not look like a release tag");
+            }
+            tag
+        }
+    };
+    if matches!(mode, Mode::Gate | Mode::Local) {
         return Ok(Opts {
             tag,
             host: String::new(),
@@ -256,25 +302,37 @@ fn ssh_streamed(root: &Path, host: &str, script: &str) -> Result<()> {
     run_inherit(root, "ssh", &args)
 }
 
-// Every compose invocation needs the box .env files in scope: the compose file
-// has required interpolations (`${MANABREW_SERVER_KEY:?}`) and the server .env
-// carries COMPOSE_PROFILES.
-fn compose(path: &str, tag: &str, rest: &str) -> String {
+// Environment preamble every remote compose invocation needs: the compose
+// files have required interpolations (`${MANABREW_SERVER_KEY:?}`) resolved
+// from the box .env, and the server .env carries COMPOSE_PROFILES.
+fn env_preamble(path: &str, tag: &str) -> String {
     format!(
         "cd '{path}' && set -a && {{ [ -f ./.env ] && . ./.env; }}; \
          {{ [ -f manabrew-rs/crates/manabrew-server/.env ] && . manabrew-rs/crates/manabrew-server/.env; }}; \
-         set +a; export MANABREW_IMAGE_TAG='{tag}'; \
-         docker compose -f {COMPOSE_FILE} {rest}"
+         set +a; export MANABREW_IMAGE_TAG='{tag}'"
     )
+}
+
+fn compose_in(file: &str, path: &str, tag: &str, rest: &str) -> String {
+    format!(
+        "{}; docker compose -f {file} {rest}",
+        env_preamble(path, tag)
+    )
+}
+
+fn compose(path: &str, tag: &str, rest: &str) -> String {
+    compose_in(COMPOSE_FILE, path, tag, rest)
 }
 
 // Tracked files only: the data dirs living under ops/ (hub-data,
 // observability/data) are gitignored and must never be touched by the sync.
 // No --delete for the same reason.
-fn sync_config(root: &Path, opts: &Opts) -> Result<()> {
+fn sync_config(root: &Path, opts: &Opts, paths: &str) -> Result<()> {
     println!(
         "📤 syncing config at {} to {}:{}",
-        opts.tag, opts.host, opts.path
+        head_label(root, opts),
+        opts.host,
+        opts.path
     );
     let ssh_cmd = format!("ssh {}", SSH_OPTS.join(" "));
     run(
@@ -283,13 +341,22 @@ fn sync_config(root: &Path, opts: &Opts) -> Result<()> {
         &[
             "-c",
             &format!(
-                "git ls-files -z -- {COMPOSE_FILE} ops scripts/ingest-events.py \
+                "git ls-files -z -- {paths} \
                  | rsync -0 --files-from=- -az -e '{ssh_cmd}' . '{}:{}/'",
                 opts.host, opts.path
             ),
         ],
     )?;
     Ok(())
+}
+
+fn head_label(root: &Path, opts: &Opts) -> String {
+    match &opts.mode {
+        Mode::Staging { .. } => run(root, "git", &["rev-parse", "--short", "HEAD"])
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|_| "HEAD".to_string()),
+        _ => opts.tag.clone(),
+    }
 }
 
 fn running_image_tag(root: &Path, opts: &Opts, service: &str) -> Result<Option<String>> {
@@ -361,7 +428,11 @@ fn binary_sha(root: &Path, opts: &Opts, image: &str) -> Option<String> {
 fn deploy(root: &Path, opts: &Opts) -> Result<()> {
     let web_only = matches!(opts.mode, Mode::WebOnly);
     let prev = running_image_tag(root, opts, "manabrew")?;
-    sync_config(root, opts)?;
+    sync_config(
+        root,
+        opts,
+        "compose.production.yml ops scripts/ingest-events.py",
+    )?;
 
     let mut images = vec![format!("{GHCR}/manabrew-web:{}", opts.tag)];
     if !web_only {
@@ -507,7 +578,11 @@ fn recreate_observability_if_changed(
 }
 
 fn deploy_only(root: &Path, opts: &Opts, services: &[String]) -> Result<()> {
-    sync_config(root, opts)?;
+    sync_config(
+        root,
+        opts,
+        "compose.production.yml ops scripts/ingest-events.py",
+    )?;
     let list = services.join(" ");
     let mut profiles = String::new();
     if services.iter().any(|s| s == "parity-dashboard") {
@@ -584,4 +659,182 @@ fn print_summary(
          📝 **Changelog:**\n{changelog}",
         tag = opts.tag,
     );
+}
+
+// ── Staging slot ─────────────────────────────────────────────────────
+// compose.staging.yml on the prod box (/opt/manabrew-staging), always the
+// `:staging` images the same workflow run just built. `branch` names what the
+// slot serves; only `staging` gets a hosted-AI node — it is a Forge JVM on a
+// box that also runs production, and `up --remove-orphans` reclaims its
+// container when the profile is off.
+fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
+    let hosted_ai = branch == "staging";
+    let mut services: Vec<&str> = STAGING_SERVICES.to_vec();
+    let profile = if hosted_ai {
+        services.push(STAGING_NODE);
+        "--profile hosted-ai "
+    } else {
+        ""
+    };
+    let list = services.join(" ");
+
+    sync_config(root, opts, "compose.staging.yml ops")?;
+
+    println!("⬇️ pulling :{} images ({list})", opts.tag);
+    ssh_streamed(
+        root,
+        &opts.host,
+        &format!(
+            "{}; for i in $(seq 1 {STAGING_PULL_ATTEMPTS}); do \
+               if docker compose -f {STAGING_COMPOSE} pull --quiet {list} >/dev/null 2>&1; then \
+                 echo \"images ready after $i attempt(s)\"; exit 0; fi; \
+               echo \"pull attempt $i/{STAGING_PULL_ATTEMPTS} failed (CI images not pushed yet?); retry in {PULL_RETRY_SECS}s\" >&2; \
+               sleep {PULL_RETRY_SECS}; \
+             done; echo 'staging images never appeared on ghcr' >&2; exit 1",
+            env_preamble(&opts.path, &opts.tag)
+        ),
+    )?;
+
+    // The `:staging` tag is mutable, so an unhealthy rollout cannot be undone
+    // by redeploying a tag — snapshot each running service's image id and
+    // re-tag it back over the ghcr ref instead.
+    let snapshot = ssh(
+        root,
+        &opts.host,
+        &format!(
+            "{}; for s in {list}; do \
+               ref=$(docker compose -f {STAGING_COMPOSE} config \"$s\" 2>/dev/null | awk '/^ *image:/ {{print $2; exit}}'); \
+               cid=$(docker compose -f {STAGING_COMPOSE} {profile}ps -q \"$s\" 2>/dev/null | head -1); \
+               old=''; [ -n \"$cid\" ] && old=$(docker inspect --format '{{{{.Image}}}}' \"$cid\" 2>/dev/null); \
+               echo \"$s|$ref|$old\"; done",
+            env_preamble(&opts.path, &opts.tag)
+        ),
+    )?;
+    let rollback: Vec<(String, String, String)> = snapshot
+        .lines()
+        .filter_map(|l| {
+            let mut parts = l.trim().split('|');
+            match (parts.next(), parts.next(), parts.next()) {
+                (Some(s), Some(r), Some(o)) if !r.is_empty() && !o.is_empty() => {
+                    Some((s.to_string(), r.to_string(), o.to_string()))
+                }
+                _ => None,
+            }
+        })
+        .collect();
+
+    println!("🚀 rolling out the staging slot ({list})");
+    let up = compose_in(
+        STAGING_COMPOSE,
+        &opts.path,
+        &opts.tag,
+        &format!("{profile}up -d --remove-orphans --wait --wait-timeout 180"),
+    );
+    if ssh_streamed(root, &opts.host, &up).is_err() {
+        if rollback.is_empty() {
+            bail!("staging rollout unhealthy and nothing was running to roll back to");
+        }
+        eprintln!("⚠️ staging rollout unhealthy — re-tagging the previous images");
+        let tags = rollback
+            .iter()
+            .map(|(_, r, o)| format!("docker tag '{o}' '{r}'"))
+            .collect::<Vec<_>>()
+            .join(" && ");
+        let rolled = rollback
+            .iter()
+            .map(|(s, ..)| s.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        ssh_streamed(
+            root,
+            &opts.host,
+            &format!(
+                "{}; {tags} && docker compose -f {STAGING_COMPOSE} {profile}up -d --no-deps {rolled}",
+                env_preamble(&opts.path, &opts.tag)
+            ),
+        )?;
+        bail!("staging rollout was unhealthy; rolled back {rolled}");
+    }
+
+    ssh_streamed(
+        root,
+        &opts.host,
+        &compose_in(
+            STAGING_COMPOSE,
+            &opts.path,
+            &opts.tag,
+            &format!("exec -T {STAGING_WEB} caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile"),
+        ),
+    )?;
+
+    // Every deploy pulls a fresh `:staging` tag and leaves the previous one
+    // dangling on a disk shared with production. `image prune` (no -a) only
+    // touches dangling images, and the rollback re-tag has already happened.
+    let reclaimed = ssh(root, &opts.host, "docker image prune -f | tail -1")
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|_| "prune failed (see log)".to_string());
+
+    let head = head_label(root, opts);
+    let recent = run(
+        root,
+        "git",
+        &["log", "--pretty=format:- %s (%h, %an)", "-12"],
+    )
+    .unwrap_or_default();
+    let hosted_note = if hosted_ai {
+        "on (staging branch)"
+    } else {
+        "off (preview — node not started)"
+    };
+    println!(
+        "🧪 **Staging deploy complete** (branch `{branch}` @ `{head}`)\n\n\
+         🔁 **Rolled out:** {list} (tag `{}`)\n\
+         🤖 **Hosted AI:** {hosted_note}\n\
+         🧹 **Reclaimed:** {reclaimed}\n\n\
+         📝 **Recent commits:**\n{recent}",
+        opts.tag,
+    );
+    Ok(())
+}
+
+// ── Local selfhost stack ─────────────────────────────────────────────
+// Builds and runs THIS checkout on THIS machine — compose.selfhost.yml, own
+// relay, published ports, no ssh. A box that also runs the staging/prod
+// deploy keeps COMPOSE_FILE + MANABREW_IMAGE_TAG in .env; sourced below they
+// would silently redirect to the prebuilt-image stack, so the compose file is
+// re-pinned and the tag dropped after the source.
+fn deploy_local(root: &Path) -> Result<()> {
+    let var = |k: &str, d: &str| std::env::var(k).unwrap_or_else(|_| d.to_string());
+    let relay_host = var("RELAY_HOST", "localhost");
+    let web_port = var("WEB_PORT", "80");
+    let design_system = var("DESIGN_SYSTEM", "1");
+
+    println!("🔨 building the stack (first run compiles WASM + the card set — this is slow)…");
+    run_inherit(
+        root,
+        "sh",
+        &[
+            "-c",
+            &format!(
+                "export RELAY_HOST='{relay_host}' RELAY_PORT=\"${{RELAY_PORT:-9443}}\" \
+                        WEB_PORT='{web_port}' DESIGN_SYSTEM='{design_system}' \
+                        MANABREW_SERVER_KEY=\"${{MANABREW_SERVER_KEY:-forge}}\"; \
+                 [ -f ./.env ] && {{ set -a; . ./.env; set +a; }}; \
+                 export COMPOSE_FILE={SELFHOST_COMPOSE}; unset MANABREW_IMAGE_TAG; \
+                 git submodule sync --recursive || true; \
+                 git submodule update --init --recursive && \
+                 export DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain; \
+                 docker compose -f {SELFHOST_COMPOSE} build && \
+                 docker compose -f {SELFHOST_COMPOSE} up -d --force-recreate --remove-orphans"
+            ),
+        ],
+    )?;
+
+    println!("\n✅ Manabrew is up.");
+    println!("   App:   http://{relay_host}:{web_port}/");
+    if design_system == "1" {
+        println!("   Design system: http://{relay_host}:{web_port}/design-system");
+    }
+    println!("   Relay: ws://{relay_host}:{}", var("RELAY_PORT", "9443"));
+    Ok(())
 }

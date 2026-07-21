@@ -403,8 +403,8 @@ export function DeckBuilder({
     id: DROP_ZONE.MAYBE,
   });
 
-  // Auto-enrich cards missing CMC/mana data, or missing the allParts contract
-  // (legacy saved decks predate this field).
+  // Auto-enrich cards missing CMC/mana data, or missing the allParts / backFace
+  // contract (legacy saved decks predate these fields).
   useEffect(() => {
     const allCards = [...currentDeck.cards, ...supplementaryCards];
     const toFetch = allCards
@@ -412,7 +412,10 @@ export function DeckBuilder({
         if (enrichedNamesRef.current.has(c.identity.name.toLowerCase())) return false;
         const needsBasicMeta = (c.cmc === undefined || c.cmc === null) && !c.manaCost;
         const needsAllParts = c.allParts === undefined;
-        return needsBasicMeta || needsAllParts;
+        const needsBackFace =
+          (c.isDoubleFaced === true || c.layout === "transform" || c.layout === "modal_dfc") &&
+          c.backFace === undefined;
+        return needsBasicMeta || needsAllParts || needsBackFace;
       })
       .map((c) => c.identity.name);
     if (toFetch.length === 0) return;

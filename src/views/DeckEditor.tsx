@@ -302,14 +302,19 @@ export default function DeckEditor() {
       (commanders.length > 0
         ? "commander"
         : inferImportedFormat(cards.map((c) => c.identity.name)));
-    const keepsCommanders = getFormat(importedFormat)?.deckRules.requiresCommander ?? false;
+    const format = getFormat(importedFormat);
+    const keepsCommanders = format?.deckRules.requiresCommander ?? false;
+    const importedCards = keepsCommanders ? cards : [...cards, ...commanders];
+    const importedCommanders = keepsCommanders ? commanders : [];
     const id = addSavedDeck({
       name: deckName,
       format: importedFormat,
-      cards: keepsCommanders ? cards : [...cards, ...commanders],
+      cards: importedCards,
       sideboard,
       maybeboard,
-      commanders: keepsCommanders ? commanders : [],
+      commanders: importedCommanders,
+      draft:
+        importedCards.length + importedCommanders.length < (format?.deckRules.minDeckSize ?? 0),
       attractions: [],
       contraptions: [],
       schemes: [],

@@ -80,6 +80,7 @@ export default function Tabletop() {
   return (
     <div className="relative h-full min-h-0">
       <DeckVsSelector
+        showEngineChoice={false}
         onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
           return startGame(playerDeck, formatId, commanderName, opponentDeck);
         }}

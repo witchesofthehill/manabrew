@@ -7,12 +7,14 @@ import type { RoomInfo } from "@/types/server";
 interface HostedTablesSectionProps {
   roomGroups: Array<[RoomInfo["engine"], RoomInfo[]]>;
   joiningRoomId: string | null;
+  disabled?: boolean;
   onJoin: (rooms: RoomInfo[]) => void;
 }
 
 export function HostedTablesSection({
   roomGroups,
   joiningRoomId,
+  disabled = false,
   onJoin,
 }: HostedTablesSectionProps) {
   if (roomGroups.length === 0) return null;
@@ -57,7 +59,7 @@ export function HostedTablesSection({
                 <Button
                   size="sm"
                   className="w-full min-[360px]:w-auto"
-                  disabled={joiningRoomId !== null}
+                  disabled={disabled || joiningRoomId !== null}
                   onClick={() => onJoin(engineRooms)}
                 >
                   {isJoining ? "Joining..." : chooseFormat ? "Choose Format" : "Join"}

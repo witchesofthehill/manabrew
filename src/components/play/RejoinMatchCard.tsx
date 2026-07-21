@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Swords, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
 import {
   beginActiveGameSessionAbandonment,
   clearActiveGameSession,
@@ -28,7 +29,6 @@ export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
     if (dismissing) return;
     setDismissing(true);
     beginActiveGameSessionAbandonment();
-    const roomBeforeLeave = useServerStore.getState().currentRoom;
     try {
       let server = useServerStore.getState();
       if (
@@ -56,11 +56,13 @@ export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
       clearActiveGameSession();
       endActiveGameSessionAbandonment();
       onDismiss();
+      if (session.relayHost) {
+        void stopLocalHostedAiRelay().catch((error) => {
+          console.warn("Failed to stop the local relay:", error);
+        });
+      }
     } catch {
       endActiveGameSessionAbandonment();
-      if (roomBeforeLeave?.room_id === session.roomId) {
-        useServerStore.setState({ currentRoom: roomBeforeLeave });
-      }
       setDismissing(false);
       toast.error("Couldn't abandon the previous match. Try again.");
     }

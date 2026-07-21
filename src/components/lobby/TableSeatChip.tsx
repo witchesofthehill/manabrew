@@ -73,11 +73,12 @@ export function TableSeatChip({
 
   const name = stripUsernameTag(player.username);
   const label = player.is_bot ? `${name} (bot)` : isHost ? `${name} (table host)` : name;
+  const accessibleLabel = statusLabel ? `${label}, ${statusLabel}` : label;
   return (
     <div
-      role="img"
+      role="group"
       title={label}
-      aria-label={`Seat ${seatIndex + 1}: ${label}`}
+      aria-label={`Seat ${seatIndex + 1}: ${accessibleLabel}`}
       style={style}
       className={cn("flex flex-col items-center gap-0.5", className)}
     >
@@ -108,9 +109,9 @@ export function TableSeatChip({
               event.stopPropagation();
               onRemove();
             }}
-            className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-destructive"
+            className="absolute -left-2.5 -top-2.5 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-destructive pointer-coarse:-left-5 pointer-coarse:-top-5 pointer-coarse:h-11 pointer-coarse:w-11"
           >
-            <X aria-hidden="true" className="h-2.5 w-2.5" />
+            <X aria-hidden="true" className="h-3 w-3" />
           </button>
         )}
       </div>

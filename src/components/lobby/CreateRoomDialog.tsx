@@ -1,4 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  Boxes,
+  Coins,
+  Gem,
+  Layers,
+  Loader2,
+  Shield,
+  Sparkles,
+  Swords,
+  TriangleAlert,
+  Users,
+  Wand2,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,19 +32,7 @@ import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
 import { cn } from "@/lib/utils";
 import { DOCS_URL } from "@/lib/constants";
-import {
-  Boxes,
-  Coins,
-  Gem,
-  Layers,
-  Loader2,
-  Shield,
-  Sparkles,
-  Swords,
-  TriangleAlert,
-  Users,
-  Wand2,
-} from "lucide-react";
+import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailabilityStore";
 import { GameIcon } from "@/components/game/GameIcon";
 
 const CommanderIcon = ({ className }: { className?: string }) => (
@@ -149,10 +151,13 @@ interface CreateRoomDialogProps {
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { connected, createRoom, username } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
+  const forgeRoomAvailable = useForgeRoomAvailabilityStore((state) => state.available);
   const ironsmithOptedIn = usePreferencesStore((s) => s.ironsmithRuntimeEnabled);
   const ironsmithEnabled =
     isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
-  const [engine, setEngine] = useState<EngineKind>(isTauri ? "Forge" : "Manabrew");
+  const [engine, setEngine] = useState<EngineKind>(
+    isTauri && forgeRoomAvailable ? "Forge" : "Manabrew",
+  );
   const [roomPassword, setRoomPassword] = useState("");
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
@@ -258,9 +263,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     const last = usePreferencesStore.getState().lastRoomSetup;
     setKind(last?.kind ?? "match");
     setEngine(
-      last?.engine && (last.engine !== "Ironsmith" || ironsmithEnabled)
+      last?.engine &&
+        (last.engine !== "Ironsmith" || ironsmithEnabled) &&
+        (last.engine !== "Forge" || (isTauri && forgeRoomAvailable))
         ? last.engine
-        : isTauri
+        : isTauri && forgeRoomAvailable
           ? "Forge"
           : "Manabrew",
     );
@@ -282,7 +289,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setSealedSet("");
     setSealedNumBoosters(6);
     setSealedSeed("");
-  }, [open, isTauri, ironsmithEnabled]);
+  }, [open, isTauri, ironsmithEnabled, forgeRoomAvailable]);
 
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
@@ -339,7 +346,10 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         };
       }
       const password = roomPassword.trim() || undefined;
-      const submittedEngine: EngineKind = kind === "match" ? engine : "Manabrew";
+      const submittedEngine: EngineKind =
+        kind === "match" && (engine !== "Forge" || (isTauri && forgeRoomAvailable))
+          ? engine
+          : "Manabrew";
       await createRoom(
         roomName.trim() || defaultName,
         maxPlayers,
@@ -359,6 +369,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
       });
       onOpenChange(false);
       setRoomName("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn't create the table.");
     } finally {
       setCreating(false);
     }
@@ -467,9 +479,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 className={cn(
                   "grid gap-2",
                   kind === "match"
-                    ? ironsmithEnabled
+                    ? ironsmithEnabled && (!isTauri || forgeRoomAvailable)
                       ? "grid-cols-1 sm:grid-cols-3"
-                      : "grid-cols-1 sm:grid-cols-2"
+                      : ironsmithEnabled || !isTauri || forgeRoomAvailable
+                        ? "grid-cols-1 sm:grid-cols-2"
+                        : "grid-cols-1"
                     : "grid-cols-1",
                 )}
               >
@@ -538,7 +552,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   </button>
                 )}
                 {kind === "match" &&
-                  (isTauri ? (
+                  (isTauri && forgeRoomAvailable ? (
                     <button
                       type="button"
                       onClick={() => setEngine("Forge")}
@@ -566,7 +580,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                         Full card support, hosted in-app on this device. Others join from the lobby.
                       </span>
                     </button>
-                  ) : (
+                  ) : !isTauri ? (
                     <div className="flex flex-col items-start gap-0.5 rounded-lg border border-border p-2 text-left">
                       <div className="flex items-center gap-1.5">
                         <GameIcon name="anvil" className="h-3.5 w-3.5 text-muted-foreground" />
@@ -598,7 +612,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                         .
                       </span>
                     </div>
-                  ))}
+                  ) : null)}
               </div>
               {!(kind === "match" && engine === "Forge") && (
                 <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
@@ -608,7 +622,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                       ? "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."
                       : engine === "Ironsmith"
                         ? "Ironsmith is experimental with partial card support — some decks won't run yet. Tables use Trusted mode: the host browser is authoritative, and hidden information is redacted per player."
-                        : "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."}
+                        : isTauri && !forgeRoomAvailable
+                          ? "This build does not include native Forge hosting. Manabrew remains available."
+                          : "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."}
                   </p>
                 </div>
               )}

@@ -32,6 +32,13 @@ export interface NavMenu {
   items: NavDestination[];
 }
 
+export function isNavDestinationActive(to: string, pathname: string): boolean {
+  if (to === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
+    return pathname.startsWith(ROUTES.PLAY_OFFLINE);
+  }
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
 export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
   const direct: NavDestination[] = [
     { to: ROUTES.PLAY_OFFLINE_CONSTRUCTED, label: "Play Offline", icon: Swords },

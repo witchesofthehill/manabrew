@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
-import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { Button } from "@/components/ui/button";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import {
@@ -24,7 +23,6 @@ import {
 } from "@/lib/constants";
 import { FEATURES } from "@/lib/features";
 import { cn } from "@/lib/utils";
-import { useGameStore } from "@/stores/useGameStore";
 
 const TOOL_TILE_CLASS =
   "group relative flex min-h-32 min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-4 shadow-md backdrop-blur-md motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-36 sm:p-5";
@@ -89,8 +87,6 @@ const TOOLS = [
 ];
 
 export function PlayHomeLinks() {
-  const isGameActive = useGameStore((s) => s.isGameActive);
-
   return (
     <>
       <section aria-label="More ways to play and tools">
@@ -140,20 +136,10 @@ export function PlayHomeLinks() {
       >
         <ul className="divide-y divide-border/50 pb-1">
           <li>
-            {isGameActive ? (
-              <span
-                className="flex min-w-0 items-center gap-3 px-4 py-3 text-sm text-muted-foreground"
-                title="Preferences are unavailable during an active game"
-              >
-                <Settings className="h-4 w-4 shrink-0" />
-                Preferences
-              </span>
-            ) : (
-              <Link to={ROUTES.SETTINGS} className={UTILITY_ROW_CLASS}>
-                <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
-                Preferences
-              </Link>
-            )}
+            <Link to={ROUTES.SETTINGS} className={UTILITY_ROW_CLASS}>
+              <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
+              Preferences
+            </Link>
           </li>
           <li>
             <Link to={ROUTES.ABOUT} className={UTILITY_ROW_CLASS}>
@@ -173,7 +159,6 @@ export function PlayHomeLinks() {
       </section>
 
       <footer className="flex flex-col gap-3 border-t border-border/50 pt-5">
-        <UpdateCallout />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">Manabrew v{APP_VERSION}</span>
           <div className="flex items-center gap-1">

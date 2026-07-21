@@ -195,9 +195,14 @@ export const useServerStore = create<ServerState>()(
         await platform.server.disconnect();
         set({
           connected: false,
+          connecting: false,
+          error: null,
           playerId: null,
           username: null,
+          reconnect: { phase: "idle", attempt: 0 },
           currentRoom: null,
+          roomPassword: null,
+          hostingForgeRoom: false,
           gameStarted: false,
           gameRoomId: "",
           gameId: "",
@@ -294,12 +299,12 @@ export const useServerStore = create<ServerState>()(
       },
 
       async leaveRoom(requireServerLeave = false) {
-        // Reset local room state synchronously so a hung relay socket can't
-        // strand the user in a "still-in-room" UI. The server-side teardown
-        // is attempted afterwards as best-effort; if it fails, the next
-        // listRooms() call will reconcile.
-        // The peer relay listener stays attached — it is connection-scoped
-        // (attached once at auth), not room-scoped.
+        const platform = getPlatform();
+        if (requireServerLeave) {
+          if (!platform.server) throw new Error("Multiplayer server is unavailable.");
+          await platform.server.leaveRoom();
+        }
+
         teardownDraftHost();
         useMultiplayerDraftStore.getState().clear();
         set({
@@ -313,14 +318,13 @@ export const useServerStore = create<ServerState>()(
           playerDecks: [],
           startingLife: DEFAULT_STARTING_LIFE,
         });
-        const platform = getPlatform();
         if (!platform.server) return;
-        let leaveError: unknown;
-        try {
-          await platform.server.leaveRoom();
-        } catch (e) {
-          console.warn("server.leaveRoom() failed:", e);
-          leaveError = e;
+        if (!requireServerLeave) {
+          try {
+            await platform.server.leaveRoom();
+          } catch (e) {
+            console.warn("server.leaveRoom() failed:", e);
+          }
         }
         try {
           await platform.server.stopRoom();
@@ -332,7 +336,6 @@ export const useServerStore = create<ServerState>()(
         } catch (e) {
           console.warn("listRooms() after leaveRoom failed:", e);
         }
-        if (requireServerLeave && leaveError) throw leaveError;
       },
 
       async setReady(ready) {

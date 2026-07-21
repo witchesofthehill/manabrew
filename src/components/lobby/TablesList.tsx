@@ -55,6 +55,7 @@ const PLAYER_COUNT_OPTIONS = [2, 3, 4];
 const HOSTED_JOIN_RETRY_CODES: ReadonlySet<string> = new Set([
   SERVER_ERROR_CODE.RoomFull,
   SERVER_ERROR_CODE.RoomNotFound,
+  SERVER_ERROR_CODE.GameAlreadyStarted,
 ]);
 
 interface TablesListProps {
@@ -564,6 +565,7 @@ export function TablesList({
               <HostedTablesSection
                 roomGroups={visibleHostedRoomGroups}
                 joiningRoomId={joiningRoomId}
+                disabled={inRoom}
                 onJoin={requestHostedJoin}
               />
 

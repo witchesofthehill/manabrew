@@ -5,6 +5,10 @@ export interface ActiveGameSession {
   gameId: string;
   isHost: boolean;
   username: string;
+  ownsForgeHost?: boolean;
+  relayHost?: string;
+  relayPort?: number;
+  relayPassword?: string;
 }
 
 export function armActiveGameSession(session: ActiveGameSession): void {

@@ -7,7 +7,6 @@ export const ROUTES = {
   PLAY_OFFLINE_CONSTRUCTED: "/play/offline/constructed",
   PLAY_OFFLINE_LIMITED: "/play/offline/limited",
   PLAY_DECK: "/play/deck",
-  LIMITED: "/limited",
   TABLETOP: "/tabletop",
   DRAFT: "/draft",
   SEALED: "/sealed",

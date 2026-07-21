@@ -12,8 +12,16 @@ import {
 } from "@/game";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
-import { armActiveGameSession, clearActiveGameSession } from "@/lib/activeGameSession";
-import { startHostedAiGame, startTauriForgeAiGame } from "@/game/hostedAiPlay";
+import {
+  armActiveGameSession,
+  clearActiveGameSession,
+  peekActiveGameSession,
+} from "@/lib/activeGameSession";
+import {
+  startHostedAiGame,
+  startTauriForgeAiGame,
+  stopLocalHostedAiRelay,
+} from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -27,7 +35,11 @@ import type { GameRuntime, ManualTabletopApi } from "@/game";
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 
 let gameLaunchGeneration = 0;
-let gameLaunchInFlight = false;
+let gameLaunchInFlight: number | null = null;
+
+export function cancelPendingGameLaunch(): void {
+  if (gameLaunchInFlight !== null) void useGameStore.getState().endGame();
+}
 
 class GameLaunchCancelledError extends Error {}
 
@@ -148,37 +160,49 @@ async function initializeGame({
       isPrefetchingCards: true,
       debugInfo: "Starting Forge engine...",
     });
+    let hosted: Awaited<ReturnType<typeof launchForge>> | null = null;
     try {
-      const hosted = await launchForge({
+      const hostedLaunch = await launchForge({
         playerDeck: deck,
         opponentDeck,
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
       });
+      hosted = hostedLaunch;
       if (!isLaunchCurrent()) {
         await useServerStore.getState().leaveRoom();
         throw new GameLaunchCancelledError();
       }
+      armActiveGameSession({
+        roomId: hostedLaunch.roomId,
+        gameId: hostedLaunch.gameId,
+        isHost: false,
+        username: hostedLaunch.username,
+        ownsForgeHost: hostedLaunch.ownsForgeHost,
+        relayHost: hostedLaunch.relay?.host,
+        relayPort: hostedLaunch.relay?.port,
+        relayPassword: hostedLaunch.relay?.password,
+      });
       resetSelectedGameRuntime();
       const hostedRuntime = getSelectedGameRuntime();
       const hostedDecks: Record<string, Deck> = {};
-      hosted.playerOrder.forEach((_, index) => {
-        hostedDecks[`player-${index}`] = hosted.decks[index];
+      hostedLaunch.playerOrder.forEach((_, index) => {
+        hostedDecks[`player-${index}`] = hostedLaunch.decks[index];
       });
       set({
         isMultiplayer: true,
         isHost: false,
-        myPlayerSlot: `player-${hosted.enginePlayerIndex}`,
+        myPlayerSlot: `player-${hostedLaunch.enginePlayerIndex}`,
         gameDecks: hostedDecks,
         debugInfo: "Joining Forge engine...",
       });
       await hostedRuntime.api.startMultiplayerGame({
-        playerNames: hosted.playerOrder,
-        decks: hosted.decks,
-        commanderNames: hosted.commanderNames,
-        enginePlayerIndex: hosted.enginePlayerIndex,
+        playerNames: hostedLaunch.playerOrder,
+        decks: hostedLaunch.decks,
+        commanderNames: hostedLaunch.commanderNames,
+        enginePlayerIndex: hostedLaunch.enginePlayerIndex,
         localIsHost: false,
-        startingLife: hosted.startingLife,
+        startingLife: hostedLaunch.startingLife,
       });
       if (!isLaunchCurrent()) {
         await hostedRuntime.api.endGame();
@@ -187,6 +211,11 @@ async function initializeGame({
       set({ debugInfo: "Forge game started.", isPrefetchingCards: false });
       return;
     } catch (error) {
+      if (hosted) {
+        clearActiveGameSession();
+        await useServerStore.getState().leaveRoom();
+        if (hosted.relay) await stopLocalHostedAiRelay();
+      }
       if (error instanceof GameLaunchCancelledError) throw error;
       if (!isLaunchCurrent()) throw new GameLaunchCancelledError();
       if (platformType !== "tauri") throw error;
@@ -274,9 +303,13 @@ export const useGameStore = create<GameState>()(
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
 
       startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
-        if (get().isGameActive || gameLaunchInFlight) return false;
-        gameLaunchInFlight = true;
+        if (get().isGameActive) return false;
+        if (gameLaunchInFlight !== null) {
+          toast.info("The previous game is still closing. Try again in a moment.");
+          return false;
+        }
         const launchGeneration = ++gameLaunchGeneration;
+        gameLaunchInFlight = launchGeneration;
         try {
           await initializeGame({
             deck,
@@ -300,7 +333,7 @@ export const useGameStore = create<GameState>()(
           }
           return false;
         } finally {
-          gameLaunchInFlight = false;
+          if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
         }
       },
 
@@ -416,14 +449,14 @@ export const useGameStore = create<GameState>()(
         // causing every recv_action in game 1 to return Concede and any
         // user clicks made between the two starts to queue in game 2's
         // channel where they'll be misrouted by `await_display_ack`.
-        if (get().isGameActive || gameLaunchInFlight) {
+        if (get().isGameActive || gameLaunchInFlight !== null) {
           console.warn(
             "[store] startMultiplayerGame called while a game is already active — ignoring duplicate.",
           );
           return false;
         }
-        gameLaunchInFlight = true;
         const launchGeneration = ++gameLaunchGeneration;
+        gameLaunchInFlight = launchGeneration;
         const gameDecks: Record<string, Deck> = {};
         decks.forEach((d, i) => {
           gameDecks[`player-${i}`] = d;
@@ -498,7 +531,7 @@ export const useGameStore = create<GameState>()(
           }
           return false;
         } finally {
-          gameLaunchInFlight = false;
+          if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
         }
       },
 
@@ -567,6 +600,7 @@ export const useGameStore = create<GameState>()(
 
       endGame: async () => {
         gameLaunchGeneration += 1;
+        const activeSession = peekActiveGameSession();
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
@@ -611,6 +645,13 @@ export const useGameStore = create<GameState>()(
           await withTimeout(runtime.api.endGame(), "runtime.endGame()");
         } catch (e) {
           console.warn("runtime.endGame() failed:", e);
+        }
+        if (activeSession?.relayHost) {
+          try {
+            await stopLocalHostedAiRelay();
+          } catch (e) {
+            console.warn("stopLocalHostedAiRelay() failed:", e);
+          }
         }
       },
 

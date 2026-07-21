@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
+import { stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
 import {
   activeGameSessionAtPageLoad,
   clearActiveGameSession,
@@ -44,28 +45,65 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || !isActiveGameSessionAtPageLoadCurrent()) return;
-    const server = useServerStore.getState();
-    if (server.connected || server.connecting) {
-      rlog("connect skipped — already", server.connected ? "connected" : "connecting");
-      return;
-    }
-    const prefs = usePreferencesStore.getState();
-    if (!prefs.serverUsername) {
-      rlog("connect aborted — no persisted serverUsername; clearing marker");
-      clearActiveGameSession();
-      return;
-    }
-    rlog(
-      `connecting as '${prefs.serverUsername}' to ${prefs.serverHost}:${prefs.serverPort}` +
-        ` (marker.username='${session.username}', roomId='${session.roomId}', isHost=${session.isHost})`,
-    );
-    void server.connect(
-      prefs.serverHost,
-      prefs.serverPort,
-      prefs.serverUsername,
-      prefs.serverPassword,
-    );
-  }, [session]);
+    let cancelled = false;
+    void (async () => {
+      if (getPlatform().type === "tauri" && (session.ownsForgeHost || session.relayHost)) {
+        const [forgeRoomRunning, localRelayRunning] = await Promise.all([
+          getPlatform()
+            .invoke<boolean>("forge_room_running")
+            .catch(() => false),
+          session.relayHost
+            ? getPlatform()
+                .invoke<boolean>("local_relay_running")
+                .catch(() => false)
+            : Promise.resolve(true),
+        ]);
+        if (cancelled) return;
+        if (!forgeRoomRunning || !localRelayRunning) {
+          settled.current = true;
+          clearActiveGameSession();
+          useServerStore.setState({ hostingForgeRoom: false });
+          await useServerStore.getState().leaveRoom();
+          if (localRelayRunning && session.relayHost) await stopLocalHostedAiRelay();
+          toast.info("Your previous desktop Forge game ended when the app closed.");
+          navigate("/lobby", { replace: true });
+          return;
+        }
+      }
+
+      if (cancelled) return;
+      const server = useServerStore.getState();
+      if (session.ownsForgeHost) {
+        useServerStore.setState({ hostingForgeRoom: true });
+      }
+      if (server.connected || server.connecting) {
+        rlog("connect skipped — already", server.connected ? "connected" : "connecting");
+        return;
+      }
+      const prefs = usePreferencesStore.getState();
+      if (!session.username && !prefs.serverUsername) {
+        rlog("connect aborted — no persisted serverUsername; clearing marker");
+        clearActiveGameSession();
+        return;
+      }
+      const relayHost = session.relayHost ?? prefs.serverHost;
+      const relayPort = session.relayPort ?? prefs.serverPort;
+      const relayUsername = session.username || prefs.serverUsername;
+      rlog(
+        `connecting as '${relayUsername}' to ${relayHost}:${relayPort}` +
+          ` (marker.username='${session.username}', roomId='${session.roomId}', isHost=${session.isHost})`,
+      );
+      void server.connect(
+        relayHost,
+        relayPort,
+        relayUsername,
+        session.relayPassword ?? prefs.serverPassword,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session, navigate]);
 
   useEffect(() => {
     if (!session) return;
@@ -174,6 +212,10 @@ export function useGameSessionResume() {
     if (launch.error) {
       rlog(`gameStarted-effect: launch build failed — ${launch.error}; kicking to lobby`);
       clearActiveGameSession();
+      void useServerStore
+        .getState()
+        .leaveRoom()
+        .finally(() => (session.relayHost ? stopLocalHostedAiRelay() : undefined));
       toast.error(launch.error);
       navigate("/lobby", { replace: true });
       return;
@@ -209,7 +251,10 @@ export function useGameSessionResume() {
       );
       settled.current = true;
       clearActiveGameSession();
-      void useServerStore.getState().leaveRoom();
+      void useServerStore
+        .getState()
+        .leaveRoom()
+        .finally(() => (session.relayHost ? stopLocalHostedAiRelay() : undefined));
       toast.info("Your previous game has ended.");
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);

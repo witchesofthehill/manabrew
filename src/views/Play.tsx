@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useGameStore } from "@/stores/useGameStore";
+import { cancelPendingGameLaunch, useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
@@ -14,6 +14,7 @@ import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { ROUTES } from "@/lib/constants";
 import type { EngineKind } from "@/types/server";
 import Limited from "./Limited";
+import { isTauriForgeRoomAvailable } from "@/stores/useForgeRoomAvailabilityStore";
 
 export default function Play() {
   const location = useLocation();
@@ -38,6 +39,8 @@ export default function Play() {
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
   );
+
+  useEffect(() => cancelPendingGameLaunch, []);
 
   // Route state outlives the game; without this, ending a multiplayer game
   // falls back to the "Starting multiplayer game..." waiting screen.
@@ -188,7 +191,9 @@ export default function Play() {
           // store falls back to Manabrew if the local Forge host can't start.
           const engine: EngineKind =
             getPlatform().type === "tauri"
-              ? "Forge"
+              ? isTauriForgeRoomAvailable()
+                ? "Forge"
+                : "Manabrew"
               : usePreferencesStore.getState().lastOfflineEngine === "Forge" &&
                   !isHostedEngineAvailable()
                 ? "Manabrew"

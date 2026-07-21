@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getTopBarNav } from "./navDestinations";
+import { getTopBarNav, isNavDestinationActive } from "./navDestinations";
 
 interface TopBarNavProps {
   disabled?: boolean;
@@ -21,7 +21,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   function isActive(to: string) {
-    return location.pathname === to || location.pathname.startsWith(`${to}/`);
+    return isNavDestinationActive(to, location.pathname);
   }
 
   return (

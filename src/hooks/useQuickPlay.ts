@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
@@ -9,12 +9,15 @@ import { getPlatform } from "@/platform";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isTauriForgeRoomAvailable } from "@/stores/useForgeRoomAvailabilityStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 
 function offlineEngine(): EngineKind {
-  if (getPlatform().type === "tauri") return "Forge";
+  if (getPlatform().type === "tauri") {
+    return isTauriForgeRoomAvailable() ? "Forge" : "Manabrew";
+  }
   const last = usePreferencesStore.getState().lastOfflineEngine;
   if (last === "Forge" && !isHostedEngineAvailable()) return "Manabrew";
   return last ?? (isHostedEngineAvailable() ? "Forge" : "Manabrew");
@@ -31,6 +34,14 @@ export function useQuickPlay() {
   const navigate = useNavigate();
   const [pendingDeckId, setPendingDeckId] = useState<string | null>(null);
   const pendingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const quickPlay = useCallback(
     async (savedDeckId: string) => {
@@ -45,7 +56,9 @@ export function useQuickPlay() {
         const format = getFormat(formatId);
         if (!format) {
           toast.error("This deck uses an unsupported format.");
-          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`);
+          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`, {
+            state: { deckEditorFromList: true },
+          });
           return;
         }
         const validation = validateDeckSections(
@@ -54,7 +67,9 @@ export function useQuickPlay() {
         );
         if (!validation.legal) {
           toast.warning(validation.errors[0] ?? "This deck is not ready to play.");
-          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`);
+          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`, {
+            state: { deckEditorFromList: true },
+          });
           return;
         }
         const opponent = resolveAiOpponent({
@@ -63,6 +78,7 @@ export function useQuickPlay() {
           formatId,
           last: usePreferencesStore.getState().lastAiOpponent,
         });
+        if (!mountedRef.current) return;
         if (!opponent) {
           toast.error("No AI deck available for this format — pick one yourself.");
           navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
@@ -90,7 +106,7 @@ export function useQuickPlay() {
         );
       } finally {
         pendingRef.current = false;
-        setPendingDeckId(null);
+        if (mountedRef.current) setPendingDeckId(null);
       }
     },
     [navigate],

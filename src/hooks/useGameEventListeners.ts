@@ -6,6 +6,7 @@ import {
   isRoomRelayProtocol,
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
+import { stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
@@ -94,7 +95,6 @@ async function rejoinAfterRelayRestart() {
     }
     setReconnectPhase("idle");
     if (getState().isGameActive) {
-      clearActiveGameSession();
       toast.error("Game could not be resumed — the room did not come back.");
       void useGameStore.getState().endGame();
     }
@@ -314,7 +314,6 @@ export function useGameEventListeners() {
             peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
           if (roomId && payload.room_id !== roomId) return;
           if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
-          clearActiveGameSession();
           toast.error("Game aborted — a player did not reconnect.");
           void useGameStore.getState().endGame();
         }),
@@ -324,6 +323,7 @@ export function useGameEventListeners() {
         platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
           const message = payload?.message ?? "Forced game exit";
           const { isMultiplayer, isHost } = getState();
+          const activeSession = peekActiveGameSession();
           clearActiveGameSession();
           setState({
             isGameActive: false,
@@ -343,6 +343,11 @@ export function useGameEventListeners() {
           if (isMultiplayer && isHost) {
             toast.error("Game ended unexpectedly — returning the room to the lobby.");
             void useServerStore.getState().endGame();
+          } else if (activeSession?.ownsForgeHost || activeSession?.relayHost) {
+            void useServerStore
+              .getState()
+              .leaveRoom()
+              .finally(() => (activeSession.relayHost ? stopLocalHostedAiRelay() : undefined));
           }
         }),
       );

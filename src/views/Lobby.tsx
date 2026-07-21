@@ -269,7 +269,7 @@ export default function Lobby() {
       return;
     }
     useServerStore.setState({ gameStarted: false });
-    navigate(ROUTES.PLAY, { state: launch.state });
+    navigate(ROUTES.PLAY, { replace: true, state: launch.state });
   }, [
     gameStarted,
     gameRoomId,

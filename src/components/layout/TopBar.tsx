@@ -59,9 +59,6 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
   if (pathname.startsWith(`${ROUTES.GAUNTLET}/`)) {
     return { title: "Gauntlet", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
-  if (pathname === ROUTES.LIMITED) {
-    return { title: "Limited", fallback: ROUTES.PLAY };
-  }
   if (pathname === ROUTES.COMPANION) return { title: "Life Tracker", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.SETTINGS) return { title: "Preferences", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.ABOUT) return { title: "About Manabrew", fallback: ROUTES.PLAY };

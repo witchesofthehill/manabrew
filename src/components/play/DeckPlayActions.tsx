@@ -100,6 +100,7 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
                       pathname: ROUTES.DECK_EDITOR,
                       search: `?deck=${encodeURIComponent(savedDeck.id)}`,
                     }}
+                    state={{ deckEditorFromList: true }}
                   >
                     <Pencil className="h-5 w-5" />
                     Edit Deck

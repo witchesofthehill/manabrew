@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { getTopBarNav, type NavDestination } from "./navDestinations";
+import { getTopBarNav, isNavDestinationActive, type NavDestination } from "./navDestinations";
 
 interface NavSheetProps {
   disabled?: boolean;
@@ -18,7 +18,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
   const { direct, menus } = getTopBarNav();
 
   function isActive(to: string) {
-    return location.pathname === to || location.pathname.startsWith(`${to}/`);
+    return isNavDestinationActive(to, location.pathname);
   }
 
   function go(to: string) {

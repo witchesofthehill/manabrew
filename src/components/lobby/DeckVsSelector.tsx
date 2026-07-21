@@ -55,6 +55,7 @@ interface SelectedDeck {
 
 interface DeckVsSelectorProps {
   preSelectedDeckId?: string;
+  showEngineChoice?: boolean;
   onStart: (
     playerDeck: Deck,
     opponentDeck: Deck,
@@ -77,6 +78,7 @@ function pickRandom<T>(arr: readonly T[]): T | undefined {
 
 export function DeckVsSelector({
   preSelectedDeckId,
+  showEngineChoice = true,
   onStart,
   onStartTabletop,
 }: DeckVsSelectorProps) {
@@ -501,7 +503,7 @@ export function DeckVsSelector({
           />
         </div>
         <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
-          {isWeb && (
+          {isWeb && showEngineChoice && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto">

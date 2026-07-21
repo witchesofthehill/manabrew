@@ -5,6 +5,7 @@ import { getDefaultGameRuntime } from "@/game";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { prefetchPresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
+import { initializeForgeRoomAvailability } from "@/stores/useForgeRoomAvailabilityStore";
 
 let initPromise: Promise<void> | null = null;
 
@@ -52,6 +53,7 @@ export function initApp(): Promise<void> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     await Promise.all([
+      initializeForgeRoomAvailability(),
       initScryfallSets().catch((e) => console.error("[appInit] sets failed:", e)),
       prefetchPresetDecks().catch((e) => console.error("[appInit] preset enrichment failed:", e)),
       prefetchTokenArchive().catch((e) => console.error("[appInit] token archive failed:", e)),

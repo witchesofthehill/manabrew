@@ -29,12 +29,14 @@ Decks are stored locally in your browser (or the desktop app's local storage)
 
 ## Single-player
 
-Pick **Play** and hit **Play vs AI** — on the Quick Play card or on any deck
-in Your Decks — to jump straight into a game with your last-used engine and
-an AI opponent picked for you. For a fresh setup, choose a format, pick your
-deck (the AI opponent comes pre-filled — swap it if you like) and start. The
-app remembers your format, engine, deck, and opponent for next time. The AI
-plays the same engine you do.
+Choose **Play Offline** from Home or the navigation bar, select a format, then
+pick your deck and opponent. The AI opponent is pre-filled, but you can swap it
+before starting. The app remembers your format, engine, deck, and opponent for
+next time. The AI plays the same engine you do. Clicking a deck in Home's **My
+Decks** shelf opens that deck in the editor.
+
+Use the **Constructed** and **Limited** tabs at the top of Play Offline to move
+between deck-based matches and draft, sealed, Winston, or cube setup.
 
 ## Multiplayer
 

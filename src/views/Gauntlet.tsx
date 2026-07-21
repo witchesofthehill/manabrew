@@ -58,7 +58,7 @@ export default function Gauntlet() {
   const [matchDecks, setMatchDecks] = useState<GauntletMatchDecks | null>(null);
 
   useTopBarOverride({
-    onBack: () => navigate(ROUTES.LIMITED),
+    onBack: () => navigate(ROUTES.PLAY_OFFLINE_LIMITED),
     onHome: () => navigate(ROUTES.PLAY),
   });
 

@@ -16,7 +16,6 @@ import Tabletop from "@/views/Tabletop";
 import Draft from "@/views/Draft";
 import MultiplayerDraft from "@/views/MultiplayerDraft";
 import MultiplayerSealed from "@/views/MultiplayerSealed";
-import Limited from "@/views/Limited";
 import Companion from "@/views/Companion";
 import Sealed from "@/views/Sealed";
 import Winston from "@/views/Winston";
@@ -132,11 +131,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "limited",
-        element: (
-          <ErrorBoundary context="Limited">
-            <Limited />
-          </ErrorBoundary>
-        ),
+        element: <Navigate to="/play/offline/limited" replace />,
       },
       {
         path: "companion",

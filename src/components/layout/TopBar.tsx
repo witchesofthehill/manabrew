@@ -23,7 +23,10 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
   pathname = normalizePathname(pathname);
   if (pathname === ROUTES.PLAY) return { title: null, fallback: ROUTES.PLAY };
   if (pathname === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
-    return { title: "Constructed", fallback: ROUTES.PLAY };
+    return { title: "Play Offline", fallback: ROUTES.PLAY };
+  }
+  if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
+    return { title: "Play Offline", fallback: ROUTES.PLAY };
   }
   if (pathname.startsWith(`${ROUTES.PLAY_DECK}/`)) {
     return { title: "Play Deck", fallback: ROUTES.PLAY };
@@ -42,19 +45,19 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
     return { title: "Multiplayer Draft", fallback: ROUTES.LOBBY };
   }
   if (pathname.startsWith(`${ROUTES.DRAFT}/`)) {
-    return { title: "Booster Draft", fallback: ROUTES.LIMITED };
+    return { title: "Booster Draft", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname === `${ROUTES.SEALED}/multiplayer`) {
     return { title: "Sealed Deck Build", fallback: ROUTES.LOBBY };
   }
   if (pathname.startsWith(`${ROUTES.SEALED}/`)) {
-    return { title: "Sealed", fallback: ROUTES.LIMITED };
+    return { title: "Sealed", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname.startsWith(`${ROUTES.WINSTON}/`)) {
-    return { title: "Winston Draft", fallback: ROUTES.LIMITED };
+    return { title: "Winston Draft", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname.startsWith(`${ROUTES.GAUNTLET}/`)) {
-    return { title: "Gauntlet", fallback: ROUTES.LIMITED };
+    return { title: "Gauntlet", fallback: ROUTES.PLAY_OFFLINE_LIMITED };
   }
   if (pathname === ROUTES.LIMITED) {
     return { title: "Limited", fallback: ROUTES.PLAY };

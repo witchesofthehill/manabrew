@@ -4,6 +4,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
+import { OfflinePlayShell } from "@/components/play/OfflinePlayShell";
 import { PlayHome } from "@/components/play/PlayHome";
 import { DeckPlayActions } from "@/components/play/DeckPlayActions";
 import Game from "./Game";
@@ -12,6 +13,7 @@ import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { ROUTES } from "@/lib/constants";
 import type { EngineKind } from "@/types/server";
+import Limited from "./Limited";
 
 export default function Play() {
   const location = useLocation();
@@ -154,7 +156,7 @@ export default function Play() {
   }
 
   if (pathname === ROUTES.PLAY_OFFLINE) {
-    return <Navigate to={ROUTES.PLAY} replace />;
+    return <Navigate to={ROUTES.PLAY_OFFLINE_CONSTRUCTED} replace />;
   }
 
   if (deckRoute?.params.localSavedDeckId) {
@@ -165,12 +167,20 @@ export default function Play() {
     return <PlayHome />;
   }
 
+  if (pathname === ROUTES.PLAY_OFFLINE_LIMITED) {
+    return (
+      <OfflinePlayShell>
+        <Limited />
+      </OfflinePlayShell>
+    );
+  }
+
   if (pathname !== ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
     return <Navigate to={ROUTES.PLAY} replace />;
   }
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden">
+    <OfflinePlayShell>
       <OfflinePlaySetup
         preSelectedDeckId={preSelectedDeckId}
         onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
@@ -187,6 +197,6 @@ export default function Play() {
           return startGame(playerDeck, formatId, commanderName, opponentDeck, engine);
         }}
       />
-    </div>
+    </OfflinePlayShell>
   );
 }

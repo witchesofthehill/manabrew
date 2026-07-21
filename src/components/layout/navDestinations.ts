@@ -9,6 +9,8 @@ import {
   MoreHorizontal,
   Palette,
   Search,
+  Swords,
+  Users,
 } from "lucide-react";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
@@ -31,7 +33,10 @@ export interface NavMenu {
 }
 
 export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
-  const direct: NavDestination[] = [];
+  const direct: NavDestination[] = [
+    { to: ROUTES.PLAY_OFFLINE_CONSTRUCTED, label: "Play Offline", icon: Swords },
+    { to: ROUTES.LOBBY, label: "Multiplayer", icon: Users },
+  ];
   const menus: NavMenu[] = [];
 
   if (isFeatureEnabled("deckHub")) {

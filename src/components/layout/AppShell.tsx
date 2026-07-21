@@ -16,14 +16,7 @@ import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
 import { ROUTES } from "@/lib/constants";
 
 // Drives previous/next page shortcuts.
-const NAV_ROUTES = [
-  ROUTES.PLAY,
-  ROUTES.LOBBY,
-  ROUTES.SEARCH,
-  ROUTES.DECK_EDITOR,
-  ROUTES.COMPANION,
-  ROUTES.LIMITED,
-];
+const NAV_ROUTES = [ROUTES.PLAY, ROUTES.LOBBY, ROUTES.SEARCH, ROUTES.DECK_EDITOR, ROUTES.COMPANION];
 
 export function AppShell() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);

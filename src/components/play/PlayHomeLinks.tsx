@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Boxes,
   Github,
   Globe,
   Hand,
@@ -54,6 +55,13 @@ const UTILITY_ROW_CLASS =
 
 const TOOLS = [
   {
+    to: ROUTES.PLAY_OFFLINE_LIMITED,
+    label: "Draft & Sealed",
+    desc: "Draft, sealed, Winston, and cube play.",
+    icon: Boxes,
+    tone: "amber",
+  },
+  {
     to: ROUTES.SEARCH,
     label: "Card Search",
     desc: "Every card, printing, and ruling at your fingertips.",
@@ -85,10 +93,7 @@ export function PlayHomeLinks() {
 
   return (
     <>
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-          Tools
-        </h2>
+      <section aria-label="More ways to play and tools">
         <div className={cn("grid gap-4", TOOL_GRID_BY_COUNT[TOOLS.length] ?? "sm:grid-cols-3")}>
           {TOOLS.map(({ to, label, desc, icon: Icon, tone }, index) => {
             const accent = TOOL_ACCENTS[tone] ?? TOOL_ACCENTS.blue;
@@ -129,10 +134,10 @@ export function PlayHomeLinks() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border/60 bg-background/60 backdrop-blur-md">
-        <h2 className="px-4 pt-4 pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Utilities
-        </h2>
+      <section
+        aria-label="Utilities"
+        className="overflow-hidden rounded-xl border border-border/60 bg-background/60 backdrop-blur-md"
+      >
         <ul className="divide-y divide-border/50 pb-1">
           <li>
             {isGameActive ? (

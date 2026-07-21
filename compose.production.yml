@@ -16,7 +16,6 @@ services:
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./ops/status.json:/srv/manabrew/status.json:ro
-      - ./ops/manifest.json:/srv/manabrew/manifest.json:ro
       - ./ops/sidestore:/srv/manabrew/sidestore:ro
       - caddy-data:/data
       - caddy-config:/config
@@ -41,9 +40,9 @@ services:
       - manabrew-server
 
   manabrew-server:
-    # Pre-built in CI (docker-images.yml) and pulled. deploy.sh compares the
-    # pulled binary against the running one and only restarts the relay when it
-    # changed — a relay restart drops every live game.
+    # Pre-built in CI (docker-images.yml) and pulled. `cargo xtask deploy`
+    # compares the pulled binary against the running one and only restarts the
+    # relay when it changed — a relay restart drops every live game.
     image: ghcr.io/witchesofthehill/manabrew-server:${MANABREW_IMAGE_TAG:-latest}
     environment:
       FORGE_HOST: "0.0.0.0"

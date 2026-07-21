@@ -24,7 +24,7 @@ import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
-import { useSourceCardDto } from "./internal/usePromptSourceCard";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
 import type { ScryInput, ScryOutput, ScryDestination } from "@/protocol";
@@ -205,10 +205,10 @@ function PoolRow({
 }
 
 export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>) {
-  const { presentation, zones } = input;
+  const { zones } = input;
+  const { preview: sourcePreview, presentation } = useModalSourceCard(input.presentation);
   const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
-  const sourceCard = useSourceCardDto(presentation.sourceCardId);
   const zoneIds = useMemo(() => zones.map((_, i) => `z${i}`), [zones]);
 
   const [items, setItems] = useState<Record<string, string[]>>(() => ({
@@ -252,16 +252,9 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
 
   return (
     <Modal maxWidth="max-w-4xl" maxHeight="">
-      {sourceCard && (
-        <div className="pointer-events-none absolute top-0 left-full ml-6 drop-shadow-2xl">
-          <Card card={sourceCard} bare className="w-[240px]" />
-        </div>
-      )}
+      {sourcePreview}
       <div className="p-5 pb-3">
-        <PromptPresentation
-          presentation={{ ...presentation, sourceCardId: undefined }}
-          forceHorizontal
-        />
+        <PromptPresentation presentation={presentation} forceHorizontal />
       </div>
 
       <DndContext

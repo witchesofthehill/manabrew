@@ -24,6 +24,7 @@ import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
 import type { ReorderInput, ReorderItem, ReorderOutput } from "@/protocol";
@@ -92,7 +93,8 @@ function SortableCard({
 }
 
 export function ReorderCardsModal({ input, respond }: PromptProps<ReorderInput, ReorderOutput>) {
-  const { presentation, items } = input;
+  const { items } = input;
+  const { preview, presentation } = useModalSourceCard(input.presentation);
   const itemsById = useMemo(() => new Map(items.map((i) => [i.id, i as ReorderItem])), [items]);
   const [order, setOrder] = useState<string[] | null>(null);
   const ids = order ?? items.map((i) => i.id);
@@ -109,6 +111,7 @@ export function ReorderCardsModal({ input, respond }: PromptProps<ReorderInput, 
 
   return (
     <Modal maxWidth="max-w-3xl" maxHeight="">
+      {preview}
       <div className="p-5">
         <PromptPresentation presentation={presentation} forceHorizontal />
       </div>

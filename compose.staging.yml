@@ -2,7 +2,7 @@
 # /opt/manabrew-staging and joins the prod docker network so the prod Caddy
 # (ops/Caddyfile) fronts it at staging.manabrew.app / relay-staging.manabrew.app.
 # Driven by .github/workflows/staging-deploy.yml over direct SSH via
-# deploy-staging.sh.
+# `cargo xtask deploy --staging` from the runner.
 #
 # No published ports: prod Caddy owns 80/443 on the box. Every service name
 # carries a -staging suffix because it shares docker DNS with the prod project.
@@ -82,6 +82,8 @@ services:
       start_period: 5s
 
   self-hosted-node-staging:
+    profiles:
+      - hosted-ai
     image: ghcr.io/witchesofthehill/manabrew-node:${MANABREW_IMAGE_TAG:-staging}
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server-staging:9443"

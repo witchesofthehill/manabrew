@@ -61,6 +61,10 @@ export const useAuthStore = create<AuthState>()(
       }),
       {
         name: "manabrew-auth-storage",
+        // The bearer token persists in localStorage on purpose: staying signed
+        // in across reloads is the product behavior, and any XSS that could
+        // read it could call the API directly anyway. Sign-out revokes the
+        // session server-side, and the hub stores only its sha256.
         partialize: (state) => ({
           lastServer: state.lastServer,
           lastUsername: state.lastUsername,

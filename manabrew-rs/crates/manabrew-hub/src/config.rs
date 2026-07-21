@@ -17,6 +17,7 @@ pub struct AuthConfig {
     pub resend_api_key: Option<String>,
     pub email_from: String,
     pub auth_emails_per_hour: u32,
+    pub auth_attempts_per_hour: u32,
 }
 
 #[derive(Clone)]
@@ -69,7 +70,11 @@ impl AuthConfig {
             auth_emails_per_hour: std::env::var("HUB_AUTH_EMAILS_PER_HOUR")
                 .ok()
                 .and_then(|n| n.parse().ok())
-                .unwrap_or(5),
+                .unwrap_or(30),
+            auth_attempts_per_hour: std::env::var("HUB_AUTH_ATTEMPTS_PER_HOUR")
+                .ok()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(60),
         }
     }
 }

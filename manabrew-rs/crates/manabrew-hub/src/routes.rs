@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State};
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
-use axum::http::{HeaderMap, HeaderName, Method, StatusCode};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Json, Router};
@@ -13,7 +13,7 @@ use manabrew_protocol::deck_dto::{Deck, DeckCard};
 use rand::RngCore;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::auth;
 use crate::config::AuthConfig;
@@ -38,13 +38,31 @@ pub struct AppState {
     pub limiter: RateLimiter,
     pub publish_per_day: u32,
     pub auth: AuthConfig,
-    pub auth_limiter: RateLimiter,
+    pub auth_email_limiter: RateLimiter,
+    pub auth_code_limiter: RateLimiter,
     pub http: reqwest::Client,
+}
+
+// The Tauri shells load from fixed webview origins; the web app origin comes
+// from WEB_APP_URL per environment.
+fn cors_origins(web_app_url: &str) -> AllowOrigin {
+    let mut origins = vec![
+        HeaderValue::from_static("tauri://localhost"),
+        HeaderValue::from_static("http://tauri.localhost"),
+    ];
+    if let Some(origin) = reqwest::Url::parse(web_app_url)
+        .ok()
+        .map(|url| url.origin().ascii_serialization())
+        .and_then(|origin| HeaderValue::from_str(&origin).ok())
+    {
+        origins.push(origin);
+    }
+    AllowOrigin::list(origins)
 }
 
 pub fn build_router(state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(cors_origins(&state.auth.web_app_url))
         .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::PATCH])
         .allow_headers([
             CONTENT_TYPE,
@@ -432,8 +450,10 @@ mod tests {
                 resend_api_key: None,
                 email_from: "Manabrew <login@manabrew.test>".into(),
                 auth_emails_per_hour: 100,
+                auth_attempts_per_hour: 100,
             },
-            auth_limiter: RateLimiter::new(100),
+            auth_email_limiter: RateLimiter::new(100),
+            auth_code_limiter: RateLimiter::new(100),
             http: reqwest::Client::new(),
         })
     }

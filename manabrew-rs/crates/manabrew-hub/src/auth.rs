@@ -626,7 +626,7 @@ pub async fn exchange_handler(
     headers: HeaderMap,
     Json(request): Json<ExchangeCodeRequest>,
 ) -> Response {
-    if !state.auth_limiter.allow(&client_ip(&headers, addr)) {
+    if !state.auth_code_limiter.allow(&client_ip(&headers, addr)) {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let code = request.code.trim().to_uppercase();
@@ -678,7 +678,7 @@ pub async fn email_request_handler(
     }
     let ip = client_ip(&headers, addr);
     let allowed = {
-        if !state.auth_limiter.allow(&ip) {
+        if !state.auth_email_limiter.allow(&ip) {
             false
         } else {
             let hour_ago = ts_in(Duration::hours(-1));
@@ -755,7 +755,7 @@ pub async fn email_verify_handler(
     headers: HeaderMap,
     Json(request): Json<EmailVerifyRequest>,
 ) -> Response {
-    if !state.auth_limiter.allow(&client_ip(&headers, addr)) {
+    if !state.auth_code_limiter.allow(&client_ip(&headers, addr)) {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
     let Some(email) = normalize_email(&request.email) else {

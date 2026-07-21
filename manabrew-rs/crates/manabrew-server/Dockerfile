@@ -3,7 +3,7 @@
 # manifests alone. The CI layer cache (docker-images.yml, type=gha) cannot
 # persist RUN --mount caches across runners, so every tag build used to
 # recompile all deps from scratch — and image build time now gates the early
-# web deploy (deploy.sh pulls these images with a retry loop). chef masks
+# web deploy (`cargo xtask deploy` pulls these images with a retry loop). chef masks
 # workspace-member versions, so the per-merge release bumps don't invalidate
 # the cooked layer; only a real dependency change does.
 FROM rust:1.88-bookworm AS chef

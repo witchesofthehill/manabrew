@@ -107,14 +107,16 @@ play.manabrew.app {
         file_server
     }
 
-    # Per-package version manifest (ops/manifest.json, bind-mounted). Self-hosted
-    # nodes and the desktop app poll this to detect they are behind the release.
+    # Per-package version manifest. Self-hosted nodes poll this to detect they
+    # are behind the release. Served straight from the latest GitHub Release's
+    # assets (publish.yml attaches ops/manifest.json there), so it can only
+    # ever advertise a release whose installers actually exist — `latest` skips
+    # drafts and prereleases, and advances the moment a Release publishes.
+    # This replaced a bind-mounted file plus a deploy-time "hold": the mount
+    # made the file's inode load-bearing and the hold logic re-implemented
+    # "don't get ahead of the installers" in bash.
     handle /manifest.json {
-        header {
-            Access-Control-Allow-Origin "*"
-            Cache-Control "no-store"
-        }
-        file_server
+        redir * https://github.com/witchesofthehill/manabrew/releases/latest/download/manifest.json 302
     }
 
     # Tauri updater manifest. Generated per release by release-artifacts.yml

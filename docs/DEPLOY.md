@@ -221,11 +221,15 @@ Verify:
 
 From any machine with SSH access to the box (the runner does exactly this).
 No Rust toolchain? Every release attaches the tool prebuilt
-(`manabrew-xtask-linux-x86_64`, static musl). It embeds that release's
-config and knows its own tag, so prod/staging deploys need **no checkout
-and no git** — just ssh, rsync and curl on the machine. Grab the binary of
-the release you want on the box (that is also the rollback story: fetch an
-older release's binary and run it):
+(`manabrew-xtask-linux-x86_64`, static musl) — an **evergreen** binary: it
+fetches the deployed ref's config from GitHub at run time (codeload
+tarball, tracked files only), so one download deploys any release and
+needs **no checkout and no git** — just ssh, rsync, curl and tar on the
+machine. Rollback is `deploy --tag <older>` from the same binary. If a
+future release changes the deploy contract, `ops/deploy-tool-version` in
+the fetched config makes the old binary refuse with a download hint.
+`--ref <sha>` pins the config fetch exactly; `--config-from <dir>` uses a
+local checkout instead (airgap):
 
 ```bash
 # full rollout of a release tag

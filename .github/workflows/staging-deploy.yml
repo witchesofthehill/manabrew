@@ -144,8 +144,10 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
           # The PR's head branch; empty on workflow_dispatch → xtask's
           # `staging` default, which is also the only branch that gets a
-          # hosted-AI node.
+          # hosted-AI node. DEPLOY_REF pins the config fetch to the exact sha
+          # build-images built — a branch-name fetch could race a fresh push.
           DEPLOY_BRANCH: ${{ github.event.pull_request.head.ref }}
+          DEPLOY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           # Synced into the slot's .env below. MANABREW_SERVER_KEY is included
           # because the slot's .env is standalone — it must NOT symlink prod's
           # secrets file. The STAGING_OAUTH_GITHUB_* names avoid GitHub
@@ -188,6 +190,7 @@ jobs:
             echo "  StrictHostKeyChecking yes"
           } >> ~/.ssh/config
           cargo xtask deploy --staging --branch "${DEPLOY_BRANCH:-staging}" \
+            --ref "$DEPLOY_REF" \
             --host staging-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 

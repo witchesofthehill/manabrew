@@ -404,17 +404,18 @@ jobs:
         with:
           shared-key: xtask-deploy
 
-      # Prebuilt deploy tool: lets a box run `manabrew-xtask deploy --local`
-      # (or --staging/--only) from a plain checkout with docker only — no
-      # Rust toolchain needed on the machine. Static musl build (the xtask
-      # dep graph is pure Rust; rust-lld links it without musl-gcc), so it
-      # runs on any x86_64 Linux regardless of glibc, Alpine included.
+      # Prebuilt deploy tool: an evergreen binary — it fetches the deployed
+      # ref's config from GitHub at run time, so one download deploys (or
+      # rolls back to) any release; ops/deploy-tool-version in the fetched
+      # config refuses a binary that is too old. Static musl build (the
+      # xtask dep graph is pure Rust; rust-lld links it without musl-gcc),
+      # so it runs on any x86_64 Linux regardless of glibc, Alpine included.
       - name: Build xtask binary (release asset)
         env:
           RUSTFLAGS: -C linker=rust-lld
-          # Embedded into the binary (build.rs): it carries this release's
-          # config and knows which tag it belongs to, so it deploys with no
-          # git checkout at all.
+          # Default for `deploy --tag`: the shipped binary knows which
+          # release it belongs to. Config itself is fetched per-ref at
+          # deploy time, so any binary can deploy any ref.
           XTASK_BUILD_TAG: ${{ github.ref_name }}
         run: |
           cargo build --release -p xtask --target x86_64-unknown-linux-musl

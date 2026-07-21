@@ -100,5 +100,50 @@ export function useQuickPlay() {
     [navigate],
   );
 
-  return { quickPlay, pendingDeckId };
+  const quickPlayPreset = useCallback(async (preset: Deck) => {
+    if (pendingRef.current) return;
+    const presetId = preset.id ?? preset.name;
+    pendingRef.current = true;
+    setPendingDeckId(presetId);
+    try {
+      const formatId = preset.format ?? "standard";
+      if (formatId === "oathbreaker" || getFormat(formatId) === undefined) {
+        toast.error("This starter deck uses an unsupported format.");
+        return;
+      }
+      const opponent = resolveAiOpponent({
+        presets: await ensurePresets(),
+        savedDecks: useDeckStore.getState().savedDecks,
+        formatId,
+        last: usePreferencesStore.getState().lastAiOpponent,
+      });
+      if (!mountedRef.current) return;
+      if (!opponent) {
+        toast.error("No AI deck available for this format — pick one yourself.");
+        return;
+      }
+      const started = await useGameStore
+        .getState()
+        .startGame(
+          preset,
+          formatId,
+          preset.commanders?.[0]?.identity.name,
+          opponent.deck,
+          resolveOfflineEngine(),
+        );
+      if (!started) return;
+      const prefs = usePreferencesStore.getState();
+      prefs.setLastOfflineFormatId(formatId);
+      prefs.setLastAiOpponent(
+        opponent.source === "preset"
+          ? { kind: "preset", id: opponent.id }
+          : { kind: "saved", id: opponent.id },
+      );
+    } finally {
+      pendingRef.current = false;
+      if (mountedRef.current) setPendingDeckId(null);
+    }
+  }, []);
+
+  return { quickPlay, quickPlayPreset, pendingDeckId };
 }

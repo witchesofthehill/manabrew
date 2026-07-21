@@ -31,7 +31,7 @@ const MODES = [
 ];
 
 export function PlayHome() {
-  const { quickPlay, pendingDeckId } = useQuickPlay();
+  const { quickPlay, quickPlayPreset, pendingDeckId } = useQuickPlay();
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
@@ -97,7 +97,11 @@ export function PlayHome() {
             className={cn("motion-safe:animate-onboard-fade-up", resumePending && "hidden")}
             style={{ animationDelay: "80ms" }}
           >
-            <PlayDeckShelf onPlay={quickPlay} pendingDeckId={pendingDeckId} />
+            <PlayDeckShelf
+              onPlay={quickPlay}
+              onPlayPreset={quickPlayPreset}
+              pendingDeckId={pendingDeckId}
+            />
           </div>
 
           {isFeatureEnabled("deckHub") && (

@@ -1,14 +1,4 @@
-import {
-  Boxes,
-  Github,
-  Globe,
-  Hand,
-  HeartPulse,
-  Info,
-  Palette,
-  Search,
-  Settings,
-} from "lucide-react";
+import { Github, Globe, Hand, HeartPulse, Info, Palette, Search, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { FeatureTile } from "@/components/play/FeatureTile";
@@ -34,13 +24,6 @@ const UTILITY_ROW_CLASS =
   "flex min-w-0 items-center gap-3 px-4 py-3 text-sm hover:bg-muted/50 motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 
 const TOOLS = [
-  {
-    to: ROUTES.PLAY_OFFLINE_LIMITED,
-    label: "Draft & Sealed",
-    desc: "Draft, sealed, Winston, and cube play.",
-    icon: Boxes,
-    tone: "amber",
-  },
   {
     to: ROUTES.SEARCH,
     label: "Card Search",

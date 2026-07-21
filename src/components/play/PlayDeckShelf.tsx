@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LibraryBig, Plus } from "lucide-react";
+import { ChevronDown, LibraryBig, Plus } from "lucide-react";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
@@ -12,20 +12,25 @@ import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { usePresetDecks } from "@/stores/usePresetDecksStore";
+import type { Deck } from "@/protocol/deck";
 
 const SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
 
 interface PlayDeckShelfProps {
   onPlay: (savedDeckId: string) => void;
+  onPlayPreset: (preset: Deck) => void;
   pendingDeckId: string | null;
 }
 
-export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
+export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckShelfProps) {
   const navigate = useNavigate();
   const savedDecks = useDeckStore((state) => state.savedDecks);
   const lastPlayedDeckId = usePreferencesStore((state) => state.lastPlayedDeckId);
   const lastPlayedAtByDeck = usePreferencesStore((state) => state.lastPlayedAtByDeck);
+  const presetDecks = usePresetDecks();
   const [formatFilter, setFormatFilter] = useState("all");
+  const [presetsCollapsedOverride, setPresetsCollapsedOverride] = useState<boolean | null>(null);
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importDeckText = useDeckTextImport();
@@ -39,6 +44,8 @@ export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
     .sort(
       (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
     );
+  const filteredPresets = presetDecks.filter((preset) => matchesFormat(preset.format));
+  const presetsCollapsed = presetsCollapsedOverride ?? ownedDecks.length > 0;
   const formatName =
     formatFilter === "all" ? null : (getFormat(formatFilter)?.name ?? formatFilter);
 
@@ -146,7 +153,7 @@ export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
           <LibraryBig className="mb-3 h-7 w-7 text-primary" />
           <p className="font-medium">Your first deck is waiting to be brewed.</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Build from scratch or import a decklist to start your collection.
+            Build from scratch, import a decklist — or grab a starter deck below.
           </p>
           <Button size="sm" className="mt-4" onClick={addDeck}>
             <Plus className="h-4 w-4" />
@@ -154,6 +161,60 @@ export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
           </Button>
         </div>
       )}
+
+      <div className="mt-5 border-t border-border/50 pt-4">
+        <button
+          type="button"
+          onClick={() => setPresetsCollapsedOverride(!presetsCollapsed)}
+          aria-expanded={!presetsCollapsed}
+          className="flex w-full items-center gap-2 text-left"
+        >
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "h-3.5 w-3.5 text-muted-foreground transition-transform motion-reduce:transition-none",
+              presetsCollapsed && "-rotate-90",
+            )}
+          />
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Starter Decks
+          </span>
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {filteredPresets.length}
+          </span>
+        </button>
+
+        {!presetsCollapsed &&
+          (filteredPresets.length > 0 ? (
+            <div className="mt-4">
+              <DeckShelfRow label="Starter decks">
+                {filteredPresets.map((preset) => {
+                  const presetId = preset.id ?? preset.name;
+                  return (
+                    <div key={presetId} className={SHELF_CARD_CLASS}>
+                      <DeckGridCard
+                        deck={{ id: presetId, deck: preset, savedAt: 0 }}
+                        onOpen={() => {
+                          if (pendingDeckId === null) onPlayPreset(preset);
+                        }}
+                        onPlay={() => onPlayPreset(preset)}
+                        playing={pendingDeckId === presetId}
+                        playDisabled={pendingDeckId !== null}
+                        readOnly
+                      />
+                    </div>
+                  );
+                })}
+              </DeckShelfRow>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs italic text-muted-foreground">
+              {presetDecks.length > 0
+                ? `No starter decks for ${formatName ?? "this format"}.`
+                : "Loading starter decks…"}
+            </p>
+          ))}
+      </div>
 
       <NewDeckChoiceDialog
         open={choiceOpen}

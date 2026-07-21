@@ -1,23 +1,25 @@
 # Staging Workflow
 
-Staging is a **mirror of production**. It runs on its own VM — a separate
-machine with its own SSH key and its own DNS — deployed the same shape as
-production: the same four ghcr images (built per-push, tagged `:staging` instead
-of the release `latest`), a `compose.staging.yml` that clones
-`compose.production.yml` service-for-service (web + relay + hub + hosted node,
-its own TLS edge), and a lean rollout script (`deploy-staging.sh`) that mirrors
-`deploy.sh`'s image-pull + health-checked recreate + rollback without the
-release-only machinery. The only differences are the branch it tracks, the image
-tag, and the hostnames — nothing behavioural.
+Staging is a **mirror of production that lives next to production**. It runs as
+a second compose project on the prod box (`/opt/manabrew-staging`,
+`compose.staging.yml`), joined to the prod docker network and fronted by the
+prod Caddy at **staging.manabrew.app** (relay at
+`relay-staging.manabrew.app`, hub API same-origin under
+`https://staging.manabrew.app/api/*`). Same ghcr images as a release would
+ship (built per-push, tagged `:staging`), same rollout mechanics
+(`deploy-staging.sh`: image pull with retry, health-checked `up --wait`,
+rollback), no release-only machinery. The differences are the branch it
+tracks, the image tag, the hostnames, and that prod's Caddy terminates TLS for
+it — nothing behavioural.
 
 Its purpose: give changes a production-shaped home to bake in **before** they
-reach real users, so a backend-breaking or infra-breaking change is caught on a
-box that looks exactly like prod but isn't prod.
+reach real users, so a backend-breaking or infra-breaking change is caught on
+infra that looks exactly like prod but isn't prod.
 
 ## The loop
 
 ```
-  local branch ──(PR / merge)──▶ staging ──(auto)──▶ staging environment
+  local branch ──(PR / merge)──▶ staging ──(auto)──▶ staging.manabrew.app
                                     ▲
                                     │ merge latest main in
                                     │
@@ -31,9 +33,8 @@ box that looks exactly like prod but isn't prod.
    still in flight.
 3. **`staging` deploys automatically.** Any push to `staging` triggers
    `.github/workflows/staging-deploy.yml`, which builds the `:staging` images,
-   connects the runner to **Twingate** (the VM only accepts SSH through
-   Twingate), then SSHes in and runs `deploy-staging.sh` against the `staging`
-   branch. Result lands on the staging hosts.
+   syncs the slot's secrets into `/opt/manabrew-staging/.env`, then SSHes into
+   the prod box (production `DEPLOY_*` secrets) and runs `deploy-staging.sh`.
 4. **Every merge to `main`, the latest `main` is merged into `staging`.** This
    keeps staging honest: it is always _`main` + whatever is still pending on
    staging_, never a stale fork that has silently drifted from production. The
@@ -53,16 +54,23 @@ git push origin staging
 
 ## What makes it a mirror, mechanically
 
-| Aspect        | Production               | Staging                                           |
-| ------------- | ------------------------ | ------------------------------------------------- |
-| Trigger       | `v*` tag (release)       | push to `staging` branch                          |
-| Deploy engine | `deploy.sh` over SSH     | `deploy-staging.sh` (lean sibling of `deploy.sh`) |
-| Deploy reach  | CI SSHes the box         | CI connects Twingate, then SSHes the box          |
-| Compose file  | `compose.production.yml` | `compose.staging.yml` (clone)                     |
-| Images        | ghcr `:latest`           | ghcr `:staging`                                   |
-| Edge / TLS    | `ops/Caddyfile`          | `ops/staging.Caddyfile`                           |
-| Hosts         | hardcoded `manabrew.app` | from env (`STAGING_APP/RELAY/API_HOST`)           |
-| Box           | production VM + key      | staging VM, SSH gated by Twingate                 |
+| Aspect        | Production               | Staging                                                    |
+| ------------- | ------------------------ | ---------------------------------------------------------- |
+| Trigger       | `v*` tag (release)       | push to `staging` branch                                   |
+| Deploy engine | `deploy.sh` over SSH     | `deploy-staging.sh` (lean sibling of `deploy.sh`)          |
+| Compose file  | `compose.production.yml` | `compose.staging.yml` (services `*-staging`)               |
+| Images        | ghcr `:latest`           | ghcr `:staging`                                            |
+| Edge / TLS    | `ops/Caddyfile`          | prod Caddy vhosts → in-stack `ops/staging.Caddyfile` (:80) |
+| Hosts         | `manabrew.app`           | `staging.manabrew.app` / `relay-staging.manabrew.app`      |
+| Box           | `/opt/manabrew` project  | `/opt/manabrew-staging` project, shared network            |
+| Secrets       | `ops/production.secrets` | `/opt/manabrew-staging/.env`, synced from repo secrets     |
+
+Every staging service name carries a `-staging` suffix (`manabrew-staging`,
+`manabrew-server-staging`, `manabrew-hub-staging`, `self-hosted-node-staging`)
+because it shares docker DNS with the prod project. The staging hub uses its
+own throwaway DB (`/opt/manabrew-staging/ops/hub-data/hub.db`) and its own
+OAuth apps — the slot's `.env` is a real file written by the workflow's
+secret-sync step, **never** a symlink to prod's `ops/production.secrets`.
 
 `deploy-staging.sh` keeps the parts of production's rollout that matter for a
 mirror — ghcr image pull with retry, a health-checked `compose up --wait`, and
@@ -72,70 +80,60 @@ updater + sidestore, observability/parity profiles, the relay binary-diff gate).
 On staging a relay recreate is fine, so `up -d` just recreates whatever image
 changed.
 
-## Deploy reach (Twingate)
+## Secrets and hosts
 
-The staging VM only accepts SSH through **Twingate**, so the GitHub-hosted runner
-can't SSH in directly. The `deploy` job first connects to Twingate with a
-service-account key, which brings the internal host into reach for the rest of
-the job, then SSHes in exactly as production does:
+- Deploy reach: the production `DEPLOY_SSH_KEY` / `DEPLOY_HOST` / `DEPLOY_USER`
+  secrets; the slot path defaults to `/opt/manabrew-staging`
+  (`DEPLOY_STAGING_PATH` secret overrides).
+- Slot `.env` (synced every deploy from repo secrets): `MANABREW_SERVER_KEY`,
+  `HUB_ADMIN_PASSWORD_HASH` (optional), and the hub auth secrets
+  `STAGING_OAUTH_GITHUB_*` / `STAGING_OAUTH_DISCORD_*` /
+  `STAGING_RESEND_API_KEY` (mapped to the hub's `GITHUB_CLIENT_ID` etc.).
+- The one build-time host (the hub API URL baked into the web bundle) comes
+  from the repo **variable** `STAGING_HUB_API_URL`
+  (= `https://staging.manabrew.app`).
+- The prod-edge vhosts (`staging.manabrew.app`, `relay-staging.manabrew.app`)
+  live in `ops/Caddyfile`, which the prod box serves from its `main` checkout —
+  a change there reaches the box with the next release (or a manual hot-sync).
 
-```yaml
-- uses: twingate/github-action@v1
-  with:
-    service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
-# subsequent SSH step reaches STAGING_DEPLOY_HOST over the tunnel
+## The optional VM (manual, self-contained)
+
+A separate VM can run the whole stack for experiments that shouldn't touch the
+staging slot (node fleets, relay tests). No CI drives it and it needs no
+dedicated compose/Caddyfile: it uses the **selfhost stack**, which builds from
+whatever is checked out on the VM:
+
+```bash
+cd <checkout>                    # the repo clone on the VM
+git fetch origin staging && git checkout -f -B staging FETCH_HEAD
+./deploy-local.sh                # own network, published ports, builds locally
 ```
 
-Create the key in the Twingate Admin Console under **Team → Service Accounts**,
-authorize it on the VM's SSH Resource, and store the downloaded JSON as the
-`TWINGATE_SERVICE_KEY` repo secret. `STAGING_DEPLOY_HOST` is the VM's _internal_
-address (as defined by the Twingate Resource). The tunnel stays up for the whole
-job and tears down when it ends.
-
-## Hosts are not hardcoded
-
-The staging stack is host-agnostic so the environment can move domains without a
-code change:
-
-- **Runtime hosts** (app / relay / api) come from the staging box's `.env` —
-  `STAGING_APP_HOST`, `STAGING_RELAY_HOST`, `STAGING_API_HOST` — consumed by
-  `ops/staging.Caddyfile` (`{$STAGING_APP_HOST}` etc., which also drives ACME
-  certs) and by the web runtime relay config.
-- **The one build-time host** (the hub API URL baked into the web bundle) comes
-  from the GitHub Actions repo **variable** `STAGING_HUB_API_URL`.
-
-Moving staging to a different domain is a `.env` edit plus that one repo
-variable — never a commit.
+See the header of `deploy-local.sh` for the env knobs (`RELAY_HOST`,
+`WEB_PORT`, `MANABREW_SERVER_KEY`, …) and the HTTPS caveat for LAN access. The
+VM's edge/env is maintained by hand; nothing in this repo references it.
 
 ## First-time setup (ops)
 
-Required before the first staging deploy can succeed:
+The staging slot needs, once:
 
-1. **GitHub secrets:** `TWINGATE_SERVICE_KEY` (Twingate service-account key JSON,
-   authorized on the VM's SSH Resource) and `STAGING_DEPLOY_SSH_KEY` /
-   `STAGING_DEPLOY_HOST` / `STAGING_DEPLOY_USER` / `STAGING_DEPLOY_PATH`
-   (`STAGING_DEPLOY_HOST` is the VM's Twingate-internal address).
-2. **GitHub repo variable:** `STAGING_HUB_API_URL` (e.g.
-   `https://api.<staging-domain>`). If unset, the web build falls back to the
-   **production** hub — set it before the first push.
-3. **DNS A records → staging VM** for the app / relay / api hosts you choose.
-4. **Provision the VM** like the prod box: docker + compose, the repo cloned at
-   `STAGING_DEPLOY_PATH` on the `staging` branch, and a box-local `.env` (see
-   `.env.example`) with its own `MANABREW_SERVER_KEY` plus the `STAGING_APP_HOST`
-   / `STAGING_RELAY_HOST` / `STAGING_API_HOST` trio (matching the DNS and the
-   `STAGING_HUB_API_URL` host).
+1. **DNS**: `staging.manabrew.app` and `relay-staging.manabrew.app` A records →
+   the prod box.
+2. **Prod Caddyfile** on the box containing the two staging vhosts (ships with
+   `ops/Caddyfile`; hot-sync + `caddy reload` if needed before a release lands).
+3. **Repo secrets**: `MANABREW_SERVER_KEY` (already used by other workflows)
+   plus the `STAGING_OAUTH_*` hub auth secrets; repo variable
+   `STAGING_HUB_API_URL`.
+4. `/opt/manabrew-staging` cloned on the `staging` branch (the workflow's
+   deploy script hard-resets it every run).
 
-The hosted Java "Play vs AI" node is under the `hosted-ai` compose profile and,
-exactly as in production, is not auto-started by `deploy.sh`. Start it once on
-the box (it restarts unless stopped):
-
-```bash
-docker compose -f compose.staging.yml --profile hosted-ai up -d self-hosted-node
-```
+The hosted "Play vs AI" node (`self-hosted-node-staging`) is a regular service
+in the staging compose — unlike production's profile-gated node, it deploys
+with the rest of the slot so the lobby always has its hosted room.
 
 ## See also
 
 - `docs/DEPLOY.md` — production/operator deployment notes.
 - `.github/workflows/staging-deploy.yml` — the staging pipeline (build + deploy).
-- `deploy-staging.sh` — the staging rollout script (run on the VM over SSH).
+- `deploy-staging.sh` — the shared rollout script (staging slot; run by hand for the VM slot).
 - `deploy.sh` — production's rollout script (staging does **not** use it).

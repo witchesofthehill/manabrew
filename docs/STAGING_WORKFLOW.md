@@ -121,8 +121,8 @@ chmod +x /usr/local/bin/manabrew-xtask
 manabrew-xtask deploy --local    # run from anywhere inside the checkout
 ```
 
-(Built on Ubuntu 22.04 — runs on 22.04+/Debian 12+. It still needs the repo
-checkout: `--local` builds the images from it.) See `xtask/src/deploy.rs`
+(Static musl build — runs on any x86_64 Linux, Alpine included. It still
+needs git and the repo checkout: `--local` builds the images from it.) See `xtask/src/deploy.rs`
 (`deploy_local`) for the env knobs (`RELAY_HOST`, `WEB_PORT`,
 `MANABREW_SERVER_KEY`, …) and the HTTPS caveat for LAN access. The
 VM's edge/env is maintained by hand; nothing in this repo references it.

@@ -75,6 +75,13 @@ fn main() -> Result<()> {
         }
     }
 
+    // deploy needs a git checkout, not the cargo workspace — and the prebuilt
+    // release binary (manabrew-xtask-linux-x86_64) runs with no cargo env at
+    // all, so it must not touch CARGO_MANIFEST_DIR or Workspace::load.
+    if command.as_deref() == Some("deploy") {
+        return deploy::run_cmd(&repo_root()?, &rest);
+    }
+
     let ws = Workspace::load(&workspace_root()?)?;
     let root = ws.root.clone();
 
@@ -97,7 +104,6 @@ fn main() -> Result<()> {
         Some("publish") => publish::publish(&ws, &root, dry_run)?,
         Some("gen-types") => gen_types::generate(&root)?,
         Some("e2e-ui") => e2e_ui::run(&root, &rest)?,
-        Some("deploy") => deploy::run_cmd(&root, &rest)?,
         _ => {
             print_help();
             bail!(
@@ -109,21 +115,20 @@ fn main() -> Result<()> {
 }
 
 fn workspace_root() -> Result<PathBuf> {
-    // Under `cargo xtask`, CARGO_MANIFEST_DIR/.. is the root. The prebuilt
-    // binary shipped as a release asset (deploying a box without a Rust
-    // toolchain) has no cargo env — walk up from the cwd instead.
-    if let Ok(dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        return Ok(PathBuf::from(dir).parent().unwrap().to_path_buf());
+    // xtask always runs via `cargo xtask`, so CARGO_MANIFEST_DIR/.. is the root.
+    let dir = std::env::var("CARGO_MANIFEST_DIR").context("run via `cargo xtask`")?;
+    Ok(PathBuf::from(dir).parent().unwrap().to_path_buf())
+}
+
+fn repo_root() -> Result<PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .context("could not spawn `git` — is it installed?")?;
+    if !out.status.success() {
+        bail!("not inside a manabrew checkout — run from the repo");
     }
-    let mut dir = std::env::current_dir().context("no working directory")?;
-    loop {
-        if dir.join("xtask/Cargo.toml").is_file() {
-            return Ok(dir);
-        }
-        if !dir.pop() {
-            bail!("not inside a manabrew checkout — run from the repo (or via `cargo xtask`)");
-        }
-    }
+    Ok(PathBuf::from(String::from_utf8(out.stdout)?.trim()))
 }
 
 fn print_help() {

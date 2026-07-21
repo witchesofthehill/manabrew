@@ -9,12 +9,17 @@ name: Publish
 #   3. deploy the Wasm/web stack to production (deploy.sh over SSH). When the
 #      release is relay-compatible (deploy-gate: no semver-incompatible bump
 #      of manabrew-protocol / manabrew-server / manabrew-hub), deploy-web
-#      ships it EARLY — in parallel with the installer builds — with the
-#      served /manifest.json held back at the previous release so installed
-#      apps aren't told to update before the installers exist (the final
-#      deploy job releases it). Incompatible releases keep the old ordering:
+#      ships the WEB container EARLY — in parallel with the installer builds
+#      — with the served /manifest.json held back at the previous release so
+#      installed apps aren't told to update before the installers exist. The
+#      relay and hub are deferred to the final deploy job, which also
+#      releases the manifest. Incompatible releases keep the old ordering:
 #      deploy only after the Release has all its assets, so no installed
 #      client is stranded against a relay it can't talk to.
+#
+#      Both deploy jobs pass MANABREW_IMAGE_TAG=<tag>, which is what makes
+#      deploy.sh's ghcr pull-retry actually wait for this release's images
+#      rather than instantly resolving `latest` to the previous one.
 # There is no main-push deploy: main commits only run release.yml.
 #
 # GitHub-hosted runners are free for public repositories (unlimited minutes
@@ -548,13 +553,22 @@ jobs:
       early: ${{ steps.gate.outputs.early }}
 
   # ── Early web deploy ───────────────────────────────────────────────
-  # Ships the web/relay/hub stack as soon as the tag lands instead of after
-  # the ~60–90 min installer builds. deploy.sh's ghcr pull-retry loop waits
-  # out docker-images.yml, so web players get the release roughly when the
-  # images finish building. HOLD_MANIFEST keeps the served /manifest.json
-  # (what installed apps poll to nag about updates) at the previous release
-  # until the final deploy job releases it — /tauri.json redirects to the
-  # *latest* GitHub Release's assets, which don't exist yet at this point.
+  # Ships the WEB container as soon as the tag lands instead of after the
+  # ~60–90 min installer builds. deploy.sh's ghcr pull-retry loop waits out
+  # docker-images.yml — which only works because MANABREW_IMAGE_TAG pins the
+  # pull to this release's tag; without it the pull resolves `latest`, which
+  # mid-release is still the PREVIOUS release's images, and every release
+  # shipped N-1 (issue #510).
+  #
+  # --web-only: manabrew-server and manabrew-hub stay put until the final
+  # deploy. They are what an already-installed desktop/mobile app talks to,
+  # and moving them here would put those clients in front of a new relay with
+  # no installer published yet to update to.
+  #
+  # HOLD_MANIFEST keeps the served /manifest.json (what installed apps poll to
+  # nag about updates) at the previous release until the final deploy job
+  # releases it — /tauri.json redirects to the *latest* GitHub Release's
+  # assets, which don't exist yet at this point.
   deploy-web:
     name: Deploy web (early)
     needs: [deploy-gate]
@@ -578,6 +592,7 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
@@ -594,7 +609,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && HOLD_MANIFEST=1 ./deploy.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && MANABREW_IMAGE_TAG='$TAG' HOLD_MANIFEST=1 ./deploy.sh --web-only 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure
@@ -632,14 +647,19 @@ jobs:
           exit 1
 
   # ── Deploy production (finalize) ───────────────────────────────────
-  # Runs once the Release has all its installer artifacts. On the early
-  # path this is a near-no-op that releases the held /manifest.json; on the
-  # gated (semver-incompatible) path it is the full deploy, running LAST so
-  # the tauri.json redirect never points at assets that don't exist yet.
-  # FORCE_DEPLOY re-runs a deploy whose early attempt failed after pulling
-  # (deploy.sh would otherwise early-exit on "no new commits"). Job-level
-  # concurrency serializes deploys across runs (two tags in flight must not
-  # deploy concurrently).
+  # Runs once the Release has all its installer artifacts. On the early path
+  # it rolls out the relay + hub the --web-only run deferred and releases the
+  # held /manifest.json; on the gated (semver-incompatible) path it is the
+  # full deploy, running LAST so the tauri.json redirect never points at
+  # assets that don't exist yet.
+  #
+  # FORCE_DEPLOY is unconditional: the early run already fast-forwarded the
+  # host's HEAD, so deploy.sh would early-exit on "no new commits" and never
+  # roll the relay/hub out. With it set, the run skips that exit and lets the
+  # image-diff checks decide what actually needs recreating — a no-op when
+  # the early path already shipped everything.
+  # Job-level concurrency serializes deploys across runs (two tags in flight
+  # must not deploy concurrently).
   deploy:
     name: Deploy production
     needs: [release, deploy-gate, deploy-web]
@@ -664,7 +684,7 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           TAG: ${{ github.ref_name }}
-          FORCE_DEPLOY: ${{ needs.deploy-web.result == 'failure' && '1' || '' }}
+          FORCE_DEPLOY: "1"
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
@@ -681,7 +701,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && FORCE_DEPLOY='$FORCE_DEPLOY' ./deploy.sh 2>&1 && ./deploy.sh --release-manifest '$TAG' 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && MANABREW_IMAGE_TAG='$TAG' FORCE_DEPLOY='$FORCE_DEPLOY' ./deploy.sh 2>&1 && ./deploy.sh --release-manifest '$TAG' 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure

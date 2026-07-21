@@ -1403,11 +1403,17 @@ export class BoardScene {
   }
 
   /** The hand blocker is root-local; `collectBlockers` rects are canvas-space
-   *  (regions convert back through the zoomed root transform). */
+   *  (regions convert back through the zoomed root transform). Only the trimmed
+   *  reserve fraction of the fan blocks cells — same trim as
+   *  `getHandReserveBottom` — so the bottom row may tuck under the fan's top. */
   private localBlockers(): BlockingRect[] {
     const handRect = this.hand?.getBlockerRect();
     if (!handRect) return [];
-    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(handRect.x, handRect.y), RECT_SCRATCH_A);
+    const zone = this.localZone();
+    const bottom = zone ? zone.y + zone.height : handRect.y + handRect.height;
+    const trim = this.compactMode ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM;
+    const top = bottom - Math.max(0, bottom - handRect.y) * trim;
+    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(handRect.x, top), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
       RECT_SCRATCH_B.set(handRect.x + handRect.width, handRect.y + handRect.height),
       RECT_SCRATCH_B,

@@ -597,6 +597,9 @@ public final class ManaBrewInteractiveSession {
                         "delve:" + cardId, cardId, PaymentResourceKind.DELVE));
             }
         }
+        if (canPayLife) {
+            actionList.add(new PaymentAction_payLife("pay-life", lifeToPay));
+        }
         final String payCardId = payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "";
         final String payCardName =
                 payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "";
@@ -1095,7 +1098,21 @@ public final class ManaBrewInteractiveSession {
     ) {
         return awaitBooleanChoice(
                 kind, playerId, description, sourceName, promptKind, mode, api, optionLabels, passDefault, null,
-                null, null);
+                null, null, null);
+    }
+
+    boolean awaitBooleanChoice(
+            final String kind,
+            final int playerId,
+            final String title,
+            final String bodyText,
+            final String sourceName,
+            final String promptKind,
+            final String mode,
+            final String api
+    ) {
+        return awaitBooleanChoice(
+                kind, playerId, title, sourceName, promptKind, mode, api, null, null, null, null, null, bodyText);
     }
 
     boolean awaitBooleanChoice(
@@ -1110,12 +1127,13 @@ public final class ManaBrewInteractiveSession {
             final Boolean passDefault,
             final List<Card> targetCards,
             final List<Player> targetPlayers,
-            final String effectText
+            final String effectText,
+            final String bodyText
     ) {
         requireAttached();
         publishBooleanPrompt(
                 kind, playerId, description, sourceName, promptKind, mode, api, optionLabels, targetCards,
-                targetPlayers, effectText);
+                targetPlayers, effectText, bodyText);
         final boolean onPass = passDefault != null && passDefault;
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -1866,7 +1884,8 @@ public final class ManaBrewInteractiveSession {
             final List<String> optionLabels,
             final List<Card> targetCards,
             final List<Player> targetPlayers,
-            final String effectText
+            final String effectText,
+            final String bodyText
     ) {
         final List<TargetRef> targets = new java.util.ArrayList<>();
         final String title;
@@ -1903,7 +1922,7 @@ public final class ManaBrewInteractiveSession {
             confirmLabel = labeled ? optionLabels.get(0) : "Accept";
             denyLabel = labeled ? optionLabels.get(1) : "Decline";
         }
-        final PromptPresentation presentation = new PromptPresentation(title, null, text, sourceName, targets);
+        final PromptPresentation presentation = new PromptPresentation(title, bodyText, text, sourceName, targets);
         publishAgentPrompt("player-" + playerId, envelopeSourceCardId,
                 new ChooseBooleanInput(presentation, confirmLabel, denyLabel));
     }

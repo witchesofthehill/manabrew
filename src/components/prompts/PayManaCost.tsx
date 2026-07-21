@@ -1,4 +1,4 @@
-import { Ban, Check, WandSparkles } from "lucide-react";
+import { Ban, Check, HeartCrack, WandSparkles } from "lucide-react";
 import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
@@ -68,6 +68,16 @@ export function PayManaCost({
             variant="outline"
             baseColor={promptActionColors.defenseAction}
             onClick={payManaCostInfo.onOpenDelve}
+            disabled={isWaitingForResponse}
+          />
+        )}
+        {payManaCostInfo?.lifeToPay != null && payManaCostInfo.onPayLife && (
+          <PromptActionButton
+            label={`${payManaCostInfo.lifeToPay} Life`}
+            icon={<HeartCrack className="h-3.5 w-3.5" />}
+            variant="outline"
+            baseColor={promptActionColors.attackAction}
+            onClick={payManaCostInfo.onPayLife}
             disabled={isWaitingForResponse}
           />
         )}

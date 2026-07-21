@@ -44,22 +44,31 @@ public final class HarnessPlayPlumbing {
     private final HarnessPlayHooks hooks;
     private final Player payer;
     private final HarnessCostPlumbing costPlumbing;
+    private final boolean lifePaymentFallback;
     private boolean needX = true;
 
     public HarnessPlayPlumbing(
             final HarnessPlayHooks hooks,
             final Player payer,
-            final HarnessCostPlumbing costPlumbing
+            final HarnessCostPlumbing costPlumbing,
+            final boolean lifePaymentFallback
     ) {
         this.hooks = hooks;
         this.payer = payer;
         this.costPlumbing = costPlumbing;
+        this.lifePaymentFallback = lifePaymentFallback;
+    }
+
+    private boolean canPayCostWithLifeFallback(final SpellAbility sa, final Player ai, final boolean effect) {
+        return lifePaymentFallback
+                && ActionSpace.canPayManaCostWithLifeFallback(sa, ai)
+                && CostPayment.canPayAdditionalCosts(sa.getPayCosts(), sa, effect, ai);
     }
 
     public boolean playNoStack(final Player ai, SpellAbility sa, final Game game, final boolean effect) {
         sa.setActivatingPlayer(ai);
         clearPaymentState(sa);
-        if (!ComputerUtilCost.canPayCost(sa, ai, effect)) {
+        if (!ComputerUtilCost.canPayCost(sa, ai, effect) && !canPayCostWithLifeFallback(sa, ai, effect)) {
             return false;
         }
 
@@ -67,6 +76,11 @@ public final class HarnessPlayPlumbing {
         if (!effect && sa.isSpell() && !source.isCopiedSpell()) {
             sa.setHostCard(game.getAction().moveToStack(source, sa));
             sa = GameActionUtil.addExtraKeywordCost(sa);
+        }
+
+        needX = true;
+        if (!announceType(sa) || !announceValuesLikeX(sa)) {
+            return false;
         }
 
         final Cost cost = sa.getPayCosts();
@@ -81,7 +95,7 @@ public final class HarnessPlayPlumbing {
     boolean playStack(SpellAbility sa, final Player ai, final Game game) {
         sa.setActivatingPlayer(ai);
         clearPaymentState(sa);
-        if (!ComputerUtilCost.canPayCost(sa, ai, false)) {
+        if (!ComputerUtilCost.canPayCost(sa, ai, false) && !canPayCostWithLifeFallback(sa, ai, false)) {
             return false;
         }
 

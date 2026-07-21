@@ -46,6 +46,7 @@ import forge.game.spellability.*;
 import forge.game.staticability.StaticAbility;
 import forge.game.staticability.StaticAbilityManaConvert;
 import forge.game.staticability.StaticAbilityMustTarget;
+import forge.game.trigger.Trigger;
 import forge.game.trigger.TriggerType;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.MagicStack;
@@ -91,7 +92,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         this.session = session;
         this.costPlumbing = new HarnessCostPlumbing(this, this, player);
         this.autoPay = new AutoPay(player, costPlumbing, true);
-        this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing);
+        this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing, true);
     }
 
     private int me() {
@@ -155,7 +156,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             probingPayability = true;
             try {
                 all = ChoiceSpace.sortNative(
-                        new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
+                        new ArrayList<>(ActionSpace.getPossibleActions(player, true, true)),
                         ParityOrder.actionComparator());
             } finally {
                 probingPayability = false;
@@ -1075,10 +1076,17 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmTrigger(final WrappedAbility sa) {
+        final Trigger trigger = sa == null ? null : sa.getTrigger();
+        final Card host = sa == null ? null : sa.getHostCard();
+        final String title = host == null
+                ? "Resolve optional trigger?"
+                : "Use triggered ability of " + host.getName() + "?";
+        final String body = trigger == null ? null : trigger.toString();
         return session.awaitBooleanChoice(
                 "choose_optional_trigger",
                 me(),
-                sa == null ? "Resolve optional trigger?" : sa.getStackDescription(),
+                title,
+                body,
                 sourceCardId(sa),
                 "optional_trigger",
                 null,
@@ -1622,7 +1630,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 null,
                 targetCards,
                 targetPlayers,
-                sa == null ? null : sa.getStackDescription());
+                sa == null ? null : sa.getStackDescription(),
+                null);
         if (!accept) {
             return false;
         }
@@ -1884,11 +1893,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 }
                 case PAY_LIFE: {
                     if (player.canPayLife(2, effect, sa)) {
-                        if (unpaid.payPhyrexian()) {
-                            sa.setSpendPhyrexianMana(true);
-                            player.payLife(2, sa, effect);
-                        } else if (player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK)) {
-                            unpaid.decreaseShard(ManaCostShard.BLACK, 1);
+                        final ManaCostShard shard =
+                                ActionSpace.chooseLifePaymentShard(unpaid, sa, player, effect);
+                        if (shard != null) {
+                            unpaid.decreaseShard(shard, 1);
+                            if (shard.isPhyrexian()) {
+                                sa.setSpendPhyrexianMana(true);
+                            }
                             player.payLife(2, sa, effect);
                         }
                     }

@@ -934,6 +934,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       ) ?? [],
     [payManaCostPrompt],
   );
+  const payLifeAction = payManaCostPrompt?.actions.find((action) => action.type === "payLife");
 
   const handleDelveCard = useCallback(
     (cardId: string) => {
@@ -1778,6 +1779,10 @@ export default function Game({ exitTo }: GameProps = {}) {
                         delveCount: delvedCardIds.length,
                         delveAvailable: delveSourceIds.length > 0,
                         onOpenDelve: openDelveZone,
+                        lifeToPay: payLifeAction?.amount,
+                        onPayLife: payLifeAction
+                          ? () => respond({ type: "act", actionId: payLifeAction.id })
+                          : undefined,
                       }
                     : null
                 }

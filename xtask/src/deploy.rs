@@ -326,6 +326,7 @@ fn gate(root: &Path, config: &Path) -> Result<bool> {
     if let Ok(out) = std::env::var("GITHUB_OUTPUT") {
         use std::io::Write as _;
         std::fs::OpenOptions::new()
+            .create(true)
             .append(true)
             .open(out)?
             .write_all(format!("early={early}\n").as_bytes())?;

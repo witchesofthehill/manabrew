@@ -6,20 +6,24 @@ name: Publish
 #      on GitHub-hosted runners, signed for the auto-updater,
 #   2. attach them + the updater manifest (tauri.json) to the GitHub Release
 #      xtask already created,
-#   3. deploy the Wasm/web stack to production (deploy.sh over SSH). When the
-#      release is relay-compatible (deploy-gate: no semver-incompatible bump
-#      of manabrew-protocol / manabrew-server / manabrew-hub), deploy-web
-#      ships the WEB container EARLY — in parallel with the installer builds
-#      — with the served /manifest.json held back at the previous release so
-#      installed apps aren't told to update before the installers exist. The
-#      relay and hub are deferred to the final deploy job, which also
-#      releases the manifest. Incompatible releases keep the old ordering:
-#      deploy only after the Release has all its assets, so no installed
-#      client is stranded against a relay it can't talk to.
+#   3. deploy the Wasm/web stack to production via `cargo xtask deploy`,
+#      which runs ON THE RUNNER at the tag checkout: it rsyncs the tracked
+#      config to the box, pulls this release's ghcr images (waiting out
+#      docker-images.yml), and reconciles with docker compose — the box holds
+#      no deploy scripts and its git checkout is never consulted, so config
+#      and images always come from the same commit (issue #512). When the
+#      release is relay-compatible (deploy-gate = `xtask deploy --gate`: no
+#      semver-incompatible bump of manabrew-protocol / manabrew-server /
+#      manabrew-hub), deploy-web ships the WEB container EARLY — in parallel
+#      with the installer builds. The relay and hub are deferred to the final
+#      deploy job. Incompatible releases keep the old ordering: deploy only
+#      after the Release has all its assets, so no installed client is
+#      stranded against a relay it can't talk to.
 #
-#      Both deploy jobs pass MANABREW_IMAGE_TAG=<tag>, which is what makes
-#      deploy.sh's ghcr pull-retry actually wait for this release's images
-#      rather than instantly resolving `latest` to the previous one.
+#      /manifest.json needs no deploy-time hold anymore: the release job
+#      attaches ops/manifest.json as a Release asset and Caddy redirects to
+#      the LATEST release's copy, so installed apps can only ever be told
+#      about a release whose installers exist.
 # There is no main-push deploy: main commits only run release.yml.
 #
 # GitHub-hosted runners are free for public repositories (unlimited minutes
@@ -423,6 +427,7 @@ jobs:
             release-assets/windows/**/*.exe.sig
             release-assets/windows/**/*.msi
             release-assets/tauri.json
+            ops/manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -512,63 +517,42 @@ jobs:
   deploy-gate:
     name: Early web deploy gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      # Semver compatibility of the client-facing crates vs the previous
+      # release, decided in Rust with the same semver crate the release
+      # tooling uses (xtask/src/deploy.rs) instead of bash + jq (#512).
       - name: Compare client-facing crate versions with the previous release
         id: gate
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          PREV=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${TAG}^" 2>/dev/null || true)
-          if [ -z "$PREV" ]; then
-            echo "No previous release tag found — taking the safe deploy-last path."
-            echo "early=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          early=true
-          for crate in manabrew-protocol manabrew-server manabrew-hub; do
-            old=$(git show "${PREV}:ops/manifest.json" | jq -r --arg c "$crate" '.packages[$c] // empty')
-            new=$(git show "${TAG}:ops/manifest.json" | jq -r --arg c "$crate" '.packages[$c] // empty')
-            if [ -z "$old" ] || [ -z "$new" ]; then
-              echo "$crate: missing from a manifest — taking the safe path."
-              early=false
-              break
-            fi
-            IFS=. read -r omaj omin _ <<< "$old"
-            IFS=. read -r nmaj nmin _ <<< "$new"
-            # Cargo semver compatibility: 0.x crates break on minor bumps too.
-            if [ "$omaj" != "$nmaj" ] || { [ "$nmaj" = "0" ] && [ "$omin" != "$nmin" ]; }; then
-              echo "$crate: $old → $new is semver-incompatible."
-              early=false
-              break
-            fi
-          done
-          echo "previous=$PREV early=$early"
-          echo "early=$early" >> "$GITHUB_OUTPUT"
+        run: cargo xtask deploy --gate --tag "${GITHUB_REF_NAME}"
     outputs:
       early: ${{ steps.gate.outputs.early }}
 
   # ── Early web deploy ───────────────────────────────────────────────
   # Ships the WEB container as soon as the tag lands instead of after the
-  # ~60–90 min installer builds. deploy.sh's ghcr pull-retry loop waits out
-  # docker-images.yml — which only works because MANABREW_IMAGE_TAG pins the
-  # pull to this release's tag; without it the pull resolves `latest`, which
-  # mid-release is still the PREVIOUS release's images, and every release
-  # shipped N-1 (issue #510).
+  # ~60–90 min installer builds. `xtask deploy` pulls the images at THIS
+  # release's tag with a retry loop that waits out docker-images.yml —
+  # resolving `latest` mid-release shipped N-1 for months (issue #510).
   #
   # --web-only: manabrew-server and manabrew-hub stay put until the final
   # deploy. They are what an already-installed desktop/mobile app talks to,
   # and moving them here would put those clients in front of a new relay with
   # no installer published yet to update to.
   #
-  # HOLD_MANIFEST keeps the served /manifest.json (what installed apps poll to
-  # nag about updates) at the previous release until the final deploy job
-  # releases it — /tauri.json redirects to the *latest* GitHub Release's
-  # assets, which don't exist yet at this point.
+  # /manifest.json needs no hold: it redirects to the latest Release's copy,
+  # and this release's Release has not published yet at this point.
   deploy-web:
     name: Deploy web (early)
     needs: [deploy-gate]
@@ -579,12 +563,21 @@ jobs:
       group: wasm-deploy
       cancel-in-progress: false
     steps:
-      # The composite actions need the repo present.
+      # Full history: xtask asserts HEAD is the tag and builds the changelog
+      # against the previously deployed tag.
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github
+          fetch-depth: 0
 
-      - name: SSH and run deploy.sh (manifest held back)
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      - name: Deploy web (xtask, from the runner)
         id: deploy
         continue-on-error: true
         env:
@@ -592,37 +585,22 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # ServerAliveInterval/CountMax keep the SSH connection healthy
-          # while deploy.sh has quiet stretches (docker pulls, ghcr retry
-          # sleeps). Without them the runner's SSH client times out after
-          # a few minutes idle and we get `client_loop: send disconnect:
-          # Broken pipe` mid-deploy.
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=120 \
-              "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && MANABREW_IMAGE_TAG='$TAG' HOLD_MANIFEST=1 ./deploy.sh --web-only 2>&1" 2>&1 | tee deploy.log
+          {
+            echo "Host prod-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          cargo xtask deploy --tag "$GITHUB_REF_NAME" --web-only \
+            --host prod-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
-
-      - name: Fetch raw deploy log on failure
-        if: steps.deploy.outcome != 'success'
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
-            echo "(raw log not retrievable from server)"
 
       - name: Post Discord embed (as bot)
         if: always()
@@ -636,9 +614,8 @@ jobs:
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           actor: ${{ github.actor }}
           sha: ${{ github.sha }}
-          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description: "(no log captured — the deploy failed before any output; see workflow run)"
           description-file: deploy.log
-          attach-file: deploy-raw.log
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'
@@ -648,16 +625,12 @@ jobs:
 
   # ── Deploy production (finalize) ───────────────────────────────────
   # Runs once the Release has all its installer artifacts. On the early path
-  # it rolls out the relay + hub the --web-only run deferred and releases the
-  # held /manifest.json; on the gated (semver-incompatible) path it is the
-  # full deploy, running LAST so the tauri.json redirect never points at
-  # assets that don't exist yet.
-  #
-  # FORCE_DEPLOY is unconditional: the early run already fast-forwarded the
-  # host's HEAD, so deploy.sh would early-exit on "no new commits" and never
-  # roll the relay/hub out. With it set, the run skips that exit and lets the
-  # image-diff checks decide what actually needs recreating — a no-op when
-  # the early path already shipped everything.
+  # it rolls out the relay + hub the --web-only run deferred; on the gated
+  # (semver-incompatible) path it is the full deploy, running LAST so the
+  # tauri.json and manifest.json redirects never point at assets that don't
+  # exist yet. The relay only restarts when its binary actually changed
+  # (xtask compares sha256s), so this is a near-no-op when the early path
+  # already shipped everything else.
   # Job-level concurrency serializes deploys across runs (two tags in flight
   # must not deploy concurrently).
   deploy:
@@ -670,12 +643,21 @@ jobs:
       group: wasm-deploy
       cancel-in-progress: false
     steps:
-      # The composite actions need the repo present.
+      # Full history: xtask asserts HEAD is the tag and builds the changelog
+      # against the previously deployed tag.
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github
+          fetch-depth: 0
 
-      - name: SSH and run deploy.sh
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      - name: Deploy production (xtask, from the runner)
         id: deploy
         continue-on-error: true
         env:
@@ -683,38 +665,22 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          TAG: ${{ github.ref_name }}
-          FORCE_DEPLOY: "1"
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # ServerAliveInterval/CountMax keep the SSH connection healthy
-          # while deploy.sh has quiet stretches (docker pulls, ghcr retry
-          # sleeps). Without them the runner's SSH client times out after
-          # a few minutes idle and we get `client_loop: send disconnect:
-          # Broken pipe` mid-deploy.
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=120 \
-              "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && MANABREW_IMAGE_TAG='$TAG' FORCE_DEPLOY='$FORCE_DEPLOY' ./deploy.sh 2>&1 && ./deploy.sh --release-manifest '$TAG' 2>&1" 2>&1 | tee deploy.log
+          {
+            echo "Host prod-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          cargo xtask deploy --tag "$GITHUB_REF_NAME" \
+            --host prod-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
-
-      - name: Fetch raw deploy log on failure
-        if: steps.deploy.outcome != 'success'
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
-            echo "(raw log not retrievable from server)"
 
       - name: Post Discord embed (as bot)
         if: always()
@@ -728,9 +694,8 @@ jobs:
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           actor: ${{ github.actor }}
           sha: ${{ github.sha }}
-          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description: "(no log captured — the deploy failed before any output; see workflow run)"
           description-file: deploy.log
-          attach-file: deploy-raw.log
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

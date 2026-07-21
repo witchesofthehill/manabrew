@@ -138,13 +138,16 @@ Dashboard will be at `http://<server-ip>:8080`.
 Every release tag (pushed by the **Release** workflow's `cargo xtask release`
 on merges to `main`) triggers **Publish**
 (`.github/workflows/publish.yml`): it builds the Tauri installers
-(`.dmg` / `.exe` / `.msi`), attaches them plus the updater manifest
-(`tauri.json`) to the GitHub Release, and its final `deploy` job SSHes into
-the server, runs `deploy.sh` to rebuild the Wasm/web stack (manabrew,
-manabrew-server, optional parity-dashboard) under Docker, and posts a
-success/failure embed to the community Discord channel via the project's
-Discord bot. Deploy runs last so the live site never references release
-assets that don't exist yet. Plain `main` commits do not deploy.
+(`.dmg` / `.exe` / `.msi`), attaches them plus the updater manifests
+(`tauri.json`, `manifest.json`) to the GitHub Release, and its deploy jobs
+run `cargo xtask deploy` FROM THE RUNNER at the tag checkout: rsync the
+tracked config to the box, pull this release's ghcr images, reconcile with
+docker compose (health-checked, redeploying the previous tag on failure),
+and post a success/failure embed to the community Discord channel. The box
+holds no deploy scripts and its git checkout is never consulted, so config
+and images always come from the same commit. The full deploy runs last so
+the live site never references release assets that don't exist yet. Plain
+`main` commits do not deploy.
 
 ### 1. Generate an SSH keypair for the deploy
 
@@ -164,18 +167,13 @@ cat >> ~/.ssh/authorized_keys < ~/.ssh/manabrew_deploy.pub   # paste here, then 
 chmod 600 ~/.ssh/authorized_keys
 ```
 
-### 2. Confirm the server clone uses the public HTTPS URL
+### 2. Box prerequisites
 
-The repo is public, so the server no longer needs a PAT (the deploy script
-still rewrites the remote to a PAT URL when `GITHUB_TOKEN` is set in the
-host's `.env`, purely to avoid public-API rate limits — optional). On the
-server:
-
-```bash
-cd <DEPLOY_PATH>     # e.g. /opt/manabrew
-git remote set-url origin https://github.com/<owner>/manabrew.git
-git pull --ff-only origin main
-```
+The box needs docker + compose, the data dirs under `<DEPLOY_PATH>` (ops/
+hub-data, ops/observability/data), and the `.env` with the compose secrets.
+It does NOT need a usable git checkout: `xtask deploy` rsyncs the tracked
+config files (compose.production.yml, ops/, scripts/ingest-events.py) at the
+release tag before every rollout, and never runs git on the box.
 
 ### 3. Prep the Discord bot
 
@@ -213,7 +211,7 @@ change to `main`, let the **Release** workflow tag it, and watch the resulting
 
 Verify:
 
-- The workflow's `SSH and run deploy.sh` step is green.
+- The workflow's `Deploy production (xtask, from the runner)` step is green.
 - The configured Discord channel receives a green "🚀 Wasm deploy successful" embed posted by your bot.
 - `docker compose -f compose.production.yml ps` on the server (or the dev
   compose path, if that's what `$COMPOSE_FILE` points to) shows the expected
@@ -221,27 +219,29 @@ Verify:
 
 ## Manual Deploy
 
+From any machine with SSH access to the box (the runner does exactly this):
+
 ```bash
-cd ~/manabrew
-./deploy.sh
+# full rollout of a release tag
+git checkout vX.Y.Z
+cargo xtask deploy --tag vX.Y.Z --host <ssh-host> --path /opt/manabrew
+
+# recreate one bind-mount-configured service (e.g. after a grafana
+# provisioning change), no tag checkout required
+cargo xtask deploy --tag vX.Y.Z --only grafana --host <ssh-host> --path /opt/manabrew
 ```
 
-The script will:
-
-- `git pull origin main`
-- Diff what changed since last deploy
-- Only rebuild if Java/Rust/infra files changed
-- Restart the container
+The command rsyncs the tracked config at the tag, pulls the tag's images
+(waiting out CI if they are still building), reconciles with
+`docker compose up -d --wait`, and redeploys the previously running tag if
+the rollout comes up unhealthy.
 
 `manabrew-server` (the relay) gets extra protection because restarting it
-kills every live game: after a rebuild, the script compares the
-`manabrew-server` binary inside the fresh image (`manabrew-server:production`)
-against the one in the running container and skips the restart when they are
-identical. Root `Cargo.lock`/`Cargo.toml` churn (release bumps, Tauri/UI
-dependency updates) therefore no longer bounces the relay. Changes to the
-relay's Dockerfile, any compose file, `.dockerignore`, or `deploy.sh` itself
-always rebuild with `--no-cache` and restart, since those can change the
-container beyond the binary.
+kills every live game: xtask compares the `manabrew-server` binary inside the
+freshly pulled image against the one in the running container and skips the
+restart when they are identical. Root `Cargo.lock`/`Cargo.toml` churn
+(release bumps, Tauri/UI dependency updates) therefore never bounces the
+relay.
 
 ## Useful Commands
 

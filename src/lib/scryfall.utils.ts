@@ -1,4 +1,4 @@
-import type { CardFaceSummary, DeckCard } from "@/protocol/deck";
+import type { CardBackFaceSummary, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
@@ -53,11 +53,9 @@ function detectIsDoubleFaced(sc: ScryfallCard): boolean {
   return !!(sc.card_faces && sc.card_faces.length >= 2 && sc.card_faces[1]?.image_uris);
 }
 
-/** Capture the back face (name/text/mana/type + images) so the deck carries it
- *  and rendering never needs a live Scryfall lookup. Only for real two-image
- *  faces (same gate as `detectIsDoubleFaced`), so split/adventure/flip/room —
- *  which share one image — return undefined. */
-function buildBackFaceSummary(sc: ScryfallCard): CardFaceSummary | undefined {
+// Same two-image gate as detectIsDoubleFaced: split/adventure/flip/room share
+// one image and return undefined.
+function buildBackFaceSummary(sc: ScryfallCard): CardBackFaceSummary | undefined {
   const back = sc.card_faces?.[1];
   const img = back?.image_uris;
   if (!back || !img) return undefined;

@@ -1,5 +1,5 @@
 import type {
-  CardFaceSummary,
+  CardBackFaceSummary,
   CardPartComponent,
   Deck,
   DeckCard,
@@ -25,7 +25,7 @@ interface PresetDeckCardDefinition {
   layout?: string;
   power?: string;
   toughness?: string;
-  backFace?: CardFaceSummary;
+  backFace?: CardBackFaceSummary;
   allParts?: Array<{ name: string; component: CardPartComponent }>;
 }
 

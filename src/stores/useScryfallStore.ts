@@ -345,9 +345,7 @@ export const useScryfallStore = create<ScryfallState>()(
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
           variant === "art" ? u?.art_crop : u?.border_crop;
-        // The deck now carries the back face (`backFace.uris`), so DFC rendering
-        // reads it directly instead of a live Scryfall lookup. Falls through to
-        // the fetch below for older decks that predate the stored back face.
+        // Decks saved before backFace existed fall through to the live lookup.
         let url = faceIndex === 0 ? pick(deckCard.uris) : pick(deckCard.backFace?.uris);
         if (!url) {
           const entry = await get().getCard({

@@ -79,7 +79,7 @@ function frontFace(sc) {
   return sc.card_faces?.[0] ?? sc;
 }
 
-// The back face (transform / modal_dfc), in `CardFaceSummary` shape, so the deck
+// The back face (transform / modal_dfc), in `CardBackFaceSummary` shape, so the deck
 // carries it and rendering never needs a live Scryfall lookup. `undefined` for
 // single-faced cards and faces without their own image.
 function backFaceFromScryfall(sc) {

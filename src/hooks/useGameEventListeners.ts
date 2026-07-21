@@ -21,7 +21,7 @@ import {
 import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
-import type { AuthResultPayload, RoomMessagePayload } from "@/types/server";
+import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
 
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
@@ -307,9 +307,12 @@ export function useGameEventListeners() {
       );
 
       unsubscribers.push(
-        platform.events.on("server:game_aborted", () => {
+        platform.events.on<GameAbortedPayload>("server:game_aborted", (payload) => {
           const state = getState();
           if (!state.isMultiplayer || !state.isGameActive) return;
+          const roomId =
+            peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
+          if (roomId && payload.room_id !== roomId) return;
           if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
           clearActiveGameSession();
           toast.error("Game aborted — a player did not reconnect.");

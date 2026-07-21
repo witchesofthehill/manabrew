@@ -420,7 +420,7 @@ export const useGameStore = create<GameState>()(
           console.warn(
             "[store] startMultiplayerGame called while a game is already active — ignoring duplicate.",
           );
-          return;
+          return false;
         }
         gameLaunchInFlight = true;
         const launchGeneration = ++gameLaunchGeneration;
@@ -474,23 +474,29 @@ export const useGameStore = create<GameState>()(
           });
           if (launchGeneration !== gameLaunchGeneration) {
             await runtime.api.endGame();
-            return;
+            return false;
           }
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
+          return true;
         } catch (e) {
-          if (launchGeneration !== gameLaunchGeneration) return;
+          if (launchGeneration !== gameLaunchGeneration) return false;
           set({
             isGameActive: false,
+            isMultiplayer: false,
+            isHost: false,
+            myPlayerSlot: null,
             debugInfo: `Multiplayer start failed: ${e}`,
             isPrefetchingCards: false,
             gameDecks: {},
           });
+          clearActiveGameSession();
           console.error("[store] Failed to start multiplayer game:", e);
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
             toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
           }
+          return false;
         } finally {
           gameLaunchInFlight = false;
         }

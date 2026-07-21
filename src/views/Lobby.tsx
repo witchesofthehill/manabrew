@@ -229,16 +229,7 @@ export default function Lobby() {
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
     if (!currentRoom) return;
-    if (gameRoomId !== currentRoom.room_id) {
-      useServerStore.setState({
-        gameStarted: false,
-        gameRoomId: "",
-        gameId: "",
-        playerOrder: [],
-        playerDecks: [],
-      });
-      return;
-    }
+    if (gameRoomId !== currentRoom.room_id) return;
     if (currentRoom?.draft_config) {
       useServerStore.setState({ gameStarted: false });
       return;
@@ -268,7 +259,13 @@ export default function Lobby() {
       startingLife,
     );
     if (launch.error) {
+      useServerStore.setState({ gameStarted: false });
       toast.error(launch.error);
+      if (currentRoom.host === username) {
+        void useServerStore.getState().endGame();
+      } else {
+        void useServerStore.getState().leaveRoom();
+      }
       return;
     }
     useServerStore.setState({ gameStarted: false });

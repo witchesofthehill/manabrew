@@ -22,6 +22,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
   }
 
   function go(to: string) {
+    if (disabled) return;
     setOpen(false);
     navigate(to);
   }
@@ -35,14 +36,29 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
     );
     if (external) {
       return (
-        <a key={to} href={to} target="_blank" rel="noreferrer" className={className}>
+        <a
+          key={to}
+          href={to}
+          target="_blank"
+          rel="noreferrer"
+          className={className}
+          onClick={(event) => {
+            if (disabled) event.preventDefault();
+          }}
+        >
           <Icon className="h-4 w-4 shrink-0" />
           {label}
         </a>
       );
     }
     return (
-      <button key={to} type="button" onClick={() => go(to)} className={className}>
+      <button
+        key={to}
+        type="button"
+        disabled={disabled}
+        onClick={() => go(to)}
+        className={className}
+      >
         <Icon className="h-4 w-4 shrink-0" />
         {label}
       </button>
@@ -50,7 +66,7 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={!disabled && open} onOpenChange={setOpen}>
       <Button
         size="icon"
         variant="ghost"

@@ -81,7 +81,7 @@ export default function Tabletop() {
     <div className="relative h-full min-h-0">
       <DeckVsSelector
         onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-          startGame(playerDeck, formatId, commanderName, opponentDeck);
+          return startGame(playerDeck, formatId, commanderName, opponentDeck);
         }}
         onStartTabletop={(deck, formatId, commanderName) => {
           void startManualTabletopGame(deck, formatId, commanderName);

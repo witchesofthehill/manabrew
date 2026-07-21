@@ -127,7 +127,7 @@ export interface GameState {
     format?: GameFormat,
     hostPlayerSlot?: string | null,
     botPlayerSlots?: string[],
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;
   endGame: () => Promise<void>;

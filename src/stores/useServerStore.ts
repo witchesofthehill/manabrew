@@ -6,7 +6,10 @@ import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { peekActiveGameSession } from "@/lib/activeGameSession";
+import {
+  isActiveGameSessionAbandonmentPending,
+  peekActiveGameSession,
+} from "@/lib/activeGameSession";
 import { claimTabSession, holdTabSession, type TabSessionHolder } from "@/lib/tabSession";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
@@ -80,7 +83,7 @@ interface ServerState {
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   resumeRoomAfterRestart(): Promise<void>;
-  leaveRoom(): Promise<void>;
+  leaveRoom(requireServerLeave?: boolean): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
   setFormat(format: GameFormat): Promise<void>;
@@ -290,7 +293,7 @@ export const useServerStore = create<ServerState>()(
         });
       },
 
-      async leaveRoom() {
+      async leaveRoom(requireServerLeave = false) {
         // Reset local room state synchronously so a hung relay socket can't
         // strand the user in a "still-in-room" UI. The server-side teardown
         // is attempted afterwards as best-effort; if it fails, the next
@@ -312,10 +315,12 @@ export const useServerStore = create<ServerState>()(
         });
         const platform = getPlatform();
         if (!platform.server) return;
+        let leaveError: unknown;
         try {
           await platform.server.leaveRoom();
         } catch (e) {
           console.warn("server.leaveRoom() failed:", e);
+          leaveError = e;
         }
         try {
           await platform.server.stopRoom();
@@ -327,6 +332,7 @@ export const useServerStore = create<ServerState>()(
         } catch (e) {
           console.warn("listRooms() after leaveRoom failed:", e);
         }
+        if (requireServerLeave && leaveError) throw leaveError;
       },
 
       async setReady(ready) {
@@ -447,7 +453,9 @@ export const useServerStore = create<ServerState>()(
             // LeaveRoom was in flight must not re-enroll us in the room.
             const inRoom = get().currentRoom?.room_id === payload.room.room_id;
             const joining = pendingJoin?.roomId === payload.room.room_id;
-            const reclaiming = peekActiveGameSession()?.roomId === payload.room.room_id;
+            const reclaiming =
+              !isActiveGameSessionAbandonmentPending() &&
+              peekActiveGameSession()?.roomId === payload.room.room_id;
             if (inRoom || joining || reclaiming) {
               set({ currentRoom: payload.room });
             }
@@ -489,6 +497,8 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on<GameStartedPayload>("server:game_started", (payload) => {
+            const roomId = get().currentRoom?.room_id;
+            if (roomId && payload.room_id !== roomId) return;
             set({
               gameStarted: true,
               gameRoomId: payload.room_id,

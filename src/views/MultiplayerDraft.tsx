@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { DraftingView } from "@/views/Draft";
 import { submitHostPick, teardownHost } from "@/game/draftHost";
 import { submitPeerPick } from "@/game/draftPeer";
 import { useLimitedStore } from "@/stores/useLimitedStore";
+import { useServerStore } from "@/stores/useServerStore";
 import { ROUTES } from "@/lib/constants";
 import {
   type MpDraftPlayerPool,
@@ -31,13 +32,14 @@ export default function MultiplayerDraft() {
   const clear = useMultiplayerDraftStore((s) => s.clear);
   const conspiracyHooks = useLimitedStore((s) => s.conspiracyHooks);
   const fetchConspiracyHooks = useLimitedStore((s) => s.fetchConspiracyHooks);
+  const leavingHome = useRef(false);
 
   useEffect(() => {
     if (conspiracyHooks.length === 0) fetchConspiracyHooks();
   }, [conspiracyHooks.length, fetchConspiracyHooks]);
 
   useEffect(() => {
-    if (mode === "idle") navigate(ROUTES.LOBBY, { replace: true });
+    if (mode === "idle" && !leavingHome.current) navigate(ROUTES.LOBBY, { replace: true });
   }, [mode, navigate]);
 
   useEffect(() => {
@@ -55,10 +57,19 @@ export default function MultiplayerDraft() {
     navigate(destination);
   }
 
+  async function leaveHome() {
+    leavingHome.current = true;
+    if (amHost) teardownHost(mode !== "complete");
+    clear();
+    await useServerStore.getState().leaveRoom();
+    navigate(ROUTES.PLAY);
+  }
+
   useTopBarOverride({
     title: mode === "complete" ? "Build Draft Deck" : undefined,
     onBack: () => leave(ROUTES.LOBBY),
-    onHome: () => leave(ROUTES.PLAY),
+    onHome: () => void leaveHome(),
+    navigationDisabled: true,
   });
 
   const handlePick = async (card: DraftCard) => {

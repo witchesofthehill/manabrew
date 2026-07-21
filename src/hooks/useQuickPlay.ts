@@ -22,6 +22,10 @@ function offlineEngine(): EngineKind {
   return last ?? (isHostedEngineAvailable() ? "Forge" : "Manabrew");
 }
 
+function supportsQuickPlay(formatId: string) {
+  return formatId !== "oathbreaker" && getFormat(formatId) !== undefined;
+}
+
 async function ensurePresets(): Promise<Deck[]> {
   const loaded = usePresetDecksStore.getState().decks;
   if (loaded.length > 0) return loaded;
@@ -35,15 +39,7 @@ async function launchVsAi(
   opponent: ResolvedAiOpponent,
   savedDeckId: string | null,
 ) {
-  const prefs = usePreferencesStore.getState();
-  prefs.setLastOfflineFormatId(formatId);
-  if (savedDeckId) prefs.setLastPlayedDeckId(savedDeckId);
-  prefs.setLastAiOpponent(
-    opponent.source === "preset"
-      ? { kind: "preset", id: opponent.id }
-      : { kind: "saved", id: opponent.id },
-  );
-  await useGameStore
+  const started = await useGameStore
     .getState()
     .startGame(
       playerDeck,
@@ -52,6 +48,16 @@ async function launchVsAi(
       opponent.deck,
       offlineEngine(),
     );
+  if (!started) return false;
+  const prefs = usePreferencesStore.getState();
+  prefs.setLastOfflineFormatId(formatId);
+  if (savedDeckId) prefs.setLastPlayedDeckId(savedDeckId);
+  prefs.setLastAiOpponent(
+    opponent.source === "preset"
+      ? { kind: "preset", id: opponent.id }
+      : { kind: "saved", id: opponent.id },
+  );
+  return true;
 }
 
 export function useQuickPlay() {
@@ -112,7 +118,9 @@ export function useQuickPlay() {
     try {
       const presets = await ensurePresets();
       const playable = presets.filter(
-        (deck) => deck.cards.length > 0 || (deck.commanders?.length ?? 0) > 0,
+        (deck) =>
+          (deck.cards.length > 0 || (deck.commanders?.length ?? 0) > 0) &&
+          supportsQuickPlay(deck.format ?? "standard"),
       );
       const playerDeck = playable[Math.floor(Math.random() * playable.length)];
       if (!playerDeck) {
@@ -144,6 +152,10 @@ export function useQuickPlay() {
     setPendingDeckId(presetId);
     try {
       const formatId = preset.format ?? "standard";
+      if (!supportsQuickPlay(formatId)) {
+        toast.error("This starter deck uses an unsupported format.");
+        return;
+      }
       const opponent = resolveAiOpponent({
         presets: await ensurePresets(),
         savedDecks: useDeckStore.getState().savedDecks,

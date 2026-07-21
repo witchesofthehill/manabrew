@@ -980,6 +980,9 @@ class WebServerApi implements IServerApi {
   }
 
   async leaveRoom(): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Cannot leave room while disconnected.");
+    }
     this.stopAllBots();
     clearSpawnedBots();
     this.send({ type: "LeaveRoom" });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useServerStore } from "@/stores/useServerStore";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
 import { PlayHome } from "@/components/play/PlayHome";
 import { DeckPlayActions } from "@/components/play/DeckPlayActions";
@@ -15,7 +16,8 @@ import type { EngineKind } from "@/types/server";
 export default function Play() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isGameActive, startGame, startMultiplayerGame, setMultiplayerState } = useGameStore();
+  const { isGameActive, gameView, startGame, startMultiplayerGame, setMultiplayerState } =
+    useGameStore();
   const multiplayerStarted = useRef(false);
   const gameWasActive = useRef(false);
   const pathname =
@@ -38,10 +40,11 @@ export default function Play() {
   // Route state outlives the game; without this, ending a multiplayer game
   // falls back to the "Starting multiplayer game..." waiting screen.
   useEffect(() => {
-    if (isGameActive) {
+    if (isGameActive && gameView) {
       gameWasActive.current = true;
       return;
     }
+    if (isGameActive) return;
     if (gameWasActive.current && mpState?.multiplayer) {
       gameWasActive.current = false;
       multiplayerStarted.current = false;
@@ -51,11 +54,23 @@ export default function Play() {
       });
       return;
     }
+    if (mpState?.multiplayer && multiplayerStarted.current) {
+      multiplayerStarted.current = false;
+      const server = useServerStore.getState();
+      const cleanup = mpState.isHost ? server.endGame().catch(() => undefined) : server.leaveRoom();
+      void cleanup.finally(() => {
+        navigate(ROUTES.LOBBY, {
+          replace: true,
+          state: { topBarBackTo: ROUTES.PLAY },
+        });
+      });
+      return;
+    }
     if (gameWasActive.current) {
       gameWasActive.current = false;
       navigate(ROUTES.PLAY, { replace: true });
     }
-  }, [isGameActive, mpState, navigate]);
+  }, [isGameActive, gameView, mpState, navigate]);
 
   // Handle multiplayer game start from lobby navigation
   useEffect(() => {
@@ -73,8 +88,22 @@ export default function Play() {
       hostPlayerSlot,
       botPlayerSlots,
     } = mpState;
+    const recoverFromFailedStart = async () => {
+      if (!multiplayerStarted.current) return;
+      multiplayerStarted.current = false;
+      const server = useServerStore.getState();
+      if (isHost) await server.endGame().catch(() => undefined);
+      else await server.leaveRoom();
+      navigate(ROUTES.LOBBY, {
+        replace: true,
+        state: { topBarBackTo: ROUTES.PLAY },
+      });
+    };
     const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);
-    if (Number.isNaN(engineIndex) || engineIndex < 0) return;
+    if (Number.isNaN(engineIndex) || engineIndex < 0) {
+      void recoverFromFailedStart();
+      return;
+    }
     const decksByPlayer = playerOrder.flatMap((playerName) => {
       const selected = (playerDecks ?? []).find((entry) => entry.username === playerName);
       return selected ? [selected.deck] : [];
@@ -83,9 +112,12 @@ export default function Play() {
       const selected = (playerDecks ?? []).find((entry) => entry.username === playerName);
       return selected?.commander_name ?? null;
     });
-    if (decksByPlayer.length !== playerOrder.length) return;
+    if (decksByPlayer.length !== playerOrder.length) {
+      void recoverFromFailedStart();
+      return;
+    }
     setMultiplayerState(true, isHost, myPlayerSlot);
-    startMultiplayerGame(
+    void startMultiplayerGame(
       playerOrder,
       decksByPlayer,
       commanderNamesByPlayer,
@@ -96,8 +128,10 @@ export default function Play() {
       format,
       hostPlayerSlot,
       botPlayerSlots,
-    );
-  }, [mpState, setMultiplayerState, startMultiplayerGame]);
+    ).then((started) => {
+      if (!started) void recoverFromFailedStart();
+    });
+  }, [mpState, navigate, setMultiplayerState, startMultiplayerGame]);
 
   if (isGameActive) {
     return (
@@ -150,7 +184,7 @@ export default function Play() {
                 ? "Manabrew"
                 : (usePreferencesStore.getState().lastOfflineEngine ??
                   (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
-          startGame(playerDeck, formatId, commanderName, opponentDeck, engine);
+          return startGame(playerDeck, formatId, commanderName, opponentDeck, engine);
         }}
       />
     </div>

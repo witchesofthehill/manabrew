@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { direct, menus } = getTopBarNav();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   function isActive(to: string) {
     return location.pathname === to || location.pathname.startsWith(`${to}/`);
@@ -42,7 +44,11 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
         const MenuIcon = menu.icon;
         const menuActive = menu.items.some((item) => !item.external && isActive(item.to));
         return (
-          <DropdownMenu key={menu.id}>
+          <DropdownMenu
+            key={menu.id}
+            open={openMenuId === menu.id}
+            onOpenChange={(open) => setOpenMenuId(open && !disabled ? menu.id : null)}
+          >
             <DropdownMenuTrigger asChild>
               <Button
                 size="sm"
@@ -60,7 +66,14 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
               {menu.items.map(({ to, label, icon: ItemIcon, external }) =>
                 external ? (
                   <DropdownMenuItem key={to} asChild className="gap-2 text-xs">
-                    <a href={to} target="_blank" rel="noreferrer">
+                    <a
+                      href={to}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(event) => {
+                        if (disabled) event.preventDefault();
+                      }}
+                    >
                       <ItemIcon className="h-3.5 w-3.5" />
                       {label}
                     </a>
@@ -69,7 +82,10 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
                   <DropdownMenuItem
                     key={to}
                     className="gap-2 text-xs"
-                    onSelect={() => navigate(to)}
+                    disabled={disabled}
+                    onSelect={() => {
+                      if (!disabled) navigate(to);
+                    }}
                   >
                     <ItemIcon className="h-3.5 w-3.5" />
                     {label}

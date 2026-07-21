@@ -6,6 +6,7 @@ import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import {
   activeGameSessionAtPageLoad,
   clearActiveGameSession,
+  isActiveGameSessionAbandonmentPending,
   isActiveGameSessionAtPageLoadCurrent,
 } from "@/lib/activeGameSession";
 import { peekSpawnedBots } from "@/lib/spawnedBots";
@@ -90,8 +91,10 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || settled.current || !connected || !currentRoom) return;
+    if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (useGameStore.getState().isGameActive) return;
+    if (currentRoom.room_id !== session.roomId) return;
     if (currentRoom.status !== "InGame") {
       rlog(`resync-effect: room status is '${currentRoom.status}', waiting for InGame`);
       return;
@@ -121,6 +124,7 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || session.isHost) return;
+    if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     if (!connected || !currentRoom || currentRoom.status !== "InGame") return;
     if (currentRoom.room_id !== session.roomId) return;
@@ -147,17 +151,9 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || settled.current || !gameStarted) return;
+    if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
-    if (gameRoomId !== session.roomId) {
-      useServerStore.setState({
-        gameStarted: false,
-        gameRoomId: "",
-        gameId: "",
-        playerOrder: [],
-        playerDecks: [],
-      });
-      return;
-    }
+    if (gameRoomId !== session.roomId) return;
     if (currentRoom?.room_id !== session.roomId) return;
     if (useGameStore.getState().isGameActive) {
       rlog("gameStarted-effect: game already active, clearing gameStarted flag");
@@ -188,9 +184,11 @@ export function useGameSessionResume() {
 
   useEffect(() => {
     if (!session || settled.current || !connected) return;
+    if (isActiveGameSessionAbandonmentPending()) return;
     if (!isActiveGameSessionAtPageLoadCurrent()) return;
     rlog(`fallback-timer: armed, will check in ${NO_GAME_FOUND_AFTER_MS}ms`);
     const timer = setTimeout(() => {
+      if (isActiveGameSessionAbandonmentPending()) return;
       if (settled.current || !isActiveGameSessionAtPageLoadCurrent()) return;
       if (useGameStore.getState().isGameActive) {
         rlog("fallback-timer: fired but game is active — no kick");

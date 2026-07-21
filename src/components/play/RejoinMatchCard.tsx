@@ -4,8 +4,9 @@ import { Loader2, Swords, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  armActiveGameSession,
+  beginActiveGameSessionAbandonment,
   clearActiveGameSession,
+  endActiveGameSessionAbandonment,
   type ActiveGameSession,
 } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
@@ -16,6 +17,8 @@ interface RejoinMatchCardProps {
   onDismiss: () => void;
 }
 
+const ABANDON_CONNECT_TIMEOUT_MS = 7000;
+
 export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
   const navigate = useNavigate();
   const currentRoom = useServerStore((state) => state.currentRoom);
@@ -24,19 +27,40 @@ export function RejoinMatchCard({ session, onDismiss }: RejoinMatchCardProps) {
   async function dismiss() {
     if (dismissing) return;
     setDismissing(true);
-    clearActiveGameSession();
+    beginActiveGameSessionAbandonment();
+    const roomBeforeLeave = useServerStore.getState().currentRoom;
     try {
-      const server = useServerStore.getState();
-      if (currentRoom?.room_id === session.roomId) {
-        await server.leaveRoom();
-      } else if (!currentRoom && server.connected) {
-        await server.leaveRoom();
-      } else if (!currentRoom && server.connecting) {
-        await server.disconnect();
+      let server = useServerStore.getState();
+      if (
+        server.currentRoom?.room_id === session.roomId ||
+        (!server.currentRoom && server.connected)
+      ) {
+        await server.leaveRoom(true);
+      } else if (!server.currentRoom && server.connecting) {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            unsubscribe();
+            reject(new Error("Connection timed out."));
+          }, ABANDON_CONNECT_TIMEOUT_MS);
+          const unsubscribe = useServerStore.subscribe((state) => {
+            if (!state.connected && state.connecting) return;
+            clearTimeout(timeout);
+            unsubscribe();
+            if (state.connected) resolve();
+            else reject(new Error("Connection failed."));
+          });
+        });
+        server = useServerStore.getState();
+        await server.leaveRoom(true);
       }
+      clearActiveGameSession();
+      endActiveGameSessionAbandonment();
       onDismiss();
     } catch {
-      armActiveGameSession(session);
+      endActiveGameSessionAbandonment();
+      if (roomBeforeLeave?.room_id === session.roomId) {
+        useServerStore.setState({ currentRoom: roomBeforeLeave });
+      }
       setDismissing(false);
       toast.error("Couldn't abandon the previous match. Try again.");
     }

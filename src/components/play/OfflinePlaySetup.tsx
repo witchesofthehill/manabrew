@@ -9,7 +9,7 @@ interface OfflinePlaySetupProps {
     opponentDeck: Deck,
     formatId?: string,
     commanderName?: string,
-  ) => void;
+  ) => Promise<boolean>;
 }
 
 export function OfflinePlaySetup({ preSelectedDeckId, onStart }: OfflinePlaySetupProps) {

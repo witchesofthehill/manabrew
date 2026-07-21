@@ -34,6 +34,7 @@ export function clearActiveGameSession(): void {
 }
 
 const sessionAtPageLoad = peekActiveGameSession();
+let abandonmentPending = false;
 
 export function activeGameSessionAtPageLoad(): ActiveGameSession | null {
   return sessionAtPageLoad;
@@ -46,4 +47,16 @@ export function isActiveGameSessionAtPageLoadCurrent(): boolean {
     current?.roomId === sessionAtPageLoad.roomId &&
     current.gameId === sessionAtPageLoad.gameId
   );
+}
+
+export function beginActiveGameSessionAbandonment(): void {
+  abandonmentPending = true;
+}
+
+export function endActiveGameSessionAbandonment(): void {
+  abandonmentPending = false;
+}
+
+export function isActiveGameSessionAbandonmentPending(): boolean {
+  return abandonmentPending;
 }

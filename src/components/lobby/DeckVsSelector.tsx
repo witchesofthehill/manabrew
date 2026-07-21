@@ -60,7 +60,7 @@ interface DeckVsSelectorProps {
     opponentDeck: Deck,
     formatId?: string,
     commanderName?: string,
-  ) => void;
+  ) => Promise<boolean>;
   onStartTabletop?: (deck: Deck, formatId?: string, commanderName?: string) => void;
 }
 
@@ -275,7 +275,7 @@ export function DeckVsSelector({
     });
   }
 
-  function handleFight() {
+  async function handleFight() {
     if (!playerDeck || !opponentDeck) return;
     const empty = [playerDeck, opponentDeck].find(
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
@@ -284,6 +284,13 @@ export function DeckVsSelector({
       toast.error(`"${empty.name}" has no cards`);
       return;
     }
+    const started = await onStart(
+      playerDeck.sourceDeck,
+      opponentDeck.sourceDeck,
+      playerDeck.formatId,
+      playerDeck.commanderName,
+    );
+    if (!started) return;
     const prefs = usePreferencesStore.getState();
     if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);
     if (playerDeck.source === "user" && playerDeck.id !== "current") {
@@ -294,12 +301,6 @@ export function DeckVsSelector({
     } else if (opponentDeck.id !== "current") {
       prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.id });
     }
-    onStart(
-      playerDeck.sourceDeck,
-      opponentDeck.sourceDeck,
-      playerDeck.formatId,
-      playerDeck.commanderName,
-    );
   }
 
   function handleTabletop() {

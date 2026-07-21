@@ -56,7 +56,7 @@ export function AppShell() {
   useEngineHostCloseGuard();
 
   function goToAdjacentPage(delta: number) {
-    if (isGameActive || hideNavChrome) return;
+    if (isGameActive || hideNavChrome || activeTopBarOverride?.navigationDisabled) return;
     const current = NAV_ROUTES.findIndex((r) => location.pathname.startsWith(r));
     const base = current === -1 ? 0 : current;
     const next = (base + delta + NAV_ROUTES.length) % NAV_ROUTES.length;
@@ -67,7 +67,7 @@ export function AppShell() {
     "nav-prev-page": () => goToAdjacentPage(-1),
     "nav-next-page": () => goToAdjacentPage(1),
     "open-settings": () => {
-      if (!isGameActive) navigate(ROUTES.SETTINGS);
+      if (!isGameActive && !activeTopBarOverride?.navigationDisabled) navigate(ROUTES.SETTINGS);
     },
     "show-shortcuts": () => setShortcutsOpen((v) => !v),
   });

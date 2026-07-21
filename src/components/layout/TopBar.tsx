@@ -84,6 +84,7 @@ export function TopBar({ override }: TopBarProps) {
   const title = override?.title ?? routeChrome.title;
   const isPlayHome = normalizePathname(location.pathname) === ROUTES.PLAY;
   const isSettingsRoute = normalizePathname(location.pathname) === ROUTES.SETTINGS;
+  const navigationDisabled = isGameActive || override?.navigationDisabled === true;
 
   const downloading = phase === "downloading";
   const updateLabel = downloading
@@ -158,12 +159,18 @@ export function TopBar({ override }: TopBarProps) {
         </>
       )}
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        <TopBarNav disabled={isGameActive} />
-        <NavSheet disabled={isGameActive} />
+        <TopBarNav
+          key={navigationDisabled ? "disabled-nav" : "primary-nav"}
+          disabled={navigationDisabled}
+        />
+        <NavSheet
+          key={navigationDisabled ? "disabled-sheet" : "primary-sheet"}
+          disabled={navigationDisabled}
+        />
         {phase !== "idle" && version && (
           <Button
             size="sm"
-            disabled={downloading}
+            disabled={downloading || navigationDisabled}
             onClick={() => void installDesktopUpdate()}
             className="shrink-0 animate-update-glow"
           >
@@ -182,8 +189,10 @@ export function TopBar({ override }: TopBarProps) {
           size="icon"
           variant={isSettingsRoute ? "secondary" : "ghost"}
           className="h-8 w-8"
-          disabled={isGameActive}
-          title={isGameActive ? "Preferences are unavailable during an active game" : "Preferences"}
+          disabled={navigationDisabled}
+          title={
+            navigationDisabled ? "Preferences are unavailable during this session" : "Preferences"
+          }
           onClick={() => navigate(ROUTES.SETTINGS)}
         >
           <Settings className="h-4 w-4" />

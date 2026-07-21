@@ -16,6 +16,7 @@ export default function MultiplayerSealed() {
   const setCode = useMultiplayerSealedStore((s) => s.setCode);
   const lastError = useMultiplayerSealedStore((s) => s.lastError);
   const cleanupStarted = useRef(false);
+  const leavingHome = useRef(false);
 
   function cleanup() {
     if (cleanupStarted.current) return;
@@ -37,13 +38,21 @@ export default function MultiplayerSealed() {
     navigate(destination);
   };
 
+  const exitHome = async () => {
+    leavingHome.current = true;
+    cleanup();
+    await useServerStore.getState().leaveRoom();
+    navigate(ROUTES.PLAY);
+  };
+
   useTopBarOverride({
     onBack: () => exitTo(ROUTES.LOBBY),
-    onHome: () => exitTo(ROUTES.PLAY),
+    onHome: () => void exitHome(),
+    navigationDisabled: true,
   });
 
   useEffect(() => {
-    if (mode === "idle") navigate(ROUTES.LOBBY, { replace: true });
+    if (mode === "idle" && !leavingHome.current) navigate(ROUTES.LOBBY, { replace: true });
   }, [mode, navigate]);
 
   useEffect(() => {

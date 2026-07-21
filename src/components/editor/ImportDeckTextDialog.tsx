@@ -34,6 +34,8 @@ const GUIDE_STEPS = [
   'Choose "Copy Plain Text" and copy it to your clipboard.',
 ];
 
+const IMPORT_FORMATS = GAME_FORMATS.filter((format) => format.id !== "oathbreaker");
+
 export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDeckTextDialogProps) {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
@@ -144,13 +146,13 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
                     value={formatId}
                     onChange={(e) =>
                       setFormatId(
-                        GAME_FORMATS.find((format) => format.id === e.target.value)?.id ?? "",
+                        IMPORT_FORMATS.find((format) => format.id === e.target.value)?.id ?? "",
                       )
                     }
                     className="h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-xs pointer-coarse:text-base"
                   >
                     <option value="">Auto-detect</option>
-                    {GAME_FORMATS.map((format) => (
+                    {IMPORT_FORMATS.map((format) => (
                       <option key={format.id} value={format.id}>
                         {format.name}
                       </option>

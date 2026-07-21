@@ -575,7 +575,7 @@ jobs:
   # Ships the WEB container as soon as the tag lands instead of after the
   # ~60–90 min installer builds. `xtask deploy` pulls the images at THIS
   # release's tag with a retry loop that waits out docker-images.yml —
-  # resolving `latest` mid-release shipped N-1 for months (issue #510).
+  # resolving `latest` mid-release briefly shipped N-1 (issue #510).
   #
   # --web-only: manabrew-server and manabrew-hub stay put until the final
   # deploy. They are what an already-installed desktop/mobile app talks to,

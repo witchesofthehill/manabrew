@@ -2,6 +2,7 @@ import { ArrowRight, LibraryBig, Swords, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
+import { FeatureTile } from "@/components/play/FeatureTile";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
@@ -11,22 +12,6 @@ import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useServerStore } from "@/stores/useServerStore";
-
-const MODE_CLASS =
-  "group relative flex min-h-44 min-w-0 flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-5 text-left shadow-xl backdrop-blur-md hover:shadow-2xl motion-safe:transition-[transform,border-color,box-shadow] motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none sm:min-h-52 sm:p-7 lg:min-h-60";
-
-const MODE_ACCENTS: Record<string, { chip: string; hoverBorder: string; watermark: string }> = {
-  primary: {
-    chip: "border-primary/40 bg-primary/15 text-primary",
-    hoverBorder: "hover:border-primary/70",
-    watermark: "text-primary",
-  },
-  sky: {
-    chip: "border-format-badge-sky/40 bg-format-badge-sky/15 text-format-badge-sky",
-    hoverBorder: "hover:border-format-badge-sky/60",
-    watermark: "text-format-badge-sky",
-  },
-};
 
 const MODES = [
   {
@@ -83,44 +68,28 @@ export function PlayHome() {
             )}
           >
             <section aria-label="Play modes" className="grid gap-4 md:grid-cols-2">
-              {MODES.map(({ to, label, desc, icon: Icon, tone }) => {
-                const accent = MODE_ACCENTS[tone] ?? MODE_ACCENTS.primary;
-                return (
-                  <Link key={to} to={to} className={cn(MODE_CLASS, accent.hoverBorder)}>
-                    <Icon
-                      aria-hidden="true"
-                      className={cn(
-                        "absolute -bottom-8 -right-5 h-36 w-36 rotate-12 opacity-[0.07] sm:h-44 sm:w-44",
-                        accent.watermark,
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "flex h-12 w-12 items-center justify-center rounded-full border",
-                        accent.chip,
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="relative">
-                      <span className="flex min-w-0 items-center justify-between gap-3 font-serif text-2xl font-light sm:text-3xl">
-                        {label}
-                        <ArrowRight className="h-5 w-5 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-1" />
-                      </span>
-                      <span className="mt-1 block text-sm text-muted-foreground">{desc}</span>
-                      {to === ROUTES.LOBBY && lobbyTeaser && (
-                        <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
-                          <span className="relative flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-                          </span>
-                          {lobbyTeaser}
+              {MODES.map(({ to, label, desc, icon, tone }) => (
+                <FeatureTile
+                  key={to}
+                  to={to}
+                  label={label}
+                  desc={desc}
+                  icon={icon}
+                  tone={tone}
+                  size="lg"
+                  footer={
+                    to === ROUTES.LOBBY && lobbyTeaser ? (
+                      <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
                         </span>
-                      )}
-                    </span>
-                  </Link>
-                );
-              })}
+                        {lobbyTeaser}
+                      </span>
+                    ) : undefined
+                  }
+                />
+              ))}
             </section>
           </div>
 

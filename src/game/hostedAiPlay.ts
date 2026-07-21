@@ -1,4 +1,5 @@
 import { getPlatform } from "@/platform";
+import type { ActiveGameSession } from "@/lib/activeGameSession";
 import { getHostedAiServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import type { ServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
@@ -78,6 +79,13 @@ export async function startTauriForgeAiGame(
     if (localRelay) await stopLocalHostedAiRelay();
     throw error;
   }
+}
+
+export async function teardownForgeAiSession(
+  session: Pick<ActiveGameSession, "relayHost">,
+): Promise<void> {
+  await useServerStore.getState().leaveRoom();
+  if (session.relayHost) await stopLocalHostedAiRelay();
 }
 
 export async function stopLocalHostedAiRelay(): Promise<void> {

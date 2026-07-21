@@ -1,27 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { ROUTES } from "@/lib/constants";
 import { getFormat, validateDeckSections } from "@/lib/formats";
-import { getPlatform } from "@/platform";
+import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { isTauriForgeRoomAvailable } from "@/stores/useForgeRoomAvailabilityStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
-import type { EngineKind } from "@/types/server";
-
-function offlineEngine(): EngineKind {
-  if (getPlatform().type === "tauri") {
-    return isTauriForgeRoomAvailable() ? "Forge" : "Manabrew";
-  }
-  const last = usePreferencesStore.getState().lastOfflineEngine;
-  if (last === "Forge" && !isHostedEngineAvailable()) return "Manabrew";
-  return last ?? (isHostedEngineAvailable() ? "Forge" : "Manabrew");
-}
 
 async function ensurePresets(): Promise<Deck[]> {
   const loaded = usePresetDecksStore.getState().decks;
@@ -93,7 +81,7 @@ export function useQuickPlay() {
             formatId,
             deck.commanders?.[0]?.identity.name,
             opponent.deck,
-            offlineEngine(),
+            resolveOfflineEngine(),
           );
         if (!started) return;
         const prefs = usePreferencesStore.getState();

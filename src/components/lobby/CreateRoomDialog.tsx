@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { DOCS_URL } from "@/lib/constants";
 import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailabilityStore";
 import { GameIcon } from "@/components/game/GameIcon";
+import { EngineMark } from "@/components/lobby/EngineMark";
 
 const CommanderIcon = ({ className }: { className?: string }) => (
   <GameIcon name="overlord-helm" className={className} />
@@ -528,8 +529,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     )}
                   >
                     <div className="flex items-center gap-1.5">
-                      <GameIcon
-                        name="anvil"
+                      <EngineMark
+                        engine="Ironsmith"
                         className={cn(
                           "h-3.5 w-3.5",
                           engine === "Ironsmith" ? "text-primary" : "text-muted-foreground",
@@ -564,8 +565,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                       )}
                     >
                       <div className="flex items-center gap-1.5">
-                        <GameIcon
-                          name="anvil"
+                        <EngineMark
+                          engine="Forge"
                           className={cn(
                             "h-3.5 w-3.5",
                             engine === "Forge" ? "text-primary" : "text-muted-foreground",
@@ -583,7 +584,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   ) : !isTauri ? (
                     <div className="flex flex-col items-start gap-0.5 rounded-lg border border-border p-2 text-left">
                       <div className="flex items-center gap-1.5">
-                        <GameIcon name="anvil" className="h-3.5 w-3.5 text-muted-foreground" />
+                        <EngineMark engine="Forge" className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-xs font-medium">Forge</span>
                         <Badge variant="outline" className="text-[9px]">
                           hosted

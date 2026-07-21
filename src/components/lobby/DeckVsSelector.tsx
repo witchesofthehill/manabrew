@@ -21,10 +21,10 @@ import { getDeckFingerprint } from "@/lib/decks";
 import { getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import type { EngineKind } from "@/types/server";
 import {
   ArrowLeft,
   Check,
@@ -32,6 +32,7 @@ import {
   Cloud,
   Cpu,
   Hand,
+  Loader2,
   Search,
   Shuffle,
   Swords,
@@ -126,13 +127,11 @@ export function DeckVsSelector({
     preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );
   const [deckSearch, setDeckSearch] = useState("");
+  const [starting, setStarting] = useState(false);
   const opponentTouchedRef = useRef(false);
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
-  const offlineEngine: EngineKind =
-    lastOfflineEngine === "Forge" && !hostedAvailable
-      ? "Manabrew"
-      : (lastOfflineEngine ?? (hostedAvailable ? "Forge" : "Manabrew"));
+  const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
@@ -278,7 +277,7 @@ export function DeckVsSelector({
   }
 
   async function handleFight() {
-    if (!playerDeck || !opponentDeck) return;
+    if (!playerDeck || !opponentDeck || starting) return;
     const empty = [playerDeck, opponentDeck].find(
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
     );
@@ -286,13 +285,17 @@ export function DeckVsSelector({
       toast.error(`"${empty.name}" has no cards`);
       return;
     }
+    setStarting(true);
     const started = await onStart(
       playerDeck.sourceDeck,
       opponentDeck.sourceDeck,
       playerDeck.formatId,
       playerDeck.commanderName,
     );
-    if (!started) return;
+    if (!started) {
+      setStarting(false);
+      return;
+    }
     const prefs = usePreferencesStore.getState();
     if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);
     if (playerDeck.source === "user" && playerDeck.id !== "current") {
@@ -555,11 +558,16 @@ export function DeckVsSelector({
           <Button
             size="sm"
             onClick={handleFight}
-            disabled={!isReady}
+            disabled={!isReady || starting}
+            aria-busy={starting}
             className="w-full gap-1.5 sm:w-auto"
           >
-            <Swords className="h-3.5 w-3.5" />
-            Fight!
+            {starting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Swords className="h-3.5 w-3.5" />
+            )}
+            {starting ? "Starting…" : "Fight!"}
           </Button>
         </div>
       </div>

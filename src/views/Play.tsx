@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useRef } from "react";
 import { matchPath, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { cancelPendingGameLaunch, useGameStore } from "@/stores/useGameStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { OfflinePlaySetup } from "@/components/play/OfflinePlaySetup";
 import { OfflinePlayShell } from "@/components/play/OfflinePlayShell";
 import { PlayHome } from "@/components/play/PlayHome";
 import { DeckPlayActions } from "@/components/play/DeckPlayActions";
 import Game from "./Game";
-import { getPlatform } from "@/platform";
 import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
-import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { ROUTES } from "@/lib/constants";
-import type { EngineKind } from "@/types/server";
+import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import Limited from "./Limited";
-import { isTauriForgeRoomAvailable } from "@/stores/useForgeRoomAvailabilityStore";
 
 export default function Play() {
   const location = useLocation();
@@ -186,21 +182,9 @@ export default function Play() {
     <OfflinePlayShell>
       <OfflinePlaySetup
         preSelectedDeckId={preSelectedDeckId}
-        onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-          // Tauri (graalvm build) defaults to the bundled Forge engine; the
-          // store falls back to Manabrew if the local Forge host can't start.
-          const engine: EngineKind =
-            getPlatform().type === "tauri"
-              ? isTauriForgeRoomAvailable()
-                ? "Forge"
-                : "Manabrew"
-              : usePreferencesStore.getState().lastOfflineEngine === "Forge" &&
-                  !isHostedEngineAvailable()
-                ? "Manabrew"
-                : (usePreferencesStore.getState().lastOfflineEngine ??
-                  (isHostedEngineAvailable() ? "Forge" : "Manabrew"));
-          return startGame(playerDeck, formatId, commanderName, opponentDeck, engine);
-        }}
+        onStart={(playerDeck, opponentDeck, formatId, commanderName) =>
+          startGame(playerDeck, formatId, commanderName, opponentDeck, resolveOfflineEngine())
+        }
       />
     </OfflinePlayShell>
   );

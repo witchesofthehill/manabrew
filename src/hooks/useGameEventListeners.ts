@@ -6,7 +6,7 @@ import {
   isRoomRelayProtocol,
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
-import { stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
+import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
@@ -344,10 +344,7 @@ export function useGameEventListeners() {
             toast.error("Game ended unexpectedly — returning the room to the lobby.");
             void useServerStore.getState().endGame();
           } else if (activeSession?.ownsForgeHost || activeSession?.relayHost) {
-            void useServerStore
-              .getState()
-              .leaveRoom()
-              .finally(() => (activeSession.relayHost ? stopLocalHostedAiRelay() : undefined));
+            void teardownForgeAiSession(activeSession);
           }
         }),
       );

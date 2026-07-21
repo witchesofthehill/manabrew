@@ -36,6 +36,9 @@ export function isNavDestinationActive(to: string, pathname: string): boolean {
   if (to === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
     return pathname.startsWith(ROUTES.PLAY_OFFLINE);
   }
+  if (to === ROUTES.PLAY) {
+    return pathname === ROUTES.PLAY;
+  }
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 

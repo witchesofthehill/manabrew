@@ -1,5 +1,5 @@
-import { Anvil, BadgeCheck, Cpu, Users } from "lucide-react";
-import { GameIcon } from "@/components/game/GameIcon";
+import { BadgeCheck, Users } from "lucide-react";
+import { EngineMark } from "@/components/lobby/EngineMark";
 import { needsFormatChoice } from "@/components/lobby/tables.utils";
 import { Button } from "@/components/ui/button";
 import type { RoomInfo } from "@/types/server";
@@ -33,13 +33,7 @@ export function HostedTablesSection({
             <div key={engine} className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
               <div className="flex min-w-0 items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  {engine === "Forge" ? (
-                    <Anvil className="h-4 w-4" />
-                  ) : engine === "Ironsmith" ? (
-                    <GameIcon name="anvil" className="h-4 w-4" />
-                  ) : (
-                    <Cpu className="h-4 w-4" />
-                  )}
+                  <EngineMark engine={engine} className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-1.5">
@@ -62,7 +56,7 @@ export function HostedTablesSection({
                   disabled={disabled || joiningRoomId !== null}
                   onClick={() => onJoin(engineRooms)}
                 >
-                  {isJoining ? "Joining..." : chooseFormat ? "Choose Format" : "Join"}
+                  {isJoining ? "Joining…" : chooseFormat ? "Choose Format" : "Join"}
                 </Button>
               </div>
             </div>

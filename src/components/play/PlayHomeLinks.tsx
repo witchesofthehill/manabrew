@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   Boxes,
   Github,
   Globe,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
+import { FeatureTile } from "@/components/play/FeatureTile";
 import { Button } from "@/components/ui/button";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import {
@@ -23,24 +23,6 @@ import {
 } from "@/lib/constants";
 import { FEATURES } from "@/lib/features";
 import { cn } from "@/lib/utils";
-
-const TOOL_TILE_CLASS =
-  "group relative flex min-h-32 min-w-0 flex-col justify-between gap-3 overflow-hidden rounded-2xl border border-border/70 bg-card/85 p-4 shadow-md backdrop-blur-md motion-safe:transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-36 sm:p-5";
-
-const TOOL_ACCENTS: Record<string, { chip: string; hoverBorder: string }> = {
-  blue: {
-    chip: "border-format-badge-blue/40 bg-format-badge-blue/15 text-format-badge-blue",
-    hoverBorder: "hover:border-format-badge-blue/60",
-  },
-  rose: {
-    chip: "border-format-badge-rose/40 bg-format-badge-rose/15 text-format-badge-rose",
-    hoverBorder: "hover:border-format-badge-rose/60",
-  },
-  amber: {
-    chip: "border-format-badge-amber/40 bg-format-badge-amber/15 text-format-badge-amber",
-    hoverBorder: "hover:border-format-badge-amber/60",
-  },
-};
 
 const TOOL_GRID_BY_COUNT: Record<number, string> = {
   2: "sm:grid-cols-2",
@@ -91,42 +73,19 @@ export function PlayHomeLinks() {
     <>
       <section aria-label="More ways to play and tools">
         <div className={cn("grid gap-4", TOOL_GRID_BY_COUNT[TOOLS.length] ?? "sm:grid-cols-3")}>
-          {TOOLS.map(({ to, label, desc, icon: Icon, tone }, index) => {
-            const accent = TOOL_ACCENTS[tone] ?? TOOL_ACCENTS.blue;
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={cn(
-                  TOOL_TILE_CLASS,
-                  accent.hoverBorder,
-                  TOOLS.length % 2 === 1 && index === TOOLS.length - 1 && "max-sm:col-span-2",
-                )}
-              >
-                <Icon
-                  aria-hidden="true"
-                  className="absolute -bottom-4 -right-4 h-24 w-24 rotate-12 text-foreground opacity-[0.05]"
-                />
-                <span
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-full border",
-                    accent.chip,
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="relative">
-                  <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                    {label}
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:text-foreground" />
-                  </span>
-                  <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-                    {desc}
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
+          {TOOLS.map(({ to, label, desc, icon, tone }, index) => (
+            <FeatureTile
+              key={to}
+              to={to}
+              label={label}
+              desc={desc}
+              icon={icon}
+              tone={tone}
+              className={cn(
+                TOOLS.length % 2 === 1 && index === TOOLS.length - 1 && "max-sm:col-span-2",
+              )}
+            />
+          ))}
         </div>
       </section>
 

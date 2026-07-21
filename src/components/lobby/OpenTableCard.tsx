@@ -1,58 +1,13 @@
-import type { ReactNode } from "react";
-import { Anvil, BadgeCheck, Cpu, LockKeyhole, UserRoundPlus, Users } from "lucide-react";
+import { BadgeCheck, LockKeyhole, UserRoundPlus, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GameIcon } from "@/components/game/GameIcon";
+import { EngineMark } from "@/components/lobby/EngineMark";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { getFormat } from "@/lib/formats";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type { RoomInfo } from "@/types/server";
-
-const TABLE_TAG_CLASSES: Record<string, string> = {
-  blue: "bg-format-badge-blue/15 text-format-badge-blue",
-  amber: "bg-format-badge-amber/15 text-format-badge-amber",
-  emerald: "bg-format-badge-emerald/15 text-format-badge-emerald",
-  rose: "bg-format-badge-rose/15 text-format-badge-rose",
-  slate: "bg-format-badge-slate/15 text-format-badge-slate",
-  zinc: "bg-format-badge-zinc/15 text-format-badge-zinc",
-  purple: "bg-format-badge-purple/15 text-format-badge-purple",
-  teal: "bg-format-badge-teal/15 text-format-badge-teal",
-  orange: "bg-format-badge-orange/15 text-format-badge-orange",
-  sky: "bg-format-badge-sky/15 text-format-badge-sky",
-  indigo: "bg-format-badge-indigo/15 text-format-badge-indigo",
-  neutral: "bg-muted text-muted-foreground",
-};
-
-function TableTag({
-  tone,
-  className,
-  children,
-}: {
-  tone: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold leading-tight",
-        TABLE_TAG_CLASSES[tone] ?? TABLE_TAG_CLASSES.neutral,
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-function EngineMark({ engine, className }: { engine: RoomInfo["engine"]; className?: string }) {
-  if (engine === "Forge") return <Anvil aria-hidden="true" className={className} />;
-  if (engine === "Ironsmith")
-    return <GameIcon aria-hidden="true" name="anvil" className={className} />;
-  return <Cpu aria-hidden="true" className={className} />;
-}
 
 interface OpenTableCardProps {
   room: RoomInfo;
@@ -106,7 +61,11 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5 text-format-badge-amber" />
           </span>
         )}
-        {!isCompatible && <TableTag tone="rose">Incompatible</TableTag>}
+        {!isCompatible && (
+          <span className="inline-flex items-center rounded bg-format-badge-rose/15 px-2 py-0.5 text-xs font-semibold leading-tight text-format-badge-rose">
+            Incompatible
+          </span>
+        )}
       </div>
       {showHost && (
         <p className="-mt-1.5 truncate text-[11px] text-muted-foreground">
@@ -150,7 +109,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             onClick={() => onJoin(room)}
           >
             <UserRoundPlus aria-hidden="true" className="h-3.5 w-3.5" />
-            {joining ? "Joining..." : "Take a seat"}
+            {joining ? "Joining…" : "Take a seat"}
           </Button>
         ) : room.status === "InGame" ? (
           <span className="text-xs text-muted-foreground">Playing</span>

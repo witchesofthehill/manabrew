@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
-import { stopLocalHostedAiRelay } from "@/game/hostedAiPlay";
+import { stopLocalHostedAiRelay, teardownForgeAiSession } from "@/game/hostedAiPlay";
 import {
   activeGameSessionAtPageLoad,
   clearActiveGameSession,
@@ -212,10 +212,7 @@ export function useGameSessionResume() {
     if (launch.error) {
       rlog(`gameStarted-effect: launch build failed — ${launch.error}; kicking to lobby`);
       clearActiveGameSession();
-      void useServerStore
-        .getState()
-        .leaveRoom()
-        .finally(() => (session.relayHost ? stopLocalHostedAiRelay() : undefined));
+      void teardownForgeAiSession(session);
       toast.error(launch.error);
       navigate("/lobby", { replace: true });
       return;
@@ -251,10 +248,7 @@ export function useGameSessionResume() {
       );
       settled.current = true;
       clearActiveGameSession();
-      void useServerStore
-        .getState()
-        .leaveRoom()
-        .finally(() => (session.relayHost ? stopLocalHostedAiRelay() : undefined));
+      void teardownForgeAiSession(session);
       toast.info("Your previous game has ended.");
       navigate("/lobby", { replace: true });
     }, NO_GAME_FOUND_AFTER_MS);

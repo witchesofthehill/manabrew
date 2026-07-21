@@ -22,13 +22,16 @@ export function DeckShelfRow({ label, children }: DeckShelfRowProps) {
     }
     update();
     row.addEventListener("scroll", update, { passive: true });
-    const observer = new ResizeObserver(update);
-    observer.observe(row);
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(row);
+    const mutationObserver = new MutationObserver(update);
+    mutationObserver.observe(row, { childList: true });
     return () => {
       row.removeEventListener("scroll", update);
-      observer.disconnect();
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
     };
-  }, [children]);
+  }, []);
 
   function scrollByPage(direction: -1 | 1) {
     const row = rowRef.current;

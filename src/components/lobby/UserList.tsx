@@ -147,7 +147,7 @@ export function UserList({
             onClick={() => requestJoin(room)}
             title={`Join ${room.room_name}`}
           >
-            {joiningRoomId === room.room_id ? "Joining..." : "Join"}
+            {joiningRoomId === room.room_id ? "Joining…" : "Join"}
           </Button>
         )}
       </div>

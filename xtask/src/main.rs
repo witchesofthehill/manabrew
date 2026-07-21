@@ -75,11 +75,13 @@ fn main() -> Result<()> {
         }
     }
 
-    // deploy needs a git checkout, not the cargo workspace — and the prebuilt
-    // release binary (manabrew-xtask-linux-x86_64) runs with no cargo env at
-    // all, so it must not touch CARGO_MANIFEST_DIR or Workspace::load.
+    // deploy carries its config embedded (build.rs) and runs without a
+    // checkout — the prebuilt release binary works from any directory. A git
+    // repo, when present, only enriches it (changelogs, --local's source
+    // build), so root falls back to the cwd.
     if command.as_deref() == Some("deploy") {
-        return deploy::run_cmd(&repo_root()?, &rest);
+        let root = repo_root().or_else(|_| std::env::current_dir().context("no working dir"))?;
+        return deploy::run_cmd(&root, &rest);
     }
 
     let ws = Workspace::load(&workspace_root()?)?;

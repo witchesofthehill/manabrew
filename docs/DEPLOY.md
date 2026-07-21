@@ -221,8 +221,11 @@ Verify:
 
 From any machine with SSH access to the box (the runner does exactly this).
 No Rust toolchain? Every release attaches the tool prebuilt
-(`manabrew-xtask-linux-x86_64`) — download it once and use `manabrew-xtask`
-in place of `cargo xtask`:
+(`manabrew-xtask-linux-x86_64`, static musl). It embeds that release's
+config and knows its own tag, so prod/staging deploys need **no checkout
+and no git** — just ssh, rsync and curl on the machine. Grab the binary of
+the release you want on the box (that is also the rollback story: fetch an
+older release's binary and run it):
 
 ```bash
 # full rollout of a release tag

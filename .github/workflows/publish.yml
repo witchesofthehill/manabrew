@@ -412,6 +412,10 @@ jobs:
       - name: Build xtask binary (release asset)
         env:
           RUSTFLAGS: -C linker=rust-lld
+          # Embedded into the binary (build.rs): it carries this release's
+          # config and knows which tag it belongs to, so it deploys with no
+          # git checkout at all.
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
         run: |
           cargo build --release -p xtask --target x86_64-unknown-linux-musl
           mkdir -p release-assets
@@ -560,6 +564,8 @@ jobs:
       # tooling uses (xtask/src/deploy.rs) instead of bash + jq (#512).
       - name: Compare client-facing crate versions with the previous release
         id: gate
+        env:
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
         run: cargo xtask deploy --gate --tag "${GITHUB_REF_NAME}"
     outputs:
       early: ${{ steps.gate.outputs.early }}
@@ -605,6 +611,7 @@ jobs:
         id: deploy
         continue-on-error: true
         env:
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
@@ -685,6 +692,7 @@ jobs:
         id: deploy
         continue-on-error: true
         env:
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}

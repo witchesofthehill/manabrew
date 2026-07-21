@@ -572,22 +572,24 @@ export default function Settings() {
           >
             Cache
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("account")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
-              (activeTab === "account"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Account
-          </button>
+          {isFeatureEnabled("accounts") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("account")}
+              className={
+                "pb-2 text-sm font-medium transition-colors border-b-2 " +
+                (activeTab === "account"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              Account
+            </button>
+          )}
         </div>
       </section>
 
-      {activeTab === "account" && <AccountSection />}
+      {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 

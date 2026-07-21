@@ -184,31 +184,35 @@ export function SignInDialog() {
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs uppercase text-muted-foreground">or</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="signin-email">Email</Label>
-              <Input
-                id="signin-email"
-                type="email"
-                value={email}
-                placeholder="you@example.com"
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && email.includes("@")) handleSendCode();
-                }}
-              />
-              <Button
-                className="w-full"
-                disabled={busy || !email.includes("@")}
-                onClick={handleSendCode}
-              >
-                {busy ? "Sending…" : "Send sign-in code"}
-              </Button>
-            </div>
+            {providers?.email !== false && (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs uppercase text-muted-foreground">or</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-email">Email</Label>
+                  <Input
+                    id="signin-email"
+                    type="email"
+                    value={email}
+                    placeholder="you@example.com"
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && email.includes("@")) handleSendCode();
+                    }}
+                  />
+                  <Button
+                    className="w-full"
+                    disabled={busy || !email.includes("@")}
+                    onClick={handleSendCode}
+                  >
+                    {busy ? "Sending…" : "Send sign-in code"}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
+import { isFeatureEnabled } from "@/featureFlags";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { Button } from "@/components/ui/button";
@@ -107,7 +108,7 @@ export function AppShell() {
       <StatusBanner />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <IronsmithUnsupportedDeckModal />
-      <SignInDialog />
+      {isFeatureEnabled("accounts") && <SignInDialog />}
       {!isDesktop && (
         <header
           className={cn(

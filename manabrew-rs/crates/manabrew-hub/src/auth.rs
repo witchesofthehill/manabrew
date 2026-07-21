@@ -208,7 +208,7 @@ pub async fn providers_handler(State(state): State<Arc<AppState>>) -> Response {
     Json(AuthProviders {
         github: state.auth.github.is_some(),
         discord: state.auth.discord.is_some(),
-        email: true,
+        email: state.auth.resend_api_key.is_some(),
     })
     .into_response()
 }
@@ -672,6 +672,10 @@ pub async fn email_request_handler(
     let Some(email) = normalize_email(&request.email) else {
         return StatusCode::UNPROCESSABLE_ENTITY.into_response();
     };
+    if state.auth.resend_api_key.is_none() {
+        tracing::warn!("magic link requested but email sending is disabled");
+        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+    }
     let ip = client_ip(&headers, addr);
     let allowed = {
         if !state.auth_limiter.allow(&ip) {
@@ -710,11 +714,8 @@ pub async fn email_request_handler(
     )
     .map(String::from)
     .unwrap_or_else(|_| state.auth.web_app_url.clone());
-    match state.auth.resend_api_key.as_deref() {
-        Some(api_key) => send_login_email(&state, api_key, &email, &code, &link).await,
-        None => {
-            tracing::info!(%email, %code, %link, "magic link (email sending disabled)");
-        }
+    if let Some(api_key) = state.auth.resend_api_key.as_deref() {
+        send_login_email(&state, api_key, &email, &code, &link).await;
     }
     StatusCode::OK.into_response()
 }

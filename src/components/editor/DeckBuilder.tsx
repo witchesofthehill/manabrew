@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { isFeatureEnabled } from "@/featureFlags";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
@@ -808,6 +809,7 @@ export function DeckBuilder({
   }
 
   function showAccountSaveNudge() {
+    if (!isFeatureEnabled("accounts")) return;
     if (useAuthStore.getState().status === "signedIn") return;
     if (usePreferencesStore.getState().hideAccountSaveNudge) return;
     toast("Decks without an account live only in this browser", {

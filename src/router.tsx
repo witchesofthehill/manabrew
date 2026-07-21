@@ -192,14 +192,18 @@ export const router = createBrowserRouter([
           </div>
         ),
       },
-      {
-        path: "auth/callback",
-        element: (
-          <ErrorBoundary context="Auth">
-            <AuthCallback />
-          </ErrorBoundary>
-        ),
-      },
+      ...(isFeatureEnabled("accounts")
+        ? [
+            {
+              path: "auth/callback",
+              element: (
+                <ErrorBoundary context="Auth">
+                  <AuthCallback />
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
       {
         path: "settings",
         element: (

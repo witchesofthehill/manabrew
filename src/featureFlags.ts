@@ -18,6 +18,10 @@ export const featureFlags = {
   // Deck Hub (browse/publish shared decks + top decks). Ships dark until the
   // api.manabrew.app service is deployed and the flow has had a manual pass.
   deckHub: false,
+  // Hub accounts (OAuth + email sign-in, deck ownership). Ships dark until the
+  // prod OAuth apps and the Resend domain are registered. Hub publishing
+  // requires a session once the hub enforces auth, so flip this before deckHub.
+  accounts: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

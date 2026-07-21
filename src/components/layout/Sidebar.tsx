@@ -227,25 +227,27 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </div>
       </div>
       <SidebarUpdate />
-      <div className="px-3 py-1">
-        {authStatus === "signedIn" && account ? (
-          <NavLink to="/settings" onClick={onNavigate}>
-            <Button variant="ghost" className="w-full justify-start whitespace-nowrap">
+      {isFeatureEnabled("accounts") && (
+        <div className="px-3 py-1">
+          {authStatus === "signedIn" && account ? (
+            <NavLink to="/settings" onClick={onNavigate}>
+              <Button variant="ghost" className="w-full justify-start whitespace-nowrap">
+                <CircleUserRound className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">@{account.handle}</span>
+              </Button>
+            </NavLink>
+          ) : (
+            <Button
+              variant="ghost"
+              className="w-full justify-start whitespace-nowrap"
+              onClick={() => showSignIn()}
+            >
               <CircleUserRound className="mr-2 h-4 w-4 shrink-0" />
-              <span className="truncate">@{account.handle}</span>
+              Sign in
             </Button>
-          </NavLink>
-        ) : (
-          <Button
-            variant="ghost"
-            className="w-full justify-start whitespace-nowrap"
-            onClick={() => showSignIn()}
-          >
-            <CircleUserRound className="mr-2 h-4 w-4 shrink-0" />
-            Sign in
-          </Button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
       <div className="mt-auto flex w-full flex-col gap-1.5 px-4 py-4 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Get in touch

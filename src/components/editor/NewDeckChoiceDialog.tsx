@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import { ClipboardPaste, Sparkles } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +15,34 @@ interface NewDeckChoiceDialogProps {
   onFromScratch: () => void;
 }
 
+function ChoiceCard({
+  icon: Icon,
+  title,
+  desc,
+  onClick,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 text-left shadow-sm transition-[border-color,background-color] hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/40 bg-primary/15 text-primary">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
 export function NewDeckChoiceDialog({
   open,
   onOpenChange,
@@ -28,30 +57,18 @@ export function NewDeckChoiceDialog({
           <DialogDescription>How would you like to start?</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <button
+          <ChoiceCard
+            icon={ClipboardPaste}
+            title="Import from text"
+            desc="Paste a decklist copied from Moxfield or elsewhere."
             onClick={onImport}
-            className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
-          >
-            <div className="flex items-center gap-2 mb-1.5">
-              <ClipboardPaste className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">Import from text</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-snug">
-              Paste a decklist copied from Moxfield or elsewhere.
-            </p>
-          </button>
-          <button
+          />
+          <ChoiceCard
+            icon={Sparkles}
+            title="From scratch"
+            desc="Start with an empty deck and add cards yourself."
             onClick={onFromScratch}
-            className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
-          >
-            <div className="flex items-center gap-2 mb-1.5">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">From scratch</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-snug">
-              Start with an empty deck and add cards yourself.
-            </p>
-          </button>
+          />
         </div>
       </DialogContent>
     </Dialog>

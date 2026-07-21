@@ -1,4 +1,4 @@
-import { ArrowRight, LibraryBig, Swords, Users } from "lucide-react";
+import { LibraryBig, Swords, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
@@ -107,7 +107,7 @@ export function PlayHome() {
             >
               <Link
                 to={ROUTES.HUB}
-                className="group flex min-w-0 items-start justify-between gap-3 rounded-xl border border-primary/30 bg-primary/10 p-5 backdrop-blur-md hover:border-primary/60 motion-safe:transition-colors motion-reduce:transition-none sm:items-center sm:gap-4"
+                className="group flex min-w-0 items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 p-5 backdrop-blur-md hover:border-primary/60 motion-safe:transition-colors motion-reduce:transition-none sm:gap-4"
               >
                 <span className="flex min-w-0 items-center gap-3 sm:gap-4">
                   <LibraryBig className="h-6 w-6 shrink-0 text-primary" />
@@ -116,7 +116,6 @@ export function PlayHome() {
                     <span className="text-sm text-muted-foreground">Browse the Deck Hub.</span>
                   </span>
                 </span>
-                <ArrowRight className="mt-0.5 h-5 w-5 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-1 sm:mt-0" />
               </Link>
             </div>
           )}

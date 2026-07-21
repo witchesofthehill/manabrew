@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FormatBadge } from "@/components/game/FormatBadge";
+import { EngineMark } from "@/components/lobby/EngineMark";
 import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
@@ -29,8 +30,6 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
-  Cloud,
-  Cpu,
   Hand,
   Loader2,
   Search,
@@ -510,11 +509,7 @@ export function DeckVsSelector({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto">
-                  {offlineEngine === "Forge" ? (
-                    <Cloud className="h-3.5 w-3.5" />
-                  ) : (
-                    <Cpu className="h-3.5 w-3.5" />
-                  )}
+                  <EngineMark engine={offlineEngine} className="h-3.5 w-3.5" />
                   {offlineEngine}
                   <ChevronDown className="h-3 w-3" />
                 </Button>
@@ -525,7 +520,7 @@ export function DeckVsSelector({
                   disabled={!hostedAvailable}
                   className="gap-1.5 text-xs"
                 >
-                  <Cloud className="h-3.5 w-3.5" />
+                  <EngineMark engine="Forge" className="h-3.5 w-3.5" />
                   Forge
                   {hostedAvailable && (
                     <span className="text-[9px] text-muted-foreground">recommended</span>
@@ -536,7 +531,7 @@ export function DeckVsSelector({
                   onSelect={() => setLastOfflineEngine("Manabrew")}
                   className="gap-1.5 text-xs"
                 >
-                  <Cpu className="h-3.5 w-3.5" />
+                  <EngineMark engine="Manabrew" className="h-3.5 w-3.5" />
                   Manabrew
                   {offlineEngine === "Manabrew" && <Check className="ml-auto h-3 w-3" />}
                 </DropdownMenuItem>

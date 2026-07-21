@@ -1,5 +1,4 @@
 import type { ComponentType, ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -37,8 +36,7 @@ const TILE_SIZES = {
     chip: "h-12 w-12",
     chipIcon: "h-5 w-5",
     watermark: "-bottom-8 -right-5 h-36 w-36 sm:h-44 sm:w-44",
-    label: "gap-3 font-serif text-2xl font-light sm:text-3xl",
-    arrow: "h-5 w-5 motion-safe:group-hover:translate-x-1",
+    label: "font-serif text-2xl font-light sm:text-3xl",
     desc: "mt-1 text-sm",
   },
   sm: {
@@ -46,9 +44,7 @@ const TILE_SIZES = {
     chip: "h-9 w-9",
     chipIcon: "h-4 w-4",
     watermark: "-bottom-4 -right-4 h-24 w-24",
-    label: "gap-2 text-sm font-medium",
-    arrow:
-      "h-4 w-4 text-muted-foreground motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:text-foreground",
+    label: "text-sm font-medium",
     desc: "mt-0.5 text-xs leading-snug",
   },
 } as const;
@@ -100,10 +96,7 @@ export function FeatureTile({
         <Icon className={sizing.chipIcon} />
       </span>
       <span className="relative">
-        <span className={cn("flex min-w-0 items-center justify-between", sizing.label)}>
-          {label}
-          <ArrowRight className={cn("shrink-0 motion-safe:transition-transform", sizing.arrow)} />
-        </span>
+        <span className={cn("block min-w-0", sizing.label)}>{label}</span>
         <span className={cn("block text-muted-foreground", sizing.desc)}>{desc}</span>
         {footer}
       </span>

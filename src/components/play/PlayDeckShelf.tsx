@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LibraryBig, Plus } from "lucide-react";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
+import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
+import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
+import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
 import { DeckShelfRow } from "@/components/play/DeckShelfRow";
 import { Button } from "@/components/ui/button";
-import { ROUTES } from "@/lib/constants";
+import { DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -23,6 +26,9 @@ export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
   const lastPlayedDeckId = usePreferencesStore((state) => state.lastPlayedDeckId);
   const lastPlayedAtByDeck = usePreferencesStore((state) => state.lastPlayedAtByDeck);
   const [formatFilter, setFormatFilter] = useState("all");
+  const [choiceOpen, setChoiceOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const importDeckText = useDeckTextImport();
 
   const ownedDecks = savedDecks.filter((savedDeck) => !savedDeck.deck.draft);
   const matchesFormat = (format?: string) =>
@@ -47,7 +53,28 @@ export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
   }
 
   function addDeck() {
-    navigate(ROUTES.DECK_EDITOR, { state: { openNewDeckDialog: true } });
+    setChoiceOpen(true);
+  }
+
+  function buildFromScratch() {
+    setChoiceOpen(false);
+    const store = useDeckStore.getState();
+    store.clearDeck();
+    store.setDeckName(DEFAULT_DECK_NAME);
+    navigate(ROUTES.DECK_EDITOR, { state: { directToEditor: true } });
+  }
+
+  async function importDeck(
+    ...args: Parameters<ReturnType<typeof useDeckTextImport>>
+  ): Promise<void> {
+    const id = await importDeckText(...args);
+    navigate(
+      {
+        pathname: ROUTES.DECK_EDITOR,
+        search: `?deck=${encodeURIComponent(id)}`,
+      },
+      { state: { deckEditorFromList: true } },
+    );
   }
 
   return (
@@ -127,6 +154,17 @@ export function PlayDeckShelf({ onPlay, pendingDeckId }: PlayDeckShelfProps) {
           </Button>
         </div>
       )}
+
+      <NewDeckChoiceDialog
+        open={choiceOpen}
+        onOpenChange={setChoiceOpen}
+        onImport={() => {
+          setChoiceOpen(false);
+          setImportOpen(true);
+        }}
+        onFromScratch={buildFromScratch}
+      />
+      <ImportDeckTextDialog open={importOpen} onOpenChange={setImportOpen} onImport={importDeck} />
     </section>
   );
 }

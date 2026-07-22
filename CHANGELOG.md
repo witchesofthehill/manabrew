@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12.7](https://github.com/witchesofthehill/manabrew/compare/v1.12.6...v1.12.7) (2026-07-22)
+
+### Fixes
+
+* **ironsmith:** keep minor Ironsmith WASM updates automatic ([#528](https://github.com/witchesofthehill/manabrew/issues/528)) ([8cbcc64](https://github.com/witchesofthehill/manabrew/commit/8cbcc64cd75f470d0d15ef04da0365b99e70121b))
+
 ## [1.12.6](https://github.com/witchesofthehill/manabrew/compare/v1.12.5...v1.12.6) (2026-07-21)
 
 ### Fixes

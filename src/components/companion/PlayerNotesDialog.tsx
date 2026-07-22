@@ -40,7 +40,7 @@ function PlayerNotesForm({ player, onClose }: { player: CompanionPlayer; onClose
         rows={6}
         autoFocus
         placeholder="e.g. needs 1 mountain · holding a Counterspell · planeswalker at 4"
-        className="w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm pointer-coarse:text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>

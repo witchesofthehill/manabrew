@@ -1,9 +1,19 @@
 /**
  * Single source of truth for compile-time feature flags. Add a boolean here
  * (default `false` to ship a feature dark) and read it via `isFeatureEnabled`.
- * Do not scatter feature gates anywhere else. Currently empty.
+ * Do not scatter feature gates anywhere else.
  */
-export const featureFlags = {} as const;
+export const featureFlags = {
+  // Ironsmith trusted engine/runtime. The WASM ships as the `ironsmith-wasm` npm
+  // dependency, so it is always bundled (`IRONSMITH_WASM_AVAILABLE` is a static
+  // `true`) and this flag stays on. The engine is still OFF until the user opts
+  // in via Settings (`ironsmithRuntimeEnabled`) — the experimental engine ships
+  // dark in prod by default.
+  ironsmithRuntime: true,
+  // Deck Hub (browse/publish shared decks + top decks). Ships dark until the
+  // api.manabrew.app service is deployed and the flow has had a manual pass.
+  deckHub: false,
+} as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
 

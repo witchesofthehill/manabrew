@@ -33,7 +33,7 @@ use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage};
 #[cfg(forge_backend)]
 use manabrew_agent_interface::prompt::{
     AgentPrompt, ChooseActionOutput, DiceRolledOutput, DirectiveInput, GameOverInput, PromptInput,
-    PromptOutput, StateUpdate,
+    PromptOutput, ProtocolError, ProtocolErrorCode, ResponseViolation, StateUpdate,
 };
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{MulliganOutput, MulliganPutBackOutput};
@@ -69,8 +69,8 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
         20,
         42,
         vec![
-            PlayerConfig::new("Smoke A".to_string(), &deck_a, None),
-            PlayerConfig::new("Smoke B".to_string(), &deck_b, None),
+            PlayerConfig::new("Smoke A".to_string(), &deck_a, Vec::new()),
+            PlayerConfig::new("Smoke B".to_string(), &deck_b, Vec::new()),
         ],
     );
     let session_id = session.start_game(&request)?;
@@ -86,12 +86,15 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
-        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
 
-    let snapshot_json = session.get_snapshot()?;
+    let snapshot_json = session.get_snapshot(Some(0))?;
     let snapshot: Value = serde_json::from_str(&snapshot_json)
         .map_err(|err| format!("failed to parse java-forge smoke snapshot: {err}"))?;
     info!(
@@ -131,8 +134,16 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
         20,
         42,
         vec![
-            PlayerConfig::new("Scenario A".to_string(), &scenario_deck("Swamp"), None),
-            PlayerConfig::new("Scenario B".to_string(), &scenario_deck("Forest"), None),
+            PlayerConfig::new(
+                "Scenario A".to_string(),
+                &scenario_deck("Swamp"),
+                Vec::new(),
+            ),
+            PlayerConfig::new(
+                "Scenario B".to_string(),
+                &scenario_deck("Forest"),
+                Vec::new(),
+            ),
         ],
     );
     let session_id = session.start_game(&request)?;
@@ -175,7 +186,7 @@ pub fn run_self_play(
         players.push(PlayerConfig::new(
             format!("Self-Play {}", i + 1),
             &identities,
-            seat.commander_name.clone(),
+            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
         ));
     }
 
@@ -221,10 +232,17 @@ pub fn run_self_play(
 type SharedBridge = Arc<Mutex<SubprocessBridge>>;
 
 #[cfg(feature = "java-forge")]
+struct PoolSlot {
+    bridge: SharedBridge,
+    active: usize,
+}
+
+#[cfg(feature = "java-forge")]
 pub struct JavaEnginePool {
     config: JavaRuntimeConfig,
-    max_size: usize,
-    free: Mutex<Vec<SharedBridge>>,
+    max_sessions: usize,
+    sessions_per_process: usize,
+    slots: Mutex<Vec<PoolSlot>>,
     in_use: Mutex<HashMap<String, SharedBridge>>,
 }
 
@@ -236,18 +254,31 @@ pub struct JavaEngineHandle {
 
 #[cfg(feature = "java-forge")]
 impl JavaEnginePool {
-    pub fn start(config: &JavaRuntimeConfig, max_size: usize) -> Result<Arc<Self>, String> {
-        let max_size = max_size.max(1);
-        let mut free = Vec::with_capacity(max_size);
-        for slot in 0..max_size {
-            info!(slot, max_size, "pre-warming java subprocess");
+    pub fn start(
+        config: &JavaRuntimeConfig,
+        max_sessions: usize,
+        sessions_per_process: usize,
+    ) -> Result<Arc<Self>, String> {
+        let max_sessions = max_sessions.max(1);
+        let sessions_per_process = sessions_per_process.max(1);
+        let processes = max_sessions.div_ceil(sessions_per_process);
+        let mut slots = Vec::with_capacity(processes);
+        for slot in 0..processes {
+            info!(
+                slot,
+                processes, sessions_per_process, "pre-warming java subprocess"
+            );
             let bridge = SubprocessBridge::spawn(config)?;
-            free.push(Arc::new(Mutex::new(bridge)));
+            slots.push(PoolSlot {
+                bridge: Arc::new(Mutex::new(bridge)),
+                active: 0,
+            });
         }
         Ok(Arc::new(Self {
             config: config.clone(),
-            max_size,
-            free: Mutex::new(free),
+            max_sessions,
+            sessions_per_process,
+            slots: Mutex::new(slots),
             in_use: Mutex::new(HashMap::new()),
         }))
     }
@@ -262,9 +293,9 @@ impl JavaEnginePool {
 #[cfg(feature = "java-forge")]
 impl Drop for JavaEnginePool {
     fn drop(&mut self) {
-        let free = self.free.get_mut().map(std::mem::take).unwrap_or_default();
-        for bridge in free {
-            if let Ok(mutex) = Arc::try_unwrap(bridge) {
+        let slots = self.slots.get_mut().map(std::mem::take).unwrap_or_default();
+        for slot in slots {
+            if let Ok(mutex) = Arc::try_unwrap(slot.bridge) {
                 if let Ok(inner) = mutex.into_inner() {
                     inner.shutdown();
                 }
@@ -278,14 +309,22 @@ impl JavaEnginePool {
     fn acquire(&self) -> Result<SharedBridge, String> {
         let deadline = Instant::now() + Duration::from_secs(60);
         loop {
-            let popped = {
-                let mut free = self
-                    .free
+            let claimed = {
+                let mut slots = self
+                    .slots
                     .lock()
-                    .map_err(|_| "java engine free queue poisoned".to_string())?;
-                free.pop()
+                    .map_err(|_| "java engine slots poisoned".to_string())?;
+                let mut claimed = None;
+                for slot in slots.iter_mut() {
+                    if slot.active < self.sessions_per_process {
+                        slot.active += 1;
+                        claimed = Some(Arc::clone(&slot.bridge));
+                        break;
+                    }
+                }
+                claimed
             };
-            if let Some(bridge) = popped {
+            if let Some(bridge) = claimed {
                 let alive = bridge
                     .lock()
                     .ok()
@@ -295,18 +334,13 @@ impl JavaEnginePool {
                     return Ok(bridge);
                 }
                 warn!("discarding dead java subprocess from pool");
-                drop(bridge);
-                if let Ok(replacement) = SubprocessBridge::spawn(&self.config) {
-                    if let Ok(mut free) = self.free.lock() {
-                        free.push(Arc::new(Mutex::new(replacement)));
-                    }
-                }
+                self.replace_slot(&bridge);
                 continue;
             }
             if Instant::now() >= deadline {
                 return Err(format!(
-                    "java engine pool exhausted (max_size={}); no free subprocess after 60s",
-                    self.max_size
+                    "java engine pool exhausted (max_sessions={}); no free session slot after 60s",
+                    self.max_sessions
                 ));
             }
             std::thread::sleep(Duration::from_millis(50));
@@ -314,6 +348,22 @@ impl JavaEnginePool {
     }
 
     fn release(&self, bridge: SharedBridge) {
+        let now_idle = {
+            let mut slots = match self.slots.lock() {
+                Ok(slots) => slots,
+                Err(_) => return,
+            };
+            match slots.iter_mut().find(|s| Arc::ptr_eq(&s.bridge, &bridge)) {
+                Some(slot) => {
+                    slot.active = slot.active.saturating_sub(1);
+                    slot.active == 0
+                }
+                None => return,
+            }
+        };
+        if !now_idle {
+            return;
+        }
         let healthy = {
             let mut guard = match bridge.lock() {
                 Ok(guard) => guard,
@@ -321,21 +371,29 @@ impl JavaEnginePool {
             };
             guard.is_alive() && guard.reset().is_ok()
         };
-        if healthy {
-            if let Ok(mut free) = self.free.lock() {
-                free.push(bridge);
-                return;
-            }
+        if !healthy {
+            warn!("java subprocess unhealthy at idle; respawning");
+            self.replace_slot(&bridge);
         }
-        drop(bridge);
+    }
+
+    fn replace_slot(&self, dead: &SharedBridge) {
+        let Ok(mut slots) = self.slots.lock() else {
+            return;
+        };
+        let Some(index) = slots.iter().position(|s| Arc::ptr_eq(&s.bridge, dead)) else {
+            return;
+        };
         match SubprocessBridge::spawn(&self.config) {
             Ok(replacement) => {
-                if let Ok(mut free) = self.free.lock() {
-                    free.push(Arc::new(Mutex::new(replacement)));
-                }
+                slots[index] = PoolSlot {
+                    bridge: Arc::new(Mutex::new(replacement)),
+                    active: 0,
+                };
             }
             Err(error) => {
-                warn!(%error, "failed to respawn java subprocess after release");
+                warn!(%error, "failed to respawn java subprocess; retiring pool slot");
+                slots.remove(index);
             }
         }
     }
@@ -424,12 +482,12 @@ impl JavaEngineHandle {
         guard.is_game_over(session_id)
     }
 
-    pub fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+    pub fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let bridge = self.bridge_for(session_id)?;
         let mut guard = bridge
             .lock()
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
-        guard.get_snapshot(session_id)
+        guard.get_snapshot(session_id, viewer)
     }
 
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -486,15 +544,22 @@ pub fn init_engine() -> Result<(), String> {
         return Ok(());
     }
     let config = JavaRuntimeConfig::from_env();
-    // SELF_HOSTED_NODE_MAX_GAMES doubles as the subprocess pool size: each room
-    // checks out one java subprocess for its lifetime, so the pool ceiling is
-    // also the concurrent-room ceiling for this node.
-    let max_size = env::var("SELF_HOSTED_NODE_MAX_GAMES")
+    // SELF_HOSTED_NODE_MAX_GAMES is the concurrent-session ceiling for this node.
+    // SELF_HOSTED_NODE_GAMES_PER_JVM multiplexes that many sessions into each
+    // subprocess (the engine is concurrency-safe since the endstep patches), so
+    // the pool spawns ceil(max_games / games_per_jvm) processes. Default 1 keeps
+    // the historical one-subprocess-per-game shape.
+    let max_sessions = env::var("SELF_HOSTED_NODE_MAX_GAMES")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|n| *n >= 1)
         .unwrap_or(1);
-    let pool = JavaEnginePool::start(&config, max_size)?;
+    let sessions_per_process = env::var("SELF_HOSTED_NODE_GAMES_PER_JVM")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(1);
+    let pool = JavaEnginePool::start(&config, max_sessions, sessions_per_process)?;
     JAVA_ENGINE
         .set(pool)
         .map_err(|_| "java engine already initialized".to_string())
@@ -553,6 +618,11 @@ mod graal_ffi {
             thread: *mut *mut graal_isolatethread_t,
         ) -> c_int;
         pub fn graal_tear_down_isolate(thread: *mut graal_isolatethread_t) -> c_int;
+        pub fn graal_attach_thread(
+            isolate: *mut graal_isolate_t,
+            thread: *mut *mut graal_isolatethread_t,
+        ) -> c_int;
+        pub fn graal_detach_thread(thread: *mut graal_isolatethread_t) -> c_int;
         pub fn forge_initialize(
             thread: *mut graal_isolatethread_t,
             assets_dir: *const c_char,
@@ -574,6 +644,7 @@ mod graal_ffi {
         pub fn forge_get_snapshot(
             thread: *mut graal_isolatethread_t,
             session_id: *const c_char,
+            viewer: c_int,
         ) -> *mut c_char;
         pub fn forge_get_game_over(
             thread: *mut graal_isolatethread_t,
@@ -601,13 +672,24 @@ struct ForgeReply {
     error: Option<String>,
 }
 
-// One GraalVM isolate hosts the in-process Forge engine. It is created on, and
-// confined to, the hosted-engine thread (isolate threads are not portable), so
-// the handle is Rc/!Send by design.
+// A GraalVM isolate hosts the in-process Forge engine. The `thread` handle is
+// bound to the hosted-engine thread that created or attached it (isolate
+// threads are not portable), so the handle is Rc/!Send by design. In shared
+// mode one isolate serves all rooms: the first creator initializes Forge, later
+// rooms attach their own thread to it and sessions coexist in the adapter.
 #[cfg(feature = "graal-forge")]
 struct GraalBridge {
     thread: *mut graal_ffi::graal_isolatethread_t,
+    attached: bool,
 }
+
+#[cfg(feature = "graal-forge")]
+struct SharedIsolate(*mut graal_ffi::graal_isolate_t);
+#[cfg(feature = "graal-forge")]
+unsafe impl Send for SharedIsolate {}
+
+#[cfg(feature = "graal-forge")]
+static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync::Mutex::new(None);
 
 #[cfg(feature = "graal-forge")]
 impl GraalBridge {
@@ -620,7 +702,45 @@ impl GraalBridge {
         if rc != 0 {
             return Err(format!("graal_create_isolate failed with code {rc}"));
         }
-        Ok(Self { thread })
+        Ok(Self {
+            thread,
+            attached: false,
+        })
+    }
+
+    fn create_in_shared_isolate(assets_dir: &Path) -> Result<Self, String> {
+        let mut guard = SHARED_GRAAL_ISOLATE
+            .lock()
+            .map_err(|_| "shared graal isolate poisoned".to_string())?;
+        if let Some(shared) = guard.as_ref() {
+            let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+            let rc = unsafe { graal_ffi::graal_attach_thread(shared.0, &mut thread) };
+            if rc != 0 {
+                return Err(format!("graal_attach_thread failed with code {rc}"));
+            }
+            return Ok(Self {
+                thread,
+                attached: true,
+            });
+        }
+        let mut isolate: *mut graal_ffi::graal_isolate_t = std::ptr::null_mut();
+        let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+        let rc = unsafe {
+            graal_ffi::graal_create_isolate(std::ptr::null_mut(), &mut isolate, &mut thread)
+        };
+        if rc != 0 {
+            return Err(format!("graal_create_isolate failed with code {rc}"));
+        }
+        let mut bridge = Self {
+            thread,
+            attached: false,
+        };
+        let assets = cstring(&assets_dir.to_string_lossy())?;
+        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        bridge.attached = true;
+        *guard = Some(SharedIsolate(isolate));
+        info!("shared graal isolate initialized");
+        Ok(bridge)
     }
 
     fn decode(&self, raw: *mut std::os::raw::c_char) -> Result<String, String> {
@@ -646,7 +766,11 @@ impl GraalBridge {
 #[cfg(feature = "graal-forge")]
 impl Drop for GraalBridge {
     fn drop(&mut self) {
-        unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+        if self.attached {
+            unsafe { graal_ffi::graal_detach_thread(self.thread) };
+        } else {
+            unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+        }
     }
 }
 
@@ -659,9 +783,21 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        let bridge = GraalBridge::create()?;
-        let assets = cstring(&assets_dir.to_string_lossy())?;
-        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        // SELF_HOSTED_NODE_SHARED_ISOLATE=1 hosts every room's game in one
+        // isolate (safe since the endstep concurrency patches), so the card db
+        // loads once. Default keeps the historical isolate-per-game shape.
+        let shared = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+            .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let bridge = if shared {
+            GraalBridge::create_in_shared_isolate(assets_dir)?
+        } else {
+            let bridge = GraalBridge::create()?;
+            let assets = cstring(&assets_dir.to_string_lossy())?;
+            bridge
+                .decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+            bridge
+        };
         Ok(Self {
             bridge: std::rc::Rc::new(bridge),
         })
@@ -705,10 +841,12 @@ impl GraalEngineHandle {
         Ok(value.trim() == "true")
     }
 
-    fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+    fn get_snapshot(&self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
         let session = cstring(session_id)?;
-        self.bridge
-            .decode(unsafe { graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr()) })
+        let viewer = viewer.map_or(-1, |v| v as std::os::raw::c_int);
+        self.bridge.decode(unsafe {
+            graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr(), viewer)
+        })
     }
 
     fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -740,7 +878,12 @@ pub fn run_concurrent_self_play(
     concurrency: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
-    let pool = JavaEnginePool::start(&config, concurrency.max(1))?;
+    let games_per_process = env::var("SELF_HOSTED_NODE_GAMES_PER_JVM")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(1);
+    let pool = JavaEnginePool::start(&config, concurrency.max(1), games_per_process)?;
     info!(
         concurrency,
         "java-engine started; launching concurrent games"
@@ -752,7 +895,7 @@ pub fn run_concurrent_self_play(
         players.push(PlayerConfig::new(
             format!("Self-Play {}", i + 1),
             &identities,
-            seat.commander_name.clone(),
+            commander_names_for_java(&seat.deck, seat.commander_name.as_deref()),
         ));
     }
 
@@ -909,6 +1052,7 @@ pub fn run_hosted_engine_game(
     player_names: Vec<String>,
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
+    commander_variant: bool,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -922,6 +1066,7 @@ pub fn run_hosted_engine_game(
         player_names,
         decks,
         commander_names,
+        commander_variant,
         local_player_index,
         ai_player_indices,
         starting_life,
@@ -938,6 +1083,7 @@ pub fn run_hosted_engine_game(
     _player_names: Vec<String>,
     _decks: Vec<Deck>,
     _commander_names: Vec<Option<String>>,
+    _commander_variant: bool,
     _local_player_index: Option<usize>,
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
@@ -955,6 +1101,7 @@ fn run_hosted_engine_game_inner(
     player_names: Vec<String>,
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
+    commander_variant: bool,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -968,10 +1115,15 @@ fn run_hosted_engine_game_inner(
     let mut players = Vec::with_capacity(player_names.len());
     for (index, name) in player_names.iter().enumerate() {
         let identities = deck_card_identities(&decks[index]);
+        let seat_commander_names = if commander_variant {
+            commander_names_for_java(&decks[index], commander_names[index].as_deref())
+        } else {
+            Vec::new()
+        };
         players.push(PlayerConfig::new(
             name.clone(),
             &identities,
-            commander_names[index].clone(),
+            seat_commander_names,
         ));
     }
     for &idx in &ai_player_indices {
@@ -1005,7 +1157,7 @@ fn run_hosted_engine_game_inner(
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<ClientToServerMessage>> =
         remote_response_rxs.into_iter().collect();
-    let mut last_prompt_id: Option<u32> = None;
+    let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
 
     loop {
@@ -1021,6 +1173,7 @@ fn run_hosted_engine_game_inner(
                 match rx.try_recv() {
                     Ok(ClientToServerMessage::Response {
                         action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
+                        ..
                     }) => {
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
@@ -1033,7 +1186,64 @@ fn run_hosted_engine_game_inner(
                             }
                         }
                     }
-                    Ok(ClientToServerMessage::Response { action }) => {
+                    Ok(ClientToServerMessage::Response { prompt_id, action }) => {
+                        // prompt_id 0 is transport-synthesized: the
+                        // absent-player default, exempt from validation.
+                        if prompt_id != 0 {
+                            let Some(prompt) =
+                                last_prompt.as_ref().filter(|p| p.prompt_id == prompt_id)
+                            else {
+                                reject_response(
+                                    &remote_prompt_tx,
+                                    *player_index,
+                                    last_prompt.as_ref().filter(|p| {
+                                        self::player_index(&p.deciding_player_id) == *player_index
+                                    }),
+                                    ProtocolErrorCode::StalePrompt,
+                                    format!("response for prompt {prompt_id} is not open"),
+                                );
+                                continue;
+                            };
+                            if self::player_index(&prompt.deciding_player_id) != *player_index {
+                                reject_response(
+                                    &remote_prompt_tx,
+                                    *player_index,
+                                    None,
+                                    ProtocolErrorCode::WrongPlayer,
+                                    format!(
+                                        "prompt {prompt_id} is for {}",
+                                        prompt.deciding_player_id
+                                    ),
+                                );
+                                continue;
+                            }
+                            match prompt.input.validate_response(&action) {
+                                Ok(()) => {}
+                                Err(ResponseViolation::WrongPromptType) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::WrongPromptType,
+                                        "response output does not match the prompt type"
+                                            .to_string(),
+                                    );
+                                    continue;
+                                }
+                                Err(ResponseViolation::UnknownActionId(id)) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::UnknownActionId,
+                                        format!(
+                                            "action id {id:?} was not advertised by the prompt"
+                                        ),
+                                    );
+                                    continue;
+                                }
+                            }
+                        }
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1064,17 +1274,22 @@ fn run_hosted_engine_game_inner(
         if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
-            if last_prompt_id != Some(prompt.prompt_id) {
-                last_prompt_id = Some(prompt.prompt_id);
+            if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
-                    let state = AgentMessage::State(state_via_handle(&engine, &session_id)?);
                     let prompt_msg = AgentMessage::Prompt(prompt);
                     for &agent_index in remote_response_rxs.keys() {
-                        let _ = remote_prompt_tx.send((agent_index, state.clone()));
+                        let state = AgentMessage::State(state_via_handle(
+                            &engine,
+                            &session_id,
+                            Some(agent_index),
+                        )?);
+                        let _ = remote_prompt_tx.send((agent_index, state));
                         let _ = remote_prompt_tx.send((agent_index, prompt_msg.clone()));
                     }
+                    send_observer_state(&engine, &session_id, &remote_prompt_tx);
                     pending_roll_acks = remote_response_rxs.len();
                     if pending_roll_acks == 0 {
                         let ack = serde_json::to_string(&PromptOutput::DiceRolled(
@@ -1090,11 +1305,19 @@ fn run_hosted_engine_game_inner(
                         engine.submit_action(&session_id, &action_json)?;
                     }
                 } else {
-                    let state = AgentMessage::State(state_via_handle(&engine, &session_id)?);
+                    for &agent_index in remote_response_rxs.keys() {
+                        let state = AgentMessage::State(state_via_handle(
+                            &engine,
+                            &session_id,
+                            Some(agent_index),
+                        )?);
+                        if remote_prompt_tx.send((agent_index, state)).is_err() {
+                            return Ok(());
+                        }
+                    }
+                    send_observer_state(&engine, &session_id, &remote_prompt_tx);
                     let prompt_msg = AgentMessage::Prompt(prompt);
-                    if remote_prompt_tx.send((player, state)).is_err()
-                        || remote_prompt_tx.send((player, prompt_msg)).is_err()
-                    {
+                    if remote_prompt_tx.send((player, prompt_msg)).is_err() {
                         return Ok(());
                     }
                 }
@@ -1104,16 +1327,21 @@ fn run_hosted_engine_game_inner(
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
             let mut final_messages = Vec::new();
-            match state_via_handle(&engine, &session_id) {
-                Ok(state_update) => {
-                    let state = AgentMessage::State(state_update);
-                    for &agent_index in remote_response_rxs.keys() {
-                        final_messages.push((agent_index, state.clone()));
+            for &agent_index in remote_response_rxs.keys() {
+                match state_via_handle(&engine, &session_id, Some(agent_index)) {
+                    Ok(state_update) => {
+                        final_messages.push((agent_index, AgentMessage::State(state_update)));
+                    }
+                    Err(error) => {
+                        warn!(%error, agent_index, "game over: final snapshot unavailable; sending game-over prompt only");
                     }
                 }
-                Err(error) => {
-                    warn!(%error, "game over: final snapshot unavailable; sending game-over prompt only");
-                }
+            }
+            if let Ok(state_update) = state_via_handle(&engine, &session_id, None) {
+                final_messages.push((
+                    crate::host::OBSERVER_SEAT,
+                    AgentMessage::State(state_update),
+                ));
             }
             let game_over = AgentMessage::Prompt(game_over_prompt());
             for &agent_index in remote_response_rxs.keys() {
@@ -1147,6 +1375,23 @@ fn wait_for_prompt<B: JavaBridge>(
 }
 
 #[cfg(forge_backend)]
+fn send_observer_state(
+    engine: &ForgeEngine,
+    session_id: &str,
+    remote_prompt_tx: &std_mpsc::Sender<(usize, AgentMessage)>,
+) {
+    match state_via_handle(engine, session_id, None) {
+        Ok(state_update) => {
+            let _ = remote_prompt_tx.send((
+                crate::host::OBSERVER_SEAT,
+                AgentMessage::State(state_update),
+            ));
+        }
+        Err(error) => warn!(%error, "observer snapshot unavailable"),
+    }
+}
+
+#[cfg(forge_backend)]
 fn player_index(deciding_player_id: &str) -> usize {
     deciding_player_id
         .strip_prefix("player-")
@@ -1155,11 +1400,33 @@ fn player_index(deciding_player_id: &str) -> usize {
 }
 
 #[cfg(forge_backend)]
+fn reject_response(
+    remote_prompt_tx: &std_mpsc::Sender<(usize, AgentMessage)>,
+    seat: usize,
+    reopen_prompt: Option<&AgentPrompt>,
+    code: ProtocolErrorCode,
+    message: String,
+) {
+    let _ = remote_prompt_tx.send((
+        seat,
+        AgentMessage::Error(ProtocolError {
+            code,
+            message,
+            prompt_id: reopen_prompt.map(|p| p.prompt_id),
+        }),
+    ));
+    if let Some(prompt) = reopen_prompt {
+        let _ = remote_prompt_tx.send((seat, AgentMessage::Prompt(prompt.clone())));
+    }
+}
+
+#[cfg(forge_backend)]
 fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
         PromptInput::ChooseAction(_) => {
             Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until: None,
+                exhaust_stack: false,
             }))
         }
         _ => None,
@@ -1177,8 +1444,12 @@ fn game_over_prompt() -> AgentPrompt {
 }
 
 #[cfg(forge_backend)]
-fn state_via_handle(engine: &ForgeEngine, session_id: &str) -> Result<StateUpdate, String> {
-    let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id)?)
+fn state_via_handle(
+    engine: &ForgeEngine,
+    session_id: &str,
+    viewer: Option<usize>,
+) -> Result<StateUpdate, String> {
+    let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id, viewer)?)
         .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
     Ok(StateUpdate { game_view })
 }
@@ -1190,6 +1461,23 @@ fn deck_card_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
         .chain(deck.commanders.iter().flatten())
         .map(|card| card.identity.clone())
         .collect()
+}
+
+#[cfg(forge_backend)]
+fn commander_names_for_java(deck: &Deck, fallback: Option<&str>) -> Vec<String> {
+    let names: Vec<String> = deck
+        .commanders
+        .iter()
+        .flatten()
+        .map(|card| java_card_name(&card.identity.name))
+        .collect();
+    if !names.is_empty() {
+        return names;
+    }
+    fallback
+        .filter(|name| !name.is_empty())
+        .map(|name| vec![java_card_name(name)])
+        .unwrap_or_default()
 }
 
 #[cfg(feature = "java-forge")]
@@ -1274,6 +1562,7 @@ impl JavaScenario {
                         } else {
                             Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                                 until: None,
+                                exhaust_stack: false,
                             })))
                         }
                     }
@@ -1317,7 +1606,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None, exhaust_stack: false })))
                         }
                     }
                     other => Err(format!(
@@ -1365,7 +1654,7 @@ fn run_scenario_loop<B: JavaBridge>(
             continue;
         }
 
-        let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot()?)
+        let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot(Some(0))?)
             .map_err(|err| format!("failed to parse java scenario snapshot: {err}"))?;
         let normalized_prompt = serde_json::to_value(&prompt).map_err(|err| err.to_string())?;
         info!(
@@ -1438,7 +1727,7 @@ fn run_concede_game<B: JavaBridge>(
     };
     let identities = deck_card_identities(&deck);
     let players: Vec<PlayerConfig> = (0..seats)
-        .map(|i| PlayerConfig::new(format!("Concede {}", i + 1), &identities, None))
+        .map(|i| PlayerConfig::new(format!("Concede {}", i + 1), &identities, Vec::new()))
         .collect();
     let request = StartGameRequest::new(format!("concede-smoke-{seats}p"), 20, 7, players);
     let session_id = session.start_game(&request)?;
@@ -1642,7 +1931,7 @@ fn run_self_play_loop<B: JavaBridge>(
 
 #[cfg(feature = "java-forge")]
 fn parse_snapshot<B: JavaBridge>(session: &mut JavaForgeSession<B>) -> Result<Value, String> {
-    let snapshot_json = session.get_snapshot()?;
+    let snapshot_json = session.get_snapshot(Some(0))?;
     serde_json::from_str(&snapshot_json)
         .map_err(|err| format!("failed to parse java self-play snapshot: {err}"))
 }
@@ -1746,10 +2035,15 @@ fn prompt_card_ids(prompt: &Value, field: &str, count: usize) -> Result<Vec<Stri
 
 #[cfg(feature = "java-forge")]
 fn battlefield_contains(game_view: &GameViewDto, card_name: &str) -> bool {
-    game_view
-        .battlefield
-        .iter()
-        .any(|card| card.identity.name == card_name && card.controller_id == "player-0")
+    use manabrew_agent_interface::game_view_dto::{CardView, ZoneKind};
+    game_view.zones.iter().any(|zone| {
+        zone.zone == ZoneKind::Battlefield
+            && zone.owner_id == "player-0"
+            && zone.cards.iter().any(|card| match card {
+                CardView::Visible(dto) => dto.identity.name == card_name,
+                CardView::Hidden { .. } => false,
+            })
+    })
 }
 
 pub trait JavaBridge {
@@ -1761,7 +2055,7 @@ pub trait JavaBridge {
         session_id: &str,
         player_index: usize,
     ) -> Result<Option<String>, String>;
-    fn get_snapshot(&mut self, session_id: &str) -> Result<String, String>;
+    fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
     fn abort_game(&mut self, session_id: &str) -> Result<(), String>;
@@ -1803,9 +2097,9 @@ impl<B: JavaBridge> JavaForgeSession<B> {
         self.bridge.get_prompt(&session_id, player_index)
     }
 
-    pub fn get_snapshot(&mut self) -> Result<String, String> {
+    pub fn get_snapshot(&mut self, viewer: Option<usize>) -> Result<String, String> {
         let session_id = self.require_session_id()?.to_string();
-        self.bridge.get_snapshot(&session_id)
+        self.bridge.get_snapshot(&session_id, viewer)
     }
 
     pub fn is_game_over(&mut self) -> Result<bool, String> {
@@ -1850,7 +2144,11 @@ impl JavaBridge for UnavailableJavaBridge {
         Err(unsupported_message().to_string())
     }
 
-    fn get_snapshot(&mut self, _session_id: &str) -> Result<String, String> {
+    fn get_snapshot(
+        &mut self,
+        _session_id: &str,
+        _viewer: Option<usize>,
+    ) -> Result<String, String> {
         Err(unsupported_message().to_string())
     }
 
@@ -2089,8 +2387,11 @@ impl JavaBridge for SubprocessBridge {
         Ok((!prompt.is_empty()).then_some(prompt))
     }
 
-    fn get_snapshot(&mut self, session_id: &str) -> Result<String, String> {
-        let body = json!({ "command": "getSnapshot", "sessionId": session_id });
+    fn get_snapshot(&mut self, session_id: &str, viewer: Option<usize>) -> Result<String, String> {
+        let mut body = json!({ "command": "getSnapshot", "sessionId": session_id });
+        if let Some(viewer) = viewer {
+            body["viewer"] = json!(viewer);
+        }
         self.call(&body.to_string())
     }
 
@@ -2156,7 +2457,7 @@ pub struct StartGameRequest {
 pub struct PlayerConfig {
     name: String,
     deck: Vec<CardIdentityForJava>,
-    commander_name: Option<String>,
+    commander_names: Vec<String>,
     ai: bool,
 }
 
@@ -2191,11 +2492,11 @@ impl StartGameRequest {
 }
 
 impl PlayerConfig {
-    pub fn new(name: String, deck: &[DeckCardIdentity], commander_name: Option<String>) -> Self {
+    pub fn new(name: String, deck: &[DeckCardIdentity], commander_names: Vec<String>) -> Self {
         Self {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
-            commander_name,
+            commander_names,
             ai: false,
         }
     }

@@ -1,4 +1,4 @@
-import type { PlayerDeckInfo, RoomInfo } from "@/types/server";
+import type { EngineKind, GameFormat, PlayerDeckInfo, RoomInfo } from "@/types/server";
 
 // Router state survives page reloads, but a game launch must not: the engine
 // (and the room it belonged to) died with the page. Route state is therefore
@@ -14,6 +14,10 @@ export interface EngineGameRouteState {
   isHost: boolean;
   startingLife: number;
   myPlayerSlot: string;
+  engine: EngineKind;
+  format: GameFormat;
+  hostPlayerSlot: string | null;
+  botPlayerSlots: string[];
 }
 
 export function isLiveEngineGameRouteState(state: unknown): state is EngineGameRouteState {
@@ -51,6 +55,11 @@ export function buildEngineGameRouteState(
   if (myIndex < 0) {
     return { error: "Could not determine your player slot for this game." };
   }
+  const hostIndex = room ? playerOrder.indexOf(room.host) : -1;
+  const botNames = new Set(room?.players.filter((player) => player.is_bot).map((p) => p.username));
+  const botPlayerSlots = playerOrder.flatMap((playerName, index) =>
+    botNames.has(playerName) ? [`player-${index}`] : [],
+  );
   return {
     state: {
       multiplayer: true,
@@ -60,6 +69,10 @@ export function buildEngineGameRouteState(
       isHost: room?.host === username,
       startingLife,
       myPlayerSlot: `player-${myIndex}`,
+      engine: room?.engine ?? "Manabrew",
+      format: room?.format ?? "Standard",
+      hostPlayerSlot: hostIndex >= 0 ? `player-${hostIndex}` : null,
+      botPlayerSlots,
     },
   };
 }

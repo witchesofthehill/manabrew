@@ -8,24 +8,25 @@ use forge_foundation::ZoneType;
 use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::maintenance::MaintenanceEdit;
-use manabrew_protocol::game::{CardDto, GameViewDto};
+use manabrew_protocol::game::{CardDto, GameViewDto, PlayerCounterKind, StepKind, ZoneKind};
 use manabrew_protocol::prompts::choose_action::ChooseActionOutput;
 use manabrew_protocol::prompts::choose_attackers::ChooseAttackersOutput;
 use manabrew_protocol::prompts::choose_blockers::ChooseBlockersOutput;
 use manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsOutput;
 use manabrew_protocol::prompts::choose_cards::ChooseCardsOutput;
 use manabrew_protocol::prompts::common::{AvailableAction, AvailableActionKind, TargetKind};
-use manabrew_protocol::prompts::reorder_cards::ReorderCardsOutput;
+use manabrew_protocol::prompts::reorder::ReorderOutput;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
 use manabrew_protocol::transport::{AgentMessage, AgentPrompt, ClientToServerMessage};
 
 use crate::diff::{diff_views, FieldDiff};
 use crate::trace::Decision;
+use crate::view;
 
 pub struct Divergence {
     pub decision_index: usize,
     pub turn: u32,
-    pub step: String,
+    pub step: StepKind,
     pub deciding_player: String,
     pub prompt_kind: String,
     pub diffs: Vec<FieldDiff>,
@@ -81,7 +82,12 @@ impl ReplayContext {
         self.divergences.first()
     }
 
-    fn advance_to(&mut self, kind: &str, turn: u32, step: &str, player: &str) -> Option<usize> {
+    fn advance_to(
+        &mut self,
+        kind: &str,
+        key: Option<(u32, StepKind)>,
+        player: &str,
+    ) -> Option<usize> {
         let mut fallback = None;
         for i in self.cursor..self.decisions.len() {
             if input_kind(&self.decisions[i].prompt.input) != kind {
@@ -90,7 +96,7 @@ impl ReplayContext {
             if fallback.is_none() {
                 fallback = Some(i);
             }
-            if let Some(state) = &self.decisions[i].state_before {
+            if let (Some(state), Some((turn, step))) = (&self.decisions[i].state_before, key) {
                 if state.turn == turn
                     && state.step == step
                     && self.decisions[i].prompt.deciding_player_id == player
@@ -138,18 +144,14 @@ impl Responder for ReplayAgent {
 
     fn respond(&mut self, prompt: AgentPrompt) -> ClientToServerMessage {
         let live_kind = input_kind(&prompt.input);
-        let (turn, step) = self
-            .latest_view
-            .as_ref()
-            .map(|v| (v.turn, v.step.clone()))
-            .unwrap_or((0, String::new()));
+        let key = self.latest_view.as_ref().map(|v| (v.turn, v.step));
         let mut ctx = self.ctx.borrow_mut();
 
         if ctx.done {
-            return pass();
+            return pass(prompt.prompt_id);
         }
 
-        let Some(index) = ctx.advance_to(live_kind, turn, &step, &prompt.deciding_player_id) else {
+        let Some(index) = ctx.advance_to(live_kind, key, &prompt.deciding_player_id) else {
             ctx.desyncs += 1;
             return safe_default(&prompt);
         };
@@ -169,8 +171,8 @@ impl Responder for ReplayAgent {
             } else {
                 vec![FieldDiff {
                     path: "<off trace path>".into(),
-                    rust: format!("turn {} {}", rust_view.turn, rust_view.step),
-                    trace: format!("turn {} {}", trace_view.turn, trace_view.step),
+                    rust: format!("turn {} {:?}", rust_view.turn, rust_view.step),
+                    trace: format!("turn {} {:?}", trace_view.turn, trace_view.step),
                     library_dependent: false,
                 }]
             };
@@ -180,7 +182,7 @@ impl Responder for ReplayAgent {
                 ctx.divergences.push(Divergence {
                     decision_index: index,
                     turn: trace_view.turn,
-                    step: trace_view.step.clone(),
+                    step: trace_view.step,
                     deciding_player: prompt.deciding_player_id.clone(),
                     prompt_kind: live_kind.to_string(),
                     diffs,
@@ -212,11 +214,14 @@ impl Responder for ReplayAgent {
         if miss {
             ctx.remap_misses += 1;
         }
-        ClientToServerMessage::Response { action }
+        ClientToServerMessage::Response {
+            prompt_id: prompt.prompt_id,
+            action,
+        }
     }
 }
 
-fn name_multiset(cards: &[CardDto]) -> HashMap<String, u32> {
+fn name_multiset<'a>(cards: impl Iterator<Item = &'a CardDto>) -> HashMap<String, u32> {
     let mut out: HashMap<String, u32> = HashMap::new();
     for card in cards {
         *out.entry(card.identity.name.clone()).or_default() += 1;
@@ -234,7 +239,7 @@ fn reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEd
         else {
             continue;
         };
-        let Some(rust_player) = rust.player(&trace_player.id) else {
+        let Some(rust_player) = view::player(rust, &trace_player.id) else {
             continue;
         };
         let player = PlayerId(index);
@@ -244,53 +249,42 @@ fn reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEd
                 life: trace_player.life,
             });
         }
-        if rust_player.poison != trace_player.poison {
+        let rust_poison = view::counter(rust_player, PlayerCounterKind::Poison);
+        let trace_poison = view::counter(trace_player, PlayerCounterKind::Poison);
+        if rust_poison != trace_poison {
             edits.push(MaintenanceEdit::SetPoison {
                 player,
-                poison: trace_player.poison,
+                poison: trace_poison as i32,
             });
         }
-        let zones: [(ZoneType, &Vec<CardDto>, &Vec<CardDto>); 4] = [
-            (ZoneType::Hand, &rust_player.hand, &trace_player.hand),
-            (
-                ZoneType::Graveyard,
-                &rust_player.graveyard,
-                &trace_player.graveyard,
-            ),
-            (ZoneType::Exile, &rust_player.exile, &trace_player.exile),
-            (
-                ZoneType::Command,
-                &rust_player.command_zone,
-                &trace_player.command_zone,
-            ),
+        let zones = [
+            (ZoneType::Hand, ZoneKind::Hand),
+            (ZoneType::Graveyard, ZoneKind::Graveyard),
+            (ZoneType::Exile, ZoneKind::Exile),
+            (ZoneType::Command, ZoneKind::Command),
         ];
-        for (zone, rust_cards, trace_cards) in zones {
-            if name_multiset(rust_cards) != name_multiset(trace_cards) {
+        for (zone, kind) in zones {
+            let rust_cards = name_multiset(view::zone_cards(rust, &trace_player.id, kind));
+            let trace_cards = name_multiset(view::zone_cards(trace, &trace_player.id, kind));
+            if rust_cards != trace_cards {
                 edits.push(MaintenanceEdit::SetZone {
                     player,
                     zone,
-                    card_names: trace_cards
-                        .iter()
+                    card_names: view::zone_cards(trace, &trace_player.id, kind)
                         .map(|c| c.identity.name.clone())
                         .collect(),
                 });
             }
         }
 
-        let owned = |cards: &[CardDto]| -> HashMap<String, u32> {
-            let mut out: HashMap<String, u32> = HashMap::new();
-            for card in cards.iter().filter(|c| c.owner_id == trace_player.id) {
-                *out.entry(card.identity.name.clone()).or_default() += 1;
-            }
-            out
+        let owned = |v: &GameViewDto| -> HashMap<String, u32> {
+            name_multiset(view::battlefield_cards(v).filter(|c| c.owner_id == trace_player.id))
         };
-        if owned(&rust.battlefield) != owned(&trace.battlefield) {
+        if owned(rust) != owned(trace) {
             edits.push(MaintenanceEdit::SetZone {
                 player,
                 zone: ZoneType::Battlefield,
-                card_names: trace
-                    .battlefield
-                    .iter()
+                card_names: view::battlefield_cards(trace)
                     .filter(|c| c.owner_id == trace_player.id)
                     .map(|c| c.identity.name.clone())
                     .collect(),
@@ -300,9 +294,13 @@ fn reconcile_edits(rust: &GameViewDto, trace: &GameViewDto) -> Vec<MaintenanceEd
     edits
 }
 
-fn pass() -> ClientToServerMessage {
+fn pass(prompt_id: u32) -> ClientToServerMessage {
     ClientToServerMessage::Response {
-        action: PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+        prompt_id,
+        action: PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        }),
     }
 }
 
@@ -320,9 +318,15 @@ fn safe_default(prompt: &AgentPrompt) -> ClientToServerMessage {
         PromptInput::Mulligan(_) => {
             PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: true })
         }
-        _ => PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None }),
+        _ => PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        }),
     };
-    ClientToServerMessage::Response { action }
+    ClientToServerMessage::Response {
+        prompt_id: prompt.prompt_id,
+        action,
+    }
 }
 
 struct NameIndex {
@@ -334,7 +338,7 @@ impl NameIndex {
     fn from_view(view: &GameViewDto) -> Self {
         let mut id_to_name = HashMap::new();
         let mut name_to_ids: HashMap<String, Vec<String>> = HashMap::new();
-        for c in view.all_zone_cards() {
+        for c in view::all_visible_cards(view) {
             id_to_name.insert(c.id.clone(), c.identity.name.clone());
             name_to_ids
                 .entry(c.identity.name.clone())
@@ -405,7 +409,10 @@ fn remap_response(
                 Some(id) => PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id: id }),
                 None => {
                     *miss = true;
-                    PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
+                    PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                        until: None,
+                        exhaust_stack: false,
+                    })
                 }
             }
         }
@@ -480,8 +487,8 @@ fn remap_response(
                 chosen_card_ids: ids,
             })
         }
-        PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision { ordered_card_ids }) => {
-            let ids = ordered_card_ids
+        PromptOutput::Reorder(ReorderOutput::ReorderDecision { ordered_ids }) => {
+            let ids = ordered_ids
                 .iter()
                 .map(|id| {
                     remap_card_id(
@@ -493,9 +500,7 @@ fn remap_response(
                     )
                 })
                 .collect();
-            PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision {
-                ordered_card_ids: ids,
-            })
+            PromptOutput::Reorder(ReorderOutput::ReorderDecision { ordered_ids: ids })
         }
         other => other,
     }
@@ -537,8 +542,6 @@ fn action_card_id(kind: &AvailableActionKind) -> Option<&str> {
         AvailableActionKind::Cast { card_id, .. } => Some(card_id),
         AvailableActionKind::ActivateAbility(info) => Some(&info.card_id),
         AvailableActionKind::UndoMana { card_id } => Some(card_id),
-        AvailableActionKind::Delve { card_id } => Some(card_id),
-        AvailableActionKind::Undelve { card_id } => Some(card_id),
     }
 }
 
@@ -547,8 +550,6 @@ fn kind_tag(kind: &AvailableActionKind) -> &'static str {
         AvailableActionKind::Cast { .. } => "cast",
         AvailableActionKind::ActivateAbility(_) => "activateAbility",
         AvailableActionKind::UndoMana { .. } => "undoMana",
-        AvailableActionKind::Delve { .. } => "delve",
-        AvailableActionKind::Undelve { .. } => "undelve",
     }
 }
 
@@ -571,7 +572,7 @@ fn input_kind(input: &PromptInput) -> &'static str {
         PromptInput::ChooseCombatDamageAssignment(_) => "chooseCombatDamageAssignment",
         PromptInput::PayManaCost(_) => "payManaCost",
         PromptInput::ChooseCards(_) => "chooseCards",
-        PromptInput::ReorderCards(_) => "reorderCards",
+        PromptInput::Reorder(_) => "reorder",
         PromptInput::DiceRolled(_) => "diceRolled",
     }
 }

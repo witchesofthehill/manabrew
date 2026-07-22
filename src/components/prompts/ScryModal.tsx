@@ -3,7 +3,8 @@ import {
   DndContext,
   DragOverlay,
   defaultDropAnimationSideEffects,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
@@ -19,10 +20,11 @@ import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
-import { stackObjectToCardStub } from "@/components/game/game.utils";
-import { useGameStore } from "@/stores/useGameStore";
+import { HoverCardPreview } from "@/components/game/HoverCardPreview";
+import { useCardPreview } from "@/hooks/useCardPreview";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { CardDto } from "@/protocol/game";
 import type { ScryInput, ScryOutput, ScryDestination } from "@/protocol";
@@ -61,11 +63,12 @@ function DraggableCard({
   return (
     <div
       ref={setNodeRef}
+      data-card-id={id}
       {...(disabled ? {} : attributes)}
       {...(disabled ? {} : listeners)}
       className={cn(
         CARD_W,
-        "relative shrink-0 touch-none rounded-lg ring-primary",
+        "relative shrink-0 touch-pan-x rounded-lg ring-primary",
         disabled ? "cursor-default" : "cursor-grab hover:z-10 hover:ring-2",
         isDragging && "opacity-0",
         className,
@@ -130,14 +133,14 @@ function Zone({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-w-[140px] flex-1 flex-col">
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
         {DESTINATION_META[destination].label}
       </p>
       <div
         ref={setNodeRef}
         className={cn(
-          "flex h-[320px] items-center overflow-hidden rounded-lg border-2 border-dashed p-3",
+          "flex h-[200px] items-center overflow-hidden rounded-lg border-2 border-dashed p-3 sm:h-[320px]",
           ids.length === 0 ? "justify-center" : "flex-nowrap justify-center",
           isOver ? "border-primary bg-primary/5" : "border-muted-foreground/40",
         )}
@@ -202,22 +205,10 @@ function PoolRow({
 }
 
 export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>) {
-  const { presentation, zones } = input;
+  const { zones } = input;
+  const { preview: sourcePreview, presentation } = useModalSourceCard(input.presentation);
   const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
-  const gameView = useGameStore((s) => s.gameView);
-  const sourceCard = useMemo<CardDto | undefined>(() => {
-    const id = presentation.sourceCardId;
-    if (!id || !gameView) return undefined;
-    const visible = [
-      ...gameView.battlefield,
-      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
-    ];
-    const gc = visible.find((c) => c.id === id);
-    if (gc) return gc;
-    const stackObj = gameView.stack.find((s) => s.sourceId === id);
-    return stackObj ? (stackObjectToCardStub(stackObj) as CardDto) : undefined;
-  }, [presentation.sourceCardId, gameView]);
   const zoneIds = useMemo(() => zones.map((_, i) => `z${i}`), [zones]);
 
   const [items, setItems] = useState<Record<string, string[]>>(() => ({
@@ -225,7 +216,13 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
     ...Object.fromEntries(zoneIds.map((z) => [z, [] as string[]])),
   }));
   const [activeId, setActiveId] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // Hover-only big preview: a touch hold on these cards is the drag gesture
+  // (TouchSensor, 200ms), so the app-wide long-press preview can't apply here.
+  const preview = useCardPreview();
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   // Re-seed when the card set changes (e.g. preview cards arrive after mount).
   const cardKey = useMemo(() => cards.map((c) => c.id).join("|"), [cards]);
@@ -255,39 +252,52 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
 
   return (
     <Modal maxWidth="max-w-4xl" maxHeight="">
-      {sourceCard && (
-        <div className="pointer-events-none absolute top-0 left-full ml-6 drop-shadow-2xl">
-          <Card card={sourceCard} bare className="w-[240px]" />
-        </div>
-      )}
+      {sourcePreview}
       <div className="p-5 pb-3">
-        <PromptPresentation
-          presentation={{ ...presentation, sourceCardId: undefined }}
-          forceHorizontal
-        />
+        <PromptPresentation presentation={presentation} forceHorizontal />
       </div>
 
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
-        onDragStart={(e) => setActiveId(e.active.id as string)}
+        onDragStart={(e) => {
+          preview.dismiss();
+          setActiveId(e.active.id as string);
+        }}
         onDragEnd={onDragEnd}
       >
-        <p className="px-5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Cards to place
-        </p>
-        <PoolRow id={POOL} ids={items[POOL]} cardsById={cardsById} />
+        <div
+          onMouseOver={(e) => {
+            const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
+            const card = el && cardsById.get(el.dataset.cardId ?? "");
+            if (card) {
+              preview.handleMouseEnter(card, e, {
+                useDelay: true,
+                anchorOverride: el.getBoundingClientRect(),
+              });
+            }
+          }}
+          onMouseOut={(e) => {
+            const el = (e.target as HTMLElement).closest<HTMLElement>("[data-card-id]");
+            if (el && !el.contains(e.relatedTarget as Node)) preview.handleMouseLeave();
+          }}
+        >
+          <p className="px-5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Cards to place
+          </p>
+          <PoolRow id={POOL} ids={items[POOL]} cardsById={cardsById} />
 
-        <div className="flex gap-3 px-5 pb-4">
-          {zones.map((destination, i) => (
-            <Zone
-              key={zoneIds[i]}
-              id={zoneIds[i]}
-              destination={destination}
-              ids={items[zoneIds[i]]}
-              cardsById={cardsById}
-            />
-          ))}
+          <div className="flex flex-wrap gap-3 px-5 pb-4">
+            {zones.map((destination, i) => (
+              <Zone
+                key={zoneIds[i]}
+                id={zoneIds[i]}
+                destination={destination}
+                ids={items[zoneIds[i]]}
+                cardsById={cardsById}
+              />
+            ))}
+          </div>
         </div>
 
         <DragOverlay dropAnimation={DROP_ANIMATION}>
@@ -318,6 +328,7 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
           Confirm
         </Button>
       </Modal.Footer>
+      <HoverCardPreview preview={preview} />
     </Modal>
   );
 }

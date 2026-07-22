@@ -6,12 +6,14 @@ import forge.harness.protocol.CardIdentity;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.game.Game;
 import forge.game.GameEntity;
 import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
+import forge.game.card.CardCollectionView;
 import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
 import forge.game.combat.Combat;
@@ -54,14 +56,55 @@ public final class InteractiveSnapshotExtractor {
     ) {
         final Map<String, Object> base = SnapshotExtractor.extractSnapshot(game);
 
+        final Player viewerPlayer = playerForIndex(game, viewer);
         final List<Map<String, Object>> players = new ArrayList<>();
-        final List<CardDto> battlefield = new ArrayList<>();
+        final List<Object> zones = new ArrayList<>();
         for (final Player player : game.getRegisteredPlayers()) {
             final int index = SnapshotExtractor.playerIndex(game, player);
+            final String ownerId = "player-" + index;
             players.add(toPlayer(game, player, index, viewer));
-            for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
-                battlefield.add(toCard(game, card, index, "battlefield", false));
+            zones.add(zoneWithVisibility("hand", ownerId, game,
+                    player.getCardsIn(ZoneType.Hand), index, true, viewerPlayer, false));
+            zones.add(visibleZone("graveyard", ownerId, game, player.getCardsIn(ZoneType.Graveyard), index, false));
+            zones.add(zoneWithVisibility("exile", ownerId, game,
+                    player.getCardsIn(ZoneType.Exile), index, false, viewerPlayer, true));
+            final List<Card> commandZone = new ArrayList<>();
+            for (final Card card : player.getCardsIn(ZoneType.Command)) {
+                if (!card.isImmutable()) {
+                    commandZone.add(card);
+                }
             }
+            zones.add(visibleZone("command", ownerId, game, commandZone, index, true));
+            // Library bulk stays hidden (count only); the top card is included
+            // when the viewer may see it (Augur/Courser-style statics), so
+            // `count >= cards.length`.
+            final List<JsonObject> libraryCards = new ArrayList<>();
+            final CardCollectionView library = player.getCardsIn(ZoneType.Library);
+            if (!library.isEmpty() && shownTo(library.get(0), viewerPlayer)) {
+                libraryCards.add(visibleCard(toCard(game, library.get(0), index, true)));
+            }
+            zones.add(zoneEntry("library", ownerId, libraryCards, library.size()));
+        }
+        final Map<String, List<JsonObject>> battlefieldByController = new LinkedHashMap<>();
+        for (final Player player : game.getRegisteredPlayers()) {
+            final int ownerIndex = SnapshotExtractor.playerIndex(game, player);
+            for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
+                final String controllerId =
+                        "player-" + SnapshotExtractor.playerIndex(game, card.getController());
+                final CardDto dto = toCard(game, card, ownerIndex, false);
+                if (card.isFaceDown() && !faceShownTo(card, viewerPlayer)) {
+                    redact(dto);
+                }
+                battlefieldByController
+                        .computeIfAbsent(controllerId, key -> new ArrayList<>())
+                        .add(visibleCard(dto));
+            }
+        }
+        for (final Player player : game.getRegisteredPlayers()) {
+            final String controllerId = "player-" + SnapshotExtractor.playerIndex(game, player);
+            final List<JsonObject> cards =
+                    battlefieldByController.getOrDefault(controllerId, new ArrayList<>());
+            zones.add(zoneEntry("battlefield", controllerId, cards, cards.size()));
         }
 
         final String activePlayerId = "player-" + asIndex(base.get("active_player"));
@@ -74,9 +117,10 @@ public final class InteractiveSnapshotExtractor {
         view.put("activePlayerId", activePlayerId);
         view.put("priorityPlayerId", "player-" + asIndex(base.get("priority_player")));
         view.put("players", players);
-        view.put("battlefield", battlefield);
+        view.put("zones", zones);
         view.put("stack", snapshotStack(game, castingAbility, activePlayerId));
         view.put("gameOver", base.get("game_over"));
+        view.put("dayTime", dayTime(game));
         final Object winner = base.get("winner");
         if (winner != null) {
             view.put("winnerId", "player-" + winner);
@@ -108,32 +152,148 @@ public final class InteractiveSnapshotExtractor {
         out.put("status", player.conceded() ? "conceded" : player.hasLost() ? "lost" : "playing");
         out.put("isHuman", index == viewer);
         out.put("life", player.getLife());
-        out.put("poison", player.getPoisonCounters());
-        out.put("hand", richCards(game, player.getCardsIn(ZoneType.Hand), index, "hand", true));
-        out.put("graveyard", richCards(game, player.getCardsIn(ZoneType.Graveyard), index, "graveyard", false));
-        out.put("exile", richCards(game, player.getCardsIn(ZoneType.Exile), index, "exile", false));
-        // Drop engine-internal effect objects (e.g. the "Commander Effect"
-        // DetachedCardEffect that hosts command-zone statics) — they are
-        // immutable EFFECT pieces, not real cards, and the client can't
-        // resolve them back to a deck entry.
-        final List<Card> commandZone = new ArrayList<>();
-        for (final Card card : player.getCardsIn(ZoneType.Command)) {
-            if (!card.isImmutable()) {
-                commandZone.add(card);
-            }
-        }
-        out.put("commandZone", richCards(game, commandZone, index, "command", true));
-        out.put("libraryCount", player.getCardsIn(ZoneType.Library).size());
+        out.put("counters", playerCounters(player));
         out.put("manaPool", manaPool(player));
         out.put("commanderDamage", commanderDamage(game, player));
-        out.put("energyCounters", player.getCounters(CounterEnumType.ENERGY));
-        out.put("radiationCounters", player.getCounters(CounterEnumType.RAD));
         out.put("hasCityBlessing", player.hasBlessing());
         out.put("ringLevel", player.getNumRingTemptedYou());
         out.put("speed", player.getSpeed());
-        out.put("experienceCounters", player.getCounters(CounterEnumType.EXPERIENCE));
-        out.put("ticketCounters", player.getCounters(CounterEnumType.TICKET));
         return out;
+    }
+
+    private static Map<String, Integer> playerCounters(final Player player) {
+        final Map<String, Integer> counters = new LinkedHashMap<>();
+        putIfPositive(counters, "poison", player.getPoisonCounters());
+        putIfPositive(counters, "energy", player.getCounters(CounterEnumType.ENERGY));
+        putIfPositive(counters, "experience", player.getCounters(CounterEnumType.EXPERIENCE));
+        putIfPositive(counters, "radiation", player.getCounters(CounterEnumType.RAD));
+        putIfPositive(counters, "ticket", player.getCounters(CounterEnumType.TICKET));
+        return counters;
+    }
+
+    private static void putIfPositive(final Map<String, Integer> map, final String key, final int value) {
+        if (value > 0) {
+            map.put(key, value);
+        }
+    }
+
+    private static Map<String, Object> visibleZone(
+            final String zone,
+            final String ownerId,
+            final Game game,
+            final Iterable<Card> cards,
+            final int ownerIndex,
+            final boolean castable
+    ) {
+        final List<JsonObject> views = new ArrayList<>();
+        for (final Card card : cards) {
+            views.add(visibleCard(toCard(game, card, ownerIndex, castable)));
+        }
+        return zoneEntry(zone, ownerId, views, views.size());
+    }
+
+    private static Map<String, Object> zoneEntry(
+            final String zone,
+            final String ownerId,
+            final List<JsonObject> cards,
+            final int count
+    ) {
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("zone", zone);
+        out.put("ownerId", ownerId);
+        out.put("cards", cards);
+        out.put("count", count);
+        return out;
+    }
+
+    private static JsonObject visibleCard(final CardDto dto) {
+        final JsonObject obj = GSON.toJsonTree(dto).getAsJsonObject();
+        obj.addProperty("visibility", "visible");
+        return obj;
+    }
+
+    private static JsonObject hiddenCard(final Card card) {
+        final JsonObject obj = new JsonObject();
+        obj.addProperty("visibility", "hidden");
+        obj.addProperty("id", SnapshotExtractor.javaCardId(card));
+        return obj;
+    }
+
+    private static Map<String, Object> zoneWithVisibility(
+            final String zone,
+            final String ownerId,
+            final Game game,
+            final Iterable<Card> cards,
+            final int ownerIndex,
+            final boolean castable,
+            final Player viewerPlayer,
+            final boolean keepHiddenEntries
+    ) {
+        final List<JsonObject> views = new ArrayList<>();
+        int count = 0;
+        for (final Card card : cards) {
+            count++;
+            if (shownTo(card, viewerPlayer)) {
+                views.add(visibleCard(toCard(game, card, ownerIndex, castable)));
+            } else if (keepHiddenEntries) {
+                views.add(hiddenCard(card));
+            }
+        }
+        return zoneEntry(zone, ownerId, views, count);
+    }
+
+    /** Forge's per-viewer visibility oracle; null viewer = spectator (public info only). */
+    private static boolean shownTo(final Card card, final Player viewerPlayer) {
+        if (viewerPlayer != null) {
+            return card.getView().canBeShownTo(viewerPlayer.getView());
+        }
+        final ZoneType zone = card.getZone() == null ? null : card.getZone().getZoneType();
+        if (zone == ZoneType.Exile || zone == ZoneType.Merged) {
+            return !card.isFaceDown();
+        }
+        return zone == ZoneType.Battlefield
+                || zone == ZoneType.Graveyard
+                || zone == ZoneType.Command
+                || zone == ZoneType.Stack
+                || zone == ZoneType.Flashback;
+    }
+
+    /** CR 707.7: a face-down permanent's face is visible to its controller. */
+    private static boolean faceShownTo(final Card card, final Player viewerPlayer) {
+        if (viewerPlayer == null) {
+            return false;
+        }
+        return card.getController() == viewerPlayer
+                || card.getView().canFaceDownBeShownTo(viewerPlayer.getView());
+    }
+
+    private static void redact(final CardDto dto) {
+        dto.identity = new CardIdentity("", "", "", false);
+        dto.text = "";
+        dto.manaCost = "";
+        dto.flashbackCost = null;
+        dto.kickerCost = null;
+        dto.effectiveManaCost = null;
+        dto.madnessCost = null;
+    }
+
+    private static Player playerForIndex(final Game game, final int viewer) {
+        if (viewer < 0) {
+            return null;
+        }
+        for (final Player player : game.getRegisteredPlayers()) {
+            if (SnapshotExtractor.playerIndex(game, player) == viewer) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    private static String dayTime(final Game game) {
+        if (game.isNeitherDayNorNight()) {
+            return "neither";
+        }
+        return game.isNight() ? "night" : "day";
     }
 
     private static Map<String, Integer> manaPool(final Player player) {
@@ -157,53 +317,35 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static List<CardDto> richCards(
-            final Game game,
-            final Iterable<Card> cards,
-            final int ownerIndex,
-            final String zoneId,
-            final boolean castable
-    ) {
-        final List<CardDto> out = new ArrayList<>();
-        for (final Card card : cards) {
-            out.add(toCard(game, card, ownerIndex, zoneId, castable));
-        }
-        return out;
-    }
-
     static CardDto cardDto(final Game game, final Card card, final boolean castable) {
         final int ownerIndex = card.getOwner() != null ? SnapshotExtractor.playerIndex(game, card.getOwner()) : 0;
-        return toCard(game, card, ownerIndex, promptZoneId(card), castable);
+        return toCard(game, card, ownerIndex, castable);
     }
 
-    private static String promptZoneId(final Card card) {
-        if (card.getZone() == null) {
-            return "";
+    private static List<String> mergedCardIds(final Card card) {
+        final List<String> ids = new ArrayList<>();
+        if (card.hasMergedCard()) {
+            for (final Card merged : card.getMergedCards()) {
+                if (merged != card) {
+                    ids.add(SnapshotExtractor.javaCardId(merged));
+                }
+            }
         }
-        switch (card.getZone().getZoneType()) {
-            case Battlefield: return "battlefield";
-            case Hand: return "hand";
-            case Graveyard: return "graveyard";
-            case Exile: return "exile";
-            case Command: return "command";
-            case Library: return "library";
-            case Stack: return "stack";
-            default: return "";
-        }
+        return ids;
     }
 
     private static CardDto toCard(
             final Game game,
             final Card card,
             final int ownerIndex,
-            final String zoneId,
             final boolean castable
     ) {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
         final IPaperCard paper = card.getPaperCard();
+       final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
         dto.identity = new CardIdentity(
-                normalizeCardName(card.getName()),
+                normalizeCardName(name),
                 paper != null ? paper.getEdition() : card.getSetCode(),
                 paper != null ? paper.getCollectorNumber() : "",
                 card.isToken());
@@ -222,10 +364,10 @@ public final class InteractiveSnapshotExtractor {
         dto.text = card.getOracleText();
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
-        dto.zoneId = zoneId;
         dto.tapped = card.isTapped();
         dto.keywords = keywords(card);
         dto.counters = counterMap(card);
+        dto.mergedCardIds = mergedCardIds(card);
         dto.damage = card.getDamage();
         dto.summoningSick = card.hasSickness();
         dto.isCopy = card.isCloned();
@@ -395,9 +537,9 @@ public final class InteractiveSnapshotExtractor {
 
     private static Map<String, Integer> counterMap(final Card card) {
         final Map<String, Integer> counters = new TreeMap<>();
-        for (final Map.Entry<CounterType, Integer> entry : card.getCounters().entrySet()) {
-            if (entry.getValue() > 0) {
-                counters.put(uiCounterName(entry.getKey()), entry.getValue());
+        for (final com.google.common.collect.Multiset.Entry<CounterType> entry : card.getCounters().entrySet()) {
+            if (entry.getCount() > 0) {
+                counters.put(uiCounterName(entry.getElement()), entry.getCount());
             }
         }
         return counters;
@@ -556,14 +698,14 @@ public final class InteractiveSnapshotExtractor {
             case "Upkeep": return "upkeep";
             case "Draw": return "draw";
             case "Main1": return "main1";
-            case "CombatBegin": return "begin_combat";
-            case "CombatDeclareAttackers": return "declare_attackers";
-            case "CombatDeclareBlockers": return "declare_blockers";
-            case "CombatFirstStrikeDamage": return "first_strike_damage";
-            case "CombatDamage": return "combat_damage";
-            case "CombatEnd": return "end_combat";
+            case "CombatBegin": return "combatBegin";
+            case "CombatDeclareAttackers": return "combatDeclareAttackers";
+            case "CombatDeclareBlockers": return "combatDeclareBlockers";
+            case "CombatFirstStrikeDamage": return "combatFirstStrikeDamage";
+            case "CombatDamage": return "combatDamage";
+            case "CombatEnd": return "combatEnd";
             case "Main2": return "main2";
-            case "EndOfTurn": return "end";
+            case "EndOfTurn": return "endOfTurn";
             case "Cleanup": return "cleanup";
             default: return "untap";
         }

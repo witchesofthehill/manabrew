@@ -1,9 +1,21 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import {
+  CARD_SIZE_MULTIPLIER_MAX,
+  CARD_SIZE_MULTIPLIER_MIN,
+  usePreferencesStore,
+  type ZonePanelItem,
+} from "@/stores/usePreferencesStore";
+import { isFeatureEnabled } from "@/featureFlags";
+import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { stripUsernameTag } from "@/lib/username";
 import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
+import {
+  HOVER_DELAY_MAX,
+  HOVER_DELAY_MIN,
+  HOVER_DELAY_STEP,
+} from "@/components/game/game.constants";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
@@ -14,7 +26,6 @@ import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
-import { useBattlefieldCardScale } from "@/hooks/useBattlefieldCardScale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -346,15 +357,9 @@ const GAME_THEME_GROUPS: {
 const FLASH_MIN = 200;
 const FLASH_MAX = 2000;
 const FLASH_STEP = 100;
-
-const HOVER_DELAY_MIN = 100;
-const HOVER_DELAY_MAX = 1500;
-const HOVER_DELAY_STEP = 50;
 export default function Settings() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const prefs = usePreferencesStore();
-  const { fraction: battlefieldSizeFraction, setFraction: setBattlefieldSizeFraction } =
-    useBattlefieldCardScale();
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
@@ -492,12 +497,12 @@ export default function Settings() {
       <h1 className="text-2xl font-bold">Preferences</h1>
 
       <section className="space-y-4">
-        <div className="flex items-center gap-6 border-b">
+        <div className="flex items-center gap-6 border-b overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab("preferences")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "preferences"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -509,7 +514,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("theme")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "theme"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -521,7 +526,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("prompts")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "prompts"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -533,7 +538,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("server")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "server"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -545,7 +550,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("keybindings")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "keybindings"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -557,7 +562,7 @@ export default function Settings() {
             type="button"
             onClick={() => setActiveTab("cache")}
             className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
               (activeTab === "cache"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground")
@@ -872,50 +877,56 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Battlefield Card Size ({Math.round(battlefieldSizeFraction * 100)}%)</Label>
+              <Label>Card Size ({Math.round(prefs.cardSizeMultiplier * 100)}%)</Label>
               <div className="flex items-start gap-4">
                 <div className="flex-1 space-y-2">
                   <input
                     type="range"
-                    min={0}
-                    max={100}
+                    min={Math.round(CARD_SIZE_MULTIPLIER_MIN * 100)}
+                    max={Math.round(CARD_SIZE_MULTIPLIER_MAX * 100)}
                     step={5}
-                    value={Math.round(battlefieldSizeFraction * 100)}
-                    onChange={(e) => setBattlefieldSizeFraction(Number(e.target.value) / 100)}
+                    value={Math.round(prefs.cardSizeMultiplier * 100)}
+                    onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
                     className="w-full accent-primary"
                   />
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBattlefieldSizeFraction(0)}
+                      onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MIN)}
                     >
-                      Smallest
+                      75%
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBattlefieldSizeFraction(0.5)}
+                      onClick={() => prefs.setCardSizeMultiplier(1)}
                     >
-                      Default
+                      100%
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setBattlefieldSizeFraction(1)}
+                      onClick={() => prefs.setCardSizeMultiplier(CARD_SIZE_MULTIPLIER_MAX)}
                     >
-                      Largest
+                      150%
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Controls the size of cards on the battlefield. The largest setting still keeps
-                    at least 3 rows visible on any display.
+                    Scales cards on every battlefield and your hand fan. 100% is the classic 3-row
+                    board; battlefield cards cap at a 2-row fill so the board stays playable, while
+                    the hand keeps growing past them.
                   </p>
                 </div>
                 <div className="w-[120px] shrink-0 flex justify-center">
                   <BattlefieldStylePreview
                     style={prefs.battlefieldCardStyle}
-                    width={Math.round(48 + battlefieldSizeFraction * 72)}
+                    width={Math.round(
+                      48 +
+                        ((prefs.cardSizeMultiplier - CARD_SIZE_MULTIPLIER_MIN) /
+                          (CARD_SIZE_MULTIPLIER_MAX - CARD_SIZE_MULTIPLIER_MIN)) *
+                          72,
+                    )}
                   />
                 </div>
               </div>
@@ -942,6 +953,30 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 "Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield
                 tidy in rows (creatures, then others, then lands) and ignores manual placement.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Zone Piles</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={!prefs.lockZoneTiles ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setLockZoneTiles(false)}
+                >
+                  Movable
+                </Button>
+                <Button
+                  variant={prefs.lockZoneTiles ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setLockZoneTiles(true)}
+                >
+                  Locked
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                "Locked" keeps the deck, graveyard, exile, and command piles fixed on the
+                battlefield so a drag can't move them. Tapping to open still works.
               </p>
             </div>
 
@@ -1007,6 +1042,33 @@ export default function Settings() {
                 works (cards move, state indicators and damage numbers stay).
               </p>
             </div>
+
+            {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
+              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+                <Label>Ironsmith engine (experimental)</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setIronsmithRuntimeEnabled(true)}
+                  >
+                    On
+                  </Button>
+                  <Button
+                    variant={!prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setIronsmithRuntimeEnabled(false)}
+                  >
+                    Off
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Adds the experimental Ironsmith trusted engine as a Create Room option. Card
+                  support is partial and games may be rough — off by default. Leave this off unless
+                  you're testing Ironsmith.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>

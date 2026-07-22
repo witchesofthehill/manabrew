@@ -137,26 +137,69 @@ export function BoardOverlayCanvas({
   }, []);
 
   useEffect(() => {
-    const onMove = (e: PointerEvent) => {
+    const insideStack = (clientX: number, clientY: number): boolean => {
       const canvas = canvasRef.current;
       const bounds = stackRef.current?.getBounds();
-      if (!canvas) return;
-      if (!bounds) {
-        canvas.style.pointerEvents = "none";
-        return;
-      }
+      if (!canvas || !bounds) return false;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const inside =
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      return (
         x >= bounds.x &&
         x <= bounds.x + bounds.width &&
         y >= bounds.y &&
-        y <= bounds.y + bounds.height;
-      canvas.style.pointerEvents = inside ? "auto" : "none";
+        y <= bounds.y + bounds.height
+      );
+    };
+    const onMove = (e: PointerEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.style.pointerEvents = insideStack(e.clientX, e.clientY) ? "auto" : "none";
+    };
+    // Touch taps arrive with no preceding pointermove, so the hover tracking
+    // above never enables the canvas for them. Intercept the touch at the
+    // window capture phase and replay it onto the canvas so Pixi sees a full
+    // down/up pair (the board underneath must not also react — stop the
+    // original).
+    const clonePointerEvent = (type: string, e: PointerEvent) =>
+      new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: e.pointerId,
+        pointerType: e.pointerType,
+        isPrimary: e.isPrimary,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        button: e.button,
+        buttons: e.buttons,
+      });
+    let replayPointerId: number | null = null;
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      const canvas = canvasRef.current;
+      if (!canvas || !insideStack(e.clientX, e.clientY)) return;
+      e.stopPropagation();
+      canvas.style.pointerEvents = "auto";
+      replayPointerId = e.pointerId;
+      canvas.dispatchEvent(clonePointerEvent("pointerdown", e));
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== replayPointerId) return;
+      replayPointerId = null;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      e.stopPropagation();
+      canvas.dispatchEvent(clonePointerEvent("pointerup", e));
+      canvas.style.pointerEvents = "none";
     };
     window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
+    window.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointerup", onUp, true);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointerup", onUp, true);
+    };
   }, []);
 
   useEffect(

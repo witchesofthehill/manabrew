@@ -1,6 +1,4 @@
-use crate::prompt::{
-    ActivatableAbilityInfo, AvailableAction, AvailableActionKind, Mana, ManaColor,
-};
+use crate::prompt::{ActivatableAbilityInfo, Mana, ManaColor};
 
 const ANY_COLOR_LETTERS: [&str; 5] = ["W", "U", "B", "R", "G"];
 
@@ -43,7 +41,7 @@ pub(crate) fn mana_ability_actions(
     cost: Option<String>,
     produced_mana: Option<String>,
     produced_mana_amount: Option<i32>,
-) -> Vec<AvailableAction> {
+) -> Vec<(String, ActivatableAbilityInfo)> {
     split_mana_choices(produced_mana.as_deref(), produced_mana_amount)
         .into_iter()
         .map(|choice| {
@@ -51,17 +49,17 @@ pub(crate) fn mana_ability_actions(
                 Some(color) => format!("tap:{card_id}:{ability_index}:{color}"),
                 None => format!("tap:{card_id}:{ability_index}"),
             };
-            AvailableAction {
+            (
                 id,
-                kind: AvailableActionKind::ActivateAbility(ActivatableAbilityInfo {
+                ActivatableAbilityInfo {
                     card_id: card_id.to_string(),
                     ability_index,
                     description: description.to_string(),
                     is_mana_ability: true,
                     cost: cost.clone(),
                     produced_mana: choice.produced_mana,
-                }),
-            }
+                },
+            )
         })
         .collect()
 }

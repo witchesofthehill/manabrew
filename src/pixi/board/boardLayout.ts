@@ -25,12 +25,8 @@ export interface BoardLayout {
   stripBandPx: number;
 }
 
-/** Fraction of the usable height (canvas minus strip band) given to the
- *  local player's bottom region. The rest is shared by the opponents. */
-export const SELF_HEIGHT_FRACTION = 0.55;
-
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
-export const STRIP_BAND_PX = 56;
+export const STRIP_BAND_PX = 38;
 
 export const STRIP_BAND_COMPACT_PX = 32;
 
@@ -42,14 +38,15 @@ export function computeBoardLayout(
   width: number,
   height: number,
   opponentCount: number,
-  selfHeightFraction: number = SELF_HEIGHT_FRACTION,
+  selfBottomReserve = 0,
   compact = false,
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const bandPx = compact ? STRIP_BAND_COMPACT_PX : STRIP_BAND_PX;
   const band = Math.min(bandPx, Math.max(0, height - 2));
   const usable = Math.max(0, height - band);
-  const fraction = Math.min(0.8, Math.max(0.2, selfHeightFraction));
+  const fraction =
+    usable > 0 ? Math.min(0.8, Math.max(0.2, 0.5 + selfBottomReserve / (2 * usable))) : 0.5;
   const selfHeight = Math.round(usable * fraction);
   const topHeight = usable - selfHeight;
   const dividerY = topHeight + band / 2;

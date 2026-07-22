@@ -10,6 +10,7 @@ import forge.harness.common.HarnessPlayHooks;
 import forge.harness.common.HarnessPlayPlumbing;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
+import forge.harness.protocol.SelectionOption;
 
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
@@ -45,6 +46,7 @@ import forge.game.spellability.*;
 import forge.game.staticability.StaticAbility;
 import forge.game.staticability.StaticAbilityManaConvert;
 import forge.game.staticability.StaticAbilityMustTarget;
+import forge.game.trigger.Trigger;
 import forge.game.trigger.TriggerType;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.MagicStack;
@@ -88,9 +90,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         super(game, player, lobbyPlayer);
         this.game = game;
         this.session = session;
-        this.costPlumbing = new HarnessCostPlumbing(this, player);
+        this.costPlumbing = new HarnessCostPlumbing(this, this, player);
         this.autoPay = new AutoPay(player, costPlumbing, true);
-        this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing);
+        this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing, true);
     }
 
     private int me() {
@@ -102,6 +104,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public void markFailedPaymentCard(final Card card) {
         // Interactive play re-prompts naturally; no per-turn skip list.
+    }
+
+    @Override
+    public CardCollectionView chooseTapTypeForCost(final CardCollection valid, final SpellAbility sa, final int totalPowerRequired) {
+        return chooseCardsForEffect(
+                valid, sa, "Select creatures to tap (total power " + totalPowerRequired + " or greater)",
+                0, valid.size(), true, null);
     }
 
     @Override
@@ -147,7 +156,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             probingPayability = true;
             try {
                 all = ChoiceSpace.sortNative(
-                        new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
+                        new ArrayList<>(ActionSpace.getPossibleActions(player, true, true)),
                         ParityOrder.actionComparator());
             } finally {
                 probingPayability = false;
@@ -955,11 +964,29 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public List<AbilitySub> chooseModeForAbility(
             final SpellAbility sa, final List<AbilitySub> possible, final int min, final int num, final boolean allowRepeat) {
-        final List<String> labels = new ArrayList<>();
+        final List<SelectionOption> options = new ArrayList<>();
         for (final AbilitySub mode : possible) {
-            labels.add(mode == null ? "Mode" : mode.toString());
+            if (mode == null) {
+                options.add(new SelectionOption("Mode", 1, allowRepeat));
+                continue;
+            }
+            final int weight = mode.hasParam("Pawprint")
+                    ? AbilityUtils.calculateAmount(mode.getHostCard(), mode.getParam("Pawprint"), mode)
+                    : 1;
+            final String label = mode.hasParam("Pawprint")
+                    ? "{P}".repeat(weight) + " — " + mode
+                    : mode.toString();
+            options.add(new SelectionOption(label, weight, allowRepeat));
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, num, sourceName(sa), allowRepeat);
+        final String description;
+        if (sa.hasParam("Pawprint")) {
+            description = "Choose " + (min == 0 ? "up to " : "") + Lang.getNumeral(num) + " {P} worth of modes."
+                    + (allowRepeat ? " You may choose the same mode more than once." : "");
+        } else {
+            description = null;
+        }
+        final List<Integer> chosen =
+                session.awaitModeChoice(me(), options, min, num, sourceName(sa), description, sourceCardId(sa));
         return EngineHandler.selectModes(possible, chosen, allowRepeat);
     }
 
@@ -1049,10 +1076,17 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmTrigger(final WrappedAbility sa) {
+        final Trigger trigger = sa == null ? null : sa.getTrigger();
+        final Card host = sa == null ? null : sa.getHostCard();
+        final String title = host == null
+                ? "Resolve optional trigger?"
+                : "Use triggered ability of " + host.getName() + "?";
+        final String body = trigger == null ? null : trigger.toString();
         return session.awaitBooleanChoice(
                 "choose_optional_trigger",
                 me(),
-                sa == null ? "Resolve optional trigger?" : sa.getStackDescription(),
+                title,
+                body,
                 sourceCardId(sa),
                 "optional_trigger",
                 null,
@@ -1596,7 +1630,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 null,
                 targetCards,
                 targetPlayers,
-                sa == null ? null : sa.getStackDescription());
+                sa == null ? null : sa.getStackDescription(),
+                null);
         if (!accept) {
             return false;
         }
@@ -1858,11 +1893,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 }
                 case PAY_LIFE: {
                     if (player.canPayLife(2, effect, sa)) {
-                        if (unpaid.payPhyrexian()) {
-                            sa.setSpendPhyrexianMana(true);
-                            player.payLife(2, sa, effect);
-                        } else if (player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK)) {
-                            unpaid.decreaseShard(ManaCostShard.BLACK, 1);
+                        final ManaCostShard shard =
+                                ActionSpace.chooseLifePaymentShard(unpaid, sa, player, effect);
+                        if (shard != null) {
+                            unpaid.decreaseShard(shard, 1);
+                            if (shard.isPhyrexian()) {
+                                sa.setSpendPhyrexianMana(true);
+                            }
                             player.payLife(2, sa, effect);
                         }
                     }

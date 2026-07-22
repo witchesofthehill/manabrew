@@ -9,8 +9,10 @@ export default defineConfig([
   globalIgnores([
     "dist",
     ".worktrees",
+    ".claude/worktrees",
     "target",
     "**/target",
+    "target.preexisting",
     "src-tauri/gen",
     "src-tauri/resources",
     "forge",

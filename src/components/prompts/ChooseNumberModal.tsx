@@ -7,6 +7,7 @@ import { MODAL_INPUT } from "@/components/game/game.styles";
 import { cn } from "@/lib/utils";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { PromptPresentation } from "./internal/PromptPresentation";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseNumberInput, ChooseNumberOutput } from "@/protocol";
 
@@ -14,7 +15,8 @@ export function ChooseNumberModal({
   input,
   respond,
 }: PromptProps<ChooseNumberInput, ChooseNumberOutput>) {
-  const { min, max, presentation } = input;
+  const { min, max } = input;
+  const { preview, presentation } = useModalSourceCard(input.presentation);
   const range = max - min + 1;
   const useButtons = range <= 10;
   const [inputValue, setInputValue] = useState(String(min));
@@ -53,7 +55,7 @@ export function ChooseNumberModal({
   const numbers = useButtons ? Array.from({ length: range }, (_, i) => min + i) : [];
 
   const controls = useButtons ? (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Number choices">
+    <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Number choices">
       {numbers.map((num) => (
         <button
           key={num}
@@ -69,7 +71,7 @@ export function ChooseNumberModal({
       ))}
     </div>
   ) : (
-    <div className="flex w-full flex-col gap-1.5">
+    <div className="flex flex-col items-center gap-1.5">
       <div className="flex items-stretch gap-2">
         <button
           type="button"
@@ -121,16 +123,23 @@ export function ChooseNumberModal({
           <Check className="h-7 w-7" />
         </Button>
       </div>
-      <p className={cn("text-xs", showError ? "text-destructive" : "text-muted-foreground")}>
+      <p
+        className={cn(
+          "text-center text-xs",
+          showError ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
         Enter a number between {min} and {max}.
       </p>
     </div>
   );
 
   return (
-    <Modal maxWidth="max-w-2xl" maxHeight="">
-      <div className="p-6">
-        <PromptPresentation presentation={presentation} forceHorizontal actions={controls} />
+    <Modal maxWidth="" maxHeight="" className="w-auto max-w-[min(90vw,32rem)]">
+      {preview}
+      <div className="flex flex-col items-center gap-5 p-6">
+        <PromptPresentation presentation={presentation} />
+        {controls}
       </div>
     </Modal>
   );

@@ -43,7 +43,7 @@ export default function MultiplayerSealed() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Sealed deck build · {setCode.toUpperCase()}</h1>
           <p className="text-sm text-muted-foreground">

@@ -10,6 +10,7 @@ import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
+import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { DESKTOP_QUERY } from "@/lib/responsive";
@@ -30,11 +31,6 @@ const NAV_ROUTES = [
 ];
 
 export function AppShell() {
-  // Render only the active layout branch. Previously both <Outlet /> trees
-  // were mounted and CSS hid one — every Pixi canvas inside (game scene,
-  // arrows overlay, phase strip) was therefore allocated twice and
-  // doubled the WebGL context count, eventually blowing past the
-  // browser's per-tab cap.
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -104,41 +100,38 @@ export function AppShell() {
     <div className="h-[100dvh] overflow-hidden flex flex-col">
       <StatusBanner />
       <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <IronsmithUnsupportedDeckModal />
       {!isDesktop && (
-        <>
-          <header
-            className={cn(
-              "flex items-center gap-2 border-b bg-background px-3 py-2 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.5rem)]",
-              hideNavChrome && "hidden",
-            )}
+        <header
+          className={cn(
+            "flex items-center gap-2 border-b bg-background px-3 py-2 pl-[calc(var(--safe-area-inset-left)+0.75rem)] pr-[calc(var(--safe-area-inset-right)+0.75rem)] pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
+            hideNavChrome && "hidden",
+          )}
+        >
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8"
+            onClick={() => setMobileNavOpen(true)}
           >
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => setMobileNavOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <ManaBrewLogo size={28} className="rounded-lg shrink-0" />
-            <span className="text-sm font-semibold tracking-tight">Manabrew</span>
-          </header>
-
-          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-            <SheetContent side="left" className="p-0 w-64">
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <Sidebar onNavigate={() => setMobileNavOpen(false)} />
-            </SheetContent>
-          </Sheet>
-
-          <main className={cn("flex-1 overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}>
-            <Outlet />
-          </main>
-        </>
+            <Menu className="h-5 w-5" />
+          </Button>
+          <ManaBrewLogo size={28} className="rounded-lg shrink-0" />
+          <span className="text-sm font-semibold tracking-tight">Manabrew</span>
+        </header>
       )}
 
-      {isDesktop && (
-        <div className="flex flex-1 min-h-0">
+      {!isDesktop && (
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetContent side="left" className="p-0 w-64">
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <Sidebar onNavigate={() => setMobileNavOpen(false)} />
+          </SheetContent>
+        </Sheet>
+      )}
+
+      <div className="flex flex-1 min-h-0">
+        {isDesktop && (
           <div
             className={cn(
               "h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out",
@@ -147,7 +140,9 @@ export function AppShell() {
           >
             <Sidebar />
           </div>
-          <div className="relative flex-1 min-w-0">
+        )}
+        <div className="relative flex-1 min-w-0">
+          {isDesktop && (
             <div
               className={cn(
                 "absolute left-0 top-1/2 -translate-y-1/2 z-30 group",
@@ -159,7 +154,7 @@ export function AppShell() {
                 variant="ghost"
                 className={cn(
                   "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
-                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
+                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 pointer-coarse:translate-x-0 pointer-coarse:w-6 transition-all duration-150",
                   "hover:bg-card",
                 )}
                 onClick={toggleSidebar}
@@ -172,14 +167,27 @@ export function AppShell() {
                 )}
               </Button>
             </div>
-            <main
-              className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}
-            >
-              <Outlet />
-            </main>
-          </div>
+          )}
+          <main
+            className={cn(
+              "h-full overflow-auto",
+              !isImmersiveRoute &&
+                cn(
+                  "pb-[var(--safe-area-inset-bottom)] pr-[var(--safe-area-inset-right)]",
+                  isDesktop
+                    ? cn(
+                        "pt-[var(--safe-area-inset-top)]",
+                        sidebarCollapsed && "pl-[var(--safe-area-inset-left)]",
+                      )
+                    : "pl-[var(--safe-area-inset-left)]",
+                ),
+              isImmersiveRoute && "!p-0 !overflow-hidden",
+            )}
+          >
+            <Outlet />
+          </main>
         </div>
-      )}
+      </div>
     </div>
   );
 }

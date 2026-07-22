@@ -1,31 +1,87 @@
-import type { GameState, DeferredSnapshot } from "./gameStore.types";
-import type { Prompt } from "@/protocol";
+import type {
+  GameState,
+  DeferredSnapshot,
+  ClientCardDto,
+  ClientGameView,
+  ClientPlayerDto,
+} from "./gameStore.types";
+import type { Prompt, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameViewDto } from "@/protocol/game";
+import type { GameViewDto, ZoneDto, ZoneKind } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
+import { hiddenZoneCard } from "@/lib/gameCard";
 
-function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | null): GameViewDto {
+function visibleCardsOf(zone: ZoneDto): ClientCardDto[] {
+  return zone.cards.flatMap((card) =>
+    card.visibility === "visible" ? [{ ...card, zoneId: zone.zone }] : [],
+  );
+}
+
+function normalizeGameView(
+  nextView: GameViewDto,
+  currentView: ClientGameView | null,
+): ClientGameView {
   const incoming = (nextView ?? {}) as Partial<GameViewDto>;
   const current = currentView ?? null;
+  const zones = Array.isArray(incoming.zones) ? incoming.zones : [];
+  const rawPlayers = Array.isArray(incoming.players) ? incoming.players : [];
+
+  const zoneOf = (ownerId: string, kind: ZoneKind) =>
+    zones.find((zone) => zone.ownerId === ownerId && zone.zone === kind);
+  const cardsOf = (ownerId: string, kind: ZoneKind) => {
+    const zone = zoneOf(ownerId, kind);
+    return zone ? visibleCardsOf(zone) : [];
+  };
+
+  // Exile keeps hidden entries (face-down foretold cards render as backs).
+  const exileCardsOf = (ownerId: string) => {
+    const zone = zoneOf(ownerId, "exile");
+    if (!zone) return [];
+    return zone.cards.map((card) =>
+      card.visibility === "visible"
+        ? { ...card, zoneId: zone.zone }
+        : hiddenZoneCard(card.id, ownerId, zone.zone),
+    );
+  };
+
+  const battlefield = zones.filter((zone) => zone.zone === "battlefield").flatMap(visibleCardsOf);
+
+  const players: ClientPlayerDto[] = rawPlayers.map((player) => ({
+    ...player,
+    hand: cardsOf(player.id, "hand"),
+    handCount: zoneOf(player.id, "hand")?.count ?? 0,
+    graveyard: cardsOf(player.id, "graveyard"),
+    exile: exileCardsOf(player.id),
+    commandZone: cardsOf(player.id, "command"),
+    library: cardsOf(player.id, "library"),
+    libraryCount: zoneOf(player.id, "library")?.count ?? 0,
+    poison: player.counters.poison ?? 0,
+    energyCounters: player.counters.energy ?? 0,
+    radiationCounters: player.counters.radiation ?? 0,
+    experienceCounters: player.counters.experience ?? 0,
+    ticketCounters: player.counters.ticket ?? 0,
+  }));
+
+  const hasView = zones.length > 0 || rawPlayers.length > 0;
 
   return {
     gameId: incoming.gameId ?? current?.gameId ?? "",
     turn: incoming.turn ?? current?.turn ?? 0,
-    step: incoming.step ?? current?.step ?? "",
+    step: incoming.step ?? current?.step ?? "untap",
     combatAssignments: Array.isArray(incoming.combatAssignments)
       ? incoming.combatAssignments
       : (current?.combatAssignments ?? []),
     activePlayerId: incoming.activePlayerId ?? current?.activePlayerId ?? "",
     priorityPlayerId: incoming.priorityPlayerId ?? current?.priorityPlayerId ?? "",
-    players: Array.isArray(incoming.players) ? incoming.players : (current?.players ?? []),
-    battlefield: Array.isArray(incoming.battlefield)
-      ? incoming.battlefield
-      : (current?.battlefield ?? []),
+    players: hasView ? players : (current?.players ?? []),
+    zones: hasView ? zones : (current?.zones ?? []),
+    battlefield: hasView ? battlefield : (current?.battlefield ?? []),
     stack: Array.isArray(incoming.stack) ? incoming.stack : (current?.stack ?? []),
     gameOver: incoming.gameOver ?? current?.gameOver ?? false,
     winnerId: incoming.winnerId ?? current?.winnerId ?? null,
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
+    dayTime: incoming.dayTime ?? current?.dayTime ?? "neither",
   };
 }
 
@@ -83,6 +139,17 @@ export function applyDisplay(
   get: () => GameState,
 ) {
   route({ displayEvents: [event], gameView: null, prompt: null }, `${source}: display`, set, get);
+}
+
+// The engine rejected our last response. It re-sends the open prompt right
+// after the error, so recovery is just unblocking the UI for another attempt.
+export function applyProtocolError(
+  error: ProtocolError,
+  source: string,
+  set: (partial: Partial<GameState>) => void,
+) {
+  console.warn(`[protocol-error:${source}]`, error.code, error.promptId, error.message);
+  set({ isWaitingForResponse: false, relinquishedPriority: false });
 }
 
 // A pure call-to-action: it carries no game view (state arrives via applyState).

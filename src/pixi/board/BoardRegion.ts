@@ -47,6 +47,7 @@ import {
   COMBAT_BLOCKER_OVERLAP_FRAC,
   COMBAT_ROW_PAD_Y,
   COMBAT_ROW_STEP_FRAC,
+  FIELD_INNER_EDGE_PAD_PX,
   COMBAT_STAGE_FAN_FRAC,
   GRID_SKELETON_FILL_ALPHA,
   GRID_SKELETON_FILL_ALPHA_COMPACT,
@@ -81,7 +82,9 @@ import {
 import { PlaymatLayer, playmatPad } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
+import { isCoarsePointer } from "@/lib/responsive";
 
+const COARSE_POINTER = isCoarsePointer();
 const COMBAT_ROW_BOT_ICON = "robot-antennas";
 
 type Point = ScreenPos;
@@ -130,6 +133,7 @@ export class BoardRegion {
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
   private compactZones = false;
+  private zoneTilesLocked = false;
   private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
@@ -244,8 +248,14 @@ export class BoardRegion {
     else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
+  setZoneTilesLocked(locked: boolean): void {
+    if (this.zoneTilesLocked === locked) return;
+    this.zoneTilesLocked = locked;
+    this.applyZoneTileDraggable();
+  }
+
   private applyZoneTileDraggable(): void {
-    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones);
+    this.zoneTiles.setDraggable(!this.mirrored && !this.compactZones && !this.zoneTilesLocked);
   }
 
   cancelZoneTileDrag(): void {
@@ -277,11 +287,11 @@ export class BoardRegion {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
     const ignoreBlockers = this.compactZones && !this.mirrored;
-    const isFree = (cell: GridCell | null): cell is GridCell =>
+    const isFree = (cell: GridCell | null, ignoreBlocked = ignoreBlockers): cell is GridCell =>
       !!cell &&
       !taken.has(cellKey(cell.col, cell.row)) &&
       !occupied.has(cellKey(cell.col, cell.row)) &&
-      (ignoreBlockers || !cell.blocked);
+      (ignoreBlocked || !cell.blocked);
 
     const attackBandRow = grid.rows;
     const resolveCell = (col: number, row: number): GridCell | null => {
@@ -298,11 +308,11 @@ export class BoardRegion {
         ? Array.from({ length: grid.rows }, (_, r) => r)
         : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
     const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
-    const nextDefaultCell = (): GridCell | null => {
+    const nextDefaultCell = (ignoreBlocked = ignoreBlockers): GridCell | null => {
       for (let col = 0; col < grid.cols; col++) {
         for (const row of rowOrder) {
           const cell = resolveCell(col, row);
-          if (isFree(cell)) return cell;
+          if (isFree(cell, ignoreBlocked)) return cell;
         }
       }
       return null;
@@ -312,6 +322,10 @@ export class BoardRegion {
       const slot = this.compactZones ? undefined : this.zoneSlots.get(key);
       let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
+      // A giant-card grid (few cells, partly covered by the hand fan and
+      // action cluster keep-outs) can run out of unblocked cells — overlap a
+      // blocker rather than stranding the tile at its stale geometry.
+      if (!cell) cell = nextDefaultCell(true);
       if (!cell) continue;
       if (!this.compactZones) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
       taken.add(cellKey(cell.col, cell.row));
@@ -374,7 +388,7 @@ export class BoardRegion {
     // The playmat fits the visible band, so re-fit it as the band eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
     if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
-    if (this.attackRowDebug) this.drawAttackRowDebug();
+    if (this.attackRowDebug || this.skeletonDebug) this.drawAttackRowDebug();
   }
 
   private updateClip(): void {
@@ -1060,13 +1074,10 @@ export class BoardRegion {
 
   private frontEdgeY(): number {
     const halfCard = (CARD_H * this.cardScale) / 2;
-    // Anchor the row's outer edge to the playmat border (bottom inner edge for
-    // opponents, top inner edge for us), not the raw field edge.
-    const mat = this.playmatRect();
     if (this.mirrored) {
-      return mat.y + mat.height - COMBAT_ROW_PAD_Y - halfCard;
+      return this.zone.y + this.zone.height - FIELD_INNER_EDGE_PAD_PX - COMBAT_ROW_PAD_Y - halfCard;
     }
-    return mat.y + COMBAT_ROW_PAD_Y + halfCard;
+    return this.zone.y + FIELD_INNER_EDGE_PAD_PX + COMBAT_ROW_PAD_Y + halfCard;
   }
 
   private applyNameGrouping(topLevel: CardDto[]): void {
@@ -1430,12 +1441,12 @@ export class BoardRegion {
 
   private touchHitPadScreen(): number {
     const grid = this.gridInfo;
-    if (!this.compactZones || !grid) return 0;
+    if (!COARSE_POINTER || !grid) return 0;
     return Math.max(0, Math.min((grid.cellW - grid.cardW) / 2, (grid.cellH - grid.cardH) / 2));
   }
 
   private applyTouchChrome(sprite: CardSprite): void {
-    if (!this.compactZones) {
+    if (!COARSE_POINTER) {
       sprite.setHitPad(0);
       sprite.setChromeScale(1);
       return;
@@ -1564,14 +1575,12 @@ export class BoardRegion {
     // Every field permanently reserves the inner-edge combat-row band so the
     // grid rows are sized once and never reflow when combat starts/ends; the row
     // shows/hides inside the reserved strip. The inner edge (next to the divider)
-    // is the bottom for opponents and the top for the local player.
     const reserve = combatRowReserve(this.cardScale);
-    const topReserve = this.mirrored ? 0 : reserve;
     return {
       x: z.x + pad,
-      y: z.y + pad + topReserve,
+      y: z.y + (this.mirrored ? pad : FIELD_INNER_EDGE_PAD_PX + reserve),
       width: Math.max(1, z.width - pad * 2),
-      height: Math.max(1, z.height - pad * 2 - reserve),
+      height: Math.max(1, z.height - pad - FIELD_INNER_EDGE_PAD_PX - reserve),
     };
   }
 
@@ -1790,6 +1799,7 @@ export class BoardRegion {
       this.gridSkeletonGfx.visible = false;
       this.gridSkeletonGfx.clear();
     }
+    this.drawAttackRowDebug();
   }
 
   /** Dev toggle: outline this region's reserved combat-row band (the attack
@@ -1803,7 +1813,7 @@ export class BoardRegion {
   private drawAttackRowDebug(): void {
     const gfx = this.attackRowDebugGfx;
     gfx.clear();
-    if (!this.attackRowDebug) {
+    if (!this.attackRowDebug && !this.skeletonDebug) {
       gfx.visible = false;
       return;
     }
@@ -1833,7 +1843,9 @@ export class BoardRegion {
       return;
     }
     const grid = this.gridInfo;
-    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
+    const theme = this.host.getTheme();
+    const color = hexToNum(theme.gameTheme.activeAction.active);
+    const blockedColor = hexToNum(theme.gameTheme.pt.lethal);
     const occupied = new Map<string, string>();
     for (const [id, pos] of this.gridTargets) {
       if (draggingIds.has(id)) continue;
@@ -1849,7 +1861,15 @@ export class BoardRegion {
     }
 
     for (const cell of grid.cells) {
-      if (cell.blocked) continue;
+      if (cell.blocked) {
+        if (this.skeletonDebug) {
+          gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
+          gfx.fill({ color: blockedColor, alpha: GRID_SKELETON_FILL_ALPHA * 4 });
+          gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
+          gfx.stroke({ color: blockedColor, width: 1, alpha: GRID_SKELETON_HOVER_ALPHA });
+        }
+        continue;
+      }
       const key = cellKey(cell.col, cell.row);
       const isStack = key === stackKey;
       const isHover = key === hoveredKey && !isStack;
@@ -1875,6 +1895,14 @@ export class BoardRegion {
       gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
       if (fillAlpha > 0) gfx.fill({ color, alpha: fillAlpha });
       gfx.stroke({ color, width: isStack || isHover ? 2 : 1, alpha: strokeAlpha });
+    }
+    if (this.skeletonDebug) {
+      for (const b of this.collectLocalBlockers()) {
+        gfx.rect(b.x, b.y, b.width, b.height);
+        gfx.fill({ color: blockedColor, alpha: GRID_SKELETON_FILL_ALPHA });
+        gfx.rect(b.x, b.y, b.width, b.height);
+        gfx.stroke({ color: blockedColor, width: 2, alpha: GRID_SKELETON_STACK_ALPHA });
+      }
     }
     gfx.visible = true;
   }

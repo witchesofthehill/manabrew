@@ -1,9 +1,112 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::prompts::common::TargetRef;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum ManaColor {
+    #[serde(rename = "W")]
+    White,
+    #[serde(rename = "U")]
+    Blue,
+    #[serde(rename = "B")]
+    Black,
+    #[serde(rename = "R")]
+    Red,
+    #[serde(rename = "G")]
+    Green,
+    #[serde(rename = "C")]
+    Colorless,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub struct Mana {
+    pub color: ManaColor,
+    pub amount: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum PlayerCounterKind {
+    Poison,
+    Energy,
+    Experience,
+    Radiation,
+    Ticket,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum ZoneKind {
+    Battlefield,
+    Hand,
+    Library,
+    Graveyard,
+    Exile,
+    Command,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum StepKind {
+    #[default]
+    Untap,
+    Upkeep,
+    Draw,
+    Main1,
+    CombatBegin,
+    CombatDeclareAttackers,
+    CombatDeclareBlockers,
+    CombatFirstStrikeDamage,
+    CombatDamage,
+    CombatEnd,
+    Main2,
+    EndOfTurn,
+    Cleanup,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub enum DayTime {
+    #[default]
+    Neither,
+    Day,
+    Night,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "visibility",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum CardView {
+    Visible(CardDto),
+    Hidden { id: String },
+}
+
+// One entry per (zone, owner) pair; battlefield cards are bucketed by controller.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub struct ZoneDto {
+    pub zone: ZoneKind,
+    pub owner_id: String,
+    // Ordered top-first where order is public knowledge
+    // count can be > cards.len if hidden cards are present (library)
+    pub cards: Vec<CardView>,
+    pub count: usize,
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -11,43 +114,18 @@ use crate::prompts::common::TargetRef;
 pub struct GameViewDto {
     pub game_id: String,
     pub turn: u32,
-    pub step: String,
+    pub step: StepKind,
     pub combat_assignments: Vec<CombatAssignmentDto>,
     pub active_player_id: String,
     pub priority_player_id: String,
     pub players: Vec<PlayerDto>,
-    pub battlefield: Vec<CardDto>,
+    pub zones: Vec<ZoneDto>,
     pub stack: Vec<StackObjectDto>,
     pub game_over: bool,
     pub winner_id: Option<String>,
     pub monarch_id: Option<String>,
     pub initiative_holder_id: Option<String>,
-}
-
-impl GameViewDto {
-    pub fn empty(game_id: String) -> Self {
-        Self {
-            game_id,
-            step: "main1".into(),
-            ..Default::default()
-        }
-    }
-
-    pub fn player(&self, id: &str) -> Option<&PlayerDto> {
-        self.players.iter().find(|p| p.id == id)
-    }
-
-    pub fn all_zone_cards(&self) -> impl Iterator<Item = &CardDto> {
-        self.battlefield
-            .iter()
-            .chain(self.players.iter().flat_map(|p| {
-                p.hand
-                    .iter()
-                    .chain(p.graveyard.iter())
-                    .chain(p.exile.iter())
-                    .chain(p.command_zone.iter())
-            }))
-    }
+    pub day_time: DayTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -77,23 +155,13 @@ pub struct PlayerDto {
     pub status: PlayerStatus,
     pub is_human: bool,
     pub life: i32,
-    pub poison: i32,
-    pub hand: Vec<CardDto>,
-    pub graveyard: Vec<CardDto>,
-    pub exile: Vec<CardDto>,
-    pub command_zone: Vec<CardDto>,
-    pub library_count: usize,
-    #[ts(type = "Record<string, number>")]
-    pub mana_pool: HashMap<String, i32>,
+    pub counters: BTreeMap<PlayerCounterKind, u32>,
+    pub mana_pool: BTreeMap<ManaColor, u32>,
     #[ts(type = "Record<string, number>")]
     pub commander_damage: HashMap<String, i32>,
-    pub energy_counters: i32,
-    pub radiation_counters: i32,
     pub has_city_blessing: bool,
     pub ring_level: i32,
     pub speed: i32,
-    pub experience_counters: i32,
-    pub ticket_counters: i32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -129,7 +197,6 @@ pub struct CardDto {
     pub text: String,
     pub controller_id: String,
     pub owner_id: String,
-    pub zone_id: String,
     pub tapped: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_crewed: bool,
@@ -142,8 +209,10 @@ pub struct CardDto {
     #[ts(optional)]
     pub attack_target_id: Option<String>,
     pub keywords: Vec<String>,
+    // Keyed by the engine's canonical `CounterType` display form ("P1P1",
+    // "Loyalty", one-off counter names uppercase); both producers must match it.
     #[ts(type = "Record<string, number>")]
-    pub counters: HashMap<String, i32>,
+    pub counters: BTreeMap<String, u32>,
     pub damage: i32,
     pub summoning_sick: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -161,6 +230,9 @@ pub struct CardDto {
     pub attached_to: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attachment_ids: Vec<String>,
+    // Mutate pile: the card ids merged under this top card.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub merged_card_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub flashback_cost: Option<String>,
@@ -223,6 +295,7 @@ pub enum TargetingIntent {
     LoseLife,
     Reveal,
     Draw,
+    Fetch,
     GainControl,
     Fight,
     Attach,
@@ -230,32 +303,6 @@ pub enum TargetingIntent {
     Block,
     Hostile,
     Friendly,
-}
-
-impl TargetingIntent {
-    pub fn prefers_arrow(self) -> bool {
-        matches!(self, TargetingIntent::Attack | TargetingIntent::Block)
-    }
-
-    pub fn is_hostile(self) -> bool {
-        matches!(
-            self,
-            TargetingIntent::Damage
-                | TargetingIntent::Destroy
-                | TargetingIntent::Sacrifice
-                | TargetingIntent::Exile
-                | TargetingIntent::Bounce
-                | TargetingIntent::Mill
-                | TargetingIntent::Discard
-                | TargetingIntent::Counter
-                | TargetingIntent::Tap
-                | TargetingIntent::Debuff
-                | TargetingIntent::LoseLife
-                | TargetingIntent::GainControl
-                | TargetingIntent::Fight
-                | TargetingIntent::Hostile
-        )
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

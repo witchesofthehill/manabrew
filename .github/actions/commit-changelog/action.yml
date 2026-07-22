@@ -1,0 +1,49 @@
+name: Commit changelog
+description: >-
+  Build a truncated `git log` changelog between two commits for Discord
+  embeds. Falls back to the last 5 commits when the range is unavailable
+  (force push, first push, shallow history). Trimmed so the whole embed
+  stays well under Discord's 4096-char description limit.
+
+inputs:
+  before:
+    description: Start of the commit range (exclusive)
+    required: true
+  after:
+    description: End of the commit range (inclusive)
+    required: true
+
+outputs:
+  changelog:
+    description: Truncated bullet-list changelog
+    value: ${{ steps.log.outputs.changelog }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build changelog
+      id: log
+      shell: bash
+      env:
+        BEFORE: ${{ inputs.before }}
+        AFTER: ${{ inputs.after }}
+      run: |
+        ZERO_SHA='0000000000000000000000000000000000000000'
+        if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO_SHA" ] && git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
+          RANGE="${BEFORE}..${AFTER}"
+        else
+          RANGE="${AFTER}~5..${AFTER}"
+        fi
+        LOG=$(git log --pretty=format:'- %s (%h, %an)' "$RANGE" 2>/dev/null || echo '')
+        if [ -z "$LOG" ]; then
+          LOG=$(git log --pretty=format:'- %s (%h, %an)' -n 5 "$AFTER" 2>/dev/null || echo '')
+        fi
+        MAX=1500
+        if [ "${#LOG}" -gt "$MAX" ]; then
+          LOG="${LOG:0:$MAX}"$'\n'"… (truncated)"
+        fi
+        {
+          echo 'changelog<<CHANGELOG_EOF'
+          echo "$LOG"
+          echo 'CHANGELOG_EOF'
+        } >> "$GITHUB_OUTPUT"

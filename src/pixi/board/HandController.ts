@@ -16,7 +16,6 @@ import {
   HAND_BOTTOM_SINK_FRAC_COMPACT,
   HAND_HOVER_HOLD_MS,
   HAND_LERP,
-  PLAYABLE_HIGHLIGHT_ALPHA,
   PLAYABLE_RING_ALPHA,
   SNAP_HAND_SCALE,
   SNAP_PX,
@@ -84,11 +83,14 @@ export class HandController {
   }
 
   setScale(scale: number): void {
-    // Shrink-only cap so a width-derived scale can't make the fan taller than
-    // its region and overflow the battlefield on a short window.
+    // Growth-only cap: an enlarged fan can't take more than a fraction of the
+    // region's height, but the cap never pushes the fan below the authored
+    // base size (scale 1) — short fields keep the same fan they always had.
     const zoneH = this.host.getPlayZone().height;
     const maxScale =
-      zoneH > 0 ? (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH : scale;
+      zoneH > 0
+        ? Math.max(1, (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH)
+        : scale;
     this.vScale = Math.min(scale, maxScale);
   }
 
@@ -233,7 +235,7 @@ export class HandController {
             },
       );
 
-      this.applyHighlight(sprite, card, isHovered, selectionMode, isSelected);
+      this.applyHighlight(sprite, card, selectionMode, isSelected);
     }
     this.hitZones = hitZones;
     this.drawHoverDebug();
@@ -543,7 +545,6 @@ export class HandController {
   private applyHighlight(
     sprite: CardSprite,
     card: CardDto,
-    isHovered: boolean,
     selectionMode = false,
     isSelected = false,
   ): void {
@@ -558,9 +559,7 @@ export class HandController {
       sprite.setRing(null);
       return;
     }
-    const ring = hexToNum(this.host.getTheme().gameTheme.cardRing);
-    if (isHovered) sprite.setHighlight(true, ring, PLAYABLE_HIGHLIGHT_ALPHA);
-    else sprite.setRing(ring, PLAYABLE_RING_ALPHA);
+    sprite.setPlayableRing(hexToNum(this.host.getTheme().gameTheme.cardRing));
   }
 
   private recalcTargets(): void {

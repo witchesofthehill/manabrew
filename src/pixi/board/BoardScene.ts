@@ -241,6 +241,7 @@ export class BoardScene {
   private lastCapsuleRects = new Map<string, string>();
   private delimsWereMoving = false;
   private autoSort = false;
+  private zoneTilesLocked = false;
   private gridSkeletonDebug = false;
   private attackRowDebug = false;
 
@@ -459,6 +460,7 @@ export class BoardScene {
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
       region.setCompactZones(this.compactMode);
+      region.setZoneTilesLocked(this.zoneTilesLocked);
       region.setSkeletonDebug(this.gridSkeletonDebug);
       region.setAttackRowDebug(this.attackRowDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
@@ -1215,6 +1217,12 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.setCompactZones(compact);
   }
 
+  setZoneTilesLocked(locked: boolean): void {
+    if (this.zoneTilesLocked === locked) return;
+    this.zoneTilesLocked = locked;
+    for (const rec of this.regions.values()) rec.region.setZoneTilesLocked(locked);
+  }
+
   setStackAnchorProvider(provider: StackAnchorProvider | null): void {
     this.stackProvider = provider;
   }
@@ -1395,11 +1403,17 @@ export class BoardScene {
   }
 
   /** The hand blocker is root-local; `collectBlockers` rects are canvas-space
-   *  (regions convert back through the zoomed root transform). */
+   *  (regions convert back through the zoomed root transform). Only the trimmed
+   *  reserve fraction of the fan blocks cells — same trim as
+   *  `getHandReserveBottom` — so the bottom row may tuck under the fan's top. */
   private localBlockers(): BlockingRect[] {
     const handRect = this.hand?.getBlockerRect();
     if (!handRect) return [];
-    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(handRect.x, handRect.y), RECT_SCRATCH_A);
+    const zone = this.localZone();
+    const bottom = zone ? zone.y + zone.height : handRect.y + handRect.height;
+    const trim = this.compactMode ? HAND_RESERVE_TRIM_COMPACT : HAND_RESERVE_TRIM;
+    const top = bottom - Math.max(0, bottom - handRect.y) * trim;
+    const tl = this.root.toGlobal(RECT_SCRATCH_A.set(handRect.x, top), RECT_SCRATCH_A);
     const br = this.root.toGlobal(
       RECT_SCRATCH_B.set(handRect.x + handRect.width, handRect.y + handRect.height),
       RECT_SCRATCH_B,
@@ -1582,6 +1596,32 @@ export class BoardScene {
   }
 
   private fireLongPressPreview(region: BoardRegion, sprite: CardSprite): void {
+    // A fired long-press is preview-only: drop the drag armed by the same
+    // pointerdown, or hold jitter / release wobble past the drag threshold
+    // reaches onGlobalMove's dismiss and closes the sticky preview.
+    if (this.dragHandler.isDragging) {
+      const state = region.getLastState();
+      if (state) region.updateBattlefield(state);
+    }
+    this.dragHandler.cancel();
+    this.attackDragCandidate = null;
+    if (this.blockDragBlockerId) this.setBlockDragId(null);
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      this.unassignDrag = null;
+      const state = ud.region.getLastState();
+      if (state) ud.region.updateBattlefield(state);
+    }
+    const selection = this.selection;
+    if (selection) {
+      const selected = selection.getSelected();
+      // Undo only the selection this press created; keep a wider marquee/shift
+      // selection the card was already part of.
+      if (selected.size === 1 && selected.has(sprite.card.id)) {
+        selection.setSelected(new Set());
+        selection.refresh();
+      }
+    }
     if (this.callbacks.onLongPressCard) {
       this.callbacks.onLongPressCard(sprite.card, this.toViewportBounds(sprite.getBounds()));
       return;

@@ -1,19 +1,27 @@
-/** Phase bar definitions — must match phase_to_step() in src-tauri/src/game_view_dto.rs */
-export const PHASES = [
+import type { StepKind } from "@/protocol";
+
+/** The single UI-side list of turn steps, ordered to match the engine's turn
+ *  structure. Ids are protocol `StepKind` values — never restate them elsewhere. */
+export const PHASES: readonly {
+  id: StepKind;
+  label: string;
+  short: string;
+  combat?: boolean;
+}[] = [
   { id: "untap", label: "Untap", short: "UNT" },
   { id: "upkeep", label: "Upkeep", short: "UP" },
   { id: "draw", label: "Draw", short: "DR" },
   { id: "main1", label: "Main 1", short: "M1" },
-  { id: "begin_combat", label: "Begin Combat", short: "BC" },
-  { id: "declare_attackers", label: "Attackers", short: "ATK" },
-  { id: "declare_blockers", label: "Blockers", short: "BLK" },
-  { id: "first_strike_damage", label: "1st Strike", short: "1ST" },
-  { id: "combat_damage", label: "Damage", short: "DMG" },
-  { id: "end_combat", label: "End Combat", short: "EC" },
+  { id: "combatBegin", label: "Begin Combat", short: "BC", combat: true },
+  { id: "combatDeclareAttackers", label: "Attackers", short: "ATK", combat: true },
+  { id: "combatDeclareBlockers", label: "Blockers", short: "BLK", combat: true },
+  { id: "combatFirstStrikeDamage", label: "1st Strike", short: "1ST", combat: true },
+  { id: "combatDamage", label: "Damage", short: "DMG", combat: true },
+  { id: "combatEnd", label: "End Combat", short: "EC", combat: true },
   { id: "main2", label: "Main 2", short: "M2" },
-  { id: "end", label: "End", short: "END" },
+  { id: "endOfTurn", label: "End", short: "END" },
   { id: "cleanup", label: "Cleanup", short: "CL" },
-] as const;
+];
 
 export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
 
@@ -57,7 +65,7 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseNumber"]: "Choose a number",
   ["chooseDamageAssignmentOrder"]: "Order blockers for damage assignment",
   ["chooseCombatDamageAssignment"]: "Assign combat damage",
-  ["reorderCards"]: "Reorder the cards",
+  ["reorder"]: "Reorder the cards",
   ["gameOver"]: "Game Over",
 };
 
@@ -87,3 +95,9 @@ export const RING_ABILITIES: readonly string[] = [
   "Whenever your Ring-bearer becomes blocked by a creature, that creature's controller sacrifices it at the end of combat.",
   "Whenever your Ring-bearer deals combat damage to a player, each opponent loses 3 life.",
 ] as const;
+
+// Card preview hover-delay slider bounds — shared by the Settings page and the
+// in-game board settings modal.
+export const HOVER_DELAY_MIN = 100;
+export const HOVER_DELAY_MAX = 1500;
+export const HOVER_DELAY_STEP = 50;

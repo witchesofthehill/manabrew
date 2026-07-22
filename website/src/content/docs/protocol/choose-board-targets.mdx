@@ -60,10 +60,19 @@ drawn from `candidates`.
 
 ```json
 {
+  "kind": "response",
   "promptId": 5,
-  "output": {
-    "type": "boardTargets",
-    "chosen": [{ "kind": "card", "id": "bf-7" }]
+  "action": {
+    "type": "chooseBoardTargets",
+    "output": {
+      "type": "boardTargets",
+      "chosen": [
+        {
+          "kind": "card",
+          "id": "bf-7"
+        }
+      ]
+    }
   }
 }
 ```

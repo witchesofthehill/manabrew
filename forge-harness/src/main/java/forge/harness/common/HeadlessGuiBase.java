@@ -64,7 +64,6 @@ public class HeadlessGuiBase implements IGuiBase {
     @Override public String showFileDialog(String title, String defaultDir) { return null; }
     @Override public File getSaveFile(File defaultFile) { return null; }
     @Override public void download(GuiDownloadService service, Consumer<Boolean> callback) { if (callback != null) callback.accept(false); }
-    @Override public void refreshSkin() {}
     @Override public void showCardList(String title, String message, List<PaperCard> list) {}
     @Override public boolean showBoxedProduct(String title, String message, List<PaperCard> list) { return false; }
     @Override public PaperCard chooseCard(String title, String message, List<PaperCard> list) { return list != null && !list.isEmpty() ? list.get(0) : null; }

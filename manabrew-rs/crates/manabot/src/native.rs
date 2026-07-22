@@ -93,6 +93,17 @@ async fn run_bot_session(
             serde_json::from_str(&text).map_err(|error| error.to_string())?;
         let outbound = state.on_server_message(&message);
         for msg in outbound {
+            if let (Some(delay), ClientMessage::BroadcastState { .. }) =
+                (state.answer_delay(), &msg)
+            {
+                tokio::select! {
+                    _ = shutdown.notified() => {
+                        close(&mut sink, &mut stream).await;
+                        return Ok(SessionEnd::Shutdown);
+                    }
+                    _ = tokio::time::sleep(delay) => {}
+                }
+            }
             send(&mut sink, &msg).await?;
         }
         if let Some(reason) = state.failure() {

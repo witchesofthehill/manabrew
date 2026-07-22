@@ -929,7 +929,7 @@ pub fn load_data(cards_dir: Option<&str>, verbose: bool) -> Result<LoadedData, S
     let archive_path = cardset_archive_path();
     if !archive_path.exists() {
         return Err(format!(
-            "Cardset archive not found at {}. Run `cargo build -p forge-web` (or `yarn build:wasm`) to build it.",
+            "Cardset archive not found at {}. Run `cargo run -p forge-cardset-archive --features build --release --bin build-cardset-archive` to build it.",
             archive_path.display()
         ));
     }

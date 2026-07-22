@@ -41,6 +41,8 @@ pub struct BotConfig {
     /// Which built-in AI to plug into the bot. Defaults to `Simple`.
     #[serde(default)]
     pub agent: AgentKind,
+    #[serde(default)]
+    pub answer_delay_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +63,12 @@ pub struct BotState {
 }
 
 impl BotState {
+    pub fn answer_delay(&self) -> Option<std::time::Duration> {
+        self.config
+            .answer_delay_ms
+            .map(std::time::Duration::from_millis)
+    }
+
     pub fn new(config: BotConfig) -> Self {
         let agent = config.agent.build();
         Self {
@@ -205,10 +213,10 @@ impl BotState {
 
         // Java-side prompts can arrive in shapes that don't deserialize as
         // `AgentPrompt`; passing priority is always a safe default in that case.
-        let action_value =
+        let (prompt_id, action_value) =
             if prompt.get("kind").and_then(serde_json::Value::as_str) == Some("priority") {
                 bot_log("decide: raw priority -> pass");
-                json!({ "kind": "pass" })
+                (0, json!({ "kind": "pass" }))
             } else {
                 let parsed: AgentPrompt = match serde_json::from_value(prompt) {
                     Ok(p) => p,
@@ -219,6 +227,7 @@ impl BotState {
                         return Vec::new();
                     }
                 };
+                let prompt_id = parsed.prompt_id;
                 let Some(action) = self.agent.decide(parsed) else {
                     bot_log(&format!("DROP: agent returned no action for {prompt_type}"));
                     return Vec::new();
@@ -226,7 +235,7 @@ impl BotState {
                 match serde_json::to_value(action) {
                     Ok(v) => {
                         bot_log(&format!("decide: {prompt_type} -> {v}"));
-                        v
+                        (prompt_id, v)
                     }
                     Err(error) => {
                         bot_log(&format!("DROP: action did not serialize: {error}"));
@@ -237,12 +246,16 @@ impl BotState {
 
         let response = StateEnvelope::Response {
             from_player: for_player,
+            prompt_id,
             action: action_value,
         };
         match serde_json::to_value(response) {
             Ok(state) => {
                 bot_log("send: broadcasting response");
-                vec![ClientMessage::BroadcastState { state }]
+                vec![ClientMessage::BroadcastState {
+                    state,
+                    target_player: None,
+                }]
             }
             Err(error) => {
                 bot_log(&format!(

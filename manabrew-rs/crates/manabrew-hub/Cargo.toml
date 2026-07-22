@@ -1,0 +1,46 @@
+[package]
+name = "manabrew-hub"
+version = "0.3.1"
+edition = "2021"
+license.workspace = true
+description = "Deck hub and analytics stats API for manabrew"
+
+[features]
+default = ["server"]
+server = [
+    "dep:axum",
+    "dep:tokio",
+    "dep:tower-http",
+    "dep:rusqlite",
+    "dep:serde_json",
+    "dep:uuid",
+    "dep:sha2",
+    "dep:rand",
+    "dep:chrono",
+    "dep:tracing",
+    "dep:tracing-subscriber",
+]
+
+[[bin]]
+name = "manabrew-hub"
+path = "src/main.rs"
+required-features = ["server"]
+
+[dependencies]
+manabrew-protocol = { path = "../manabrew-protocol", version = "1.0.1" }
+serde = { workspace = true }
+ts-rs = { workspace = true }
+axum = { version = "0.7", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net"], optional = true }
+tower-http = { version = "0.5", features = ["cors"], optional = true }
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+serde_json = { workspace = true, optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
+sha2 = { version = "0.10", optional = true }
+rand = { version = "0.8", optional = true }
+chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }

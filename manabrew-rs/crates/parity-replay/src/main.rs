@@ -2,6 +2,7 @@ mod analytics;
 mod diff;
 mod replay_agent;
 mod trace;
+mod view;
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -192,7 +193,7 @@ fn report(ctx: &ReplayContext) {
         ""
     };
     println!(
-        "{label} at decision #{} (turn {} {}, {} on {}){suffix}",
+        "{label} at decision #{} (turn {} {:?}, {} on {}){suffix}",
         first.decision_index, first.turn, first.step, first.prompt_kind, first.deciding_player
     );
     print_diffs(&first.diffs);
@@ -205,7 +206,7 @@ fn report(ctx: &ReplayContext) {
         for div in ctx.divergences.iter().skip(1) {
             let fields: Vec<&str> = div.diffs.iter().map(|d| d.path.as_str()).collect();
             println!(
-                "  #{} turn {} {} {} on {}: {}",
+                "  #{} turn {} {:?} {} on {}: {}",
                 div.decision_index,
                 div.turn,
                 div.step,

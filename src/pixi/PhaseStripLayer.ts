@@ -8,11 +8,14 @@ import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
+import { isCoarsePointer } from "@/lib/responsive";
 import {
   STRIP_TURN_ALPHA,
   STRIP_COMPACT_EXPAND_TIMEOUT_MS,
   STRIP_EXPANDED_BG_ALPHA,
 } from "./constants";
+import { PHASES as STEP_DEFS } from "@/components/game/game.constants";
+import type { StepKind } from "@/protocol";
 
 /** Display cells. "combat" is a merged cell that represents all combat sub-phases. */
 interface PhaseSpec {
@@ -24,42 +27,28 @@ interface PhaseSpec {
   indicatorPhases?: string[];
 }
 
-const COMBAT_SUB_PHASES = [
-  "begin_combat",
-  "declare_attackers",
-  "declare_blockers",
-  "first_strike_damage",
-  "combat_damage",
-  "end_combat",
-];
+const COMBAT_SUB_PHASES = STEP_DEFS.filter((p) => p.combat).map((p) => p.id);
 
-const COMBAT_LABELS: Record<string, string> = {
-  begin_combat: "BC",
-  declare_attackers: "ATK",
-  declare_blockers: "BLK",
-  first_strike_damage: "1ST",
-  combat_damage: "DMG",
-  end_combat: "EC",
-};
+const COMBAT_LABELS: Record<string, string> = Object.fromEntries(
+  STEP_DEFS.filter((p) => p.combat).map((p) => [p.id, p.short]),
+);
 
-const PHASES: PhaseSpec[] = [
-  { id: "upkeep", short: "UP" },
-  { id: "draw", short: "DR" },
-  { id: "main1", short: "M1" },
-  {
-    id: "combat",
-    short: "COMBAT",
-    subPhases: COMBAT_SUB_PHASES,
-    indicatorPhases: ["declare_attackers"],
-  },
-  { id: "main2", short: "M2" },
-  { id: "end", short: "END" },
-  { id: "cleanup", short: "CL" },
-];
+const PHASES: PhaseSpec[] = STEP_DEFS.filter((p) => p.id !== "untap").flatMap((p): PhaseSpec[] => {
+  if (!p.combat) return [{ id: p.id, short: p.short }];
+  if (p.id !== COMBAT_SUB_PHASES[0]) return [];
+  return [
+    {
+      id: "combat",
+      short: "COMBAT",
+      subPhases: COMBAT_SUB_PHASES,
+      indicatorPhases: ["combatDeclareAttackers" satisfies StepKind],
+    },
+  ];
+});
 
 const CELL_W = 60;
 const COMBAT_CELL_W = 84;
-const CELL_H = 30;
+const CELL_H = 28;
 const CELL_GAP = 5;
 const CELL_R = 4;
 const COMPACT_PILL_H = 24;
@@ -77,46 +66,15 @@ function easeOut(t: number): number {
   return 1 - t1 * t1 * t1;
 }
 
-// ── Indicator shapes for self (bottom) and opponents (top) ────────────
-const INDICATOR_SIZE = 13;
-const INDICATOR_GAP = 3;
-const INDICATOR_MARGIN = 4; // distance from cell edge
-
-type ShapeKind = "triangle" | "diamond" | "circle";
-
-function drawShape(
-  gfx: Graphics,
-  kind: ShapeKind,
-  cx: number,
-  cy: number,
-  size: number,
-  color: number,
-  filled: boolean,
-  pointUp: boolean,
-): void {
-  const r = size / 2;
-  if (kind === "triangle") {
-    const tipY = pointUp ? cy - r : cy + r;
-    const baseY = pointUp ? cy + r : cy - r;
-    gfx.moveTo(cx, tipY);
-    gfx.lineTo(cx - r, baseY);
-    gfx.lineTo(cx + r, baseY);
-    gfx.closePath();
-  } else if (kind === "diamond") {
-    gfx.moveTo(cx, cy - r);
-    gfx.lineTo(cx + r, cy);
-    gfx.lineTo(cx, cy + r);
-    gfx.lineTo(cx - r, cy);
-    gfx.closePath();
-  } else {
-    gfx.circle(cx, cy, r * 0.8);
-  }
-  if (filled) {
-    gfx.fill({ color });
-  } else {
-    gfx.stroke({ color, width: 1.2, alpha: 0.5 });
-  }
-}
+// ── Indicator lines for self (bottom) and opponents (top) ─────────────
+const INDICATOR_H = 4;
+const INDICATOR_HOVER_H = 6;
+const INDICATOR_GAP = 4;
+const INDICATOR_MARGIN = 3; // distance from cell edge
+const INDICATOR_HIT_H = 12;
+const INDICATOR_GHOST_ALPHA = 0.35;
+// My stops only fire on my turn — fade them while an opponent is acting.
+const INDICATOR_OFF_TURN_ALPHA = 0.55;
 
 // Text styles — seeded from the current theme; kept in sync by setTheme()
 const _initTheme = getTheme().gameTheme;
@@ -147,6 +105,7 @@ interface PhaseIndicatorData {
   selfCy: number;
   oppCy: number;
   selfEnabled: boolean;
+  selfOffTurn: boolean;
   selfColor: number;
   oppCount: number;
   oppEnabled: boolean[];
@@ -182,7 +141,7 @@ interface PhaseCell {
 
 export interface OpponentInfo {
   id: string;
-  /** Display order index (0-2). Determines shape + color. */
+  /** Display order index (0-2). Determines color. */
   index: number;
 }
 
@@ -456,7 +415,7 @@ export class PhaseStripLayer {
     const showPill = this.compact && !this.expanded;
     this.cellsContainer.visible = !showPill;
     this.pillContainer.visible = showPill;
-    this.forceShowIndicators = this.compact && this.expanded;
+    this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
 
     // Find combat cell index
     const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
@@ -516,7 +475,7 @@ export class PhaseStripLayer {
     }
 
     // Strip hover hit area — covers cells + indicator rows
-    const hoverPad = INDICATOR_SIZE + INDICATOR_MARGIN + 6;
+    const hoverPad = INDICATOR_HIT_H + INDICATOR_MARGIN + 2;
     this.stripHitArea.clear();
     this.stripHitArea.rect(stripLeft, y - hoverPad, stripRight - stripLeft, CELL_H + hoverPad * 2);
     this.stripHitArea.fill({ color: 0x000000, alpha: 0.001 });
@@ -664,9 +623,10 @@ export class PhaseStripLayer {
       // ── Store indicator geometry for tick() drawing ──
       cell._indData = {
         cx: cx + cellW / 2,
-        selfCy: y + CELL_H + INDICATOR_MARGIN + INDICATOR_SIZE / 2,
-        oppCy: y - INDICATOR_MARGIN - INDICATOR_SIZE / 2,
+        selfCy: y + CELL_H + INDICATOR_MARGIN + INDICATOR_H / 2,
+        oppCy: y - INDICATOR_MARGIN - INDICATOR_H / 2,
         selfEnabled: phaseIds.some((ph) => state.selfEnabledPhases.has(ph)),
+        selfOffTurn: !isMeActive,
         selfColor,
         oppCount: state.opponents.length,
         oppEnabled: state.opponents.map((opp) => {
@@ -679,21 +639,12 @@ export class PhaseStripLayer {
       };
 
       // Hit areas (static positions, always present)
-      const indCx = cx + cellW / 2;
-      const selfIndCy = y + CELL_H + INDICATOR_MARGIN + INDICATOR_SIZE / 2;
       cell.selfHitArea.clear();
-      cell.selfHitArea.rect(
-        indCx - INDICATOR_SIZE,
-        selfIndCy - INDICATOR_SIZE,
-        INDICATOR_SIZE * 2,
-        INDICATOR_SIZE * 2,
-      );
+      cell.selfHitArea.rect(cx, y + CELL_H, cellW, INDICATOR_HIT_H);
       cell.selfHitArea.fill({ color: 0x000000, alpha: 0.001 });
 
-      const oppRowCy = y - INDICATOR_MARGIN - INDICATOR_SIZE / 2;
       const oppCount = state.opponents.length;
-      const oppTotalW = oppCount * INDICATOR_SIZE + Math.max(0, oppCount - 1) * INDICATOR_GAP;
-      const oppStartX = indCx - oppTotalW / 2 + INDICATOR_SIZE / 2;
+      const oppSegW = (cellW - Math.max(0, oppCount - 1) * INDICATOR_GAP) / Math.max(1, oppCount);
       for (let oi = 0; oi < 3; oi++) {
         const oha = cell.oppHitAreas[oi]!;
         if (oi >= oppCount) {
@@ -701,13 +652,12 @@ export class PhaseStripLayer {
           continue;
         }
         oha.visible = true;
-        const shapeX = oppStartX + oi * (INDICATOR_SIZE + INDICATOR_GAP);
         oha.clear();
         oha.rect(
-          shapeX - INDICATOR_SIZE,
-          oppRowCy - INDICATOR_SIZE,
-          INDICATOR_SIZE * 2,
-          INDICATOR_SIZE * 2,
+          cx + oi * (oppSegW + INDICATOR_GAP),
+          y - INDICATOR_HIT_H,
+          oppSegW,
+          INDICATOR_HIT_H,
         );
         oha.fill({ color: 0x000000, alpha: 0.001 });
       }
@@ -742,30 +692,30 @@ export class PhaseStripLayer {
       // Self indicator
       cell.selfIndicator.clear();
       if (d.selfEnabled || showEmpty) {
-        const sz = cell.selfHovered ? INDICATOR_SIZE * 1.25 : INDICATOR_SIZE;
-        drawShape(
-          cell.selfIndicator,
-          "circle",
-          d.cx,
-          d.selfCy,
-          sz,
-          d.selfColor,
-          d.selfEnabled,
-          false,
-        );
+        const h = cell.selfHovered ? INDICATOR_HOVER_H : INDICATOR_H;
+        cell.selfIndicator.roundRect(d.cx - d.cellW / 2, d.selfCy - h / 2, d.cellW, h, h / 2);
+        cell.selfIndicator.fill({
+          color: d.selfColor,
+          alpha: d.selfEnabled
+            ? d.selfOffTurn
+              ? INDICATOR_OFF_TURN_ALPHA
+              : 1
+            : INDICATOR_GHOST_ALPHA,
+        });
       }
 
       // Opponent indicators
       cell.oppIndicators.clear();
-      const oppTotalW = d.oppCount * INDICATOR_SIZE + Math.max(0, d.oppCount - 1) * INDICATOR_GAP;
-      const oppStartX = d.cx - oppTotalW / 2 + INDICATOR_SIZE / 2;
+      const oppSegW =
+        (d.cellW - Math.max(0, d.oppCount - 1) * INDICATOR_GAP) / Math.max(1, d.oppCount);
       for (let oi = 0; oi < d.oppCount; oi++) {
         const enabled = d.oppEnabled[oi];
         if (!enabled && !showEmpty) continue;
         const color = d.oppColors[oi];
-        const shapeX = oppStartX + oi * (INDICATOR_SIZE + INDICATOR_GAP);
-        const sz = cell.oppHovered[oi] ? INDICATOR_SIZE * 1.25 : INDICATOR_SIZE;
-        drawShape(cell.oppIndicators, "circle", shapeX, d.oppCy, sz, color, enabled, true);
+        const h = cell.oppHovered[oi] ? INDICATOR_HOVER_H : INDICATOR_H;
+        const segX = d.cx - d.cellW / 2 + oi * (oppSegW + INDICATOR_GAP);
+        cell.oppIndicators.roundRect(segX, d.oppCy - h / 2, oppSegW, h, h / 2);
+        cell.oppIndicators.fill({ color, alpha: enabled ? 1 : INDICATOR_GHOST_ALPHA });
       }
     }
   }

@@ -43,7 +43,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
     >
       <button
         type="button"
-        className="grid size-6 place-items-center rounded-full hover:bg-white/15 @sm:size-7"
+        className="grid size-6 place-items-center rounded-full hover:bg-white/15 @sm:size-7 pointer-coarse:size-8"
         aria-label={`Decrease ${counter.label}`}
         {...decBindings}
       >
@@ -56,7 +56,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       </div>
       <button
         type="button"
-        className="grid size-6 place-items-center rounded-full hover:bg-white/15 @sm:size-7"
+        className="grid size-6 place-items-center rounded-full hover:bg-white/15 @sm:size-7 pointer-coarse:size-8"
         aria-label={`Increase ${counter.label}`}
         {...incBindings}
       >
@@ -64,7 +64,7 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
       </button>
       <button
         type="button"
-        className="ml-0.5 hidden size-6 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white group-hover:grid"
+        className="ml-0.5 hidden size-6 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white group-hover:grid pointer-coarse:grid"
         aria-label={`Remove ${counter.label}`}
         onClick={() => remove(playerId, counter.id)}
       >

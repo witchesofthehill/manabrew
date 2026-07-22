@@ -278,8 +278,10 @@ public final class Main {
 
     /**
      * Interactive server mode: per-game JSON-RPC over stdin/stdout dispatching
-     * to a long-lived {@link ManaBrewEngineAdapter}. One process owns one game
-     * at a time; pool callers send `reset` between games and `quit` to exit.
+     * to a long-lived {@link ManaBrewEngineAdapter}. Sessions are routed by
+     * sessionId and each runs on its own game thread, so one process can host
+     * several concurrent games; pool callers send `reset` only while the
+     * process is idle and `quit` to exit.
      *
      * Request shape:  {"command":"startGame","payload":"<json>"}  (sessionId
      * goes in `sessionId`; payload is the inner JSON string).
@@ -341,7 +343,9 @@ public final class Main {
                                 request.get("playerIndex").getAsInt()));
                             break;
                         case "getSnapshot":
-                            sendOk(adapter.getSnapshot(requireString(request, "sessionId")));
+                            sendOk(adapter.getSnapshot(
+                                requireString(request, "sessionId"),
+                                request.has("viewer") ? request.get("viewer").getAsInt() : -1));
                             break;
                         case "getGameOver":
                             sendOk(adapter.getGameOver(requireString(request, "sessionId")));

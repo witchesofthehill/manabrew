@@ -1,34 +1,36 @@
-# Per-PR preview stack, driven by .github/workflows/preview-deploy.yml.
-# Runs under /opt/manabrew-staging, joins the prod docker network. Own
-# manabrew-server so a backend-breaking PR is previewable without touching
-# the live relay.
+# Staging stack — tracks the `staging` branch, runs on the PRODUCTION box under
+# /opt/manabrew-staging and joins the prod docker network so the prod Caddy
+# (ops/Caddyfile) fronts it at staging.manabrew.app / relay-staging.manabrew.app.
+# Driven by .github/workflows/staging-deploy.yml over direct SSH via
+# `cargo xtask deploy --staging` from the runner.
+#
+# No published ports: prod Caddy owns 80/443 on the box. Every service name
+# carries a -staging suffix because it shares docker DNS with the prod project.
+# Secrets come from /opt/manabrew-staging/.env, written by the workflow's
+# secret sync — never from prod's ops/production.secrets.
 services:
   manabrew-staging:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-      args:
-        VITE_RELAY_HOST: relay-staging.manabrew.app
-        VITE_RELAY_PORT: "443"
-        VITE_RELAY_PASSWORD: ${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}
-        VITE_MANAGED_RELAY: "1"
-        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
-        # Make the hosted (Java) engine available on staging so the Settings
-        # engine toggle shows. Actual use is per-user (preferHostedEngine);
-        # default play stays client-side.
-        VITE_HOSTED_AI_ENABLED: "true"
+    image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-staging}
     restart: unless-stopped
+    environment:
+      HUB_ADMIN_PASSWORD_HASH:
+      RELAY_HOST: "relay-staging.manabrew.app"
+      RELAY_PORT: "443"
+      RELAY_PASSWORD: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
+      DESIGN_SYSTEM: "${DESIGN_SYSTEM:-1}"
+      # Hub API is same-origin (path-routed in ops/staging.Caddyfile).
+      HUB_API_URL: "https://staging.manabrew.app"
     expose:
       - "80"
     volumes:
       - ./ops/staging.Caddyfile:/etc/caddy/Caddyfile:ro
+    mem_limit: 128m
     depends_on:
       - manabrew-server-staging
 
   manabrew-server-staging:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
+    image: ghcr.io/witchesofthehill/manabrew-server:${MANABREW_IMAGE_TAG:-staging}
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
@@ -41,6 +43,8 @@ services:
       - "9443"
       - "9444"
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
@@ -49,21 +53,47 @@ services:
       retries: 3
       start_period: 5s
 
-  # Hosted Java engine for the staging preview, so the Settings engine toggle
-  # has a node to talk to. Its room is `hosted` (unlisted in the lobby).
+  manabrew-hub-staging:
+    image: ghcr.io/witchesofthehill/manabrew-hub:${MANABREW_IMAGE_TAG:-staging}
+    environment:
+      HUB_HOST: "0.0.0.0"
+      HUB_PORT: "9500"
+      # Own throwaway DB inside the staging tree — never prod's hub.db.
+      HUB_DB_PATH: "/var/manabrew/hub/hub.db"
+      RUST_LOG: "manabrew_hub=info"
+      HUB_PUBLIC_URL: "https://staging.manabrew.app"
+      WEB_APP_URL: "https://staging.manabrew.app"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+      DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+    volumes:
+      - ./ops/hub-data:/var/manabrew/hub
+    expose:
+      - "9500"
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9500/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   self-hosted-node-staging:
-    build:
-      context: .
-      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
+    profiles:
+      - hosted-ai
+    image: ghcr.io/witchesofthehill/manabrew-node:${MANABREW_IMAGE_TAG:-staging}
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server-staging:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
-      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
-      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
-      # Pool size of Java subprocesses; each room runs in its own JVM.
-      # Staging box has 3GB RAM, so pool at 1 until we size up.
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-Any}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       RUST_LOG: "self_hosted_node=info"
+    mem_limit: 1g
+    cpu_shares: 512
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped

@@ -18,7 +18,10 @@ export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
 // the row lock in BoardCanvas.reconfigure is what actually picks the scale.
 export const BATTLEFIELD_CARD_SCALE_FLOOR_COMPACT = 0.2;
 export const BATTLEFIELD_MIN_ROWS = 3;
-export const BATTLEFIELD_MAX_ROWS = 4;
+// The card-size multiplier's ceiling: a field may drop to 2 rows of big cards,
+// never 1 — a single row makes the game unplayable (PR #450 review). Compact
+// mode keeps the 3-row lock.
+export const BATTLEFIELD_MIN_ROWS_LARGEST = 2;
 // Panel wider than this fraction of the canvas reserves the whole top row.
 export const OPPONENT_PANEL_FULLWIDTH_FRAC = 0.4;
 
@@ -84,19 +87,17 @@ export const CAST_DRAG_HAND_SINK_PX = 200;
 
 export const EXIT_FADE_LERP = 0.2;
 export const EXIT_SHRINK = 0.95;
-export const COMBAT_STAGE_PADDING_PX = 6;
-export const COMBAT_ROW_PAD_Y = 8;
+export const COMBAT_STAGE_PADDING_PX = 2;
+export const COMBAT_ROW_PAD_Y = 4;
+export const FIELD_INNER_EDGE_PAD_PX = 8;
 // The local grid + its card-scale reserve only this fraction of the hand-fan
 // height (the fan extends partly below the field and renders on top), so the
 // bottom row can grow down behind the hand. The action overlay keeps the full
 // reserve so it never sits under the hand.
-export const HAND_RESERVE_TRIM = 0.65;
+export const HAND_RESERVE_TRIM = 0.85;
 export const HAND_RESERVE_TRIM_COMPACT = 0.4;
 export const HAND_BOTTOM_SINK_FRAC = 0.45;
 export const HAND_BOTTOM_SINK_FRAC_COMPACT = 0.68;
-// Extra upward tilt for the local player's staged creatures — the self region
-// sits right at the bar, so its creatures can come up a touch further.
-export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
 export const COMBAT_ROW_STEP_FRAC = 1.12;
 export const Z_STAGED_REGION = 8000;
@@ -131,7 +132,6 @@ export const GHOST_STROKE_ALPHA = 0.55;
 export const GHOST_FILL_ALPHA = 0.08;
 
 export const PLAYABLE_RING_ALPHA = 0.85;
-export const PLAYABLE_HIGHLIGHT_ALPHA = 0.3;
 export const MANA_BUTTON_ALPHA = 0.45;
 export const MANA_BUTTON_HOVER_ALPHA = 0.75;
 export const MANA_BUTTON_STROKE_ALPHA = 0.2;

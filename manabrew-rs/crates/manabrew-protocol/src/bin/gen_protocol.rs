@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::display::DisplayEvent;
 use manabrew_protocol::prompts::{PromptInput, PromptOutput};
-use manabrew_protocol::protocol::ResumeRoomRequest;
+use manabrew_protocol::protocol::{ResumeRoomRequest, PROTOCOL_VERSION};
 use manabrew_protocol::transport::{
-    AgentPrompt, ClientToServerMessage, DirectiveInput, StateUpdate,
+    AgentPrompt, ClientToServerMessage, DirectiveInput, ProtocolError, StateUpdate,
 };
 use ts_rs::TS;
 
@@ -74,6 +74,7 @@ fn main() {
     StateUpdate::export_all_to(&out).expect("export StateUpdate");
     DirectiveInput::export_all_to(&out).expect("export DirectiveInput");
     ClientToServerMessage::export_all_to(&out).expect("export ClientToServerMessage");
+    ProtocolError::export_all_to(&out).expect("export ProtocolError");
     DisplayEvent::export_all_to(&out).expect("export DisplayEvent");
     Deck::export_all_to(&out).expect("export Deck");
     ResumeRoomRequest::export_all_to(&out).expect("export ResumeRoomRequest");
@@ -98,7 +99,7 @@ fn main() {
     fs::write(
         out.join("version.ts"),
         format!(
-            "{HEADER}export const VERSION = \"{}\";\n",
+            "{HEADER}export const VERSION = \"{}\";\nexport const PROTOCOL_VERSION = {PROTOCOL_VERSION};\n",
             env!("CARGO_PKG_VERSION")
         ),
     )

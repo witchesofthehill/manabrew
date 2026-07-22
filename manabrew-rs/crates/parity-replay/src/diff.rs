@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use manabrew_protocol::game::{CardDto, GameViewDto, PlayerDto};
+use manabrew_protocol::game::{CardDto, GameViewDto, PlayerCounterKind, PlayerDto, ZoneKind};
+
+use crate::view;
 
 pub struct FieldDiff {
     pub path: String,
@@ -13,7 +15,12 @@ pub fn diff_views(rust: &GameViewDto, trace: &GameViewDto) -> Vec<FieldDiff> {
     let mut diffs = Vec::new();
 
     scalar(&mut diffs, "turn", rust.turn, trace.turn);
-    scalar(&mut diffs, "step", &rust.step, &trace.step);
+    scalar(
+        &mut diffs,
+        "step",
+        format!("{:?}", rust.step),
+        format!("{:?}", trace.step),
+    );
     scalar(
         &mut diffs,
         "activePlayerId",
@@ -36,7 +43,7 @@ pub fn diff_views(rust: &GameViewDto, trace: &GameViewDto) -> Vec<FieldDiff> {
     );
 
     for trace_player in &trace.players {
-        let Some(rust_player) = rust.player(&trace_player.id) else {
+        let Some(rust_player) = view::player(rust, &trace_player.id) else {
             diffs.push(FieldDiff {
                 path: format!("players[{}]", trace_player.id),
                 rust: "<absent>".into(),
@@ -45,55 +52,53 @@ pub fn diff_views(rust: &GameViewDto, trace: &GameViewDto) -> Vec<FieldDiff> {
             });
             continue;
         };
-        diff_player(&mut diffs, rust_player, trace_player);
+        diff_player(&mut diffs, rust, trace, rust_player, trace_player);
     }
 
     diff_zone(
         &mut diffs,
         "battlefield",
-        &rust.battlefield,
-        &trace.battlefield,
+        view::battlefield_cards(rust),
+        view::battlefield_cards(trace),
         false,
     );
 
     diffs
 }
 
-fn diff_player(diffs: &mut Vec<FieldDiff>, rust: &PlayerDto, trace: &PlayerDto) {
+fn diff_player(
+    diffs: &mut Vec<FieldDiff>,
+    rust_view: &GameViewDto,
+    trace_view: &GameViewDto,
+    rust: &PlayerDto,
+    trace: &PlayerDto,
+) {
     let p = &trace.id;
     scalar(diffs, &format!("players[{p}].life"), rust.life, trace.life);
-    scalar(
-        diffs,
-        &format!("players[{p}].poison"),
-        rust.poison,
-        trace.poison,
-    );
-    if rust.library_count != trace.library_count {
+    for kind in [
+        PlayerCounterKind::Poison,
+        PlayerCounterKind::Energy,
+        PlayerCounterKind::Experience,
+        PlayerCounterKind::Radiation,
+        PlayerCounterKind::Ticket,
+    ] {
+        scalar(
+            diffs,
+            &format!("players[{p}].counters[{kind:?}]"),
+            view::counter(rust, kind),
+            view::counter(trace, kind),
+        );
+    }
+    let rust_library = view::library_count(rust_view, p);
+    let trace_library = view::library_count(trace_view, p);
+    if rust_library != trace_library {
         diffs.push(FieldDiff {
             path: format!("players[{p}].libraryCount"),
-            rust: rust.library_count.to_string(),
-            trace: trace.library_count.to_string(),
+            rust: rust_library.to_string(),
+            trace: trace_library.to_string(),
             library_dependent: true,
         });
     }
-    scalar(
-        diffs,
-        &format!("players[{p}].energyCounters"),
-        rust.energy_counters,
-        trace.energy_counters,
-    );
-    scalar(
-        diffs,
-        &format!("players[{p}].experienceCounters"),
-        rust.experience_counters,
-        trace.experience_counters,
-    );
-    scalar(
-        diffs,
-        &format!("players[{p}].radiationCounters"),
-        rust.radiation_counters,
-        trace.radiation_counters,
-    );
     scalar(
         diffs,
         &format!("players[{p}].ringLevel"),
@@ -107,41 +112,27 @@ fn diff_player(diffs: &mut Vec<FieldDiff>, rust: &PlayerDto, trace: &PlayerDto) 
         trace.speed,
     );
 
-    diff_zone(
-        diffs,
-        &format!("players[{p}].hand"),
-        &rust.hand,
-        &trace.hand,
-        true,
-    );
-    diff_zone(
-        diffs,
-        &format!("players[{p}].graveyard"),
-        &rust.graveyard,
-        &trace.graveyard,
-        false,
-    );
-    diff_zone(
-        diffs,
-        &format!("players[{p}].exile"),
-        &rust.exile,
-        &trace.exile,
-        false,
-    );
-    diff_zone(
-        diffs,
-        &format!("players[{p}].commandZone"),
-        &rust.command_zone,
-        &trace.command_zone,
-        false,
-    );
+    for (kind, label, library_dependent) in [
+        (ZoneKind::Hand, "hand", true),
+        (ZoneKind::Graveyard, "graveyard", false),
+        (ZoneKind::Exile, "exile", false),
+        (ZoneKind::Command, "commandZone", false),
+    ] {
+        diff_zone(
+            diffs,
+            &format!("players[{p}].{label}"),
+            view::zone_cards(rust_view, p, kind),
+            view::zone_cards(trace_view, p, kind),
+            library_dependent,
+        );
+    }
 }
 
-fn diff_zone(
+fn diff_zone<'a>(
     diffs: &mut Vec<FieldDiff>,
     path: &str,
-    rust: &[CardDto],
-    trace: &[CardDto],
+    rust: impl Iterator<Item = &'a CardDto>,
+    trace: impl Iterator<Item = &'a CardDto>,
     library_dependent: bool,
 ) {
     let rust_names = name_multiset(rust);
@@ -156,7 +147,7 @@ fn diff_zone(
     }
 }
 
-fn name_multiset(cards: &[CardDto]) -> BTreeMap<String, u32> {
+fn name_multiset<'a>(cards: impl Iterator<Item = &'a CardDto>) -> BTreeMap<String, u32> {
     let mut out: BTreeMap<String, u32> = BTreeMap::new();
     for c in cards {
         *out.entry(c.identity.name.clone()).or_default() += 1;

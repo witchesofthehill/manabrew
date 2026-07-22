@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use manabrew_protocol::game::GameViewDto;
+use manabrew_protocol::game::{GameViewDto, ZoneKind};
 use manabrew_protocol::prompts::PromptOutput;
 use manabrew_protocol::transport::AgentPrompt;
 use serde::Deserialize;
 use serde_json::Value;
+
+use crate::view;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -104,16 +106,12 @@ pub fn load(path: &Path) -> Result<Trace, String> {
                             for player in &view.players {
                                 if let Some(idx) = player_index(&player.id) {
                                     opening_hands.entry(idx).or_insert_with(|| {
-                                        player
-                                            .hand
-                                            .iter()
+                                        view::zone_cards(&view, &player.id, ZoneKind::Hand)
                                             .map(|c| c.identity.name.clone())
                                             .collect()
                                     });
                                     command_zone.entry(idx).or_insert_with(|| {
-                                        player
-                                            .command_zone
-                                            .iter()
+                                        view::zone_cards(&view, &player.id, ZoneKind::Command)
                                             .map(|c| c.identity.name.clone())
                                             .collect()
                                     });
@@ -171,9 +169,9 @@ pub fn load(path: &Path) -> Result<Trace, String> {
     })
 }
 
-fn hand_multiset(player: &manabrew_protocol::game::PlayerDto) -> HashMap<String, i32> {
+fn hand_multiset(view: &GameViewDto, player_id: &str) -> HashMap<String, i32> {
     let mut out: HashMap<String, i32> = HashMap::new();
-    for card in &player.hand {
+    for card in view::zone_cards(view, player_id, ZoneKind::Hand) {
         *out.entry(card.identity.name.clone()).or_default() += 1;
     }
     out
@@ -188,8 +186,8 @@ fn reconstruct_draws(
         let Some(idx) = player_index(&player.id) else {
             continue;
         };
-        let current_hand = hand_multiset(player);
-        let current_library = player.library_count;
+        let current_hand = hand_multiset(view, &player.id);
+        let current_library = view::library_count(view, &player.id);
         let Some(prev) = track.get_mut(&idx) else {
             track.insert(
                 idx,
@@ -268,18 +266,23 @@ fn record_visible_cards(
             },
         );
     };
-    for c in &view.battlefield {
-        push(&c.owner_id, c);
-    }
-    for p in &view.players {
-        for c in p
-            .hand
-            .iter()
-            .chain(&p.graveyard)
-            .chain(&p.exile)
-            .chain(&p.command_zone)
-        {
-            push(&p.id, c);
+    for zone in &view.zones {
+        if !matches!(
+            zone.zone,
+            ZoneKind::Battlefield
+                | ZoneKind::Hand
+                | ZoneKind::Graveyard
+                | ZoneKind::Exile
+                | ZoneKind::Command
+        ) {
+            continue;
+        }
+        for c in zone.cards.iter().filter_map(view::visible) {
+            if zone.zone == ZoneKind::Battlefield {
+                push(&c.owner_id, c);
+            } else {
+                push(&zone.owner_id, c);
+            }
         }
     }
 }

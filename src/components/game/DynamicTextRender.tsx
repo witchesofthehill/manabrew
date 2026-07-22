@@ -17,25 +17,26 @@ const PT_MODIFIER = /^[+-]\d+\/[+-]\d+$/;
 /**
  * Renders a text string with inline mana symbols and styled power/toughness
  * modifiers. `{W}`, `{2}{R}` become Scryfall SVG symbols; `+2/+2` / `-1/-1`
- * become colored P/T pills; plain text is rendered as-is.
+ * become colored P/T pills; plain text is rendered as-is. Everything flows as
+ * normal inline content, so long text wraps word-by-word after a symbol group.
  */
 export function DynamicTextRender({ text, className }: DynamicTextRenderProps) {
   const lifeColor = useTheme().gameTheme.life;
   const parts = text.split(TOKEN);
   return (
-    <span className={cn("inline-flex items-center gap-0.5 flex-wrap", className)}>
+    <span className={className}>
       {parts.map((part, i) => {
         if (part === "{LIFE}") {
           return (
             <Heart
               key={i}
-              className="inline h-[0.7em] w-[0.7em] shrink-0 mr-1"
+              className="inline h-[0.7em] w-[0.7em] shrink-0 mr-1 align-[-0.05em]"
               style={{ color: lifeColor, fill: lifeColor }}
             />
           );
         }
         if (part.startsWith("{")) {
-          return <ManaSymbols key={i} cost={part} size="em" />;
+          return <ManaSymbols key={i} cost={part} size="em" className="mx-0 align-[-0.125em]" />;
         }
         if (PT_MODIFIER.test(part)) {
           return (

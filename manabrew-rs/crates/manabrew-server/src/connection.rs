@@ -104,6 +104,34 @@ pub fn broadcast_to_room_except(
     }
 }
 
+pub fn send_to_room_player(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    target_username: &str,
+    msg: &ServerMessage,
+) {
+    let json = match serde_json::to_string(msg) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+    let target_id: Option<String> = state.rooms.get(room_id).and_then(|room| {
+        room.players
+            .iter()
+            .find(|p| p.connected && p.username == target_username)
+            .map(|p| p.player_id.clone())
+    });
+    let Some(pid) = target_id else {
+        debug!(
+            "[send] room={} target '{}' not connected, dropping {}",
+            &room_id[..8],
+            target_username,
+            msg_type_of(msg),
+        );
+        return;
+    };
+    emit_to(state, &pid, msg, &json);
+}
+
 pub fn broadcast_to_room(state: &Arc<ServerState>, room_id: &str, msg: &ServerMessage) {
     let json = match serde_json::to_string(msg) {
         Ok(j) => j,
@@ -599,6 +627,7 @@ fn handle_client_message(
             room_name,
             max_players,
             format,
+            protocol_version,
             hosted,
             engine,
             draft_config,
@@ -624,6 +653,7 @@ fn handle_client_message(
                 room_name,
                 max_players,
                 format,
+                protocol_version,
                 hosted,
                 engine,
                 draft_config,
@@ -643,10 +673,10 @@ fn handle_client_message(
                         &ServerMessage::RoomCreated {
                             room_id: info.room_id.clone(),
                             room_name: info.room_name.clone(),
+                            room: info,
                             resume_token: Some(resume_token),
                         },
                     );
-                    send_msg(sender, &ServerMessage::RoomUpdate { room: info });
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' create room failed: {}", username, e);
@@ -954,6 +984,7 @@ fn handle_client_message(
                         &started.room_id,
                         &ServerMessage::GameStarted {
                             room_id: started.room_id.clone(),
+                            game_id: started.game_id,
                             player_order: started.player_order,
                             player_decks: started.player_decks,
                             starting_life: started.starting_life,
@@ -967,23 +998,25 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::EndGame => match lobby::end_game_sync(state, player_id) {
-            Ok((room_id, info, notify)) => {
-                info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
-                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
-                let aborted = ServerMessage::GameAborted {
-                    room_id: room_id.clone(),
-                };
-                if let Ok(json) = serde_json::to_string(&aborted) {
-                    for pid in notify.iter().filter(|pid| pid.as_str() != player_id) {
-                        emit_to(state, pid, &aborted, &json);
+        ClientMessage::EndGame { game_id } => {
+            match lobby::end_game_sync(state, player_id, &game_id) {
+                Ok((room_id, info, notify)) => {
+                    info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
+                    broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                    let aborted = ServerMessage::GameAborted {
+                        room_id: room_id.clone(),
+                    };
+                    if let Ok(json) = serde_json::to_string(&aborted) {
+                        for pid in notify.iter().filter(|pid| pid.as_str() != player_id) {
+                            emit_to(state, pid, &aborted, &json);
+                        }
                     }
                 }
+                Err(e) => {
+                    debug!("[game] '{}' end game ignored: {}", username, e);
+                }
             }
-            Err(e) => {
-                debug!("[game] '{}' end game ignored: {}", username, e);
-            }
-        },
+        }
 
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
@@ -995,11 +1028,16 @@ fn handle_client_message(
                 let replay = room.replay.as_ref()?;
                 let mut messages = vec![ServerMessage::GameStarted {
                     room_id: rid.clone(),
+                    game_id: replay.game_id.clone(),
                     player_order: replay.player_order.clone(),
                     player_decks: replay.player_decks.clone(),
                     starting_life: replay.starting_life,
                 }];
-                if let Some(state_env) = replay.last_state.clone() {
+                let seat_state = replay
+                    .slot_for(username)
+                    .and_then(|slot| replay.last_state_by_slot.get(&slot).cloned())
+                    .or_else(|| replay.last_state.clone());
+                if let Some(state_env) = seat_state {
                     messages.push(ServerMessage::StateUpdate {
                         from_player: room.host_username(),
                         state: state_env,
@@ -1030,7 +1068,10 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::BroadcastState { state: game_state } => {
+        ClientMessage::BroadcastState {
+            state: game_state,
+            target_player,
+        } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
                 let capture_game_id = state.rooms.get_mut(&rid).and_then(|mut room| {
@@ -1050,20 +1091,29 @@ fn handle_client_message(
                         .analytics
                         .capture_envelope(&game_id, username, &game_state);
                 }
-                debug!(
-                    "[game] '{}' broadcasting state to room {}",
-                    username,
-                    &rid[..8]
-                );
-                broadcast_to_room_except(
-                    state,
-                    player_id,
-                    &rid,
-                    &ServerMessage::StateUpdate {
-                        from_player: username.to_string(),
-                        state: game_state,
-                    },
-                );
+                let msg = ServerMessage::StateUpdate {
+                    from_player: username.to_string(),
+                    state: game_state,
+                };
+                match target_player {
+                    Some(target) => {
+                        debug!(
+                            "[game] '{}' sending state to '{}' in room {}",
+                            username,
+                            target,
+                            &rid[..8]
+                        );
+                        send_to_room_player(state, &rid, &target, &msg);
+                    }
+                    None => {
+                        debug!(
+                            "[game] '{}' broadcasting state to room {}",
+                            username,
+                            &rid[..8]
+                        );
+                        broadcast_to_room_except(state, player_id, &rid, &msg);
+                    }
+                }
             } else {
                 warn!(
                     "[game] '{}' tried to broadcast state but not in a room",
@@ -1149,7 +1199,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetFormat { .. } => "SetFormat",
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
-        ClientMessage::EndGame => "EndGame",
+        ClientMessage::EndGame { .. } => "EndGame",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",

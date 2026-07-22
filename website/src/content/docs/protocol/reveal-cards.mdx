@@ -9,7 +9,7 @@ Sent when cards are revealed to a player and no decision is required — resolvi
 a Demonic Tutor reveal, or revealing your hand to Thoughtseize. The player simply
 acknowledges that they have seen the cards.
 
-![The revealCards prompt in the Manabrew client](/protocol/reveal-cards.svg)
+![The revealCards prompt in the Manabrew client](/protocol/reveal.webp)
 
 ## Arguments
 
@@ -34,10 +34,10 @@ This prompt is read-only — acknowledge to continue.
   "input": {
     "type": "revealCards",
     "cards": [
-      { "id": "lib-3", "name": "Demonic Tutor" },
-      { "id": "lib-7", "name": "Sol Ring" }
+      { "id": "lib-3", "identity": { "name": "Demonic Tutor" } },
+      { "id": "lib-7", "identity": { "name": "Sol Ring" } }
     ],
-    "zone": "Library",
+    "zone": "library",
     "ownerPlayerId": "player-1",
     "message": "Revealed by Diabolic Revelation"
   }
@@ -48,5 +48,14 @@ Each card's `id` is what a response would reference, but this prompt has nothing
 to choose:
 
 ```json
-{ "promptId": 7, "output": { "type": "revealCardsAcknowledged" } }
+{
+  "kind": "response",
+  "promptId": 7,
+  "action": {
+    "type": "revealCards",
+    "output": {
+      "type": "revealCardsAcknowledged"
+    }
+  }
+}
 ```

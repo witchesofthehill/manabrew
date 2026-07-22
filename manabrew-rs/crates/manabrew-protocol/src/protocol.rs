@@ -2,6 +2,21 @@ pub use crate::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+// The wire-compat number IS the crate major: a breaking wire change must ship
+// as a breaking (major) release of this crate, never as a separate constant.
+pub const PROTOCOL_VERSION: u32 = major_of(env!("CARGO_PKG_VERSION_MAJOR"));
+
+const fn major_of(major: &str) -> u32 {
+    let bytes = major.as_bytes();
+    let mut value = 0u32;
+    let mut i = 0;
+    while i < bytes.len() {
+        value = value * 10 + (bytes[i] - b'0') as u32;
+        i += 1;
+    }
+    value
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
 pub struct PlayerDeckInfo {
@@ -18,6 +33,7 @@ pub struct PlayerDeckInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
+#[allow(clippy::large_enum_variant)]
 pub enum ClientMessage {
     Authenticate {
         username: String,
@@ -36,6 +52,8 @@ pub enum ClientMessage {
         room_name: String,
         max_players: u8,
         format: GameFormat,
+        #[serde(default)]
+        protocol_version: u32,
         #[serde(default)]
         hosted: bool,
         #[serde(default)]
@@ -91,12 +109,17 @@ pub enum ClientMessage {
         format: Option<GameFormat>,
     },
 
-    EndGame,
+    EndGame {
+        game_id: String,
+    },
 
     RequestResync,
 
     BroadcastState {
         state: serde_json::Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        /// A null value will broadcast to the whole room
+        target_player: Option<String>,
     },
 
     TurnChange {
@@ -126,6 +149,7 @@ pub enum ServerMessage {
     RoomCreated {
         room_id: String,
         room_name: String,
+        room: RoomInfo,
         #[serde(default)]
         resume_token: Option<String>,
     },
@@ -163,6 +187,7 @@ pub enum ServerMessage {
 
     GameStarted {
         room_id: String,
+        game_id: String,
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
         starting_life: i32,
@@ -225,6 +250,7 @@ pub struct ResumeRoomRequest {
     pub starting_life: i32,
     #[serde(default)]
     pub bot_players: Vec<String>,
+    pub game_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -232,6 +258,8 @@ pub struct RoomInfo {
     pub room_id: String,
     pub room_name: String,
     pub host: String,
+    #[serde(default)]
+    pub protocol_version: u32,
     #[serde(default)]
     pub hosted: bool,
     #[serde(default)]
@@ -337,4 +365,5 @@ pub enum EngineKind {
     #[default]
     Manabrew,
     Forge,
+    Ironsmith,
 }

@@ -138,13 +138,16 @@ Dashboard will be at `http://<server-ip>:8080`.
 Every release tag (pushed by the **Release** workflow's `cargo xtask release`
 on merges to `main`) triggers **Publish**
 (`.github/workflows/publish.yml`): it builds the Tauri installers
-(`.dmg` / `.exe` / `.msi`), attaches them plus the updater manifest
-(`tauri.json`) to the GitHub Release, and its final `deploy` job SSHes into
-the server, runs `deploy.sh` to rebuild the Wasm/web stack (manabrew,
-manabrew-server, optional parity-dashboard) under Docker, and posts a
-success/failure embed to the community Discord channel via the project's
-Discord bot. Deploy runs last so the live site never references release
-assets that don't exist yet. Plain `main` commits do not deploy.
+(`.dmg` / `.exe` / `.msi`), attaches them plus the updater manifests
+(`tauri.json`, `manifest.json`) to the GitHub Release, and its deploy jobs
+run `cargo xtask deploy` FROM THE RUNNER at the tag checkout: rsync the
+tracked config to the box, pull this release's ghcr images, reconcile with
+docker compose (health-checked, redeploying the previous tag on failure),
+and post a success/failure embed to the community Discord channel. The box
+holds no deploy scripts and its git checkout is never consulted, so config
+and images always come from the same commit. The full deploy runs last so
+the live site never references release assets that don't exist yet. Plain
+`main` commits do not deploy.
 
 ### 1. Generate an SSH keypair for the deploy
 
@@ -164,18 +167,13 @@ cat >> ~/.ssh/authorized_keys < ~/.ssh/manabrew_deploy.pub   # paste here, then 
 chmod 600 ~/.ssh/authorized_keys
 ```
 
-### 2. Confirm the server clone uses the public HTTPS URL
+### 2. Box prerequisites
 
-The repo is public, so the server no longer needs a PAT (the deploy script
-still rewrites the remote to a PAT URL when `GITHUB_TOKEN` is set in the
-host's `.env`, purely to avoid public-API rate limits — optional). On the
-server:
-
-```bash
-cd <DEPLOY_PATH>     # e.g. /opt/manabrew
-git remote set-url origin https://github.com/<owner>/manabrew.git
-git pull --ff-only origin main
-```
+The box needs docker + compose, the data dirs under `<DEPLOY_PATH>` (ops/
+hub-data, ops/observability/data), and the `.env` with the compose secrets.
+It does NOT need a usable git checkout: `xtask deploy` rsyncs the tracked
+config files (compose.production.yml, ops/, scripts/ingest-events.py) at the
+release tag before every rollout, and never runs git on the box.
 
 ### 3. Prep the Discord bot
 
@@ -213,7 +211,7 @@ change to `main`, let the **Release** workflow tag it, and watch the resulting
 
 Verify:
 
-- The workflow's `SSH and run deploy.sh` step is green.
+- The workflow's `Deploy production (xtask, from the runner)` step is green.
 - The configured Discord channel receives a green "🚀 Wasm deploy successful" embed posted by your bot.
 - `docker compose -f compose.production.yml ps` on the server (or the dev
   compose path, if that's what `$COMPOSE_FILE` points to) shows the expected
@@ -221,27 +219,45 @@ Verify:
 
 ## Manual Deploy
 
+From any machine with SSH access to the box (the runner does exactly this).
+No Rust toolchain? Every release attaches the tool prebuilt
+(`manabrew-xtask-linux-x86_64`, static musl) — an **evergreen** binary: it
+fetches the deployed ref's config from GitHub at run time (codeload
+tarball, tracked files only), so one download deploys any release and
+needs **no checkout and no git** — just ssh, rsync, curl and tar on the
+machine. Rollback is `deploy --tag <older>` from the same binary. If a
+future release changes the deploy contract, `ops/deploy-tool-version` in
+the fetched config makes the old binary refuse with a download hint.
+`--ref <sha>` pins the config fetch exactly; `--config-from <dir>` uses a
+local checkout instead (airgap):
+
 ```bash
-cd ~/manabrew
-./deploy.sh
+# full rollout of a release tag
+git checkout vX.Y.Z
+cargo xtask deploy --tag vX.Y.Z --host <ssh-host> --path /opt/manabrew
+
+# recreate one bind-mount-configured service (e.g. after a grafana
+# provisioning change), no tag checkout required
+cargo xtask deploy --tag vX.Y.Z --only grafana --host <ssh-host> --path /opt/manabrew
+
+# the staging slot (what staging-deploy.yml runs)
+cargo xtask deploy --staging --branch <branch> --host <ssh-host> --path /opt/manabrew-staging
+
+# build + run THIS checkout on THIS machine (selfhost VM / laptop)
+cargo xtask deploy --local
 ```
 
-The script will:
-
-- `git pull origin main`
-- Diff what changed since last deploy
-- Only rebuild if Java/Rust/infra files changed
-- Restart the container
+The command rsyncs the tracked config at the tag, pulls the tag's images
+(waiting out CI if they are still building), reconciles with
+`docker compose up -d --wait`, and redeploys the previously running tag if
+the rollout comes up unhealthy.
 
 `manabrew-server` (the relay) gets extra protection because restarting it
-kills every live game: after a rebuild, the script compares the
-`manabrew-server` binary inside the fresh image (`manabrew-server:production`)
-against the one in the running container and skips the restart when they are
-identical. Root `Cargo.lock`/`Cargo.toml` churn (release bumps, Tauri/UI
-dependency updates) therefore no longer bounces the relay. Changes to the
-relay's Dockerfile, any compose file, `.dockerignore`, or `deploy.sh` itself
-always rebuild with `--no-cache` and restart, since those can change the
-container beyond the binary.
+kills every live game: xtask compares the `manabrew-server` binary inside the
+freshly pulled image against the one in the running container and skips the
+restart when they are identical. Root `Cargo.lock`/`Cargo.toml` churn
+(release bumps, Tauri/UI dependency updates) therefore never bounces the
+relay.
 
 ## Useful Commands
 
@@ -318,3 +334,25 @@ docker compose -f compose.production.yml logs --since 1h manabrew-server \
 # inside the docker network):
 docker compose -f compose.production.yml exec manabrew-server curl -fsS http://localhost:9444/health
 ```
+
+## iOS distribution (SideStore)
+
+The iOS app ships as an **unsigned IPA** sideloaded via [SideStore](https://sidestore.io), which re-signs on-device with the user's own Apple ID (no paid Apple Developer account required; free accounts get a 7-day refresh cycle).
+
+**How it's published.** `publish.yml`'s `ios-ipa` job builds the IPA on `macos-latest` with `yarn tauri ios build --no-sign`, and the `deploy-sidestore` job (after the web deploy) regenerates `apps.json` (`scripts/gen-sidestore-source.mjs`) and rsyncs it plus `Manabrew-<version>.ipa` and `icon.png` to the host's `ops/sidestore/`. That dir is bind-mounted into the caddy container at `/srv/manabrew/sidestore` and served under `play.manabrew.app/sidestore/`.
+
+**Add the source in SideStore:** Sources → **+** → `https://play.manabrew.app/sidestore/apps.json` → Browse → **Manabrew** → Install.
+
+**Build one locally** (macOS + Xcode required):
+
+```bash
+yarn build:wasm
+yarn tauri ios build --no-sign
+# → src-tauri/gen/apple/build/arm64/Manabrew.ipa
+```
+
+Mobile builds skip the GraalVM/Maven harness (`tauri.{ios,android}.conf.json` override `beforeBuildCommand`) and do **not** bundle the desktop-only 64 MB Forge runtime — only `cardset.rkyv` ships. On Android that archive is embedded in the binary (`card_db.rs`), because the APK `asset://` path can't be mmap'd. See `src-tauri/AGENTS.md`.
+
+### Android APK
+
+`publish.yml`'s `android-apk` job builds an arm64 APK (`node scripts/mobile-dev.mjs android build --apk --target aarch64`) on `ubuntu-latest` and the `release` job attaches it to the GitHub Release alongside the desktop installers. The release APK is **unsigned** — installing it requires signing with a keystore (wire an `ANDROID_KEYSTORE` secret + a signing step to ship an installable build).

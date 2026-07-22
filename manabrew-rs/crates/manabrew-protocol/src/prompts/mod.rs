@@ -19,7 +19,7 @@ pub mod game_over;
 pub mod mulligan;
 pub mod mulligan_put_back;
 pub mod pay_mana_cost;
-pub mod reorder_cards;
+pub mod reorder;
 pub mod reveal;
 pub mod scry;
 
@@ -36,15 +36,20 @@ pub use choose_combat_damage_assignment::{
 pub use choose_damage_assignment_order::{
     ChooseDamageAssignmentOrderInput, ChooseDamageAssignmentOrderOutput,
 };
-pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
+pub use choose_from_selection::{
+    ChooseFromSelectionInput, ChooseFromSelectionOutput, SelectionOption,
+};
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
-pub use common::{ActivatableAbilityInfo, AvailableAction, AvailableActionKind, Mana, ManaColor};
+pub use common::{
+    ActivatableAbilityInfo, AlternativeCostKind, AvailableAction, AvailableActionKind,
+    PaymentAction, PaymentActionKind, PaymentResourceKind, PlayCardMode,
+};
 pub use dice_rolled::{DiceRollEntry, DiceRolledInput, DiceRolledOutput};
 pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
 pub use pay_mana_cost::{PayManaCostInput, PayManaCostOutput};
-pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
+pub use reorder::{ReorderInput, ReorderItem, ReorderOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
 pub use scry::{ScryInput, ScryOutput};
 
@@ -71,7 +76,7 @@ pub enum PromptInput {
     ),
     PayManaCost(pay_mana_cost::PayManaCostInput),
     ChooseCards(choose_cards::ChooseCardsInput),
-    ReorderCards(reorder_cards::ReorderCardsInput),
+    Reorder(reorder::ReorderInput),
     DiceRolled(dice_rolled::DiceRolledInput),
 }
 
@@ -97,6 +102,57 @@ pub enum PromptOutput {
     ),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
-    ReorderCards(reorder_cards::ReorderCardsOutput),
+    Reorder(reorder::ReorderOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResponseViolation {
+    WrongPromptType,
+    UnknownActionId(String),
+}
+
+impl PromptInput {
+    /// The formal prompt/response contract: a response is valid only if its
+    /// output family matches this prompt and every echoed action id was
+    /// advertised by it. Engines reject anything else with a `ProtocolError`.
+    pub fn validate_response(&self, output: &PromptOutput) -> Result<(), ResponseViolation> {
+        use PromptInput as I;
+        use PromptOutput as O;
+        match (self, output) {
+            (I::ChooseAction(input), O::ChooseAction(out)) => match out {
+                ChooseActionOutput::Act { action_id }
+                    if !input.actions.iter().any(|a| a.id == *action_id) =>
+                {
+                    Err(ResponseViolation::UnknownActionId(action_id.clone()))
+                }
+                _ => Ok(()),
+            },
+            (I::PayManaCost(input), O::PayManaCost(out)) => match out {
+                PayManaCostOutput::Act { action_id }
+                    if !input.actions.iter().any(|a| a.id == *action_id) =>
+                {
+                    Err(ResponseViolation::UnknownActionId(action_id.clone()))
+                }
+                _ => Ok(()),
+            },
+            (I::Mulligan(_), O::Mulligan(_))
+            | (I::MulliganPutBack(_), O::MulliganPutBack(_))
+            | (I::ChooseAttackers(_), O::ChooseAttackers(_))
+            | (I::ChooseBlockers(_), O::ChooseBlockers(_))
+            | (I::ChooseBoardTargets(_), O::ChooseBoardTargets(_))
+            | (I::ChooseBoolean(_), O::ChooseBoolean(_))
+            | (I::ChooseFromSelection(_), O::ChooseFromSelection(_))
+            | (I::RevealCards(_), O::RevealCards(_))
+            | (I::Scry(_), O::Scry(_))
+            | (I::ChooseColor(_), O::ChooseColor(_))
+            | (I::ChooseNumber(_), O::ChooseNumber(_))
+            | (I::ChooseDamageAssignmentOrder(_), O::ChooseDamageAssignmentOrder(_))
+            | (I::ChooseCombatDamageAssignment(_), O::ChooseCombatDamageAssignment(_))
+            | (I::ChooseCards(_), O::ChooseCards(_))
+            | (I::Reorder(_), O::Reorder(_))
+            | (I::DiceRolled(_), O::DiceRolled(_)) => Ok(()),
+            _ => Err(ResponseViolation::WrongPromptType),
+        }
+    }
 }

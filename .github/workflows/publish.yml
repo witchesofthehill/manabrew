@@ -6,9 +6,24 @@ name: Publish
 #      on GitHub-hosted runners, signed for the auto-updater,
 #   2. attach them + the updater manifest (tauri.json) to the GitHub Release
 #      xtask already created,
-#   3. deploy the Wasm/web stack to production (deploy.sh over SSH) — LAST,
-#      so play.manabrew.app/tauri.json (a redirect to the release asset) and
-#      the served manifest.json never get ahead of assets that exist.
+#   3. deploy the Wasm/web stack to production via `cargo xtask deploy`,
+#      which runs ON THE RUNNER at the tag checkout: it rsyncs the tracked
+#      config to the box, pulls this release's ghcr images (waiting out
+#      docker-images.yml), and reconciles with docker compose — the box holds
+#      no deploy scripts and its git checkout is never consulted, so config
+#      and images always come from the same commit (issue #512). When the
+#      release is relay-compatible (deploy-gate = `xtask deploy --gate`: no
+#      semver-incompatible bump of manabrew-protocol / manabrew-server /
+#      manabrew-hub), deploy-web ships the WEB container EARLY — in parallel
+#      with the installer builds. The relay and hub are deferred to the final
+#      deploy job. Incompatible releases keep the old ordering: deploy only
+#      after the Release has all its assets, so no installed client is
+#      stranded against a relay it can't talk to.
+#
+#      /manifest.json needs no deploy-time hold anymore: the release job
+#      attaches ops/manifest.json as a Release asset and Caddy redirects to
+#      the LATEST release's copy, so installed apps can only ever be told
+#      about a release whose installers exist.
 # There is no main-push deploy: main commits only run release.yml.
 #
 # GitHub-hosted runners are free for public repositories (unlimited minutes
@@ -99,134 +114,31 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Build a per-artifact changelog so the Discord notification carries
-      # the list of commits since the previous push. Trimmed so the whole
-      # message stays well under Discord's 4096-char embed-description limit.
       - name: Build changelog
         id: changelog
-        shell: bash
-        run: |
-          BEFORE='${{ github.event.before }}'
-          AFTER='${{ github.sha }}'
-          ZERO_SHA='0000000000000000000000000000000000000000'
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO_SHA" ] && git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
-            RANGE="${BEFORE}..${AFTER}"
-          else
-            RANGE="${AFTER}~5..${AFTER}"
-          fi
-          LOG=$(git log --pretty=format:'- %s (%h, %an)' "$RANGE" 2>/dev/null || echo '')
-          if [ -z "$LOG" ]; then
-            LOG=$(git log --pretty=format:'- %s (%h, %an)' -n 5 "$AFTER" 2>/dev/null || echo '')
-          fi
-          MAX=1500
-          if [ "${#LOG}" -gt "$MAX" ]; then
-            LOG="${LOG:0:$MAX}"$'\n'"… (truncated)"
-          fi
-          {
-            echo 'changelog<<CHANGELOG_EOF'
-            echo "$LOG"
-            echo 'CHANGELOG_EOF'
-          } >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/commit-changelog
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
 
       - name: Post Discord embed (macOS artifact)
         if: ${{ success() }}
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-          ARTIFACT_NAME: macos-dmg-${{ github.sha }}
-        shell: bash
-        run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: "🍎 macOS build ready"
+          color: "5793266" # 0x5865F2 blurple
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: |
+            🧪 Fresh `.dmg` artifact attached to the workflow run.
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-          TITLE="🍎 macOS build ready"
-          COLOR=5793266   # 0x5865F2 blurple
+            📦 [Download `macos-dmg-${{ github.sha }}` from the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) (sign-in required, 30-day retention).
 
-          DESC=$(printf '%s\n\n%s\n\n%s\n%s' \
-            "🧪 Fresh \`.dmg\` artifact attached to the workflow run." \
-            "📦 [Download \`${ARTIFACT_NAME}\` from the workflow run](${RUN_URL}) (sign-in required, 30-day retention)." \
-            "📝 **Changelog**" \
-            "${CHANGELOG}")
-
-          MAX=3900
-          if [ "${#DESC}" -gt "$MAX" ]; then
-            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
-          fi
-
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RUN_URL" \
-            --arg desc "$DESC" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # Write PAYLOAD to a file and use --data-binary @file so curl reads
-          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
-          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
-          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
-          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
-          REQ=$(mktemp)
-          printf '%s' "$PAYLOAD" > "$REQ"
-
-          post_discord() {
-            local attempt=0
-            local max_attempts=3
-            local delay=2
-            local body http
-            body=$(mktemp)
-            while :; do
-              attempt=$((attempt + 1))
-              http=$(curl -sS -X POST \
-                -H "Authorization: Bot $BOT_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data-binary "@$REQ" \
-                -o "$body" \
-                -w "%{http_code}" \
-                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-
-              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                echo "Discord notification posted (HTTP $http)."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-
-              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
-              if [ "$attempt" -ge "$max_attempts" ]; then
-                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-              sleep "$delay"
-              delay=$((delay * 2))
-            done
-          }
-
-          post_discord
+            📝 **Changelog**
+            ${{ steps.changelog.outputs.changelog }}
 
   # ── Windows .exe ───────────────────────────────────────────────────
   # windows-latest is x86_64. NSIS + WiX (.msi) ship preinstalled on the
@@ -305,138 +217,168 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Build a per-artifact changelog so the Discord notification carries
-      # the list of commits since the previous push. Trimmed so the whole
-      # message stays well under Discord's 4096-char embed-description limit.
-      # Uses bash (Git for Windows ships it) to mirror the macOS step byte
-      # for byte and avoid pwsh's CRLF/Out-File quirks leaking into the env.
       - name: Build changelog
         id: changelog
-        shell: bash
-        run: |
-          BEFORE='${{ github.event.before }}'
-          AFTER='${{ github.sha }}'
-          ZERO_SHA='0000000000000000000000000000000000000000'
-          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO_SHA" ] && git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
-            RANGE="${BEFORE}..${AFTER}"
-          else
-            RANGE="${AFTER}~5..${AFTER}"
-          fi
-          LOG=$(git log --pretty=format:'- %s (%h, %an)' "$RANGE" 2>/dev/null || echo '')
-          if [ -z "$LOG" ]; then
-            LOG=$(git log --pretty=format:'- %s (%h, %an)' -n 5 "$AFTER" 2>/dev/null || echo '')
-          fi
-          MAX=1500
-          if [ "${#LOG}" -gt "$MAX" ]; then
-            LOG="${LOG:0:$MAX}"$'\n'"… (truncated)"
-          fi
-          {
-            echo 'changelog<<CHANGELOG_EOF'
-            echo "$LOG"
-            echo 'CHANGELOG_EOF'
-          } >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/commit-changelog
+        with:
+          before: ${{ github.event.before }}
+          after: ${{ github.sha }}
 
+      # Git for Windows ships bash + jq + curl on the runner image, so the
+      # composite's bash implementation works here too.
       - name: Post Discord embed (Windows artifact)
         if: ${{ success() }}
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-          ARTIFACT_NAME: windows-exe-${{ github.sha }}
-        # Git for Windows ships bash + jq + curl on the runner image, so the
-        # same bash block we use on macOS works here too.
-        shell: bash
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: "🪟 Windows build ready"
+          color: "5793266" # 0x5865F2 blurple
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: |
+            🧪 Fresh `.exe` + `.msi` artifact attached to the workflow run.
+
+            📦 [Download `windows-exe-${{ github.sha }}` from the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) (sign-in required, 30-day retention).
+
+            📝 **Changelog**
+            ${{ steps.changelog.outputs.changelog }}
+
+  # ── iOS .ipa (SideStore) ───────────────────────────────────────────
+  # Unsigned IPA for sideloading via SideStore, which re-signs on-device
+  # with the user's own Apple ID. Mobile builds neither host Forge rooms
+  # nor need the GraalVM harness, so this job skips GraalVM/Maven entirely
+  # (tauri.ios.conf.json overrides beforeBuildCommand to `yarn vite:build`).
+  ios-ipa:
+    name: Build iOS .ipa
+    # Pinned to macos-15 (Xcode 16.4): Xcode 26 (macos-latest/macos-26) dropped
+    # the swiftCompatibility* libs that swift-rs-built objects still reference,
+    # so the archive link fails — tauri-apps/tauri#15066. Re-evaluate on a
+    # tauri/rustc fix; sideloaded unsigned IPAs are exempt from the App Store
+    # iOS-26-SDK deadline.
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+          fetch-depth: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-ios
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      # tauri.ios.conf.json bundles resources/cardset.rkyv; the tauri CLI
+      # validates it before cargo build (where src-tauri/build.rs would
+      # otherwise produce it), so a clean runner needs it built up front.
+      - name: Build cardset archive
         run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-          TITLE="🪟 Windows build ready"
-          COLOR=5793266   # 0x5865F2 blurple
+      - name: Tauri build (iOS, unsigned)
+        run: yarn tauri ios build --no-sign
 
-          DESC=$(printf '%s\n\n%s\n\n%s\n%s' \
-            "🧪 Fresh \`.exe\` + \`.msi\` artifact attached to the workflow run." \
-            "📦 [Download \`${ARTIFACT_NAME}\` from the workflow run](${RUN_URL}) (sign-in required, 30-day retention)." \
-            "📝 **Changelog**" \
-            "${CHANGELOG}")
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: src-tauri/gen/apple/build/arm64/*.ipa
+          if-no-files-found: error
+          retention-days: 30
 
-          MAX=3900
-          if [ "${#DESC}" -gt "$MAX" ]; then
-            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
-          fi
+  # ── Android .apk ───────────────────────────────────────────────────
+  # arm64 APK attached to the GitHub Release. Like iOS, Android hosts no
+  # Forge rooms and skips the GraalVM harness (tauri.android.conf.json
+  # overrides beforeBuildCommand); the card DB is embedded in the binary
+  # (card_db.rs) since APK assets can't be mmap'd. The SDK + an NDK ship
+  # preinstalled on ubuntu-latest; scripts/mobile-dev.mjs derives
+  # ANDROID_HOME / NDK_HOME. The release APK is unsigned — a keystore
+  # secret would be needed to produce an installable signed build.
+  android-apk:
+    name: Build Android .apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+          fetch-depth: 10
 
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RUN_URL" \
-            --arg desc "$DESC" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
 
-          # Write PAYLOAD to a file and use --data-binary @file so curl reads
-          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
-          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
-          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
-          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
-          REQ=$(mktemp)
-          printf '%s' "$PAYLOAD" > "$REQ"
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-          post_discord() {
-            local attempt=0
-            local max_attempts=3
-            local delay=2
-            local body http
-            body=$(mktemp)
-            while :; do
-              attempt=$((attempt + 1))
-              http=$(curl -sS -X POST \
-                -H "Authorization: Bot $BOT_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data-binary "@$REQ" \
-                -o "$body" \
-                -w "%{http_code}" \
-                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,wasm32-unknown-unknown
 
-              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                echo "Discord notification posted (HTTP $http)."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-android
 
-              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
-              if [ "$attempt" -ge "$max_attempts" ]; then
-                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-              sleep "$delay"
-              delay=$((delay * 2))
-            done
-          }
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
 
-          post_discord
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      # card_db.rs include_bytes!es resources/cardset.rkyv on Android; build
+      # it up front so a clean runner doesn't depend on build.rs ordering.
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
+
+      - name: Tauri build (Android APK, arm64)
+        run: node scripts/mobile-dev.mjs android build --apk --target aarch64
+
+      - name: Upload .apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ github.sha }}
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
 
   # ── Publish GitHub Release ─────────────────────────────────────────
   # Downloads the artifacts built above, generates the updater manifest,
@@ -451,6 +393,34 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      # Prebuilt deploy tool: an evergreen binary — it fetches the deployed
+      # ref's config from GitHub at run time, so one download deploys (or
+      # rolls back to) any release; ops/deploy-tool-version in the fetched
+      # config refuses a binary that is too old. Static musl build (the
+      # xtask dep graph is pure Rust; rust-lld links it without musl-gcc),
+      # so it runs on any x86_64 Linux regardless of glibc, Alpine included.
+      - name: Build xtask binary (release asset)
+        env:
+          RUSTFLAGS: -C linker=rust-lld
+          # Default for `deploy --tag`: the shipped binary knows which
+          # release it belongs to. Config itself is fetched per-ref at
+          # deploy time, so any binary can deploy any ref.
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
+        run: |
+          cargo build --release -p xtask --target x86_64-unknown-linux-musl
+          mkdir -p release-assets
+          cp target/x86_64-unknown-linux-musl/release/xtask release-assets/manabrew-xtask-linux-x86_64
 
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
@@ -485,6 +455,8 @@ jobs:
             release-assets/windows/**/*.exe.sig
             release-assets/windows/**/*.msi
             release-assets/tauri.json
+            release-assets/manabrew-xtask-linux-x86_64
+            ops/manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -504,127 +476,310 @@ jobs:
 
       - name: Post Discord embed (release published)
         if: steps.publish.outputs.url != ''
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: ${{ (contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha')) && format('🧪 manabrew {0} (pre-release)', github.ref_name) || format('🎁 manabrew {0} released', github.ref_name) }}
+          color: ${{ (contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha')) && '16753920' || '5763719' }} # orange / green
+          url: ${{ steps.publish.outputs.url }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: |
+            📥 Public download (no GitHub account needed): ${{ steps.publish.outputs.url }}
+            📝 **Changelog**
+            ${{ steps.relbody.outputs.body }}
+
+  # ── Attach mobile artifacts to the Release ─────────────────────────
+  # Uploads the iOS .ipa and Android .apk to the published Release. Kept
+  # OUT of the `release` job's `needs` so a flaky mobile build never blocks
+  # the desktop installers: this job runs after `release` regardless of the
+  # mobile jobs' results (`if: always()`), downloads whichever artifacts
+  # exist, and uploads each — a missing one is skipped, not fatal.
+  release-mobile:
+    name: Attach mobile artifacts to release
+    needs: [release, ios-ipa, android-apk]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download iOS IPA
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: mobile/ios
+
+      - name: Download Android APK
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-${{ github.sha }}
+          path: mobile/android
+
+      - name: Upload to release
         env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_URL: ${{ steps.publish.outputs.url }}
-          RELEASE_BODY: ${{ steps.relbody.outputs.body }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-          PRERELEASE: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
-        shell: bash
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
+          set -uo pipefail
+          shopt -s globstar nullglob
+          files=(mobile/ios/**/*.ipa mobile/android/**/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning::No mobile artifacts found — both mobile builds failed?"
             exit 0
           fi
+          for f in "${files[@]}"; do
+            echo "Uploading $f"
+            gh release upload "$TAG" "$f" --clobber --repo "$REPO"
+          done
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
+  # ── Early web deploy gate ──────────────────────────────────────────
+  # Decides whether the web stack can ship BEFORE the installer builds
+  # finish. Safe iff no crate an already-installed client talks to took a
+  # semver-incompatible bump since the previous release — otherwise an old
+  # desktop/mobile app would face a relay/hub it can't talk to, with no
+  # updated installer to move to yet. The per-crate versions in
+  # ops/manifest.json (maintained by `cargo xtask release`) are the signal.
+  deploy-gate:
+    name: Early web deploy gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-          if [ "$PRERELEASE" = "true" ]; then
-            TITLE="🧪 manabrew ${RELEASE_TAG} (pre-release)"
-            COLOR=16753920   # 0xFFA500 orange
-          else
-            TITLE="🎁 manabrew ${RELEASE_TAG} released"
-            COLOR=5763719    # 0x57F287 green
-          fi
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-          DESC=$(printf '%s\n\n%s\n%s' \
-            "📥 Public download (no GitHub account needed): ${RELEASE_URL}" \
-            "📝 **Changelog**" \
-            "${RELEASE_BODY}")
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
 
-          MAX=3900
-          if [ "${#DESC}" -gt "$MAX" ]; then
-            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see release page for full notes)"
-          fi
+      # Semver compatibility of the client-facing crates vs the previous
+      # release, decided in Rust with the same semver crate the release
+      # tooling uses (xtask/src/deploy.rs) instead of bash + jq (#512).
+      - name: Compare client-facing crate versions with the previous release
+        id: gate
+        env:
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
+        run: cargo xtask deploy --gate --tag "${GITHUB_REF_NAME}"
+    outputs:
+      early: ${{ steps.gate.outputs.early }}
 
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RELEASE_URL" \
-            --arg desc "$DESC" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # Write PAYLOAD to a file and use --data-binary @file so curl reads
-          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
-          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
-          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
-          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
-          REQ=$(mktemp)
-          printf '%s' "$PAYLOAD" > "$REQ"
-
-          post_discord() {
-            local attempt=0
-            local max_attempts=3
-            local delay=2
-            local body http
-            body=$(mktemp)
-            while :; do
-              attempt=$((attempt + 1))
-              http=$(curl -sS -X POST \
-                -H "Authorization: Bot $BOT_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data-binary "@$REQ" \
-                -o "$body" \
-                -w "%{http_code}" \
-                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-
-              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-                echo "Discord notification posted (HTTP $http)."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-
-              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
-              if [ "$attempt" -ge "$max_attempts" ]; then
-                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body" "$REQ"
-                return 0
-              fi
-              sleep "$delay"
-              delay=$((delay * 2))
-            done
-          }
-
-          post_discord
-
-  # ── Deploy production (runs LAST) ──────────────────────────────────
-  # Ships the Wasm/web stack only after the Release has all its artifacts,
-  # so the tauri.json redirect and the served manifest.json never point at
-  # assets that don't exist yet. Job-level concurrency serializes deploys
-  # across runs (two tags in flight must not deploy concurrently).
-  deploy:
-    name: Deploy production
-    needs: [release]
+  # ── Early web deploy ───────────────────────────────────────────────
+  # Ships the WEB container as soon as the tag lands instead of after the
+  # ~60–90 min installer builds. `xtask deploy` pulls the images at THIS
+  # release's tag with a retry loop that waits out docker-images.yml —
+  # resolving `latest` mid-release briefly shipped N-1 (issue #510).
+  #
+  # --web-only: manabrew-server and manabrew-hub stay put until the final
+  # deploy. They are what an already-installed desktop/mobile app talks to,
+  # and moving them here would put those clients in front of a new relay with
+  # no installer published yet to update to.
+  #
+  # /manifest.json needs no hold: it redirects to the latest Release's copy,
+  # and this release's Release has not published yet at this point.
+  deploy-web:
+    name: Deploy web (early)
+    needs: [deploy-gate]
+    if: needs.deploy-gate.outputs.early == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
       group: wasm-deploy
       cancel-in-progress: false
     steps:
-      - name: SSH and run deploy.sh
+      # Full history: xtask asserts HEAD is the tag and builds the changelog
+      # against the previously deployed tag.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      - name: Deploy web (xtask, from the runner)
         id: deploy
         continue-on-error: true
+        env:
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          {
+            echo "Host prod-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          cargo xtask deploy --tag "$GITHUB_REF_NAME" --web-only \
+            --host prod-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Post Discord embed (as bot)
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: ${{ steps.deploy.outcome == 'success' && '🌐 Early web deploy successful' || '💥 Early web deploy failed' }}
+          color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: "(no log captured — the deploy failed before any output; see workflow run)"
+          description-file: deploy.log
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: |
+          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
+          exit 1
+
+  # ── Deploy production (finalize) ───────────────────────────────────
+  # Runs once the Release has all its installer artifacts. On the early path
+  # it rolls out the relay + hub the --web-only run deferred; on the gated
+  # (semver-incompatible) path it is the full deploy, running LAST so the
+  # tauri.json and manifest.json redirects never point at assets that don't
+  # exist yet. The relay only restarts when its binary actually changed
+  # (xtask compares sha256s), so this is a near-no-op when the early path
+  # already shipped everything else.
+  # Job-level concurrency serializes deploys across runs (two tags in flight
+  # must not deploy concurrently).
+  deploy:
+    name: Deploy production
+    needs: [release, deploy-gate, deploy-web]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: wasm-deploy
+      cancel-in-progress: false
+    steps:
+      # Full history: xtask asserts HEAD is the tag and builds the changelog
+      # against the previously deployed tag.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask-deploy
+
+      - name: Deploy production (xtask, from the runner)
+        id: deploy
+        continue-on-error: true
+        env:
+          XTASK_BUILD_TAG: ${{ github.ref_name }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          {
+            echo "Host prod-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          cargo xtask deploy --tag "$GITHUB_REF_NAME" \
+            --host prod-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Post Discord embed (as bot)
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/discord-notify
+        with:
+          bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
+          channel-id: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          title: ${{ steps.deploy.outcome == 'success' && '🚀 Wasm deploy successful' || '💥 Wasm deploy failed' }}
+          color: ${{ steps.deploy.outcome == 'success' && '5763719' || '15548997' }} # green / red
+          url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          actor: ${{ github.actor }}
+          sha: ${{ github.sha }}
+          description: "(no log captured — the deploy failed before any output; see workflow run)"
+          description-file: deploy.log
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: |
+          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
+          exit 1
+
+  # ── Publish SideStore source (runs after web deploy) ───────────────
+  # Ships the unsigned iOS IPA + a regenerated apps.json to the deploy
+  # host's ops/sidestore/ dir, bind-mounted into the caddy container at
+  # /srv/manabrew/sidestore (compose.production.yml). Runs after `deploy`
+  # so the /sidestore Caddy route and the bind-mount are live before the
+  # files land. SideStore source URL: play.manabrew.app/sidestore/apps.json.
+  deploy-sidestore:
+    name: Publish SideStore source
+    needs: [deploy, ios-ipa]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: sidestore-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Download iOS IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa-${{ github.sha }}
+          path: ipa
+
+      - name: Stage SideStore artifacts
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p sidestore-out
+          cp "$(find ipa -name '*.ipa' | head -1)" "sidestore-out/Manabrew-${VERSION}.ipa"
+          cp src-tauri/icons/512x512.png sidestore-out/icon.png
+          node scripts/gen-sidestore-source.mjs \
+            --tag "$GITHUB_REF_NAME" \
+            --ipa "sidestore-out/Manabrew-${VERSION}.ipa" \
+            --out sidestore-out/apps.json \
+            --date "$(date -u +%Y-%m-%d)"
+
+      - name: Rsync to deploy host
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           HOST: ${{ secrets.DEPLOY_HOST }}
@@ -636,124 +791,6 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # ServerAliveInterval/CountMax keep the SSH connection healthy
-          # while deploy.sh has quiet stretches (cargo compiles, docker
-          # pulls). Without them the runner's SSH client times out after
-          # a few minutes idle and we get `client_loop: send disconnect:
-          # Broken pipe` mid-deploy.
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=120 \
-              "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
-          exit ${PIPESTATUS[0]}
-
-      - name: Fetch raw deploy log on failure
-        if: steps.deploy.outcome != 'success'
-        env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          USER: ${{ secrets.DEPLOY_USER }}
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
-            echo "(raw log not retrievable from server)"
-
-      - name: Post Discord embed (as bot)
-        if: always()
-        continue-on-error: true
-        env:
-          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
-          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          COMMIT_SHA: ${{ github.sha }}
-          ACTOR: ${{ github.actor }}
-        shell: bash
-        run: |
-          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
-            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
-            exit 0
-          fi
-
-          if [ -f deploy.log ] && [ -s deploy.log ]; then
-            LOG=$(cat deploy.log)
-          else
-            LOG="(no log captured — SSH step failed before any output; see workflow run)"
-          fi
-
-          # Discord embed description hard cap is 4096 chars.
-          MAX=3900
-          if [ "${#LOG}" -gt "$MAX" ]; then
-            LOG="${LOG:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
-          fi
-
-          if [ "$DEPLOY_OUTCOME" = "success" ]; then
-            COLOR=5763719   # 0x57F287 green
-            TITLE="🚀 Wasm deploy successful"
-          else
-            COLOR=15548997  # 0xED4245 red
-            TITLE="💥 Wasm deploy failed"
-          fi
-
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
-          ACTOR_URL="https://github.com/${ACTOR}"
-
-          PAYLOAD=$(jq -n \
-            --arg title "$TITLE" \
-            --arg url "$RUN_URL" \
-            --arg desc "$LOG" \
-            --arg footer "manabrew · $SHORT_SHA" \
-            --arg actor "$ACTOR" \
-            --arg actor_url "$ACTOR_URL" \
-            --arg avatar_url "$AVATAR_URL" \
-            --arg timestamp "$TIMESTAMP" \
-            --argjson color "$COLOR" \
-            '{
-              embeds: [{
-                title: $title,
-                url: $url,
-                description: $desc,
-                color: $color,
-                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
-                footer: { text: $footer },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # A failed notification (stale bot token, Discord outage, network
-          # blip) must never fail the deploy job: capture the HTTP status and
-          # downgrade any non-2xx to a ::warning:: annotation.
-          body=$(mktemp)
-          if [ "$DEPLOY_OUTCOME" != "success" ] && [ -f deploy-raw.log ] && [ -s deploy-raw.log ]; then
-            http=$(curl -sS -X POST \
-              -H "Authorization: Bot $BOT_TOKEN" \
-              -F "payload_json=$PAYLOAD" \
-              -F "files[0]=@deploy-raw.log;type=text/plain" \
-              -o "$body" -w "%{http_code}" \
-              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-          else
-            http=$(curl -sS -X POST \
-              -H "Authorization: Bot $BOT_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              -o "$body" -w "%{http_code}" \
-              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
-          fi
-
-          if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
-            echo "Discord notification posted (HTTP $http)."
-          else
-            echo "::warning::Discord notification failed (HTTP $http): $(cat "$body" 2>/dev/null); deploy result is unaffected."
-          fi
-          rm -f "$body"
-
-      - name: Fail job if deploy failed
-        if: steps.deploy.outcome != 'success'
-        run: |
-          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
-          exit 1
+          rsync -az --chmod=F644 \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            sidestore-out/ "$USER@$HOST:$DEPLOY_PATH/ops/sidestore/"

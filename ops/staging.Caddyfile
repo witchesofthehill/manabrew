@@ -1,3 +1,9 @@
+# In-stack edge for the staging slot on the prod box (compose.staging.yml).
+# Plain :80 — the prod Caddy (ops/Caddyfile) terminates TLS for
+# staging.manabrew.app and proxies here by service name over the shared
+# docker network. Release-only routes (/manifest.json, /tauri.json,
+# /sidestore, /status.json) are omitted — staging serves neither the updater
+# manifest nor SideStore.
 :80 {
     root * /srv/manabrew
 
@@ -25,11 +31,35 @@
         file_server
     }
 
+    # Runtime relay config (rewritten from RELAY_* env on start) — never cache it.
+    @config path /config.js
+    handle @config {
+        header Cache-Control "no-store"
+        file_server
+    }
+
     @scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
     handle @scryfall {
         rewrite * /card-symbols/{re.scryfall.1}
         reverse_proxy https://svgs.scryfall.io {
             header_up Host svgs.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # Card image proxy: cards.scryfall.io intermittently serves cached objects
+    # without CORS headers, which breaks the app's cors-mode fetches (WebGL
+    # textures need cors-clean pixels). Served same-origin here, CORS never
+    # applies. Mirrors the symbols proxy above.
+    @scryimg path_regexp scryimg ^/scryfall-img/(.*)$
+    handle @scryimg {
+        rewrite * /{re.scryimg.1}
+        reverse_proxy https://cards.scryfall.io {
+            header_up Host cards.scryfall.io
             header_down -Access-Control-Allow-Origin
             header_down -Cross-Origin-Resource-Policy
             header_down -Cache-Control
@@ -49,6 +79,26 @@
             header_down -Access-Control-Allow-Origin
         }
         header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # Deck hub + auth API, same-origin under the staging host. The hub's OAuth
+    # callback is /api/auth/callback/*; the SPA's own /auth/callback route is
+    # untouched.
+    @hub path /api/*
+    handle @hub {
+        reverse_proxy manabrew-hub-staging:9500 {
+            health_uri /health
+            health_interval 15s
+            health_timeout 3s
+        }
+    }
+
+    @hubadmin path /admin/*
+    handle @hubadmin {
+        basic_auth {
+            admin {$HUB_ADMIN_PASSWORD_HASH:$2y$05$ln9aIQ9AeSFyHiuO0tKm1uXmTi0/DYR0HPN/nEsp184AWyvGvc7hu}
+        }
+        reverse_proxy manabrew-hub-staging:9500
     }
 
     handle {

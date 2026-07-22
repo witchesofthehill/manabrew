@@ -1,5 +1,159 @@
 # Changelog
 
+## [1.12.6](https://github.com/witchesofthehill/manabrew/compare/v1.12.5...v1.12.6) (2026-07-21)
+
+### Fixes
+
+* bad prompt on partner ([#523](https://github.com/witchesofthehill/manabrew/issues/523)) ([8d73a02](https://github.com/witchesofthehill/manabrew/commit/8d73a029807ea8bec89dc558d41a53590fb45960))
+
+## [1.12.5](https://github.com/witchesofthehill/manabrew/compare/v1.12.4...v1.12.5) (2026-07-20)
+
+## [1.12.4](https://github.com/witchesofthehill/manabrew/compare/v1.12.3...v1.12.4) (2026-07-19)
+
+### Fixes
+
+* x cost prompting, prompt displays, grid ([#509](https://github.com/witchesofthehill/manabrew/issues/509)) ([395a943](https://github.com/witchesofthehill/manabrew/commit/395a9439dc7496d2e32a5db024cf9676ac66e253))
+
+## [1.12.3](https://github.com/witchesofthehill/manabrew/compare/v1.12.2...v1.12.3) (2026-07-19)
+
+### Fixes
+
+* **forge:** offer phyrexian life payment in action space ([#462](https://github.com/witchesofthehill/manabrew/issues/462)) ([ad76eef](https://github.com/witchesofthehill/manabrew/commit/ad76eefcb8d8344334650f71f295e9f82c3653d0))
+
+## [1.12.2](https://github.com/witchesofthehill/manabrew/compare/v1.12.1...v1.12.2) (2026-07-19)
+
+## [1.12.1](https://github.com/witchesofthehill/manabrew/compare/v1.12.0...v1.12.1) (2026-07-17)
+
+## [1.12.0](https://github.com/witchesofthehill/manabrew/compare/v1.11.0...v1.12.0) (2026-07-17)
+
+### Features
+
+* manabrew-protocol v1 ([#445](https://github.com/witchesofthehill/manabrew/issues/445)) ([059d559](https://github.com/witchesofthehill/manabrew/commit/059d5597620cb610b1793f24ebbd7beba7305349))
+
+## [1.11.0](https://github.com/witchesofthehill/manabrew/compare/v1.10.0...v1.11.0) (2026-07-17)
+
+### Features
+
+* **ui:** respect safe-area insets across all screens ([#463](https://github.com/witchesofthehill/manabrew/issues/463)) ([dc5c178](https://github.com/witchesofthehill/manabrew/commit/dc5c178a88d4e13b8d1e4b48bd3b95f450910a69))
+
+## [1.10.0](https://github.com/witchesofthehill/manabrew/compare/v1.9.4...v1.10.0) (2026-07-15)
+
+### Features
+
+* **ui:** add in-app design system reference route ([#383](https://github.com/witchesofthehill/manabrew/issues/383)) ([dc74707](https://github.com/witchesofthehill/manabrew/commit/dc7470773bbfd3f0609a0ad4dd8802d450d2ccbe))
+
+## [1.9.4](https://github.com/witchesofthehill/manabrew/compare/v1.9.3...v1.9.4) (2026-07-15)
+
+### Fixes
+
+* **web:** 2-row fill actually renders 2 rows; damp hand growth to half rate ([#458](https://github.com/witchesofthehill/manabrew/issues/458)) ([71c1e9b](https://github.com/witchesofthehill/manabrew/commit/71c1e9bdc8cedd97d30e00d7623a25d695da7cdb))
+
+## [1.9.3](https://github.com/witchesofthehill/manabrew/compare/v1.9.2...v1.9.3) (2026-07-15)
+
+### Fixes
+
+* **web:** viewport + slider-scaled hand fan, honest 75-150% size range ([#457](https://github.com/witchesofthehill/manabrew/issues/457)) ([b0701ee](https://github.com/witchesofthehill/manabrew/commit/b0701ee858e2c00a8dd64c1f1dd9691eee9ebe02))
+
+## [1.9.2](https://github.com/witchesofthehill/manabrew/compare/v1.9.1...v1.9.2) (2026-07-15)
+
+### Fixes
+
+* **web:** serve scryfall card images through a same-origin proxy ([#456](https://github.com/witchesofthehill/manabrew/issues/456)) ([497bb6a](https://github.com/witchesofthehill/manabrew/commit/497bb6a3f07d4cdba84a45425502ba00731fa799))
+
+## [1.9.1](https://github.com/witchesofthehill/manabrew/compare/v1.9.0...v1.9.1) (2026-07-14)
+
+### Fixes
+
+* **web:** restore hosted-ai + scryfall symbols in the generic ghcr image ([#455](https://github.com/witchesofthehill/manabrew/issues/455)) ([837892c](https://github.com/witchesofthehill/manabrew/commit/837892cff8a2bd5dd2044d651b8a7ddfc667c47b))
+
+## [1.9.0](https://github.com/witchesofthehill/manabrew/compare/v1.8.1...v1.9.0) (2026-07-14)
+
+### Features
+
+* **ironsmith:** gate as experimental opt-in + clean up unsupported-deck flow ([#451](https://github.com/witchesofthehill/manabrew/issues/451)) ([13cc3fd](https://github.com/witchesofthehill/manabrew/commit/13cc3fd8630ee1612f32ba2776f71eb39e82e8bb))
+
+## [1.8.1](https://github.com/witchesofthehill/manabrew/compare/v1.8.0...v1.8.1) (2026-07-14)
+
+### Fixes
+
+* **ui:** hit custom mb cache to avoid cdn corruption on scryfall side ([#452](https://github.com/witchesofthehill/manabrew/issues/452)) ([17d3644](https://github.com/witchesofthehill/manabrew/commit/17d36448913bf165f3a7f3179d5399727884066f))
+
+## [1.8.0](https://github.com/witchesofthehill/manabrew/compare/v1.7.0...v1.8.0) (2026-07-14)
+
+### Features
+
+* **web:** in-game board settings, unified card sizing, scry hover preview ([#450](https://github.com/witchesofthehill/manabrew/issues/450)) ([4eef170](https://github.com/witchesofthehill/manabrew/commit/4eef1706445d9d563ab6e6f10c338afb5431ae08))
+
+## [1.7.0](https://github.com/witchesofthehill/manabrew/compare/v1.6.0...v1.7.0) (2026-07-13)
+
+### Features
+
+* **hub:** deck hub backend + top-decks stats api ([#421](https://github.com/witchesofthehill/manabrew/issues/421)) ([81b6776](https://github.com/witchesofthehill/manabrew/commit/81b6776a4ffd13cb94a8694e6d16014c513e8bef))
+
+## [1.6.0](https://github.com/witchesofthehill/manabrew/compare/v1.5.3...v1.6.0) (2026-07-13)
+
+### Features
+
+* **engine:** ironsmith runtime ([#371](https://github.com/witchesofthehill/manabrew/issues/371)) ([2f57d5e](https://github.com/witchesofthehill/manabrew/commit/2f57d5ea2e5db018b402b79932bc5f910b41c909))
+
+## [1.5.3](https://github.com/witchesofthehill/manabrew/compare/v1.5.2...v1.5.3) (2026-07-12)
+
+### Fixes
+
+* **ui:** silly mistake on reload ([#444](https://github.com/witchesofthehill/manabrew/issues/444)) ([7d83a19](https://github.com/witchesofthehill/manabrew/commit/7d83a19e4570076c0f4229b782d13bcd5cb2227b))
+
+## [1.5.2](https://github.com/witchesofthehill/manabrew/compare/v1.5.1...v1.5.2) (2026-07-12)
+
+### Fixes
+
+* rooms stuck, bad starts, zombie rooms ([#443](https://github.com/witchesofthehill/manabrew/issues/443)) ([6ed64f8](https://github.com/witchesofthehill/manabrew/commit/6ed64f895cd52c9a4016a2e72139157a27a34e44))
+
+## [1.5.1](https://github.com/witchesofthehill/manabrew/compare/v1.5.0...v1.5.1) (2026-07-11)
+
+### Fixes
+
+* filter more room ([#440](https://github.com/witchesofthehill/manabrew/issues/440)) ([6fa9321](https://github.com/witchesofthehill/manabrew/commit/6fa93219055586f2b55ebc30288e6b5a3a51053d))
+
+## [1.5.0](https://github.com/witchesofthehill/manabrew/compare/v1.4.4...v1.5.0) (2026-07-09)
+
+### Features
+
+* **protocol:** filter lobby rooms by protocol version ([#382](https://github.com/witchesofthehill/manabrew/issues/382)) ([64bcaf6](https://github.com/witchesofthehill/manabrew/commit/64bcaf64b289c0b348dfda08b0cddc47ab6971ce))
+
+## [1.4.4](https://github.com/witchesofthehill/manabrew/compare/v1.4.3...v1.4.4) (2026-07-09)
+
+### Fixes
+
+* **carddb:** point cardset rebuild hints at the real archive builder ([#435](https://github.com/witchesofthehill/manabrew/issues/435)) ([610019f](https://github.com/witchesofthehill/manabrew/commit/610019f4652206f8afacea9c5100e560f517b7f0))
+
+## [1.4.3](https://github.com/witchesofthehill/manabrew/compare/v1.4.2...v1.4.3) (2026-07-09)
+
+## [1.4.2](https://github.com/witchesofthehill/manabrew/compare/v1.4.1...v1.4.2) (2026-07-09)
+
+### Fixes
+
+* **ci:** unbreak mobile publish jobs (cardset archive + gradle wrapper) ([#431](https://github.com/witchesofthehill/manabrew/issues/431)) ([3491c3a](https://github.com/witchesofthehill/manabrew/commit/3491c3a8b032756b61ce6d482264fa2721ed86c3))
+
+## [1.4.1](https://github.com/witchesofthehill/manabrew/compare/v1.4.0...v1.4.1) (2026-07-09)
+
+## [1.4.0](https://github.com/witchesofthehill/manabrew/compare/v1.3.3...v1.4.0) (2026-07-09)
+
+### Features
+
+* **mobile:** ship iOS via SideStore+ android apk + fix mobile card-db bundling ([#365](https://github.com/witchesofthehill/manabrew/issues/365)) ([03bcf62](https://github.com/witchesofthehill/manabrew/commit/03bcf623f34092ff7ac6a7d63b2e1f7f516fd3c6))
+
+### Fixes
+
+* **ui:** bot commander configuration and warn-only deck validity - crew ability ([#368](https://github.com/witchesofthehill/manabrew/issues/368)) ([6b2c653](https://github.com/witchesofthehill/manabrew/commit/6b2c6534ad969be1ff56d16cfd58bb4a0d80d577))
+
+## [1.3.3](https://github.com/witchesofthehill/manabrew/compare/v1.3.2...v1.3.3) (2026-07-09)
+
+## [1.3.2](https://github.com/witchesofthehill/manabrew/compare/v1.3.1...v1.3.2) (2026-07-09)
+
+### Fixes
+
+* reloading on a bot room will work ([#427](https://github.com/witchesofthehill/manabrew/issues/427)) ([3a22e15](https://github.com/witchesofthehill/manabrew/commit/3a22e15a16907679d152d849073356ea943fe08a))
+
 ## [1.3.1](https://github.com/witchesofthehill/manabrew/compare/v1.3.0...v1.3.1) (2026-07-07)
 
 ### Fixes

@@ -4,7 +4,8 @@ use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
 use crate::analytics::{self, GameEndReason};
-use crate::connection::broadcast_to_room;
+use crate::connection::{broadcast_to_room, emit_to};
+use crate::lobby;
 use crate::protocol::{RoomStatus, ServerMessage};
 use crate::room::Room;
 use crate::state::ServerState;
@@ -51,6 +52,23 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
         mark_disconnected(state, &player_id, generation);
     }
 
+    let mut humanless_rooms = Vec::new();
+    for mut entry in state.rooms.iter_mut() {
+        let room = entry.value_mut();
+        if room.status != RoomStatus::InGame || room.has_connected_human() {
+            room.humanless_since = None;
+            continue;
+        }
+        let since = *room.humanless_since.get_or_insert(now);
+        let grace = Duration::from_secs(room.reconnect_timeout_s as u64) + RECONNECT_ABORT_MARGIN;
+        if now.duration_since(since) >= grace {
+            humanless_rooms.push(entry.key().clone());
+        }
+    }
+    for room_id in humanless_rooms {
+        abort_humanless_room(state, &room_id);
+    }
+
     let rooms_to_remove = state
         .rooms
         .iter()
@@ -74,6 +92,26 @@ fn cleanup_stale_state(state: &Arc<ServerState>) {
             &room_id[..8.min(room_id.len())]
         );
         remove_room_and_clear_sessions(state, &room_id, GameEndReason::StaleExpired);
+    }
+}
+
+fn abort_humanless_room(state: &Arc<ServerState>, room_id: &str) {
+    let Some((info, notify)) = lobby::reset_room_to_lobby(state, room_id, GameEndReason::Abandoned)
+    else {
+        return;
+    };
+    info!(
+        "[cleanup] in-game room {} had no connected human players -- reset to lobby",
+        &room_id[..8.min(room_id.len())]
+    );
+    broadcast_to_room(state, room_id, &ServerMessage::RoomUpdate { room: info });
+    let aborted = ServerMessage::GameAborted {
+        room_id: room_id.to_string(),
+    };
+    if let Ok(json) = serde_json::to_string(&aborted) {
+        for pid in &notify {
+            emit_to(state, pid, &aborted, &json);
+        }
     }
 }
 
@@ -125,13 +163,76 @@ pub fn schedule_host_resume_abort(
     });
 }
 
+pub fn schedule_seat_forfeit(state: Arc<ServerState>, room_id: String, player_id: String) {
+    let Some(timeout_s) = state
+        .rooms
+        .get(&room_id)
+        .map(|room| room.reconnect_timeout_s)
+    else {
+        return;
+    };
+    let timeout = Duration::from_secs(timeout_s as u64);
+
+    tokio::spawn(async move {
+        tokio::time::sleep(timeout + RECONNECT_ABORT_MARGIN).await;
+
+        // A reconnect flips the player back to connected; a rejoin re-keys the
+        // seat's player_id (disarming via the seat check below). No player
+        // entry at all means a pending-rejoin seat resurrected after a relay
+        // restart — nobody is connected under that id, so it counts as gone.
+        let still_gone = state
+            .players
+            .get(&player_id)
+            .map(|player| !player.connected)
+            .unwrap_or(true);
+        let seat_in_live_game = state
+            .rooms
+            .get(&room_id)
+            .map(|room| {
+                room.status == RoomStatus::InGame
+                    && room.players.iter().any(|slot| slot.player_id == player_id)
+            })
+            .unwrap_or(false);
+        if !still_gone || !seat_in_live_game {
+            return;
+        }
+        forfeit_seat(&state, &room_id, &player_id);
+    });
+}
+
+fn forfeit_seat(state: &Arc<ServerState>, room_id: &str, player_id: &str) {
+    let (username, info) = {
+        let Some(mut room) = state.rooms.get_mut(room_id) else {
+            return;
+        };
+        let Some(slot) = room.remove_player(player_id) else {
+            return;
+        };
+        (slot.username, room.to_room_info())
+    };
+    state.players.remove(player_id);
+    info!(
+        "[cleanup] '{}' did not reconnect within grace -- forfeiting seat in room {}",
+        username,
+        &room_id[..8.min(room_id.len())]
+    );
+    broadcast_to_room(
+        state,
+        room_id,
+        &ServerMessage::PlayerLeft {
+            room_id: room_id.to_string(),
+            username,
+        },
+    );
+    broadcast_to_room(state, room_id, &ServerMessage::RoomUpdate { room: info });
+}
+
 fn in_game_room_expired(state: &Arc<ServerState>, room: &Room, now: Instant) -> bool {
     if !room.all_disconnected() {
         return false;
     }
 
-    let disconnected_at = room
-        .players
+    room.players
         .iter()
         .map(|slot| slot.player_id.as_str())
         .chain(
@@ -139,12 +240,8 @@ fn in_game_room_expired(state: &Arc<ServerState>, room: &Room, now: Instant) -> 
                 .iter()
                 .map(|observer| observer.player_id.as_str()),
         )
-        .map(|player_id| state.players.get(player_id).and_then(|p| p.disconnected_at))
-        .collect::<Option<Vec<_>>>();
-
-    disconnected_at
-        .filter(|times| !times.is_empty())
-        .and_then(|times| times.into_iter().max())
+        .filter_map(|player_id| state.players.get(player_id).and_then(|p| p.disconnected_at))
+        .max()
         .is_some_and(|latest| now.duration_since(latest) >= IN_GAME_DISCONNECTED_GRACE)
 }
 
@@ -200,17 +297,23 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
                     return;
                 }
 
-                if let Some(mut room) = state.rooms.get_mut(rid) {
-                    room.set_connected(player_id, false);
-                } else {
-                    return;
-                }
+                let holds_seat = {
+                    if let Some(mut room) = state.rooms.get_mut(rid) {
+                        room.set_connected(player_id, false);
+                        room.players.iter().any(|slot| slot.player_id == player_id)
+                    } else {
+                        return;
+                    }
+                };
 
                 info!(
                     "[disconnect] '{}' marked disconnected in in-game room {} (session preserved)",
                     username,
                     &rid[..8]
                 );
+                if holds_seat {
+                    schedule_seat_forfeit(state.clone(), rid.clone(), player_id.to_string());
+                }
                 broadcast_to_room(
                     state,
                     rid,
@@ -317,6 +420,10 @@ pub fn remove_room_and_clear_sessions(
             analytics::emit_game_ended(&state.analytics, &room, replay, reason);
         }
     }
+    release_room_sessions(state, room_id);
+}
+
+fn release_room_sessions(state: &Arc<ServerState>, room_id: &str) {
     let player_ids = state
         .players
         .iter()
@@ -330,6 +437,17 @@ pub fn remove_room_and_clear_sessions(
         })
         .collect::<Vec<_>>();
     for player_id in player_ids {
-        state.players.remove(&player_id);
+        let connected = state
+            .players
+            .get(&player_id)
+            .map(|player| player.connected)
+            .unwrap_or(false);
+        if connected {
+            if let Some(mut player) = state.players.get_mut(&player_id) {
+                player.room_id = None;
+            }
+        } else {
+            state.players.remove(&player_id);
+        }
     }
 }

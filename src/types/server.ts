@@ -6,6 +6,7 @@ import type {
   PlayerDeckInfo,
   Prompt,
   PromptOutput,
+  ProtocolError,
   SealedConfig,
   StateUpdate,
 } from "@/protocol";
@@ -31,6 +32,7 @@ export interface RoomInfo {
   room_id: string;
   room_name: string;
   host: string;
+  protocol_version: number;
   hosted: boolean;
   official: boolean;
   password_protected: boolean;
@@ -77,6 +79,7 @@ export interface PlayerListPayload {
 export interface RoomCreatedPayload {
   room_id: string;
   room_name: string;
+  room: RoomInfo;
 }
 
 export interface RoomUpdatePayload {
@@ -104,6 +107,7 @@ export interface ReadyChangedPayload {
 
 export interface GameStartedPayload {
   room_id: string;
+  game_id: string;
   player_order: string[];
   player_decks: PlayerDeckInfo[];
   starting_life: number;
@@ -132,10 +136,11 @@ export interface RoomRelayEnvelope<TPayload = unknown> {
 }
 
 export type StateEnvelope =
-  | { kind: "state"; state: StateUpdate }
+  | { kind: "state"; forPlayer?: string; state: StateUpdate }
   | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
-  | { kind: "response"; fromPlayer: string; action: PromptOutput }
+  | { kind: "error"; forPlayer: string; error: ProtocolError }
+  | { kind: "response"; fromPlayer: string; promptId: number; action: PromptOutput }
   | { kind: "directive"; fromPlayer: string; directive: DirectiveInput }
   | { kind: "log"; fromPlayer: string; entry: unknown }
   | { kind: "snapshot"; fromPlayer: string; entry: unknown }

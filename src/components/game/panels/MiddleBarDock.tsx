@@ -7,6 +7,7 @@ import {
   Minimize2,
   PanelRightClose,
   PanelRightOpen,
+  Settings2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -28,6 +29,7 @@ interface MiddleBarDockProps {
   /** Controlled open state — the trigger is the Pixi gear in the self panel. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenSettings: () => void;
   onConcede: () => void;
   eliminated: boolean;
   onLeave: () => void;
@@ -45,6 +47,7 @@ interface MiddleBarDockProps {
 export function MiddleBarDock({
   open,
   onOpenChange,
+  onOpenSettings,
   onConcede,
   eliminated,
   onLeave,
@@ -95,6 +98,10 @@ export function MiddleBarDock({
         <DropdownMenuItem onSelect={() => onToggleSidePanel()}>
           <PanelIcon className="mr-2 h-4 w-4" />
           {sidePanelCollapsed ? "Show side panel" : "Hide side panel"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onOpenSettings()}>
+          <Settings2 className="mr-2 h-4 w-4" />
+          Board settings
         </DropdownMenuItem>
         {players.length > 0 && (
           <DropdownMenuSub>

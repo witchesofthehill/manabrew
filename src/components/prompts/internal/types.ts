@@ -62,6 +62,8 @@ export interface PayManaCostProps extends PromptActionLayoutProps {
     delveCount?: number;
     delveAvailable?: boolean;
     onOpenDelve?: () => void;
+    lifeToPay?: number;
+    onPayLife?: () => void;
   } | null;
   onPayManaCost?: () => void;
   onAutoManaCost?: () => void;

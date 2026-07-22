@@ -35,7 +35,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       cards={prompt.input.cards}
       presentation={{
         title: "Revealed cards",
-        description: prompt.input.message,
+        description: prompt.input.presentation.title,
         targets: [],
       }}
       min={0}
@@ -68,16 +68,14 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <VAssignCombatDamageModal input={prompt.input} respond={respond} />
   ),
 
-  reorderCards: ({ prompt, respond }) => (
-    <ReorderCardsModal input={prompt.input} respond={respond} />
-  ),
+  reorder: ({ prompt, respond }) => <ReorderCardsModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
   diceRolled: ({ prompt, respond, ctx }) => (
     <DiceRollFeedback
       sides={prompt.input.sides}
       rolls={prompt.input.rolls}
-      title={prompt.input.title}
+      title={prompt.input.presentation.title}
       players={(ctx.gameView?.players ?? []).map((p) => ({ id: p.id, isHuman: p.isHuman }))}
       sourceCard={ctx.sourceDeckCard}
       onAcknowledge={() => respond({ type: "diceRolledAcknowledged" })}

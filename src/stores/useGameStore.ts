@@ -8,6 +8,7 @@ import {
   selectGameRuntime,
   startManualRoomSync,
   stopManualRoomSync as stopActiveManualRoomSync,
+  IronsmithUnsupportedDeckError,
 } from "@/game";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
@@ -16,9 +17,8 @@ import { startHostedAiGame, startTauriForgeAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
-import type { GameState } from "./gameStore.types";
+import type { ClientCardDto, ClientGameView, GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
-import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
@@ -32,7 +32,7 @@ function isManualTabletopApi(
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
 
-function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardDto {
+function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): ClientCardDto {
   const { identity, ...rest } = card;
   return {
     ...GAME_CARD_DEFAULTS,
@@ -57,9 +57,9 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardD
 }
 
 function seedManualDeck(
-  gameView: GameViewDto,
+  gameView: ClientGameView,
   deck: Deck,
-): { gameView: GameViewDto; libraries: Record<string, CardDto[]> } {
+): { gameView: ClientGameView; libraries: Record<string, ClientCardDto[]> } {
   const playerId = gameView.players[0]?.id ?? "player-0";
   const openingHandSize = Math.min(7, deck.cards.length);
   const hand = deck.cards
@@ -135,6 +135,7 @@ async function initializeGame({
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
+      seatAddressedStates: false,
       relinquishedPriority: false,
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
@@ -186,6 +187,7 @@ async function initializeGame({
   set({
     isGameActive: true,
     fatalError: null,
+    ironsmithDeckError: null,
     gameView: null,
     currentPrompt: null,
     gameLog: [],
@@ -193,6 +195,7 @@ async function initializeGame({
     deferredQueue: [],
     isFlashing: false,
     isWaitingForResponse: false,
+    seatAddressedStates: false,
     relinquishedPriority: false,
     selfConceded: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
@@ -220,10 +223,12 @@ export const useGameStore = create<GameState>()(
       isGameActive: false,
       debugInfo: "",
       fatalError: null,
+      ironsmithDeckError: null,
       isPrefetchingCards: false,
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
+      seatAddressedStates: false,
       relinquishedPriority: false,
       gameConfig: null,
       selfConceded: false,
@@ -245,13 +250,19 @@ export const useGameStore = create<GameState>()(
 
       setGameConfig: (config) => set({ gameConfig: config }),
 
+      dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
+
       startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
         try {
           await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
         } catch (e) {
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);
-          toast.error(e instanceof Error ? e.message : "Failed to start game");
+          if (e instanceof IronsmithUnsupportedDeckError) {
+            set({ ironsmithDeckError: e.issues });
+          } else {
+            toast.error(e instanceof Error ? e.message : "Failed to start game");
+          }
         }
       },
 
@@ -303,7 +314,7 @@ export const useGameStore = create<GameState>()(
         });
       },
 
-      startManualRoomClient: async (localPlayerSlot: string, initialGameView?: GameViewDto) => {
+      startManualRoomClient: async (localPlayerSlot: string, initialGameView?: ClientGameView) => {
         selectGameRuntime("manual-tabletop");
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) {
@@ -351,6 +362,10 @@ export const useGameStore = create<GameState>()(
         enginePlayerIndex,
         localIsHost,
         startingLife,
+        engine,
+        format,
+        hostPlayerSlot,
+        botPlayerSlots,
       ) => {
         // Guard against re-entry — a second start while one is already in
         // flight would tear down the first session's response channels in
@@ -372,6 +387,7 @@ export const useGameStore = create<GameState>()(
         if (server.currentRoom) {
           armActiveGameSession({
             roomId: server.currentRoom.room_id,
+            gameId: server.gameId,
             isHost: localIsHost,
             username: server.username ?? "",
           });
@@ -382,6 +398,7 @@ export const useGameStore = create<GameState>()(
             isMultiplayer: true,
             isHost: localIsHost,
             myPlayerSlot: `player-${enginePlayerIndex}`,
+            ironsmithDeckError: null,
             gameView: null,
             currentPrompt: null,
             gameLog: [],
@@ -389,14 +406,15 @@ export const useGameStore = create<GameState>()(
             deferredQueue: [],
             isFlashing: false,
             isWaitingForResponse: false,
+            seatAddressedStates: false,
             relinquishedPriority: false,
             selfConceded: false,
             debugInfo: "Starting multiplayer game...",
             isPrefetchingCards: true,
             gameDecks,
           });
-          resetSelectedGameRuntime();
-          const runtime = getSelectedGameRuntime();
+          const runtime =
+            engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
           await runtime.api.startMultiplayerGame({
             playerNames,
@@ -405,6 +423,9 @@ export const useGameStore = create<GameState>()(
             enginePlayerIndex,
             localIsHost,
             startingLife,
+            format,
+            hostPlayerSlot,
+            botPlayerSlots,
           });
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
         } catch (e) {
@@ -415,7 +436,11 @@ export const useGameStore = create<GameState>()(
             gameDecks: {},
           });
           console.error("[store] Failed to start multiplayer game:", e);
-          toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
+          if (e instanceof IronsmithUnsupportedDeckError) {
+            set({ ironsmithDeckError: e.issues });
+          } else {
+            toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
+          }
         }
       },
 
@@ -450,8 +475,9 @@ export const useGameStore = create<GameState>()(
             debugInfo: `Responding: ${output.type}`,
           });
           const { myPlayerSlot } = get();
+          const promptId = Number(get().currentPrompt?.promptId ?? 0);
           const runtime = getSelectedGameRuntime();
-          await runtime.api.respond({ action, playerSlot: myPlayerSlot });
+          await runtime.api.respond({ action, playerSlot: myPlayerSlot, promptId });
         } catch (e) {
           set({
             isWaitingForResponse: false,
@@ -494,6 +520,7 @@ export const useGameStore = create<GameState>()(
           deferredQueue: [],
           isFlashing: false,
           isWaitingForResponse: false,
+          seatAddressedStates: false,
           relinquishedPriority: false,
           selfConceded: false,
           isMultiplayer: false,
@@ -550,3 +577,11 @@ export const useGameStore = create<GameState>()(
     { name: "game", enabled: import.meta.env.DEV },
   ),
 );
+
+// Dev-only seam for the UI e2e suite (tests/e2e-ui): the tests need the LIVE
+// store instance, and a dynamic `import("/src/stores/useGameStore.ts")` from
+// the page context duplicates the module once vite's HMR stamps the module
+// graph with `?t=` query params. Never present in production builds.
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  (window as unknown as { __gameStore?: typeof useGameStore }).__gameStore = useGameStore;
+}

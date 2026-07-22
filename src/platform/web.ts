@@ -30,13 +30,46 @@ import type {
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
+import { PROTOCOL_VERSION } from "@/protocol";
 import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 import { logComms } from "@/lib/commsLog";
+import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
+import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
+
+/** Reload/bot-recovery trace, gated behind the debug-prompts preference. */
+const dlog = (...args: unknown[]) => {
+  if (isPromptLoggingEnabled()) console.log(...args);
+};
+
+/** One-line summary of a bot wire frame (in or out) for the reload trace. */
+function describeBotFrame(raw: string): string {
+  try {
+    const p = JSON.parse(raw) as {
+      type?: string;
+      state?: {
+        kind?: string;
+        forPlayer?: string;
+        fromPlayer?: string;
+        prompt?: { input?: { type?: string } };
+      };
+    };
+    let d = p.type ?? "?";
+    if ((p.type === "StateUpdate" || p.type === "BroadcastState") && p.state) {
+      d += ` kind=${p.state.kind}`;
+      if (p.state.forPlayer) d += ` forPlayer=${p.state.forPlayer}`;
+      if (p.state.fromPlayer) d += ` fromPlayer=${p.state.fromPlayer}`;
+      if (p.state.prompt?.input?.type) d += ` promptType=${p.state.prompt.input.type}`;
+    }
+    return d;
+  } catch {
+    return "?";
+  }
+}
 
 // ============================================================================
 // Worker Message Types
@@ -80,7 +113,7 @@ interface RemoteSeat {
 // A kind-tagged engine message read off a seat's SAB, awaiting relay.
 type RelayMessage = {
   forPlayer: string;
-  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown };
+  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
 };
 
 // ============================================================================
@@ -188,6 +221,7 @@ class WorkerBridge {
     state?: unknown;
     event?: unknown;
     prompt?: unknown;
+    error?: unknown;
   }): void {
     logComms("engine", msg);
     switch (msg?.kind) {
@@ -196,6 +230,9 @@ class WorkerBridge {
         break;
       case "display":
         this.eventBus.emit("game:display", msg.event);
+        break;
+      case "error":
+        this.eventBus.emit("game:error", msg.error);
         break;
       case "prompt":
         this.localAwaitingResponse = true;
@@ -279,7 +316,8 @@ class WorkerBridge {
       }
       const action = payload.state.action as PromptOutput | undefined;
       if (!action) return;
-      this.writeSeatMessage(seat, { kind: "response", action });
+      const promptId = Number(payload.state.promptId ?? 0);
+      this.writeSeatMessage(seat, { kind: "response", promptId, action });
     });
   }
 
@@ -305,8 +343,8 @@ class WorkerBridge {
   /**
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
-  writeResponse(action: PromptOutput): void {
-    this.writeLocalMessage({ kind: "response", action });
+  writeResponse(action: PromptOutput, promptId: number): void {
+    this.writeLocalMessage({ kind: "response", promptId, action });
   }
 
   /** Deliver a directive to the local seat: now if the engine is blocked on
@@ -533,17 +571,21 @@ class WebGameApi implements IGameApi {
       const envelope: StateEnvelope = {
         kind: "response",
         fromPlayer,
+        promptId: params.promptId,
         action: params.action,
       };
-      if (DEBUG_TRANSPORT) console.log(`[MP] respond→ as ${fromPlayer}:`, params.action.type);
+      dlog(
+        `[resume-wire] guest respond → broadcasting response as ${fromPlayer}: ${params.action.type}`,
+      );
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer
-      this.bridge.writeResponse(params.action);
+      this.bridge.writeResponse(params.action, params.promptId);
     } else {
       await this.bridge.invoke("respond", {
         action: params.action,
         playerSlot: params.playerSlot,
+        promptId: params.promptId,
       });
     }
   }
@@ -710,6 +752,8 @@ class WebServerApi implements IServerApi {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
         this.broadcastState(envelope);
+      } else if (msg.kind === "error") {
+        this.broadcastState({ kind: "error", forPlayer, error: msg.error });
       }
     });
   }
@@ -903,6 +947,7 @@ class WebServerApi implements IServerApi {
       room_name: params.roomName,
       max_players: params.maxPlayers,
       format: params.format,
+      protocol_version: PROTOCOL_VERSION,
       hosted: params.hosted ?? false,
       engine: params.engine ?? "Manabrew",
       draft_config: params.draftConfig ?? null,
@@ -936,6 +981,7 @@ class WebServerApi implements IServerApi {
 
   async leaveRoom(): Promise<void> {
     this.stopAllBots();
+    clearSpawnedBots();
     this.send({ type: "LeaveRoom" });
   }
 
@@ -965,9 +1011,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "StartGame", format: params?.format ?? null });
   }
 
-  async endGame(): Promise<void> {
+  async endGame(gameId: string): Promise<void> {
     this.stopAllBots();
-    this.send({ type: "EndGame" });
+    clearSpawnedBots();
+    this.send({ type: "EndGame", game_id: gameId });
   }
 
   async requestResync(): Promise<void> {
@@ -1008,16 +1055,19 @@ class WebServerApi implements IServerApi {
       reconnectTimer: null,
     };
     this.bots.set(params.username, entry);
+    rememberSpawnedBot(params);
     const connect = () => {
       entry.reconnectTimer = null;
       if (entry.stopped || !this.relayUrl) {
         this.bots.delete(params.username);
         return;
       }
+      dlog(`[bot-life ${params.username}] connecting (attempt ${entry.attempt})`);
       const bot = new wasm.WasmBot(config);
       const ws = new WebSocket(this.relayUrl);
       entry.ws = ws;
       ws.onopen = () => {
+        dlog(`[bot-life ${params.username}] socket open → authenticating`);
         for (const msg of bot.on_open()) {
           logComms("bot-send", `[${params.username}] ${msg}`);
           ws.send(msg);
@@ -1026,8 +1076,16 @@ class WebServerApi implements IServerApi {
       ws.onmessage = (e: MessageEvent) => {
         if (typeof e.data !== "string") return;
         logComms("bot-recv", `[${params.username}] ${e.data}`);
-        for (const msg of bot.on_server_message(e.data)) {
+        const trace = isPromptLoggingEnabled();
+        const replies = bot.on_server_message(e.data);
+        if (trace) {
+          console.log(
+            `[bot-life ${params.username}] recv ${describeBotFrame(e.data)} → ${replies.length} repl${replies.length === 1 ? "y" : "ies"}`,
+          );
+        }
+        for (const msg of replies) {
           logComms("bot-send", `[${params.username}] ${msg}`);
+          if (trace) console.log(`[bot-life ${params.username}] send ${describeBotFrame(msg)}`);
           ws.send(msg);
         }
         const failure = bot.failure();
@@ -1057,6 +1115,7 @@ class WebServerApi implements IServerApi {
   }
 
   async removeAiBot(username: string): Promise<void> {
+    forgetSpawnedBot(username);
     const entry = this.bots.get(username);
     if (!entry) return;
     entry.stopped = true;
@@ -1102,7 +1161,33 @@ class WebServerApi implements IServerApi {
     logComms("recv", msg);
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     const type = msg.type as string;
-    if (type === "GameAborted") this.stopAllBots();
+    if (isPromptLoggingEnabled()) {
+      if (type === "AuthResult") {
+        console.log(
+          `[resume-wire] AuthResult success=${msg.success} reconnected=${msg.reconnected}` +
+            ` player_id=${msg.player_id} error=${msg.error ?? "none"}`,
+        );
+      } else if (type === "RoomUpdate") {
+        const room = msg.room as
+          | { room_id?: string; status?: string; host?: string; players?: unknown[] }
+          | undefined;
+        const players = Array.isArray(room?.players)
+          ? (room?.players as { username?: string; is_bot?: boolean; connected?: boolean }[]).map(
+              (p) => `${p.username}${p.is_bot ? "(bot)" : ""}:${p.connected ? "on" : "off"}`,
+            )
+          : [];
+        console.log(
+          `[resume-wire] RoomUpdate id='${room?.room_id}' status='${room?.status}'` +
+            ` host='${room?.host}' players=[${players.join(", ")}]`,
+        );
+      } else if (type === "GameStarted" || type === "GameAborted" || type === "Error") {
+        console.log(`[resume-wire] ${type}`, JSON.stringify(msg));
+      }
+    }
+    if (type === "GameAborted") {
+      this.stopAllBots();
+      clearSpawnedBots();
+    }
 
     if (type === "ServerShuttingDown") {
       const reconnectInS = typeof msg.reconnect_in_s === "number" ? msg.reconnect_in_s : 5;
@@ -1118,6 +1203,16 @@ class WebServerApi implements IServerApi {
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;
+      const forPlayer = (envelope as { forPlayer?: string }).forPlayer;
+      const promptType =
+        envelope.kind === "prompt"
+          ? ((envelope as { prompt?: { input?: { type?: string } } }).prompt?.input?.type ?? "?")
+          : undefined;
+      dlog(
+        `[resume-wire] main-socket StateUpdate from=${msg.from_player} kind=${envelope.kind}` +
+          (forPlayer ? ` forPlayer=${forPlayer}` : "") +
+          (promptType ? ` promptType=${promptType}` : ""),
+      );
       switch (envelope.kind) {
         case "response":
           this.pendingRelayPrompts.delete(envelope.fromPlayer);
@@ -1147,6 +1242,9 @@ class WebServerApi implements IServerApi {
           return;
         case "prompt":
           this.eventBus.emit("game:remote_prompt", envelope);
+          return;
+        case "error":
+          this.eventBus.emit("game:remote_error", envelope);
           return;
         case "log":
           this.eventBus.emit("game:log", envelope.entry);
@@ -1216,7 +1314,10 @@ class WebServerApi implements IServerApi {
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],
       PlayerList: ["server:player_list", { players: msg.players }],
-      RoomCreated: ["server:room_created", { room_id: msg.room_id, room_name: msg.room_name }],
+      RoomCreated: [
+        "server:room_created",
+        { room_id: msg.room_id, room_name: msg.room_name, room: msg.room },
+      ],
       PlayerJoined: ["server:player_joined", { room_id: msg.room_id, username: msg.username }],
       PlayerLeft: ["server:player_left", { room_id: msg.room_id, username: msg.username }],
       PlayerConnected: ["server:player_connected", { username: msg.username }],
@@ -1227,6 +1328,7 @@ class WebServerApi implements IServerApi {
         "server:game_started",
         {
           room_id: msg.room_id,
+          game_id: msg.game_id,
           player_order: msg.player_order,
           player_decks: msg.player_decks,
           starting_life: msg.starting_life,

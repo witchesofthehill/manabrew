@@ -12,11 +12,17 @@
 //!                                         create the GitHub Release
 //!   cargo xtask manifest [--check]        (re)generate ops/manifest.json
 //!   cargo xtask publish [--dry-run]       publish pending crates to crates.io
+//!   cargo xtask gen-types                 regenerate the frontend TS types
+//!   cargo xtask e2e-ui [scripts…]         run the Playwright UI e2e suite
+//!   cargo xtask deploy --tag vX.Y.Z       roll production out from the runner
 //!
 //! Requires `git-cliff` on PATH (brew install git-cliff / taiki-e/install-action).
 
 mod apply;
 mod cliff;
+mod deploy;
+mod e2e_ui;
+mod gen_types;
 mod manifest;
 mod plan;
 mod publish;
@@ -36,12 +42,28 @@ use workspace::Workspace;
 fn main() -> Result<()> {
     let mut parser = lexopt::Parser::from_env();
     let mut command: Option<String> = None;
+    let mut rest: Vec<String> = Vec::new();
     let mut dry_run = false;
     let mut check = false;
     let mut summary = false;
     while let Some(arg) = parser.next()? {
         match arg {
-            Value(v) if command.is_none() => command = Some(v.string()?),
+            Value(v) if command.is_none() => {
+                let name = v.string()?;
+                // deploy owns its own flags (--tag, --host, …); hand the rest
+                // over raw instead of teaching this parser every one of them.
+                let takes_raw = name == "deploy";
+                command = Some(name);
+                if takes_raw {
+                    for raw in parser.raw_args()? {
+                        rest.push(
+                            raw.into_string()
+                                .map_err(|a| anyhow::anyhow!("non-utf8 argument {a:?}"))?,
+                        );
+                    }
+                }
+            }
+            Value(v) => rest.push(v.string()?),
             Long("dry-run") => dry_run = true,
             Long("check") => check = true,
             Long("github-summary") => summary = true,
@@ -51,6 +73,15 @@ fn main() -> Result<()> {
             }
             _ => return Err(arg.unexpected().into()),
         }
+    }
+
+    // deploy carries its config embedded (build.rs) and runs without a
+    // checkout — the prebuilt release binary works from any directory. A git
+    // repo, when present, only enriches it (changelogs, --local's source
+    // build), so root falls back to the cwd.
+    if command.as_deref() == Some("deploy") {
+        let root = repo_root().or_else(|_| std::env::current_dir().context("no working dir"))?;
+        return deploy::run_cmd(&root, &rest);
     }
 
     let ws = Workspace::load(&workspace_root()?)?;
@@ -73,9 +104,13 @@ fn main() -> Result<()> {
         Some("manifest") if check => manifest::check(&ws, &root)?,
         Some("manifest") => manifest::generate(&ws, &root, false)?,
         Some("publish") => publish::publish(&ws, &root, dry_run)?,
+        Some("gen-types") => gen_types::generate(&root)?,
+        Some("e2e-ui") => e2e_ui::run(&root, &rest)?,
         _ => {
             print_help();
-            bail!("pick a command: plan | release | manifest | publish");
+            bail!(
+                "pick a command: plan | release | manifest | publish | gen-types | e2e-ui | deploy"
+            );
         }
     }
     Ok(())
@@ -87,12 +122,29 @@ fn workspace_root() -> Result<PathBuf> {
     Ok(PathBuf::from(dir).parent().unwrap().to_path_buf())
 }
 
+fn repo_root() -> Result<PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .context("could not spawn `git` — is it installed?")?;
+    if !out.status.success() {
+        bail!("not inside a manabrew checkout — run from the repo");
+    }
+    Ok(PathBuf::from(String::from_utf8(out.stdout)?.trim()))
+}
+
 fn print_help() {
     println!(
         "usage: cargo xtask <command>\n\n  \
          plan [--github-summary]   show the pending release plan\n  \
          release [--dry-run]       run the continuous-release step (CI/main only)\n  \
          manifest [--check]        regenerate or verify ops/manifest.json\n  \
-         publish [--dry-run]       publish pending crates to crates.io"
+         publish [--dry-run]       publish pending crates to crates.io\n  \
+         gen-types                 regenerate src/protocol + src/api/hubTypes.ts\n  \
+         e2e-ui [scripts…]         run the Playwright UI e2e suite (needs the relay\n                            \
+         on :9443 and `yarn dev:web` on :1420; see tests/e2e-ui/README.md)\n  \
+         deploy --tag vX.Y.Z       roll the production stack out over SSH\n                            \
+         [--web-only | --gate | --only <svc…>] [--host H] [--path P]\n                            \
+         --staging [--branch B]: the staging slot; --local: this machine"
     );
 }

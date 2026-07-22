@@ -2,6 +2,7 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { PromptPresentation } from "./internal/PromptPresentation";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import { isVerticalPresentation } from "./internal/promptLayout";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseBooleanInput, ChooseBooleanOutput } from "@/protocol";
@@ -13,7 +14,8 @@ export function ChooseBooleanModal({
   const decide = (value: boolean) => respond({ type: "decision", value });
   useModalKeyboard({ onSpace: () => decide(true) }, [respond]);
 
-  const vertical = isVerticalPresentation(input.presentation);
+  const { preview, presentation } = useModalSourceCard(input.presentation);
+  const vertical = isVerticalPresentation(presentation);
 
   return (
     <Modal
@@ -21,9 +23,10 @@ export function ChooseBooleanModal({
       maxHeight=""
       className={vertical ? "w-auto max-w-[min(90vw,32rem)]" : undefined}
     >
+      {preview}
       <div className="p-6">
         <PromptPresentation
-          presentation={input.presentation}
+          presentation={presentation}
           actions={
             <>
               <Button variant="outline" onClick={() => decide(false)}>

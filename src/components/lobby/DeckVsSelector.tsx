@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { FEATURES } from "@/lib/features";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
-import { useIsShortScreen } from "@/hooks/useBreakpoints";
+import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { getDeckFingerprint } from "@/lib/decks";
+import { getFormat, validateDeckSections } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck } from "@/protocol/deck";
 import { ArrowLeft, Hand, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
@@ -49,6 +51,7 @@ function pickRandom<T>(arr: readonly T[]): T | undefined {
 export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
+  const isTouch = useIsTouch();
   const [stage, setStage] = useState<"format" | "decks">("format");
   const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(null);
   const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
@@ -71,7 +74,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => !saved.deck.draft && getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
@@ -93,6 +96,23 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       commanderName: deck.commanders?.[0]?.identity.name,
     };
   });
+
+  const deckValidations = useMemo(() => {
+    const map = new Map<string, { legal: boolean; errors: string[] }>();
+    for (const entry of userDeckEntries) {
+      const format = getFormat(entry.formatId ?? "standard");
+      if (!format) continue;
+      map.set(
+        entry.id,
+        validateDeckSections(
+          { deck: entry.sourceDeck, commanderName: entry.commanderName },
+          format,
+        ),
+      );
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedDecks, currentDeck]);
 
   const formatFilteredUserDecks = userDeckEntries.filter(
     (deck) => deck.formatId === selectedFormat,
@@ -157,6 +177,13 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
 
   function handleFight() {
     if (!playerDeck || !opponentDeck) return;
+    const empty = [playerDeck, opponentDeck].find(
+      (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
+    );
+    if (empty) {
+      toast.error(`"${empty.name}" has no cards`);
+      return;
+    }
     onStart(
       playerDeck.sourceDeck,
       opponentDeck.sourceDeck,
@@ -208,7 +235,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
             placeholder="Filter decks..."
             value={deckSearch}
             onChange={(e) => setDeckSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -248,14 +275,21 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   ...(entry.sourceDeck?.commanders ?? []),
                 ];
                 const cover = entry.sourceDeck ? resolveCoverCard(entry.sourceDeck) : undefined;
+                const validation = deckValidations.get(entry.id) ?? {
+                  legal: true,
+                  errors: [] as string[],
+                };
                 return (
                   <DeckSelectionCard
                     key={entry.id}
                     id={entry.id}
                     name={entry.name}
                     color={entry.color}
+                    badge={entry.sourceDeck?.draft ? "draft" : undefined}
                     cards={displayCards}
                     cover={cover}
+                    isLegal={validation.legal}
+                    validationError={validation.errors[0]}
                     labels={entry.sourceDeck?.labels}
                     isPreset={false}
                     isSelected={false}
@@ -263,6 +297,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     isOpponentDeck={opponentDeck?.id === entry.id}
                     formatId={entry.sourceDeck?.format ?? entry.formatId ?? "standard"}
                     dense={denseDecks}
+                    isTouch={isTouch}
                     onSelect={() => selectUserDeck(entry)}
                   />
                 );
@@ -304,6 +339,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   isOpponentDeck={opponentDeck?.id === (deck.id ?? deck.name)}
                   formatId={selectedFormat}
                   dense={denseDecks}
+                  isTouch={isTouch}
                   onSelect={() => selectDeck(deck)}
                 />
               ))}

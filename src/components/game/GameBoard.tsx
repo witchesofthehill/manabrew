@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import type { CardDto, PlayerDto } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
+import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
 import { stripUsernameTag } from "@/lib/username";
@@ -20,7 +21,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks } from "@/pixi/types";
-import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
+import { usePhaseStopStore, DEFAULT_OPPONENT_STOPS } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
@@ -50,13 +51,14 @@ function promptOf<TType extends PromptType>(
 }
 
 interface GameBoardProps {
-  me: PlayerDto;
-  opponents: PlayerDto[];
+  me: ClientPlayerDto;
+  opponents: ClientPlayerDto[];
   myPermanents: CardDto[];
   opponentPermanentsByPlayer: Map<string, CardDto[]>;
   myHand: CardDto[];
   graveyard: CardDto[];
   exile: CardDto[];
+  library: CardDto[];
   myCommandZone?: CardDto[];
   /** Ids of cards the active `chooseAction` prompt offers to cast/activate. */
   playableIds: Set<string>;
@@ -163,6 +165,7 @@ export function GameBoard({
   myHand,
   graveyard,
   exile,
+  library,
   myCommandZone,
   playableIds,
   activePlayerId,
@@ -320,6 +323,9 @@ export function GameBoard({
     .filter((card) => playableIds.has(card.id))
     .map((card) => card.id);
   const exilePlayableIds = exile.filter((card) => playableIds.has(card.id)).map((card) => card.id);
+  const libraryPlayableIds = library
+    .filter((card) => playableIds.has(card.id))
+    .map((card) => card.id);
   const selectableBattlefieldCardIds = useMemo(
     () =>
       promptType === "chooseAttackers"
@@ -417,10 +423,8 @@ export function GameBoard({
               .filter((a) => a.mustAttack)
               .map((a) => a.attackerId)
           : undefined,
-      tappableLandIds: promptActions
-        ?.filter((a) => a.type === "activateAbility" && a.isManaAbility)
-        .map((a) => a.cardId),
-      untappableLandIds: promptActions?.filter((a) => a.type === "undoMana").map((a) => a.cardId),
+      tappableLandIds: manaAbilityOptions?.map((o) => o.cardId),
+      untappableLandIds: promptActions?.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : [])),
       manaAbilityOptions,
       hostileTargeting,
       hostileTargetCardIds:
@@ -558,7 +562,7 @@ export function GameBoard({
   const pixiPhaseStrip = useMemo((): import("@/pixi/PhaseStripLayer").PhaseStripState => {
     const oppEnabled = new Map<string, Set<string>>();
     for (const op of opponents) {
-      oppEnabled.set(op.id, opponentStopsMap.get(op.id) ?? new Set(["end"]));
+      oppEnabled.set(op.id, opponentStopsMap.get(op.id) ?? new Set(DEFAULT_OPPONENT_STOPS));
     }
     return {
       currentStep: step,
@@ -734,7 +738,7 @@ export function GameBoard({
     // panel can light up each state on all opponents at once. In production
     // these are all empty/false, so this is a no-op.
     const dev = devOverrides;
-    const cmdDamageBadges = (player: PlayerDto): PlayerHudBadge[] => {
+    const cmdDamageBadges = (player: ClientPlayerDto): PlayerHudBadge[] => {
       if (dev.cmdDamage != null) {
         return dev.cmdDamage > 0
           ? [
@@ -764,7 +768,7 @@ export function GameBoard({
         });
     };
 
-    const incomingDamageBadges = (player: PlayerDto): PlayerHudBadge[] => {
+    const incomingDamageBadges = (player: ClientPlayerDto): PlayerHudBadge[] => {
       const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
       if (incoming <= 0) return [];
       const lethal = incoming >= (dev.life ?? player.life);
@@ -780,7 +784,7 @@ export function GameBoard({
       ];
     };
 
-    const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
+    const toSpec = (player: ClientPlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
       const badges = [
         ...incomingDamageBadges(player),
         ...buildPlayerHudBadges(
@@ -795,7 +799,7 @@ export function GameBoard({
             cityBlessing: dev.forceCityBlessing ? true : player.hasCityBlessing,
             ringLevel: dev.ringLevel ?? player.ringLevel,
             speed: dev.speed ?? player.speed,
-            handCount: dev.handCount ?? player.hand.length,
+            handCount: dev.handCount ?? player.handCount,
           },
           gameTheme.badges,
         ),
@@ -921,6 +925,15 @@ export function GameBoard({
     onOpenZoneAndCast,
   ]);
 
+  const openLibrary = useCallback(() => {
+    if (library.length === 0) return;
+    if (libraryPlayableIds.length > 0 && promptType === "chooseAction") {
+      onOpenZoneAndCast("Top of Library", library, (_cardId) => {}, libraryPlayableIds);
+    } else {
+      onOpenZone("Top of Library", library);
+    }
+  }, [library, libraryPlayableIds, promptType, onOpenZoneAndCast, onOpenZone]);
+
   const openExile = useCallback(() => {
     if (isTargetingPrompt && exileTargetIds.length > 0) {
       onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds, hostileTargeting);
@@ -956,9 +969,18 @@ export function GameBoard({
       (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
       !!delveAvailable;
     const exPlayable = promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id));
+    const libPlayable = promptType === "chooseAction" && library.some((c) => playableIds.has(c.id));
 
     const self: ZoneTileSpec[] = [
-      { key: ZONE_TILE_KEY.library, label: "Lib", count: me.libraryCount, back: true },
+      {
+        key: ZONE_TILE_KEY.library,
+        label: "Lib",
+        count: me.libraryCount,
+        topCard: top(library),
+        back: library.length === 0,
+        onOpen: library.length > 0 ? openLibrary : undefined,
+        highlightColor: libPlayable ? active : undefined,
+      },
       {
         key: ZONE_TILE_KEY.graveyard,
         label: "GY",
@@ -1012,7 +1034,17 @@ export function GameBoard({
           ? onOpenZone(title, cards, onTargetFromZone, targetIds, hostileTargeting)
           : onOpenZone(title, cards);
       const tiles: ZoneTileSpec[] = [
-        { key: ZONE_TILE_KEY.library, label: "Lib", count: op.libraryCount, back: true },
+        {
+          key: ZONE_TILE_KEY.library,
+          label: "Lib",
+          count: op.libraryCount,
+          topCard: top(op.library),
+          back: op.library.length === 0,
+          onOpen:
+            op.library.length > 0
+              ? () => onOpenZone(`Top of ${stripUsernameTag(op.name)}'s Library`, op.library)
+              : undefined,
+        },
         {
           key: ZONE_TILE_KEY.graveyard,
           label: "GY",
@@ -1056,6 +1088,7 @@ export function GameBoard({
     commandPlayableIds,
     graveyard,
     exile,
+    library,
     playableIds,
     promptType,
     delveAvailable,
@@ -1069,6 +1102,7 @@ export function GameBoard({
     openCommandZone,
     openGraveyard,
     openExile,
+    openLibrary,
   ]);
 
   const boardZoneTiles = useMemo<Record<string, ZoneTileSpec[]>>(() => {

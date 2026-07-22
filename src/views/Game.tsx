@@ -9,7 +9,8 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CardDto, PlayerDto, StackObjectDto } from "@/protocol/game";
+import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
@@ -18,7 +19,12 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
-import { ConcedeGameModal, EliminatedModal, LeaveGameModal } from "@/components/game/modals";
+import {
+  ConcedeGameModal,
+  EliminatedModal,
+  GameSettingsModal,
+  LeaveGameModal,
+} from "@/components/game/modals";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -79,7 +85,11 @@ function isManualTabletopApi(
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
 
-function buildDebugKeywordCard(controllerId: string, name: string, keywords: string[]): CardDto {
+function buildDebugKeywordCard(
+  controllerId: string,
+  name: string,
+  keywords: string[],
+): ClientCardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: DEBUG_KEYWORD_CARD_ID,
@@ -133,6 +143,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               hand: [],
               graveyard: [],
               exile: [],
+              library: [],
               commandZone: [],
             }
           : p,
@@ -164,6 +175,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [gameSettingsOpen, setGameSettingsOpen] = useState(false);
   const [eliminatedModalOpen, setEliminatedModalOpen] = useState(false);
   const eliminatedModalShownRef = useRef(false);
   const [leaveGameModalOpen, setLeaveGameModalOpen] = useState(false);
@@ -273,8 +285,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       arr.push({
         kind: "cast" as const,
         cardId: a.cardId,
-        mode: a.mode,
-        label: a.modeLabel,
+        mode: a.mode.type,
+        label: a.label,
         actionId: a.id,
       });
       map.set(a.cardId, arr);
@@ -327,7 +339,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const getManualCardActions = useCallback(
-    (card: CardDto): HandActionOption[] => {
+    (card: CardDto & { zoneId?: string }): HandActionOption[] => {
       if (!manualApi) return [];
       const humanPlayerId = gameView?.players[0]?.id;
       const ownsHumanZone = card.controllerId === humanPlayerId || card.ownerId === humanPlayerId;
@@ -438,8 +450,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         options: castActions.map((a) => ({
           actionId: a.id,
           cardId: a.cardId,
-          mode: a.mode,
-          modeLabel: a.modeLabel,
+          mode: a.mode.type,
+          modeLabel: a.label,
         })),
       });
       return;
@@ -600,7 +612,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       stickyPromptType,
     });
   }
-  function openManualZone(title: string, cards: CardDto[]) {
+  function openManualZone(title: string, cards: ClientCardDto[]) {
     openZoneViewer({
       title,
       cards,
@@ -908,15 +920,21 @@ export default function Game({ exitTo }: GameProps = {}) {
   const delveActionIdByCardId = useMemo(() => {
     const map = new Map<string, string>();
     for (const a of payManaCostPrompt?.actions ?? []) {
-      if (a.type === "delve" || a.type === "undelve") map.set(a.cardId, a.id);
+      if ((a.type === "useResource" || a.type === "releaseResource") && a.resource === "delve") {
+        map.set(a.cardId, a.id);
+      }
     }
     return map;
   }, [payManaCostPrompt]);
   const delveSourceIds = useMemo(() => [...delveActionIdByCardId.keys()], [delveActionIdByCardId]);
   const delvedCardIds = useMemo(
-    () => payManaCostPrompt?.actions.flatMap((a) => (a.type === "undelve" ? [a.cardId] : [])) ?? [],
+    () =>
+      payManaCostPrompt?.actions.flatMap((a) =>
+        a.type === "releaseResource" && a.resource === "delve" ? [a.cardId] : [],
+      ) ?? [],
     [payManaCostPrompt],
   );
+  const payLifeAction = payManaCostPrompt?.actions.find((action) => action.type === "payLife");
 
   const handleDelveCard = useCallback(
     (cardId: string) => {
@@ -1001,10 +1019,13 @@ export default function Game({ exitTo }: GameProps = {}) {
             poison: 0,
             hand: [],
             graveyard: [],
+            library: [],
             exile: [],
             commandZone: [],
             libraryCount: 40,
+            handCount: 7,
             manaPool: {} as Record<string, number>,
+            counters: {},
             commanderDamage: {},
             energyCounters: 0,
             radiationCounters: 0,
@@ -1013,7 +1034,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             speed: 0,
             experienceCounters: 0,
             ticketCounters: 0,
-          }) as PlayerDto,
+          }) as ClientPlayerDto,
       ),
     ],
     [opponents, devExtraOpponents],
@@ -1434,6 +1455,27 @@ export default function Game({ exitTo }: GameProps = {}) {
       : [],
   );
 
+  if (import.meta.env.DEV && typeof document !== "undefined") {
+    document.documentElement.dataset.manabrewGameDebug = JSON.stringify({
+      promptType,
+      actions: chooseActionInput?.actions ?? [],
+      playableIds: [...playableIds],
+      hand: gameView.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        hand: player.hand.map((card) => ({ id: card.id, name: card.identity.name })),
+      })),
+      battlefield: gameView.battlefield.map((card) => ({
+        id: card.id,
+        name: card.identity.name,
+        tapped: card.tapped,
+        types: card.types,
+      })),
+      step: gameView.step,
+      priorityPlayerId: gameView.priorityPlayerId,
+    });
+  }
+
   if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen
@@ -1493,7 +1535,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none"
+      className="font-game game-touch-surface relative flex flex-col h-full min-h-0 overflow-hidden select-none pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)] pt-[var(--safe-area-inset-top)]"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -1536,6 +1578,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           myHand={me?.hand ?? []}
           graveyard={me?.graveyard ?? []}
           exile={me?.exile ?? []}
+          library={me?.library ?? []}
           myCommandZone={me?.commandZone ?? []}
           playableIds={playableIds}
           activePlayerId={gameView.activePlayerId}
@@ -1600,7 +1643,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onShowBoardMenu={() => setBoardMenuOpen(true)}
           onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
             if (manualApi) {
-              openManualZone(title, cards);
+              openManualZone(title, cards as ClientCardDto[]);
               return;
             }
             openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
@@ -1728,12 +1771,16 @@ export default function Game({ exitTo }: GameProps = {}) {
                     ? {
                         cardName: payManaCostInput.cardName,
                         manaCost: payManaCostInput.manaCost,
-                        description: payManaCostInput.description,
+                        description: payManaCostInput.presentation.text,
                         manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
                         canConfirmFromPool: payManaCostInput.canConfirmFromPool,
                         delveCount: delvedCardIds.length,
                         delveAvailable: delveSourceIds.length > 0,
                         onOpenDelve: openDelveZone,
+                        lifeToPay: payLifeAction?.amount,
+                        onPayLife: payLifeAction
+                          ? () => respond({ type: "act", actionId: payLifeAction.id })
+                          : undefined,
                       }
                     : null
                 }
@@ -1753,6 +1800,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MiddleBarDock
                 open={boardMenuOpen}
                 onOpenChange={setBoardMenuOpen}
+                onOpenSettings={() => setGameSettingsOpen(true)}
                 onConcede={handleConcede}
                 eliminated={iAmEliminated}
                 onLeave={handleLeave}
@@ -1777,6 +1825,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSurfaceEl,
         )}
 
+      {gameSettingsOpen && <GameSettingsModal onClose={() => setGameSettingsOpen(false)} />}
       {eliminatedModalOpen && (
         <EliminatedModal
           heading={selfConceded || me?.status === "conceded" ? "You conceded" : "You lost"}
@@ -1805,7 +1854,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       )}
 
       {awaitingAttackTarget && (
-        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">
               Pick a target — click an opponent or planeswalker
@@ -1823,7 +1872,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       {promptType === "chooseBoardTargets" &&
         (boardTargets?.spellIds.length ?? 0) > 0 &&
         !spellStackModalOpen && (
-          <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
             <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
               <span className="text-sm font-semibold tracking-wide">
                 Click a glowing spell on the stack to counter it
@@ -1838,8 +1887,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           </div>
         )}
 
-      {gameView.step === "first_strike_damage" && (
-        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+      {gameView.step === "combatFirstStrikeDamage" && (
+        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
             <span className="text-xs text-muted-foreground">

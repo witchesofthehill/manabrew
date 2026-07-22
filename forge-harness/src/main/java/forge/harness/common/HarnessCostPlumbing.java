@@ -20,16 +20,17 @@ import forge.game.zone.ZoneType;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public final class HarnessCostPlumbing {
     private final PlayerController controller;
+    private final HarnessPlayHooks hooks;
     private final Player payer;
     private final List<Set<Card>> reservedSacrificeStack = new ArrayList<>();
 
-    public HarnessCostPlumbing(final PlayerController controller, final Player payer) {
+    public HarnessCostPlumbing(final PlayerController controller, final HarnessPlayHooks hooks, final Player payer) {
         this.controller = controller;
+        this.hooks = hooks;
         this.payer = payer;
     }
 
@@ -101,7 +102,15 @@ public final class HarnessCostPlumbing {
             if (!shouldAsk || ability == null || isSpellPaymentContext(ability)) {
                 return true;
             }
-            return controller.confirmPayment(part, part.toString(), ability);
+            return controller.confirmPayment(part, describePayment(part), ability);
+        }
+
+        private String describePayment(final CostPart part) {
+            final String amount = part.getAmount();
+            if (amount == null || part.convertAmount() != null) {
+                return part.toString();
+            }
+            return part.toString().replace(amount, String.valueOf(part.getAbilityAmount(ability)));
         }
 
         private CardCollectionView chooseCards(final CardCollectionView pool, final int amount, final String title) {
@@ -706,13 +715,13 @@ public final class HarnessCostPlumbing {
             final GameEntityCounterTable table = new GameEntityCounterTable();
             int remaining = amount;
             for (final Card card : list) {
-                for (final Map.Entry<CounterType, Integer> e : card.getCounters().entrySet()) {
+                for (final com.google.common.collect.Multiset.Entry<CounterType> e : card.getCounters().entrySet()) {
                     if (remaining <= 0) {
                         break;
                     }
-                    final int remove = Math.min(remaining, e.getValue());
+                    final int remove = Math.min(remaining, e.getCount());
                     if (remove > 0) {
-                        table.put(null, card, e.getKey(), remove);
+                        table.put(null, card, e.getElement(), remove);
                         remaining -= remove;
                     }
                 }
@@ -759,9 +768,9 @@ public final class HarnessCostPlumbing {
                         return PaymentDecision.counters(table);
                     }
                 } else {
-                    for (final Map.Entry<CounterType, Integer> e : card.getCounters().entrySet()) {
-                        if (e.getValue() >= amount) {
-                            table.put(null, card, e.getKey(), amount);
+                    for (final com.google.common.collect.Multiset.Entry<CounterType> e : card.getCounters().entrySet()) {
+                        if (e.getCount() >= amount) {
+                            table.put(null, card, e.getElement(), amount);
                             return PaymentDecision.counters(table);
                         }
                     }
@@ -836,24 +845,15 @@ public final class HarnessCostPlumbing {
             if (list.isEmpty()) {
                 return null;
             }
-            // Crew / withTotalPowerGE: select creatures greedily (highest power first)
-            // until total power meets the threshold, matching the engine's canPay check.
             if (totalPowerRequired >= 0) {
                 if (CardLists.getTotalPower(list, ability) < totalPowerRequired) {
                     return null;
                 }
-                // Sort by power descending so we tap fewer creatures.
-                list.sort((a, b) -> b.getNetPower() - a.getNetPower());
-                final CardCollection selected = new CardCollection();
-                int accum = 0;
-                for (final Card c : list) {
-                    selected.add(c);
-                    accum = CardLists.getTotalPower(selected, ability);
-                    if (accum >= totalPowerRequired) {
-                        break;
-                    }
+                final CardCollectionView selected = hooks.chooseTapTypeForCost(list, ability, totalPowerRequired);
+                if (selected == null || CardLists.getTotalPower(new CardCollection(selected), ability) < totalPowerRequired) {
+                    return null;
                 }
-                return accum >= totalPowerRequired ? PaymentDecision.card(selected) : null;
+                return PaymentDecision.card(selected);
             }
             final int amount = cost.getAbilityAmount(ability);
             if (sameType) {
@@ -886,6 +886,11 @@ public final class HarnessCostPlumbing {
         @Override
         public PaymentDecision visit(final CostBlight cost) {
             return visit((CostPutCounter) cost);
+        }
+
+        @Override
+        public PaymentDecision visit(final CostPutCounterYou cost) {
+            return PaymentDecision.number(cost.getAbilityAmount(ability));
         }
 
         @Override

@@ -12,8 +12,10 @@ engine that speaks this protocol can drive the Manabrew client, and any client
 that implements it can host the Manabrew engine. This section documents the
 protocol so you can implement it for your own engine.
 
-:::caution[Work in progress]
-The Manabrew protocol is still evolving and we're working hard towards a **v1.0.0**, after which, we'll start honoring [semantic versioning](https://semver.org/)
+:::note[Versioning]
+This is **v1** of the protocol, versioned as the
+[`manabrew-protocol`](https://crates.io/crates/manabrew-protocol) crate under
+[semantic versioning](https://semver.org/).
 :::
 
 ## Goals
@@ -32,9 +34,9 @@ The Manabrew protocol is still evolving and we're working hard towards a **v1.0.
   (e.g. from Scryfall), not transmitted here.
 - **Replay or persistence formats.**
 
-## Three message families
+## Message families
 
-The engine → client channel carries **three separate kinds of message**. They
+The engine → client channel carries **four separate kinds of message**. They
 are never conflated:
 
 <CardGrid>
@@ -50,6 +52,23 @@ are never conflated:
   <Card title="prompt" icon="comment">
     An `AgentPrompt` — a **call to action**. The engine has paused and needs a decision from a
     specific player. Carries **no** game state.
+  </Card>
+  <Card title="error" icon="warning">
+    A `ProtocolError` — the engine **rejected** the last response. See
+    [Errors](#errors).
+  </Card>
+</CardGrid>
+
+The client → engine channel carries **two**:
+
+<CardGrid>
+  <Card title="response" icon="approve-check">
+    A `PromptOutput` answering the open prompt, echoing its `promptId`. Strictly paired: one
+    response per prompt. See [Answering a prompt](#answering-a-prompt).
+  </Card>
+  <Card title="directive" icon="right-arrow">
+    A `DirectiveInput` — **out-of-band and fire-and-forget**, never paired with a prompt.
+    Currently only `concede`, legal at any time.
   </Card>
 </CardGrid>
 
@@ -75,17 +94,51 @@ kind of decision — `mulligan`, `chooseNumber`, `chooseCards`, `payManaCost`,
 
 ## Answering a prompt
 
-The client replies with a `PromptOutput` — also a discriminated union tagged by
-`type` — echoing the `promptId` so the engine can match it. Each prompt page
-lists the exact response shape the engine expects.
+Everything the client sends is one union, `ClientToServerMessage`:
+
+```ts
+type ClientToServerMessage =
+  | { kind: "response"; promptId: number; action: PromptOutput }
+  | { kind: "directive"; directive: DirectiveInput }; // out-of-band; currently { type: "concede" }
+```
+
+A **response** answers the open prompt: `action` is a `PromptOutput` — a
+discriminated union tagged by the same `type` as the prompt family — and
+`promptId` MUST echo the prompt being answered. Each prompt page lists the
+exact response shape the engine expects. A **directive** is fire-and-forget and
+never paired with a prompt (conceding is legal at any time).
 
 ```ts
 // engine → client
 { "promptId": 7, "decidingPlayerId": "player-0", "input": { "type": "chooseNumber", ... } }
 
 // client → engine
-{ "promptId": 7, "output": { "type": "numberDecision", "chosenNumber": 3 } }
+{ "kind": "response", "promptId": 7,
+  "action": { "type": "chooseNumber", "output": { "type": "numberDecision", "chosenNumber": 3 } } }
 ```
+
+## Errors
+
+The engine validates every response. A `promptId` that isn't the open prompt,
+an `action` whose family doesn't match it, or an echoed action id the prompt
+never advertised is rejected:
+
+```ts
+type ProtocolError = { code: ProtocolErrorCode; message: string; promptId?: number };
+
+type ProtocolErrorCode =
+  | "stalePrompt"
+  | "wrongPlayer"
+  | "wrongPromptType"
+  | "unknownActionId"
+  | "invalidShape";
+```
+
+The rejected response is never applied. The engine re-sends the open prompt
+right after the error, so the client lets the player answer again.
+
+`promptId` `0` is reserved for engine-synthesized absent-player defaults
+(timeouts, disconnects) — clients MUST NOT send it.
 
 :::note[Careful about the type blocks]
 For language convenience, we show the type blocks in multiple languages.
@@ -107,7 +160,7 @@ and a wire example.
 - [chooseFromSelection](/protocol/choose-from-selection/) — pick spell modes.
 - [revealCards](/protocol/reveal-cards/) — acknowledge revealed cards.
 - [scry](/protocol/scry/) — sort cards into destination zones.
-- [reorderCards](/protocol/reorder-cards/) — order cards on top/bottom of library.
+- [reorder](/protocol/reorder/) — put cards in a chosen order.
 - [diceRolled](/protocol/dice-rolled/) — acknowledge a dice roll.
 
 **Priority & costs**

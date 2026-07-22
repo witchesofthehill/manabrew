@@ -29,11 +29,14 @@ export const STORAGE_KEYS = {
   COMPANION: "manabrew-companion",
   KEYBINDINGS: "manabrew-keybindings",
   STATUS_BANNER: "manabrew-status-banner",
+  PUBLISHED_DECKS: "manabrew-published-decks",
 } as const;
 
 // ─── Deck Defaults ───────────────────────────────────────────────────────────
 
 export const DEFAULT_DECK_NAME = "New Deck";
+
+export const DEFAULT_IMPORT_NAME = "Imported Deck";
 
 // ─── Formats & Legalities ────────────────────────────────────────────────────
 

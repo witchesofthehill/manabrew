@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompts::common::PromptPresentation;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/diceRolled.ts")]
@@ -22,11 +24,9 @@ pub struct DiceRollEntry {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/diceRolled.ts")]
 pub struct DiceRolledInput {
+    pub presentation: PromptPresentation,
     pub sides: i32,
     pub rolls: Vec<DiceRollEntry>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_card_name: Option<String>,

@@ -88,14 +88,20 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/scryfall-symbols/, "/card-symbols"),
       },
+      "/scryfall-img": {
+        target: "https://cards.scryfall.io",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/scryfall-img/, ""),
+      },
     },
   },
   worker: {
     format: "es",
   },
   optimizeDeps: {
-    exclude: ["@/wasm/wasm"],
+    exclude: ["@/wasm/wasm", "ironsmith-wasm"],
   },
+  assetsInclude: ["**/*.wasm"],
   build: {
     target: "esnext",
   },

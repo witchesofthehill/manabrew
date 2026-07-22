@@ -1,7 +1,7 @@
 use forge_foundation::{ManaAtom, ZoneType};
 use manabrew_engine::agent::notification::GameNotification;
 use manabrew_engine::agent::{
-    BinaryChoiceKind, CombatCostAction, GameEntity, ManaCostAction, PlayOption, PlayerAgent,
+    BinaryChoiceKind, CombatCostAction, GameEntity, ManaCostAction, PlayerAgent,
     PriorityActionSpace, RollSwapChoice, TargetChoice,
 };
 use manabrew_engine::card::CounterType;
@@ -14,7 +14,7 @@ use manabrew_engine::player::actions::PlayerAction as EnginePlayerAction;
 
 use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
-use crate::game_view_dto::{GameViewDto, GameViewDtoExt};
+use crate::game_view_dto::{GameViewDto, GameViewDtoExt, StepKind};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
@@ -121,6 +121,7 @@ pub trait Responder {
     }
     fn await_ack(&mut self) -> ClientToServerMessage {
         ClientToServerMessage::Response {
+            prompt_id: 0,
             action: PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged),
         }
     }
@@ -181,15 +182,66 @@ impl<R: Responder> PromptAgent<R> {
             .take()
             .expect("recv_action called without a pending prompt");
         if self.conceded {
-            return PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
+            return Self::default_pass();
         }
-        match self.responder.respond(prompt) {
-            ClientToServerMessage::Response { action } => action,
-            ClientToServerMessage::Directive { directive } => {
-                self.handle_directive(directive);
-                PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
+        loop {
+            match self.responder.respond(prompt.clone()) {
+                ClientToServerMessage::Response { prompt_id: 0, .. } => {
+                    return Self::default_pass();
+                }
+                ClientToServerMessage::Response { prompt_id, action } => {
+                    if prompt_id != prompt.prompt_id {
+                        self.reject(
+                            &prompt,
+                            ProtocolErrorCode::StalePrompt,
+                            format!(
+                                "response for prompt {prompt_id}, open prompt is {}",
+                                prompt.prompt_id
+                            ),
+                        );
+                        continue;
+                    }
+                    match prompt.input.validate_response(&action) {
+                        Ok(()) => return action,
+                        Err(ResponseViolation::WrongPromptType) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::WrongPromptType,
+                                "response output does not match the prompt type".to_string(),
+                            );
+                        }
+                        Err(ResponseViolation::UnknownActionId(id)) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::UnknownActionId,
+                                format!("action id {id:?} was not advertised by the prompt"),
+                            );
+                        }
+                    }
+                }
+                ClientToServerMessage::Directive { directive } => {
+                    self.handle_directive(directive);
+                    return Self::default_pass();
+                }
             }
         }
+    }
+
+    fn default_pass() -> PromptOutput {
+        PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+            until: None,
+            exhaust_stack: false,
+        })
+    }
+
+    fn reject(&mut self, prompt: &AgentPrompt, code: ProtocolErrorCode, message: String) {
+        self.responder.present(&AgentMessage::Error(ProtocolError {
+            code,
+            message,
+            prompt_id: Some(prompt.prompt_id),
+        }));
+        self.responder
+            .present(&AgentMessage::Prompt(prompt.clone()));
     }
 
     fn handle_directive(&mut self, directive: DirectiveInput) {
@@ -220,9 +272,10 @@ impl<R: Responder> PromptAgent<R> {
     }
 
     pub(crate) fn view(&self) -> GameViewDto {
-        self.latest_view.clone().unwrap_or_else(|| {
-            // Fallback: empty view
-            GameViewDto::empty(self.game_id.clone())
+        self.latest_view.clone().unwrap_or_else(|| GameViewDto {
+            game_id: self.game_id.clone(),
+            step: StepKind::Main1,
+            ..Default::default()
         })
     }
 
@@ -257,45 +310,85 @@ impl<R: Responder> PromptAgent<R> {
             .collect()
     }
 
-    fn play_option_to_dto(play: &PlayOption) -> PlayOptionDto {
-        use manabrew_engine::agent::PlayCardMode;
-        let card_id = card_id_str(play.card_id);
-        let (mode, mode_label) = match &play.mode {
-            PlayCardMode::Normal => ("normal".to_string(), "Cast normally".to_string()),
-            PlayCardMode::BackFaceLand => (
-                "backFaceLand".to_string(),
+    fn alt_cost_kind(alt: manabrew_engine::spellability::AlternativeCost) -> AlternativeCostKind {
+        use manabrew_engine::spellability::AlternativeCost as A;
+        match alt {
+            A::Flashback => AlternativeCostKind::Flashback,
+            A::Spectacle => AlternativeCostKind::Spectacle,
+            A::Evoke => AlternativeCostKind::Evoke,
+            A::Dash => AlternativeCostKind::Dash,
+            A::Blitz => AlternativeCostKind::Blitz,
+            A::Escape => AlternativeCostKind::Escape,
+            A::Overload => AlternativeCostKind::Overload,
+            A::Madness => AlternativeCostKind::Madness,
+            A::Foretell => AlternativeCostKind::Foretell,
+            A::Emerge => AlternativeCostKind::Emerge,
+            A::Suspend => AlternativeCostKind::Suspend,
+            A::Morph => AlternativeCostKind::Morph,
+            A::Megamorph => AlternativeCostKind::Megamorph,
+            A::Bestow => AlternativeCostKind::Bestow,
+            A::Warp => AlternativeCostKind::Warp,
+            A::SacrificeAlt => AlternativeCostKind::SacrificeAlt,
+            A::Plot => AlternativeCostKind::Plot,
+            A::Awaken => AlternativeCostKind::Awaken,
+            A::Disturb => AlternativeCostKind::Disturb,
+            A::Harmonize => AlternativeCostKind::Harmonize,
+            A::Freerunning => AlternativeCostKind::Freerunning,
+            A::Impending => AlternativeCostKind::Impending,
+            A::Mayhem => AlternativeCostKind::Mayhem,
+            A::MTMtE => AlternativeCostKind::MTMtE,
+            A::Mutate => AlternativeCostKind::Mutate,
+            A::Prowl => AlternativeCostKind::Prowl,
+            A::Sneak => AlternativeCostKind::Sneak,
+            A::Surge => AlternativeCostKind::Surge,
+            A::WebSlinging => AlternativeCostKind::WebSlinging,
+            A::Plotted => AlternativeCostKind::Plotted,
+        }
+    }
+
+    fn play_mode_dto(mode: &manabrew_engine::agent::PlayCardMode) -> (PlayCardMode, String) {
+        use manabrew_engine::agent::PlayCardMode as E;
+        match mode {
+            E::Normal => (PlayCardMode::Normal, "Cast normally".to_string()),
+            E::BackFaceLand => (
+                PlayCardMode::BackFaceLand,
                 "Play back face as land".to_string(),
             ),
-            PlayCardMode::Alternative(alt) => {
-                let name = format!("{:?}", alt);
-                (
-                    format!("alternative:{}", name.to_lowercase()),
-                    format!("Cast with {}", name),
-                )
-            }
-            PlayCardMode::StaticAlternative => (
-                "staticAlternative".to_string(),
+            E::RoomRightSplit => (PlayCardMode::RoomRightSplit, "Cast right room".to_string()),
+            E::StaticAlternative => (
+                PlayCardMode::StaticAlternative,
                 "Cast with alternative cost".to_string(),
             ),
-            PlayCardMode::ForetellExile => (
-                "foretellExile".to_string(),
+            E::ForetellExile => (
+                PlayCardMode::ForetellExile,
                 "Foretell (exile face-down)".to_string(),
             ),
-            PlayCardMode::UnlockDoor => ("unlockDoor".to_string(), "Unlock door".to_string()),
-            PlayCardMode::RoomRightSplit => {
-                ("roomRightSplit".to_string(), "Cast right room".to_string())
-            }
-        };
-        PlayOptionDto {
-            card_id,
-            mode,
-            mode_label,
+            E::UnlockDoor => (PlayCardMode::UnlockDoor, "Unlock door".to_string()),
+            E::Alternative(alt) => (
+                PlayCardMode::Alternative {
+                    cost: Self::alt_cost_kind(*alt),
+                },
+                format!("Cast with {alt:?}"),
+            ),
+        }
+    }
+
+    fn play_mode_key(mode: &manabrew_engine::agent::PlayCardMode) -> String {
+        use manabrew_engine::agent::PlayCardMode as E;
+        match mode {
+            E::Normal => "normal".to_string(),
+            E::BackFaceLand => "backFaceLand".to_string(),
+            E::RoomRightSplit => "roomRightSplit".to_string(),
+            E::StaticAlternative => "staticAlternative".to_string(),
+            E::ForetellExile => "foretellExile".to_string(),
+            E::UnlockDoor => "unlockDoor".to_string(),
+            E::Alternative(alt) => format!("alternative:{}", format!("{alt:?}").to_lowercase()),
         }
     }
 
     fn parse_play_mode(mode_str: &str) -> Option<manabrew_engine::agent::PlayCardMode> {
         use manabrew_engine::agent::PlayCardMode;
-        use manabrew_engine::spellability::AlternativeCost;
+        use manabrew_engine::spellability::AlternativeCost as A;
         match mode_str {
             "normal" => Some(PlayCardMode::Normal),
             "backFaceLand" => Some(PlayCardMode::BackFaceLand),
@@ -304,20 +397,37 @@ impl<R: Responder> PromptAgent<R> {
             "unlockDoor" => Some(PlayCardMode::UnlockDoor),
             "roomRightSplit" => Some(PlayCardMode::RoomRightSplit),
             s if s.starts_with("alternative:") => {
-                let alt_name = &s["alternative:".len()..];
-                let alt = match alt_name {
-                    "flashback" => AlternativeCost::Flashback,
-                    "evoke" => AlternativeCost::Evoke,
-                    "dash" => AlternativeCost::Dash,
-                    "escape" => AlternativeCost::Escape,
-                    "bestow" => AlternativeCost::Bestow,
-                    "madness" => AlternativeCost::Madness,
-                    "overload" => AlternativeCost::Overload,
-                    "spectacle" => AlternativeCost::Spectacle,
-                    "emerge" => AlternativeCost::Emerge,
-                    "blitz" => AlternativeCost::Blitz,
-                    "foretell" => AlternativeCost::Foretell,
-                    "suspend" => AlternativeCost::Suspend,
+                let alt = match &s["alternative:".len()..] {
+                    "flashback" => A::Flashback,
+                    "spectacle" => A::Spectacle,
+                    "evoke" => A::Evoke,
+                    "dash" => A::Dash,
+                    "blitz" => A::Blitz,
+                    "escape" => A::Escape,
+                    "overload" => A::Overload,
+                    "madness" => A::Madness,
+                    "foretell" => A::Foretell,
+                    "emerge" => A::Emerge,
+                    "suspend" => A::Suspend,
+                    "morph" => A::Morph,
+                    "megamorph" => A::Megamorph,
+                    "bestow" => A::Bestow,
+                    "warp" => A::Warp,
+                    "sacrificealt" => A::SacrificeAlt,
+                    "plot" => A::Plot,
+                    "awaken" => A::Awaken,
+                    "disturb" => A::Disturb,
+                    "harmonize" => A::Harmonize,
+                    "freerunning" => A::Freerunning,
+                    "impending" => A::Impending,
+                    "mayhem" => A::Mayhem,
+                    "mtmte" => A::MTMtE,
+                    "mutate" => A::Mutate,
+                    "prowl" => A::Prowl,
+                    "sneak" => A::Sneak,
+                    "surge" => A::Surge,
+                    "webslinging" => A::WebSlinging,
+                    "plotted" => A::Plotted,
                     _ => return None,
                 };
                 Some(PlayCardMode::Alternative(alt))
@@ -478,22 +588,20 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let playable = &action_space.playable;
         let untappable_lands = &action_space.untappable_lands;
         let _activatable = &action_space.activatable;
-        let playable_options: Vec<PlayOptionDto> = playable
-            .iter()
-            .map(|play| Self::play_option_to_dto(play))
-            .collect();
         let untappable_land_ids: Vec<String> =
             untappable_lands.iter().map(|&c| card_id_str(c)).collect();
 
         let mut actions: Vec<AvailableAction> = Vec::new();
-        for (play, opt) in playable.iter().zip(playable_options.iter()) {
+        for play in playable.iter() {
             let card_id = card_id_str(play.card_id);
+            let (mode, label) = Self::play_mode_dto(&play.mode);
+            let key = Self::play_mode_key(&play.mode);
             actions.push(AvailableAction {
-                id: format!("cast:{card_id}:{}", opt.mode),
+                id: format!("cast:{card_id}:{key}"),
                 kind: AvailableActionKind::Cast {
                     card_id: card_id.clone(),
-                    mode: opt.mode.clone(),
-                    mode_label: opt.mode_label.clone(),
+                    mode,
+                    label,
                 },
             });
         }
@@ -504,14 +612,21 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         {
             let card_id = card_id_str(a.card_id);
             if a.is_mana_ability {
-                actions.extend(mana_ability_actions(
-                    &card_id,
-                    a.ability_index,
-                    &a.description,
-                    a.cost.clone(),
-                    a.produced_mana.clone(),
-                    a.produced_mana_amount,
-                ));
+                actions.extend(
+                    mana_ability_actions(
+                        &card_id,
+                        a.ability_index,
+                        &a.description,
+                        a.cost.clone(),
+                        a.produced_mana.clone(),
+                        a.produced_mana_amount,
+                    )
+                    .into_iter()
+                    .map(|(id, info)| AvailableAction {
+                        id,
+                        kind: AvailableActionKind::ActivateAbility(info),
+                    }),
+                );
             } else {
                 actions.push(AvailableAction {
                     id: format!("ability:{card_id}:{}", a.ability_index),
@@ -546,7 +661,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             .take()
             .expect("choose_action called without a pending prompt");
         let action = match self.responder.respond(prompt) {
-            ClientToServerMessage::Response { action } => action,
+            ClientToServerMessage::Response { action, .. } => action,
             ClientToServerMessage::Directive { directive } => match directive {
                 DirectiveInput::Concede => return EnginePlayerAction::Concede,
                 other => {
@@ -601,11 +716,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     EnginePlayerAction::PassPriority
                 }
             }
-            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until }) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until, .. }) => {
                 self.pass_until = until.and_then(|u| {
                     Some(manabrew_engine::agent::PassUntilTarget {
                         player: crate::ids_codec::parse_player_id(&u.player_id)?,
-                        phase: forge_foundation::PhaseType::from_step_string(&u.phase)?,
+                        phase: crate::game_view_dto::step_to_phase(u.phase),
                     })
                 });
                 EnginePlayerAction::PassPriority
@@ -677,7 +792,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let intent = sa
             .map(crate::game_view_dto::targeting_intent_of)
             .unwrap_or(crate::game_view_dto::TargetingIntent::Hostile);
-        let hostile = intent.is_hostile();
+        let hostile = crate::game_view_dto::intent_is_hostile(intent);
         targeting::choose_target_player(self, player, valid, source, hostile, intent)
     }
 
@@ -691,7 +806,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let intent = sa
             .map(crate::game_view_dto::targeting_intent_of)
             .unwrap_or(crate::game_view_dto::TargetingIntent::Hostile);
-        let hostile = intent.is_hostile();
+        let hostile = crate::game_view_dto::intent_is_hostile(intent);
         targeting::choose_target_card(self, player, valid, source, hostile, intent)
     }
 
@@ -706,7 +821,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let intent = sa
             .map(crate::game_view_dto::targeting_intent_of)
             .unwrap_or(crate::game_view_dto::TargetingIntent::Hostile);
-        let hostile = intent.is_hostile();
+        let hostile = crate::game_view_dto::intent_is_hostile(intent);
         targeting::choose_target_card_from_zone(self, player, zone, valid, source, hostile, intent)
     }
 
@@ -721,7 +836,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let intent = sa
             .map(crate::game_view_dto::targeting_intent_of)
             .unwrap_or(crate::game_view_dto::TargetingIntent::Hostile);
-        let hostile = intent.is_hostile();
+        let hostile = crate::game_view_dto::intent_is_hostile(intent);
         targeting::choose_target_any(
             self,
             player,
@@ -1359,9 +1474,15 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
+                            presentation: PromptPresentation {
+                                title: "Roll for first player".to_string(),
+                                description: None,
+                                text: None,
+                                source_card_id: None,
+                                targets: Vec::new(),
+                            },
                             sides,
                             rolls: entries,
-                            title: Some("Roll for first player".to_string()),
                             source_card_name: None,
                         },
                     ),
@@ -1386,6 +1507,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
+                            presentation: PromptPresentation {
+                                title: "Dice roll".to_string(),
+                                description: None,
+                                text: None,
+                                source_card_id: None,
+                                targets: Vec::new(),
+                            },
                             sides,
                             rolls: vec![manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
                                 label: None,
@@ -1395,7 +1523,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                                 ignored_rolls,
                                 highlighted: false,
                             }],
-                            title: None,
                             source_card_name,
                         },
                     ),

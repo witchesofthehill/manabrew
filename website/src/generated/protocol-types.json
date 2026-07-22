@@ -384,8 +384,8 @@
       "refs": ["TargetKind", "TargetingIntent"]
     },
     "TargetingIntent": {
-      "ts": "type TargetingIntent =\n  | \"damage\"\n  | \"destroy\"\n  | \"sacrifice\"\n  | \"exile\"\n  | \"bounce\"\n  | \"mill\"\n  | \"discard\"\n  | \"counter\"\n  | \"tap\"\n  | \"untap\"\n  | \"copy\"\n  | \"buff\"\n  | \"debuff\"\n  | \"heal\"\n  | \"loseLife\"\n  | \"reveal\"\n  | \"draw\"\n  | \"gainControl\"\n  | \"fight\"\n  | \"attach\"\n  | \"attack\"\n  | \"block\"\n  | \"hostile\"\n  | \"friendly\";",
-      "rust": "    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,\n)]\n#[serde(rename_all = \"camelCase\")]\npub enum TargetingIntent {\n    #[default]\n    Damage,\n    Destroy,\n    Sacrifice,\n    Exile,\n    Bounce,\n    Mill,\n    Discard,\n    Counter,\n    Tap,\n    Untap,\n    Copy,\n    Buff,\n    Debuff,\n    Heal,\n    LoseLife,\n    Reveal,\n    Draw,\n    GainControl,\n    Fight,\n    Attach,\n    Attack,\n    Block,\n    Hostile,\n    Friendly,\n}",
+      "ts": "type TargetingIntent =\n  | \"damage\"\n  | \"destroy\"\n  | \"sacrifice\"\n  | \"exile\"\n  | \"bounce\"\n  | \"mill\"\n  | \"discard\"\n  | \"counter\"\n  | \"tap\"\n  | \"untap\"\n  | \"copy\"\n  | \"buff\"\n  | \"debuff\"\n  | \"heal\"\n  | \"loseLife\"\n  | \"reveal\"\n  | \"draw\"\n  | \"fetch\"\n  | \"gainControl\"\n  | \"fight\"\n  | \"attach\"\n  | \"attack\"\n  | \"block\"\n  | \"hostile\"\n  | \"friendly\";",
+      "rust": "    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,\n)]\n#[serde(rename_all = \"camelCase\")]\npub enum TargetingIntent {\n    #[default]\n    Damage,\n    Destroy,\n    Sacrifice,\n    Exile,\n    Bounce,\n    Mill,\n    Discard,\n    Counter,\n    Tap,\n    Untap,\n    Copy,\n    Buff,\n    Debuff,\n    Heal,\n    LoseLife,\n    Reveal,\n    Draw,\n    Fetch,\n    GainControl,\n    Fight,\n    Attach,\n    Attack,\n    Block,\n    Hostile,\n    Friendly,\n}",
       "refs": []
     },
     "ZoneDto": {

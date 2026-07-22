@@ -28,8 +28,13 @@ export function PromptLabel({
   ) : null;
 
   return (
-    <div className={cn("flex items-center gap-1.5", minimal ? "max-w-[13rem]" : "w-3/5")}>
-      <div className="flex min-w-0 flex-1 items-center gap-2 h-9 px-3 rounded-lg border border-white/20 bg-white/5 text-white/80">
+    <div
+      className={cn(
+        "flex items-center gap-1.5",
+        minimal ? "max-w-[13rem]" : "min-w-[60%] max-w-full",
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 h-9 px-3 rounded-lg border border-white/20 bg-white/5 text-white/80">
         <Crosshair className="h-3.5 w-3.5 shrink-0 animate-pulse" />
         <span className="text-xs font-semibold tracking-wide truncate">
           <DynamicTextRender text={label} />

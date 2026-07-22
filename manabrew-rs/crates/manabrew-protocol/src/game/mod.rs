@@ -295,6 +295,7 @@ pub enum TargetingIntent {
     LoseLife,
     Reveal,
     Draw,
+    Fetch,
     GainControl,
     Fight,
     Attach,

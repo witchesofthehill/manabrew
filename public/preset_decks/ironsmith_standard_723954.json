@@ -1,0 +1,714 @@
+{
+  "label": "UR Aggro — Clement Choo",
+  "desc": "Verified Ironsmith preset from MTGTop8 deck 723954.",
+  "color": "text-amber-300",
+  "format": "standard",
+  "opponent": "",
+  "ai_eligible": false,
+  "order": 323,
+  "source": "https://www.mtgtop8.com/event?e=69165&d=723954&f=ST",
+  "ironsmithSimilarityThreshold": 0.99,
+  "cards": [
+    {
+      "name": "Island",
+      "count": 5,
+      "set": "msh",
+      "cardNumber": "290",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["U"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": ["Basic"],
+      "subtypes": ["Island"],
+      "text": "({T}: Add {U}.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/2/02f76514-9e0d-4d74-a224-15a2d7b44ae1.jpg?1783902875",
+        "normal": "https://cards.scryfall.io/normal/front/0/2/02f76514-9e0d-4d74-a224-15a2d7b44ae1.jpg?1783902875",
+        "large": "https://cards.scryfall.io/large/front/0/2/02f76514-9e0d-4d74-a224-15a2d7b44ae1.jpg?1783902875",
+        "png": "https://cards.scryfall.io/png/front/0/2/02f76514-9e0d-4d74-a224-15a2d7b44ae1.png?1783902875",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/2/02f76514-9e0d-4d74-a224-15a2d7b44ae1.jpg?1783902875",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/2/02f76514-9e0d-4d74-a224-15a2d7b44ae1.jpg?1783902875"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Mountain",
+      "count": 4,
+      "set": "msh",
+      "cardNumber": "294",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": ["Basic"],
+      "subtypes": ["Mountain"],
+      "text": "({T}: Add {R}.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "normal": "https://cards.scryfall.io/normal/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "large": "https://cards.scryfall.io/large/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "png": "https://cards.scryfall.io/png/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.png?1783902876",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Riverpyre Verge",
+      "count": 4,
+      "set": "pdft",
+      "cardNumber": "260s",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["R", "U"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Add {R}.\n{T}: Add {U}. Activate only if you control an Island or a Mountain.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/e/1ebb3837-f1b5-4d56-a56e-3739370430c0.jpg?1783907586",
+        "normal": "https://cards.scryfall.io/normal/front/1/e/1ebb3837-f1b5-4d56-a56e-3739370430c0.jpg?1783907586",
+        "large": "https://cards.scryfall.io/large/front/1/e/1ebb3837-f1b5-4d56-a56e-3739370430c0.jpg?1783907586",
+        "png": "https://cards.scryfall.io/png/front/1/e/1ebb3837-f1b5-4d56-a56e-3739370430c0.png?1783907586",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/e/1ebb3837-f1b5-4d56-a56e-3739370430c0.jpg?1783907586",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/e/1ebb3837-f1b5-4d56-a56e-3739370430c0.jpg?1783907586"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Shivan Reef",
+      "count": 4,
+      "set": "soc",
+      "cardNumber": "404",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["R", "U"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This land deals 1 damage to you.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/1/e13d0982-2542-4770-8e93-637478a0f84a.jpg?1783903720",
+        "normal": "https://cards.scryfall.io/normal/front/e/1/e13d0982-2542-4770-8e93-637478a0f84a.jpg?1783903720",
+        "large": "https://cards.scryfall.io/large/front/e/1/e13d0982-2542-4770-8e93-637478a0f84a.jpg?1783903720",
+        "png": "https://cards.scryfall.io/png/front/e/1/e13d0982-2542-4770-8e93-637478a0f84a.png?1783903720",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/1/e13d0982-2542-4770-8e93-637478a0f84a.jpg?1783903720",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/1/e13d0982-2542-4770-8e93-637478a0f84a.jpg?1783903720"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Spirebluff Canal",
+      "count": 4,
+      "set": "potj",
+      "cardNumber": "270s",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["R", "U"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {U} or {R}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/7/a73412df-b44c-4c31-ac6f-c1e8c174e99e.jpg?1783911534",
+        "normal": "https://cards.scryfall.io/normal/front/a/7/a73412df-b44c-4c31-ac6f-c1e8c174e99e.jpg?1783911534",
+        "large": "https://cards.scryfall.io/large/front/a/7/a73412df-b44c-4c31-ac6f-c1e8c174e99e.jpg?1783911534",
+        "png": "https://cards.scryfall.io/png/front/a/7/a73412df-b44c-4c31-ac6f-c1e8c174e99e.png?1783911534",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/7/a73412df-b44c-4c31-ac6f-c1e8c174e99e.jpg?1783911534",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/7/a73412df-b44c-4c31-ac6f-c1e8c174e99e.jpg?1783911534"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Drake Hatcher",
+      "count": 2,
+      "set": "pfdn",
+      "cardNumber": "35s",
+      "manaCost": "{1}{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Human", "Wizard"],
+      "text": "Vigilance, prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever this creature deals combat damage to a player, put that many incubation counters on it.\nRemove three incubation counters from this creature: Create a 2/2 blue Drake creature token with flying.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "normal": "https://cards.scryfall.io/normal/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "large": "https://cards.scryfall.io/large/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "png": "https://cards.scryfall.io/png/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.png?1783908550",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550"
+      },
+      "allParts": [
+        {
+          "name": "Drake Hatcher",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Drake",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Monastery Swiftspear",
+      "count": 4,
+      "set": "bro",
+      "cardNumber": "144",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Human", "Monk"],
+      "text": "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "normal": "https://cards.scryfall.io/normal/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "large": "https://cards.scryfall.io/large/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "png": "https://cards.scryfall.io/png/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.png?1783920066",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Slickshot Show-Off",
+      "count": 2,
+      "set": "sch",
+      "cardNumber": "43",
+      "manaCost": "{1}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Bird", "Wizard"],
+      "text": "Flying, haste\nWhenever you cast a noncreature spell, this creature gets +2/+0 until end of turn.\nPlot {1}{R} (You may pay {1}{R} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/a/5a668a8d-4426-49d5-855d-b422323d8180.jpg?1783906067",
+        "normal": "https://cards.scryfall.io/normal/front/5/a/5a668a8d-4426-49d5-855d-b422323d8180.jpg?1783906067",
+        "large": "https://cards.scryfall.io/large/front/5/a/5a668a8d-4426-49d5-855d-b422323d8180.jpg?1783906067",
+        "png": "https://cards.scryfall.io/png/front/5/a/5a668a8d-4426-49d5-855d-b422323d8180.png?1783906067",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/a/5a668a8d-4426-49d5-855d-b422323d8180.jpg?1783906067",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/a/5a668a8d-4426-49d5-855d-b422323d8180.jpg?1783906067"
+      },
+      "allParts": [
+        {
+          "name": "Slickshot Show-Off",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Plot",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Burst Lightning",
+      "count": 4,
+      "set": "pw26",
+      "cardNumber": "20",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Kicker {4} (You may pay an additional {4} as you cast this spell.)\nBurst Lightning deals 2 damage to any target. If this spell was kicked, it deals 4 damage instead.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "normal": "https://cards.scryfall.io/normal/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "large": "https://cards.scryfall.io/large/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "png": "https://cards.scryfall.io/png/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.png?1784652223",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Into the Flood Maw",
+      "count": 3,
+      "set": "pw26",
+      "cardNumber": "8",
+      "manaCost": "{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)\nReturn target creature an opponent controls to its owner's hand. If the gift was promised, instead return target nonland permanent an opponent controls to its owner's hand.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "normal": "https://cards.scryfall.io/normal/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "large": "https://cards.scryfall.io/large/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "png": "https://cards.scryfall.io/png/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.png?1783903934",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934"
+      },
+      "allParts": [
+        {
+          "name": "Into the Flood Maw",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Fish",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Monstrous Rage",
+      "count": 4,
+      "set": "soa",
+      "cardNumber": "45",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "normal": "https://cards.scryfall.io/normal/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "large": "https://cards.scryfall.io/large/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "png": "https://cards.scryfall.io/png/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.png?1783903919",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919"
+      },
+      "allParts": [
+        {
+          "name": "Monstrous Rage",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Monster // Sorcerer",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Opt",
+      "count": 4,
+      "set": "tdc",
+      "cardNumber": "158",
+      "manaCost": "{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/b/bbc99a51-1501-4525-a3cc-f48249b64bed.jpg?1783907102",
+        "normal": "https://cards.scryfall.io/normal/front/b/b/bbc99a51-1501-4525-a3cc-f48249b64bed.jpg?1783907102",
+        "large": "https://cards.scryfall.io/large/front/b/b/bbc99a51-1501-4525-a3cc-f48249b64bed.jpg?1783907102",
+        "png": "https://cards.scryfall.io/png/front/b/b/bbc99a51-1501-4525-a3cc-f48249b64bed.png?1783907102",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/b/bbc99a51-1501-4525-a3cc-f48249b64bed.jpg?1783907102",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/b/bbc99a51-1501-4525-a3cc-f48249b64bed.jpg?1783907102"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Sleight of Hand",
+      "count": 4,
+      "set": "soa",
+      "cardNumber": "22",
+      "manaCost": "{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/8/c837c418-2fe9-4ce8-b76d-c37241579a93.jpg?1783903928",
+        "normal": "https://cards.scryfall.io/normal/front/c/8/c837c418-2fe9-4ce8-b76d-c37241579a93.jpg?1783903928",
+        "large": "https://cards.scryfall.io/large/front/c/8/c837c418-2fe9-4ce8-b76d-c37241579a93.jpg?1783903928",
+        "png": "https://cards.scryfall.io/png/front/c/8/c837c418-2fe9-4ce8-b76d-c37241579a93.png?1783903928",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/8/c837c418-2fe9-4ce8-b76d-c37241579a93.jpg?1783903928",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/8/c837c418-2fe9-4ce8-b76d-c37241579a93.jpg?1783903928"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Stock Up",
+      "count": 4,
+      "set": "soa",
+      "cardNumber": "24",
+      "manaCost": "{2}{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 3,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Look at the top five cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/d/ad048b7c-588f-4c34-906f-4224f1aaaeb6.jpg?1783903928",
+        "normal": "https://cards.scryfall.io/normal/front/a/d/ad048b7c-588f-4c34-906f-4224f1aaaeb6.jpg?1783903928",
+        "large": "https://cards.scryfall.io/large/front/a/d/ad048b7c-588f-4c34-906f-4224f1aaaeb6.jpg?1783903928",
+        "png": "https://cards.scryfall.io/png/front/a/d/ad048b7c-588f-4c34-906f-4224f1aaaeb6.png?1783903928",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/d/ad048b7c-588f-4c34-906f-4224f1aaaeb6.jpg?1783903928",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/d/ad048b7c-588f-4c34-906f-4224f1aaaeb6.jpg?1783903928"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Cori-Steel Cutter",
+      "count": 4,
+      "set": "tdm",
+      "cardNumber": "343",
+      "manaCost": "{1}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Artifact"],
+      "supertypes": [],
+      "subtypes": ["Equipment"],
+      "text": "Equipped creature gets +1/+1 and has trample and haste.\nFlurry — Whenever you cast your second spell each turn, create a 1/1 white Monk creature token with prowess. You may attach this Equipment to it. (Whenever you cast a noncreature spell, the token gets +1/+1 until end of turn.)\nEquip {1}{R}",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/7/470dd3c8-07c9-42ef-aa9e-3c73b23607ff.jpg?1783907233",
+        "normal": "https://cards.scryfall.io/normal/front/4/7/470dd3c8-07c9-42ef-aa9e-3c73b23607ff.jpg?1783907233",
+        "large": "https://cards.scryfall.io/large/front/4/7/470dd3c8-07c9-42ef-aa9e-3c73b23607ff.jpg?1783907233",
+        "png": "https://cards.scryfall.io/png/front/4/7/470dd3c8-07c9-42ef-aa9e-3c73b23607ff.png?1783907233",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/7/470dd3c8-07c9-42ef-aa9e-3c73b23607ff.jpg?1783907233",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/7/470dd3c8-07c9-42ef-aa9e-3c73b23607ff.jpg?1783907233"
+      },
+      "allParts": [
+        {
+          "name": "Cori-Steel Cutter",
+          "component": "combo_piece"
+        },
+        {
+          "name": "A-Cori-Steel Cutter",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Monk",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Stormchaser's Talent",
+      "count": 4,
+      "set": "pblb",
+      "cardNumber": "75s",
+      "manaCost": "{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "types": ["Enchantment"],
+      "supertypes": [],
+      "subtypes": ["Class"],
+      "text": "(Gain the next level as a sorcery to add its ability.)\nWhen this Class enters, create a 1/1 blue and red Otter creature token with prowess.\n{3}{U}: Level 2\nWhen this Class becomes level 2, return target instant or sorcery card from your graveyard to your hand.\n{5}{U}: Level 3\nWhenever you cast an instant or sorcery spell, create a 1/1 blue and red Otter creature token with prowess.",
+      "layout": "class",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/3/5306ea4d-fa1d-46d1-a611-103d9569d2fb.jpg?1783909849",
+        "normal": "https://cards.scryfall.io/normal/front/5/3/5306ea4d-fa1d-46d1-a611-103d9569d2fb.jpg?1783909849",
+        "large": "https://cards.scryfall.io/large/front/5/3/5306ea4d-fa1d-46d1-a611-103d9569d2fb.jpg?1783909849",
+        "png": "https://cards.scryfall.io/png/front/5/3/5306ea4d-fa1d-46d1-a611-103d9569d2fb.png?1783909849",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/3/5306ea4d-fa1d-46d1-a611-103d9569d2fb.jpg?1783909849",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/3/5306ea4d-fa1d-46d1-a611-103d9569d2fb.jpg?1783909849"
+      },
+      "allParts": [
+        {
+          "name": "Stormchaser's Talent",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Otter",
+          "component": "token"
+        }
+      ]
+    }
+  ],
+  "sideboard": [
+    {
+      "name": "Drake Hatcher",
+      "count": 1,
+      "set": "pfdn",
+      "cardNumber": "35s",
+      "manaCost": "{1}{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Human", "Wizard"],
+      "text": "Vigilance, prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever this creature deals combat damage to a player, put that many incubation counters on it.\nRemove three incubation counters from this creature: Create a 2/2 blue Drake creature token with flying.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "normal": "https://cards.scryfall.io/normal/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "large": "https://cards.scryfall.io/large/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "png": "https://cards.scryfall.io/png/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.png?1783908550",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/5/85fc7552-e4f5-4926-be35-6303ed9587d9.jpg?1783908550"
+      },
+      "allParts": [
+        {
+          "name": "Drake Hatcher",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Drake",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Into the Flood Maw",
+      "count": 1,
+      "set": "pw26",
+      "cardNumber": "8",
+      "manaCost": "{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)\nReturn target creature an opponent controls to its owner's hand. If the gift was promised, instead return target nonland permanent an opponent controls to its owner's hand.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "normal": "https://cards.scryfall.io/normal/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "large": "https://cards.scryfall.io/large/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "png": "https://cards.scryfall.io/png/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.png?1783903934",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/4/e412870c-62bc-4ab7-a3e3-755b6228fa0a.jpg?1783903934"
+      },
+      "allParts": [
+        {
+          "name": "Into the Flood Maw",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Fish",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Ghost Vacuum",
+      "count": 2,
+      "set": "pdsk",
+      "cardNumber": "248s",
+      "manaCost": "{1}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 1,
+      "types": ["Artifact"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Exile target card from a graveyard.\n{6}, {T}, Sacrifice this artifact: Put each creature card exiled with this artifact onto the battlefield under your control with a flying counter on it. Each of them is a 1/1 Spirit in addition to its other types. Activate only as a sorcery.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/0/206fb477-5f4e-42e6-a35a-1ceba5d85b78.jpg?1783909292",
+        "normal": "https://cards.scryfall.io/normal/front/2/0/206fb477-5f4e-42e6-a35a-1ceba5d85b78.jpg?1783909292",
+        "large": "https://cards.scryfall.io/large/front/2/0/206fb477-5f4e-42e6-a35a-1ceba5d85b78.jpg?1783909292",
+        "png": "https://cards.scryfall.io/png/front/2/0/206fb477-5f4e-42e6-a35a-1ceba5d85b78.png?1783909292",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/0/206fb477-5f4e-42e6-a35a-1ceba5d85b78.jpg?1783909292",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/0/206fb477-5f4e-42e6-a35a-1ceba5d85b78.jpg?1783909292"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Pyroclasm",
+      "count": 2,
+      "set": "dsk",
+      "cardNumber": "413",
+      "manaCost": "{1}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Pyroclasm deals 2 damage to each creature.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/4/f4005974-fac5-465f-b742-bcb41eb8ba74.jpg?1783909381",
+        "normal": "https://cards.scryfall.io/normal/front/f/4/f4005974-fac5-465f-b742-bcb41eb8ba74.jpg?1783909381",
+        "large": "https://cards.scryfall.io/large/front/f/4/f4005974-fac5-465f-b742-bcb41eb8ba74.jpg?1783909381",
+        "png": "https://cards.scryfall.io/png/front/f/4/f4005974-fac5-465f-b742-bcb41eb8ba74.png?1783909381",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/4/f4005974-fac5-465f-b742-bcb41eb8ba74.jpg?1783909381",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/4/f4005974-fac5-465f-b742-bcb41eb8ba74.jpg?1783909381"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Ral, Crackling Wit",
+      "count": 2,
+      "set": "pblb",
+      "cardNumber": "230s",
+      "manaCost": "{2}{U}{R}",
+      "colors": ["R", "U"],
+      "colorIdentity": ["R", "U"],
+      "cmc": 4,
+      "types": ["Planeswalker"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Ral"],
+      "text": "Whenever you cast a noncreature spell, put a loyalty counter on Ral.\n+1: Create a 1/1 blue and red Otter creature token with prowess.\n−3: Draw three cards, then discard two cards.\n−10: Draw three cards. You get an emblem with \"Instant and sorcery spells you cast have storm.\" (Whenever you cast an instant or sorcery spell, copy it for each spell cast before it this turn.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/c/bc2ff2e5-93d8-41b4-8bde-45540aa6d779.jpg?1783909780",
+        "normal": "https://cards.scryfall.io/normal/front/b/c/bc2ff2e5-93d8-41b4-8bde-45540aa6d779.jpg?1783909780",
+        "large": "https://cards.scryfall.io/large/front/b/c/bc2ff2e5-93d8-41b4-8bde-45540aa6d779.jpg?1783909780",
+        "png": "https://cards.scryfall.io/png/front/b/c/bc2ff2e5-93d8-41b4-8bde-45540aa6d779.png?1783909780",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/c/bc2ff2e5-93d8-41b4-8bde-45540aa6d779.jpg?1783909780",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/c/bc2ff2e5-93d8-41b4-8bde-45540aa6d779.jpg?1783909780"
+      },
+      "allParts": [
+        {
+          "name": "Ral, Crackling Wit Emblem",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Ral, Crackling Wit",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Otter",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Spell Pierce",
+      "count": 2,
+      "set": "sld",
+      "cardNumber": "2388",
+      "manaCost": "{U}",
+      "colors": ["U"],
+      "colorIdentity": ["U"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Counter target noncreature spell unless its controller pays {2}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/f/7f1c50e3-641a-4100-b6ab-9ed037d6a7ed.jpg?1783903510",
+        "normal": "https://cards.scryfall.io/normal/front/7/f/7f1c50e3-641a-4100-b6ab-9ed037d6a7ed.jpg?1783903510",
+        "large": "https://cards.scryfall.io/large/front/7/f/7f1c50e3-641a-4100-b6ab-9ed037d6a7ed.jpg?1783903510",
+        "png": "https://cards.scryfall.io/png/front/7/f/7f1c50e3-641a-4100-b6ab-9ed037d6a7ed.png?1783903510",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/f/7f1c50e3-641a-4100-b6ab-9ed037d6a7ed.jpg?1783903510",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/f/7f1c50e3-641a-4100-b6ab-9ed037d6a7ed.jpg?1783903510"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Sunspine Lynx",
+      "count": 2,
+      "set": "pblb",
+      "cardNumber": "155s",
+      "manaCost": "{2}{R}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elemental", "Cat"],
+      "text": "Players can't gain life.\nDamage can't be prevented.\nWhen this creature enters, it deals damage to each player equal to the number of nonbasic lands that player controls.",
+      "layout": "normal",
+      "power": "5",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "normal": "https://cards.scryfall.io/normal/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "large": "https://cards.scryfall.io/large/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "png": "https://cards.scryfall.io/png/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.png?1783909815",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Torch the Tower",
+      "count": 2,
+      "set": "woe",
+      "cardNumber": "378",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nTorch the Tower deals 2 damage to target creature or planeswalker. If this spell was bargained, instead it deals 3 damage to that permanent and you scry 1.\nIf a permanent dealt damage by Torch the Tower would die this turn, exile it instead.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "normal": "https://cards.scryfall.io/normal/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "large": "https://cards.scryfall.io/large/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "png": "https://cards.scryfall.io/png/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.png?1783915021",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Witchstalker Frenzy",
+      "count": 1,
+      "set": "woe",
+      "cardNumber": "159",
+      "manaCost": "{3}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This spell costs {1} less to cast for each creature that attacked this turn.\nWitchstalker Frenzy deals 5 damage to target creature.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "normal": "https://cards.scryfall.io/normal/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "large": "https://cards.scryfall.io/large/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "png": "https://cards.scryfall.io/png/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.png?1783915086",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086"
+      },
+      "allParts": []
+    }
+  ]
+}

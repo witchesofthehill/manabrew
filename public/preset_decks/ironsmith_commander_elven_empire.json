@@ -1,0 +1,2045 @@
+{
+  "label": "Elven Empire — Ironsmith Edition",
+  "desc": "Lathril precon with four Ironsmith-compatible substitutions.",
+  "color": "text-emerald-300",
+  "format": "commander",
+  "commander": "Lathril, Blade of the Elves",
+  "coverCardName": "Lathril, Blade of the Elves",
+  "opponent": "",
+  "ai_eligible": false,
+  "order": 325,
+  "source": "https://mtg.wiki/wiki/Kaldheim/Commander_decks",
+  "ironsmithSimilarityThreshold": 0.99,
+  "cards": [
+    {
+      "name": "Abomination of Llanowar",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "81",
+      "manaCost": "{1}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Horror"],
+      "text": "Vigilance; menace (This creature can't be blocked except by two or more creatures.)\nAbomination of Llanowar's power and toughness are each equal to the number of Elves you control plus the number of Elf cards in your graveyard.",
+      "layout": "normal",
+      "power": "*",
+      "toughness": "*",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/b/4b68bc46-5591-44dd-becc-eca154066925.jpg?1783928307",
+        "normal": "https://cards.scryfall.io/normal/front/4/b/4b68bc46-5591-44dd-becc-eca154066925.jpg?1783928307",
+        "large": "https://cards.scryfall.io/large/front/4/b/4b68bc46-5591-44dd-becc-eca154066925.jpg?1783928307",
+        "png": "https://cards.scryfall.io/png/front/4/b/4b68bc46-5591-44dd-becc-eca154066925.png?1783928307",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/b/4b68bc46-5591-44dd-becc-eca154066925.jpg?1783928307",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/b/4b68bc46-5591-44dd-becc-eca154066925.jpg?1783928307"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Beast Whisperer",
+      "count": 1,
+      "set": "clu",
+      "cardNumber": "158",
+      "manaCost": "{2}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "Whenever you cast a creature spell, draw a card.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/a/daf4bcd2-3ae4-4803-9ea1-3bcc3de5ca59.jpg?1783912531",
+        "normal": "https://cards.scryfall.io/normal/front/d/a/daf4bcd2-3ae4-4803-9ea1-3bcc3de5ca59.jpg?1783912531",
+        "large": "https://cards.scryfall.io/large/front/d/a/daf4bcd2-3ae4-4803-9ea1-3bcc3de5ca59.jpg?1783912531",
+        "png": "https://cards.scryfall.io/png/front/d/a/daf4bcd2-3ae4-4803-9ea1-3bcc3de5ca59.png?1783912531",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/a/daf4bcd2-3ae4-4803-9ea1-3bcc3de5ca59.jpg?1783912531",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/a/daf4bcd2-3ae4-4803-9ea1-3bcc3de5ca59.jpg?1783912531"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Canopy Tactician",
+      "count": 1,
+      "set": "khm",
+      "cardNumber": "378",
+      "manaCost": "{3}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "Other Elves you control get +1/+1.\n{T}: Add {G}{G}{G}.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/e/3eaf48c9-09bc-4d81-a3a5-432219a71754.jpg?1783928121",
+        "normal": "https://cards.scryfall.io/normal/front/3/e/3eaf48c9-09bc-4d81-a3a5-432219a71754.jpg?1783928121",
+        "large": "https://cards.scryfall.io/large/front/3/e/3eaf48c9-09bc-4d81-a3a5-432219a71754.jpg?1783928121",
+        "png": "https://cards.scryfall.io/png/front/3/e/3eaf48c9-09bc-4d81-a3a5-432219a71754.png?1783928121",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/e/3eaf48c9-09bc-4d81-a3a5-432219a71754.jpg?1783928121",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/e/3eaf48c9-09bc-4d81-a3a5-432219a71754.jpg?1783928121"
+      },
+      "allParts": [
+        {
+          "name": "Canopy Tactician",
+          "component": "combo_piece"
+        },
+        {
+          "name": "A-Canopy Tactician",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Cultivator of Blades",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "55",
+      "manaCost": "{3}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Artificer"],
+      "text": "Fabricate 2 (When this creature enters, put two +1/+1 counters on it or create two 1/1 colorless Servo artifact creature tokens.)\nWhenever this creature attacks, you may have other attacking creatures get +X/+X until end of turn, where X is this creature's power.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/2/c2e6e8a1-2e69-43de-964d-72f722439d4a.jpg?1783928317",
+        "normal": "https://cards.scryfall.io/normal/front/c/2/c2e6e8a1-2e69-43de-964d-72f722439d4a.jpg?1783928317",
+        "large": "https://cards.scryfall.io/large/front/c/2/c2e6e8a1-2e69-43de-964d-72f722439d4a.jpg?1783928317",
+        "png": "https://cards.scryfall.io/png/front/c/2/c2e6e8a1-2e69-43de-964d-72f722439d4a.png?1783928317",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/2/c2e6e8a1-2e69-43de-964d-72f722439d4a.jpg?1783928317",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/2/c2e6e8a1-2e69-43de-964d-72f722439d4a.jpg?1783928317"
+      },
+      "allParts": [
+        {
+          "name": "Servo",
+          "component": "token"
+        },
+        {
+          "name": "Cultivator of Blades",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Dwynen, Gilt-Leaf Daen",
+      "count": 1,
+      "set": "fdn",
+      "cardNumber": "217",
+      "manaCost": "{2}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "Reach (This creature can block creatures with flying.)\nOther Elf creatures you control get +1/+1.\nWhenever Dwynen attacks, you gain 1 life for each attacking Elf you control.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/1/01c00d7b-7fac-4f8c-a1ea-de2cf4d06627.jpg?1783909060",
+        "normal": "https://cards.scryfall.io/normal/front/0/1/01c00d7b-7fac-4f8c-a1ea-de2cf4d06627.jpg?1783909060",
+        "large": "https://cards.scryfall.io/large/front/0/1/01c00d7b-7fac-4f8c-a1ea-de2cf4d06627.jpg?1783909060",
+        "png": "https://cards.scryfall.io/png/front/0/1/01c00d7b-7fac-4f8c-a1ea-de2cf4d06627.png?1783909060",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/1/01c00d7b-7fac-4f8c-a1ea-de2cf4d06627.jpg?1783909060",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/1/01c00d7b-7fac-4f8c-a1ea-de2cf4d06627.jpg?1783909060"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elderfang Ritualist",
+      "count": 1,
+      "set": "khm",
+      "cardNumber": "385",
+      "manaCost": "{2}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Cleric"],
+      "text": "When this creature dies, return another target Elf card from your graveyard to your hand.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/7/57348f93-8764-4b1a-b02e-4e7881337fa2.jpg?1783928118",
+        "normal": "https://cards.scryfall.io/normal/front/5/7/57348f93-8764-4b1a-b02e-4e7881337fa2.jpg?1783928118",
+        "large": "https://cards.scryfall.io/large/front/5/7/57348f93-8764-4b1a-b02e-4e7881337fa2.jpg?1783928118",
+        "png": "https://cards.scryfall.io/png/front/5/7/57348f93-8764-4b1a-b02e-4e7881337fa2.png?1783928118",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/7/57348f93-8764-4b1a-b02e-4e7881337fa2.jpg?1783928118",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/7/57348f93-8764-4b1a-b02e-4e7881337fa2.jpg?1783928118"
+      },
+      "allParts": [
+        {
+          "name": "A-Elderfang Ritualist",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elderfang Ritualist",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Elvish Archdruid",
+      "count": 1,
+      "set": "pfdn",
+      "cardNumber": "219s",
+      "manaCost": "{1}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "Other Elf creatures you control get +1/+1.\n{T}: Add {G} for each Elf you control.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/9/f98e07c4-d750-46a3-9042-5609978447d2.jpg?1783908518",
+        "normal": "https://cards.scryfall.io/normal/front/f/9/f98e07c4-d750-46a3-9042-5609978447d2.jpg?1783908518",
+        "large": "https://cards.scryfall.io/large/front/f/9/f98e07c4-d750-46a3-9042-5609978447d2.jpg?1783908518",
+        "png": "https://cards.scryfall.io/png/front/f/9/f98e07c4-d750-46a3-9042-5609978447d2.png?1783908518",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/9/f98e07c4-d750-46a3-9042-5609978447d2.jpg?1783908518",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/9/f98e07c4-d750-46a3-9042-5609978447d2.jpg?1783908518"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elvish Mystic",
+      "count": 1,
+      "set": "soc",
+      "cardNumber": "266",
+      "manaCost": "{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "{T}: Add {G}.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/b/eb654a76-62ee-4fd8-83d4-cb912211a9a0.jpg?1783903767",
+        "normal": "https://cards.scryfall.io/normal/front/e/b/eb654a76-62ee-4fd8-83d4-cb912211a9a0.jpg?1783903767",
+        "large": "https://cards.scryfall.io/large/front/e/b/eb654a76-62ee-4fd8-83d4-cb912211a9a0.jpg?1783903767",
+        "png": "https://cards.scryfall.io/png/front/e/b/eb654a76-62ee-4fd8-83d4-cb912211a9a0.png?1783903767",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/b/eb654a76-62ee-4fd8-83d4-cb912211a9a0.jpg?1783903767",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/b/eb654a76-62ee-4fd8-83d4-cb912211a9a0.jpg?1783903767"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elvish Rejuvenator",
+      "count": 1,
+      "set": "m3c",
+      "cardNumber": "226",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "When this creature enters, look at the top five cards of your library. You may put a land card from among them onto the battlefield tapped. Put the rest on the bottom of your library in a random order.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/d/5deb7010-131c-40e9-a4c2-dee1b700e6c9.jpg?1783911372",
+        "normal": "https://cards.scryfall.io/normal/front/5/d/5deb7010-131c-40e9-a4c2-dee1b700e6c9.jpg?1783911372",
+        "large": "https://cards.scryfall.io/large/front/5/d/5deb7010-131c-40e9-a4c2-dee1b700e6c9.jpg?1783911372",
+        "png": "https://cards.scryfall.io/png/front/5/d/5deb7010-131c-40e9-a4c2-dee1b700e6c9.png?1783911372",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/d/5deb7010-131c-40e9-a4c2-dee1b700e6c9.jpg?1783911372",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/d/5deb7010-131c-40e9-a4c2-dee1b700e6c9.jpg?1783911372"
+      },
+      "allParts": []
+    },
+    {
+      "name": "End-Raze Forerunners",
+      "count": 1,
+      "set": "blc",
+      "cardNumber": "214",
+      "manaCost": "{5}{G}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 8,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Boar"],
+      "text": "Vigilance, trample, haste\nWhen this creature enters, other creatures you control get +2/+2 and gain vigilance and trample until end of turn.",
+      "layout": "normal",
+      "power": "7",
+      "toughness": "7",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/e/6e4566f9-a6f5-420e-8ab8-ca505facc3d9.jpg?1783910669",
+        "normal": "https://cards.scryfall.io/normal/front/6/e/6e4566f9-a6f5-420e-8ab8-ca505facc3d9.jpg?1783910669",
+        "large": "https://cards.scryfall.io/large/front/6/e/6e4566f9-a6f5-420e-8ab8-ca505facc3d9.jpg?1783910669",
+        "png": "https://cards.scryfall.io/png/front/6/e/6e4566f9-a6f5-420e-8ab8-ca505facc3d9.png?1783910669",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/e/6e4566f9-a6f5-420e-8ab8-ca505facc3d9.jpg?1783910669",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/e/6e4566f9-a6f5-420e-8ab8-ca505facc3d9.jpg?1783910669"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Eyeblight Cullers",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "48",
+      "manaCost": "{4}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "When this creature dies, create three 1/1 green Elf Warrior creature tokens, then mill three cards. (Put the top three cards of your library into your graveyard.)",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/9/89b47813-9b6c-4e8f-9212-fe37fb50e405.jpg?1783928320",
+        "normal": "https://cards.scryfall.io/normal/front/8/9/89b47813-9b6c-4e8f-9212-fe37fb50e405.jpg?1783928320",
+        "large": "https://cards.scryfall.io/large/front/8/9/89b47813-9b6c-4e8f-9212-fe37fb50e405.jpg?1783928320",
+        "png": "https://cards.scryfall.io/png/front/8/9/89b47813-9b6c-4e8f-9212-fe37fb50e405.png?1783928320",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/9/89b47813-9b6c-4e8f-9212-fe37fb50e405.jpg?1783928320",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/9/89b47813-9b6c-4e8f-9212-fe37fb50e405.jpg?1783928320"
+      },
+      "allParts": [
+        {
+          "name": "Eyeblight Cullers",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Farhaven Elf",
+      "count": 1,
+      "set": "pw26",
+      "cardNumber": "2",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "When this creature enters, you may search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/007dc743-19e4-4086-8afe-364116b0c91c.jpg?1783904340",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/007dc743-19e4-4086-8afe-364116b0c91c.jpg?1783904340",
+        "large": "https://cards.scryfall.io/large/front/0/0/007dc743-19e4-4086-8afe-364116b0c91c.jpg?1783904340",
+        "png": "https://cards.scryfall.io/png/front/0/0/007dc743-19e4-4086-8afe-364116b0c91c.png?1783904340",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/007dc743-19e4-4086-8afe-364116b0c91c.jpg?1783904340",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/007dc743-19e4-4086-8afe-364116b0c91c.jpg?1783904340"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Golgari Findbroker",
+      "count": 1,
+      "set": "rvr",
+      "cardNumber": "187",
+      "manaCost": "{B}{B}{G}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Shaman"],
+      "text": "When this creature enters, return target permanent card from your graveyard to your hand.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/b/eb6104f6-127f-4ab8-94bb-d98783ecb377.jpg?1783913287",
+        "normal": "https://cards.scryfall.io/normal/front/e/b/eb6104f6-127f-4ab8-94bb-d98783ecb377.jpg?1783913287",
+        "large": "https://cards.scryfall.io/large/front/e/b/eb6104f6-127f-4ab8-94bb-d98783ecb377.jpg?1783913287",
+        "png": "https://cards.scryfall.io/png/front/e/b/eb6104f6-127f-4ab8-94bb-d98783ecb377.png?1783913287",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/b/eb6104f6-127f-4ab8-94bb-d98783ecb377.jpg?1783913287",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/b/eb6104f6-127f-4ab8-94bb-d98783ecb377.jpg?1783913287"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Harald, King of Skemfar",
+      "count": 1,
+      "set": "khm",
+      "cardNumber": "323",
+      "manaCost": "{1}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen Harald enters, look at the top five cards of your library. You may reveal an Elf, Warrior, or Tyvar card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/f/8fc37772-7052-46a9-a34e-f982331595a3.jpg?1783928144",
+        "normal": "https://cards.scryfall.io/normal/front/8/f/8fc37772-7052-46a9-a34e-f982331595a3.jpg?1783928144",
+        "large": "https://cards.scryfall.io/large/front/8/f/8fc37772-7052-46a9-a34e-f982331595a3.jpg?1783928144",
+        "png": "https://cards.scryfall.io/png/front/8/f/8fc37772-7052-46a9-a34e-f982331595a3.png?1783928144",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/f/8fc37772-7052-46a9-a34e-f982331595a3.jpg?1783928144",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/f/8fc37772-7052-46a9-a34e-f982331595a3.jpg?1783928144"
+      },
+      "allParts": [
+        {
+          "name": "Harald, King of Skemfar",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Tyvar Kell",
+          "component": "combo_piece"
+        },
+        {
+          "name": "A-Harald, King of Skemfar",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Imperious Perfect",
+      "count": 1,
+      "set": "fdn",
+      "cardNumber": "719",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "Other Elves you control get +1/+1.\n{G}, {T}: Create a 1/1 green Elf Warrior creature token.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/3/83b4a09f-ea53-42b4-a41a-4299192a6fd3.jpg?1783908890",
+        "normal": "https://cards.scryfall.io/normal/front/8/3/83b4a09f-ea53-42b4-a41a-4299192a6fd3.jpg?1783908890",
+        "large": "https://cards.scryfall.io/large/front/8/3/83b4a09f-ea53-42b4-a41a-4299192a6fd3.jpg?1783908890",
+        "png": "https://cards.scryfall.io/png/front/8/3/83b4a09f-ea53-42b4-a41a-4299192a6fd3.png?1783908890",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/3/83b4a09f-ea53-42b4-a41a-4299192a6fd3.jpg?1783908890",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/3/83b4a09f-ea53-42b4-a41a-4299192a6fd3.jpg?1783908890"
+      },
+      "allParts": [
+        {
+          "name": "Imperious Perfect",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Jagged-Scar Archers",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "65",
+      "manaCost": "{1}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Archer"],
+      "text": "Jagged-Scar Archers's power and toughness are each equal to the number of Elves you control.\n{T}: This creature deals damage equal to its power to target creature with flying.",
+      "layout": "normal",
+      "power": "*",
+      "toughness": "*",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/1/71c4346a-a330-49ca-909e-08fd8aec7b3f.jpg?1783928313",
+        "normal": "https://cards.scryfall.io/normal/front/7/1/71c4346a-a330-49ca-909e-08fd8aec7b3f.jpg?1783928313",
+        "large": "https://cards.scryfall.io/large/front/7/1/71c4346a-a330-49ca-909e-08fd8aec7b3f.jpg?1783928313",
+        "png": "https://cards.scryfall.io/png/front/7/1/71c4346a-a330-49ca-909e-08fd8aec7b3f.png?1783928313",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/1/71c4346a-a330-49ca-909e-08fd8aec7b3f.jpg?1783928313",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/1/71c4346a-a330-49ca-909e-08fd8aec7b3f.jpg?1783928313"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Jaspera Sentinel",
+      "count": 1,
+      "set": "plst",
+      "cardNumber": "KHM-178",
+      "manaCost": "{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Rogue"],
+      "text": "Reach\n{T}, Tap an untapped creature you control: Add one mana of any color.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/9/8/98dd6832-60a1-4807-acc0-f33c65f58b18.jpg?1783910087",
+        "normal": "https://cards.scryfall.io/normal/front/9/8/98dd6832-60a1-4807-acc0-f33c65f58b18.jpg?1783910087",
+        "large": "https://cards.scryfall.io/large/front/9/8/98dd6832-60a1-4807-acc0-f33c65f58b18.jpg?1783910087",
+        "png": "https://cards.scryfall.io/png/front/9/8/98dd6832-60a1-4807-acc0-f33c65f58b18.png?1783910087",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/9/8/98dd6832-60a1-4807-acc0-f33c65f58b18.jpg?1783910087",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/9/8/98dd6832-60a1-4807-acc0-f33c65f58b18.jpg?1783910087"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Llanowar Tribe",
+      "count": 1,
+      "set": "gn3",
+      "cardNumber": "102",
+      "manaCost": "{G}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "{T}: Add {G}{G}{G}.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/5/c53d8be8-8a16-4d2d-b0cf-dae5c8e7af89.jpg?1783920259",
+        "normal": "https://cards.scryfall.io/normal/front/c/5/c53d8be8-8a16-4d2d-b0cf-dae5c8e7af89.jpg?1783920259",
+        "large": "https://cards.scryfall.io/large/front/c/5/c53d8be8-8a16-4d2d-b0cf-dae5c8e7af89.jpg?1783920259",
+        "png": "https://cards.scryfall.io/png/front/c/5/c53d8be8-8a16-4d2d-b0cf-dae5c8e7af89.png?1783920259",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/5/c53d8be8-8a16-4d2d-b0cf-dae5c8e7af89.jpg?1783920259",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/5/c53d8be8-8a16-4d2d-b0cf-dae5c8e7af89.jpg?1783920259"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Lys Alana Huntmaster",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "772",
+      "manaCost": "{2}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/5/c5fc9e54-8fc4-4de4-be74-e925a85187b4.jpg?1783913093",
+        "normal": "https://cards.scryfall.io/normal/front/c/5/c5fc9e54-8fc4-4de4-be74-e925a85187b4.jpg?1783913093",
+        "large": "https://cards.scryfall.io/large/front/c/5/c5fc9e54-8fc4-4de4-be74-e925a85187b4.jpg?1783913093",
+        "png": "https://cards.scryfall.io/png/front/c/5/c5fc9e54-8fc4-4de4-be74-e925a85187b4.png?1783913093",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/5/c5fc9e54-8fc4-4de4-be74-e925a85187b4.jpg?1783913093",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/5/c5fc9e54-8fc4-4de4-be74-e925a85187b4.jpg?1783913093"
+      },
+      "allParts": [
+        {
+          "name": "Lys Alana Huntmaster",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Llanowar Elves",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "7167",
+      "manaCost": "{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "{T}: Add {G}.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/e/ee1a40dc-30dc-4dda-9001-aa7fb0b43bb3.jpg?1784283705",
+        "normal": "https://cards.scryfall.io/normal/front/e/e/ee1a40dc-30dc-4dda-9001-aa7fb0b43bb3.jpg?1784283705",
+        "large": "https://cards.scryfall.io/large/front/e/e/ee1a40dc-30dc-4dda-9001-aa7fb0b43bb3.jpg?1784283705",
+        "png": "https://cards.scryfall.io/png/front/e/e/ee1a40dc-30dc-4dda-9001-aa7fb0b43bb3.png?1784283705",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/e/ee1a40dc-30dc-4dda-9001-aa7fb0b43bb3.jpg?1784283705",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/e/ee1a40dc-30dc-4dda-9001-aa7fb0b43bb3.jpg?1784283705"
+      },
+      "allParts": [
+        {
+          "name": "Llanowar Elves",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Marwyn's Kindred",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Marwyn, the Nurturer",
+      "count": 1,
+      "set": "j25",
+      "cardNumber": "687",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Druid"],
+      "text": "Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.\n{T}: Add an amount of {G} equal to Marwyn's power.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/c/4c92e444-2a33-4e67-a8be-8cf5d564e589.jpg?1783908631",
+        "normal": "https://cards.scryfall.io/normal/front/4/c/4c92e444-2a33-4e67-a8be-8cf5d564e589.jpg?1783908631",
+        "large": "https://cards.scryfall.io/large/front/4/c/4c92e444-2a33-4e67-a8be-8cf5d564e589.jpg?1783908631",
+        "png": "https://cards.scryfall.io/png/front/4/c/4c92e444-2a33-4e67-a8be-8cf5d564e589.png?1783908631",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/c/4c92e444-2a33-4e67-a8be-8cf5d564e589.jpg?1783908631",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/c/4c92e444-2a33-4e67-a8be-8cf5d564e589.jpg?1783908631"
+      },
+      "allParts": [
+        {
+          "name": "Marwyn's Kindred",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Marwyn, the Nurturer",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Masked Admirers",
+      "count": 1,
+      "set": "plst",
+      "cardNumber": "MMA-154",
+      "manaCost": "{2}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Shaman"],
+      "text": "When this creature enters, draw a card.\nWhenever you cast a creature spell, you may pay {G}{G}. If you do, return this card from your graveyard to your hand.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/5/75ed9639-f42d-4dfc-a1e9-fc8bd934230d.jpg?1783910126",
+        "normal": "https://cards.scryfall.io/normal/front/7/5/75ed9639-f42d-4dfc-a1e9-fc8bd934230d.jpg?1783910126",
+        "large": "https://cards.scryfall.io/large/front/7/5/75ed9639-f42d-4dfc-a1e9-fc8bd934230d.jpg?1783910126",
+        "png": "https://cards.scryfall.io/png/front/7/5/75ed9639-f42d-4dfc-a1e9-fc8bd934230d.png?1783910126",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/5/75ed9639-f42d-4dfc-a1e9-fc8bd934230d.jpg?1783910126",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/5/75ed9639-f42d-4dfc-a1e9-fc8bd934230d.jpg?1783910126"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Miara, Thorn of the Glade",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "51",
+      "manaCost": "{1}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Scout"],
+      "text": "Whenever Miara or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.\nPartner (You can have two commanders if both have partner.)",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/b/7bdb9bfe-5e56-429d-af23-7548532e2406.jpg?1783928320",
+        "normal": "https://cards.scryfall.io/normal/front/7/b/7bdb9bfe-5e56-429d-af23-7548532e2406.jpg?1783928320",
+        "large": "https://cards.scryfall.io/large/front/7/b/7bdb9bfe-5e56-429d-af23-7548532e2406.jpg?1783928320",
+        "png": "https://cards.scryfall.io/png/front/7/b/7bdb9bfe-5e56-429d-af23-7548532e2406.png?1783928320",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/b/7bdb9bfe-5e56-429d-af23-7548532e2406.jpg?1783928320",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/b/7bdb9bfe-5e56-429d-af23-7548532e2406.jpg?1783928320"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Nullmage Shepherd",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "774",
+      "manaCost": "{3}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Shaman"],
+      "text": "Tap four untapped creatures you control: Destroy target artifact or enchantment.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/9/2/9277591c-cf20-4f82-b308-84e69c51113a.jpg?1783911050",
+        "normal": "https://cards.scryfall.io/normal/front/9/2/9277591c-cf20-4f82-b308-84e69c51113a.jpg?1783911050",
+        "large": "https://cards.scryfall.io/large/front/9/2/9277591c-cf20-4f82-b308-84e69c51113a.jpg?1783911050",
+        "png": "https://cards.scryfall.io/png/front/9/2/9277591c-cf20-4f82-b308-84e69c51113a.png?1783911050",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/9/2/9277591c-cf20-4f82-b308-84e69c51113a.jpg?1783911050",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/9/2/9277591c-cf20-4f82-b308-84e69c51113a.jpg?1783911050"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Numa, Joraga Chieftain",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "71",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "At the beginning of combat on your turn, you may pay {X}{X}. When you do, distribute X +1/+1 counters among any number of target Elves.\nPartner (You can have two commanders if both have partner.)",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/a/6ac36353-6bf7-46b1-85cb-87d389138d32.jpg?1783928311",
+        "normal": "https://cards.scryfall.io/normal/front/6/a/6ac36353-6bf7-46b1-85cb-87d389138d32.jpg?1783928311",
+        "large": "https://cards.scryfall.io/large/front/6/a/6ac36353-6bf7-46b1-85cb-87d389138d32.jpg?1783928311",
+        "png": "https://cards.scryfall.io/png/front/6/a/6ac36353-6bf7-46b1-85cb-87d389138d32.png?1783928311",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/a/6ac36353-6bf7-46b1-85cb-87d389138d32.jpg?1783928311",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/a/6ac36353-6bf7-46b1-85cb-87d389138d32.jpg?1783928311"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Poison-Tip Archer",
+      "count": 1,
+      "set": "plst",
+      "cardNumber": "KHC-90",
+      "manaCost": "{2}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Archer"],
+      "text": "Reach (This creature can block creatures with flying.)\nDeathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever another creature dies, each opponent loses 1 life.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/3/238c8f86-777e-460a-865a-8bc06d3693e0.jpg?1783910252",
+        "normal": "https://cards.scryfall.io/normal/front/2/3/238c8f86-777e-460a-865a-8bc06d3693e0.jpg?1783910252",
+        "large": "https://cards.scryfall.io/large/front/2/3/238c8f86-777e-460a-865a-8bc06d3693e0.jpg?1783910252",
+        "png": "https://cards.scryfall.io/png/front/2/3/238c8f86-777e-460a-865a-8bc06d3693e0.png?1783910252",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/3/238c8f86-777e-460a-865a-8bc06d3693e0.jpg?1783910252",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/3/238c8f86-777e-460a-865a-8bc06d3693e0.jpg?1783910252"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Reclamation Sage",
+      "count": 1,
+      "set": "fdn",
+      "cardNumber": "231",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Shaman"],
+      "text": "When this creature enters, you may destroy target artifact or enchantment.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/9/1918ea65-ab7f-4d40-97fd-a656c892a2a1.jpg?1783909055",
+        "normal": "https://cards.scryfall.io/normal/front/1/9/1918ea65-ab7f-4d40-97fd-a656c892a2a1.jpg?1783909055",
+        "large": "https://cards.scryfall.io/large/front/1/9/1918ea65-ab7f-4d40-97fd-a656c892a2a1.jpg?1783909055",
+        "png": "https://cards.scryfall.io/png/front/1/9/1918ea65-ab7f-4d40-97fd-a656c892a2a1.png?1783909055",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/9/1918ea65-ab7f-4d40-97fd-a656c892a2a1.jpg?1783909055",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/9/1918ea65-ab7f-4d40-97fd-a656c892a2a1.jpg?1783909055"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Rhys the Exiled",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "73",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "Whenever Rhys attacks, you gain 1 life for each Elf you control.\n{B}, Sacrifice an Elf: Regenerate Rhys.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/5/85004079-f9fa-4a05-904d-a77782c4165c.jpg?1783928310",
+        "normal": "https://cards.scryfall.io/normal/front/8/5/85004079-f9fa-4a05-904d-a77782c4165c.jpg?1783928310",
+        "large": "https://cards.scryfall.io/large/front/8/5/85004079-f9fa-4a05-904d-a77782c4165c.jpg?1783928310",
+        "png": "https://cards.scryfall.io/png/front/8/5/85004079-f9fa-4a05-904d-a77782c4165c.png?1783928310",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/5/85004079-f9fa-4a05-904d-a77782c4165c.jpg?1783928310",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/5/85004079-f9fa-4a05-904d-a77782c4165c.jpg?1783928310"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Ruthless Winnower",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "10",
+      "manaCost": "{3}{B}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Rogue"],
+      "text": "At the beginning of each player's upkeep, that player sacrifices a non-Elf creature of their choice.",
+      "layout": "normal",
+      "power": "4",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/8/886ef13a-4f9d-425b-a071-6366cdb637c8.jpg?1783928337",
+        "normal": "https://cards.scryfall.io/normal/front/8/8/886ef13a-4f9d-425b-a071-6366cdb637c8.jpg?1783928337",
+        "large": "https://cards.scryfall.io/large/front/8/8/886ef13a-4f9d-425b-a071-6366cdb637c8.jpg?1783928337",
+        "png": "https://cards.scryfall.io/png/front/8/8/886ef13a-4f9d-425b-a071-6366cdb637c8.png?1783928337",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/8/886ef13a-4f9d-425b-a071-6366cdb637c8.jpg?1783928337",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/8/886ef13a-4f9d-425b-a071-6366cdb637c8.jpg?1783928337"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Shaman of the Pack",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "789",
+      "manaCost": "{1}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Shaman"],
+      "text": "When this creature enters, target opponent loses life equal to the number of Elves you control.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/f/dfda3de9-2eea-44f6-ba1b-d001ede8f7bb.jpg?1783914757",
+        "normal": "https://cards.scryfall.io/normal/front/d/f/dfda3de9-2eea-44f6-ba1b-d001ede8f7bb.jpg?1783914757",
+        "large": "https://cards.scryfall.io/large/front/d/f/dfda3de9-2eea-44f6-ba1b-d001ede8f7bb.jpg?1783914757",
+        "png": "https://cards.scryfall.io/png/front/d/f/dfda3de9-2eea-44f6-ba1b-d001ede8f7bb.png?1783914757",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/f/dfda3de9-2eea-44f6-ba1b-d001ede8f7bb.jpg?1783914757",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/f/dfda3de9-2eea-44f6-ba1b-d001ede8f7bb.jpg?1783914757"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Skemfar Shadowsage",
+      "count": 1,
+      "set": "j25",
+      "cardNumber": "489",
+      "manaCost": "{3}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Cleric"],
+      "text": "When this creature enters, choose one —\n• Each opponent loses X life, where X is the greatest number of creatures you control that have a creature type in common.\n• You gain X life, where X is the greatest number of creatures you control that have a creature type in common.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "5",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/0/306e67b5-7d00-412a-894d-c9412cb9e4f2.jpg?1783908711",
+        "normal": "https://cards.scryfall.io/normal/front/3/0/306e67b5-7d00-412a-894d-c9412cb9e4f2.jpg?1783908711",
+        "large": "https://cards.scryfall.io/large/front/3/0/306e67b5-7d00-412a-894d-c9412cb9e4f2.jpg?1783908711",
+        "png": "https://cards.scryfall.io/png/front/3/0/306e67b5-7d00-412a-894d-c9412cb9e4f2.png?1783908711",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/0/306e67b5-7d00-412a-894d-c9412cb9e4f2.jpg?1783908711",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/0/306e67b5-7d00-412a-894d-c9412cb9e4f2.jpg?1783908711"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Springbloom Druid",
+      "count": 1,
+      "set": "soc",
+      "cardNumber": "287",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "When this creature enters, you may sacrifice a land. If you do, search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/7/c7b7d415-d9b4-49b7-ab31-b2fc91d57fe3.jpg?1783903760",
+        "normal": "https://cards.scryfall.io/normal/front/c/7/c7b7d415-d9b4-49b7-ab31-b2fc91d57fe3.jpg?1783903760",
+        "large": "https://cards.scryfall.io/large/front/c/7/c7b7d415-d9b4-49b7-ab31-b2fc91d57fe3.jpg?1783903760",
+        "png": "https://cards.scryfall.io/png/front/c/7/c7b7d415-d9b4-49b7-ab31-b2fc91d57fe3.png?1783903760",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/7/c7b7d415-d9b4-49b7-ab31-b2fc91d57fe3.jpg?1783903760",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/7/c7b7d415-d9b4-49b7-ab31-b2fc91d57fe3.jpg?1783903760"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Sylvan Messenger",
+      "count": 1,
+      "set": "gn3",
+      "cardNumber": "107",
+      "manaCost": "{3}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf"],
+      "text": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nWhen this creature enters, reveal the top four cards of your library. Put all Elf cards revealed this way into your hand and the rest on the bottom of your library in any order.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/d/1dfbdbdf-d46b-47e3-bfc7-39250ed2afea.jpg?1783920259",
+        "normal": "https://cards.scryfall.io/normal/front/1/d/1dfbdbdf-d46b-47e3-bfc7-39250ed2afea.jpg?1783920259",
+        "large": "https://cards.scryfall.io/large/front/1/d/1dfbdbdf-d46b-47e3-bfc7-39250ed2afea.jpg?1783920259",
+        "png": "https://cards.scryfall.io/png/front/1/d/1dfbdbdf-d46b-47e3-bfc7-39250ed2afea.png?1783920259",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/d/1dfbdbdf-d46b-47e3-bfc7-39250ed2afea.jpg?1783920259",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/d/1dfbdbdf-d46b-47e3-bfc7-39250ed2afea.jpg?1783920259"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Timberwatch Elf",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "780",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf"],
+      "text": "{T}: Target creature gets +X/+X until end of turn, where X is the number of Elves on the battlefield.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/5/a513bd7e-b843-4bec-a50f-9f014cc86503.jpg?1783912753",
+        "normal": "https://cards.scryfall.io/normal/front/a/5/a513bd7e-b843-4bec-a50f-9f014cc86503.jpg?1783912753",
+        "large": "https://cards.scryfall.io/large/front/a/5/a513bd7e-b843-4bec-a50f-9f014cc86503.jpg?1783912753",
+        "png": "https://cards.scryfall.io/png/front/a/5/a513bd7e-b843-4bec-a50f-9f014cc86503.png?1783912753",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/5/a513bd7e-b843-4bec-a50f-9f014cc86503.jpg?1783912753",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/5/a513bd7e-b843-4bec-a50f-9f014cc86503.jpg?1783912753"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Twinblade Assassins",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "95",
+      "manaCost": "{3}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 5,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Assassin"],
+      "text": "At the beginning of your end step, if a creature died this turn, draw a card.",
+      "layout": "normal",
+      "power": "5",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/3/f353281a-0e56-448f-b41a-beb3949c5f11.jpg?1783928301",
+        "normal": "https://cards.scryfall.io/normal/front/f/3/f353281a-0e56-448f-b41a-beb3949c5f11.jpg?1783928301",
+        "large": "https://cards.scryfall.io/large/front/f/3/f353281a-0e56-448f-b41a-beb3949c5f11.jpg?1783928301",
+        "png": "https://cards.scryfall.io/png/front/f/3/f353281a-0e56-448f-b41a-beb3949c5f11.png?1783928301",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/3/f353281a-0e56-448f-b41a-beb3949c5f11.jpg?1783928301",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/3/f353281a-0e56-448f-b41a-beb3949c5f11.jpg?1783928301"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elvish Visionary",
+      "count": 1,
+      "set": "j25",
+      "cardNumber": "145",
+      "manaCost": "{1}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Shaman"],
+      "text": "When this creature enters, draw a card.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/9/69f570b5-1629-4b10-8f66-ed9b4355a0a4.jpg?1783908825",
+        "normal": "https://cards.scryfall.io/normal/front/6/9/69f570b5-1629-4b10-8f66-ed9b4355a0a4.jpg?1783908825",
+        "large": "https://cards.scryfall.io/large/front/6/9/69f570b5-1629-4b10-8f66-ed9b4355a0a4.jpg?1783908825",
+        "png": "https://cards.scryfall.io/png/front/6/9/69f570b5-1629-4b10-8f66-ed9b4355a0a4.png?1783908825",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/9/69f570b5-1629-4b10-8f66-ed9b4355a0a4.jpg?1783908825",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/9/69f570b5-1629-4b10-8f66-ed9b4355a0a4.jpg?1783908825"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Voice of the Woods",
+      "count": 1,
+      "set": "j25",
+      "cardNumber": "738",
+      "manaCost": "{3}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 5,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf"],
+      "text": "Tap five untapped Elves you control: Create a 7/7 green Elemental creature token with trample. (It can deal excess combat damage to the player or planeswalker it's attacking.)",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/0/30582551-8236-41d5-bedf-818f4af97d3f.jpg?1783908612",
+        "normal": "https://cards.scryfall.io/normal/front/3/0/30582551-8236-41d5-bedf-818f4af97d3f.jpg?1783908612",
+        "large": "https://cards.scryfall.io/large/front/3/0/30582551-8236-41d5-bedf-818f4af97d3f.jpg?1783908612",
+        "png": "https://cards.scryfall.io/png/front/3/0/30582551-8236-41d5-bedf-818f4af97d3f.png?1783908612",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/0/30582551-8236-41d5-bedf-818f4af97d3f.jpg?1783908612",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/0/30582551-8236-41d5-bedf-818f4af97d3f.jpg?1783908612"
+      },
+      "allParts": [
+        {
+          "name": "Voice of the Woods",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elemental",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Wirewood Channeler",
+      "count": 1,
+      "set": "plst",
+      "cardNumber": "LGN-144",
+      "manaCost": "{3}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Druid"],
+      "text": "{T}: Add X mana of any one color, where X is the number of Elves on the battlefield.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/d/bd9f8f0d-d274-44f2-8f6d-855b8d60f2ad.jpg?1783910140",
+        "normal": "https://cards.scryfall.io/normal/front/b/d/bd9f8f0d-d274-44f2-8f6d-855b8d60f2ad.jpg?1783910140",
+        "large": "https://cards.scryfall.io/large/front/b/d/bd9f8f0d-d274-44f2-8f6d-855b8d60f2ad.jpg?1783910140",
+        "png": "https://cards.scryfall.io/png/front/b/d/bd9f8f0d-d274-44f2-8f6d-855b8d60f2ad.png?1783910140",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/d/bd9f8f0d-d274-44f2-8f6d-855b8d60f2ad.jpg?1783910140",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/d/bd9f8f0d-d274-44f2-8f6d-855b8d60f2ad.jpg?1783910140"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Wolverine Riders",
+      "count": 1,
+      "set": "j22",
+      "cardNumber": "743",
+      "manaCost": "{4}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 6,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Warrior"],
+      "text": "At the beginning of each upkeep, create a 1/1 green Elf Warrior creature token.\nWhenever another Elf you control enters, you gain life equal to its toughness.",
+      "layout": "normal",
+      "power": "4",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/5/7/575d407c-c37e-4664-b2e3-217dfd5a78a2.jpg?1783918824",
+        "normal": "https://cards.scryfall.io/normal/front/5/7/575d407c-c37e-4664-b2e3-217dfd5a78a2.jpg?1783918824",
+        "large": "https://cards.scryfall.io/large/front/5/7/575d407c-c37e-4664-b2e3-217dfd5a78a2.jpg?1783918824",
+        "png": "https://cards.scryfall.io/png/front/5/7/575d407c-c37e-4664-b2e3-217dfd5a78a2.png?1783918824",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/5/7/575d407c-c37e-4664-b2e3-217dfd5a78a2.jpg?1783918824",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/5/7/575d407c-c37e-4664-b2e3-217dfd5a78a2.jpg?1783918824"
+      },
+      "allParts": [
+        {
+          "name": "Wolverine Riders",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Wood Elves",
+      "count": 1,
+      "set": "pw26",
+      "cardNumber": "16",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elf", "Scout"],
+      "text": "When this creature enters, search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/a/8a34a1f6-c0a7-419b-b40c-7ab0dc9ec857.jpg?1783902771",
+        "normal": "https://cards.scryfall.io/normal/front/8/a/8a34a1f6-c0a7-419b-b40c-7ab0dc9ec857.jpg?1783902771",
+        "large": "https://cards.scryfall.io/large/front/8/a/8a34a1f6-c0a7-419b-b40c-7ab0dc9ec857.jpg?1783902771",
+        "png": "https://cards.scryfall.io/png/front/8/a/8a34a1f6-c0a7-419b-b40c-7ab0dc9ec857.png?1783902771",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/a/8a34a1f6-c0a7-419b-b40c-7ab0dc9ec857.jpg?1783902771",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/a/8a34a1f6-c0a7-419b-b40c-7ab0dc9ec857.jpg?1783902771"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elven Ambush",
+      "count": 1,
+      "set": "gn3",
+      "cardNumber": "92",
+      "manaCost": "{3}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Create a 1/1 green Elf Warrior creature token for each Elf you control.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/3/331915f6-d6df-443e-a821-3970825164c3.jpg?1783920265",
+        "normal": "https://cards.scryfall.io/normal/front/3/3/331915f6-d6df-443e-a821-3970825164c3.jpg?1783920265",
+        "large": "https://cards.scryfall.io/large/front/3/3/331915f6-d6df-443e-a821-3970825164c3.jpg?1783920265",
+        "png": "https://cards.scryfall.io/png/front/3/3/331915f6-d6df-443e-a821-3970825164c3.png?1783920265",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/3/331915f6-d6df-443e-a821-3970825164c3.jpg?1783920265",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/3/331915f6-d6df-443e-a821-3970825164c3.jpg?1783920265"
+      },
+      "allParts": [
+        {
+          "name": "Elven Ambush",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Murder",
+      "count": 1,
+      "set": "j25",
+      "cardNumber": "467",
+      "manaCost": "{1}{B}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Destroy target creature.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/f/1f29d9e4-3100-43cb-9723-7d5c23f89b12.jpg?1783908723",
+        "normal": "https://cards.scryfall.io/normal/front/1/f/1f29d9e4-3100-43cb-9723-7d5c23f89b12.jpg?1783908723",
+        "large": "https://cards.scryfall.io/large/front/1/f/1f29d9e4-3100-43cb-9723-7d5c23f89b12.jpg?1783908723",
+        "png": "https://cards.scryfall.io/png/front/1/f/1f29d9e4-3100-43cb-9723-7d5c23f89b12.png?1783908723",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/f/1f29d9e4-3100-43cb-9723-7d5c23f89b12.jpg?1783908723",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/f/1f29d9e4-3100-43cb-9723-7d5c23f89b12.jpg?1783908723"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Putrefy",
+      "count": 1,
+      "set": "ecc",
+      "cardNumber": "131",
+      "manaCost": "{1}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 3,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Destroy target artifact or creature. It can't be regenerated.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/d/ad6ed9f1-2014-49e2-91c6-2b55c8d60cdc.jpg?1783904538",
+        "normal": "https://cards.scryfall.io/normal/front/a/d/ad6ed9f1-2014-49e2-91c6-2b55c8d60cdc.jpg?1783904538",
+        "large": "https://cards.scryfall.io/large/front/a/d/ad6ed9f1-2014-49e2-91c6-2b55c8d60cdc.jpg?1783904538",
+        "png": "https://cards.scryfall.io/png/front/a/d/ad6ed9f1-2014-49e2-91c6-2b55c8d60cdc.png?1783904538",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/d/ad6ed9f1-2014-49e2-91c6-2b55c8d60cdc.jpg?1783904538",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/d/ad6ed9f1-2014-49e2-91c6-2b55c8d60cdc.jpg?1783904538"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Tergrid's Shadow",
+      "count": 1,
+      "set": "khm",
+      "cardNumber": "113",
+      "manaCost": "{3}{B}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Each player sacrifices two creatures.\nForetell {2}{B}{B} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/1/417f71d2-d7da-4279-8847-d27c67e9ea9d.jpg?1783928239",
+        "normal": "https://cards.scryfall.io/normal/front/4/1/417f71d2-d7da-4279-8847-d27c67e9ea9d.jpg?1783928239",
+        "large": "https://cards.scryfall.io/large/front/4/1/417f71d2-d7da-4279-8847-d27c67e9ea9d.jpg?1783928239",
+        "png": "https://cards.scryfall.io/png/front/4/1/417f71d2-d7da-4279-8847-d27c67e9ea9d.png?1783928239",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/1/417f71d2-d7da-4279-8847-d27c67e9ea9d.jpg?1783928239",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/1/417f71d2-d7da-4279-8847-d27c67e9ea9d.jpg?1783928239"
+      },
+      "allParts": [
+        {
+          "name": "Tergrid's Shadow",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Foretell",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Ambition's Cost",
+      "count": 1,
+      "set": "plst",
+      "cardNumber": "C15-113",
+      "manaCost": "{3}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "You draw three cards and you lose 3 life.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/7/47dc6e81-a694-478c-99b0-d52eb0b695b4.jpg?1783909940",
+        "normal": "https://cards.scryfall.io/normal/front/4/7/47dc6e81-a694-478c-99b0-d52eb0b695b4.jpg?1783909940",
+        "large": "https://cards.scryfall.io/large/front/4/7/47dc6e81-a694-478c-99b0-d52eb0b695b4.jpg?1783909940",
+        "png": "https://cards.scryfall.io/png/front/4/7/47dc6e81-a694-478c-99b0-d52eb0b695b4.png?1783909940",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/7/47dc6e81-a694-478c-99b0-d52eb0b695b4.jpg?1783909940",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/7/47dc6e81-a694-478c-99b0-d52eb0b695b4.jpg?1783909940"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Bounty of Skemfar",
+      "count": 1,
+      "set": "j25",
+      "cardNumber": "638",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Reveal the top six cards of your library. You may put up to one land card from among them onto the battlefield tapped and up to one Elf card from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/3/8317a072-e0b6-44c7-b86a-282136e50e7b.jpg?1783908651",
+        "normal": "https://cards.scryfall.io/normal/front/8/3/8317a072-e0b6-44c7-b86a-282136e50e7b.jpg?1783908651",
+        "large": "https://cards.scryfall.io/large/front/8/3/8317a072-e0b6-44c7-b86a-282136e50e7b.jpg?1783908651",
+        "png": "https://cards.scryfall.io/png/front/8/3/8317a072-e0b6-44c7-b86a-282136e50e7b.png?1783908651",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/3/8317a072-e0b6-44c7-b86a-282136e50e7b.jpg?1783908651",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/3/8317a072-e0b6-44c7-b86a-282136e50e7b.jpg?1783908651"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Casualties of War",
+      "count": 1,
+      "set": "soc",
+      "cardNumber": "300",
+      "manaCost": "{2}{B}{B}{G}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 6,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Choose one or more —\n• Destroy target artifact.\n• Destroy target creature.\n• Destroy target enchantment.\n• Destroy target land.\n• Destroy target planeswalker.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/4/2467f50a-bf45-4046-9086-1bfcf3438af4.jpg?1783903757",
+        "normal": "https://cards.scryfall.io/normal/front/2/4/2467f50a-bf45-4046-9086-1bfcf3438af4.jpg?1783903757",
+        "large": "https://cards.scryfall.io/large/front/2/4/2467f50a-bf45-4046-9086-1bfcf3438af4.jpg?1783903757",
+        "png": "https://cards.scryfall.io/png/front/2/4/2467f50a-bf45-4046-9086-1bfcf3438af4.png?1783903757",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/4/2467f50a-bf45-4046-9086-1bfcf3438af4.jpg?1783903757",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/4/2467f50a-bf45-4046-9086-1bfcf3438af4.jpg?1783903757"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Eyeblight Massacre",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "49",
+      "manaCost": "{2}{B}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Non-Elf creatures get -2/-2 until end of turn.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00652c09-c50c-40da-8f0f-86b5cc3f6c26.jpg?1783928321",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00652c09-c50c-40da-8f0f-86b5cc3f6c26.jpg?1783928321",
+        "large": "https://cards.scryfall.io/large/front/0/0/00652c09-c50c-40da-8f0f-86b5cc3f6c26.jpg?1783928321",
+        "png": "https://cards.scryfall.io/png/front/0/0/00652c09-c50c-40da-8f0f-86b5cc3f6c26.png?1783928321",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00652c09-c50c-40da-8f0f-86b5cc3f6c26.jpg?1783928321",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00652c09-c50c-40da-8f0f-86b5cc3f6c26.jpg?1783928321"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elvish Promenade",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "59",
+      "manaCost": "{3}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Kindred", "Sorcery"],
+      "supertypes": [],
+      "subtypes": ["Elf"],
+      "text": "Create a 1/1 green Elf Warrior creature token for each Elf you control.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/0/20602cb8-f925-4de0-ad4b-86d0f5514384.jpg?1783928316",
+        "normal": "https://cards.scryfall.io/normal/front/2/0/20602cb8-f925-4de0-ad4b-86d0f5514384.jpg?1783928316",
+        "large": "https://cards.scryfall.io/large/front/2/0/20602cb8-f925-4de0-ad4b-86d0f5514384.jpg?1783928316",
+        "png": "https://cards.scryfall.io/png/front/2/0/20602cb8-f925-4de0-ad4b-86d0f5514384.png?1783928316",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/0/20602cb8-f925-4de0-ad4b-86d0f5514384.jpg?1783928316",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/0/20602cb8-f925-4de0-ad4b-86d0f5514384.jpg?1783928316"
+      },
+      "allParts": [
+        {
+          "name": "Elvish Promenade",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Harvest Season",
+      "count": 1,
+      "set": "scd",
+      "cardNumber": "188",
+      "manaCost": "{2}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 3,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Search your library for up to X basic land cards, where X is the number of tapped creatures you control, put those cards onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/d/8d4329d0-f4ae-41c8-9b21-0957ba9f53fc.jpg?1783918657",
+        "normal": "https://cards.scryfall.io/normal/front/8/d/8d4329d0-f4ae-41c8-9b21-0957ba9f53fc.jpg?1783918657",
+        "large": "https://cards.scryfall.io/large/front/8/d/8d4329d0-f4ae-41c8-9b21-0957ba9f53fc.jpg?1783918657",
+        "png": "https://cards.scryfall.io/png/front/8/d/8d4329d0-f4ae-41c8-9b21-0957ba9f53fc.png?1783918657",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/d/8d4329d0-f4ae-41c8-9b21-0957ba9f53fc.jpg?1783918657",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/d/8d4329d0-f4ae-41c8-9b21-0957ba9f53fc.jpg?1783918657"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Pact of the Serpent",
+      "count": 1,
+      "set": "lcc",
+      "cardNumber": "206",
+      "manaCost": "{1}{B}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 3,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Choose a creature type. Target player draws X cards and loses X life, where X is the number of creatures they control of the chosen type.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/8/481d268a-848c-4ccd-95ff-eed77dc20776.jpg?1783913870",
+        "normal": "https://cards.scryfall.io/normal/front/4/8/481d268a-848c-4ccd-95ff-eed77dc20776.jpg?1783913870",
+        "large": "https://cards.scryfall.io/large/front/4/8/481d268a-848c-4ccd-95ff-eed77dc20776.jpg?1783913870",
+        "png": "https://cards.scryfall.io/png/front/4/8/481d268a-848c-4ccd-95ff-eed77dc20776.png?1783913870",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/8/481d268a-848c-4ccd-95ff-eed77dc20776.jpg?1783913870",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/8/481d268a-848c-4ccd-95ff-eed77dc20776.jpg?1783913870"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Return Upon the Tide",
+      "count": 1,
+      "set": "khm",
+      "cardNumber": "106",
+      "manaCost": "{4}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 5,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Return target creature card from your graveyard to the battlefield. If it's an Elf, create two 1/1 green Elf Warrior creature tokens.\nForetell {3}{B} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/7/470601b0-9598-487f-bb14-4bfec7ca6d61.jpg?1783928244",
+        "normal": "https://cards.scryfall.io/normal/front/4/7/470601b0-9598-487f-bb14-4bfec7ca6d61.jpg?1783928244",
+        "large": "https://cards.scryfall.io/large/front/4/7/470601b0-9598-487f-bb14-4bfec7ca6d61.jpg?1783928244",
+        "png": "https://cards.scryfall.io/png/front/4/7/470601b0-9598-487f-bb14-4bfec7ca6d61.png?1783928244",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/7/470601b0-9598-487f-bb14-4bfec7ca6d61.jpg?1783928244",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/7/470601b0-9598-487f-bb14-4bfec7ca6d61.jpg?1783928244"
+      },
+      "allParts": [
+        {
+          "name": "A-Return Upon the Tide",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Return Upon the Tide",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        },
+        {
+          "name": "Foretell",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Roots of Wisdom",
+      "count": 1,
+      "set": "j22",
+      "cardNumber": "721",
+      "manaCost": "{1}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 2,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card. (To mill a card, put the top card of your library into your graveyard.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/a/eacd6f7b-3bb7-4957-afb6-f59881b55bb1.jpg?1783918836",
+        "normal": "https://cards.scryfall.io/normal/front/e/a/eacd6f7b-3bb7-4957-afb6-f59881b55bb1.jpg?1783918836",
+        "large": "https://cards.scryfall.io/large/front/e/a/eacd6f7b-3bb7-4957-afb6-f59881b55bb1.jpg?1783918836",
+        "png": "https://cards.scryfall.io/png/front/e/a/eacd6f7b-3bb7-4957-afb6-f59881b55bb1.png?1783918836",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/a/eacd6f7b-3bb7-4957-afb6-f59881b55bb1.jpg?1783918836",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/a/eacd6f7b-3bb7-4957-afb6-f59881b55bb1.jpg?1783918836"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Arcane Signet",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "2816",
+      "manaCost": "{2}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 2,
+      "types": ["Artifact"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Add one mana of any color in your commander's color identity.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/6/b6d1bcf8-1919-442a-b697-213406f35307.jpg?1784278835",
+        "normal": "https://cards.scryfall.io/normal/front/b/6/b6d1bcf8-1919-442a-b697-213406f35307.jpg?1784278835",
+        "large": "https://cards.scryfall.io/large/front/b/6/b6d1bcf8-1919-442a-b697-213406f35307.jpg?1784278835",
+        "png": "https://cards.scryfall.io/png/front/b/6/b6d1bcf8-1919-442a-b697-213406f35307.png?1784278835",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/6/b6d1bcf8-1919-442a-b697-213406f35307.jpg?1784278835",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/6/b6d1bcf8-1919-442a-b697-213406f35307.jpg?1784278835"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Herald's Horn",
+      "count": 1,
+      "set": "msc",
+      "cardNumber": "287",
+      "manaCost": "{3}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 3,
+      "types": ["Artifact"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "As this artifact enters, choose a creature type.\nCreature spells you cast of the chosen type cost {1} less to cast.\nAt the beginning of your upkeep, look at the top card of your library. If it's a creature card of the chosen type, you may reveal it and put it into your hand.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/c/1c2e4ff2-5c14-488e-8548-eb89ffd18e41.jpg?1783903185",
+        "normal": "https://cards.scryfall.io/normal/front/1/c/1c2e4ff2-5c14-488e-8548-eb89ffd18e41.jpg?1783903185",
+        "large": "https://cards.scryfall.io/large/front/1/c/1c2e4ff2-5c14-488e-8548-eb89ffd18e41.jpg?1783903185",
+        "png": "https://cards.scryfall.io/png/front/1/c/1c2e4ff2-5c14-488e-8548-eb89ffd18e41.png?1783903185",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/c/1c2e4ff2-5c14-488e-8548-eb89ffd18e41.jpg?1783903185",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/c/1c2e4ff2-5c14-488e-8548-eb89ffd18e41.jpg?1783903185"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Sol Ring",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "2807",
+      "manaCost": "{1}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 1,
+      "types": ["Artifact"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Add {C}{C}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/d/3d5c99e9-7c3e-4149-82a6-3c7d5d302488.jpg?1784278121",
+        "normal": "https://cards.scryfall.io/normal/front/3/d/3d5c99e9-7c3e-4149-82a6-3c7d5d302488.jpg?1784278121",
+        "large": "https://cards.scryfall.io/large/front/3/d/3d5c99e9-7c3e-4149-82a6-3c7d5d302488.jpg?1784278121",
+        "png": "https://cards.scryfall.io/png/front/3/d/3d5c99e9-7c3e-4149-82a6-3c7d5d302488.png?1784278121",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/d/3d5c99e9-7c3e-4149-82a6-3c7d5d302488.jpg?1784278121",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/d/3d5c99e9-7c3e-4149-82a6-3c7d5d302488.jpg?1784278121"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Binding the Old Gods",
+      "count": 1,
+      "set": "ecc",
+      "cardNumber": "120",
+      "manaCost": "{2}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "types": ["Enchantment"],
+      "supertypes": [],
+      "subtypes": ["Saga"],
+      "text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Destroy target nonland permanent an opponent controls.\nII — Search your library for a Forest card, put it onto the battlefield tapped, then shuffle.\nIII — Creatures you control gain deathtouch until end of turn.",
+      "layout": "saga",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/1/41802f18-7d46-431a-acb3-dbcc82eb415a.jpg?1783904539",
+        "normal": "https://cards.scryfall.io/normal/front/4/1/41802f18-7d46-431a-acb3-dbcc82eb415a.jpg?1783904539",
+        "large": "https://cards.scryfall.io/large/front/4/1/41802f18-7d46-431a-acb3-dbcc82eb415a.jpg?1783904539",
+        "png": "https://cards.scryfall.io/png/front/4/1/41802f18-7d46-431a-acb3-dbcc82eb415a.png?1783904539",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/1/41802f18-7d46-431a-acb3-dbcc82eb415a.jpg?1783904539",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/1/41802f18-7d46-431a-acb3-dbcc82eb415a.jpg?1783904539"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Crown of Skemfar",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "13",
+      "manaCost": "{2}{G}{G}",
+      "colors": ["G"],
+      "colorIdentity": ["G"],
+      "cmc": 4,
+      "types": ["Enchantment"],
+      "supertypes": [],
+      "subtypes": ["Aura"],
+      "text": "Enchant creature\nEnchanted creature gets +1/+1 for each Elf you control and has reach.\n{2}{G}: Return this card from your graveyard to your hand.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/6/e6297586-8953-408e-a38c-2239d45807e1.jpg?1783928337",
+        "normal": "https://cards.scryfall.io/normal/front/e/6/e6297586-8953-408e-a38c-2239d45807e1.jpg?1783928337",
+        "large": "https://cards.scryfall.io/large/front/e/6/e6297586-8953-408e-a38c-2239d45807e1.jpg?1783928337",
+        "png": "https://cards.scryfall.io/png/front/e/6/e6297586-8953-408e-a38c-2239d45807e1.png?1783928337",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/6/e6297586-8953-408e-a38c-2239d45807e1.jpg?1783928337",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/6/e6297586-8953-408e-a38c-2239d45807e1.jpg?1783928337"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Elderfang Venom",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "15",
+      "manaCost": "{2}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "types": ["Enchantment"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Attacking Elves you control have deathtouch.\nWhenever an Elf you control dies, each opponent loses 1 life and you gain 1 life.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/7/d/7d5bbb02-a04e-4add-ae9a-67819cffdb3a.jpg?1783928335",
+        "normal": "https://cards.scryfall.io/normal/front/7/d/7d5bbb02-a04e-4add-ae9a-67819cffdb3a.jpg?1783928335",
+        "large": "https://cards.scryfall.io/large/front/7/d/7d5bbb02-a04e-4add-ae9a-67819cffdb3a.jpg?1783928335",
+        "png": "https://cards.scryfall.io/png/front/7/d/7d5bbb02-a04e-4add-ae9a-67819cffdb3a.png?1783928335",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/7/d/7d5bbb02-a04e-4add-ae9a-67819cffdb3a.jpg?1783928335",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/7/d/7d5bbb02-a04e-4add-ae9a-67819cffdb3a.jpg?1783928335"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Pride of the Perfect",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "7098",
+      "manaCost": "{3}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 4,
+      "types": ["Enchantment"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Elves you control get +2/+0.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/5/f5b3ed42-ef06-4e44-8a76-fc367bcb5ee5.jpg?1783904228",
+        "normal": "https://cards.scryfall.io/normal/front/f/5/f5b3ed42-ef06-4e44-8a76-fc367bcb5ee5.jpg?1783904228",
+        "large": "https://cards.scryfall.io/large/front/f/5/f5b3ed42-ef06-4e44-8a76-fc367bcb5ee5.jpg?1783904228",
+        "png": "https://cards.scryfall.io/png/front/f/5/f5b3ed42-ef06-4e44-8a76-fc367bcb5ee5.png?1783904228",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/5/f5b3ed42-ef06-4e44-8a76-fc367bcb5ee5.jpg?1783904228",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/5/f5b3ed42-ef06-4e44-8a76-fc367bcb5ee5.jpg?1783904228"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Prowess of the Fair",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "53",
+      "manaCost": "{1}{B}",
+      "colors": ["B"],
+      "colorIdentity": ["B"],
+      "cmc": 2,
+      "types": ["Kindred", "Enchantment"],
+      "supertypes": [],
+      "subtypes": ["Elf"],
+      "text": "Whenever another nontoken Elf is put into your graveyard from the battlefield, you may create a 1/1 green Elf Warrior creature token.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/8/b870c742-e799-4276-bb3d-f2c288ce0db8.jpg?1783928318",
+        "normal": "https://cards.scryfall.io/normal/front/b/8/b870c742-e799-4276-bb3d-f2c288ce0db8.jpg?1783928318",
+        "large": "https://cards.scryfall.io/large/front/b/8/b870c742-e799-4276-bb3d-f2c288ce0db8.jpg?1783928318",
+        "png": "https://cards.scryfall.io/png/front/b/8/b870c742-e799-4276-bb3d-f2c288ce0db8.png?1783928318",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/8/b870c742-e799-4276-bb3d-f2c288ce0db8.jpg?1783928318",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/8/b870c742-e799-4276-bb3d-f2c288ce0db8.jpg?1783928318"
+      },
+      "allParts": [
+        {
+          "name": "Prowess of the Fair",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Moldervine Reclamation",
+      "count": 1,
+      "set": "soc",
+      "cardNumber": "320",
+      "manaCost": "{3}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 5,
+      "types": ["Enchantment"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Whenever a creature you control dies, you gain 1 life and draw a card.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/3/f3e93085-ffcb-4f48-8649-3fcbc5e97699.jpg?1783903749",
+        "normal": "https://cards.scryfall.io/normal/front/f/3/f3e93085-ffcb-4f48-8649-3fcbc5e97699.jpg?1783903749",
+        "large": "https://cards.scryfall.io/large/front/f/3/f3e93085-ffcb-4f48-8649-3fcbc5e97699.jpg?1783903749",
+        "png": "https://cards.scryfall.io/png/front/f/3/f3e93085-ffcb-4f48-8649-3fcbc5e97699.png?1783903749",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/3/f3e93085-ffcb-4f48-8649-3fcbc5e97699.jpg?1783903749",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/3/f3e93085-ffcb-4f48-8649-3fcbc5e97699.jpg?1783903749"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Command Tower",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "2812",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Add one mana of any color in your commander's color identity.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/9/f9c515bb-3d45-4c24-92bb-69c5c6520959.jpg?1784278492",
+        "normal": "https://cards.scryfall.io/normal/front/f/9/f9c515bb-3d45-4c24-92bb-69c5c6520959.jpg?1784278492",
+        "large": "https://cards.scryfall.io/large/front/f/9/f9c515bb-3d45-4c24-92bb-69c5c6520959.jpg?1784278492",
+        "png": "https://cards.scryfall.io/png/front/f/9/f9c515bb-3d45-4c24-92bb-69c5c6520959.png?1784278492",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/9/f9c515bb-3d45-4c24-92bb-69c5c6520959.jpg?1784278492",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/9/f9c515bb-3d45-4c24-92bb-69c5c6520959.jpg?1784278492"
+      },
+      "allParts": [
+        {
+          "name": "Command Tower",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Tower Winder",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Forest",
+      "count": 16,
+      "set": "msh",
+      "cardNumber": "296",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["G"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": ["Basic"],
+      "subtypes": ["Forest"],
+      "text": "({T}: Add {G}.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/9/c9d637ac-e0d3-4c62-9f00-08270f3c1e91.jpg?1783902875",
+        "normal": "https://cards.scryfall.io/normal/front/c/9/c9d637ac-e0d3-4c62-9f00-08270f3c1e91.jpg?1783902875",
+        "large": "https://cards.scryfall.io/large/front/c/9/c9d637ac-e0d3-4c62-9f00-08270f3c1e91.jpg?1783902875",
+        "png": "https://cards.scryfall.io/png/front/c/9/c9d637ac-e0d3-4c62-9f00-08270f3c1e91.png?1783902875",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/9/c9d637ac-e0d3-4c62-9f00-08270f3c1e91.jpg?1783902875",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/9/c9d637ac-e0d3-4c62-9f00-08270f3c1e91.jpg?1783902875"
+      },
+      "allParts": [
+        {
+          "name": "Forest",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Gilt-Leaf Alchemist",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Foul Orchard",
+      "count": 1,
+      "set": "khc",
+      "cardNumber": "110",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped.\n{T}: Add {B} or {G}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/e/1e1bad7b-e102-4dff-b79a-fd755c2b6d49.jpg?1783928294",
+        "normal": "https://cards.scryfall.io/normal/front/1/e/1e1bad7b-e102-4dff-b79a-fd755c2b6d49.jpg?1783928294",
+        "large": "https://cards.scryfall.io/large/front/1/e/1e1bad7b-e102-4dff-b79a-fd755c2b6d49.jpg?1783928294",
+        "png": "https://cards.scryfall.io/png/front/1/e/1e1bad7b-e102-4dff-b79a-fd755c2b6d49.png?1783928294",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/e/1e1bad7b-e102-4dff-b79a-fd755c2b6d49.jpg?1783928294",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/e/1e1bad7b-e102-4dff-b79a-fd755c2b6d49.jpg?1783928294"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Golgari Guildgate",
+      "count": 1,
+      "set": "plst",
+      "cardNumber": "GRN-248",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": ["Gate"],
+      "text": "This land enters tapped.\n{T}: Add {B} or {G}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/2/127226e7-d51c-4a85-9195-9bbb375ffc31.jpg?1783908479",
+        "normal": "https://cards.scryfall.io/normal/front/1/2/127226e7-d51c-4a85-9195-9bbb375ffc31.jpg?1783908479",
+        "large": "https://cards.scryfall.io/large/front/1/2/127226e7-d51c-4a85-9195-9bbb375ffc31.jpg?1783908479",
+        "png": "https://cards.scryfall.io/png/front/1/2/127226e7-d51c-4a85-9195-9bbb375ffc31.png?1783908479",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/2/127226e7-d51c-4a85-9195-9bbb375ffc31.jpg?1783908479",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/2/127226e7-d51c-4a85-9195-9bbb375ffc31.jpg?1783908479"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Golgari Rot Farm",
+      "count": 1,
+      "set": "ecc",
+      "cardNumber": "151",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {B}{G}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.jpg?1783904527",
+        "normal": "https://cards.scryfall.io/normal/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.jpg?1783904527",
+        "large": "https://cards.scryfall.io/large/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.jpg?1783904527",
+        "png": "https://cards.scryfall.io/png/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.png?1783904527",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.jpg?1783904527",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/2/42486edd-24b7-4299-84fa-50559917b2a8.jpg?1783904527"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Jungle Hollow",
+      "count": 1,
+      "set": "tdm",
+      "cardNumber": "258",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {B} or {G}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/e/a/ea13440b-3f7b-4182-9541-27c1fa3121e5.jpg?1783907280",
+        "normal": "https://cards.scryfall.io/normal/front/e/a/ea13440b-3f7b-4182-9541-27c1fa3121e5.jpg?1783907280",
+        "large": "https://cards.scryfall.io/large/front/e/a/ea13440b-3f7b-4182-9541-27c1fa3121e5.jpg?1783907280",
+        "png": "https://cards.scryfall.io/png/front/e/a/ea13440b-3f7b-4182-9541-27c1fa3121e5.png?1783907280",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/e/a/ea13440b-3f7b-4182-9541-27c1fa3121e5.jpg?1783907280",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/e/a/ea13440b-3f7b-4182-9541-27c1fa3121e5.jpg?1783907280"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Myriad Landscape",
+      "count": 1,
+      "set": "eoc",
+      "cardNumber": "169",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/0/a0e2098f-1d94-491a-a7e9-a45a9f69e3a8.jpg?1783906009",
+        "normal": "https://cards.scryfall.io/normal/front/a/0/a0e2098f-1d94-491a-a7e9-a45a9f69e3a8.jpg?1783906009",
+        "large": "https://cards.scryfall.io/large/front/a/0/a0e2098f-1d94-491a-a7e9-a45a9f69e3a8.jpg?1783906009",
+        "png": "https://cards.scryfall.io/png/front/a/0/a0e2098f-1d94-491a-a7e9-a45a9f69e3a8.png?1783906009",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/0/a0e2098f-1d94-491a-a7e9-a45a9f69e3a8.jpg?1783906009",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/0/a0e2098f-1d94-491a-a7e9-a45a9f69e3a8.jpg?1783906009"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Path of Ancestry",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "2684",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/1/7/17ed79a4-6c88-4061-8b08-d94ad58d0234.jpg?1783902786",
+        "normal": "https://cards.scryfall.io/normal/front/1/7/17ed79a4-6c88-4061-8b08-d94ad58d0234.jpg?1783902786",
+        "large": "https://cards.scryfall.io/large/front/1/7/17ed79a4-6c88-4061-8b08-d94ad58d0234.jpg?1783902786",
+        "png": "https://cards.scryfall.io/png/front/1/7/17ed79a4-6c88-4061-8b08-d94ad58d0234.png?1783902786",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/1/7/17ed79a4-6c88-4061-8b08-d94ad58d0234.jpg?1783902786",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/1/7/17ed79a4-6c88-4061-8b08-d94ad58d0234.jpg?1783902786"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Skemfar Elderhall",
+      "count": 1,
+      "set": "khm",
+      "cardNumber": "268",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["B", "G"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This land enters tapped.\n{T}: Add {G}.\n{2}{B}{B}{G}, {T}, Sacrifice this land: Up to one target creature you don't control gets -2/-2 until end of turn. Create two 1/1 green Elf Warrior creature tokens. Activate only as a sorcery.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/2/82c2a0f7-0f53-4627-8be8-227fde331a69.jpg?1783928172",
+        "normal": "https://cards.scryfall.io/normal/front/8/2/82c2a0f7-0f53-4627-8be8-227fde331a69.jpg?1783928172",
+        "large": "https://cards.scryfall.io/large/front/8/2/82c2a0f7-0f53-4627-8be8-227fde331a69.jpg?1783928172",
+        "png": "https://cards.scryfall.io/png/front/8/2/82c2a0f7-0f53-4627-8be8-227fde331a69.png?1783928172",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/2/82c2a0f7-0f53-4627-8be8-227fde331a69.jpg?1783928172",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/2/82c2a0f7-0f53-4627-8be8-227fde331a69.jpg?1783928172"
+      },
+      "allParts": [
+        {
+          "name": "Skemfar Elderhall",
+          "component": "combo_piece"
+        },
+        {
+          "name": "A-Skemfar Elderhall",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Swamp",
+      "count": 13,
+      "set": "msh",
+      "cardNumber": "292",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["B"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": ["Basic"],
+      "subtypes": ["Swamp"],
+      "text": "({T}: Add {B}.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/d/3dc20c2b-7344-43d1-8ea0-22bab837657e.jpg?1783902876",
+        "normal": "https://cards.scryfall.io/normal/front/3/d/3dc20c2b-7344-43d1-8ea0-22bab837657e.jpg?1783902876",
+        "large": "https://cards.scryfall.io/large/front/3/d/3dc20c2b-7344-43d1-8ea0-22bab837657e.jpg?1783902876",
+        "png": "https://cards.scryfall.io/png/front/3/d/3dc20c2b-7344-43d1-8ea0-22bab837657e.png?1783902876",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/d/3dc20c2b-7344-43d1-8ea0-22bab837657e.jpg?1783902876",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/d/3dc20c2b-7344-43d1-8ea0-22bab837657e.jpg?1783902876"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Lathril, Blade of the Elves",
+      "count": 1,
+      "set": "sld",
+      "cardNumber": "2681",
+      "manaCost": "{2}{B}{G}",
+      "colors": ["B", "G"],
+      "colorIdentity": ["B", "G"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Elf", "Noble"],
+      "text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever Lathril deals combat damage to a player, create that many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten untapped Elves you control: Each opponent loses 10 life and you gain 10 life.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/7/f7f00791-de5e-4f10-9931-8694afcd580c.jpg?1783902788",
+        "normal": "https://cards.scryfall.io/normal/front/f/7/f7f00791-de5e-4f10-9931-8694afcd580c.jpg?1783902788",
+        "large": "https://cards.scryfall.io/large/front/f/7/f7f00791-de5e-4f10-9931-8694afcd580c.jpg?1783902788",
+        "png": "https://cards.scryfall.io/png/front/f/7/f7f00791-de5e-4f10-9931-8694afcd580c.png?1783902788",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/7/f7f00791-de5e-4f10-9931-8694afcd580c.jpg?1783902788",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/7/f7f00791-de5e-4f10-9931-8694afcd580c.jpg?1783902788"
+      },
+      "allParts": [
+        {
+          "name": "Lathril, Blade of the Elves",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Elf Warrior",
+          "component": "token"
+        }
+      ]
+    }
+  ]
+}

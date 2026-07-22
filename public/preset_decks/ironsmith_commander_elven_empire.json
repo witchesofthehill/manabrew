@@ -8,8 +8,6 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 325,
-  "source": "https://mtg.wiki/wiki/Kaldheim/Commander_decks",
-  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Abomination of Llanowar",

@@ -6,8 +6,6 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 322,
-  "source": "https://www.mtgtop8.com/event?e=61837&d=665906&f=ST",
-  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Mountain",

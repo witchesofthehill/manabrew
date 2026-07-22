@@ -6,8 +6,6 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 323,
-  "source": "https://www.mtgtop8.com/event?e=69165&d=723954&f=ST",
-  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Island",

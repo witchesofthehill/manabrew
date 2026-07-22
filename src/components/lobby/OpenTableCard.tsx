@@ -33,9 +33,11 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
   return (
     <article
       className={cn(
-        "flex flex-col gap-2.5 rounded-xl border bg-card p-3 shadow-sm motion-safe:transition-colors",
+        "flex min-h-64 flex-col gap-3 rounded-2xl border bg-card p-4 shadow-md motion-safe:transition-[transform,border-color,box-shadow]",
         isMyRoom && "border-primary/40 bg-primary/5",
-        !isMyRoom && canJoin && "hover:border-primary/40",
+        !isMyRoom &&
+          canJoin &&
+          "hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg motion-reduce:hover:translate-y-0",
         !isCompatible && "opacity-60",
       )}
     >
@@ -76,8 +78,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
       <OpenTableSeats
         players={room.players}
         maxPlayers={room.max_players}
-        joinable={canJoin}
-        onTakeSeat={() => onJoin(room)}
+        className="max-w-72"
         centerContent={
           <span className="flex flex-col items-center gap-0.5">
             <span className="flex items-center gap-1 text-[11px] font-semibold text-foreground/85">
@@ -109,7 +110,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
             onClick={() => onJoin(room)}
           >
             <UserRoundPlus aria-hidden="true" className="h-3.5 w-3.5" />
-            {joining ? "Joining…" : "Take a seat"}
+            {joining ? "Joining…" : "Join table"}
           </Button>
         ) : room.status === "InGame" ? (
           <span className="text-xs text-muted-foreground">Playing</span>

@@ -19,6 +19,7 @@ interface TableSeatChipProps {
   onRemove?: () => void;
   nameLabel?: string;
   statusLabel?: string;
+  size?: "card" | "room";
   style?: CSSProperties;
   className?: string;
 }
@@ -34,6 +35,7 @@ export function TableSeatChip({
   onRemove,
   nameLabel,
   statusLabel,
+  size = "card",
   style,
   className,
 }: TableSeatChipProps) {
@@ -47,6 +49,7 @@ export function TableSeatChip({
           style={style}
           className={cn(
             "flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-border/70 bg-card text-muted-foreground/40",
+            size === "room" && "h-12 w-12 sm:h-14 sm:w-14",
             className,
           )}
         >
@@ -63,6 +66,7 @@ export function TableSeatChip({
         style={style}
         className={cn(
           "flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-primary/50 bg-card text-primary/70 shadow-sm transition-[transform,background-color,border-color] hover:scale-110 hover:border-primary hover:bg-primary/15 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:scale-100",
+          size === "room" && "h-12 w-12 sm:h-14 sm:w-14",
           className,
         )}
       >
@@ -85,6 +89,7 @@ export function TableSeatChip({
       <div
         className={cn(
           "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold shadow-md",
+          size === "room" && "h-12 w-12 text-xs sm:h-14 sm:w-14 sm:text-sm",
           player.is_bot ? "bg-muted text-muted-foreground" : "bg-primary/20 text-primary",
           ready && "ring-2 ring-primary/70",
         )}
@@ -119,6 +124,7 @@ export function TableSeatChip({
         <span
           className={cn(
             "max-w-16 truncate text-[10px] font-medium leading-tight",
+            size === "room" && "max-w-24 text-xs",
             isYou && "font-semibold text-primary",
           )}
         >
@@ -126,7 +132,12 @@ export function TableSeatChip({
         </span>
       )}
       {statusLabel && (
-        <span className="max-w-16 truncate text-[9px] leading-tight text-muted-foreground">
+        <span
+          className={cn(
+            "max-w-16 truncate text-[9px] leading-tight text-muted-foreground",
+            size === "room" && "max-w-24 text-[10px]",
+          )}
+        >
           {statusLabel}
         </span>
       )}

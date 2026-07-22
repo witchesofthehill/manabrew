@@ -38,11 +38,8 @@ import {
   isRoomRelayProtocol,
 } from "@/game";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { Settings, RefreshCw, Users, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { DESKTOP_QUERY } from "@/lib/responsive";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -161,8 +158,6 @@ export default function Lobby() {
   const [deckDialogOpen, setDeckDialogOpen] = useState(false);
   const [aiDeckDialogOpen, setAiDeckDialogOpen] = useState(false);
   const [refreshingLobby, setRefreshingLobby] = useState(false);
-  const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const [playersCollapsed, setPlayersCollapsed] = useState(false);
   const [playersDrawerOpen, setPlayersDrawerOpen] = useState(false);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
@@ -170,6 +165,10 @@ export default function Lobby() {
   const [startingGame, setStartingGame] = useState(false);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
+
+  useEffect(() => {
+    if (currentRoom) setPlayersDrawerOpen(false);
+  }, [currentRoom]);
 
   useEffect(() => {
     if (!initialPreferredSavedDeckId) return;
@@ -567,90 +566,46 @@ export default function Lobby() {
   return (
     <div className="flex h-full w-full min-h-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap sm:gap-3 sm:px-6 lg:px-8">
-          <p className="hidden min-w-0 flex-1 text-xs text-muted-foreground sm:block">
-            Browse compatible tables or create your own.
-          </p>
-          {connected && (
-            <div className="flex items-center gap-1">
+        {!currentRoom && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
+            <ReconnectBanner />
+
+            {!connected && error && (
               <Button
                 size="sm"
-                className="h-7 text-xs"
-                onClick={() => setCreateRoomOpen(true)}
-                disabled={currentRoom != null}
+                variant="outline"
+                onClick={() =>
+                  connect(
+                    prefs.serverHost,
+                    prefs.serverPort,
+                    prefs.serverUsername,
+                    prefs.serverPassword,
+                  )
+                }
               >
-                Create Table
+                Retry connection
               </Button>
+            )}
+            {!connected && !connecting && (
+              <Button size="sm" variant="ghost" onClick={() => navigate(ROUTES.SETTINGS)}>
+                <Settings /> Multiplayer settings
+              </Button>
+            )}
+            {myUsername && (
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 text-xs"
-                onClick={refreshLobbyData}
-                disabled={refreshingLobby}
+                onClick={() => setPlayersDrawerOpen(true)}
+                title="Show players"
               >
-                <RefreshCw className={cn("h-3 w-3 mr-1", refreshingLobby && "animate-spin")} />
-                Refresh
+                <Users /> Players
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  {players.length}
+                </span>
               </Button>
-            </div>
-          )}
-
-          <ReconnectBanner />
-
-          {!connected && error && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() =>
-                connect(
-                  prefs.serverHost,
-                  prefs.serverPort,
-                  prefs.serverUsername,
-                  prefs.serverPassword,
-                )
-              }
-            >
-              Retry
-            </Button>
-          )}
-          {!connected && !connecting && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={() => navigate(ROUTES.SETTINGS)}
-            >
-              <Settings className="h-3 w-3 mr-1" /> Settings
-            </Button>
-          )}
-          {myUsername && (
-            <Button
-              size="sm"
-              variant={isDesktop && !playersCollapsed ? "secondary" : "ghost"}
-              className="h-8 shrink-0 gap-1.5 px-2 text-xs"
-              onClick={() =>
-                isDesktop
-                  ? setPlayersCollapsed((collapsed) => !collapsed)
-                  : setPlayersDrawerOpen(true)
-              }
-              title={
-                !isDesktop ? "Show players" : playersCollapsed ? "Show players" : "Hide players"
-              }
-            >
-              {isDesktop && playersCollapsed ? (
-                <PanelRightOpen className="h-3.5 w-3.5" />
-              ) : isDesktop ? (
-                <PanelRightClose className="h-3.5 w-3.5" />
-              ) : (
-                <Users className="h-3.5 w-3.5" />
-              )}
-              Players
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                {players.length}
-              </span>
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* ── Rooms ── */}
         <div className="flex-1 min-h-0">
@@ -682,23 +637,9 @@ export default function Lobby() {
         </div>
       </div>
 
-      {myUsername && isDesktop && !playersCollapsed && (
-        <div className="w-72 shrink-0 border-l h-full">
-          <UserList
-            players={players}
-            rooms={rooms}
-            currentRoom={currentRoom}
-            currentPlayerId={playerId}
-            currentUsername={myUsername}
-            connectionState={connectionState}
-            onJoinRoom={handleJoinRoom}
-          />
-        </div>
-      )}
-
-      {myUsername && !isDesktop && (
+      {myUsername && !currentRoom && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
-          <SheetContent side="right" className="w-80 max-w-[88vw] p-0">
+          <SheetContent side="right" className="w-80 max-w-[88vw] p-0 sm:w-96">
             <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}

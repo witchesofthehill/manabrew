@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { TableSeatChip } from "@/components/lobby/TableSeatChip";
 import { stripUsernameTag } from "@/lib/username";
 import type { RoomPlayerInfo } from "@/types/server";
+import { cn } from "@/lib/utils";
 
 const SEAT_CENTER_PERCENT = 50;
 const SEAT_X_RADIUS_PERCENT = 40;
@@ -27,6 +28,8 @@ interface OpenTableSeatsProps {
   youUsername?: string | null;
   removableBots?: readonly string[];
   onRemoveBot?: (username: string) => void;
+  size?: "card" | "room";
+  className?: string;
 }
 
 export function OpenTableSeats({
@@ -40,6 +43,8 @@ export function OpenTableSeats({
   youUsername,
   removableBots = [],
   onRemoveBot,
+  size = "card",
+  className,
 }: OpenTableSeatsProps) {
   const controllerName = players.find((player) => !player.is_bot)?.username ?? players[0]?.username;
 
@@ -47,7 +52,7 @@ export function OpenTableSeats({
     <div
       role="group"
       aria-label={`Table seats: ${players.length} of ${maxPlayers} occupied`}
-      className="relative mx-auto aspect-[8/5] w-full max-w-64"
+      className={cn("relative mx-auto aspect-[8/5] w-full max-w-64", className)}
     >
       <div className="absolute left-1/2 top-1/2 h-[68%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary/25 bg-primary/[0.07] shadow-inner" />
       <div className="absolute left-1/2 top-1/2 flex h-[48%] w-[60%] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-center">
@@ -85,6 +90,7 @@ export function OpenTableSeats({
             }
             nameLabel={showSeatLabels && player ? stripUsernameTag(player.username) : undefined}
             statusLabel={statusLabel}
+            size={size}
             style={seatStyle(seatIndex, maxPlayers)}
             className="absolute -translate-x-1/2 -translate-y-1/2"
           />

@@ -2172,7 +2172,11 @@ public final class ManaBrewInteractiveSession {
                 ? ability.getParam("Destination") : null;
         final String counterType = ability != null && ability.hasParam("CounterType")
                 ? ability.getParam("CounterType") : null;
-        final String origin = "choose_target_card".equals(promptKind) ? targetPromptZone(candidates) : null;
+        final String declaredOrigin = ability != null && ability.hasParam("Origin")
+                ? ability.getParam("Origin") : null;
+        final String origin = declaredOrigin != null
+                ? declaredOrigin
+                : "choose_target_card".equals(promptKind) ? targetPromptZone(candidates) : null;
         final String intent = intentFromApi(api, destination, counterType, origin);
 
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
@@ -2193,11 +2197,14 @@ public final class ManaBrewInteractiveSession {
             }
         }
 
+        final String title = "choose_target_player".equals(promptKind)
+                ? playerTargetTitle(intent)
+                : intentLabel(intent);
         publishAgentPrompt(
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
-                        presentation(intentLabel(intent), null),
+                        presentation(title, null),
                         candidateRefs, isHostileIntent(intent),
                         enumFromWire(intent, TargetingIntent.class),
                         ability != null ? ability.getMinTargets() : 0,
@@ -2669,6 +2676,10 @@ public final class ManaBrewInteractiveSession {
                         || "Library".equals(destination) || "Battlefield".equals(destination))) {
                     return "friendly";
                 }
+                if ("Library".equals(origin) && ("Hand".equals(destination)
+                        || "Library".equals(destination) || "Battlefield".equals(destination))) {
+                    return "fetch";
+                }
                 if ("Exile".equals(destination)) {
                     return "exile";
                 }
@@ -2713,6 +2724,15 @@ public final class ManaBrewInteractiveSession {
             case "loseLife": return "LoseLife";
             case "gainControl": return "GainControl";
             default: return Character.toUpperCase(intent.charAt(0)) + intent.substring(1);
+        }
+    }
+
+    private static String playerTargetTitle(final String intent) {
+        switch (intent) {
+            case "hostile": case "friendly": return "Choose a player";
+            case "loseLife": return "Choose player to lose life";
+            case "gainControl": return "Choose player to control";
+            default: return "Choose player to " + intent.toLowerCase(java.util.Locale.ROOT);
         }
     }
 

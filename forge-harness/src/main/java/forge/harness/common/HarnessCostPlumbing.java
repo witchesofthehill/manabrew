@@ -20,7 +20,6 @@ import forge.game.zone.ZoneType;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public final class HarnessCostPlumbing {
@@ -716,13 +715,13 @@ public final class HarnessCostPlumbing {
             final GameEntityCounterTable table = new GameEntityCounterTable();
             int remaining = amount;
             for (final Card card : list) {
-                for (final Map.Entry<CounterType, Integer> e : card.getCounters().entrySet()) {
+                for (final com.google.common.collect.Multiset.Entry<CounterType> e : card.getCounters().entrySet()) {
                     if (remaining <= 0) {
                         break;
                     }
-                    final int remove = Math.min(remaining, e.getValue());
+                    final int remove = Math.min(remaining, e.getCount());
                     if (remove > 0) {
-                        table.put(null, card, e.getKey(), remove);
+                        table.put(null, card, e.getElement(), remove);
                         remaining -= remove;
                     }
                 }
@@ -769,9 +768,9 @@ public final class HarnessCostPlumbing {
                         return PaymentDecision.counters(table);
                     }
                 } else {
-                    for (final Map.Entry<CounterType, Integer> e : card.getCounters().entrySet()) {
-                        if (e.getValue() >= amount) {
-                            table.put(null, card, e.getKey(), amount);
+                    for (final com.google.common.collect.Multiset.Entry<CounterType> e : card.getCounters().entrySet()) {
+                        if (e.getCount() >= amount) {
+                            table.put(null, card, e.getElement(), amount);
                             return PaymentDecision.counters(table);
                         }
                     }
@@ -887,6 +886,11 @@ public final class HarnessCostPlumbing {
         @Override
         public PaymentDecision visit(final CostBlight cost) {
             return visit((CostPutCounter) cost);
+        }
+
+        @Override
+        public PaymentDecision visit(final CostPutCounterYou cost) {
+            return PaymentDecision.number(cost.getAbilityAmount(ability));
         }
 
         @Override

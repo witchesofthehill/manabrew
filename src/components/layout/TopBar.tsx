@@ -132,12 +132,12 @@ export function TopBar({ override }: TopBarProps) {
         <Button
           size="icon"
           variant="ghost"
-          className="h-8 w-8 shrink-0"
+          className="group h-8 w-8 shrink-0 border border-transparent motion-safe:transition-[background-color,border-color,color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:text-primary hover:shadow-sm"
           disabled={isGameActive}
           onClick={goBack}
           title="Back"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5 motion-safe:transition-transform motion-safe:group-hover:-translate-x-0.5" />
           <span className="sr-only">Back</span>
         </Button>
       )}
@@ -146,9 +146,12 @@ export function TopBar({ override }: TopBarProps) {
         disabled={isGameActive}
         onClick={goHome}
         aria-label="Manabrew Home"
-        className="relative flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
+        className="group relative flex shrink-0 items-center gap-2 rounded-xl border border-transparent p-0.5 motion-safe:transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-primary/10 hover:shadow-sm focus-visible:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:before:absolute pointer-coarse:before:-inset-2.5 pointer-coarse:before:content-['']"
       >
-        <ManaBrewLogo size={36} className="shrink-0 rounded-lg" />
+        <ManaBrewLogo
+          size={36}
+          className="shrink-0 rounded-lg motion-safe:transition-transform motion-safe:group-hover:scale-105"
+        />
       </button>
       {title && (
         <>

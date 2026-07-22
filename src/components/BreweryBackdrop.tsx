@@ -20,12 +20,6 @@ export function BreweryBackdrop({ variant = "hero", className }: BreweryBackdrop
       />
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-border to-transparent",
-          variant === "subtle" && "opacity-50",
-        )}
-      />
-      <div
-        className={cn(
           "pointer-events-none absolute left-1/2 top-[28%] size-[60vw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl",
           variant === "ambient" && "opacity-60",
           variant === "subtle" && "opacity-30",

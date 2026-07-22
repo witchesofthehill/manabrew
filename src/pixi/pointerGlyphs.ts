@@ -22,6 +22,7 @@ import healUrl from "~icons/game-icons/healing";
 import loseLifeUrl from "~icons/game-icons/bleeding-heart";
 import revealUrl from "~icons/game-icons/eye-target";
 import drawUrl from "~icons/game-icons/card-draw";
+import fetchUrl from "~icons/game-icons/card-pickup";
 import gainControlUrl from "~icons/game-icons/handcuffs";
 import fightUrl from "~icons/game-icons/crossed-swords";
 import hostileUrl from "~icons/game-icons/crosshair";
@@ -59,6 +60,7 @@ export const FRIENDLY_INTENT_GLYPHS: Partial<Record<TargetingIntent, string>> = 
   heal: healUrl,
   reveal: revealUrl,
   draw: drawUrl,
+  fetch: fetchUrl,
   friendly: friendlyUrl,
 };
 

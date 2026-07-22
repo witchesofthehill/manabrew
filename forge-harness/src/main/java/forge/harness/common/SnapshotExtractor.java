@@ -89,9 +89,9 @@ public final class SnapshotExtractor {
                 .thenComparing(c -> {
                     // Deterministic counter string matching Rust BTreeMap order
                     TreeMap<String, Integer> counters = new TreeMap<>();
-                    for (Map.Entry<CounterType, Integer> entry : c.getCounters().entrySet()) {
-                        if (entry.getValue() > 0) {
-                            counters.put(counterTypeName(entry.getKey()), entry.getValue());
+                    for (com.google.common.collect.Multiset.Entry<CounterType> entry : c.getCounters().entrySet()) {
+                        if (entry.getCount() > 0) {
+                            counters.put(counterTypeName(entry.getElement()), entry.getCount());
                         }
                     }
                     return counters.toString();
@@ -183,9 +183,9 @@ public final class SnapshotExtractor {
 
         // Counters — sorted by counter type name
         Map<String, Integer> counters = new TreeMap<>();
-        for (Map.Entry<CounterType, Integer> entry : c.getCounters().entrySet()) {
-            if (entry.getValue() > 0) {
-                counters.put(counterTypeName(entry.getKey()), entry.getValue());
+        for (com.google.common.collect.Multiset.Entry<CounterType> entry : c.getCounters().entrySet()) {
+            if (entry.getCount() > 0) {
+                counters.put(counterTypeName(entry.getElement()), entry.getCount());
             }
         }
         cs.put("counters", counters);

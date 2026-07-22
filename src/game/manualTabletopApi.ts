@@ -108,7 +108,7 @@ function createInitialGameView(params: StartGameParams): ClientGameView {
     "PlayerDto 2",
     false,
     params.startingLife,
-    params.opponentDeck?.cards.length ?? params.deck.cards.length,
+    params.opponentDecks?.[0]?.cards.length ?? params.deck.cards.length,
   );
 
   return {

@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.13.0](https://github.com/witchesofthehill/manabrew/compare/v1.12.7...v1.13.0) (2026-07-22)
+
+### Features
+
+* n-player ai game infrastructure for commander pods ([#516](https://github.com/witchesofthehill/manabrew/issues/516)) ([23174e9](https://github.com/witchesofthehill/manabrew/commit/23174e9619c0e6349dda53da3307f6c5b9872a87))
+
+## [1.12.7](https://github.com/witchesofthehill/manabrew/compare/v1.12.6...v1.12.7) (2026-07-22)
+
+### Fixes
+
+* **ironsmith:** keep minor Ironsmith WASM updates automatic ([#528](https://github.com/witchesofthehill/manabrew/issues/528)) ([8cbcc64](https://github.com/witchesofthehill/manabrew/commit/8cbcc64cd75f470d0d15ef04da0365b99e70121b))
+
+## [1.12.6](https://github.com/witchesofthehill/manabrew/compare/v1.12.5...v1.12.6) (2026-07-21)
+
+### Fixes
+
+* bad prompt on partner ([#523](https://github.com/witchesofthehill/manabrew/issues/523)) ([8d73a02](https://github.com/witchesofthehill/manabrew/commit/8d73a029807ea8bec89dc558d41a53590fb45960))
+
+## [1.12.5](https://github.com/witchesofthehill/manabrew/compare/v1.12.4...v1.12.5) (2026-07-20)
+
 ## [1.12.4](https://github.com/witchesofthehill/manabrew/compare/v1.12.3...v1.12.4) (2026-07-19)
 
 ### Fixes

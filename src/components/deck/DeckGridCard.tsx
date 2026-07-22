@@ -11,7 +11,7 @@ import {
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { Pencil, Share2, Trash2 } from "lucide-react";
+import { Pencil, Share2, Swords, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -25,6 +25,7 @@ import {
 interface DeckGridCardProps {
   deck: SavedDeck;
   onOpen: () => void;
+  onPlaytest?: () => void;
   onDelete?: () => void;
   onRename?: () => void;
   onPublish?: () => void;
@@ -34,6 +35,7 @@ interface DeckGridCardProps {
 export function DeckGridCard({
   deck,
   onOpen,
+  onPlaytest,
   onDelete,
   onRename,
   onPublish,
@@ -60,9 +62,22 @@ export function DeckGridCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
 
         {/* Action buttons — visible on hover */}
-        {!readOnly && (
+        {(onPlaytest || !readOnly) && (
           <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
-            {onPublish && (
+            {onPlaytest && (
+              <Button
+                size="icon"
+                className="h-6 w-6"
+                title="Playtest vs AI"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPlaytest();
+                }}
+              >
+                <Swords className="h-3 w-3" />
+              </Button>
+            )}
+            {!readOnly && onPublish && (
               <Button
                 size="icon"
                 variant="secondary"
@@ -76,7 +91,7 @@ export function DeckGridCard({
                 <Share2 className="h-3 w-3" />
               </Button>
             )}
-            {onRename && (
+            {!readOnly && onRename && (
               <Button
                 size="icon"
                 variant="secondary"
@@ -90,7 +105,7 @@ export function DeckGridCard({
                 <Pencil className="h-3 w-3" />
               </Button>
             )}
-            {onDelete && (
+            {!readOnly && onDelete && (
               <Button
                 size="icon"
                 variant="secondary"

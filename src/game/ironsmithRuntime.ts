@@ -10,7 +10,8 @@ import type {
   StartGameParams,
   StartMultiplayerGameParams,
 } from "@/platform";
-import type { Deck } from "@/protocol/deck";
+import { useScryfallStore } from "@/stores/useScryfallStore";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import type { DirectiveInput, GameFormat, Prompt, PromptOutput } from "@/protocol";
 import type { GameViewDto } from "@/protocol/game";
 import type { RoomMessagePayload } from "@/types/server";
@@ -89,6 +90,40 @@ type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
   ) => unknown;
 };
 
+// Manabrew stores only a card's front face; Ironsmith builds a linked two-face
+// definition only when a deck entry carries both faces, so transform/MDFC cards
+// otherwise load silently as front-only. Enrich double-faced cards with both
+// Scryfall `card_faces` before validating. getCard self-populates on a cold
+// miss and isDoubleFaced is set only for real two-image faces (split/adventure/
+// flip/room are excluded); a lookup failure falls back to front-only.
+async function withDoubleFacedFaces(cards: DeckCard[]): Promise<DeckCard[]> {
+  const store = useScryfallStore.getState();
+  return Promise.all(
+    cards.map(async (card) => {
+      if (!card.isDoubleFaced) return card;
+      try {
+        const { info } = await store.getCard({
+          name: card.identity.name,
+          setCode: card.identity.setCode,
+          collectorNumber: card.identity.cardNumber,
+        });
+        const faces = info.card_faces;
+        return faces && faces.length >= 2 ? { ...card, cardFaces: faces } : card;
+      } catch {
+        return card;
+      }
+    }),
+  );
+}
+
+async function enrichDeckFaces(deck: Deck): Promise<Deck> {
+  const cards = await withDoubleFacedFaces(deck.cards);
+  const commanders = deck.commanders
+    ? await withDoubleFacedFaces(deck.commanders)
+    : deck.commanders;
+  return { ...deck, cards, commanders };
+}
+
 function matchConfig(params: {
   playerNames: string[];
   decks: Deck[];
@@ -147,7 +182,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private concededPlayerSlots = new Set<string>();
 
   async startGame(params: StartGameParams): Promise<string> {
-    const opponentDeck = params.opponentDeck ?? params.deck;
+    const opponentDeck = params.opponentDecks?.[0] ?? params.deck;
     await this.startHost(
       {
         playerNames: ["You", "Opponent"],
@@ -270,7 +305,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
     this.botPlayerSlots = botSlots;
     this.hostPlayerSlot = this.localPlayerSlot;
-    const config = matchConfig(params);
+    const decks = await Promise.all(params.decks.map(enrichDeckFaces));
+    const config = matchConfig({ ...params, decks });
     const validation = game.validateManabrewMatchConfig(config);
     if (
       validation &&

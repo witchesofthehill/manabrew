@@ -65,7 +65,7 @@ interface DeckVsSelectorProps {
   onStartTabletop?: (deck: Deck, formatId?: string, commanderName?: string) => void;
 }
 
-type PickingSide = "player" | "opponent";
+type PickingSide = "player" | "opponent" | null;
 type PlayFormatId = string;
 
 // Lift `Math.random` out of the component body. React's idempotency check
@@ -125,6 +125,7 @@ export function DeckVsSelector({
   const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
     preSelectedDeckEntry?.formatId ?? rememberedFormatId,
   );
+  const [opponentConfirmed, setOpponentConfirmed] = useState(false);
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
   const opponentTouchedRef = useRef(false);
@@ -201,6 +202,7 @@ export function DeckVsSelector({
   }
   if (opponentDeck && opponentDeck.formatId !== selectedFormat) {
     setOpponentDeck(null);
+    setOpponentConfirmed(false);
   }
 
   useEffect(() => {
@@ -226,14 +228,17 @@ export function DeckVsSelector({
   }, [stage, selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
 
   function assignDeck(selected: SelectedDeck) {
-    if (pickingSide === "player") {
+    if (pickingSide === "player" || pickingSide === null) {
       setPlayerDeck(selected);
-      if (!opponentDeck) setPickingSide("opponent");
+      setPickingSide("opponent");
       return;
     }
 
+    if (pickingSide !== "opponent") return;
     opponentTouchedRef.current = true;
     setOpponentDeck(selected);
+    setOpponentConfirmed(true);
+    setPickingSide(playerDeck ? null : "player");
   }
 
   function selectDeck(deck: Deck) {
@@ -273,6 +278,8 @@ export function DeckVsSelector({
       commanderName: random.commanders?.[0]?.identity.name,
       coverCardName: random.coverCardName,
     });
+    setOpponentConfirmed(true);
+    setPickingSide(playerDeck ? null : "player");
   }
 
   async function handleFight() {
@@ -312,7 +319,7 @@ export function DeckVsSelector({
     onStartTabletop?.(playerDeck.sourceDeck, playerDeck.formatId, playerDeck.commanderName);
   }
 
-  const isReady = !!playerDeck && !!opponentDeck;
+  const isReady = !!playerDeck && !!opponentDeck && opponentConfirmed;
   const canStartTabletop =
     !!onStartTabletop && !!playerDeck && playerDeck.sourceDeck.cards.length > 0;
 
@@ -321,6 +328,10 @@ export function DeckVsSelector({
       <FormatPicker
         onSelect={(id) => {
           opponentTouchedRef.current = false;
+          setPlayerDeck(null);
+          setOpponentDeck(null);
+          setOpponentConfirmed(false);
+          setPickingSide("player");
           setSelectedFormat(id);
           setStage("decks");
         }}
@@ -341,6 +352,20 @@ export function DeckVsSelector({
         </button>
         <span className="text-muted-foreground/40">·</span>
         <FormatBadge formatId={selectedFormat} />
+        <p
+          className="ml-auto min-w-0 truncate text-right text-xs font-medium text-muted-foreground"
+          aria-live="polite"
+        >
+          {pickingSide === "player"
+            ? isReady
+              ? "Choose your deck or fight"
+              : "Choose your deck"
+            : pickingSide === "opponent"
+              ? isReady
+                ? "Choose the AI deck or fight"
+                : "Choose the AI deck"
+              : "Matchup ready"}
+        </p>
       </div>
 
       <div className="flex-shrink-0 px-4 pb-2 pt-3 sm:px-6 lg:px-8">
@@ -472,8 +497,12 @@ export function DeckVsSelector({
             deck={playerDeck}
             sideColor="var(--player-colors-self)"
             isActive={pickingSide === "player"}
+            isConfirmed={!!playerDeck && pickingSide !== "player"}
             onClick={() => setPickingSide("player")}
-            onClear={() => setPlayerDeck(null)}
+            onClear={() => {
+              setPlayerDeck(null);
+              setPickingSide("player");
+            }}
           />
           <span className="text-xs font-bold tracking-wider text-muted-foreground/60">VS</span>
           <DeckSlot
@@ -482,10 +511,16 @@ export function DeckVsSelector({
             deck={opponentDeck}
             sideColor="var(--player-colors-opponent1)"
             isActive={pickingSide === "opponent"}
-            onClick={() => setPickingSide("opponent")}
+            isConfirmed={!!opponentDeck && opponentConfirmed && pickingSide !== "opponent"}
+            onClick={() => {
+              setOpponentConfirmed(false);
+              setPickingSide("opponent");
+            }}
             onClear={() => {
               opponentTouchedRef.current = true;
               setOpponentDeck(null);
+              setOpponentConfirmed(false);
+              setPickingSide("opponent");
             }}
             placeholderExtra={
               !opponentDeck && (
@@ -576,6 +611,7 @@ interface DeckSlotProps {
   deck: SelectedDeck | null;
   sideColor: string;
   isActive: boolean;
+  isConfirmed: boolean;
   onClick: () => void;
   onClear: () => void;
   placeholderExtra?: ReactNode;
@@ -587,6 +623,7 @@ function DeckSlot({
   deck,
   sideColor,
   isActive,
+  isConfirmed,
   onClick,
   onClear,
   placeholderExtra,
@@ -624,6 +661,19 @@ function DeckSlot({
         >
           {deck?.name ?? "pick a deck"}
         </span>
+        {isActive ? (
+          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-primary">
+            Selecting
+          </span>
+        ) : isConfirmed ? (
+          <Check className="h-3 w-3 shrink-0 text-primary" />
+        ) : (
+          deck && (
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Suggested
+            </span>
+          )
+        )}
       </button>
       {deck ? (
         <button

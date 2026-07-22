@@ -112,7 +112,7 @@ export default function Gauntlet() {
         ),
       ]);
       armGauntletReturn(gauntletId, activeGauntlet.currentRound);
-      await startGame(human, formatId, undefined, opponent);
+      await startGame(human, formatId, undefined, [opponent]);
       navigate(ROUTES.PLAY);
     } catch (err) {
       toast.error(`Failed to launch match: ${err}`);

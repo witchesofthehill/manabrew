@@ -7,6 +7,7 @@ import {
   type ZonePanelItem,
 } from "@/stores/usePreferencesStore";
 import { isFeatureEnabled } from "@/featureFlags";
+import { getPlatform } from "@/platform";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { stripUsernameTag } from "@/lib/username";
 import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
@@ -1066,6 +1067,33 @@ export default function Settings() {
                   Adds the experimental Ironsmith trusted engine as a Create Room option. Card
                   support is partial and games may be rough — off by default. Leave this off unless
                   you're testing Ironsmith.
+                </p>
+              </div>
+            )}
+
+            {getPlatform().type === "web" && (
+              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+                <Label>Ask which engine before AI games</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={prefs.askEngineOnAiPlay ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setAskEngineOnAiPlay(true)}
+                  >
+                    On
+                  </Button>
+                  <Button
+                    variant={!prefs.askEngineOnAiPlay ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setAskEngineOnAiPlay(false)}
+                  >
+                    Off
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Games vs AI normally pick the best available engine automatically. Turn this on to
+                  choose between the hosted Forge engine and the in-browser Manabrew engine on every
+                  launch.
                 </p>
               </div>
             )}

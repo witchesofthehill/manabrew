@@ -75,6 +75,15 @@ function buildBackFaceSummary(sc: ScryfallCard): CardBackFaceSummary | undefined
   };
 }
 
+export function needsScryfallEnrichment(card: DeckCard): boolean {
+  const needsBasicMeta = (card.cmc === undefined || card.cmc === null) && !card.manaCost;
+  const needsAllParts = card.allParts === undefined;
+  const needsBackFace =
+    (card.isDoubleFaced === true || card.layout === "transform" || card.layout === "modal_dfc") &&
+    card.backFace === undefined;
+  return needsBasicMeta || needsAllParts || needsBackFace;
+}
+
 export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
   const id = sc.id;
   const { supertypes, types, subtypes } = parseTypeLine(getFrontTypeLine(sc));

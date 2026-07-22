@@ -51,6 +51,7 @@ export function TableRoom({
     room.players.find((player) => !player.is_bot)?.username ?? room.players[0]?.username;
   const isController = controllerName === username;
   const isLimitedRoom = !!(room.draft_config || room.sealed_config);
+  const needsFormat = room.format === "Any" && !isLimitedRoom;
   const isOpenFormat = room.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
   const allOtherPlayersReady =
@@ -59,9 +60,10 @@ export function TableRoom({
       .filter((player) => player.username !== controllerName)
       .every((player) => player.ready);
   const controllerHasDeck =
-    isOpenFormat ||
+    isLimitedRoom ||
     !!room.players.find((player) => player.username === controllerName)?.selected_deck_name;
-  const canStart = room.status === "Lobby" && allOtherPlayersReady && controllerHasDeck;
+  const canStart =
+    room.status === "Lobby" && !needsFormat && allOtherPlayersReady && controllerHasDeck;
   const needsDeck = !isOpenFormat && !myPlayer?.selected_deck_name;
   const readyCount = room.players.filter(
     (player) => player.ready || player.username === controllerName,
@@ -80,6 +82,14 @@ export function TableRoom({
         <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-center sm:text-right">
           <p className="text-sm font-medium text-primary">Game in progress</p>
           <p className="text-xs text-muted-foreground">Opening the game table...</p>
+        </div>
+      );
+    }
+    if (needsFormat) {
+      return (
+        <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-center sm:text-right">
+          <p className="text-sm font-medium">Choose a format</p>
+          <p className="text-xs text-muted-foreground">Select one in Table settings to continue.</p>
         </div>
       );
     }
@@ -162,9 +172,9 @@ export function TableRoom({
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <Swords className="h-5 w-5 shrink-0 text-primary" />
-              <h1 className="truncate font-serif text-2xl font-light sm:text-3xl">
+              <h2 className="truncate font-serif text-2xl font-light sm:text-3xl">
                 {room.room_name}
-              </h1>
+              </h2>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{modeLabel}</Badge>
@@ -216,11 +226,13 @@ export function TableRoom({
                   Your seat
                 </p>
                 <p className="mt-1 truncate text-sm font-medium">
-                  {isOpenFormat
-                    ? myPlayer?.ready
-                      ? "Ready to play"
-                      : "Confirm when you're ready"
-                    : (myPlayer?.selected_deck_name ?? "Choose the deck you want to play")}
+                  {isController
+                    ? "You control when the game begins"
+                    : isOpenFormat
+                      ? myPlayer?.ready
+                        ? "Ready to play"
+                        : "Confirm when you're ready"
+                      : (myPlayer?.selected_deck_name ?? "Choose the deck you want to play")}
                 </p>
               </div>
               {renderPrimaryAction()}

@@ -13,9 +13,9 @@ export function BrandSection() {
         <div className="relative flex flex-col gap-4 bg-gradient-to-r from-background/90 to-background/40 p-6 sm:flex-row sm:items-center sm:gap-6 sm:p-8">
           <ManaBrewLogo size={96} className="shrink-0 rounded-2xl shadow-lg" />
           <div className="space-y-1.5">
-            <h1 className="font-serif text-4xl font-light tracking-tight">
+            <h2 className="font-serif text-4xl font-light tracking-tight">
               Manabrew Design System
-            </h1>
+            </h2>
             <p className="max-w-xl text-sm text-muted-foreground">
               The complete visual language for the Manabrew MTG client — color, typography, icons,
               components, card faces, and assets. Every sample is a real component, so this page

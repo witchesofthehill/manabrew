@@ -493,7 +493,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
       <section className="space-y-4">
         <div className="flex items-center gap-6 border-b overflow-x-auto no-scrollbar">
           <button

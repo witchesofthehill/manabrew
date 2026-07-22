@@ -33,8 +33,22 @@ export interface NavMenu {
 }
 
 export function isNavDestinationActive(to: string, pathname: string): boolean {
+  pathname = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   if (to === ROUTES.PLAY_OFFLINE_CONSTRUCTED) {
-    return pathname.startsWith(ROUTES.PLAY_OFFLINE);
+    return (
+      pathname.startsWith(ROUTES.PLAY_OFFLINE) ||
+      (pathname.startsWith(`${ROUTES.DRAFT}/`) && pathname !== `${ROUTES.DRAFT}/multiplayer`) ||
+      (pathname.startsWith(`${ROUTES.SEALED}/`) && pathname !== `${ROUTES.SEALED}/multiplayer`) ||
+      pathname.startsWith(`${ROUTES.WINSTON}/`) ||
+      pathname.startsWith(`${ROUTES.GAUNTLET}/`)
+    );
+  }
+  if (to === ROUTES.LOBBY) {
+    return (
+      pathname === ROUTES.LOBBY ||
+      pathname === `${ROUTES.DRAFT}/multiplayer` ||
+      pathname === `${ROUTES.SEALED}/multiplayer`
+    );
   }
   if (to === ROUTES.PLAY) {
     return pathname === ROUTES.PLAY;

@@ -656,7 +656,12 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
   return (
     <div className="flex flex-col h-full w-full">
       {/* Filters */}
-      <div className="px-4 py-3 sm:px-6 lg:px-8 border-b space-y-2 shrink-0 max-h-[60%] overflow-y-auto">
+      <div
+        className={cn(
+          "max-h-[60%] shrink-0 space-y-2 overflow-y-auto border-b py-3",
+          standalone ? "px-4 sm:px-6 lg:px-8" : "px-3",
+        )}
+      >
         <div className="flex gap-2">
           {onClose && (
             <Button
@@ -1076,7 +1081,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-3">
+        <div className={cn("py-3", standalone ? "px-4 sm:px-6 lg:px-8" : "px-3")}>
           {status === "pending" && effectiveQuery && (
             <div className="flex justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

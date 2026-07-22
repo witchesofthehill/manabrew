@@ -124,7 +124,7 @@ export function TableSeatChip({
         <span
           className={cn(
             "max-w-16 truncate text-[10px] font-medium leading-tight",
-            size === "room" && "max-w-24 text-xs",
+            size === "room" && "hidden max-w-24 text-xs sm:block",
             isYou && "font-semibold text-primary",
           )}
         >
@@ -135,7 +135,7 @@ export function TableSeatChip({
         <span
           className={cn(
             "max-w-16 truncate text-[9px] leading-tight text-muted-foreground",
-            size === "room" && "max-w-24 text-[10px]",
+            size === "room" && "hidden max-w-24 text-[10px] sm:block",
           )}
         >
           {statusLabel}

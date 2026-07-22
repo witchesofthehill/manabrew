@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { ROUTES } from "@/lib/constants";
-import { getFormat, validateDeckSections } from "@/lib/formats";
+import { getFormat } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -44,17 +44,6 @@ export function useQuickPlay() {
         const format = getFormat(formatId);
         if (!format) {
           toast.error("This deck uses an unsupported format.");
-          navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`, {
-            state: { deckEditorFromList: true },
-          });
-          return;
-        }
-        const validation = validateDeckSections(
-          { deck, commanderName: deck.commanders?.[0]?.identity.name },
-          format,
-        );
-        if (!validation.legal) {
-          toast.warning(validation.errors[0] ?? "This deck is not ready to play.");
           navigate(`${ROUTES.DECK_EDITOR}?deck=${encodeURIComponent(savedDeckId)}`, {
             state: { deckEditorFromList: true },
           });

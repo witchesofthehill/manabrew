@@ -330,7 +330,7 @@ export function DeckVsSelector({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-shrink-0 items-center gap-2 border-b bg-muted/5 px-4 py-2">
+      <div className="flex flex-shrink-0 items-center gap-2 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
         <button
           type="button"
           onClick={() => setStage("format")}
@@ -343,7 +343,7 @@ export function DeckVsSelector({
         <FormatBadge formatId={selectedFormat} />
       </div>
 
-      <div className="flex-shrink-0 px-4 pb-2 pt-3">
+      <div className="flex-shrink-0 px-4 pb-2 pt-3 sm:px-6 lg:px-8">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -360,7 +360,7 @@ export function DeckVsSelector({
         </div>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
             Your Decks
@@ -464,7 +464,7 @@ export function DeckVsSelector({
         </div>
       </div>
 
-      <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-3 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
+      <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
             label="YOU"

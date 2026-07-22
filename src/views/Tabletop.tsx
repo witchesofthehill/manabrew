@@ -70,7 +70,7 @@ export default function Tabletop() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Starting tabletop room...</h1>
+          <h2 className="text-2xl font-bold">Starting tabletop room...</h2>
           <p className="text-muted-foreground">Waiting for game synchronization...</p>
         </div>
       </div>

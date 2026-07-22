@@ -80,7 +80,7 @@ export default function DeckHub() {
 
       {tab === "browse" ? (
         <>
-          <div className="mt-2 flex items-center gap-1 px-2 py-1.5 shrink-0 flex-wrap">
+          <div className="mt-2 flex shrink-0 flex-wrap items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}

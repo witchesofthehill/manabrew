@@ -1,5 +1,5 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
@@ -10,6 +10,7 @@ import { useQuickPlay } from "@/hooks/useQuickPlay";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 
 const MODES = [
@@ -34,13 +35,49 @@ export function PlayHome() {
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
+  const connecting = useServerStore((state) => state.connecting);
+  const connectionError = useServerStore((state) => state.error);
   const rooms = useServerStore((state) => state.rooms);
   const players = useServerStore((state) => state.players);
+  const connect = useServerStore((state) => state.connect);
+  const listRooms = useServerStore((state) => state.listRooms);
+  const listPlayers = useServerStore((state) => state.listPlayers);
+  const serverHost = usePreferencesStore((state) => state.serverHost);
+  const serverPort = usePreferencesStore((state) => state.serverPort);
+  const serverUsername = usePreferencesStore((state) => state.serverUsername);
+  const serverPassword = usePreferencesStore((state) => state.serverPassword);
   const openTables = rooms.filter((room) => room.status === "Lobby").length;
   const lobbyTeaser =
     connected && (openTables > 0 || players.length > 0)
       ? `${openTables} ${openTables === 1 ? "table" : "tables"} open · ${players.length} online`
       : null;
+
+  useEffect(() => {
+    if (!resumePending && !connected && !connecting && !connectionError && serverUsername) {
+      connect(serverHost, serverPort, serverUsername, serverPassword);
+    }
+  }, [
+    connect,
+    connected,
+    connecting,
+    connectionError,
+    resumePending,
+    serverHost,
+    serverPort,
+    serverUsername,
+    serverPassword,
+  ]);
+
+  useEffect(() => {
+    if (!connected || resumePending) return;
+    listRooms();
+    listPlayers();
+    const id = setInterval(() => {
+      listRooms();
+      listPlayers();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [connected, listPlayers, listRooms, resumePending]);
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
@@ -56,7 +93,7 @@ export function PlayHome() {
           </header>
 
           {resumeSession && (
-            <RejoinMatchCard session={resumeSession} onDismiss={() => setResumeSession(null)} />
+            <RejoinMatchCard session={resumeSession} onAbandoned={() => setResumeSession(null)} />
           )}
 
           <div

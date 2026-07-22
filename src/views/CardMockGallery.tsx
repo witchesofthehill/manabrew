@@ -115,7 +115,7 @@ export default function CardMockGallery() {
   const [showReal, setShowReal] = useState(false);
 
   return (
-    <div className="h-full overflow-auto p-6 space-y-6">
+    <div className="h-full space-y-6 overflow-auto px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex items-center gap-4 flex-wrap">
         <div className="inline-flex rounded-md border border-border overflow-hidden">
           {(["realistic", "art", "frame"] as GalleryVariant[]).map((v) => (

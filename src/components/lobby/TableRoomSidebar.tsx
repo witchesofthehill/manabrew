@@ -10,7 +10,6 @@ import {
 import type { GameFormat, RoomInfo } from "@/types/server";
 
 const HOST_SELECTABLE_FORMATS: GameFormat[] = [
-  "Any",
   "Standard",
   "Pioneer",
   "Modern",
@@ -79,7 +78,7 @@ export function TableRoomSidebar({
 
   return (
     <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
-      <section className="rounded-xl border bg-card p-4">
+      <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
         <h2 className="text-sm font-semibold">Table settings</h2>
         <dl className="mt-3 space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3">
@@ -176,7 +175,7 @@ export function TableRoomSidebar({
       </section>
 
       {inLobby && (
-        <section className="rounded-xl border bg-card p-4">
+        <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
           <h2 className="text-sm font-semibold">Table controls</h2>
           <div className="mt-3 grid gap-2">
             {!isOpenFormat && !needsDeck && (

@@ -22,7 +22,7 @@ export default function DesignSystem() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+      <div className="px-4 pt-6 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-border bg-card/60 p-3 backdrop-blur">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -73,7 +73,7 @@ export default function DesignSystem() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
+      <main className="space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <BrandSection />
         <ColorSection presetId={presetId} />
         <TypographySection />

@@ -111,7 +111,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             aria-pressed={formatFilter === format.id}
             onClick={() => setFormatFilter(format.id)}
             className={cn(
-              "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none",
+              "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-10 pointer-coarse:px-3",
               formatFilter === format.id
                 ? "border-primary/50 bg-primary/15 text-primary"
                 : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
@@ -167,7 +167,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
           type="button"
           onClick={() => setPresetsCollapsedOverride(!presetsCollapsed)}
           aria-expanded={!presetsCollapsed}
-          className="flex w-full items-center gap-2 text-left"
+          className="flex w-full items-center gap-2 text-left pointer-coarse:min-h-10"
         >
           <ChevronDown
             aria-hidden="true"

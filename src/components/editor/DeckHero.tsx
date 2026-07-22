@@ -147,7 +147,7 @@ export function DeckHero() {
         </div>
 
         {isReadOnly ? (
-          <h1 className="text-2xl font-bold tracking-tight">{currentDeck.name}</h1>
+          <h2 className="text-2xl font-bold tracking-tight">{currentDeck.name}</h2>
         ) : editingName ? (
           <div className="flex items-center gap-1.5">
             <Input
@@ -177,7 +177,7 @@ export function DeckHero() {
               setEditingName(true);
             }}
           >
-            <h1 className="truncate text-2xl font-bold tracking-tight">{currentDeck.name}</h1>
+            <h2 className="truncate text-2xl font-bold tracking-tight">{currentDeck.name}</h2>
             <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100" />
           </button>
         )}

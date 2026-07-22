@@ -218,8 +218,7 @@ async function initializeGame({
       }
       if (error instanceof GameLaunchCancelledError) throw error;
       if (!isLaunchCurrent()) throw new GameLaunchCancelledError();
-      if (platformType !== "tauri") throw error;
-      console.error("[store] Forge host unavailable; falling back to Manabrew:", error);
+      console.error("[store] Forge engine unavailable; falling back to Manabrew:", error);
       toast.error("Forge engine unavailable — using the Manabrew engine.");
       resetSelectedGameRuntime();
       set({ isMultiplayer: false, isHost: false });

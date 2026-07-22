@@ -38,7 +38,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     throw new Error("Hosted AI play requires a multiplayer server.");
   }
 
-  await ensureServerConnection();
+  await ensureServerConnection(getHostedAiServerConnectionDefaults(), true);
   const username = useServerStore.getState().username;
   if (!username) throw new Error("Hosted AI play requires a server username.");
 
@@ -61,9 +61,12 @@ export async function startTauriForgeAiGame(
     throw new Error("Forge play vs AI requires a multiplayer server.");
   }
 
+  const serverState = useServerStore.getState();
+  if (serverState.currentRoom) await serverState.leaveRoom(true);
+  if (serverState.connected || serverState.connecting) await serverState.disconnect();
   const localRelay = await startLocalRelay();
   try {
-    await ensureServerConnection(localRelay);
+    await ensureServerConnection(localRelay ?? getHostedAiServerConnectionDefaults());
     const username = useServerStore.getState().username;
     if (!username) throw new Error("Forge play vs AI requires a server username.");
 
@@ -185,7 +188,6 @@ async function joinHostedRoomAndPlay(
 
 async function startLocalRelay(): Promise<ServerConnectionDefaults | null> {
   const platform = getPlatform();
-  if (useServerStore.getState().connected) return null;
   try {
     const relay = await platform.invoke<{ host: string; port: number; password: string }>(
       "start_local_relay",
@@ -197,22 +199,26 @@ async function startLocalRelay(): Promise<ServerConnectionDefaults | null> {
   }
 }
 
-async function ensureServerConnection(localRelay?: ServerConnectionDefaults | null): Promise<void> {
+async function ensureServerConnection(
+  serverDefaults: ServerConnectionDefaults,
+  reconnect = false,
+): Promise<void> {
   const server = getPlatform().server;
   if (!server) throw new Error("Hosted AI play requires a multiplayer server.");
 
   const state = useServerStore.getState();
-  if (state.connected) return;
+  if (state.connected && !reconnect) return;
+  if (state.currentRoom) await state.leaveRoom(true);
+  if (state.connected || state.connecting) await state.disconnect();
 
   const prefs = usePreferencesStore.getState();
-  const serverDefaults = localRelay ?? getHostedAiServerConnectionDefaults();
   const username = prefs.serverUsername || serverDefaults.username || defaultHostedUsername();
   const auth = waitForEvent<{ success: boolean; error: string | null }>("server:auth_result");
   await server.connect({
     host: serverDefaults.host,
     port: serverDefaults.port,
     username,
-    password: localRelay ? localRelay.password : prefs.serverPassword || serverDefaults.password,
+    password: serverDefaults.password,
   });
   const result = await auth;
   if (!result.success) {

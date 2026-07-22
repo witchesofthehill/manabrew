@@ -33,7 +33,7 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
   return (
     <article
       className={cn(
-        "flex min-h-64 flex-col gap-3 rounded-2xl border bg-card p-4 shadow-md motion-safe:transition-[transform,border-color,box-shadow]",
+        "flex min-h-64 flex-col gap-3 rounded-2xl border bg-card/85 p-4 shadow-md backdrop-blur-md motion-safe:transition-[transform,border-color,box-shadow]",
         isMyRoom && "border-primary/40 bg-primary/5",
         !isMyRoom &&
           canJoin &&

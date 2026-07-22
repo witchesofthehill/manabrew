@@ -238,7 +238,7 @@ export function TablesList({
       <div className="shrink-0 px-4 pb-2 pt-1 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-serif text-2xl font-light sm:text-3xl">Find your table</h1>
+            <h2 className="font-serif text-2xl font-light sm:text-3xl">Find your table</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Join an open table below, or set up one for your group.
             </p>

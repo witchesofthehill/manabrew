@@ -26,21 +26,23 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const isGameActive = useGameStore((s) => s.isGameActive);
-  const isTabletopRoute = location.pathname.startsWith(ROUTES.TABLETOP);
-  const isGameRoute = location.pathname.startsWith(ROUTES.GAME) || isGameActive;
-  const isCompanionRoute = location.pathname.startsWith(ROUTES.COMPANION);
+  const pathname =
+    location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
+  const isTabletopRoute = pathname.startsWith(ROUTES.TABLETOP);
+  const isGameRoute = pathname.startsWith(ROUTES.GAME) || isGameActive;
+  const isCompanionRoute = pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
-  const isPlayHome = location.pathname === ROUTES.PLAY;
+  const isPlayHome = pathname === ROUTES.PLAY;
   const usesSubtleBackdrop =
-    location.pathname.startsWith(ROUTES.SEARCH) ||
-    location.pathname.startsWith(ROUTES.DECK_EDITOR) ||
-    location.pathname.startsWith(ROUTES.HUB) ||
-    location.pathname.startsWith(ROUTES.DRAFT) ||
-    location.pathname.startsWith(ROUTES.SEALED) ||
-    location.pathname.startsWith(ROUTES.WINSTON) ||
-    location.pathname.startsWith(ROUTES.GAUNTLET) ||
-    location.pathname.startsWith(ROUTES.DESIGN_SYSTEM) ||
-    location.pathname === "/card-mock";
+    pathname.startsWith(ROUTES.SEARCH) ||
+    pathname.startsWith(ROUTES.DECK_EDITOR) ||
+    pathname.startsWith(ROUTES.HUB) ||
+    pathname.startsWith(ROUTES.DRAFT) ||
+    pathname.startsWith(ROUTES.SEALED) ||
+    pathname.startsWith(ROUTES.WINSTON) ||
+    pathname.startsWith(ROUTES.GAUNTLET) ||
+    pathname.startsWith(ROUTES.DESIGN_SYSTEM) ||
+    pathname === "/card-mock";
   const hideNavChrome = isGameRoute && !isTabletopRoute;
   const activeTopBarOverride =
     topBarOverride?.locationKey === location.key &&
@@ -93,17 +95,14 @@ export function AppShell() {
             isTabletopRoute && isGameRoute && "[--safe-area-inset-top:0px]",
           )}
         >
-          {isImmersiveRoute ? (
-            <Outlet />
-          ) : (
-            <>
-              <BreweryBackdrop
-                variant={isPlayHome ? "hero" : usesSubtleBackdrop ? "subtle" : "ambient"}
-                className="-z-10"
-              />
-              <Outlet />
-            </>
+          {!isImmersiveRoute && (
+            <BreweryBackdrop
+              variant={isPlayHome ? "hero" : usesSubtleBackdrop ? "subtle" : "ambient"}
+              className="-z-10"
+            />
           )}
+          {/* Play cancels in-flight launches on unmount, so keep the outlet stable here. */}
+          <Outlet />
         </main>
       </div>
     </TopBarOverrideContext.Provider>

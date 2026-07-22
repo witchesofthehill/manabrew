@@ -242,20 +242,10 @@ async fn play_game(
                             .all(|p| p.connected && p.ready && p.selected_deck_name.is_some())
                     {
                         sent_start = true;
-                        let start = StateEnvelope::RoomRelay {
-                            protocol: "self-hosted-node".to_string(),
-                            version: 1,
-                            message_id: uuid::Uuid::new_v4().to_string(),
-                            from_player: Some(username.clone()),
-                            target_player: None,
-                            room_id: Some(room_id.to_string()),
-                            payload: json!({ "type": "startGame", "format": "Standard" }),
-                        };
                         send(
                             &mut write,
-                            &ClientMessage::BroadcastState {
-                                state: serde_json::to_value(&start).map_err(|e| e.to_string())?,
-                                target_player: None,
+                            &ClientMessage::StartGame {
+                                format: Some(GameFormat::Standard),
                             },
                         )
                         .await?;
@@ -295,7 +285,7 @@ fn basic_deck(name: &str, land: &str, creature: &str) -> Value {
 }
 
 fn card(id: String, name: &str) -> Value {
-    json!({ "id": id, "name": name, "setCode": "", "cardNumber": "0" })
+    json!({ "identity": { "id": id, "name": name, "setCode": "", "cardNumber": "0" } })
 }
 
 async fn connect(relay: &str) -> Result<(WsWrite, WsRead), String> {

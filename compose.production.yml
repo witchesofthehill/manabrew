@@ -16,7 +16,6 @@ services:
     volumes:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./ops/status.json:/srv/manabrew/status.json:ro
-      - ./ops/manifest.json:/srv/manabrew/manifest.json:ro
       - ./ops/sidestore:/srv/manabrew/sidestore:ro
       - caddy-data:/data
       - caddy-config:/config
@@ -41,9 +40,9 @@ services:
       - manabrew-server
 
   manabrew-server:
-    # Pre-built in CI (docker-images.yml) and pulled. deploy.sh compares the
-    # pulled binary against the running one and only restarts the relay when it
-    # changed — a relay restart drops every live game.
+    # Pre-built in CI (docker-images.yml) and pulled. `cargo xtask deploy`
+    # compares the pulled binary against the running one and only restarts the
+    # relay when it changed — a relay restart drops every live game.
     image: ghcr.io/witchesofthehill/manabrew-server:${MANABREW_IMAGE_TAG:-latest}
     environment:
       FORGE_HOST: "0.0.0.0"
@@ -84,6 +83,16 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       EVENTS_DB_PATH: "/var/manabrew/events/events.db"
       RUST_LOG: "manabrew_hub=info"
+      # Auth (/api/auth/*). Client ids/secrets live in ops/production.secrets;
+      # an unset client id disables that provider. No RESEND_API_KEY →
+      # magic-link codes are logged instead of emailed.
+      HUB_PUBLIC_URL: "https://api.manabrew.app"
+      WEB_APP_URL: "https://play.manabrew.app"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID:-}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET:-}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+      DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
       - ./ops/observability/data/events:/var/manabrew/events:ro

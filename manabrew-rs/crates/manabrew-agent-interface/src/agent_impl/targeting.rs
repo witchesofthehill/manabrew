@@ -97,6 +97,15 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
     chosen
 }
 
+fn player_target_title(intent: TargetingIntent) -> String {
+    match intent {
+        TargetingIntent::Hostile | TargetingIntent::Friendly => "Choose a player".to_string(),
+        TargetingIntent::LoseLife => "Choose player to lose life".to_string(),
+        TargetingIntent::GainControl => "Choose player to control".to_string(),
+        _ => format!("Choose player to {}", intent.to_string().to_lowercase()),
+    }
+}
+
 pub(super) fn choose_target_player<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
@@ -110,7 +119,13 @@ pub(super) fn choose_target_player<T: Responder>(
         .map(target_ref_player)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string(), source),
+        board_targets(
+            candidates,
+            hostile,
+            intent,
+            player_target_title(intent),
+            source,
+        ),
         source,
     );
     agent.recv_player_choice_or_first(valid)

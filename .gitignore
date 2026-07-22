@@ -112,4 +112,3 @@ src-tauri/gen/apple/assets/
 
 
 # Early-deploy manifest hold marker (deploy.sh, prod host only)
-ops/.manifest-hold

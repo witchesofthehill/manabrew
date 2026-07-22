@@ -1,33 +1,42 @@
 name: Staging deploy
 
-# Deploys the `staging` branch to the dedicated staging VM, a standalone
-# mini-production that behaves exactly like the production rollout:
-#   1. build + push the four self-hosting images tagged `staging` to ghcr
+# Label-gated: a PR labelled `deploy-preview` takes the staging slot, the way
+# per-PR previews worked before #470 turned this into a branch auto-deploy.
+# Pushes to `staging` no longer deploy on their own — run this workflow from the
+# Actions tab (workflow_dispatch) to put the `staging` branch back on the slot.
+# There is ONE slot, so labelling a second PR replaces whatever is on it; the
+# slot is never torn down, it just holds the last thing deployed. Only the
+# `staging` branch gets a hosted-AI node (see xtask/src/deploy.rs).
+#
+# Deploys to staging.manabrew.app — a staging slot on the PRODUCTION box
+# (/opt/manabrew-staging, compose.staging.yml on the prod docker network,
+# fronted by prod Caddy's staging.manabrew.app / relay-staging vhosts):
+#   1. build + push the self-hosting images tagged `staging` to ghcr
 #      (docker-images.yml does the same on v* tags for the release `latest`
 #      images),
-#   2. connect to Twingate (the VM only accepts SSH through Twingate — no public
-#      SSH), then SSH in and run deploy-staging.sh — the lean sibling of
-#      production's deploy.sh (pull branch + :staging images + health-checked
-#      recreate + rollback, without the release/manifest machinery).
+#   2. SSH into the prod box (same DEPLOY_* secrets as publish.yml) and run
+#      `cargo xtask deploy --staging` FROM THE RUNNER (rsync config +
+#      :staging images + health-checked recreate + re-tag rollback).
 #
-# No hostname is hardcoded here. The one build-time endpoint (the hub API URL
-# baked into the web bundle) comes from the repo variable STAGING_HUB_API_URL;
-# every other host is runtime and lives in the box .env (STAGING_APP_HOST /
-# STAGING_RELAY_HOST / STAGING_API_HOST), so the domain can change without
-# touching this workflow.
+# The web bundle bakes VITE_HUB_API_URL from the repo variable
+# STAGING_HUB_API_URL (= https://staging.manabrew.app).
 #
-# The staging VM is a separate machine reached via Twingate (TWINGATE_SERVICE_KEY
-# service-account key) with its own SSH key (STAGING_DEPLOY_* secrets). It needs
-# the repo checked out at STAGING_DEPLOY_PATH on the `staging` branch with a
-# box-local .env (MANABREW_SERVER_KEY, the STAGING_*_HOST trio, …).
+# The staging slot's /opt/manabrew-staging/.env is written by this workflow's
+# secret-sync step (MANABREW_SERVER_KEY + hub auth secrets) — it must NOT be a
+# symlink to prod's ops/production.secrets, so the slot never inherits prod's
+# OAuth apps or hub config.
+#
+# The optional standalone VM is not CI-driven: run `cargo xtask deploy
+# --local` on the VM itself (compose.selfhost.yml — self-contained, builds
+# from the checkout).
 on:
-  push:
-    branches: [staging]
+  pull_request:
+    types: [labeled, synchronize, reopened]
   workflow_dispatch:
 
 concurrency:
-  group: staging-deploy
-  cancel-in-progress: false
+  group: staging-deploy-${{ github.event.pull_request.number || 'manual' }}
+  cancel-in-progress: true
 
 jobs:
   # ── Build & push the :staging images ───────────────────────────────
@@ -36,9 +45,17 @@ jobs:
   # The web image bakes the hub endpoint (from the STAGING_HUB_API_URL repo
   # variable) and the same-origin symbol proxy; the relay is configured at
   # runtime (compose RELAY_HOST), like prod.
+  # Fork PRs are skipped: they get neither a package-write token nor the SSH
+  # secrets for the prod box.
   build-images:
     name: Build & push ${{ matrix.image }} (staging tag)
-    if: github.repository == 'witchesofthehill/manabrew'
+    if: |
+      github.repository == 'witchesofthehill/manabrew'
+      && (github.event_name == 'workflow_dispatch'
+          || (github.event.pull_request.head.repo.full_name == github.repository
+              && ((github.event.action == 'labeled' && github.event.label.name == 'deploy-preview')
+                  || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
+                      && contains(github.event.pull_request.labels.*.name, 'deploy-preview')))))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -60,8 +77,11 @@ jobs:
           - image: manabrew-hub
             dockerfile: manabrew-rs/crates/manabrew-hub/Dockerfile
     steps:
+      # Build the PR head, not the pull_request merge commit — the deploy job
+      # checks out and rsyncs the same head, so the two must agree.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
           submodules: recursive
 
       - name: Set up Docker Buildx
@@ -86,66 +106,93 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
-  # ── Deploy to the staging VM (over Twingate) ───────────────────────
-  # Connects the runner to Twingate with a service-account key, then runs the
-  # lean deploy-staging.sh over SSH (pull branch + :staging images + health-
-  # checked recreate + rollback — no production release machinery).
+  # ── Deploy the staging slot on the prod box ────────────────────────
+  # `cargo xtask deploy --staging` runs on the RUNNER at the deployed ref's
+  # checkout: rsync the tracked config to /opt/manabrew-staging, pull the
+  # `:staging` images, health-checked recreate + re-tag rollback. No scripts
+  # and no git on the box — same model as the production deploy.
   deploy:
     name: Deploy staging
     needs: [build-images]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     concurrency:
-      group: staging-vm-deploy
+      group: staging-box-deploy
       cancel-in-progress: false
     steps:
-      # The composite Discord action needs the repo present.
+      # The deployed ref's checkout: xtask rsyncs its tracked config, so this
+      # must be the same ref build-images built.
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      # The VM only accepts SSH through Twingate; the connection stays up for the
-      # rest of the job, so the SSH step below reaches the internal host.
-      - name: Connect to Twingate
-        uses: twingate/github-action@v1
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
         with:
-          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
+          shared-key: xtask-deploy
 
-      - name: SSH and run deploy-staging.sh
+      - name: Deploy staging (xtask, from the runner)
         id: deploy
         continue-on-error: true
         env:
-          SSH_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
-          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
-          USER: ${{ secrets.STAGING_DEPLOY_USER }}
-          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
+          # The PR's head branch; empty on workflow_dispatch → xtask's
+          # `staging` default, which is also the only branch that gets a
+          # hosted-AI node. DEPLOY_REF pins the config fetch to the exact sha
+          # build-images built — a branch-name fetch could race a fresh push.
+          DEPLOY_BRANCH: ${{ github.event.pull_request.head.ref }}
+          DEPLOY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Synced into the slot's .env below. MANABREW_SERVER_KEY is included
+          # because the slot's .env is standalone — it must NOT symlink prod's
+          # secrets file. The STAGING_OAUTH_GITHUB_* names avoid GitHub
+          # Actions' reserved GITHUB_ secret prefix; on the box they land under
+          # the hub's env names. An unset secret leaves the .env untouched for
+          # that key, so a provider stays off until its app is registered.
+          AUTH_MANABREW_SERVER_KEY: ${{ secrets.MANABREW_SERVER_KEY }}
+          AUTH_HUB_ADMIN_PASSWORD_HASH: ${{ secrets.HUB_ADMIN_PASSWORD_HASH }}
+          AUTH_GITHUB_CLIENT_ID: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_ID }}
+          AUTH_GITHUB_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_GITHUB_CLIENT_SECRET }}
+          AUTH_DISCORD_CLIENT_ID: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_ID }}
+          AUTH_DISCORD_CLIENT_SECRET: ${{ secrets.STAGING_OAUTH_DISCORD_CLIENT_SECRET }}
+          AUTH_RESEND_API_KEY: ${{ secrets.STAGING_RESEND_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # ServerAliveInterval/CountMax keep the SSH connection healthy while
-          # deploy-staging.sh has quiet stretches (docker pulls, ghcr retry sleeps).
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=120 \
-              "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy-staging.sh 2>&1" 2>&1 | tee deploy.log
+          AUTH_ENV=""
+          add_auth() { if [ -n "$2" ]; then AUTH_ENV="${AUTH_ENV}$1=$2"$'\n'; fi; }
+          add_auth MANABREW_SERVER_KEY "$AUTH_MANABREW_SERVER_KEY"
+          add_auth HUB_ADMIN_PASSWORD_HASH "$AUTH_HUB_ADMIN_PASSWORD_HASH"
+          add_auth GITHUB_CLIENT_ID "$AUTH_GITHUB_CLIENT_ID"
+          add_auth GITHUB_CLIENT_SECRET "$AUTH_GITHUB_CLIENT_SECRET"
+          add_auth DISCORD_CLIENT_ID "$AUTH_DISCORD_CLIENT_ID"
+          add_auth DISCORD_CLIENT_SECRET "$AUTH_DISCORD_CLIENT_SECRET"
+          add_auth RESEND_API_KEY "$AUTH_RESEND_API_KEY"
+          if [ -n "$AUTH_ENV" ]; then
+            printf '%s' "$AUTH_ENV" | ssh -i ~/.ssh/deploy_key \
+                -o StrictHostKeyChecking=yes \
+                "$USER@$HOST" \
+              "cd '$DEPLOY_PATH' && { [ -L .env ] && rm .env || true; } && touch .env && chmod 600 .env && while IFS= read -r line; do key=\${line%%=*}; { grep -v \"^\${key}=\" .env || true; } > .env.tmp; mv .env.tmp .env; printf '%s\n' \"\$line\" >> .env; done && chmod 600 .env"
+          fi
+          {
+            echo "Host staging-box"
+            echo "  HostName $HOST"
+            echo "  User $USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  StrictHostKeyChecking yes"
+          } >> ~/.ssh/config
+          cargo xtask deploy --staging --branch "${DEPLOY_BRANCH:-staging}" \
+            --ref "$DEPLOY_REF" \
+            --host staging-box --path "$DEPLOY_PATH" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
-
-      - name: Fetch raw deploy log on failure
-        if: steps.deploy.outcome != 'success'
-        env:
-          HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
-          USER: ${{ secrets.STAGING_DEPLOY_USER }}
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "$USER@$HOST:/tmp/deploy-staging-raw.log" deploy-raw.log || \
-            echo "(raw log not retrievable from server)"
 
       - name: Post Discord embed (as bot)
         if: always()
@@ -160,9 +207,8 @@ jobs:
           url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           actor: ${{ github.actor }}
           sha: ${{ github.sha }}
-          description: "(no log captured — SSH step failed before any output; see workflow run)"
+          description: "(no log captured — the deploy failed before any output; see workflow run)"
           description-file: deploy.log
-          attach-file: deploy-raw.log
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

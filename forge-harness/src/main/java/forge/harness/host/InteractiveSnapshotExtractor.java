@@ -537,9 +537,9 @@ public final class InteractiveSnapshotExtractor {
 
     private static Map<String, Integer> counterMap(final Card card) {
         final Map<String, Integer> counters = new TreeMap<>();
-        for (final Map.Entry<CounterType, Integer> entry : card.getCounters().entrySet()) {
-            if (entry.getValue() > 0) {
-                counters.put(uiCounterName(entry.getKey()), entry.getValue());
+        for (final com.google.common.collect.Multiset.Entry<CounterType> entry : card.getCounters().entrySet()) {
+            if (entry.getCount() > 0) {
+                counters.put(uiCounterName(entry.getElement()), entry.getCount());
             }
         }
         return counters;

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.6](https://github.com/witchesofthehill/manabrew/compare/v1.12.5...v1.12.6) (2026-07-21)
+
+### Fixes
+
+* bad prompt on partner ([#523](https://github.com/witchesofthehill/manabrew/issues/523)) ([8d73a02](https://github.com/witchesofthehill/manabrew/commit/8d73a029807ea8bec89dc558d41a53590fb45960))
+
+## [1.12.5](https://github.com/witchesofthehill/manabrew/compare/v1.12.4...v1.12.5) (2026-07-20)
+
 ## [1.12.4](https://github.com/witchesofthehill/manabrew/compare/v1.12.3...v1.12.4) (2026-07-19)
 
 ### Fixes

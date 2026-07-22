@@ -29,6 +29,7 @@ export const TargetingIntent = {
   LoseLife: "loseLife",
   Reveal: "reveal",
   Draw: "draw",
+  Fetch: "fetch",
   GainControl: "gainControl",
   Fight: "fight",
   Attach: "attach",

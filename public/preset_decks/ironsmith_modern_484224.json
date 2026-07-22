@@ -6,8 +6,6 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 306,
-  "source": "https://www.mtgtop8.com/event?e=37991&d=484224&f=MO",
-  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Spell Pierce",

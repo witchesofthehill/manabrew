@@ -6,8 +6,6 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 321,
-  "source": "https://www.mtgtop8.com/event?e=15614&d=295360&f=ST",
-  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Aether Hub",

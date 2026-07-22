@@ -6,8 +6,6 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 303,
-  "source": "https://www.mtgtop8.com/event?e=27058&d=412677&f=MO",
-  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Teferi, Time Raveler",

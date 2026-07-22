@@ -1,6 +1,5 @@
 import { ArrowLeft, Bot, Pencil, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { DeckCoverImage } from "@/components/deck/deckCover";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { FormatBadge } from "@/components/game/FormatBadge";
@@ -21,7 +20,6 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
   if (!savedDeck) {
     return (
       <div className="relative h-full min-h-0 overflow-hidden">
-        <BreweryBackdrop />
         <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto px-4 py-4">
           <div className="w-full max-w-md rounded-2xl border border-border/70 bg-card/90 p-6 text-center shadow-xl backdrop-blur-md">
             <h1 className="font-serif text-3xl font-light">Deck not found</h1>
@@ -48,7 +46,6 @@ export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <BreweryBackdrop />
       <div className="relative z-10 h-full overflow-y-auto">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-5 sm:px-8 sm:py-9">
           <section className="group grid min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-2xl backdrop-blur-md lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">

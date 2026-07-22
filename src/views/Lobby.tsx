@@ -3,7 +3,7 @@ import { UserList, type ConnectionState } from "@/components/lobby/UserList";
 import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
-import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
+import { RelayConnectionStatus } from "@/components/lobby/RelayConnectionStatus";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -568,7 +568,7 @@ export default function Lobby() {
       <div className="flex min-w-0 flex-1 flex-col">
         {!currentRoom && (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
-            <ReconnectBanner />
+            <RelayConnectionStatus />
 
             {!connected && error && (
               <Button

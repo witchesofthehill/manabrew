@@ -1,7 +1,6 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
@@ -45,7 +44,6 @@ export function PlayHome() {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <BreweryBackdrop />
       <div className="relative z-10 h-full overflow-y-auto">
         <div className="flex min-h-full w-full flex-col gap-6 px-4 py-6 sm:gap-7 sm:px-6 sm:py-9 lg:px-8">
           <header className="max-w-xl sm:pt-2">

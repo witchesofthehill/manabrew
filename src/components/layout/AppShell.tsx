@@ -7,6 +7,7 @@ import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
+import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { StatusBanner } from "./StatusBanner";
 import { TopBar } from "./TopBar";
 import { TopBarOverrideContext, type TopBarOverride } from "./TopBarOverride";
@@ -29,6 +30,17 @@ export function AppShell() {
   const isGameRoute = location.pathname.startsWith(ROUTES.GAME) || isGameActive;
   const isCompanionRoute = location.pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
+  const isPlayHome = location.pathname === ROUTES.PLAY;
+  const usesSubtleBackdrop =
+    location.pathname.startsWith(ROUTES.SEARCH) ||
+    location.pathname.startsWith(ROUTES.DECK_EDITOR) ||
+    location.pathname.startsWith(ROUTES.HUB) ||
+    location.pathname.startsWith(ROUTES.DRAFT) ||
+    location.pathname.startsWith(ROUTES.SEALED) ||
+    location.pathname.startsWith(ROUTES.WINSTON) ||
+    location.pathname.startsWith(ROUTES.GAUNTLET) ||
+    location.pathname.startsWith(ROUTES.DESIGN_SYSTEM) ||
+    location.pathname === "/card-mock";
   const hideNavChrome = isGameRoute && !isTabletopRoute;
   const activeTopBarOverride =
     topBarOverride?.locationKey === location.key &&
@@ -74,14 +86,24 @@ export function AppShell() {
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
         <main
           className={cn(
-            "flex-1 min-h-0 overflow-auto",
+            "relative isolate flex-1 min-h-0 overflow-auto",
             !isImmersiveRoute &&
               "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
             isImmersiveRoute && "!p-0 !overflow-hidden",
             isTabletopRoute && isGameRoute && "[--safe-area-inset-top:0px]",
           )}
         >
-          <Outlet />
+          {isImmersiveRoute ? (
+            <Outlet />
+          ) : (
+            <>
+              <BreweryBackdrop
+                variant={isPlayHome ? "hero" : usesSubtleBackdrop ? "subtle" : "ambient"}
+                className="-z-10"
+              />
+              <Outlet />
+            </>
+          )}
         </main>
       </div>
     </TopBarOverrideContext.Provider>

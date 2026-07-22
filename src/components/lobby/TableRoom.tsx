@@ -1,6 +1,6 @@
 import { LogOut, Shield, Swords, Users } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
-import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
+import { RelayConnectionStatus } from "@/components/lobby/RelayConnectionStatus";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -178,7 +178,7 @@ export function TableRoom({
             </div>
           </div>
           <div className="flex max-w-full flex-wrap items-center gap-2 sm:justify-end">
-            <ReconnectBanner />
+            <RelayConnectionStatus />
             <Button variant="ghost" size="sm" onClick={onLeaveRoom} className="self-start">
               <LogOut /> Leave table
             </Button>

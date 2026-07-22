@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Boxes, Swords } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +28,6 @@ export function OfflinePlayShell({ children }: OfflinePlayShellProps) {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      <BreweryBackdrop />
       <div className="relative z-10 flex h-full min-h-0 flex-col">
         <nav aria-label="Offline play type" className="shrink-0 px-4 pt-4 sm:px-6 lg:px-8">
           <div className="mx-auto grid w-full max-w-xl grid-cols-2 rounded-2xl border border-border/70 bg-background/80 p-1.5 shadow-xl backdrop-blur-md">

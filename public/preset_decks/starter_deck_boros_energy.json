@@ -258,7 +258,21 @@
           "name": "Cat Warrior",
           "component": "token"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Ajani, Nacatl Avenger",
+        "manaCost": "",
+        "typeLine": "Legendary Planeswalker — Ajani",
+        "oracleText": "+2: Put a +1/+1 counter on each Cat you control.\n0: Create a 2/1 white Cat Warrior creature token. When you do, if you control a red permanent other than Ajani, he deals damage equal to the number of creatures you control to any target.\n−4: Each opponent chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/0/d/0d16e8e0-31b2-4389-afd6-783c501f6fa0.jpg?1783911238",
+          "normal": "https://cards.scryfall.io/normal/back/0/d/0d16e8e0-31b2-4389-afd6-783c501f6fa0.jpg?1783911238",
+          "large": "https://cards.scryfall.io/large/back/0/d/0d16e8e0-31b2-4389-afd6-783c501f6fa0.jpg?1783911238",
+          "png": "https://cards.scryfall.io/png/back/0/d/0d16e8e0-31b2-4389-afd6-783c501f6fa0.png?1783911238",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/0/d/0d16e8e0-31b2-4389-afd6-783c501f6fa0.jpg?1783911238",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/0/d/0d16e8e0-31b2-4389-afd6-783c501f6fa0.jpg?1783911238"
+        }
+      }
     },
     {
       "name": "Windswept Heath",
@@ -482,7 +496,21 @@
           "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Reflection of Kiki-Jiki",
+        "manaCost": "",
+        "typeLine": "Enchantment Creature — Goblin Shaman",
+        "oracleText": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "normal": "https://cards.scryfall.io/normal/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "large": "https://cards.scryfall.io/large/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "png": "https://cards.scryfall.io/png/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.png?1783923875",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875"
+        }
+      }
     },
     {
       "name": "Mountain",
@@ -574,7 +602,21 @@
           "name": "Dragon",
           "component": "token"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Avatar Roku",
+        "manaCost": "",
+        "typeLine": "Legendary Creature — Avatar",
+        "oracleText": "Firebending 4 (Whenever this creature attacks, add {R}{R}{R}{R}. This mana lasts until end of combat.)\n{8}: Create a 4/4 red Dragon creature token with flying and firebending 4.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/9/5/95f2f5af-d405-4534-8683-5a9001f997b4.jpg?1783904959",
+          "normal": "https://cards.scryfall.io/normal/back/9/5/95f2f5af-d405-4534-8683-5a9001f997b4.jpg?1783904959",
+          "large": "https://cards.scryfall.io/large/back/9/5/95f2f5af-d405-4534-8683-5a9001f997b4.jpg?1783904959",
+          "png": "https://cards.scryfall.io/png/back/9/5/95f2f5af-d405-4534-8683-5a9001f997b4.png?1783904959",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/9/5/95f2f5af-d405-4534-8683-5a9001f997b4.jpg?1783904959",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/9/5/95f2f5af-d405-4534-8683-5a9001f997b4.jpg?1783904959"
+        }
+      }
     },
     {
       "name": "Elegant Parlor",

@@ -60,6 +60,7 @@
     "ZoneKind"
   ],
   "deck": [
+    "CardBackFaceSummary",
     "CardImageUris",
     "CardPart",
     "CardPartComponent",
@@ -104,6 +105,11 @@
       "ts": "interface BlockableAttackerDto {\n  attackerId: string;\n  validBlockerIds: Array<string>;\n  minBlockers: number;\n  maxBlockers?: number;\n  mustBeBlocked: boolean;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct BlockableAttackerDto {\n    pub attacker_id: String,\n    pub valid_blocker_ids: Vec<String>,\n    pub min_blockers: u32,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub max_blockers: Option<u32>,\n    pub must_be_blocked: bool,\n}",
       "refs": []
+    },
+    "CardBackFaceSummary": {
+      "ts": "interface CardBackFaceSummary {\n  name: string;\n  manaCost: string;\n  typeLine: string;\n  oracleText: string;\n  uris: CardImageUris;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardBackFaceSummary {\n    pub name: String,\n    #[serde(default)]\n    pub mana_cost: String,\n    #[serde(default)]\n    pub type_line: String,\n    #[serde(default)]\n    pub oracle_text: String,\n    #[serde(default)]\n    pub uris: CardImageUris,\n}",
+      "refs": ["CardImageUris"]
     },
     "CardDto": {
       "ts": "interface CardDto {\n  id: string;\n  identity: CardIdentity;\n  color: string;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  power: string | null;\n  toughness: string | null;\n  basePower?: number;\n  baseToughness?: number;\n  text: string;\n  controllerId: string;\n  ownerId: string;\n  tapped: boolean;\n  isCrewed: boolean;\n  isAttacking: boolean;\n  attackingPlayerId?: string;\n  attackTargetId?: string;\n  keywords: Array<string>;\n  counters: Record<string, number>;\n  damage: number;\n  summoningSick: boolean;\n  isCopy: boolean;\n  isDoubleFaced: boolean;\n  isTransformed: boolean;\n  isFaceDown: boolean;\n  isBestowed: boolean;\n  phasedOut: boolean;\n  exerted: boolean;\n  isRingBearer: boolean;\n  attachedTo?: string;\n  attachmentIds: Array<string>;\n  mergedCardIds: Array<string>;\n  flashbackCost?: string;\n  kickerCost?: string;\n  effectiveManaCost?: string;\n  madnessCost?: string;\n  isMadnessExiled: boolean;\n  isPlotted: boolean;\n  isWarpExiled: boolean;\n  foil: boolean;\n  wouldDieInCombat: boolean;\n}",
@@ -206,9 +212,14 @@
       "refs": ["DeckCard", "DeckFormat", "DeckLabel", "PlaymatSettings"]
     },
     "DeckCard": {
-      "ts": "interface DeckCard {\n  identity: DeckCardIdentity;\n  uris: CardImageUris;\n  allParts?: Array<CardPart>;\n  color: string;\n  colorIdentity: Array<string>;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  keywords?: Array<string>;\n  power?: string;\n  toughness?: string;\n  text: string;\n  layout?: string;\n  isDoubleFaced?: boolean;\n}",
+      "ts": "interface DeckCard {\n  identity: DeckCardIdentity;\n  uris: CardImageUris;\n  allParts?: Array<CardPart>;\n  color: string;\n  colorIdentity: Array<string>;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  keywords?: Array<string>;\n  power?: string;\n  toughness?: string;\n  text: string;\n  layout?: string;\n  isDoubleFaced?: boolean;\n  /**\n   * Back face of a transform / modal_dfc card, captured at deck import.\n   * Absent on single-faced cards and on decks saved before it existed.\n   */\n  backFace?: CardBackFaceSummary;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCard {\n    pub identity: DeckCardIdentity,\n    #[serde(flatten)]\n    pub rules: CardRulesSummary,\n    #[serde(default)]\n    pub uris: CardImageUris,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub all_parts: Option<Vec<CardPart>>,\n}",
-      "refs": ["CardImageUris", "CardPart", "DeckCardIdentity"]
+      "refs": [
+        "CardBackFaceSummary",
+        "CardImageUris",
+        "CardPart",
+        "DeckCardIdentity"
+      ]
     },
     "DeckCardIdentity": {
       "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  foil?: boolean;\n}",

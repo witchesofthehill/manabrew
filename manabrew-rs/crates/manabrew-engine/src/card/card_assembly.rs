@@ -317,6 +317,7 @@ pub(crate) fn assemble_card(
 
             card.other_part = Some(CardOtherPart {
                 name: back_face.name.clone(),
+                is_modal: rules.split_type == forge_foundation::CardSplitType::Modal,
                 type_line: back_face.type_line.clone(),
                 mana_cost: back_face.mana_cost.clone(),
                 color: intrinsic_color(back_face),

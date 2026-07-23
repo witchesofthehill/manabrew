@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.0](https://github.com/witchesofthehill/manabrew/compare/v1.13.1...v1.14.0) (2026-07-23)
+
+### Features
+
+* **deck:** carry double-faced back faces into the engine ([#520](https://github.com/witchesofthehill/manabrew/issues/520)) ([2ce68bb](https://github.com/witchesofthehill/manabrew/commit/2ce68bb64b8984de463e9920f466b90b1e404f63))
+
+## [1.13.1](https://github.com/witchesofthehill/manabrew/compare/v1.13.0...v1.13.1) (2026-07-22)
+
 ## [1.13.0](https://github.com/witchesofthehill/manabrew/compare/v1.12.7...v1.13.0) (2026-07-22)
 
 ### Features

@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-hub"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license.workspace = true
 description = "Deck hub and analytics stats API for manabrew"
@@ -27,7 +27,7 @@ path = "src/main.rs"
 required-features = ["server"]
 
 [dependencies]
-manabrew-protocol = { path = "../manabrew-protocol", version = "1.0.1" }
+manabrew-protocol = { path = "../manabrew-protocol", version = "1.1.0" }
 serde = { workspace = true }
 ts-rs = { workspace = true }
 axum = { version = "0.7", optional = true }

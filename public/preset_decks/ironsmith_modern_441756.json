@@ -6,6 +6,8 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 315,
+  "source": "https://www.mtgtop8.com/event?e=31086&d=441756&f=MO",
+  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Monastery Swiftspear",

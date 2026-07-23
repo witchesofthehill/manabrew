@@ -6,6 +6,8 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 301,
+  "source": "https://www.mtgtop8.com/event?e=25852&d=393112&f=MO",
+  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Breeding Pool",

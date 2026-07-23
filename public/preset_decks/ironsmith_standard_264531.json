@@ -6,6 +6,8 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 319,
+  "source": "https://www.mtgtop8.com/event?e=11361&d=264531&f=ST",
+  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Bloodstained Mire",

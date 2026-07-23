@@ -6,6 +6,8 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 318,
+  "source": "https://www.mtgtop8.com/event?e=30677&d=439182&f=MO",
+  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Stormwing Entity",

@@ -6,6 +6,8 @@
   "opponent": "",
   "ai_eligible": false,
   "order": 310,
+  "source": "https://www.mtgtop8.com/event?e=31339&d=443121&f=MO",
+  "ironsmithSimilarityThreshold": 0.99,
   "cards": [
     {
       "name": "Soul-Scar Mage",

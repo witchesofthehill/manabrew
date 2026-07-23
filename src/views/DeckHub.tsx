@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
 import type { HubSort } from "@/api/hub";
+import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useHubStore } from "@/stores/useHubStore";
 import { FORMAT_DISPLAY } from "@/lib/constants";
 
@@ -40,10 +42,14 @@ export default function DeckHub() {
   const [page, setPage] = useState(1);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlDeckId = searchParams.get("deck");
 
   const list = useHubStore((s) => s.list);
   const listError = useHubStore((s) => s.listError);
   const fetchDecks = useHubStore((s) => s.fetchDecks);
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -130,7 +136,12 @@ export default function DeckHub() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {list.decks.map((deck) => (
-                    <HubDeckCard key={deck.id} deck={deck} onOpen={() => setPreviewId(deck.id)} />
+                    <HubDeckCard
+                      key={deck.id}
+                      deck={deck}
+                      onOpen={() => setPreviewId(deck.id)}
+                      onPlaytest={() => hubPlaytest(deck.id)}
+                    />
                   ))}
                 </div>
               )}
@@ -171,10 +182,14 @@ export default function DeckHub() {
       )}
 
       <HubDeckPreviewDialog
-        deckId={previewId}
-        onClose={() => setPreviewId(null)}
+        deckId={previewId ?? urlDeckId}
+        onClose={() => {
+          setPreviewId(null);
+          if (urlDeckId) setSearchParams({}, { replace: true });
+        }}
         onUnpublished={() => setRefreshKey((k) => k + 1)}
       />
+      {playtestDialog}
     </div>
   );
 }

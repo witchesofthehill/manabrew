@@ -111,7 +111,7 @@ function seedManualDeck(
 
 async function initializeGame({
   deck,
-  opponentDeck,
+  opponentDecks,
   formatId,
   set,
   commanderName,
@@ -119,7 +119,7 @@ async function initializeGame({
   isLaunchCurrent,
 }: {
   deck: Deck;
-  opponentDeck?: Deck;
+  opponentDecks?: Deck[];
   formatId?: string;
   commanderName?: string;
   engine?: EngineKind;
@@ -140,7 +140,7 @@ async function initializeGame({
   const platformType = getPlatform().type;
   if (
     engine === "Forge" &&
-    opponentDeck &&
+    opponentDecks?.length &&
     (platformType === "tauri" || (platformType === "web" && isHostedEngineAvailable()))
   ) {
     const launchForge = platformType === "tauri" ? startTauriForgeAiGame : startHostedAiGame;
@@ -164,7 +164,7 @@ async function initializeGame({
     try {
       const hostedLaunch = await launchForge({
         playerDeck: deck,
-        opponentDeck,
+        opponentDecks,
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
       });
@@ -226,7 +226,9 @@ async function initializeGame({
   }
 
   const gameDecks: Record<string, Deck> = { "player-0": deck };
-  if (opponentDeck) gameDecks["player-1"] = opponentDeck;
+  (opponentDecks ?? []).forEach((opponentDeck, index) => {
+    gameDecks[`player-${index + 1}`] = opponentDeck;
+  });
   const runtime = getSelectedGameRuntime();
 
   set({
@@ -253,7 +255,7 @@ async function initializeGame({
     deck,
     startingLife,
     commanderName: commanderName ?? null,
-    opponentDeck: opponentDeck ?? null,
+    opponentDecks: opponentDecks ?? null,
   });
   if (!isLaunchCurrent()) {
     await runtime.api.endGame();
@@ -301,7 +303,7 @@ export const useGameStore = create<GameState>()(
 
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
 
-      startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
+      startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
         if (get().isGameActive) return false;
         if (gameLaunchInFlight !== null) {
           toast.info("The previous game is still closing. Try again in a moment.");
@@ -312,7 +314,7 @@ export const useGameStore = create<GameState>()(
         try {
           await initializeGame({
             deck,
-            opponentDeck,
+            opponentDecks,
             formatId,
             commanderName,
             engine,

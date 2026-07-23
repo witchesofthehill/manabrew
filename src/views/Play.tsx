@@ -183,7 +183,7 @@ export default function Play() {
       <OfflinePlaySetup
         preSelectedDeckId={preSelectedDeckId}
         onStart={(playerDeck, opponentDeck, formatId, commanderName) =>
-          startGame(playerDeck, formatId, commanderName, opponentDeck, resolveOfflineEngine())
+          startGame(playerDeck, formatId, commanderName, [opponentDeck], resolveOfflineEngine())
         }
       />
     </OfflinePlayShell>

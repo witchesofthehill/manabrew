@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.14.0](https://github.com/witchesofthehill/manabrew/compare/v1.13.1...v1.14.0) (2026-07-23)
+
+### Features
+
+* **deck:** carry double-faced back faces into the engine ([#520](https://github.com/witchesofthehill/manabrew/issues/520)) ([2ce68bb](https://github.com/witchesofthehill/manabrew/commit/2ce68bb64b8984de463e9920f466b90b1e404f63))
+
+## [1.13.1](https://github.com/witchesofthehill/manabrew/compare/v1.13.0...v1.13.1) (2026-07-22)
+
+## [1.13.0](https://github.com/witchesofthehill/manabrew/compare/v1.12.7...v1.13.0) (2026-07-22)
+
+### Features
+
+* n-player ai game infrastructure for commander pods ([#516](https://github.com/witchesofthehill/manabrew/issues/516)) ([23174e9](https://github.com/witchesofthehill/manabrew/commit/23174e9619c0e6349dda53da3307f6c5b9872a87))
+
+## [1.12.7](https://github.com/witchesofthehill/manabrew/compare/v1.12.6...v1.12.7) (2026-07-22)
+
+### Fixes
+
+* **ironsmith:** keep minor Ironsmith WASM updates automatic ([#528](https://github.com/witchesofthehill/manabrew/issues/528)) ([8cbcc64](https://github.com/witchesofthehill/manabrew/commit/8cbcc64cd75f470d0d15ef04da0365b99e70121b))
+
 ## [1.12.6](https://github.com/witchesofthehill/manabrew/compare/v1.12.5...v1.12.6) (2026-07-21)
 
 ### Fixes

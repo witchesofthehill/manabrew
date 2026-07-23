@@ -1,4 +1,10 @@
-import type { CardPartComponent, Deck, DeckCard, DeckFormat } from "@/protocol/deck";
+import type {
+  CardBackFaceSummary,
+  CardPartComponent,
+  Deck,
+  DeckCard,
+  DeckFormat,
+} from "@/protocol/deck";
 import type { ScryfallImageUris } from "@/types/scryfall";
 import { frontFaceName } from "@/lib/scryfall.utils";
 
@@ -19,6 +25,7 @@ interface PresetDeckCardDefinition {
   layout?: string;
   power?: string;
   toughness?: string;
+  backFace?: CardBackFaceSummary;
   allParts?: Array<{ name: string; component: CardPartComponent }>;
 }
 
@@ -62,6 +69,7 @@ export function expandPresetDeckDefinition(preset: PresetDeckDefinition): Deck {
         text: entry.text ?? "",
         uris: entry.uris,
         layout: entry.layout,
+        backFace: entry.backFace,
         allParts: entry.allParts,
       };
 

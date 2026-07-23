@@ -320,17 +320,26 @@ impl GameLoop {
                 });
             }
             TurnEvent::AdvanceTurn => {
-                self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                self.with_shared_state_mutation(game, agents, |_this, game, agents| {
                     // Rotate stack's turn-tracking (this_turn_cast → last_turn_cast).
                     game.stack.on_next_turn();
                     // Reset zone turn tracking for all zones.
                     game.reset_zone_turn_tracking();
                     game.reset_card_turn_tracking();
                     let player_order = game.player_order.clone();
+                    let extra_turn_player = game.extra_turns.front().map(|et| et.player);
                     if let Some((player, _skip)) =
                         game.turn.advance_turn(&mut game.extra_turns, &player_order)
                     {
                         game.player_set_skip_untap(player);
+                    }
+                    if let Some(player) = extra_turn_player {
+                        if agents[player.index()]
+                            .get_pass_until()
+                            .is_some_and(|target| target.player != player)
+                        {
+                            agents[player.index()].clear_pass_until();
+                        }
                     }
                 });
             }

@@ -131,7 +131,7 @@ impl GameLoop {
                     if card
                         .other_part
                         .as_ref()
-                        .is_some_and(|other| other.type_line.is_land())
+                        .is_some_and(|other| other.is_modal && other.type_line.is_land())
                     {
                         playable.push(crate::agent::PlayOption {
                             card_id,
@@ -142,11 +142,13 @@ impl GameLoop {
                 }
             } else {
                 // MDFC: emit both the back-face LAND and the front-face SPELL
-                // (Java `getPossibleActions`).
+                // (Java `getPossibleActions`). Only *modal* backs are playable;
+                // a transform back land (e.g. Search for Azcanta // Azcanta) is
+                // not — mirror `Card.hasPlayableLandFace` (gated on isModal).
                 if card
                     .other_part
                     .as_ref()
-                    .is_some_and(|other| other.type_line.is_land())
+                    .is_some_and(|other| other.is_modal && other.type_line.is_land())
                 {
                     let cant_play_land =
                         crate::staticability::static_ability_cant_be_cast::cant_play_land_ability(

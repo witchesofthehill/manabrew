@@ -82,7 +82,7 @@ export default function Tabletop() {
       <DeckVsSelector
         showEngineChoice={false}
         onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-          return startGame(playerDeck, formatId, commanderName, opponentDeck);
+          return startGame(playerDeck, formatId, commanderName, [opponentDeck]);
         }}
         onStartTabletop={(deck, formatId, commanderName) => {
           void startManualTabletopGame(deck, formatId, commanderName);

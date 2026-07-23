@@ -182,7 +182,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private concededPlayerSlots = new Set<string>();
 
   async startGame(params: StartGameParams): Promise<string> {
-    const opponentDeck = params.opponentDeck ?? params.deck;
+    const opponentDeck = params.opponentDecks?.[0] ?? params.deck;
     await this.startHost(
       {
         playerNames: ["You", "Opponent"],

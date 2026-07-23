@@ -1,7 +1,13 @@
-import type { DeckCard } from "@/protocol/deck";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { getDeckColors } from "@/components/deck/deckDisplay.utils";
 export { type CardGroup, groupCards } from "@/components/editor/deckBuilder.utils";
+
+export const PRESET_DECK_ID_PREFIX = "preset:";
+
+export function presetDeckParamId(deck: Deck): string {
+  return `${PRESET_DECK_ID_PREFIX}${deck.id ?? deck.name}`;
+}
 
 //
 export function categorize(

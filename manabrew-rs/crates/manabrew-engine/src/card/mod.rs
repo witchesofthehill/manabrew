@@ -95,6 +95,12 @@ pub fn parse_plotted_turn(kw: &str) -> Option<u32> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardOtherPart {
     pub name: String,
+    /// True when the card's split type is `Modal` (MDFC). Only a modal back face
+    /// may be played from hand; transform/meld backs may not. Mirrors
+    /// `Card.isModal()` (`getRules().getSplitType() == CardSplitType.Modal`).
+    /// Invariant across `transform()`, so it is not swapped there.
+    #[serde(default)]
+    pub is_modal: bool,
     pub type_line: CardTypeLine,
     pub mana_cost: ManaCost,
     pub color: ColorSet,
@@ -3602,6 +3608,12 @@ impl Card {
     /// Swaps all face-dependent characteristics with `other_part`.
     /// No-op if `other_part` is `None`.
     /// Mirrors Java's `CardUtil.applyState(card, CardStateName.Backside)`.
+    /// Mirror of `Card.isModal()`: true only for MDFC (modal) cards, whose back
+    /// face may be played from hand. Transform / meld backs are not modal.
+    pub fn is_modal(&self) -> bool {
+        self.other_part.as_ref().is_some_and(|other| other.is_modal)
+    }
+
     pub fn transform(&mut self) {
         if let Some(other) = self.other_part.as_mut() {
             std::mem::swap(&mut self.card_name, &mut other.name);

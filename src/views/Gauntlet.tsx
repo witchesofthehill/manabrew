@@ -118,7 +118,7 @@ export default function Gauntlet() {
         ),
       ]);
       armGauntletReturn(gauntletId, activeGauntlet.currentRound);
-      const started = await startGame(human, formatId, undefined, opponent);
+      const started = await startGame(human, formatId, undefined, [opponent]);
       if (!started) {
         clearGauntletReturn();
         return;

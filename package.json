@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "1.12.6",
+  "version": "1.14.0",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -101,7 +101,7 @@
     "clsx": "^2.1.1",
     "gsap": "^3.15.0",
     "immer": "^11.1.4",
-    "ironsmith-wasm": "0.1.0",
+    "ironsmith-wasm": "^0.1.1",
     "lucide-react": "^0.574.0",
     "next-themes": "^0.4.6",
     "pixi-filters": "^6.1.5",

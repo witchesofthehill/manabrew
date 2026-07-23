@@ -44,9 +44,10 @@ import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import type { ParsedDeckEntry } from "@/lib/deckImport";
 import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
-import { applyDeckFilters } from "@/views/myDecks.utils";
+import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/views/myDecks.utils";
 import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
+import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 
@@ -72,6 +73,7 @@ export default function DeckEditor() {
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
+  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = location.state as {
@@ -80,21 +82,20 @@ export default function DeckEditor() {
   } | null;
 
   function handleOpenPreset(deck: DeckType) {
-    setSearchParams(
-      { deck: `preset:${deck.id ?? deck.name}` },
-      { state: { deckEditorFromList: true } },
-    );
+    setSearchParams({ deck: presetDeckParamId(deck) }, { state: { deckEditorFromList: true } });
   }
 
   const presetSavedDecksUnfiltered: SavedDeck[] = presetDecks.map((deck) => ({
-    id: `preset:${deck.id ?? deck.name}`,
+    id: presetDeckParamId(deck),
     deck,
     savedAt: 0,
   }));
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(() =>
+    Boolean((location.state as { openImport?: boolean } | null)?.openImport),
+  );
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
   const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
 
@@ -174,8 +175,8 @@ export default function DeckEditor() {
       return;
     }
 
-    if (deckParam.startsWith("preset:")) {
-      const presetId = deckParam.slice("preset:".length);
+    if (deckParam.startsWith(PRESET_DECK_ID_PREFIX)) {
+      const presetId = deckParam.slice(PRESET_DECK_ID_PREFIX.length);
       const preset = presetDecks.find((d) => (d.id ?? d.name) === presetId);
       if (!preset) return;
       loadPresetDeck(preset);
@@ -429,6 +430,7 @@ export default function DeckEditor() {
                     key={s.id}
                     deck={s}
                     onOpen={() => handleSelectDeck(s.id)}
+                    onPlaytest={() => quickPlaytest(s.deck)}
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
                     onPublish={isFeatureEnabled("deckHub") ? () => setPublishingDeck(s) : undefined}
@@ -483,6 +485,7 @@ export default function DeckEditor() {
                         deck={s}
                         readOnly
                         onOpen={() => handleOpenPreset(s.deck)}
+                        onPlaytest={() => quickPlaytest(s.deck)}
                       />
                     ))}
                   </div>
@@ -519,6 +522,8 @@ export default function DeckEditor() {
           onOpenChange={setImportDialogOpen}
           onImport={handleTextImport}
         />
+
+        {playtestDialog}
 
         {publishingDeck && (
           <PublishDeckDialog

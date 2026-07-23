@@ -344,8 +344,9 @@ function runInteractiveGame(requestId: string, args?: Record<string, unknown>): 
   }
 
   const humanDeck = args?.deck as Deck | undefined;
-  const aiDeck = (args?.opponentDeck as Deck | undefined) ?? humanDeck;
-  if (!humanDeck || !aiDeck) {
+  const requestedAiDecks = args?.opponentDecks as Deck[] | undefined;
+  const aiDecks = requestedAiDecks?.length ? requestedAiDecks : humanDeck ? [humanDeck] : [];
+  if (!humanDeck || aiDecks.length === 0) {
     postError(requestId, "start_game requires a deck and opponent deck");
     return;
   }
@@ -358,7 +359,7 @@ function runInteractiveGame(requestId: string, args?: Record<string, unknown>): 
     "[GameWorker] Starting interactive game:",
     humanDeck.cards.length,
     "vs",
-    aiDeck.cards.length,
+    aiDecks.map((deck) => deck.cards.length).join("/"),
   );
 
   // Allocate SharedArrayBuffer for prompt/response communication
@@ -373,7 +374,7 @@ function runInteractiveGame(requestId: string, args?: Record<string, unknown>): 
 
   // Run the game — this BLOCKS the worker thread!
   try {
-    const result = run_interactive_game(humanDeck, aiDeck, config, gameSharedBuffer);
+    const result = run_interactive_game(humanDeck, aiDecks, config, gameSharedBuffer);
 
     console.log("[GameWorker] Game completed:", result);
     gameRunning = false;

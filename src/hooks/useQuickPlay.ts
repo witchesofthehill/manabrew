@@ -69,7 +69,7 @@ export function useQuickPlay() {
             deck,
             formatId,
             deck.commanders?.[0]?.identity.name,
-            opponent.deck,
+            [opponent.deck],
             resolveOfflineEngine(),
           );
         if (!started) return;
@@ -117,7 +117,7 @@ export function useQuickPlay() {
           preset,
           formatId,
           preset.commanders?.[0]?.identity.name,
-          opponent.deck,
+          [opponent.deck],
           resolveOfflineEngine(),
         );
       if (!started) return;

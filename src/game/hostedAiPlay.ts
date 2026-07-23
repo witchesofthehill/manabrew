@@ -1,20 +1,28 @@
 import { getPlatform } from "@/platform";
 import type { ActiveGameSession } from "@/lib/activeGameSession";
-import { getHostedAiServerConnectionDefaults } from "@/config/webRuntimeConfig";
+import {
+  getHostedAiServerConnectionDefaults,
+  isHostedEngineAvailable,
+} from "@/config/webRuntimeConfig";
 import type { ServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
+import type { EngineKind, GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
 import type {} from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 
 const HOSTED_AI_TIMEOUT_MS = 20_000;
 
+export function getDefaultAiEngine(): EngineKind {
+  if (getPlatform().type === "tauri") return "Forge";
+  return isHostedEngineAvailable() ? "Forge" : "Manabrew";
+}
+
 interface HostedAiGameRequest {
   playerDeck: Deck;
-  opponentDeck: Deck;
+  opponentDecks: Deck[];
   formatId: string;
   commanderName: string | null;
 }
@@ -43,7 +51,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
   if (!username) throw new Error("Hosted AI play requires a server username.");
 
   const format = serverFormatFromId(request.formatId);
-  const room = await findHostedRoom(format);
+  const room = await findHostedRoom(format, 1 + request.opponentDecks.length);
   return joinHostedRoomAndPlay(room.room_id, format, request, username);
 }
 
@@ -72,7 +80,9 @@ export async function startTauriForgeAiGame(
 
     const format = serverFormatFromId(request.formatId);
     await leaveCurrentRoomIfNeeded();
-    await useServerStore.getState().createRoom(`${username}'s Forge game`, 2, format, "Forge");
+    await useServerStore
+      .getState()
+      .createRoom(`${username}'s Forge game`, 1 + request.opponentDecks.length, format, "Forge");
     const roomId = useServerStore.getState().currentRoom?.room_id;
     if (!roomId) throw new Error("Failed to join the local Forge room.");
     const launch = await joinHostedRoomAndPlay(roomId, format, request, username);
@@ -129,25 +139,28 @@ async function joinHostedRoomAndPlay(
     });
     await platform.server.setReady({ ready: true });
 
+    const botDecks = request.opponentDecks.map((opponentDeck, index) => ({
+      deckName: opponentDeck.name || `AI Deck ${index + 1}`,
+      deck: opponentDeck,
+      commanderName: opponentDeck.commanders?.[0]?.identity.name ?? null,
+    }));
     await platform.server.sendRoomMessage(
       createRoomRelayEnvelope({
         protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
         roomId,
         payload: {
           type: "spawnBot",
-          deck: {
-            deckName: request.opponentDeck.name || "AI Deck",
-            deck: request.opponentDeck,
-            commanderName: request.opponentDeck.commanders?.[0]?.identity.name ?? null,
-          },
+          deck: botDecks[0],
+          decks: botDecks,
         },
       }),
     );
 
+    const expectedPlayers = 1 + request.opponentDecks.length;
     await waitForRoom(
       (next) =>
         next.room_id === roomId &&
-        next.players.length >= 2 &&
+        next.players.length >= expectedPlayers &&
         next.players.every(
           (player) => player.connected && player.ready && !!player.selected_deck_name,
         ),
@@ -232,14 +245,15 @@ async function ensureServerConnection(
   });
 }
 
-async function findHostedRoom(format: GameFormat): Promise<RoomInfo> {
+async function findHostedRoom(format: GameFormat, requiredSeats: number): Promise<RoomInfo> {
   const rooms = await fetchRooms();
   const room = rooms.find(
     (candidate) =>
       candidate.hosted &&
       candidate.status === "Lobby" &&
       candidate.format === "Any" &&
-      candidate.players.length < candidate.max_players,
+      candidate.players.length === 0 &&
+      candidate.max_players >= requiredSeats,
   );
   if (!room) {
     throw new Error(`No self-hosted room is available for ${format}.`);

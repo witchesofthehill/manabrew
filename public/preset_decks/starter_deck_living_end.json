@@ -327,7 +327,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1717013335",
         "border_crop": "https://cards.scryfall.io/border_crop/front/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1717013335"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Garden of Freyalise",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {G}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1783911228",
+          "normal": "https://cards.scryfall.io/normal/back/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1783911228",
+          "large": "https://cards.scryfall.io/large/back/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1783911228",
+          "png": "https://cards.scryfall.io/png/back/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.png?1783911228",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1783911228",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/a/8/a8e9ea5a-5e10-4b77-baef-0352ff035483.jpg?1783911228"
+        }
+      }
     },
     {
       "name": "Sink into Stupor // Soporific Springs",
@@ -351,7 +365,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1717013194",
         "border_crop": "https://cards.scryfall.io/border_crop/front/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1717013194"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Soporific Springs",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "normal": "https://cards.scryfall.io/normal/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "large": "https://cards.scryfall.io/large/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "png": "https://cards.scryfall.io/png/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.png?1783911236",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/5/3/5358b87a-1a29-426d-b165-40c97da2c14d.jpg?1783911236"
+        }
+      }
     },
     {
       "name": "Forest",

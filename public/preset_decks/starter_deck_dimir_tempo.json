@@ -187,7 +187,21 @@
           "name": "Tamiyo, Seasoned Scholar Emblem",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Tamiyo, Seasoned Scholar",
+        "manaCost": "",
+        "typeLine": "Legendary Planeswalker — Tamiyo",
+        "oracleText": "+2: Until your next turn, whenever a creature attacks you or a planeswalker you control, it gets -1/-0 until end of turn.\n−3: Return target instant or sorcery card from your graveyard to your hand. If it's a green card, add one mana of any color.\n−7: Draw cards equal to half the number of cards in your library, rounded up. You get an emblem with \"You have no maximum hand size.\"",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/a/2a717b98-cdac-416d-bf6c-f6b6638e65d1.jpg?1783911236",
+          "normal": "https://cards.scryfall.io/normal/back/2/a/2a717b98-cdac-416d-bf6c-f6b6638e65d1.jpg?1783911236",
+          "large": "https://cards.scryfall.io/large/back/2/a/2a717b98-cdac-416d-bf6c-f6b6638e65d1.jpg?1783911236",
+          "png": "https://cards.scryfall.io/png/back/2/a/2a717b98-cdac-416d-bf6c-f6b6638e65d1.png?1783911236",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/a/2a717b98-cdac-416d-bf6c-f6b6638e65d1.jpg?1783911236",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/a/2a717b98-cdac-416d-bf6c-f6b6638e65d1.jpg?1783911236"
+        }
+      }
     },
     {
       "name": "Fatal Push",

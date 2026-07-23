@@ -1,10 +1,17 @@
 import { VERSION } from "@/protocol";
 import { migrate as to_0_2_0 } from "./0.2.0";
+import { backfill as backfill_1_1_0 } from "./1.1.0";
+import type { DeckEnrichmentApi } from "./1.1.0";
 
 type AnyRecord = Record<string, unknown>;
 
-const MIGRATIONS: ReadonlyArray<{ version: string; migrate: (deck: AnyRecord) => AnyRecord }> = [
+const MIGRATIONS: ReadonlyArray<{
+  version: string;
+  migrate?: (deck: AnyRecord) => AnyRecord;
+  backfill?: (api: DeckEnrichmentApi) => Promise<void>;
+}> = [
   { version: "0.2.0", migrate: to_0_2_0 },
+  { version: "1.1.0", backfill: backfill_1_1_0 },
 ];
 
 function compareVersions(a: string, b: string): number {
@@ -22,7 +29,19 @@ export function migrateDeck<T extends { version?: string }>(deck: T): T {
   const from = deck.version ?? "0.0.0";
   let result: AnyRecord = deck as AnyRecord;
   for (const { version, migrate } of MIGRATIONS) {
-    if (compareVersions(version, from) > 0) result = migrate(result);
+    if (migrate && compareVersions(version, from) > 0) result = migrate(result);
   }
   return { ...result, version: VERSION } as T;
+}
+
+let backfillsStarted = false;
+
+/** The async half of migration: steps that need remote data run once per app
+ *  start, after hydration, over every stored deck. */
+export async function completeDeckMigrations(api: DeckEnrichmentApi): Promise<void> {
+  if (backfillsStarted) return;
+  backfillsStarted = true;
+  for (const { backfill } of MIGRATIONS) {
+    if (backfill) await backfill(api);
+  }
 }

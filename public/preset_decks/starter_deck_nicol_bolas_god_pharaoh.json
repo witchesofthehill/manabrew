@@ -391,7 +391,21 @@
           "name": "Core Set 2019 Checklist",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Nicol Bolas, the Arisen",
+        "manaCost": "",
+        "typeLine": "Legendary Planeswalker — Bolas",
+        "oracleText": "+2: Draw two cards.\n−3: Nicol Bolas deals 10 damage to target creature or planeswalker.\n−4: Put target creature or planeswalker card from a graveyard onto the battlefield under your control.\n−12: Exile all but the bottom card of target player's library.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/7/b/7b215968-93a6-4278-ac61-4e3e8c3c3943.jpg?1783934524",
+          "normal": "https://cards.scryfall.io/normal/back/7/b/7b215968-93a6-4278-ac61-4e3e8c3c3943.jpg?1783934524",
+          "large": "https://cards.scryfall.io/large/back/7/b/7b215968-93a6-4278-ac61-4e3e8c3c3943.jpg?1783934524",
+          "png": "https://cards.scryfall.io/png/back/7/b/7b215968-93a6-4278-ac61-4e3e8c3c3943.png?1783934524",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/7/b/7b215968-93a6-4278-ac61-4e3e8c3c3943.jpg?1783934524",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/7/b/7b215968-93a6-4278-ac61-4e3e8c3c3943.jpg?1783934524"
+        }
+      }
     },
     {
       "name": "Hostage Taker",
@@ -465,7 +479,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1681763406",
         "border_crop": "https://cards.scryfall.io/border_crop/front/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1681763406"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Lavaglide Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1783929299",
+          "normal": "https://cards.scryfall.io/normal/back/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1783929299",
+          "large": "https://cards.scryfall.io/large/back/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1783929299",
+          "png": "https://cards.scryfall.io/png/back/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.png?1783929299",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1783929299",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/7/8/78792607-0872-4de4-a9d8-92f1d58f4a71.jpg?1783929299"
+        }
+      }
     },
     {
       "name": "Thieving Skydiver",
@@ -515,7 +543,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1669839373",
         "border_crop": "https://cards.scryfall.io/border_crop/front/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1669839373"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Searstep Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "normal": "https://cards.scryfall.io/normal/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "large": "https://cards.scryfall.io/large/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "png": "https://cards.scryfall.io/png/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.png?1783928185",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/0/c/0ce39a19-f51d-4a35-ae80-5b82eb15fcff.jpg?1783928185"
+        }
+      }
     },
     {
       "name": "Valki, God of Lies // Tibalt, Cosmic Impostor",
@@ -550,7 +592,21 @@
           "name": "Valki, God of Lies // Tibalt, Cosmic Impostor",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Tibalt, Cosmic Impostor",
+        "manaCost": "{5}{B}{R}",
+        "typeLine": "Legendary Planeswalker — Tibalt",
+        "oracleText": "As Tibalt enters, you get an emblem with \"You may play cards exiled with Tibalt, Cosmic Impostor, and you may spend mana as though it were mana of any color to cast those spells.\"\n+2: Exile the top card of each player's library.\n−3: Exile target artifact or creature.\n−8: Exile all graveyards. Add {R}{R}{R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/e/a/ea7e4c65-b4c4-4795-9475-3cba71c50ea5.jpg?1783928244",
+          "normal": "https://cards.scryfall.io/normal/back/e/a/ea7e4c65-b4c4-4795-9475-3cba71c50ea5.jpg?1783928244",
+          "large": "https://cards.scryfall.io/large/back/e/a/ea7e4c65-b4c4-4795-9475-3cba71c50ea5.jpg?1783928244",
+          "png": "https://cards.scryfall.io/png/back/e/a/ea7e4c65-b4c4-4795-9475-3cba71c50ea5.png?1783928244",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/e/a/ea7e4c65-b4c4-4795-9475-3cba71c50ea5.jpg?1783928244",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/e/a/ea7e4c65-b4c4-4795-9475-3cba71c50ea5.jpg?1783928244"
+        }
+      }
     },
     {
       "name": "Damnation",
@@ -890,7 +946,21 @@
           "name": "Day // Night",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Rahilda, Feral Outlaw",
+        "manaCost": "",
+        "typeLine": "Legendary Creature — Werewolf",
+        "oracleText": "Double strike\nWhen Rahilda, Feral Outlaw deals combat damage to a player, exile a nonland card from their library at random. During any turn you attacked with a Wolf or Werewolf, you may cast that card and you may spend mana as though it were mana of any color to cast that spell.\nNightbound (If a player casts at least two spells during their own turn, it becomes day next turn.)",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/f/2f986406-bfe3-4e59-bcb6-839ef5f1fbc4.jpg?1783924549",
+          "normal": "https://cards.scryfall.io/normal/back/2/f/2f986406-bfe3-4e59-bcb6-839ef5f1fbc4.jpg?1783924549",
+          "large": "https://cards.scryfall.io/large/back/2/f/2f986406-bfe3-4e59-bcb6-839ef5f1fbc4.jpg?1783924549",
+          "png": "https://cards.scryfall.io/png/back/2/f/2f986406-bfe3-4e59-bcb6-839ef5f1fbc4.png?1783924549",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/f/2f986406-bfe3-4e59-bcb6-839ef5f1fbc4.jpg?1783924549",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/f/2f986406-bfe3-4e59-bcb6-839ef5f1fbc4.jpg?1783924549"
+        }
+      }
     },
     {
       "name": "Otawara, Soaring City",
@@ -1243,7 +1313,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1682203978",
         "border_crop": "https://cards.scryfall.io/border_crop/front/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1682203978"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "The True Scriptures",
+        "manaCost": "",
+        "typeLine": "Enchantment — Saga",
+        "oracleText": "(As this Saga enters and after your draw step, add a lore counter.)\nI — For each opponent, destroy up to one target creature or planeswalker that player controls.\nII — Each opponent discards three cards, then mills three cards.\nIII — Put all creature cards from all graveyards onto the battlefield under your control. Exile this Saga, then return it to the battlefield (front face up).",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1783917007",
+          "normal": "https://cards.scryfall.io/normal/back/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1783917007",
+          "large": "https://cards.scryfall.io/large/back/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1783917007",
+          "png": "https://cards.scryfall.io/png/back/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.png?1783917007",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1783917007",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/b/f/bf2249e6-af74-4b88-8eb7-144ce8fa7f6b.jpg?1783917007"
+        }
+      }
     },
     {
       "name": "Clearwater Pathway // Murkwater Pathway",
@@ -1260,7 +1344,21 @@
       "text": "{T}: Add {U}.",
       "imageUrl": "https://cards.scryfall.io/normal/front/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.jpg?1669839436",
       "layout": "modal_dfc",
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Murkwater Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {B}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.jpg?1783929316",
+          "normal": "https://cards.scryfall.io/normal/back/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.jpg?1783929316",
+          "large": "https://cards.scryfall.io/large/back/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.jpg?1783929316",
+          "png": "https://cards.scryfall.io/png/back/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.png?1783929316",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.jpg?1783929316",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/b/4/b4b99ebb-0d54-4fe5-a495-979aaa564aa8.jpg?1783929316"
+        }
+      }
     },
     {
       "name": "Spiteful Banditry",
@@ -2008,7 +2106,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1717013242",
         "border_crop": "https://cards.scryfall.io/border_crop/front/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1717013242"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Fell Mire",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "normal": "https://cards.scryfall.io/normal/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "large": "https://cards.scryfall.io/large/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "png": "https://cards.scryfall.io/png/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.png?1783911234",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/a/3/a3cb782d-c459-468d-9779-9b5669abc337.jpg?1783911234"
+        }
+      }
     },
     {
       "name": "Crabomination",

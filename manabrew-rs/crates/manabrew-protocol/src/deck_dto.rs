@@ -55,6 +55,26 @@ pub struct CardRulesSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub is_double_faced: Option<bool>,
+    /// Back face of a transform / modal_dfc card, captured at deck import.
+    /// Absent on single-faced cards and on decks saved before it existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub back_face: Option<CardBackFaceSummary>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "deck/index.ts")]
+pub struct CardBackFaceSummary {
+    pub name: String,
+    #[serde(default)]
+    pub mana_cost: String,
+    #[serde(default)]
+    pub type_line: String,
+    #[serde(default)]
+    pub oracle_text: String,
+    #[serde(default)]
+    pub uris: CardImageUris,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

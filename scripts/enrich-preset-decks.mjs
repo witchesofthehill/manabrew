@@ -39,8 +39,15 @@ function hasMetadata(entry) {
   return META_FIELDS.some((f) => f in entry);
 }
 
+// A double-faced card (transform / modal_dfc) that predates the baked back face
+// needs one more fetch to add it. Non-DFC cards never do.
+function needsBackFace(entry) {
+  const dfc = entry.layout === "transform" || entry.layout === "modal_dfc";
+  return dfc && !("backFace" in entry);
+}
+
 function isFullyEnriched(entry) {
-  return hasMetadata(entry) && "allParts" in entry;
+  return hasMetadata(entry) && "allParts" in entry && !needsBackFace(entry);
 }
 
 function parseTypeLine(typeLine) {
@@ -72,11 +79,35 @@ function frontFace(sc) {
   return sc.card_faces?.[0] ?? sc;
 }
 
+// The back face (transform / modal_dfc), in `CardBackFaceSummary` shape, so the deck
+// carries it and rendering never needs a live Scryfall lookup. `undefined` for
+// single-faced cards and faces without their own image.
+function backFaceFromScryfall(sc) {
+  const back = sc.card_faces?.[1];
+  const img = back?.image_uris;
+  if (!back || !img) return undefined;
+  return {
+    name: back.name,
+    manaCost: back.mana_cost ?? "",
+    typeLine: back.type_line ?? "",
+    oracleText: back.oracle_text ?? "",
+    uris: {
+      small: img.small ?? "",
+      normal: img.normal ?? "",
+      large: img.large ?? "",
+      png: img.png ?? "",
+      art_crop: img.art_crop ?? "",
+      border_crop: img.border_crop ?? "",
+    },
+  };
+}
+
 function metadataFromScryfall(sc) {
   const front = frontFace(sc);
   const tl = front.type_line ?? sc.type_line ?? "";
   const { supertypes, types, subtypes } = parseTypeLine(tl);
   return {
+    backFace: backFaceFromScryfall(sc),
     manaCost: front.mana_cost ?? sc.mana_cost ?? "",
     colors: sc.colors ?? front.colors ?? [],
     colorIdentity: sc.color_identity ?? [],
@@ -98,7 +129,12 @@ function metadataFromScryfall(sc) {
 async function fetchBatch(identifiers) {
   const res = await fetch(`${SCRYFALL_API}/cards/collection`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    // Scryfall rejects the HTTP library's default User-Agent (400 generic_user_agent).
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "manabrew-preset-enricher/1.0",
+    },
     body: JSON.stringify({ identifiers }),
   });
   if (!res.ok) throw new Error(`Scryfall ${res.status}`);
@@ -209,7 +245,9 @@ async function main() {
       // preserve the existing shape and only patch in `allParts` so we don't
       // churn unrelated fields or drop the full `uris` object.
       if (hasMetadata(card)) {
-        return { ...card, allParts: meta.allParts ?? [] };
+        const patched = { ...card, allParts: meta.allParts ?? [] };
+        if (meta.backFace) patched.backFace = meta.backFace;
+        return patched;
       }
       const ordered = { name: card.name };
       if (card.count !== undefined) ordered.count = card.count;

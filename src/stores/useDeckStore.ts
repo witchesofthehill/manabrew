@@ -5,7 +5,7 @@ import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
-import { migrateDeck } from "@/migrations/deck";
+import { migrateDeck, completeDeckMigrations } from "@/migrations/deck";
 import { getFormat, canBePartners, canHaveAnyNumberOf, copyLimitFromText } from "@/lib/formats";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { collectAllPartsNames } from "@/lib/decks";
@@ -805,6 +805,9 @@ export const useDeckStore = create<DeckState>()(
             useDeckStore.setState({ migrationError: true });
           } else {
             deckPersistReady = true;
+            // Deferred: sync hydration fires this callback while the store is
+            // still being created, before `useDeckStore` is assigned.
+            queueMicrotask(() => void completeDeckMigrations(useDeckStore.getState()));
           }
         },
       },

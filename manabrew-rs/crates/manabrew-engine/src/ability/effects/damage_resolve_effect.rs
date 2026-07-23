@@ -65,7 +65,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                             ctx.game.card(cid),
                             &CounterType::M1M1,
                         ) {
-                            ctx.game.card_mut(cid).add_counter(&CounterType::M1M1, amount);
+                            crate::ability::effects::effect_context::add_counter_with_context(
+                                ctx.game,
+                                Some(ctx.trigger_handler),
+                                Some(ctx.agents),
+                                cid,
+                                &CounterType::M1M1,
+                                amount,
+                                crate::event::RunParams {
+                                    cause_player: Some(ctx.game.card(source).controller),
+                                    ..Default::default()
+                                },
+                                false,
+                            );
                         }
                     } else {
                         ctx.game.deal_damage_to_card(cid, amount);

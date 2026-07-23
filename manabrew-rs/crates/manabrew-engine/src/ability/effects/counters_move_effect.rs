@@ -52,5 +52,10 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     ctx.game
         .card_mut(from)
         .remove_counter(&counter_type, to_move);
-    ctx.game.card_mut(to).add_counter(&counter_type, to_move);
+    ctx.add_counter(
+        to,
+        &counter_type,
+        to_move,
+        crate::event::RunParams::default(),
+    );
 }

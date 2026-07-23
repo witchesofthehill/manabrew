@@ -16,7 +16,9 @@ use crate::event::RunParams;
 use crate::game::GameState;
 use crate::ids::{CardId, PlayerId};
 use crate::mana::ManaPool;
-use crate::replacement::replacement_handler::{apply_replacements_with_agents, ReplacementEvent};
+use crate::replacement::replacement_handler::{
+    apply_replacements, apply_replacements_with_agents, ReplacementEvent,
+};
 use crate::replacement::ReplacementResult;
 use crate::spellability::SpellAbility;
 use crate::trigger::handler::TriggerHandler;
@@ -45,6 +47,87 @@ pub struct EffectContext<'a> {
     /// Parity tests inject a JavaRandom-backed implementation; normal gameplay
     /// uses the default ThreadRngAdapter.
     pub rng: &'a mut dyn crate::game_rng::GameRng,
+}
+
+pub(crate) fn add_counter_with_context(
+    game: &mut GameState,
+    trigger_handler: Option<&mut TriggerHandler>,
+    agents: Option<&mut [Box<dyn PlayerAgent>]>,
+    card_id: CardId,
+    counter_type: &CounterType,
+    amount: i32,
+    mut params: RunParams,
+    is_effect: bool,
+) -> i32 {
+    if amount <= 0 {
+        return 0;
+    }
+
+    let mut event = ReplacementEvent::AddCounter {
+        target: card_id,
+        counter_type: counter_type.clone(),
+        count: amount,
+        is_effect,
+    };
+    let result = match agents {
+        Some(agents) => apply_replacements_with_agents(game, agents, &mut event),
+        None => apply_replacements(game, &mut event),
+    };
+    if !matches!(
+        result,
+        ReplacementResult::NotReplaced | ReplacementResult::Updated
+    ) {
+        return 0;
+    }
+    let ReplacementEvent::AddCounter { count, .. } = event else {
+        return 0;
+    };
+    if count <= 0 {
+        return 0;
+    }
+    if game.card(card_id).phased_out
+        || crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
+            &game.cards,
+            game.card(card_id),
+            counter_type,
+        )
+    {
+        return 0;
+    }
+
+    let old_value = game.card(card_id).counter_count(counter_type);
+    let count = if let Some(max) = crate::staticability::static_ability_max_counter::max_counter(
+        &game.cards,
+        game.card(card_id),
+        counter_type,
+    ) {
+        (max - old_value).clamp(0, count)
+    } else {
+        count
+    };
+    if count <= 0 {
+        return 0;
+    }
+
+    game.card_mut(card_id)
+        .add_counter_internal(counter_type, count);
+    let new_value = game.card(card_id).counter_count(counter_type);
+    if new_value <= old_value {
+        return 0;
+    }
+
+    if let Some(trigger_handler) = trigger_handler {
+        params.card = Some(card_id);
+        params.counter_type = Some(format!("{counter_type:?}"));
+        for counter_amount in (old_value + 1)..=new_value {
+            params.counter_amount = Some(counter_amount);
+            trigger_handler.run_trigger(TriggerType::CounterAdded, params.clone(), false);
+        }
+        params.counter_amount = Some(new_value - old_value);
+        trigger_handler.run_trigger(TriggerType::CounterAddedOnce, params, false);
+    }
+
+    new_value - old_value
 }
 
 impl EffectContext<'_> {
@@ -117,72 +200,17 @@ impl EffectContext<'_> {
         card_id: CardId,
         counter_type: &CounterType,
         amount: i32,
-        mut params: RunParams,
+        params: RunParams,
     ) -> i32 {
-        if amount <= 0 {
-            return 0;
-        }
-
-        let mut event = ReplacementEvent::AddCounter {
-            target: card_id,
-            counter_type: counter_type.clone(),
-            count: amount,
-            is_effect: true,
-        };
-        let result = apply_replacements_with_agents(&mut *self.game, self.agents, &mut event);
-        if !matches!(
-            result,
-            ReplacementResult::NotReplaced | ReplacementResult::Updated
-        ) {
-            return 0;
-        }
-        let ReplacementEvent::AddCounter { count, .. } = event else {
-            return 0;
-        };
-        if count <= 0 {
-            return 0;
-        }
-        if self.game.card(card_id).phased_out
-            || crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-                &self.game.cards,
-                self.game.card(card_id),
-                counter_type,
-            )
-        {
-            return 0;
-        }
-
-        let old_value = self.game.card(card_id).counter_count(counter_type);
-        let count = if let Some(max) = crate::staticability::static_ability_max_counter::max_counter(
-            &self.game.cards,
-            self.game.card(card_id),
+        add_counter_with_context(
+            self.game,
+            Some(self.trigger_handler),
+            Some(self.agents),
+            card_id,
             counter_type,
-        ) {
-            (max - old_value).clamp(0, count)
-        } else {
-            count
-        };
-        if count <= 0 {
-            return 0;
-        }
-        self.game
-            .card_mut(card_id)
-            .add_counter_internal(counter_type, count);
-        let new_value = self.game.card(card_id).counter_count(counter_type);
-        if new_value <= old_value {
-            return 0;
-        }
-
-        params.card = Some(card_id);
-        params.counter_type = Some(format!("{counter_type:?}"));
-        for counter_amount in (old_value + 1)..=new_value {
-            params.counter_amount = Some(counter_amount);
-            self.trigger_handler
-                .run_trigger(TriggerType::CounterAdded, params.clone(), false);
-        }
-        params.counter_amount = Some(new_value - old_value);
-        self.trigger_handler
-            .run_trigger(TriggerType::CounterAddedOnce, params, false);
-        new_value - old_value
+            amount,
+            params,
+            true,
+        )
     }
 }

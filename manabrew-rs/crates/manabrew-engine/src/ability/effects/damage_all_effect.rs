@@ -112,9 +112,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     ctx.game.card(card_id),
                     &crate::card::CounterType::M1M1,
                 ) {
-                    ctx.game
-                        .card_mut(card_id)
-                        .add_counter(&crate::card::CounterType::M1M1, num_dmg);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        ctx.game,
+                        Some(ctx.trigger_handler),
+                        Some(ctx.agents),
+                        card_id,
+                        &crate::card::CounterType::M1M1,
+                        num_dmg,
+                        crate::event::RunParams {
+                            cause_player: sa.source.map(|src_id| ctx.game.card(src_id).controller),
+                            ..Default::default()
+                        },
+                        false,
+                    );
                 }
             } else if use_damage_map {
                 if let Some(src_id) = source {

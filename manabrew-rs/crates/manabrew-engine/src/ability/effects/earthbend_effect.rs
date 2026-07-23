@@ -66,7 +66,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
         // Add +1/+1 counters
         let counter_type = super::parse_counter_type("P1P1");
-        ctx.game.card_mut(card_id).add_counter(&counter_type, num);
+        ctx.add_counter(
+            card_id,
+            &counter_type,
+            num,
+            crate::event::RunParams::default(),
+        );
 
         register_return_trigger(ctx, sa, card_id, ZoneType::Graveyard);
         register_return_trigger(ctx, sa, card_id, ZoneType::Exile);

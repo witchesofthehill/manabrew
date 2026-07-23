@@ -30,7 +30,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             let current = *ctx.game.card(card_id).counters.get(ct).unwrap_or(&0);
             let to_add = current * (multiplier - 1);
             if to_add > 0 {
-                ctx.game.card_mut(card_id).add_counter(ct, to_add);
+                ctx.add_counter(card_id, ct, to_add, crate::event::RunParams::default());
             }
         } else {
             // Multiply ALL counter types
@@ -44,7 +44,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             for (ct, current) in counters {
                 let to_add = current * (multiplier - 1);
                 if to_add > 0 {
-                    ctx.game.card_mut(card_id).add_counter(&ct, to_add);
+                    ctx.add_counter(card_id, &ct, to_add, crate::event::RunParams::default());
                 }
             }
         }

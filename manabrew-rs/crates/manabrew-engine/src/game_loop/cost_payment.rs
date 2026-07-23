@@ -804,7 +804,19 @@ impl GameLoop {
                     counter_type,
                 } => {
                     let amount_n = amount.resolve(game, card_id, player);
-                    game.card_mut(card_id).add_counter(counter_type, amount_n);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        game,
+                        Some(&mut self.trigger_handler),
+                        Some(agents),
+                        card_id,
+                        counter_type,
+                        amount_n,
+                        RunParams {
+                            cause_player: Some(player),
+                            ..Default::default()
+                        },
+                        false,
+                    );
                 }
                 CostPart::Exile {
                     amount,
@@ -1466,7 +1478,19 @@ impl GameLoop {
                 } => {
                     let amount_n = amount.resolve(game, card_id, player);
                     if game.card(card_id).zone == ZoneType::Battlefield {
-                        game.card_mut(card_id).add_counter(counter_type, amount_n);
+                        crate::ability::effects::effect_context::add_counter_with_context(
+                            game,
+                            Some(&mut self.trigger_handler),
+                            Some(agents),
+                            card_id,
+                            counter_type,
+                            amount_n,
+                            RunParams {
+                                cause_player: Some(player),
+                                ..Default::default()
+                            },
+                            false,
+                        );
                     }
                 }
                 CostPart::Exile {

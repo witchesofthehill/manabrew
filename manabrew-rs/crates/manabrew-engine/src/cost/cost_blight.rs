@@ -9,7 +9,16 @@ use crate::ids::CardId;
 /// Puts a -1/-1 counter on each chosen creature.
 pub fn pay_as_decided_cards(game: &mut GameState, cards: &[CardId]) -> bool {
     for &cid in cards {
-        game.card_mut(cid).add_counter(&CounterType::M1M1, 1);
+        crate::ability::effects::effect_context::add_counter_with_context(
+            game,
+            None,
+            None,
+            cid,
+            &CounterType::M1M1,
+            1,
+            crate::event::RunParams::default(),
+            false,
+        );
     }
     true
 }

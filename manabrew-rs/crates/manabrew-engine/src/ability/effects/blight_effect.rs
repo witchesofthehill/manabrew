@@ -12,7 +12,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     if let Some(target) = sa.target_chosen.target_card {
         if ctx.game.card(target).zone == ZoneType::Battlefield {
             let ct = super::parse_counter_type("BLIGHT");
-            ctx.game.card_mut(target).add_counter(&ct, 1);
+            ctx.add_counter(target, &ct, 1, crate::event::RunParams::default());
         }
     }
 }

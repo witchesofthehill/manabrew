@@ -378,25 +378,19 @@ impl GameState {
                         // Fire AddCounter replacement (Hardened Scales, Doubling Season)
                         // ETB counters are treated as effect-based in Java (EffectOnly=true
                         // is set when entering the battlefield in GameAction.moveToPlay).
-                        let mut add_event = ReplacementEvent::AddCounter {
-                            target: card_id,
-                            counter_type: ct.clone(),
-                            count: amount,
-                            is_effect: true,
-                        };
-                        if let Some(agents) = agents.as_deref_mut() {
-                            apply_replacements_with_agents(self, agents, &mut add_event);
-                        } else {
-                            apply_replacements(self, &mut add_event);
-                        }
-                        let final_amount = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-                            count
-                        } else {
-                            amount
-                        };
-                        if final_amount > 0 {
-                            self.cards[card_id.index()].add_counter(&ct, final_amount);
-                        }
+                        crate::ability::effects::effect_context::add_counter_with_context(
+                            self,
+                            trigger_handler.as_mut().map(|handler| &mut **handler),
+                            agents.as_deref_mut(),
+                            card_id,
+                            &ct,
+                            amount,
+                            RunParams {
+                                cause_player: Some(self.cards[card_id.index()].controller),
+                                ..Default::default()
+                            },
+                            true,
+                        );
                     }
                 }
                 // Planeswalkers enter with loyalty counters equal to printed loyalty.
@@ -414,25 +408,19 @@ impl GameState {
                             &self.cards[card_id.index()],
                             &ct,
                         ) {
-                            let mut add_event = ReplacementEvent::AddCounter {
-                                target: card_id,
-                                counter_type: ct.clone(),
-                                count: loyalty,
-                                is_effect: true,
-                            };
-                            if let Some(agents) = agents.as_deref_mut() {
-                                apply_replacements_with_agents(self, agents, &mut add_event);
-                            } else {
-                                apply_replacements(self, &mut add_event);
-                            }
-                            let final_amount = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-                                count
-                            } else {
-                                loyalty
-                            };
-                            if final_amount > 0 {
-                                self.cards[card_id.index()].add_counter(&ct, final_amount);
-                            }
+                            crate::ability::effects::effect_context::add_counter_with_context(
+                                self,
+                                trigger_handler.as_mut().map(|handler| &mut **handler),
+                                agents.as_deref_mut(),
+                                card_id,
+                                &ct,
+                                loyalty,
+                                RunParams {
+                                    cause_player: Some(self.cards[card_id.index()].controller),
+                                    ..Default::default()
+                                },
+                                true,
+                            );
                         }
                     }
                 }
@@ -447,25 +435,19 @@ impl GameState {
                     ) {
                         // Fire AddCounter replacement (Hardened Scales, Doubling Season)
                         // ETB counters from mana are treated as effect-based in Java.
-                        let mut add_event = ReplacementEvent::AddCounter {
-                            target: card_id,
-                            counter_type: ct.clone(),
-                            count: etb_p1p1,
-                            is_effect: true,
-                        };
-                        if let Some(agents) = agents {
-                            apply_replacements_with_agents(self, agents, &mut add_event);
-                        } else {
-                            apply_replacements(self, &mut add_event);
-                        }
-                        let final_count = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-                            count
-                        } else {
-                            etb_p1p1
-                        };
-                        if final_count > 0 {
-                            self.cards[card_id.index()].add_counter(&ct, final_count);
-                        }
+                        crate::ability::effects::effect_context::add_counter_with_context(
+                            self,
+                            trigger_handler.as_mut().map(|handler| &mut **handler),
+                            agents.as_deref_mut(),
+                            card_id,
+                            &ct,
+                            etb_p1p1,
+                            RunParams {
+                                cause_player: Some(self.cards[card_id.index()].controller),
+                                ..Default::default()
+                            },
+                            true,
+                        );
                     }
                     self.cards[card_id.index()].etb_counters_p1p1 = 0;
                 }
@@ -482,7 +464,19 @@ impl GameState {
                         &self.cards[card_id.index()],
                         &ct,
                     ) {
-                        self.cards[card_id.index()].add_counter(&ct, sunburst);
+                        crate::ability::effects::effect_context::add_counter_with_context(
+                            self,
+                            trigger_handler.as_mut().map(|handler| &mut **handler),
+                            agents.as_deref_mut(),
+                            card_id,
+                            &ct,
+                            sunburst,
+                            RunParams {
+                                cause_player: Some(self.cards[card_id.index()].controller),
+                                ..Default::default()
+                            },
+                            true,
+                        );
                     }
                 }
                 // Update LKI snapshot: card just entered the battlefield.

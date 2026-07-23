@@ -99,7 +99,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
                 // Megamorph: add a +1/+1 counter when turning face-up
                 if sa.param_is_true(keys::MEGA) {
-                    card.add_counter(&crate::card::CounterType::P1P1, 1);
+                    ctx.add_counter(
+                        source_id,
+                        &crate::card::CounterType::P1P1,
+                        1,
+                        crate::event::RunParams::default(),
+                    );
                 }
 
                 // Fire TurnFaceUp trigger

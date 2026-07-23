@@ -16,7 +16,16 @@ pub fn pay_as_decided(
     amount: i32,
     counter_type: &CounterType,
 ) -> bool {
-    game.card_mut(source).add_counter(counter_type, amount);
+    crate::ability::effects::effect_context::add_counter_with_context(
+        game,
+        None,
+        None,
+        source,
+        counter_type,
+        amount,
+        crate::event::RunParams::default(),
+        false,
+    );
     // TODO: Fire counter placement triggers via GameEntityCounterTable
     // Java's CostPutCounter.triggerCounterPutAll() handles this
     true

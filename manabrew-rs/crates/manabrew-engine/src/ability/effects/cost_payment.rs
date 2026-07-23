@@ -522,9 +522,19 @@ fn try_pay_effect_cost(
                 counter_type,
             } => {
                 let amount_n = amount.resolve(ctx.game, source, payer);
-                ctx.game
-                    .card_mut(source)
-                    .add_counter(counter_type, amount_n);
+                crate::ability::effects::effect_context::add_counter_with_context(
+                    ctx.game,
+                    Some(ctx.trigger_handler),
+                    Some(ctx.agents),
+                    source,
+                    counter_type,
+                    amount_n,
+                    crate::event::RunParams {
+                        cause_player: Some(payer),
+                        ..Default::default()
+                    },
+                    false,
+                );
             }
             CostPart::Discard {
                 amount,

@@ -1649,8 +1649,19 @@ fn deal_combat_damage_to_card(
                 game.card(target),
                 &crate::card::CounterType::M1M1,
             ) {
-                game.card_mut(target)
-                    .add_counter(&crate::card::CounterType::M1M1, amount);
+                crate::ability::effects::effect_context::add_counter_with_context(
+                    game,
+                    None,
+                    agents,
+                    target,
+                    &crate::card::CounterType::M1M1,
+                    amount,
+                    crate::event::RunParams {
+                        cause_player: Some(source_controller),
+                        ..Default::default()
+                    },
+                    false,
+                );
             }
         } else {
             game.deal_damage_to_card_from_with_agents(target, amount, Some(source), true, agents);

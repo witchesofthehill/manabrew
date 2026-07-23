@@ -403,33 +403,15 @@ pub(super) fn apply_post_move(
                 &ctx.game.cards[card_id.index()],
                 counter_type,
             ) {
-                let mut add_event =
-                    crate::replacement::replacement_handler::ReplacementEvent::AddCounter {
-                        target: card_id,
-                        counter_type: counter_type.clone(),
-                        count: amount,
-                        is_effect: true,
-                    };
-                crate::replacement::replacement_handler::apply_replacements_with_agents(
-                    ctx.game,
-                    ctx.agents,
-                    &mut add_event,
+                ctx.add_counter(
+                    card_id,
+                    counter_type,
+                    amount,
+                    crate::event::RunParams {
+                        cause_player: Some(controller),
+                        ..Default::default()
+                    },
                 );
-                let final_amount =
-                    if let crate::replacement::replacement_handler::ReplacementEvent::AddCounter {
-                        count,
-                        ..
-                    } = add_event
-                    {
-                        count
-                    } else {
-                        amount
-                    };
-                if final_amount > 0 {
-                    ctx.game
-                        .card_mut(card_id)
-                        .add_counter(counter_type, final_amount);
-                }
             }
         }
         ctx.trigger_handler
@@ -553,7 +535,15 @@ pub(super) fn apply_post_move(
                     .with_counters_type_enum()
                     .cloned()
                     .unwrap_or_else(|| parse_counter_type("P1P1"));
-                ctx.game.card_mut(card_id).add_counter(&ct, amount);
+                ctx.add_counter(
+                    card_id,
+                    &ct,
+                    amount,
+                    crate::event::RunParams {
+                        cause_player: Some(controller),
+                        ..Default::default()
+                    },
+                );
             }
         }
     }

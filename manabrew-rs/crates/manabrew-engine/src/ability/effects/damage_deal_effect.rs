@@ -105,9 +105,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     ctx.game.card(cid),
                     &crate::card::CounterType::M1M1,
                 ) {
-                    ctx.game
-                        .card_mut(cid)
-                        .add_counter(&crate::card::CounterType::M1M1, damage);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        ctx.game,
+                        Some(ctx.trigger_handler),
+                        Some(ctx.agents),
+                        cid,
+                        &crate::card::CounterType::M1M1,
+                        damage,
+                        crate::event::RunParams {
+                            cause_player: sa.source.map(|src_id| ctx.game.card(src_id).controller),
+                            ..Default::default()
+                        },
+                        false,
+                    );
                 }
             } else if use_damage_map {
                 if let Some(src_id) = sa.source {
@@ -262,9 +272,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     ctx.game.card(target_card),
                     &crate::card::CounterType::M1M1,
                 ) {
-                    ctx.game
-                        .card_mut(target_card)
-                        .add_counter(&crate::card::CounterType::M1M1, damage);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        ctx.game,
+                        Some(ctx.trigger_handler),
+                        Some(ctx.agents),
+                        target_card,
+                        &crate::card::CounterType::M1M1,
+                        damage,
+                        crate::event::RunParams {
+                            cause_player: sa.source.map(|src_id| ctx.game.card(src_id).controller),
+                            ..Default::default()
+                        },
+                        false,
+                    );
                 }
             } else if use_damage_map {
                 if let Some(src_id) = sa.source {

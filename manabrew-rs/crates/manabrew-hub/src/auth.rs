@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::Json;
 use chrono::{Duration, SecondsFormat, Utc};
 use manabrew_hub::dto::{
@@ -11,6 +11,7 @@ use manabrew_hub::dto::{
     ExchangeCodeRequest, MagicLinkRequest, MeResponse, OAuthStartRequest, OAuthStartResponse,
     UpdateHandleRequest,
 };
+use maud::{html, Markup, DOCTYPE};
 use rand::Rng;
 use reqwest::Url;
 use serde::Deserialize;
@@ -331,47 +332,42 @@ fn app_redirect(state: &AppState, return_to: &str, query: &[(&str, &str)]) -> Re
     }
 }
 
-fn html_escape(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-fn desktop_page(title: &str, body: &str) -> Response {
-    Html(format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><title>{title}</title>\
-         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>\
-         <body style=\"margin:0;display:flex;align-items:center;justify-content:center;\
-         min-height:100vh;background:#101014;color:#e8e8ec;\
-         font-family:system-ui,sans-serif\">\
-         <div style=\"text-align:center;padding:2rem;max-width:28rem\">{body}</div>\
-         </body></html>"
-    ))
+fn desktop_page(title: &str, body: Markup) -> Response {
+    html! {
+        (DOCTYPE)
+        html {
+            head {
+                meta charset="utf-8";
+                title { (title) }
+                meta name="viewport" content="width=device-width, initial-scale=1";
+            }
+            body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#101014;color:#e8e8ec;font-family:system-ui,sans-serif" {
+                div style="text-align:center;padding:2rem;max-width:28rem" { (body) }
+            }
+        }
+    }
     .into_response()
 }
 
 fn desktop_code_page(handle: &str, code: &str) -> Response {
-    let handle = html_escape(handle);
     desktop_page(
         "Manabrew sign-in",
-        &format!(
-            "<h1 style=\"font-size:1.2rem;margin-bottom:0.5rem\">Signed in as @{handle}</h1>\
-             <p style=\"color:#9a9aa5\">Enter this code in Manabrew to finish signing in:</p>\
-             <p style=\"font-size:2rem;letter-spacing:0.3em;font-weight:700;\
-             background:#1c1c22;border-radius:0.5rem;padding:1rem\">{code}</p>\
-             <p style=\"color:#9a9aa5\">The code expires in 5 minutes. You can close this tab.</p>"
-        ),
+        html! {
+            h1 style="font-size:1.2rem;margin-bottom:0.5rem" { "Signed in as @" (handle) }
+            p style="color:#9a9aa5" { "Enter this code in Manabrew to finish signing in:" }
+            p style="font-size:2rem;letter-spacing:0.3em;font-weight:700;background:#1c1c22;border-radius:0.5rem;padding:1rem" { (code) }
+            p style="color:#9a9aa5" { "The code expires in 5 minutes. You can close this tab." }
+        },
     )
 }
 
 fn desktop_message_page(title: &str, message: &str) -> Response {
     desktop_page(
         title,
-        &format!(
-            "<h1 style=\"font-size:1.2rem;margin-bottom:0.5rem\">{title}</h1>\
-             <p style=\"color:#9a9aa5\">{message}</p>"
-        ),
+        html! {
+            h1 style="font-size:1.2rem;margin-bottom:0.5rem" { (title) }
+            p style="color:#9a9aa5" { (message) }
+        },
     )
 }
 
@@ -724,12 +720,13 @@ async fn send_login_email(state: &AppState, api_key: &str, email: &str, code: &s
     let text = format!(
         "Your Manabrew sign-in code: {code}\n\nOr click: {link}\n\nThe code expires in 15 minutes. If you didn't request this, ignore this email."
     );
-    let html = format!(
-        "<p>Your Manabrew sign-in code:</p>\
-         <p style=\"font-size:1.6rem;letter-spacing:0.3em;font-weight:700\">{code}</p>\
-         <p><a href=\"{link}\">Or click here to sign in</a></p>\
-         <p>The code expires in 15 minutes. If you didn't request this, ignore this email.</p>"
-    );
+    let html = html! {
+        p { "Your Manabrew sign-in code:" }
+        p style="font-size:1.6rem;letter-spacing:0.3em;font-weight:700" { (code) }
+        p { a href=(link) { "Or click here to sign in" } }
+        p { "The code expires in 15 minutes. If you didn't request this, ignore this email." }
+    }
+    .into_string();
     let result = state
         .http
         .post("https://api.resend.com/emails")

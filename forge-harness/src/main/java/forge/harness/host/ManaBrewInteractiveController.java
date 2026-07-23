@@ -78,6 +78,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final HarnessPlayPlumbing playPlumbing;
     private String passUntilPlayer;
     private String passUntilPhase;
+    private int passUntilDeclaredTurn;
     private boolean probingPayability;
     private boolean autoConfirmPayment;
 
@@ -144,7 +145,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
         if (passUntilPhase != null) {
-            if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)) {
+            if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)
+                    || PriorityFastForward.invalidatedByExtraTurn(
+                            game, player, passUntilPlayer, passUntilDeclaredTurn)) {
                 passUntilPlayer = null;
                 passUntilPhase = null;
             } else if (PriorityFastForward.canSkip(game)) {
@@ -169,6 +172,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             passUntilPlayer = choice.untilPlayer();
             passUntilPhase = choice.untilPhase();
+            passUntilDeclaredTurn = game.getPhaseHandler().getTurn();
             final SpellAbility selected = choice.action();
             if (selected != null && selected.isManaAbility() && selected.getManaPart() != null) {
                 if (choice.color() == null) {

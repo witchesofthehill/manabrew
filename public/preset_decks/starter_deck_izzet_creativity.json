@@ -77,7 +77,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1604198070",
         "border_crop": "https://cards.scryfall.io/border_crop/front/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1604198070"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Spikefield Cave",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1783929354",
+          "normal": "https://cards.scryfall.io/normal/back/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1783929354",
+          "large": "https://cards.scryfall.io/large/back/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1783929354",
+          "png": "https://cards.scryfall.io/png/back/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.png?1783929354",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1783929354",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/a/6/a69541db-3f4e-412f-aa8e-dec1e74f74dc.jpg?1783929354"
+        }
+      }
     },
     {
       "name": "Sokenzan, Crucible of Defiance",
@@ -268,7 +282,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1669839416",
         "border_crop": "https://cards.scryfall.io/border_crop/front/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1669839416"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Lavaglide Pathway",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1783929311",
+          "normal": "https://cards.scryfall.io/normal/back/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1783929311",
+          "large": "https://cards.scryfall.io/large/back/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1783929311",
+          "png": "https://cards.scryfall.io/png/back/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.png?1783929311",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1783929311",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/6/2668ac91-6cda-4f81-a08d-4fc5f9cb35b2.jpg?1783929311"
+        }
+      }
     },
     {
       "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
@@ -309,7 +337,21 @@
           "name": "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki",
           "component": "combo_piece"
         }
-      ]
+      ],
+      "backFace": {
+        "name": "Reflection of Kiki-Jiki",
+        "manaCost": "",
+        "typeLine": "Enchantment Creature — Goblin Shaman",
+        "oracleText": "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "normal": "https://cards.scryfall.io/normal/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "large": "https://cards.scryfall.io/large/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "png": "https://cards.scryfall.io/png/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.png?1783923875",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/4/24c0d87b-0049-4beb-b9cb-6f813b7aa7dc.jpg?1783923875"
+        }
+      }
     },
     {
       "name": "Big Score",
@@ -484,7 +526,21 @@
         "art_crop": "https://cards.scryfall.io/art_crop/front/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1604198379",
         "border_crop": "https://cards.scryfall.io/border_crop/front/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1604198379"
       },
-      "allParts": []
+      "allParts": [],
+      "backFace": {
+        "name": "Valakut Stoneforge",
+        "manaCost": "",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\n{T}: Add {R}.",
+        "uris": {
+          "small": "https://cards.scryfall.io/small/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "normal": "https://cards.scryfall.io/normal/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "large": "https://cards.scryfall.io/large/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "png": "https://cards.scryfall.io/png/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.png?1783929350",
+          "art_crop": "https://cards.scryfall.io/art_crop/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350",
+          "border_crop": "https://cards.scryfall.io/border_crop/back/2/2/228e551e-023a-4c9a-8f32-58dae6ffdf7f.jpg?1783929350"
+        }
+      }
     },
     {
       "name": "Dig Through Time",

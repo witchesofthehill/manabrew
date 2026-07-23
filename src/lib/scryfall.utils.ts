@@ -1,4 +1,4 @@
-import type { DeckCard } from "@/protocol/deck";
+import type { CardBackFaceSummary, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
@@ -53,6 +53,37 @@ function detectIsDoubleFaced(sc: ScryfallCard): boolean {
   return !!(sc.card_faces && sc.card_faces.length >= 2 && sc.card_faces[1]?.image_uris);
 }
 
+// Same two-image gate as detectIsDoubleFaced: split/adventure/flip/room share
+// one image and return undefined.
+function buildBackFaceSummary(sc: ScryfallCard): CardBackFaceSummary | undefined {
+  const back = sc.card_faces?.[1];
+  const img = back?.image_uris;
+  if (!back || !img) return undefined;
+  return {
+    name: back.name,
+    manaCost: back.mana_cost ?? "",
+    typeLine: back.type_line ?? "",
+    oracleText: back.oracle_text ?? "",
+    uris: {
+      small: img.small,
+      normal: img.normal,
+      large: img.large,
+      png: img.png,
+      art_crop: img.art_crop,
+      border_crop: img.border_crop,
+    },
+  };
+}
+
+export function needsScryfallEnrichment(card: DeckCard): boolean {
+  const needsBasicMeta = (card.cmc === undefined || card.cmc === null) && !card.manaCost;
+  const needsAllParts = card.allParts === undefined;
+  const needsBackFace =
+    (card.isDoubleFaced === true || card.layout === "transform" || card.layout === "modal_dfc") &&
+    card.backFace === undefined;
+  return needsBasicMeta || needsAllParts || needsBackFace;
+}
+
 export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
   const id = sc.id;
   const { supertypes, types, subtypes } = parseTypeLine(getFrontTypeLine(sc));
@@ -77,6 +108,7 @@ export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
     text: getFrontOracleText(sc),
     uris,
     isDoubleFaced: detectIsDoubleFaced(sc) || undefined,
+    backFace: buildBackFaceSummary(sc),
     layout: sc.layout || undefined,
     allParts: sc.all_parts?.map((p) => ({ name: p.name, component: p.component })) ?? [],
   };

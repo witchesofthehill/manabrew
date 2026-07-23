@@ -10,3 +10,7 @@ forge/
 
 # release-please owns this file; reformatting it churns every release PR.
 CHANGELOG.md
+
+# gen-protocol-doc-types.mjs owns this file; CI diffs it against the raw
+# generator output, so a prettier pass makes the check permanently stale.
+website/src/generated/

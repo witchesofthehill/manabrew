@@ -25,6 +25,22 @@ final class PriorityFastForward {
         return activeSlot.equals(untilPlayer) && !current.isBefore(target);
     }
 
+    /**
+     * Without this, an extra turn will be swallowed by the PassUntil
+     * The engine would fast forward to opponents phase without even showing to the client
+     */
+    static boolean invalidatedByExtraTurn(
+            final Game game, final Player holder, final String untilPlayer, final int declaredTurn) {
+        final Player active = game.getPhaseHandler().getPlayerTurn();
+        if (active != holder || !active.isExtraTurn()) {
+            return false;
+        }
+        if (game.getPhaseHandler().getTurn() == declaredTurn) {
+            return false;
+        }
+        return !("player-" + SnapshotExtractor.playerIndex(game, holder)).equals(untilPlayer);
+    }
+
     /** A held target on a player who has left the game would never be reached. */
     private static boolean targetPlayerHasLost(final Game game, final String untilPlayer) {
         for (final Player p : game.getRegisteredPlayers()) {

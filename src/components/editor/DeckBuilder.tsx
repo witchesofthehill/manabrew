@@ -53,7 +53,7 @@ import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
@@ -407,17 +407,16 @@ export function DeckBuilder({
     id: DROP_ZONE.MAYBE,
   });
 
-  // Auto-enrich cards missing CMC/mana data, or missing the allParts contract
-  // (legacy saved decks predate this field).
+  // Auto-enrich cards missing CMC/mana data, or missing the allParts / backFace
+  // contract (legacy saved decks predate these fields).
   useEffect(() => {
     const allCards = [...currentDeck.cards, ...supplementaryCards];
     const toFetch = allCards
-      .filter((c) => {
-        if (enrichedNamesRef.current.has(c.identity.name.toLowerCase())) return false;
-        const needsBasicMeta = (c.cmc === undefined || c.cmc === null) && !c.manaCost;
-        const needsAllParts = c.allParts === undefined;
-        return needsBasicMeta || needsAllParts;
-      })
+      .filter(
+        (c) =>
+          !enrichedNamesRef.current.has(c.identity.name.toLowerCase()) &&
+          needsScryfallEnrichment(c),
+      )
       .map((c) => c.identity.name);
     if (toFetch.length === 0) return;
     const uniqueNames = [...new Set(toFetch)];

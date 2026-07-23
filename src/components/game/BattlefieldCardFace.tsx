@@ -1,4 +1,5 @@
 import type { CardDto } from "@/protocol/game";
+import type { CSSProperties } from "react";
 import type { ManaLetter } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
@@ -11,6 +12,8 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
+import { deriveCardRailState } from "@/components/game/cardRailState";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 
@@ -41,6 +44,7 @@ export function BattlefieldCardFace({
   const theme = useTheme().gameTheme;
   const u = width / 70;
   const height = width * (98 / 70);
+  const rail = deriveCardRailState(card);
 
   const colors = cardColors(colorIdentity);
   const colorless = colors.length === 0;
@@ -85,6 +89,9 @@ export function BattlefieldCardFace({
   const fontPt = Math.max(7, 9 * u);
   const radius = 5 * u;
   const pad = 3 * u;
+  const railOffsetRight = rail
+    ? `calc(${pad}px + var(--card-rail-width) + ${0.35 * u}px)`
+    : `${pad}px`;
 
   const typeLine =
     [...card.supertypes, ...card.types].join(" ") +
@@ -95,7 +102,11 @@ export function BattlefieldCardFace({
   const otherCounters = card.counters
     ? Object.fromEntries(
         Object.entries(card.counters).filter(
-          ([k]) => k !== "Loyalty" && k !== "P1P1" && k !== "M1M1",
+          ([k]) =>
+            k !== "Loyalty" &&
+            k !== "P1P1" &&
+            k !== "M1M1" &&
+            !(rail?.kind === "saga" && k === "Lore"),
         ),
       )
     : {};
@@ -186,12 +197,15 @@ export function BattlefieldCardFace({
           card.phasedOut && "opacity-30 grayscale",
           summoned && "opacity-80 grayscale-[0.85]",
         )}
-        style={{
-          width,
-          height,
-          borderRadius: radius,
-          background: theme.cardPlaceholder.fill,
-        }}
+        style={
+          {
+            ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
+            width,
+            height,
+            borderRadius: radius,
+            background: theme.cardPlaceholder.fill,
+          } as CSSProperties
+        }
       >
         {artCrop && (
           <ScryfallImg
@@ -255,6 +269,7 @@ export function BattlefieldCardFace({
           )}
         </div>
         {Overlays}
+        {rail && <CardRail state={rail} />}
         <div
           className="absolute inset-0 rounded-[inherit] pointer-events-none"
           style={{ border: `${borderW}px solid ${tint}` }}
@@ -271,14 +286,17 @@ export function BattlefieldCardFace({
         card.phasedOut && "opacity-30 grayscale",
         summoned && "opacity-80 grayscale-[0.85]",
       )}
-      style={{
-        width,
-        height,
-        borderRadius: radius,
-        border: `${borderW}px solid ${tint}`,
-        background: theme.cardPlaceholder.fill,
-        boxShadow: `0 ${1.5 * u}px ${3 * u}px ${withAlpha(theme.canvas.shadow, 0.5)}, inset 0 0 0 ${Math.max(0.5, 0.75 * u)}px ${withAlpha(theme.canvas.shadow, 0.4)}`,
-      }}
+      style={
+        {
+          ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
+          width,
+          height,
+          borderRadius: radius,
+          border: `${borderW}px solid ${tint}`,
+          background: theme.cardPlaceholder.fill,
+          boxShadow: `0 ${1.5 * u}px ${3 * u}px ${withAlpha(theme.canvas.shadow, 0.5)}, inset 0 0 0 ${Math.max(0.5, 0.75 * u)}px ${withAlpha(theme.canvas.shadow, 0.4)}`,
+        } as CSSProperties
+      }
     >
       <div
         className="flex items-center justify-between gap-1 shrink-0"
@@ -317,7 +335,7 @@ export function BattlefieldCardFace({
             className="absolute font-bold rounded leading-none"
             style={{
               ...ptStyle,
-              right: pad,
+              right: railOffsetRight,
               bottom: pad,
               fontSize: fontPt,
               padding: `${1.5 * u}px ${3 * u}px`,
@@ -332,7 +350,7 @@ export function BattlefieldCardFace({
             style={{
               backgroundColor: theme.counter.loyalty,
               color: theme.textOnTinted,
-              right: pad,
+              right: railOffsetRight,
               bottom: pad,
               fontSize: fontPt,
               padding: `${1.5 * u}px ${3 * u}px`,
@@ -352,6 +370,7 @@ export function BattlefieldCardFace({
           {typeLine}
         </span>
       </div>
+      {rail && <CardRail state={rail} />}
     </div>
   );
 }

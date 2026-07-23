@@ -3,6 +3,7 @@ import { Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
@@ -20,12 +21,14 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
-import { useGameDevStore } from "@/stores/useGameDevStore";
+import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import type { CardRailState } from "@/components/game/cardRailState";
+import { deriveCardRailState } from "@/components/game/cardRailState";
 
 interface CardPreviewProps {
   card: CardDto;
@@ -49,7 +52,15 @@ const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
 const MAX_PREVIEW_KEYWORDS = 8;
 
-function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: boolean }) {
+function CardDetailOverlay({
+  card,
+  horizontal,
+  rail,
+}: {
+  card: CardDto;
+  horizontal: boolean;
+  rail: CardRailState | null;
+}) {
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
@@ -114,16 +125,21 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
   const loyalty = card.counters?.Loyalty;
   const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
+  const railRightClass = rail ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]" : undefined;
+  const railRightStyle = rail ? `calc(5.5% + var(--card-rail-width) + 0.35rem)` : "5.5%";
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
   const showPT = creature && !horizontal && !!card.power && !!card.toughness;
 
   const overlayCounters = useMemo(() => {
     if (!card.counters) return null;
     const entries = Object.entries(card.counters).filter(
-      ([type, n]) => n > 0 && !(showLoyalty && type === "Loyalty"),
+      ([type, n]) =>
+        n > 0 &&
+        !(showLoyalty && type === "Loyalty") &&
+        !(rail?.kind === "saga" && type === "Lore"),
     );
     return entries.length ? Object.fromEntries(entries) : null;
-  }, [card.counters, showLoyalty]);
+  }, [card.counters, showLoyalty, rail]);
 
   return (
     <>
@@ -185,6 +201,7 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
         <PtBadge
           value={`${card.power}/${card.toughness}`}
           style={ptStyle}
+          className={railRightClass}
           baseValue={
             (ptState === "buffed" || ptState === "debuffed") &&
             card.basePower != null &&
@@ -196,7 +213,10 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
       )}
 
       {showLoyalty && (
-        <div className="absolute bottom-[5.5%] right-[5.5%] z-10 pointer-events-none">
+        <div
+          className="absolute bottom-[5.5%] z-10 pointer-events-none"
+          style={{ right: railRightStyle }}
+        >
           <span
             className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
             style={{
@@ -214,7 +234,11 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
           className={cn(
             "absolute bottom-1 left-1 z-10 max-w-[70%]",
             "flex flex-wrap gap-0.5 pointer-events-none",
-            showPT || showLoyalty ? "pr-12" : "right-1",
+            rail
+              ? "pr-[calc(3rem+var(--card-rail-width)+0.35rem)]"
+              : showPT || showLoyalty
+                ? "pr-12"
+                : "right-1",
           )}
         >
           <CounterDisplay counters={overlayCounters} size="md" />
@@ -262,19 +286,26 @@ export function CardPreview({
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing;
+  const rail = deriveCardRailState(card);
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
-  // `asDeckCard` handles a missing deck and always returns `uris` (real or `{}`);
-  // casting the raw CardDto instead left `uris` undefined → crash on index.
-  const deckCard: DeckCard = asDeckCard(deck, card);
+  const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
+  const deckCard: DeckCard = isDebugCard
+    ? ({
+        identity: { id: "", name: card.identity.name, setCode: "", cardNumber: "" },
+        uris: {},
+      } as DeckCard)
+    : asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const { setCode, cardNumber } = deckCard.identity;
-  // Empty set/number (e.g. the dev debug card) must fall through to a name-only
-  // lookup — passing "" builds a set+number key that never resolves an image.
-  const cardFaces = useCardFaces({
-    name: card.identity.name,
-    setCode: setCode || undefined,
-    cardNumber: cardNumber || undefined,
-  });
+  const cardFaces = useCardFaces(
+    isDebugCard
+      ? { name: card.identity.name }
+      : {
+          name: card.identity.name,
+          setCode: setCode || undefined,
+          cardNumber: cardNumber || undefined,
+        },
+  );
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
   const faceless = isFacelessCard(card);
@@ -294,7 +325,13 @@ export function CardPreview({
       }
     : null;
 
-  const horizontalCard = isHorizontalGameCard(card, deckCard.layout);
+  const horizontalCard = isDebugCard ? false : isHorizontalGameCard(card, deckCard.layout);
+  const fallbackCounters =
+    rail?.kind === "saga" && card.counters
+      ? Object.fromEntries(
+          Object.entries(card.counters).filter(([type, count]) => count > 0 && type !== "Lore"),
+        )
+      : card.counters;
   const [orientationFlipped, setOrientationFlipped] = useState(false);
   const [prevCardId, setPrevCardId] = useState(card.id);
   if (prevCardId !== card.id) {
@@ -446,7 +483,14 @@ export function CardPreview({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <div className="relative @container" style={{ width: cardWidth, height: cardHeight }}>
+        <div
+          className="relative @container"
+          style={{
+            ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
+            width: cardWidth,
+            height: cardHeight,
+          }}
+        >
           <div
             className={cn(
               "w-full h-full rounded-xl shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
@@ -514,7 +558,8 @@ export function CardPreview({
                     </span>
                   </div>
                 )}
-                <CardDetailOverlay card={card} horizontal={horizontal} />
+                <CardDetailOverlay card={card} horizontal={horizontal} rail={rail} />
+                {rail && <CardRail state={rail} />}
                 {showHoverAreas && (
                   <div
                     className="pointer-events-none absolute inset-0 z-30"
@@ -551,39 +596,45 @@ export function CardPreview({
                 )}
               </>
             ) : (
-              <div className="w-full h-full p-4 flex flex-col gap-2 bg-card">
-                <div className="flex justify-between items-start">
-                  <span className="font-bold text-sm leading-tight">{currentCardName}</span>
-                  {!hasDoubleFace &&
-                    (card.effectiveManaCost ? (
-                      <div className="flex flex-col items-end">
-                        <span className="line-through opacity-50">
-                          <ManaSymbols cost={card.manaCost} size="md" />
-                        </span>
-                        <span className="rounded border px-0.5" style={{ borderColor: ringColor }}>
-                          <ManaSymbols cost={card.effectiveManaCost} size="md" />
-                        </span>
-                      </div>
-                    ) : (
-                      <ManaSymbols cost={card.manaCost} size="md" />
-                    ))}
-                </div>
-                {!hasDoubleFace && (
-                  <div className="text-xs text-muted-foreground">{card.types?.join(" ")}</div>
-                )}
-                <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
-                  {hasDoubleFace && showBackFace
-                    ? `Back face: ${doubleFacedData!.backName}`
-                    : hasDoubleFace && !showBackFace
-                      ? `Front face: ${doubleFacedData!.frontName}`
-                      : card.text}
-                </div>
-                {card.counters && <CounterDisplay counters={card.counters} size="md" />}
-                {card.power && card.toughness && (
-                  <div className="text-right font-bold text-sm">
-                    {card.power}/{card.toughness}
+              <div className="w-full h-full p-4 flex gap-3 bg-card">
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="font-bold text-sm leading-tight">{currentCardName}</span>
+                    {!hasDoubleFace &&
+                      (card.effectiveManaCost ? (
+                        <div className="flex flex-col items-end">
+                          <span className="line-through opacity-50">
+                            <ManaSymbols cost={card.manaCost} size="md" />
+                          </span>
+                          <span
+                            className="rounded border px-0.5"
+                            style={{ borderColor: ringColor }}
+                          >
+                            <ManaSymbols cost={card.effectiveManaCost} size="md" />
+                          </span>
+                        </div>
+                      ) : (
+                        <ManaSymbols cost={card.manaCost} size="md" />
+                      ))}
                   </div>
-                )}
+                  {!hasDoubleFace && (
+                    <div className="text-xs text-muted-foreground">{card.types?.join(" ")}</div>
+                  )}
+                  <div className="flex-1 text-xs text-foreground/80 whitespace-pre-wrap">
+                    {hasDoubleFace && showBackFace
+                      ? `Back face: ${doubleFacedData!.backName}`
+                      : hasDoubleFace && !showBackFace
+                        ? `Front face: ${doubleFacedData!.frontName}`
+                        : card.text}
+                  </div>
+                  {fallbackCounters && <CounterDisplay counters={fallbackCounters} size="md" />}
+                  {card.power && card.toughness && (
+                    <div className="text-right font-bold text-sm">
+                      {card.power}/{card.toughness}
+                    </div>
+                  )}
+                </div>
+                {rail && <CardRail state={rail} placement="inline" />}
               </div>
             )}
           </div>

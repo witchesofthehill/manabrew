@@ -89,22 +89,50 @@ function buildDebugKeywordCard(
   controllerId: string,
   name: string,
   keywords: string[],
+  mode: "page" | "saga" | "class",
+  current: number,
+  final: number,
 ): ClientCardDto {
-  return {
+  const base = {
     ...GAME_CARD_DEFAULTS,
     id: DEBUG_KEYWORD_CARD_ID,
     identity: { name: name.trim() || "Raging Goblin", setCode: "", cardNumber: "", isToken: false },
-    color: "R",
-    manaCost: "{R}",
-    cmc: 1,
-    types: ["Creature"],
-    power: "1",
-    toughness: "1",
+    color: "C",
+    manaCost: "",
+    cmc: 0,
     text: "Dev debug card.",
     controllerId,
     ownerId: controllerId,
     zoneId: "dev-zone",
     keywords,
+    power: null,
+    toughness: null,
+  };
+
+  if (mode === "saga") {
+    return {
+      ...base,
+      types: ["Enchantment"],
+      subtypes: ["Saga"],
+      counters: { ...base.counters, Lore: current },
+      finalChapter: final,
+    };
+  }
+
+  if (mode === "class") {
+    return {
+      ...base,
+      types: ["Enchantment"],
+      subtypes: ["Class"],
+      classLevel: current,
+    };
+  }
+
+  return {
+    ...base,
+    types: ["Artifact"],
+    subtypes: [],
+    counters: { ...base.counters, Page: current },
   };
 }
 
@@ -1194,6 +1222,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
+  const debugCardMode = useGameDevStore((s) => s.debugCardMode);
+  const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
+  const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
 
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, CardDto>();
@@ -1205,11 +1236,27 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (debugCardEnabled && me?.id) {
       map.set(
         DEBUG_KEYWORD_CARD_ID,
-        buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords),
+        buildDebugKeywordCard(
+          me.id,
+          debugCardName,
+          debugBattlefieldKeywords,
+          debugCardMode,
+          debugCardCurrent,
+          debugCardFinal,
+        ),
       );
     }
     return map;
-  }, [gameView, debugCardEnabled, debugCardName, debugBattlefieldKeywords, me?.id]);
+  }, [
+    gameView,
+    debugCardEnabled,
+    debugCardName,
+    debugCardMode,
+    debugCardCurrent,
+    debugCardFinal,
+    debugBattlefieldKeywords,
+    me?.id,
+  ]);
 
   const regionOwnerOf = useCallback((card: CardDto, byId: Map<string, CardDto>): string => {
     let cur = card;
@@ -1239,7 +1286,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         pendingSet.has(c.id) && !c.keywords.includes("Vigilance") ? { ...c, tapped: true } : c,
       );
     if (debugCardEnabled) {
-      list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
+      list.push(
+        buildDebugKeywordCard(
+          me.id,
+          debugCardName,
+          debugBattlefieldKeywords,
+          debugCardMode,
+          debugCardCurrent,
+          debugCardFinal,
+        ),
+      );
     }
     return list;
   }, [
@@ -1249,6 +1305,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     attackAssignments,
     debugCardEnabled,
     debugCardName,
+    debugCardMode,
+    debugCardCurrent,
+    debugCardFinal,
     debugBattlefieldKeywords,
     regionOwnerOf,
     battlefieldById,

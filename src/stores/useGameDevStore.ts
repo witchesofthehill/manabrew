@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import type { CardDto } from "@/protocol/game";
 import type { ArrowType } from "@/pixi/types";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
@@ -30,6 +31,12 @@ export const DEV_PROMPT_ACTION_OVERRIDES = [
 ] as const;
 
 export type DevPromptActionOverride = (typeof DEV_PROMPT_ACTION_OVERRIDES)[number];
+
+export type DevCardRailMode = "page" | "saga" | "class";
+
+const DEFAULT_DEV_CARD_RAIL_MODE: DevCardRailMode = "page";
+const DEFAULT_DEV_CARD_RAIL_CURRENT = 1;
+const DEFAULT_DEV_CARD_RAIL_FINAL = 3;
 
 interface PixiPerfStats {
   fps: number;
@@ -169,6 +176,9 @@ interface GameDevState {
   debugBattlefieldKeywords: string[];
   debugCardEnabled: boolean;
   debugCardName: string;
+  debugCardMode: DevCardRailMode;
+  debugCardCurrent: number;
+  debugCardFinal: number;
   showHoverAreas: boolean;
   setShowHoverAreas: (value: boolean) => void;
   showGridSkeleton: boolean;
@@ -192,6 +202,11 @@ interface GameDevState {
   clearDebugBattlefieldKeywords: () => void;
   setDebugCardEnabled: (value: boolean) => void;
   setDebugCardName: (name: string) => void;
+  setDebugCardMode: (mode: DevCardRailMode) => void;
+  setDebugCardRail: (current: number, final: number) => void;
+  setDebugCardCurrent: (value: number) => void;
+  setDebugCardFinal: (value: number) => void;
+  resetDebugCardRail: () => void;
   resetDevSettings: () => void;
 }
 
@@ -208,6 +223,9 @@ export const useGameDevStore = create<GameDevState>()(
       debugBattlefieldKeywords: [],
       debugCardEnabled: false,
       debugCardName: "Raging Goblin",
+      debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
+      debugCardCurrent: DEFAULT_DEV_CARD_RAIL_CURRENT,
+      debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
       showHoverAreas: false,
       setShowHoverAreas: (value) => set({ showHoverAreas: value }),
       showGridSkeleton: false,
@@ -242,6 +260,33 @@ export const useGameDevStore = create<GameDevState>()(
       clearDebugBattlefieldKeywords: () => set({ debugBattlefieldKeywords: [] }),
       setDebugCardEnabled: (value) => set({ debugCardEnabled: value }),
       setDebugCardName: (name) => set({ debugCardName: name }),
+      setDebugCardMode: (mode) => set({ debugCardMode: mode }),
+      setDebugCardRail: (current, final) =>
+        set(() => {
+          const nextFinal = Math.max(1, Math.trunc(final));
+          return {
+            debugCardFinal: nextFinal,
+            debugCardCurrent: Math.max(0, Math.min(nextFinal, Math.trunc(current))),
+          };
+        }),
+      setDebugCardCurrent: (value) =>
+        set((state) => ({
+          debugCardCurrent: Math.max(0, Math.min(state.debugCardFinal, Math.trunc(value))),
+        })),
+      setDebugCardFinal: (value) =>
+        set((state) => {
+          const nextFinal = Math.max(1, Math.trunc(value));
+          return {
+            debugCardFinal: nextFinal,
+            debugCardCurrent: Math.min(state.debugCardCurrent, nextFinal),
+          };
+        }),
+      resetDebugCardRail: () =>
+        set({
+          debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
+          debugCardCurrent: DEFAULT_DEV_CARD_RAIL_CURRENT,
+          debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
+        }),
       resetDevSettings: () =>
         set({
           promptActionOverride: null,
@@ -252,6 +297,9 @@ export const useGameDevStore = create<GameDevState>()(
           debugBattlefieldKeywords: [],
           debugCardEnabled: false,
           debugCardName: "Raging Goblin",
+          debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
+          debugCardCurrent: DEFAULT_DEV_CARD_RAIL_CURRENT,
+          debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
           showHoverAreas: false,
           showGridSkeleton: false,
           showAttackRows: false,
@@ -299,8 +347,6 @@ export function hasActiveCardOverride(o: DevCardOverrides): boolean {
     o.damage != null
   );
 }
-
-import type { CardDto } from "@/protocol/game";
 
 export function applyCardOverrides(card: CardDto, o: DevCardOverrides): CardDto {
   if (!hasActiveCardOverride(o)) return card;

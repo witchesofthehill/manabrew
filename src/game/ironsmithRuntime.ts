@@ -12,34 +12,18 @@ import type {
 } from "@/platform";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import type { DirectiveInput, GameFormat, Prompt, PromptOutput } from "@/protocol";
+import type { DirectiveInput, GameFormat, Prompt, PromptOutput, ProtocolError } from "@/protocol";
 import type { GameViewDto } from "@/protocol/game";
 import type { RoomMessagePayload } from "@/types/server";
 
 let ironsmithInit: Promise<unknown> | null = null;
 const IRONSMITH_RELAY_PROTOCOL = "ironsmith-trusted";
 
-interface IronsmithPromptBinding {
-  promptId: string;
-  playerSlot: string;
-  decisionKind: string;
-  actionRefs: Record<string, unknown>;
-  targetKinds: Record<string, "player" | "object" | "planeswalker" | "battle">;
-  optionIndices: Record<string, number>;
+interface IronsmithViewResult {
+  state?: { gameView?: GameViewDto };
+  prompt?: Prompt;
+  error?: ProtocolError;
 }
-
-interface IronsmithPromptMapping {
-  forPlayer: string;
-  prompt: Prompt;
-  binding: IronsmithPromptBinding;
-}
-
-interface IronsmithFatalPrompt {
-  forPlayer: string;
-  message: string;
-}
-
-type IronsmithPromptResult = IronsmithPromptMapping | IronsmithFatalPrompt | null;
 
 export interface IronsmithDeckIssue {
   playerIndex: number;
@@ -79,15 +63,10 @@ type IronsmithWasmGame = InstanceType<typeof WasmGame> & {
     issues?: IronsmithDeckIssue[];
   };
   startManabrewMatch: (config: unknown) => unknown;
-  manabrewView: (promptId: string) => {
-    state?: { gameView?: GameViewDto };
-    promptResult?: IronsmithPromptResult;
-  };
+  manabrewView: (viewer?: number | null) => IronsmithViewResult;
   manabrewPublicState: () => { gameView?: GameViewDto };
-  manabrewCommandFromPromptOutput: (
-    output: PromptOutput,
-    binding: IronsmithPromptBinding,
-  ) => unknown;
+  manabrewRespond: (player: number, promptId: number, output: PromptOutput) => IronsmithViewResult;
+  manabrewApplyDirective: (player: number, directive: DirectiveInput) => IronsmithViewResult;
 };
 
 // Manabrew stores only a card's front face; Ironsmith builds a linked two-face
@@ -130,7 +109,11 @@ function matchConfig(params: {
   commanderNames: Array<string | null>;
   startingLife: number;
   format?: GameFormat | null;
+  botPlayerSlots?: string[];
 }) {
+  const botPlayers = (params.botPlayerSlots ?? []).map((slot) =>
+    Number(slot.replace("player-", "")),
+  );
   return {
     playerNames: params.playerNames,
     startingLife: params.startingLife,
@@ -139,6 +122,8 @@ function matchConfig(params: {
     decks: params.decks,
     commanderNames: params.commanderNames,
     openingHandSize: 7,
+    botPlayers,
+    humanPlayers: params.playerNames.map((_, index) => !botPlayers.includes(index)),
   };
 }
 
@@ -150,8 +135,9 @@ interface EncryptedRelayPayload {
 type IronsmithPrivatePayload =
   | { type: "state"; state: { gameView: GameViewDto } }
   | { type: "prompt"; prompt: Prompt }
+  | { type: "error"; error: ProtocolError }
   | { type: "fatal"; message: string }
-  | { type: "response"; action: PromptOutput }
+  | { type: "response"; promptId: number; action: PromptOutput }
   | { type: "directive"; directive: DirectiveInput };
 
 type IronsmithRoomRelayPayload =
@@ -170,7 +156,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private playerNames: string[] = [];
   private playerSlots: string[] = [];
   private botPlayerSlots = new Set<string>();
-  private pendingBindings = new Map<string, IronsmithPromptBinding>();
   private prompts = new Map<string, Prompt>();
   private roomRelayUnsubscribe: (() => void) | null = null;
   private keyPairPromise: Promise<CryptoKeyPair | null> | null = null;
@@ -178,7 +163,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private peerKeyFingerprints = new Map<string, string>();
   private sharedKeys = new Map<string, CryptoKey>();
   private hostPlayerSlot: string | null = null;
-  private promptSeq = 0;
   private concededPlayerSlots = new Set<string>();
 
   async startGame(params: StartGameParams): Promise<string> {
@@ -206,7 +190,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.playerSlots = params.playerNames.map((_, index) => `player-${index}`);
     this.botPlayerSlots = new Set(params.botPlayerSlots ?? []);
     this.prompts.clear();
-    this.pendingBindings.clear();
     this.concededPlayerSlots.clear();
     this.hostPlayerSlot =
       params.hostPlayerSlot ?? (params.localIsHost ? this.localPlayerSlot : null);
@@ -230,13 +213,17 @@ export class IronsmithTrustedGameApi implements IGameApi {
         await this.sendRelayHello();
         throw new Error("Ironsmith host relay is not ready yet; try again in a moment.");
       }
-      const sent = await this.sendPrivateRelay(hostSlot, { type: "response", action });
+      const sent = await this.sendPrivateRelay(hostSlot, {
+        type: "response",
+        promptId: params.promptId,
+        action,
+      });
       if (!sent) {
         throw new Error("Ironsmith private relay is not ready yet; try again in a moment.");
       }
       return;
     }
-    await this.applyResponse(playerSlot, action);
+    await this.applyResponse(playerSlot, params.promptId, action);
   }
 
   async sendDirective(params: SendDirectiveParams): Promise<void> {
@@ -270,7 +257,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.playerNames = [];
     this.playerSlots = [];
     this.botPlayerSlots.clear();
-    this.pendingBindings.clear();
     this.prompts.clear();
     this.peerPublicKeys.clear();
     this.peerKeyFingerprints.clear();
@@ -306,7 +292,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
     this.botPlayerSlots = botSlots;
     this.hostPlayerSlot = this.localPlayerSlot;
     const decks = await Promise.all(params.decks.map(enrichDeckFaces));
-    const config = matchConfig({ ...params, decks });
+    const config = matchConfig({ ...params, decks, botPlayerSlots: [...botSlots] });
     const validation = game.validateManabrewMatchConfig(config);
     if (
       validation &&
@@ -325,21 +311,24 @@ export class IronsmithTrustedGameApi implements IGameApi {
   private async endHostOnly(): Promise<void> {
     this.game?.free();
     this.game = null;
-    this.pendingBindings.clear();
     this.prompts.clear();
     this.concededPlayerSlots.clear();
   }
 
-  private async applyResponse(playerSlot: string, action: PromptOutput): Promise<void> {
+  private async applyResponse(
+    playerSlot: string,
+    promptId: number,
+    action: PromptOutput,
+  ): Promise<void> {
     if (!this.game) return;
-    const binding = this.pendingBindings.get(playerSlot);
-    if (!binding || binding.playerSlot !== playerSlot) {
-      await this.publish();
-      return;
-    }
+    const playerIndex = Number(playerSlot.replace("player-", ""));
     try {
-      const command = this.mapPromptOutputToCommand(action, binding);
-      this.game.dispatch(command);
+      const result = plainify(
+        this.game.manabrewRespond(playerIndex, promptId, action),
+      ) as IronsmithViewResult;
+      if (result.error) {
+        await this.publishProtocolError(playerSlot, result.error);
+      }
     } finally {
       await this.publish();
     }
@@ -350,7 +339,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
     try {
       if (directive.type === "concede") {
         this.concededPlayerSlots.add(playerSlot);
-        this.game.forfeitPlayer(Number(playerSlot.replace("player-", "")));
+      }
+      const playerIndex = Number(playerSlot.replace("player-", ""));
+      const result = plainify(
+        this.game.manabrewApplyDirective(playerIndex, directive),
+      ) as IronsmithViewResult;
+      if (result.error) {
+        await this.publishProtocolError(playerSlot, result.error);
       }
     } finally {
       await this.publish();
@@ -361,15 +356,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
     if (!this.game) return;
     const platform = getPlatform();
     this.prompts.clear();
-    this.pendingBindings.clear();
     let localStateSent = false;
     let publicStateSent = false;
-    const botResponses: Array<{ slot: string; action: PromptOutput }> = [];
+    const botResponses: Array<{ slot: string; promptId: number; action: PromptOutput }> = [];
 
     for (const slot of this.playerSlots) {
       const index = Number(slot.replace("player-", ""));
-      this.game.setPerspective(index);
-      const { gameView, prompt } = this.readManabrewView(String(++this.promptSeq));
+      const { gameView, prompt, error } = this.readManabrewView(index);
       if (this.isMultiplayer && !publicStateSent) {
         publicStateSent = true;
         await platform.server?.broadcastState({
@@ -384,50 +377,41 @@ export class IronsmithTrustedGameApi implements IGameApi {
         await this.sendPrivateRelay(slot, { type: "state", state: { gameView } });
       }
 
-      if (!prompt || prompt.forPlayer !== slot) continue;
-      if ("message" in prompt) {
-        if (slot === this.localPlayerSlot) {
-          platform.events.emit("game:fatal", { message: prompt.message });
-        } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
-          await this.sendPrivateRelay(slot, { type: "fatal", message: prompt.message });
-        }
-        continue;
+      if (error) {
+        await this.publishProtocolError(slot, error);
       }
-      this.prompts.set(slot, prompt.prompt);
-      this.pendingBindings.set(slot, prompt.binding);
+      if (!prompt || prompt.decidingPlayerId !== slot) continue;
+      this.prompts.set(slot, prompt);
       const autoAction =
-        this.isHost && this.botPlayerSlots.has(slot) ? botPromptOutput(prompt.prompt) : null;
+        this.isHost && this.botPlayerSlots.has(slot) ? botPromptOutput(prompt) : null;
       if (autoAction) {
-        botResponses.push({ slot, action: autoAction });
+        botResponses.push({ slot, promptId: Number(prompt.promptId ?? 0), action: autoAction });
       } else if (slot === this.localPlayerSlot) {
-        platform.events.emit("game:prompt", prompt.prompt);
+        platform.events.emit("game:prompt", prompt);
       } else if (this.isMultiplayer && !this.botPlayerSlots.has(slot)) {
-        await this.sendPrivateRelay(slot, { type: "prompt", prompt: prompt.prompt });
+        await this.sendPrivateRelay(slot, { type: "prompt", prompt });
       }
     }
 
     if (!localStateSent && this.playerSlots.length === 0) {
-      this.game.setPerspective(0);
-      platform.events.emit("game:state", this.readManabrewView(String(++this.promptSeq)).state);
+      platform.events.emit("game:state", this.readManabrewView(0).state);
     }
 
     for (const botResponse of botResponses) {
-      if (this.pendingBindings.has(botResponse.slot)) {
-        await this.applyResponse(botResponse.slot, botResponse.action);
+      if (this.prompts.has(botResponse.slot)) {
+        await this.applyResponse(botResponse.slot, botResponse.promptId, botResponse.action);
       }
     }
   }
 
-  private readManabrewView(promptId: string): {
+  private readManabrewView(viewer: number): {
     state: { gameView: GameViewDto };
     gameView: GameViewDto;
-    prompt: IronsmithPromptResult;
+    prompt: Prompt | null;
+    error: ProtocolError | null;
   } {
     if (!this.game) throw new Error("Ironsmith game is not initialized");
-    const view = plainify(this.game.manabrewView(promptId)) as {
-      state?: { gameView?: GameViewDto };
-      promptResult?: IronsmithPromptResult;
-    };
+    const view = plainify(this.game.manabrewView(viewer)) as IronsmithViewResult;
     const rawGameView = view.state?.gameView;
     const gameView = rawGameView ? this.applyKnownPlayerStatuses(rawGameView) : null;
     if (!gameView) {
@@ -436,7 +420,8 @@ export class IronsmithTrustedGameApi implements IGameApi {
     return {
       state: { gameView },
       gameView,
-      prompt: view.promptResult ?? null,
+      prompt: view.prompt ?? null,
+      error: view.error ?? null,
     };
   }
 
@@ -461,9 +446,13 @@ export class IronsmithTrustedGameApi implements IGameApi {
     };
   }
 
-  private mapPromptOutputToCommand(action: PromptOutput, binding: IronsmithPromptBinding): unknown {
-    if (!this.game) throw new Error("Ironsmith game is not initialized");
-    return this.game.manabrewCommandFromPromptOutput(action, binding);
+  private async publishProtocolError(playerSlot: string, error: ProtocolError): Promise<void> {
+    const platform = getPlatform();
+    if (playerSlot === this.localPlayerSlot) {
+      platform.events.emit("game:error", error);
+    } else if (this.isMultiplayer && !this.botPlayerSlots.has(playerSlot)) {
+      await this.sendPrivateRelay(playerSlot, { type: "error", error });
+    }
   }
 
   private installRoomRelayListener(): void {
@@ -516,11 +505,16 @@ export class IronsmithTrustedGameApi implements IGameApi {
         if (this.localPlayerSlot) this.prompts.set(this.localPlayerSlot, privatePayload.prompt);
         platform.events.emit("game:prompt", privatePayload.prompt);
         return;
+      case "error":
+        platform.events.emit("game:error", privatePayload.error);
+        return;
       case "fatal":
         platform.events.emit("game:fatal", { message: privatePayload.message });
         return;
       case "response":
-        if (this.isHost) await this.applyResponse(sender, privatePayload.action);
+        if (this.isHost) {
+          await this.applyResponse(sender, privatePayload.promptId, privatePayload.action);
+        }
         return;
       case "directive":
         if (this.isHost) await this.applyDirective(sender, privatePayload.directive);

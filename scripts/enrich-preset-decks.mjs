@@ -154,7 +154,7 @@ async function main() {
     const p = path.join(DECKS_DIR, f);
     const json = JSON.parse(fs.readFileSync(p, "utf-8"));
     fileData.push({ file: f, path: p, json });
-    for (const card of [...(json.cards || []), ...(json.sideboard || [])]) {
+    for (const card of json.cards || []) {
       if (!FORCE && isFullyEnriched(card)) continue;
       const set = card.set?.toLowerCase();
       const cn = card.cardNumber?.toLowerCase();
@@ -229,36 +229,33 @@ async function main() {
   let writtenCards = 0;
   for (const { file, path: p, json } of fileData) {
     let touched = false;
-    const enrichCards = (cards) =>
-      cards.map((card) => {
-        if (!FORCE && isFullyEnriched(card)) return card;
-        const nameLow = card.name.toLowerCase();
-        const setLow = (card.set ?? "").toLowerCase();
-        const cnLow = (card.cardNumber ?? "").toLowerCase();
-        const meta =
-          lookup.get(`${nameLow}::${setLow}::${cnLow}`) ??
-          lookup.get(`${nameLow}::${setLow}::`) ??
-          lookup.get(`${nameLow}::::`);
-        if (!meta) return card;
-        touched = true;
-        writtenCards++;
-        // Already partially enriched (e.g. via import-deck.ts which writes `uris`):
-        // preserve the existing shape and only patch in `allParts` so we don't
-        // churn unrelated fields or drop the full `uris` object.
-        if (hasMetadata(card)) {
-          const patched = { ...card, allParts: meta.allParts ?? [] };
-          if (meta.backFace) patched.backFace = meta.backFace;
-          return patched;
-        }
-        const ordered = { name: card.name };
-        if (card.count !== undefined) ordered.count = card.count;
-        if (card.set !== undefined) ordered.set = card.set;
-        if (card.cardNumber !== undefined) ordered.cardNumber = card.cardNumber;
-        Object.assign(ordered, meta);
-        return ordered;
-      });
-    json.cards = enrichCards(json.cards ?? []);
-    if (Array.isArray(json.sideboard)) json.sideboard = enrichCards(json.sideboard);
+    json.cards = (json.cards ?? []).map((card) => {
+      if (!FORCE && isFullyEnriched(card)) return card;
+      const nameLow = card.name.toLowerCase();
+      const setLow = (card.set ?? "").toLowerCase();
+      const cnLow = (card.cardNumber ?? "").toLowerCase();
+      const meta =
+        lookup.get(`${nameLow}::${setLow}::${cnLow}`) ??
+        lookup.get(`${nameLow}::${setLow}::`) ??
+        lookup.get(`${nameLow}::::`);
+      if (!meta) return card;
+      touched = true;
+      writtenCards++;
+      // Already partially enriched (e.g. via import-deck.ts which writes `uris`):
+      // preserve the existing shape and only patch in `allParts` so we don't
+      // churn unrelated fields or drop the full `uris` object.
+      if (hasMetadata(card)) {
+        const patched = { ...card, allParts: meta.allParts ?? [] };
+        if (meta.backFace) patched.backFace = meta.backFace;
+        return patched;
+      }
+      const ordered = { name: card.name };
+      if (card.count !== undefined) ordered.count = card.count;
+      if (card.set !== undefined) ordered.set = card.set;
+      if (card.cardNumber !== undefined) ordered.cardNumber = card.cardNumber;
+      Object.assign(ordered, meta);
+      return ordered;
+    });
     if (touched) {
       fs.writeFileSync(p, JSON.stringify(json, null, 2) + "\n");
       writtenFiles++;

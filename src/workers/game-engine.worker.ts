@@ -44,7 +44,6 @@ import init, {
   limited_drop_session,
 } from "../wasm/wasm";
 import type { Deck } from "@/protocol/deck";
-import { loadPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
 // ============================================================================
 // Types
@@ -70,6 +69,17 @@ interface WorkerEvent {
   payload: unknown;
 }
 
+interface PresetDeck {
+  id: string;
+  label: string;
+  desc: string;
+  color: string;
+  format?: string;
+  commander?: string;
+  coverCardName?: string;
+  cards: Array<{ name: string; count: number; set: string; cardNumber: string }>;
+}
+
 // ============================================================================
 // State
 // ============================================================================
@@ -79,7 +89,7 @@ const SAB_SIZE = 256 * 1024;
 
 let wasmInitPromise: Promise<void> | null = null;
 let cardsLoaded = false;
-let presetDecks: PresetDeckDefinition[] = [];
+let presetDecks: PresetDeck[] = [];
 let gameSharedBuffer: SharedArrayBuffer | null = null;
 let remoteSharedBuffers: SharedArrayBuffer[] = [];
 let gameRunning = false;
@@ -201,8 +211,26 @@ async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> 
  * `/preset_decks/`) on both web and desktop. This worker fetch is the single
  * source on every platform — there is no native preset command.
  */
-async function loadPresetDecks(): Promise<PresetDeckDefinition[]> {
-  return loadPresetDeckDefinitions();
+async function loadPresetDecks(): Promise<PresetDeck[]> {
+  const indexResponse = await fetch("/preset_decks/index.json");
+  if (!indexResponse.ok) {
+    throw new Error(`Failed to fetch preset deck index: ${indexResponse.status}`);
+  }
+  const ids: string[] = await indexResponse.json();
+
+  const results = await Promise.all(
+    ids.map(async (id) => {
+      const r = await fetch(`/preset_decks/${id}.json`);
+      if (!r.ok) {
+        console.warn(`[GameWorker] Preset deck '${id}' failed (${r.status})`);
+        return null;
+      }
+      const data = (await r.json()) as Omit<PresetDeck, "id">;
+      return { id, ...data } as PresetDeck;
+    }),
+  );
+
+  return results.filter((d): d is PresetDeck => d !== null);
 }
 
 /**

@@ -46,21 +46,17 @@ function loadDecks() {
 /** Group identifiers across decks. Same (name, set) appearing in multiple
  *  decks is queried once. */
 function collectIdentifiers(decks) {
-  const seen = new Map(); // key=`${name}|${set}` -> { name, set, occurrences: [{file, section, idx}] }
+  const seen = new Map(); // key=`${name}|${set}` -> { name, set, occurrences: [{deckFile, cardIndex}] }
   for (const { file, json } of decks) {
-    const sections = [
-      ["cards", json.cards ?? []],
-      ["sideboard", json.sideboard ?? []],
-    ];
-    for (const [section, cards] of sections)
-      cards.forEach((card, idx) => {
-        const name = card.name?.trim();
-        const set = (card.set ?? "").trim().toLowerCase();
-        if (!name) return;
-        const key = `${name}|${set}`;
-        if (!seen.has(key)) seen.set(key, { name, set, occurrences: [] });
-        seen.get(key).occurrences.push({ file, section, idx });
-      });
+    const cards = json.cards ?? [];
+    cards.forEach((card, idx) => {
+      const name = card.name?.trim();
+      const set = (card.set ?? "").trim().toLowerCase();
+      if (!name) return;
+      const key = `${name}|${set}`;
+      if (!seen.has(key)) seen.set(key, { name, set, occurrences: [] });
+      seen.get(key).occurrences.push({ file, idx });
+    });
   }
   return [...seen.values()];
 }
@@ -186,7 +182,7 @@ async function lookupByName(name) {
   for (const fix of fixes) {
     for (const occ of fix.occurrences) {
       if (!byDeck.has(occ.file)) byDeck.set(occ.file, []);
-      byDeck.get(occ.file).push({ ...fix, section: occ.section, idx: occ.idx });
+      byDeck.get(occ.file).push({ ...fix, idx: occ.idx });
     }
   }
   for (const [file, entries] of byDeck) {
@@ -204,9 +200,10 @@ async function lookupByName(name) {
   for (const { file, json } of decks) {
     const entries = byDeck.get(file);
     if (!entries) continue;
+    const cards = json.cards ?? [];
     let mutated = false;
     for (const entry of entries) {
-      const card = json[entry.section]?.[entry.idx];
+      const card = cards[entry.idx];
       if (!card) continue;
       if ((card.set ?? "").toLowerCase() !== entry.oldSet) continue;
       card.set = entry.newSet;

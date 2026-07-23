@@ -12,7 +12,6 @@ import type {
 } from "@/platform";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { expandPresetDeckDefinitions, loadPresetDeckDefinitions } from "@/lib/presetDecks";
 import type { DirectiveInput, GameFormat, Prompt, PromptOutput } from "@/protocol";
 import type { GameViewDto } from "@/protocol/game";
 import type { RoomMessagePayload } from "@/types/server";
@@ -285,9 +284,7 @@ export class IronsmithTrustedGameApi implements IGameApi {
   }
 
   async getPresetDecks(): Promise<Deck[]> {
-    return expandPresetDeckDefinitions(
-      await loadPresetDeckDefinitions("/preset_decks/engines/ironsmith.json"),
-    );
+    return [];
   }
 
   async getPrompt(): Promise<Prompt | null> {

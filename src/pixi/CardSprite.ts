@@ -1294,7 +1294,7 @@ export class CardSprite extends Container {
       this.railMarkerGfx.position.set(startX, markerY);
       this.railMarkerGfx.alpha = 1;
       this.railMarkerGfx.scale.set(1);
-      gsap.to(this.railMarkerGfx.position, {
+      gsap.to(this.railMarkerGfx, {
         x: markerX,
         duration: RAIL_ANIM_MS,
         ease: "power2.out",
@@ -1362,9 +1362,10 @@ export class CardSprite extends Container {
     }
     const markerX = this.railNotchXs[active.position - 1]!;
     this.railMarkerGfx.visible = true;
-    this.railMarkerGfx.circle(markerX, trackY, RAIL_MARKER_R);
+    this.railMarkerGfx.position.set(markerX, trackY);
+    this.railMarkerGfx.circle(0, 0, RAIL_MARKER_R);
     this.railMarkerGfx.fill({ color: accent, alpha: 0.96 });
-    this.railMarkerGfx.circle(markerX, trackY, RAIL_MARKER_R);
+    this.railMarkerGfx.circle(0, 0, RAIL_MARKER_R);
     this.railMarkerGfx.stroke({ color: hexToNum(theme.textOnTinted), width: 1.2, alpha: 0.64 });
   }
 

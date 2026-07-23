@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use forge_foundation::ZoneType;
+use manabrew_engine::card::Card;
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
@@ -293,6 +294,27 @@ fn should_show_command_zone_card(game: &GameState, cid: CardId) -> bool {
             .any(|subtype| subtype.eq_ignore_ascii_case("Effect")))
 }
 
+fn visible_battlefield_saga_final_chapter(card: &Card) -> Option<i32> {
+    if card.zone != ZoneType::Battlefield
+        || card.face_down
+        || !card.type_line.has_subtype("Saga")
+        || !card.has_chapter()
+        || card.has_keyword("Read ahead")
+    {
+        return None;
+    }
+    let final_chapter = card.get_final_chapter_nr();
+    (final_chapter > 0).then_some(final_chapter)
+}
+
+fn visible_battlefield_class_level(card: &Card) -> Option<i32> {
+    if card.zone != ZoneType::Battlefield || card.face_down || !card.type_line.has_subtype("Class")
+    {
+        return None;
+    }
+    (card.class_level > 0).then_some(card.class_level)
+}
+
 pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
     let card = game.card(cid);
     let types: Vec<String> = card
@@ -404,6 +426,8 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
         toughness,
         base_power,
         base_toughness,
+        final_chapter: visible_battlefield_saga_final_chapter(card),
+        class_level: visible_battlefield_class_level(card),
         text,
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),

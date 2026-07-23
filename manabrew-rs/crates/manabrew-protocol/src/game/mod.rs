@@ -194,6 +194,12 @@ pub struct CardDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub base_toughness: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub final_chapter: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub class_level: Option<i32>,
     pub text: String,
     pub controller_id: String,
     pub owner_id: String,

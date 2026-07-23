@@ -268,6 +268,8 @@ public final class InteractiveSnapshotExtractor {
     }
 
     private static void redact(final CardDto dto) {
+        dto.finalChapter = null;
+        dto.classLevel = null;
         dto.identity = new CardIdentity("", "", "", false);
         dto.text = "";
         dto.manaCost = "";
@@ -343,7 +345,7 @@ public final class InteractiveSnapshotExtractor {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
         final IPaperCard paper = card.getPaperCard();
-       final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
+        final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
         dto.identity = new CardIdentity(
                 normalizeCardName(name),
                 paper != null ? paper.getEdition() : card.getSetCode(),
@@ -360,6 +362,14 @@ public final class InteractiveSnapshotExtractor {
             dto.toughness = String.valueOf(card.getNetToughness());
             dto.basePower = card.getBasePower();
             dto.baseToughness = card.getBaseToughness();
+        }
+        if (card.isInPlay()) {
+            if (card.getType().hasSubtype("Saga")) {
+                dto.finalChapter = card.getFinalChapterNr();
+            }
+            if (card.isClassCard()) {
+                dto.classLevel = card.getClassLevel();
+            }
         }
         dto.text = card.getOracleText();
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());

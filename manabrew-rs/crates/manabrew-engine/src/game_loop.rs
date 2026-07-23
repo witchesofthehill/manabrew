@@ -13,7 +13,7 @@ use forge_foundation::{PhaseType, ZoneType};
 // Comment test 2
 use crate::ability::effects::{self, EffectContext};
 use crate::agent::{CombatCostAction, MainPhaseAction, ManaCostAction, PlayerAgent};
-use crate::card::Card;
+use crate::card::{Card, CounterType};
 use crate::combat::{self, CombatState};
 use crate::cost::{self, parse_cost, CostPart};
 use crate::event::RunParams;
@@ -247,6 +247,48 @@ impl GameLoop {
             dest_owner,
             agents,
             &mut runtime,
+        );
+    }
+
+    pub(crate) fn add_saga_lore_counter(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        card_id: CardId,
+    ) {
+        let controller = {
+            let card = game.card(card_id);
+            if card.zone != ZoneType::Battlefield
+                || !card.has_subtype("Saga")
+                || !card.has_chapter()
+                || card.has_keyword("Read ahead")
+            {
+                return;
+            }
+            card.controller
+        };
+        let mut ctx = EffectContext {
+            game,
+            combat: Some(&mut self.combat),
+            agents,
+            trigger_handler: &mut self.trigger_handler,
+            token_templates: &self.token_templates,
+            token_art_variants: &self.token_art_variants,
+            token_fallback: &self.token_fallback,
+            edition_dates: &self.edition_dates,
+            mana_pools: &mut self.mana_pools,
+            parent_target_card: None,
+            rng: &mut *self.game_rng,
+        };
+        ctx.add_counter(
+            card_id,
+            &CounterType::Lore,
+            1,
+            RunParams {
+                player: Some(controller),
+                cause_player: Some(controller),
+                ..Default::default()
+            },
         );
     }
 

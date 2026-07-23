@@ -60,17 +60,14 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 sa.api,
             );
             if add {
-                ctx.game.card_mut(cid).add_counter(&CounterType::Time, 1);
-                ctx.trigger_handler.run_trigger(
-                    crate::trigger::TriggerType::CounterAdded,
+                ctx.add_counter(
+                    cid,
+                    &CounterType::Time,
+                    1,
                     crate::event::RunParams {
-                        card: Some(cid),
-                        counter_type: Some("Time".to_string()),
-                        counter_amount: Some(1),
                         cause_player: Some(controller),
                         ..Default::default()
                     },
-                    false,
                 );
             } else {
                 ctx.game.card_mut(cid).remove_counter(&CounterType::Time, 1);

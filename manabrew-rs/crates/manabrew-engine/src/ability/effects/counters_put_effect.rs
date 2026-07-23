@@ -5,7 +5,6 @@ use crate::ability::ability_ir::DefinedRef;
 use crate::card::CounterType;
 use crate::event::RunParams;
 use crate::parsing::keys;
-use crate::replacement::replacement_handler::{apply_replacements_with_agents, ReplacementEvent};
 use crate::spellability::SpellAbility;
 use crate::trigger::TriggerType;
 
@@ -156,56 +155,20 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             return;
         }
     }
-    // Run AddCounter replacement effects (e.g. Hardened Scales adds extra).
-    let mut event = ReplacementEvent::AddCounter {
-        target: card_id,
-        counter_type: counter_type.clone(),
-        count,
-        is_effect: true,
-    };
-    apply_replacements_with_agents(&mut *ctx.game, ctx.agents, &mut event);
-    let count = if let ReplacementEvent::AddCounter {
-        count: final_count, ..
-    } = event
-    {
-        final_count
-    } else {
-        count
-    };
     let cause_player = ctx.game.card(card_id).controller;
-    ctx.game.card_mut(card_id).add_counter(&counter_type, count);
+    let count = ctx.add_counter(
+        card_id,
+        &counter_type,
+        count,
+        RunParams {
+            cause_player: Some(cause_player),
+            ..Default::default()
+        },
+    );
 
-    // Mark creature as renowned after successfully placing counters.
-    if sa.ir.renown {
+    if sa.ir.renown && count > 0 {
         ctx.game.card_mut(card_id).set_renowned(true);
     }
-
-    // Per-target `CounterAdded` firing.
-    ctx.trigger_handler.run_trigger(
-        TriggerType::CounterAdded,
-        RunParams {
-            card: Some(card_id),
-            counter_type: Some(format!("{:?}", counter_type)),
-            counter_amount: Some(count),
-            cause_player: Some(cause_player),
-            ..Default::default()
-        },
-        false,
-    );
-    // Java fires `CounterAddedOnce` once per effect regardless of target
-    // count. Rust's counters_put_effect currently handles a single target per
-    // resolve, so firing it once here matches Java semantics.
-    ctx.trigger_handler.run_trigger(
-        TriggerType::CounterAddedOnce,
-        RunParams {
-            card: Some(card_id),
-            counter_type: Some(format!("{:?}", counter_type)),
-            counter_amount: Some(count),
-            cause_player: Some(cause_player),
-            ..Default::default()
-        },
-        false,
-    );
 
     if is_monstrosity {
         ctx.game.card_mut(card_id).set_monstrous(true);

@@ -67,19 +67,14 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     };
 
     if put_counter {
-        ctx.game
-            .card_mut(target_id)
-            .add_counter(&counter_type, amount);
-        ctx.trigger_handler.run_trigger(
-            crate::trigger::TriggerType::CounterAdded,
+        ctx.add_counter(
+            target_id,
+            &counter_type,
+            amount,
             crate::event::RunParams {
-                card: Some(target_id),
-                counter_type: Some(format!("{:?}", counter_type)),
-                counter_amount: Some(amount),
                 cause_player: Some(controller),
                 ..Default::default()
             },
-            false,
         );
     } else {
         ctx.game

@@ -3,10 +3,8 @@ use forge_foundation::ZoneType;
 use super::EffectContext;
 use crate::agent::GameEntity;
 use crate::card::CounterType;
-use crate::event::RunParams;
 use crate::ids::CardId;
 use crate::replacement::replacement_handler::{apply_replacements_with_agents, ReplacementEvent};
-use crate::trigger::TriggerType;
 
 /// `SP$ Proliferate` — choose any number of permanents and/or players that
 /// have counters on them, then add one counter of each kind already there.
@@ -132,29 +130,6 @@ fn proliferate_card(ctx: &mut EffectContext, cid: CardId) {
                 continue;
             }
         }
-        // Run AddCounter replacement effects.
-        let mut add_event = ReplacementEvent::AddCounter {
-            target: cid,
-            counter_type: ct.clone(),
-            count: 1,
-            is_effect: true,
-        };
-        apply_replacements_with_agents(&mut *ctx.game, ctx.agents, &mut add_event);
-        let final_count = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-            count
-        } else {
-            1
-        };
-        ctx.game.card_mut(cid).add_counter(ct, final_count);
-        ctx.trigger_handler.run_trigger(
-            TriggerType::CounterAdded,
-            RunParams {
-                card: Some(cid),
-                counter_type: Some(format!("{:?}", ct)),
-                counter_amount: Some(1),
-                ..Default::default()
-            },
-            false,
-        );
+        ctx.add_counter(cid, ct, 1, Default::default());
     }
 }

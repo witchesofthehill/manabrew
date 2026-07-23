@@ -150,6 +150,12 @@ impl GameLoop {
                             emit_phase_trigger: true,
                         },
                     );
+                    let battlefield = game
+                        .cards_in_zone(ZoneType::Battlefield, game.active_player())
+                        .to_vec();
+                    for card_id in battlefield {
+                        self.add_saga_lore_counter(game, agents, card_id);
+                    }
                     if game
                         .cards_in_zone(ZoneType::Battlefield, game.active_player())
                         .iter()

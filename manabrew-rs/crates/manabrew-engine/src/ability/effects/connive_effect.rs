@@ -86,24 +86,14 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Put +1/+1 counters on the conniver for each nonland card discarded,
     // but only if it's still on the battlefield.
     if nonland_count > 0 && ctx.game.card(conniver_id).zone == ZoneType::Battlefield {
-        let counters = ctx
-            .game
-            .card_mut(conniver_id)
-            .counters
-            .entry(crate::card::CounterType::P1P1)
-            .or_insert(0);
-        *counters += nonland_count;
-
-        ctx.trigger_handler.run_trigger(
-            TriggerType::CounterAdded,
+        ctx.add_counter(
+            conniver_id,
+            &crate::card::CounterType::P1P1,
+            nonland_count,
             RunParams {
-                card: Some(conniver_id),
-                counter_type: Some("P1P1".to_string()),
-                counter_amount: Some(nonland_count),
                 player: Some(controller),
                 ..Default::default()
             },
-            false,
         );
     }
 }

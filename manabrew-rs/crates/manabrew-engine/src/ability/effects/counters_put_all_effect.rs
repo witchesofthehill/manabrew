@@ -4,7 +4,6 @@ use super::{matches_valid_cards_for_sa, resolve_numeric_svar, EffectContext};
 use crate::card::CounterType;
 use crate::event::RunParams;
 use crate::ids::CardId;
-use crate::trigger::TriggerType;
 
 /// `SP$ PutCounterAll` — put counters on all matching permanents.
 ///
@@ -68,19 +67,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             if add_count <= 0 {
                 continue;
             }
-            ctx.game
-                .card_mut(card_id)
-                .add_counter(&counter_type, add_count);
-            ctx.trigger_handler.run_trigger(
-                TriggerType::CounterAdded,
-                RunParams {
-                    card: Some(card_id),
-                    counter_type: Some(format!("{:?}", counter_type)),
-                    counter_amount: Some(add_count),
-                    ..Default::default()
-                },
-                false,
-            );
+            ctx.add_counter(card_id, &counter_type, add_count, RunParams::default());
         }
     }
 }

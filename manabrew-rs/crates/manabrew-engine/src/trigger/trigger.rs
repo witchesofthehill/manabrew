@@ -955,8 +955,9 @@ impl Trigger {
         self.ir.chapter
     }
 
-    pub fn is_last_chapter(&self) -> bool {
-        false
+    pub fn is_last_chapter(&self, card: &Card) -> bool {
+        self.get_chapter()
+            .is_some_and(|chapter| chapter == card.get_final_chapter_nr())
     }
 
     pub fn while_keyword_check(&self, _param: &str, _run_params: &RunParams) -> bool {
@@ -1360,6 +1361,13 @@ pub fn parse_trigger(raw: &str, next_id: &mut u32) -> Option<Trigger> {
 
     let mut base = TriggerReplacementBase::default();
     base.card_trait_base.set_id(id as i32);
+    base.card_trait_base.set_map_params(
+        params
+            .inner()
+            .iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect(),
+    );
     base.card_trait_base.set_intrinsic(true);
     base.valid_host_zones = Some(active_zones);
 

@@ -1410,6 +1410,20 @@ impl SpellAbility {
         }
     }
 
+    pub fn is_last_chapter(&self, game: &crate::game::GameState) -> bool {
+        let Some(source) = self.trigger_source.or(self.source) else {
+            return false;
+        };
+        let Some(trigger_id) = self.source_trigger_id else {
+            return false;
+        };
+        let card = game.card(source);
+        card.triggers
+            .iter()
+            .find(|trigger| trigger.id == trigger_id)
+            .is_some_and(|trigger| trigger.is_last_chapter(card))
+    }
+
     /// Whether this ability tracks mana spent.
     /// Mirrors Java's `SpellAbility.tracksManaSpent()`.
     pub fn tracks_mana_spent(&self) -> bool {

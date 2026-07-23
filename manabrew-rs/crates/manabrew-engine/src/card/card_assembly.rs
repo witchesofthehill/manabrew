@@ -185,7 +185,10 @@ pub(crate) fn assemble_card(
     card.attraction_lights = face.attraction_lights.clone();
     card.initial_loyalty = face.initial_loyalty.clone();
 
-    // Append parsed triggers to keyword-generated ones.
+    for (k, v) in &face.svars {
+        card.svars.entry(k.clone()).or_insert_with(|| v.clone());
+    }
+
     if rules.split_type == forge_foundation::CardSplitType::Split
         && card.type_line.has_subtype("Room")
     {
@@ -194,10 +197,13 @@ pub(crate) fn assemble_card(
     for trig in components.triggers {
         card.add_trigger(trig);
     }
-
-    // Merge card-text SVars (keyword-generated SVars already set by constructor)
-    for (k, v) in &face.svars {
-        card.svars.entry(k.clone()).or_insert_with(|| v.clone());
+    card.generate_keyword_chapter_triggers();
+    if card.type_line.has_subtype("Saga") && card.has_chapter() && !card.has_keyword("Read ahead") {
+        if let Some(replacement) =
+            super::card_factory_util::make_etb_counter("etbCounter:LORE:1", &card, true)
+        {
+            card.add_replacement_effect(replacement);
+        }
     }
 
     // Java parity: convert ETBReplacement keywords into intrinsic

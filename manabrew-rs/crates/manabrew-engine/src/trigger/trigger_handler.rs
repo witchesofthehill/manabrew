@@ -1280,6 +1280,61 @@ impl TriggerHandler {
             .retain(|(p, _)| *p != player);
     }
 
+    pub fn has_source_chapter_pending(&self, game: &GameState, source: CardId) -> bool {
+        if self
+            .pre_matched_triggers
+            .iter()
+            .any(|(pending, _, _, _, _)| {
+                pending.entry.spell_ability.is_trigger
+                    && pending.entry.spell_ability.source == Some(source)
+                    && pending
+                        .entry
+                        .spell_ability
+                        .source_trigger_id
+                        .is_some_and(|trigger_id| {
+                            game.card(source)
+                                .triggers
+                                .iter()
+                                .any(|trigger| trigger.id == trigger_id && trigger.is_chapter())
+                        })
+            })
+        {
+            return true;
+        }
+
+        for event in &self.waiting_triggers {
+            let refs: Vec<(CardId, usize)> = event.trigger_refs.clone().unwrap_or_else(|| {
+                self.active_triggers
+                    .iter()
+                    .map(|active| (active.card_id, active.trigger_index))
+                    .collect()
+            });
+            for (card_id, trigger_index) in refs {
+                if card_id != source {
+                    continue;
+                }
+                let Some(trigger) = game.card(card_id).triggers.get(trigger_index) else {
+                    continue;
+                };
+                if !trigger.is_chapter() {
+                    continue;
+                }
+                if self.can_run_trigger(
+                    game,
+                    card_id,
+                    trigger_index,
+                    game.card(card_id).controller,
+                    &event.mode,
+                    &event.params,
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
     /// Mirrors Java's StaticAbilityDisableTriggers.disabled().
     /// Checks if a ChangesZone trigger is suppressed by a DisableTriggers
     /// static ability (e.g. Hushbringer).

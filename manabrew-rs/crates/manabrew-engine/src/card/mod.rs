@@ -1251,6 +1251,10 @@ impl Card {
         crate::card::card_state::has_chapter(self)
     }
 
+    pub fn get_final_chapter_nr(&self) -> i32 {
+        crate::card::card_state::get_final_chapter_nr(self)
+    }
+
     /// Check whether this card has a keyword — intrinsically, granted by a
     /// continuous static effect (Layer 6), or temporarily from a pump effect.
     /// Count distinct colors of mana spent to cast this spell (for Sunburst/Converge).

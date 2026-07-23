@@ -511,6 +511,7 @@ impl GameLoop {
 
                 // Register triggers for the new permanent
                 self.trigger_handler.register_active_trigger(game, card_id);
+                self.add_saga_lore_counter(game, agents, card_id);
 
                 if game.card(card_id).type_line.has_subtype("Room")
                     && game.card(card_id).has_s_var("RoomRightSplitCost")

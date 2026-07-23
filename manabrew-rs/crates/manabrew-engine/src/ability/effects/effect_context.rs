@@ -11,12 +11,16 @@ use std::collections::HashMap;
 use forge_foundation::ZoneType;
 
 use crate::agent::PlayerAgent;
-use crate::card::Card;
+use crate::card::{Card, CounterType};
+use crate::event::RunParams;
 use crate::game::GameState;
 use crate::ids::{CardId, PlayerId};
 use crate::mana::ManaPool;
+use crate::replacement::replacement_handler::{apply_replacements_with_agents, ReplacementEvent};
+use crate::replacement::ReplacementResult;
 use crate::spellability::SpellAbility;
 use crate::trigger::handler::TriggerHandler;
+use crate::trigger::TriggerType;
 
 /// Everything an effect needs to resolve.
 pub struct EffectContext<'a> {
@@ -106,5 +110,79 @@ impl EffectContext<'_> {
             self.agents,
             &mut runtime,
         );
+    }
+
+    pub(crate) fn add_counter(
+        &mut self,
+        card_id: CardId,
+        counter_type: &CounterType,
+        amount: i32,
+        mut params: RunParams,
+    ) -> i32 {
+        if amount <= 0 {
+            return 0;
+        }
+
+        let mut event = ReplacementEvent::AddCounter {
+            target: card_id,
+            counter_type: counter_type.clone(),
+            count: amount,
+            is_effect: true,
+        };
+        let result = apply_replacements_with_agents(&mut *self.game, self.agents, &mut event);
+        if !matches!(
+            result,
+            ReplacementResult::NotReplaced | ReplacementResult::Updated
+        ) {
+            return 0;
+        }
+        let ReplacementEvent::AddCounter { count, .. } = event else {
+            return 0;
+        };
+        if count <= 0 {
+            return 0;
+        }
+        if self.game.card(card_id).phased_out
+            || crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
+                &self.game.cards,
+                self.game.card(card_id),
+                counter_type,
+            )
+        {
+            return 0;
+        }
+
+        let old_value = self.game.card(card_id).counter_count(counter_type);
+        let count = if let Some(max) = crate::staticability::static_ability_max_counter::max_counter(
+            &self.game.cards,
+            self.game.card(card_id),
+            counter_type,
+        ) {
+            (max - old_value).clamp(0, count)
+        } else {
+            count
+        };
+        if count <= 0 {
+            return 0;
+        }
+        self.game
+            .card_mut(card_id)
+            .add_counter_internal(counter_type, count);
+        let new_value = self.game.card(card_id).counter_count(counter_type);
+        if new_value <= old_value {
+            return 0;
+        }
+
+        params.card = Some(card_id);
+        params.counter_type = Some(format!("{counter_type:?}"));
+        for counter_amount in (old_value + 1)..=new_value {
+            params.counter_amount = Some(counter_amount);
+            self.trigger_handler
+                .run_trigger(TriggerType::CounterAdded, params.clone(), false);
+        }
+        params.counter_amount = Some(new_value - old_value);
+        self.trigger_handler
+            .run_trigger(TriggerType::CounterAddedOnce, params, false);
+        new_value - old_value
     }
 }

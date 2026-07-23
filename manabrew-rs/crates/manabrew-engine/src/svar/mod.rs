@@ -1544,6 +1544,18 @@ pub fn resolve_count_svar_for_sa(
         return game.card(source_id).sunburst_count();
     }
 
+    if let Some(operators) = expr.strip_prefix("Count$FinalChapterNr") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        return do_x_math(
+            game.card(source_id).get_final_chapter_nr(),
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
+    }
+
     if expr == "Count$YourSpeed" {
         return game.player(controller).speed;
     }

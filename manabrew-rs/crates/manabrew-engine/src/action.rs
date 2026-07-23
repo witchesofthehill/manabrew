@@ -861,6 +861,36 @@ impl GameState {
         self.check_state_based_actions_impl(trigger_handler, None, Some(agents))
     }
 
+    fn state_based_action_saga(
+        &self,
+        cid: CardId,
+        trigger_handler: Option<&TriggerHandler>,
+        sacrifice_list: &mut Vec<CardId>,
+    ) -> bool {
+        let card = self.card(cid);
+        if !card.type_line.has_subtype("Saga") || !card.has_chapter() {
+            return false;
+        }
+        if crate::staticability::static_ability_cant_sacrifice::cant_sacrifice(
+            &self.cards,
+            card,
+            None,
+            true,
+        ) {
+            return false;
+        }
+        if card.counter_count(&CounterType::Lore) < card.get_final_chapter_nr() {
+            return false;
+        }
+        if self.stack.has_source_chapter_on_stack(self, cid)
+            || trigger_handler.is_some_and(|handler| handler.has_source_chapter_pending(self, cid))
+        {
+            return false;
+        }
+        sacrifice_list.push(cid);
+        true
+    }
+
     fn on_player_lost(
         &mut self,
         player: PlayerId,
@@ -1034,6 +1064,7 @@ impl GameState {
 
         let mut any_changes = false;
         let mut newly_lost_players: Vec<PlayerId> = Vec::new();
+        let mut sacrifice_list: Vec<CardId> = Vec::new();
 
         // Check players with 0 or less life
         for pid in self.player_order.clone() {
@@ -1258,6 +1289,35 @@ impl GameState {
 
             self.move_battlefield_card_to_graveyard_for_sba(cid, &mut trigger_handler, &mut agents);
             any_changes = true;
+        }
+
+        let saga_cards: Vec<CardId> = self
+            .player_order
+            .clone()
+            .iter()
+            .flat_map(|&pid| self.cards_in_zone(ZoneType::Battlefield, pid).to_vec())
+            .collect();
+        for cid in saga_cards {
+            any_changes |=
+                self.state_based_action_saga(cid, trigger_handler.as_deref(), &mut sacrifice_list);
+        }
+
+        if !sacrifice_list.is_empty() {
+            if let (Some(handler), Some(agents)) =
+                (trigger_handler.as_deref_mut(), agents.as_deref_mut())
+            {
+                if !crate::game_loop::perform_sacrifice(self, handler, agents, &sacrifice_list)
+                    .is_empty()
+                {
+                    any_changes = true;
+                }
+            } else {
+                for cid in sacrifice_list.drain(..) {
+                    let owner = self.card(cid).owner;
+                    self.move_card_without_replacement(cid, ZoneType::Graveyard, owner);
+                }
+                any_changes = true;
+            }
         }
 
         // CR 704.5q: +1/+1 and -1/-1 counter cancellation

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.1](https://github.com/witchesofthehill/manabrew/compare/v2.0.0...v2.0.1) (2026-07-24)
+
+### Fixes
+
+* **ironsmith:** use protocol v1 bridge ([#533](https://github.com/witchesofthehill/manabrew/issues/533)) ([e5053d9](https://github.com/witchesofthehill/manabrew/commit/e5053d9e0a671dccca23436b652c541aef0f92c4))
+
 ## [2.0.0](https://github.com/witchesofthehill/manabrew/compare/v1.14.0...v2.0.0) (2026-07-24)
 
 ### Features

@@ -329,8 +329,8 @@
       "refs": []
     },
     "PromptPresentation": {
-      "ts": "interface PromptPresentation {\n  title: string;\n  description?: string;\n  text?: string;\n  sourceCardId?: string;\n  targets: Array<TargetRef>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PromptPresentation {\n    pub title: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub text: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_id: Option<String>,\n    #[serde(default)]\n    pub targets: Vec<TargetRef>,\n}",
+      "ts": "interface PromptPresentation {\n  title: string;\n  description?: string;\n  text?: string;\n  targets: Array<TargetRef>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PromptPresentation {\n    pub title: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub text: Option<String>,\n    #[serde(default)]\n    pub targets: Vec<TargetRef>,\n}",
       "refs": ["TargetRef"]
     },
     "ReorderInput": {

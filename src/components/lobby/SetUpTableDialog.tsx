@@ -39,32 +39,28 @@ export function SetUpTableDialog({
           {hostedRoomGroups.length > 0 ? (
             hostedRoomGroups.map(([engine, rooms]) => (
               <article key={engine} className="flex flex-col rounded-xl border bg-card p-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <EngineMark engine={engine} className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="truncate text-sm font-semibold">Hosted {engine} table</h3>
-                      <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
-                    </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      Official capacity that is ready to play. Choose your format next.
-                    </p>
-                  </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <EngineMark engine={engine} className="h-5 w-5" />
+                </span>
+                <div className="mt-3 flex items-center gap-1.5">
+                  <h3 className="truncate text-sm font-semibold">Official table</h3>
+                  <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
                 </div>
-                <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Powered by the {engine} engine
+                </p>
+                <div className="mb-4 mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Users className="h-3.5 w-3.5" />
                   {rooms.length} {rooms.length === 1 ? "table" : "tables"} available
                 </div>
                 <Button
-                  className="mt-4 w-full"
+                  className="mt-auto w-full"
                   onClick={() => {
                     onOpenChange(false);
                     onJoinHosted(rooms);
                   }}
                 >
-                  <Cloud /> Join hosted table
+                  <Cloud /> Create hosted table
                 </Button>
               </article>
             ))
@@ -74,7 +70,7 @@ export function SetUpTableDialog({
                 <Cloud className="h-5 w-5" />
               </span>
               <h3 className="mt-3 text-sm font-semibold">Hosted table</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mb-4 mt-1 text-xs leading-relaxed text-muted-foreground">
                 No official hosted tables are available right now.
               </p>
               <Button className="mt-auto w-full" disabled>
@@ -88,12 +84,12 @@ export function SetUpTableDialog({
               <Plus className="h-5 w-5" />
             </span>
             <h3 className="mt-3 text-sm font-semibold">Create your own table</h3>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            <p className="mb-4 mt-1 text-xs leading-relaxed text-muted-foreground">
               Choose the format, seats, privacy, engine, and limited settings yourself.
             </p>
             <Button
               variant="outline"
-              className="mt-4 w-full"
+              className="mt-auto w-full"
               onClick={() => {
                 onOpenChange(false);
                 onCreate();

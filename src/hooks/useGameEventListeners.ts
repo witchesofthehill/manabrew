@@ -26,6 +26,7 @@ import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "
 
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
+  gameId?: unknown;
 };
 
 const GAME_OVER_PROMPT = { input: { type: "gameOver" } } as Prompt;
@@ -34,11 +35,12 @@ function isGameOverPrompt(prompt: Prompt | null): boolean {
   return prompt?.input.type === "gameOver";
 }
 
-function isSelfHostedNodeGameOverPayload(payload: unknown): boolean {
+function isSelfHostedNodeGameOverPayload(payload: unknown, gameId: string | null): boolean {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    (payload as SelfHostedNodeRoomPayload).type === "gameOver"
+    (payload as SelfHostedNodeRoomPayload).type === "gameOver" &&
+    (payload as SelfHostedNodeRoomPayload).gameId === gameId
   );
 }
 
@@ -293,7 +295,9 @@ export function useGameEventListeners() {
             ) {
               return;
             }
-            if (!isSelfHostedNodeGameOverPayload(payload.state.payload)) return;
+            const serverState = useServerStore.getState();
+            if (payload.from_player !== serverState.currentRoom?.host) return;
+            if (!isSelfHostedNodeGameOverPayload(payload.state.payload, serverState.gameId)) return;
             const state = getState();
             if (!state.isMultiplayer || !state.isGameActive) return;
             if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;

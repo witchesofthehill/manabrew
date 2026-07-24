@@ -1,7 +1,8 @@
 //! Emits one example of every `PromptInput` variant as JSONL — the corpus
 //! the UI prompt-handling test replays. A new variant won't compile until added.
 use manabrew_agent_interface::game_view_dto::{
-    target_ref_card, target_ref_player, target_ref_spell, TargetingIntent, ZoneKind,
+    target_ref_card, target_ref_player, target_ref_spell, CardDto, CardIdentity, TargetingIntent,
+    ZoneKind,
 };
 use manabrew_agent_interface::prompt::{
     AgentPrompt, AvailableAction, AvailableActionKind, Mana, ManaColor, PlayCardMode, PromptInput,
@@ -12,7 +13,18 @@ fn wrap(inner: PromptInput) -> AgentPrompt {
     AgentPrompt {
         prompt_id: 0,
         deciding_player_id: "player-0".to_string(),
-        source_card_id: None,
+        source_card: Some(CardDto {
+            id: "card-1".to_string(),
+            identity: CardIdentity {
+                name: "Lightning Bolt".to_string(),
+                set_code: "M11".to_string(),
+                card_number: "149".to_string(),
+                is_token: false,
+            },
+            owner_id: "player-0".to_string(),
+            controller_id: "player-0".to_string(),
+            ..CardDto::default()
+        }),
         input: inner,
     }
 }
@@ -83,7 +95,6 @@ fn main() {
                 title: "Damage".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             candidates: vec![
@@ -103,7 +114,6 @@ fn main() {
                 title: "Look at these cards".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             cards: vec![],
@@ -115,7 +125,6 @@ fn main() {
                 title: "Scry".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             cards: vec![],
@@ -129,7 +138,6 @@ fn main() {
                 title: "Choose a color".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             valid_colors: vec![],
@@ -141,7 +149,6 @@ fn main() {
                 title: "Choose a number".to_string(),
                 description: Some("Pay {2} for each replicate.".to_string()),
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             min: 0,
@@ -168,7 +175,6 @@ fn main() {
                 title: "Lightning Bolt".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             card_id: String::new(),
@@ -185,7 +191,6 @@ fn main() {
                     "If paid, this spell returns to your hand instead of going to the graveyard."
                         .to_string(),
                 ),
-                source_card_id: None,
                 targets: Vec::new(),
             },
             confirm_label: "Pay Buyback".to_string(),
@@ -196,7 +201,6 @@ fn main() {
                 title: "Choose Mode".to_string(),
                 description: Some("Choose one or both —".to_string()),
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             options: vec![
@@ -219,7 +223,6 @@ fn main() {
                 title: "Dice roll".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             sides: 0,
@@ -231,7 +234,6 @@ fn main() {
                 title: "Choose cards".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             cards: vec![],
@@ -243,7 +245,6 @@ fn main() {
                 title: "Reorder".to_string(),
                 description: None,
                 text: None,
-                source_card_id: None,
                 targets: Vec::new(),
             },
             items: vec![],

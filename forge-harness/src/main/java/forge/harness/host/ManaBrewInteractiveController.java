@@ -1406,7 +1406,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     colorNames.add(colorName(color));
                 }
                 final String chosen =
-                        session.awaitStringChoice("choose_color", me(), colorNames, sourceName(sa), message);
+                        session.awaitStringChoice("choose_color", me(), colorNames, sourceCardId(sa), message);
                 return colorMask(chosen);
         }
     }
@@ -1425,7 +1425,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             colorNames.add(colorName(Color.COLORLESS));
         }
         final String chosen = session.awaitStringChoice(
-                "choose_color", me(), colorNames, c == null ? null : c.getName(), message);
+                "choose_color", me(), colorNames,
+                c == null ? null : SnapshotExtractor.javaCardId(c), message);
         return colorMask(chosen);
     }
 
@@ -1462,7 +1463,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final int idx = chosen.get(0);
             return idx >= 0 && idx < typeOptions.size() ? typeOptions.get(idx) : null;
         }
-        final String chosen = session.awaitStringChoice("choose_type", me(), typeOptions, sourceName(sa), kindOfType == null ? "Card" : kindOfType);
+        final String chosen = session.awaitStringChoice("choose_type", me(), typeOptions, sourceCardId(sa), kindOfType == null ? "Card" : kindOfType);
         return EngineHandler.validateOption(chosen, typeOptions, isOptional);
     }
 
@@ -1470,7 +1471,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public String chooseSector(final Card assignee, final String ai, final List<String> sectors) {
         final List<String> options = sectors == null ? new ArrayList<>() : new ArrayList<>(sectors);
         final String chosen = session.awaitStringChoice(
-                "choose_type", me(), options, assignee == null ? null : assignee.getName(), "Sector");
+                "choose_type", me(), options,
+                assignee == null ? null : SnapshotExtractor.javaCardId(assignee), "Sector");
         return EngineHandler.validateOption(chosen, options, false);
     }
 
@@ -1486,14 +1488,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (choices.size() <= 1) {
             return choices.isEmpty() ? null : choices.get(0);
         }
-        final String chosen = session.awaitStringChoice("choose_type", me(), choices, sourceName(sa), prompt == null ? "Keyword" : prompt);
+        final String chosen = session.awaitStringChoice("choose_type", me(), choices, sourceCardId(sa), prompt == null ? "Keyword" : prompt);
         return EngineHandler.validateOption(chosen, choices, false);
     }
 
     @Override
     public String chooseProtectionType(final SpellAbility sa, final List<String> choices) {
         final List<String> options = choices == null ? new ArrayList<>() : new ArrayList<>(choices);
-        final String chosen = session.awaitStringChoice("choose_type", me(), options, sourceName(sa), "Protection");
+        final String chosen = session.awaitStringChoice("choose_type", me(), options, sourceCardId(sa), "Protection");
         return EngineHandler.validateOption(chosen, options, false);
     }
 
@@ -1539,7 +1541,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final ICardFace face : faces) {
             names.add(face.getName());
         }
-        final String chosen = session.awaitStringChoice("choose_card_name", me(), names, sourceName(sa), message);
+        final String chosen = session.awaitStringChoice("choose_card_name", me(), names, sourceCardId(sa), message);
         for (final ICardFace face : faces) {
             if (face.getName().equals(chosen)) {
                 return face;

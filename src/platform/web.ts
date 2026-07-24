@@ -141,6 +141,7 @@ class WorkerBridge {
 
   /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
   private remoteSeats = new Map<string, RemoteSeat>();
+  private remotePlayerSlots = new Map<string, string>();
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -288,12 +289,12 @@ class WorkerBridge {
     requestAnimationFrame(poll);
   }
 
-  /**
-   * Routes each `server:state_update` of kind `response` or `directive` to
-   * the SAB for the seat named in `fromPlayer`. Subscription lives for the
-   * page's lifetime (singleton bridge, no disposal), so the unsubscribe is
-   * dropped.
-   */
+  setEnginePlayerNames(playerNames: string[]): void {
+    this.remotePlayerSlots = new Map(
+      playerNames.map((username, index) => [username, `player-${index}`]),
+    );
+  }
+
   private installRemoteResponseListener(): void {
     this.eventBus.on<{
       from_player: string;
@@ -301,12 +302,16 @@ class WorkerBridge {
     }>("server:state_update", (payload) => {
       const kind = payload.state?.kind;
       if (kind !== "response" && kind !== "directive") return;
-      const fromPlayer = payload.state.fromPlayer as string | undefined;
-      if (!fromPlayer) return;
-      const seat = this.remoteSeats.get(fromPlayer);
+      const claimedSlot = payload.state.fromPlayer as string | undefined;
+      const authenticatedSlot = this.remotePlayerSlots.get(payload.from_player);
+      if (!claimedSlot || !authenticatedSlot || claimedSlot !== authenticatedSlot) {
+        console.error(`Rejected ${kind} with invalid player slot from ${payload.from_player}`);
+        return;
+      }
+      const seat = this.remoteSeats.get(authenticatedSlot);
       if (DEBUG_TRANSPORT)
         console.log(
-          `[MP] ${kind}← ${fromPlayer}`,
+          `[MP] ${kind}← ${authenticatedSlot}`,
           seat ? "(routed to SAB)" : "(NO SEAT — dropped)",
         );
       if (!seat) return;
@@ -508,6 +513,7 @@ class WorkerBridge {
     this.localPendingDirective = null;
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
+    this.remotePlayerSlots.clear();
     // Response listener stays installed — terminate() is per-game, and a
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
@@ -550,6 +556,8 @@ class WebGameApi implements IGameApi {
     this.myPlayerSlot = `player-${params.enginePlayerIndex}`;
 
     if (params.localIsHost) {
+      this.bridge.setEnginePlayerNames(params.playerNames);
+      this.serverApi?.setEnginePlayerNames(params.playerNames);
       // Host runs the engine; the worker posts back one SAB per remote
       // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
@@ -726,12 +734,11 @@ class WebServerApi implements IServerApi {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private serverShutdownPending: { reconnectInS: number } | null = null;
-  // State/Display carry no recipient and are identical per seat; each seat's
-  // poll relays a copy, so coalesce consecutive-identical ones to one broadcast.
-  private lastRelayState: string | null = null;
+  private lastRelayStates = new Map<string, string>();
   private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
+  private enginePlayerNames: string[] = [];
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -740,9 +747,12 @@ class WebServerApi implements IServerApi {
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
       if (msg.kind === "state") {
         const json = JSON.stringify(msg.state);
-        if (json === this.lastRelayState) return;
-        this.lastRelayState = json;
-        this.broadcastState({ kind: "state", state: msg.state });
+        if (json === this.lastRelayStates.get(forPlayer)) return;
+        this.lastRelayStates.set(forPlayer, json);
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) {
+          void this.broadcastState({ kind: "state", forPlayer, state: msg.state }, targetPlayer);
+        }
       } else if (msg.kind === "display") {
         const json = JSON.stringify(msg.event);
         if (json === this.lastRelayDisplay) return;
@@ -751,11 +761,31 @@ class WebServerApi implements IServerApi {
       } else if (msg.kind === "prompt") {
         const envelope = { kind: "prompt", forPlayer, prompt: msg.prompt };
         this.pendingRelayPrompts.set(forPlayer, envelope);
-        this.broadcastState(envelope);
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       } else if (msg.kind === "error") {
-        this.broadcastState({ kind: "error", forPlayer, error: msg.error });
+        const targetPlayer = this.enginePlayerName(forPlayer);
+        if (targetPlayer) {
+          void this.broadcastState({ kind: "error", forPlayer, error: msg.error }, targetPlayer);
+        }
       }
     });
+  }
+
+  setEnginePlayerNames(playerNames: string[]): void {
+    this.enginePlayerNames = [...playerNames];
+  }
+
+  private enginePlayerName(playerSlot: string): string | undefined {
+    const index = Number(playerSlot.replace("player-", ""));
+    const playerName = Number.isInteger(index) ? this.enginePlayerNames[index] : undefined;
+    if (!playerName) console.error(`No relay player mapped for engine slot ${playerSlot}`);
+    return playerName;
+  }
+
+  private enginePlayerSlot(playerName: string): string | undefined {
+    const index = this.enginePlayerNames.indexOf(playerName);
+    return index >= 0 ? `player-${index}` : undefined;
   }
 
   async connect(params: ServerConnectParams): Promise<void> {
@@ -1022,8 +1052,8 @@ class WebServerApi implements IServerApi {
   }
 
   /** Broadcast game state to other players in the room */
-  async broadcastState(state: Record<string, unknown>): Promise<void> {
-    this.send({ type: "BroadcastState", state });
+  async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
+    this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
 
   async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
@@ -1215,7 +1245,14 @@ class WebServerApi implements IServerApi {
       );
       switch (envelope.kind) {
         case "response":
-          this.pendingRelayPrompts.delete(envelope.fromPlayer);
+          if (
+            typeof msg.from_player === "string" &&
+            this.enginePlayerSlot(msg.from_player) === envelope.fromPlayer &&
+            typeof envelope.action === "object" &&
+            envelope.action !== null
+          ) {
+            this.pendingRelayPrompts.delete(envelope.fromPlayer);
+          }
           this.eventBus.emit("server:state_update", {
             from_player: msg.from_player,
             state: envelope,
@@ -1270,17 +1307,24 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "GameStarted") {
-      this.lastRelayState = null;
+      this.lastRelayStates.clear();
       this.lastRelayDisplay = null;
       this.pendingRelayPrompts.clear();
     }
 
     if (type === "RoomResumed") {
-      if (this.lastRelayState !== null) {
-        void this.broadcastState({ kind: "state", state: JSON.parse(this.lastRelayState) });
+      for (const [playerSlot, state] of this.lastRelayStates) {
+        const targetPlayer = this.enginePlayerName(playerSlot);
+        if (targetPlayer) {
+          void this.broadcastState(
+            { kind: "state", forPlayer: playerSlot, state: JSON.parse(state) },
+            targetPlayer,
+          );
+        }
       }
-      for (const envelope of this.pendingRelayPrompts.values()) {
-        void this.broadcastState(envelope);
+      for (const [playerSlot, envelope] of this.pendingRelayPrompts) {
+        const targetPlayer = this.enginePlayerName(playerSlot);
+        if (targetPlayer) void this.broadcastState(envelope, targetPlayer);
       }
       this.eventBus.emit("server:room_update", { room: msg.room });
       return;

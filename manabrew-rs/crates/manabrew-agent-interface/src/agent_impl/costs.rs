@@ -50,7 +50,6 @@ pub(super) fn choose_phyrexian_pay_life<T: Responder>(
                 "Pay {phyrexian_cost} with {life_cost} life, or pay {mana_cost} mana instead?"
             )),
             text: None,
-            source_card_id: source.map(card_id_str),
             targets: Vec::new(),
         },
         &format!("Pay {life_cost} Life"),
@@ -71,7 +70,6 @@ pub(super) fn choose_kicker<T: Responder>(
             title: "Pay Kicker?".to_string(),
             description: Some(format!("Pay additional kicker cost: {kicker_cost}")),
             text: None,
-            source_card_id: source.map(card_id_str),
             targets: Vec::new(),
         },
         "Pay Kicker",
@@ -95,7 +93,6 @@ pub(super) fn choose_buyback<T: Responder>(
                 "If paid, this spell returns to your hand instead of going to the graveyard."
                     .to_string(),
             ),
-            source_card_id: source.map(card_id_str),
             targets: Vec::new(),
         },
         "Pay Buyback",
@@ -176,7 +173,6 @@ pub(super) fn pay_mana_cost<T: Responder>(
                     title: card_name.to_string(),
                     description: None,
                     text: None,
-                    source_card_id: Some(card_id_s.clone()),
                     targets: Vec::new(),
                 },
                 card_id: card_id_s,
@@ -260,7 +256,6 @@ pub(super) fn specify_mana_combo<T: Responder>(
                 title: "Choose mana color".to_string(),
                 description: None,
                 text: None,
-                source_card_id: source.map(card_id_str),
                 targets: Vec::new(),
             },
             valid_colors: available_colors.to_vec(),
@@ -275,7 +270,7 @@ pub(super) fn specify_mana_combo<T: Responder>(
             let mut result: Vec<String> = chosen_colors
                 .into_iter()
                 .filter(|(c, _)| available_colors.contains(c))
-                .flat_map(|(c, n)| std::iter::repeat(c).take(n as usize))
+                .flat_map(|(c, n)| std::iter::repeat_n(c, n as usize))
                 .collect();
             while result.len() < amount {
                 result.push(available_colors.first().cloned().unwrap_or("C".to_string()));

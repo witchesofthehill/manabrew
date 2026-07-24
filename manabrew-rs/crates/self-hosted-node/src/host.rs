@@ -40,6 +40,8 @@ type WsWrite = SplitSink<WsStream, Message>;
 type WsRead = SplitStream<WsStream>;
 
 const SELF_HOSTED_NODE_PROTOCOL: &str = "self-hosted-node";
+const PRIVATE_MESSAGE_MISSING_PLAYER: &str =
+    "cannot forward private engine message without a mapped player";
 
 struct RelayClient {
     username: String,
@@ -124,6 +126,7 @@ struct HostSnapshot {
     last_state: Option<Value>,
     last_state_by_slot: HashMap<String, Value>,
     pending_prompts: HashMap<String, Value>,
+    pending_end_game: Option<String>,
 }
 
 type SharedHostSnapshot = Arc<Mutex<HostSnapshot>>;
@@ -556,19 +559,20 @@ async fn reestablish_room(
     if let (Some(request), true) = (resume, game_active) {
         let room_id = request.room_id.clone();
         client.send(&ClientMessage::ResumeRoom(request)).await?;
-        match wait_for_room_resumed(client).await? {
+        match wait_for_room_resumed(client, engine_session, snapshot).await? {
             Some(room) => {
-                let (last_state, seat_states, prompts, player_order) = {
+                let (last_state, seat_states, prompts, player_order, pending_end_game) = {
                     let mut snap = snapshot.lock().map_err(|error| error.to_string())?;
                     snap.room_info = Some(room);
                     (
                         snap.last_state.clone(),
                         snap.last_state_by_slot.clone(),
-                        snap.pending_prompts.values().cloned().collect::<Vec<_>>(),
+                        snap.pending_prompts.clone(),
                         snap.game
                             .as_ref()
                             .map(|game| game.player_order.clone())
                             .unwrap_or_default(),
+                        snap.pending_end_game.clone(),
                     )
                 };
                 if let Some(state) = last_state {
@@ -580,22 +584,35 @@ async fn reestablish_room(
                         .await?;
                 }
                 for (slot, state) in seat_states {
-                    let target_player =
-                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned());
+                    let Some(target_player) =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned())
+                    else {
+                        warn!(slot, "cannot replay private state without a mapped player");
+                        continue;
+                    };
                     client
                         .send(&ClientMessage::BroadcastState {
                             state,
-                            target_player,
+                            target_player: Some(target_player),
                         })
                         .await?;
                 }
-                for prompt in prompts {
+                for (slot, prompt) in prompts {
+                    let Some(target_player) =
+                        parse_player_slot(&slot).and_then(|index| player_order.get(index).cloned())
+                    else {
+                        warn!(slot, "cannot replay prompt without a mapped player");
+                        continue;
+                    };
                     client
                         .send(&ClientMessage::BroadcastState {
                             state: prompt,
-                            target_player: None,
+                            target_player: Some(target_player),
                         })
                         .await?;
+                }
+                if let Some(game_id) = pending_end_game {
+                    client.send(&ClientMessage::EndGame { game_id }).await?;
                 }
                 info!(room_id, "room resumed; snapshot re-broadcast");
                 return Ok(room_id);
@@ -652,10 +669,58 @@ fn resume_room_request(
 
 async fn wait_for_room_resumed(
     client: &mut RelayClient,
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
 ) -> Result<Option<RoomInfo>, Box<dyn std::error::Error + Send + Sync>> {
     loop {
         match client.recv().await? {
-            Some(ServerMessage::RoomResumed { room }) => return Ok(Some(room)),
+            Some(ServerMessage::RoomResumed { room }) => {
+                if room.status == RoomStatus::Lobby {
+                    abort_stale_engine_session(
+                        engine_session,
+                        snapshot,
+                        "resumed room is no longer in game",
+                    );
+                } else {
+                    concede_missing_active_seats(engine_session, snapshot, &room);
+                }
+                return Ok(Some(room));
+            }
+            Some(ServerMessage::RoomUpdate { room }) => {
+                if room.status == RoomStatus::Lobby {
+                    abort_stale_engine_session(
+                        engine_session,
+                        snapshot,
+                        "room reset while reconnecting",
+                    );
+                } else {
+                    concede_missing_active_seats(engine_session, snapshot, &room);
+                }
+                if let Ok(mut snap) = snapshot.lock() {
+                    snap.room_info = Some(room);
+                }
+            }
+            Some(ServerMessage::StateUpdate { from_player, state }) => {
+                let Ok(envelope) = serde_json::from_value::<StateEnvelope>(state.clone()) else {
+                    continue;
+                };
+                match envelope {
+                    StateEnvelope::Response { .. } => {
+                        route_remote_response(engine_session, snapshot, &from_player, &state);
+                    }
+                    StateEnvelope::Directive {
+                        from_player: claimed_slot,
+                        directive,
+                    } => route_remote_directive(
+                        engine_session,
+                        snapshot,
+                        &from_player,
+                        &claimed_slot,
+                        &directive,
+                    ),
+                    _ => {}
+                }
+            }
             Some(ServerMessage::Error { code, message }) => {
                 warn!(code, message, "resume rejected by relay");
                 return Ok(None);
@@ -709,6 +774,7 @@ fn clear_game_snapshot(snapshot: &SharedHostSnapshot, game_id: &str) {
             snap.last_state = None;
             snap.last_state_by_slot.clear();
             snap.pending_prompts.clear();
+            snap.pending_end_game = None;
         }
     }
 }
@@ -1015,7 +1081,9 @@ async fn handle_server_message(
                     starting_life,
                 });
                 snap.last_state = None;
+                snap.last_state_by_slot.clear();
                 snap.pending_prompts.clear();
+                snap.pending_end_game = None;
             }
             maybe_start_hosted_engine(
                 config,
@@ -1060,14 +1128,20 @@ async fn handle_state_update(
 
     match envelope {
         StateEnvelope::Response { .. } => {
-            route_remote_response(engine_session, snapshot, &state);
+            route_remote_response(engine_session, snapshot, &from_player, &state);
             Ok(())
         }
         StateEnvelope::Directive {
-            from_player,
+            from_player: claimed_slot,
             directive,
         } => {
-            route_remote_directive(engine_session, &from_player, &directive);
+            route_remote_directive(
+                engine_session,
+                snapshot,
+                &from_player,
+                &claimed_slot,
+                &directive,
+            );
             Ok(())
         }
         StateEnvelope::RoomRelay {
@@ -1346,16 +1420,19 @@ fn maybe_start_hosted_engine(
             spawn_remote_prompt_forwarder(
                 outbound_tx.clone(),
                 snapshot.clone(),
+                engine_session.clone(),
+                game_id.clone(),
                 remote_prompt_rx,
-                None,
+                Some(player_names.clone()),
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
                 outbound_tx.clone(),
                 game_over_rx,
                 engine_session.clone(),
+                snapshot.clone(),
                 game_id.clone(),
-                None,
+                Some(player_names.clone()),
             );
             let outbound_tx = outbound_tx.clone();
             let snapshot = snapshot.clone();
@@ -1416,6 +1493,8 @@ fn maybe_start_hosted_engine(
             spawn_remote_prompt_forwarder(
                 outbound_tx.clone(),
                 snapshot.clone(),
+                engine_session.clone(),
+                game_id.clone(),
                 remote_prompt_rx,
                 Some(player_names.clone()),
             );
@@ -1424,6 +1503,7 @@ fn maybe_start_hosted_engine(
                 outbound_tx.clone(),
                 game_over_rx,
                 engine_session.clone(),
+                snapshot.clone(),
                 game_id.clone(),
                 Some(player_names.clone()),
             );
@@ -1516,6 +1596,28 @@ fn seat_index_of(snapshot: &SharedHostSnapshot, username: &str) -> Option<usize>
     game.player_order.iter().position(|name| name == username)
 }
 
+fn concede_missing_active_seats(
+    engine_session: &SharedEngineSession,
+    snapshot: &SharedHostSnapshot,
+    room: &RoomInfo,
+) {
+    let Some(active) = active_player_usernames(snapshot) else {
+        return;
+    };
+    let present: HashSet<&str> = room
+        .players
+        .iter()
+        .map(|player| player.username.as_str())
+        .collect();
+    for username in active {
+        if !present.contains(username.as_str()) {
+            if let Some(index) = seat_index_of(snapshot, &username) {
+                concede_seat(engine_session, index);
+            }
+        }
+    }
+}
+
 fn concede_seat(engine_session: &SharedEngineSession, player_index: usize) {
     send_seat_message(
         engine_session,
@@ -1598,6 +1700,15 @@ fn finish_hosted_engine(
         .unwrap_or(false);
     if let Some(message) = fatal {
         if still_owner {
+            if let Ok(mut snap) = snapshot.lock() {
+                if snap
+                    .game
+                    .as_ref()
+                    .is_some_and(|game| game.game_id == game_id)
+                {
+                    snap.pending_end_game = Some(game_id.to_string());
+                }
+            }
             if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
                 let _ = outbound_tx.send(ClientMessage::BroadcastState {
                     state,
@@ -1611,22 +1722,12 @@ fn finish_hosted_engine(
             warn!(game_id, message, "stale engine session finished with error");
         }
     }
-    if let Ok(mut snap) = snapshot.lock() {
-        if snap.game.as_ref().is_some_and(|g| g.game_id == game_id) {
-            snap.game = None;
-            snap.last_state = None;
-            snap.last_state_by_slot.clear();
-            snap.pending_prompts.clear();
-        }
-    }
-    if still_owner {
-        clear_engine_session(session_handle);
-    }
 }
 
 fn route_remote_response(
     engine_session: &SharedEngineSession,
     snapshot: &SharedHostSnapshot,
+    authenticated_username: &str,
     state: &Value,
 ) {
     let envelope: StateEnvelope = match serde_json::from_value(state.clone()) {
@@ -1645,12 +1746,17 @@ fn route_remote_response(
         warn!(state = %state, "expected response envelope");
         return;
     };
-    if let Ok(mut snap) = snapshot.lock() {
-        snap.pending_prompts.remove(&from_player);
-    }
-    let Some(player_index) = parse_player_slot(&from_player) else {
-        warn!(from_player, "relay response has invalid player slot");
+    let Some(player_index) =
+        authenticated_player_index(snapshot, authenticated_username, &from_player, "response")
+    else {
         return;
+    };
+    let action: PromptOutput = match serde_json::from_value(action_value) {
+        Ok(action) => action,
+        Err(error) => {
+            warn!(from_player, %error, "relay response has invalid action");
+            return;
+        }
     };
 
     let guard = match engine_session.lock() {
@@ -1664,77 +1770,93 @@ fn route_remote_response(
         debug!(from_player, "no engine session for relay response");
         return;
     };
-    match session {
+    let tx = match session {
         EngineSession::Manabrew {
             remote_response_txs,
             ..
-        } => {
-            let action: PromptOutput = match serde_json::from_value(action_value) {
-                Ok(action) => action,
-                Err(error) => {
-                    warn!(from_player, %error, "relay response has invalid rust action");
-                    return;
-                }
-            };
-            let Some(tx) = remote_response_txs.get(&player_index) else {
-                debug!(from_player, player_index, "no response channel for player");
-                return;
-            };
-            if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
-                warn!(from_player, %error, "failed to route relay response");
-            }
-        }
+        } => remote_response_txs.get(&player_index),
         EngineSession::Forge {
             remote_response_txs,
             ..
         } => {
-            let action: PromptOutput = match serde_json::from_value(action_value) {
-                Ok(action) => action,
-                Err(error) => {
-                    warn!(from_player, %error, "relay response has invalid java action");
-                    return;
-                }
-            };
-            let Some(tx) = remote_response_txs.get(&player_index) else {
-                debug!(from_player, player_index, "no response channel for player");
-                return;
-            };
             debug!(
                 from_player,
                 player_index, "routing relay response to java engine"
             );
-            if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
-                warn!(from_player, %error, "failed to route relay response");
-            }
+            remote_response_txs.get(&player_index)
         }
+    };
+    let Some(tx) = tx else {
+        debug!(from_player, player_index, "no response channel for player");
+        return;
+    };
+    if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
+        warn!(from_player, %error, "failed to route relay response");
+        return;
+    }
+    drop(guard);
+    if let Ok(mut snap) = snapshot.lock() {
+        snap.pending_prompts.remove(&from_player);
     }
 }
 
 fn route_remote_directive(
     engine_session: &SharedEngineSession,
-    from_player: &str,
+    snapshot: &SharedHostSnapshot,
+    authenticated_username: &str,
+    claimed_slot: &str,
     directive: &Value,
 ) {
     let directive: DirectiveInput = match serde_json::from_value(directive.clone()) {
         Ok(directive) => directive,
         Err(error) => {
-            warn!(from_player, %error, "relay directive is invalid");
+            warn!(claimed_slot, %error, "relay directive is invalid");
             return;
         }
     };
-    let Some(player_index) = parse_player_slot(from_player) else {
-        warn!(from_player, "relay directive has invalid player slot");
+    let Some(player_index) =
+        authenticated_player_index(snapshot, authenticated_username, claimed_slot, "directive")
+    else {
         return;
     };
-    info!(from_player, player_index, ?directive, "routing directive");
+    info!(claimed_slot, player_index, ?directive, "routing directive");
     match directive {
         DirectiveInput::Concede => concede_seat(engine_session, player_index),
     }
 }
 
+fn authenticated_player_index(
+    snapshot: &SharedHostSnapshot,
+    authenticated_username: &str,
+    claimed_slot: &str,
+    message_kind: &str,
+) -> Option<usize> {
+    let Some(player_index) = seat_index_of(snapshot, authenticated_username) else {
+        warn!(
+            authenticated_username,
+            message_kind, "relay sender has no engine seat"
+        );
+        return None;
+    };
+    let authenticated_slot = player_slot(player_index);
+    if claimed_slot != authenticated_slot {
+        warn!(
+            authenticated_username,
+            claimed_slot,
+            authenticated_slot,
+            message_kind,
+            "relay sender claimed another engine seat"
+        );
+        return None;
+    }
+    Some(player_index)
+}
+
 fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     snapshot: SharedHostSnapshot,
+    engine_session: SharedEngineSession,
+    game_id: String,
     remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
     seat_usernames: Option<Vec<String>>,
 ) {
@@ -1743,6 +1865,15 @@ fn spawn_remote_prompt_forwarder(
         let mut last_state: Option<Value> = None;
         let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
+            let Ok(session) = engine_session.lock() else {
+                break;
+            };
+            if !session
+                .as_ref()
+                .is_some_and(|session| session.game_id() == game_id)
+            {
+                break;
+            }
             let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
             let slot = player_slot(player_index);
             let envelope = match &message {
@@ -1780,10 +1911,19 @@ fn spawn_remote_prompt_forwarder(
                     AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
             }
-            let target_player = if per_seat && matches!(message, AgentMessage::State(_)) {
-                seat_usernames
+            let target_player = if per_seat
+                && matches!(
+                    message,
+                    AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                ) {
+                let Some(target_player) = seat_usernames
                     .as_ref()
                     .and_then(|names| names.get(player_index).cloned())
+                else {
+                    warn!(player_index, PRIVATE_MESSAGE_MISSING_PLAYER);
+                    continue;
+                };
+                Some(target_player)
             } else {
                 None
             };
@@ -1804,23 +1944,33 @@ fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     game_over_rx: std_mpsc::Receiver<HostedGameOver>,
     session_handle: SharedEngineSession,
+    snapshot: SharedHostSnapshot,
     game_id: String,
     seat_usernames: Option<Vec<String>>,
 ) {
     thread::spawn(move || {
         while let Ok(game_over) = game_over_rx.recv() {
-            // None means finish_hosted_engine already cleared our own session
-            // (normal completion); only a *different* session means superseded.
-            let superseded = session_handle
-                .lock()
-                .map(|guard| guard.as_ref().is_some_and(|s| s.game_id() != game_id))
-                .unwrap_or(false);
-            if superseded {
+            let Ok(session) = session_handle.lock() else {
+                return;
+            };
+            if !session
+                .as_ref()
+                .is_some_and(|session| session.game_id() == game_id)
+            {
                 warn!(
                     game_id,
                     "stale engine session reached game over; not ending the relay game"
                 );
                 continue;
+            }
+            if let Ok(mut snap) = snapshot.lock() {
+                if snap
+                    .game
+                    .as_ref()
+                    .is_some_and(|game| game.game_id == game_id)
+                {
+                    snap.pending_end_game = Some(game_id.clone());
+                }
             }
             let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
             let mut last_state: Option<Value> = None;
@@ -1848,10 +1998,19 @@ fn spawn_game_over_forwarder(
                     AgentMessage::Display(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_) => {
                     }
                 }
-                let target_player = if per_seat && matches!(message, AgentMessage::State(_)) {
-                    seat_usernames
+                let target_player = if per_seat
+                    && matches!(
+                        message,
+                        AgentMessage::State(_) | AgentMessage::Prompt(_) | AgentMessage::Error(_)
+                    ) {
+                    let Some(target_player) = seat_usernames
                         .as_ref()
                         .and_then(|names| names.get(player_index).cloned())
+                    else {
+                        warn!(player_index, PRIVATE_MESSAGE_MISSING_PLAYER);
+                        continue;
+                    };
+                    Some(target_player)
                 } else {
                     None
                 };

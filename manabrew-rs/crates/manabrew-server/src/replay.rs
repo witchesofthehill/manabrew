@@ -4,10 +4,14 @@ use std::time::Instant;
 use serde_json::Value;
 
 use crate::protocol::PlayerDeckInfo;
-use crate::room::RoomSlot;
-
 const PLAYER_SLOT_PREFIX: &str = "player-";
 const MAX_FATAL_MESSAGE_CHARS: usize = 500;
+
+#[derive(Debug, Clone)]
+pub struct QueuedEngineInput {
+    pub from_player: String,
+    pub state: Value,
+}
 
 #[derive(Debug, Default)]
 pub struct ObservedOutcome {
@@ -27,7 +31,7 @@ pub struct GameReplayCache {
     pub last_state: Option<Value>,
     pub last_state_by_slot: HashMap<String, Value>,
     pub pending_prompts: HashMap<String, Value>,
-    pub queued_responses: HashMap<String, Vec<Value>>,
+    pub queued_inputs: HashMap<String, Vec<QueuedEngineInput>>,
     pub outcome: ObservedOutcome,
 }
 
@@ -47,12 +51,12 @@ impl GameReplayCache {
             last_state: None,
             last_state_by_slot: HashMap::new(),
             pending_prompts: HashMap::new(),
-            queued_responses: HashMap::new(),
+            queued_inputs: HashMap::new(),
             outcome: ObservedOutcome::default(),
         }
     }
 
-    pub fn observe(&mut self, envelope: &Value, players: &[RoomSlot]) {
+    pub fn observe(&mut self, envelope: &Value) {
         match envelope.get("kind").and_then(Value::as_str) {
             Some("state") => {
                 self.observe_outcome(envelope);
@@ -73,12 +77,6 @@ impl GameReplayCache {
             Some("response") => {
                 if let Some(slot) = envelope.get("fromPlayer").and_then(Value::as_str) {
                     self.pending_prompts.remove(slot);
-                }
-                for player in players.iter().filter(|p| !p.connected) {
-                    self.queued_responses
-                        .entry(player.username.clone())
-                        .or_default()
-                        .push(envelope.clone());
                 }
             }
             Some("fatal") => {
@@ -129,7 +127,24 @@ impl GameReplayCache {
             .and_then(|index| self.player_order.get(index).cloned())
     }
 
-    pub fn take_queued_responses(&mut self, username: &str) -> Vec<Value> {
-        self.queued_responses.remove(username).unwrap_or_default()
+    pub fn queue_input(&mut self, host_username: &str, from_player: &str, state: Value) {
+        self.queued_inputs
+            .entry(host_username.to_string())
+            .or_default()
+            .push(QueuedEngineInput {
+                from_player: from_player.to_string(),
+                state,
+            });
+    }
+
+    pub fn queued_inputs_for(&self, username: &str) -> Vec<QueuedEngineInput> {
+        self.queued_inputs
+            .get(username)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    pub fn acknowledge_inputs(&mut self, host_username: &str) {
+        self.queued_inputs.remove(host_username);
     }
 }

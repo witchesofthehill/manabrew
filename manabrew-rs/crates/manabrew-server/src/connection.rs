@@ -14,8 +14,10 @@ use crate::error::ServerError;
 use crate::lobby;
 use crate::metrics;
 use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
+use crate::room::Room;
 use crate::state::{ConnectedPlayer, ServerState};
 use manabrew_protocol::deck_dto::OUTDATED_CLIENT_MESSAGE;
+use manabrew_protocol::transport::ClientToServerMessage as EngineInput;
 
 type WsSender = futures_util::stream::SplitSink<
     tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
@@ -27,6 +29,73 @@ type WsReceiver =
 
 pub(crate) const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
 pub(crate) const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+const SELF_HOSTED_NODE_PROTOCOL: &str = "self-hosted-node";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GameMessageSource {
+    Engine,
+    Player,
+    RoomRelay,
+}
+
+fn authorize_game_message(
+    room: &Room,
+    player_id: &str,
+    username: &str,
+    state: &serde_json::Value,
+) -> Option<GameMessageSource> {
+    match state.get("kind").and_then(serde_json::Value::as_str)? {
+        "response" | "directive" => {
+            let claimed_slot = state
+                .get("fromPlayer")
+                .and_then(serde_json::Value::as_str)?;
+            let authenticated_slot = room.replay.as_ref()?.slot_for(username)?;
+            if claimed_slot != authenticated_slot {
+                return None;
+            }
+            let mut input = state.clone();
+            input.as_object_mut()?.remove("fromPlayer");
+            serde_json::from_value::<EngineInput>(input)
+                .ok()
+                .map(|_| GameMessageSource::Player)
+        }
+        "state" | "display" | "prompt" | "error" | "log" | "snapshot" | "fatal" => {
+            room.is_host(player_id).then_some(GameMessageSource::Engine)
+        }
+        "roomRelay" => {
+            let protocol = state.get("protocol").and_then(serde_json::Value::as_str)?;
+            if protocol != SELF_HOSTED_NODE_PROTOCOL {
+                return Some(GameMessageSource::RoomRelay);
+            }
+            match state
+                .get("payload")
+                .and_then(|payload| payload.get("type"))
+                .and_then(serde_json::Value::as_str)?
+            {
+                "gameOver" => {
+                    let game_id = state
+                        .get("payload")
+                        .and_then(|payload| payload.get("gameId"))
+                        .and_then(serde_json::Value::as_str)?;
+                    (room.is_host(player_id)
+                        && room
+                            .replay
+                            .as_ref()
+                            .is_some_and(|replay| replay.game_id == game_id))
+                    .then_some(GameMessageSource::RoomRelay)
+                }
+                "heartbeat" => room
+                    .is_host(player_id)
+                    .then_some(GameMessageSource::RoomRelay),
+                "spawnBot" | "removeBot" => room
+                    .is_controller(player_id)
+                    .then_some(GameMessageSource::RoomRelay),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
 
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
@@ -115,10 +184,14 @@ pub fn send_to_room_player(
         Err(_) => return,
     };
     let target_id: Option<String> = state.rooms.get(room_id).and_then(|room| {
-        room.players
-            .iter()
-            .find(|p| p.connected && p.username == target_username)
-            .map(|p| p.player_id.clone())
+        if room.host_username == target_username && room.host_connected() {
+            Some(room.host_player_id.clone())
+        } else {
+            room.players
+                .iter()
+                .find(|p| p.connected && p.username == target_username)
+                .map(|p| p.player_id.clone())
+        }
     });
     let Some(pid) = target_id else {
         debug!(
@@ -544,22 +617,22 @@ fn reclaim_session(
             if room.status != RoomStatus::InGame {
                 return None;
             }
-            let replay = room.replay.as_mut()?;
-            let responses = replay.take_queued_responses(username);
-            (!responses.is_empty()).then(|| (room.host_username(), responses))
+            let replay = room.replay.as_ref()?;
+            let inputs = replay.queued_inputs_for(username);
+            (!inputs.is_empty()).then_some(inputs)
         });
-        if let Some((host_username, responses)) = queued {
+        if let Some(inputs) = queued {
             info!(
-                "[auth] flushing {} queued responses to '{}'",
-                responses.len(),
+                "[auth] flushing {} queued engine inputs to '{}'",
+                inputs.len(),
                 username
             );
-            for response in responses {
+            for input in inputs {
                 send_msg(
                     sender,
                     &ServerMessage::StateUpdate {
-                        from_player: host_username.clone(),
-                        state: response,
+                        from_player: input.from_player,
+                        state: input.state,
                     },
                 );
             }
@@ -1074,28 +1147,52 @@ fn handle_client_message(
         } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
-                let capture_game_id = state.rooms.get_mut(&rid).and_then(|mut room| {
-                    let room = &mut *room;
-                    if room.status != RoomStatus::InGame {
-                        return None;
+                let Some(mut room) = state.rooms.get_mut(&rid) else {
+                    return;
+                };
+                let Some(source) = authorize_game_message(&room, player_id, username, &game_state)
+                else {
+                    warn!(username, "rejected unauthorized game envelope");
+                    return;
+                };
+                if source != GameMessageSource::RoomRelay && room.status != RoomStatus::InGame {
+                    return;
+                }
+                let host_username = room.host_username();
+                let host_connected = room.host_connected();
+                let canonical_target = if source == GameMessageSource::Player {
+                    Some(host_username.clone())
+                } else {
+                    target_player
+                };
+                let should_deliver = source != GameMessageSource::Player || host_connected;
+                let capture_game_id = room.replay.as_mut().and_then(|replay| {
+                    if source == GameMessageSource::Engine {
+                        replay.acknowledge_inputs(&host_username);
                     }
-                    let replay = room.replay.as_mut()?;
-                    replay.observe(&game_state, &room.players);
+                    replay.observe(&game_state);
+                    if source == GameMessageSource::Player {
+                        replay.queue_input(&host_username, username, game_state.clone());
+                    }
                     state
                         .analytics
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
+                drop(room);
                 if let Some(game_id) = capture_game_id {
                     state
                         .analytics
                         .capture_envelope(&game_id, username, &game_state);
                 }
+                if !should_deliver {
+                    return;
+                }
                 let msg = ServerMessage::StateUpdate {
                     from_player: username.to_string(),
                     state: game_state,
                 };
-                match target_player {
+                match canonical_target {
                     Some(target) => {
                         debug!(
                             "[game] '{}' sending state to '{}' in room {}",
@@ -1129,6 +1226,13 @@ fn handle_client_message(
         } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
+                let engine_host = state.rooms.get(&rid).is_some_and(|room| {
+                    room.status == RoomStatus::InGame && room.is_host(player_id)
+                });
+                if !engine_host {
+                    send_error(sender, &ServerError::NotHost);
+                    return;
+                }
                 info!(
                     "[game] turn change in room {}: '{}' -> '{}' (turn {})",
                     &rid[..8],

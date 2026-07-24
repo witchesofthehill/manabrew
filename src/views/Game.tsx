@@ -27,6 +27,7 @@ import {
 } from "@/components/game/modals";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
+import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSourceCard";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
@@ -1275,14 +1276,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return byId;
   }, [gameView?.stack]);
 
-  const promptSourceDeckCard = useMemo(() => {
-    if (!activePrompt?.sourceCardId) return undefined;
-    const gc =
-      visibleCardsById.get(activePrompt.sourceCardId) ??
-      stackCardsBySourceId.get(activePrompt.sourceCardId);
-    if (!gc) return undefined;
-    return asDeckCard(gameDecks[gc.ownerId], gc);
-  }, [activePrompt?.sourceCardId, visibleCardsById, stackCardsBySourceId, gameDecks]);
+  const promptSourceDeckCard = useResolveSourceCard(activePrompt?.sourceCard);
 
   const handleLogCardHover = (
     cardId: string | null,
@@ -1770,6 +1764,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                   payManaCostInput
                     ? {
                         cardName: payManaCostInput.cardName,
+                        sourceCard: promptSourceDeckCard,
                         manaCost: payManaCostInput.manaCost,
                         description: payManaCostInput.presentation.text,
                         manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},

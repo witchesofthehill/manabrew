@@ -161,10 +161,10 @@ const MANA_PIP_SIZE = 9;
 const MAX_VISIBLE_KEYWORDS = 4;
 const RAIL_ANIM_MS = 0.3;
 const RAIL_ROW_GAP = 3;
-const RAIL_ROW_H = 16;
+const RAIL_ROW_H = 18;
 const RAIL_TRACK_PAD_X = 7;
 const RAIL_LABEL_Y = 4;
-const RAIL_MARKER_R = 3.4;
+const RAIL_MARKER_R = 4;
 const KEYWORD_LABEL_MAX_LEN = 14;
 
 function truncateChipLabel(text: string): string {
@@ -183,7 +183,7 @@ const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
 const RAIL_LABEL_STYLE = registerTintedTextStyle(
   new TextStyle({
     fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-    fontSize: 5.5,
+    fontSize: 6,
     fontWeight: "700",
     fill: tintedTextFill(),
   }),
@@ -1311,7 +1311,7 @@ export class CardSprite extends Container {
   private drawRail(state: CardRailState, rowY: number): void {
     const theme = activeTheme.gameTheme;
     const accent = hexToNum(state.kind === "saga" ? theme.counter.lore : theme.counter.level);
-    const shellW = Math.min(this.cw - 8, Math.max(28, 18 + (state.max - 1) * 14));
+    const shellW = Math.min(this.cw - 8, Math.max(32, 20 + (state.max - 1) * 15));
     const shellX = (this.cw - shellW) / 2;
     const shellH = RAIL_ROW_H;
     const shellTop = 4;

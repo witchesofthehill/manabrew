@@ -69,11 +69,10 @@ export function OpenTableCard({ room, currentRoomId, joining, onJoin }: OpenTabl
           </span>
         )}
       </div>
-      {showHost && (
-        <p className="-mt-1.5 truncate text-[11px] text-muted-foreground">
-          Hosted by {stripUsernameTag(room.host)}
-        </p>
-      )}
+      {/* Rendered even with no host so the seat ring lines up across the row. */}
+      <p className="-mt-1.5 truncate text-[11px] text-muted-foreground">
+        {showHost ? `Hosted by ${stripUsernameTag(room.host)}` : " "}
+      </p>
 
       <OpenTableSeats
         players={room.players}

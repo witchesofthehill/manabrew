@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Armchair, Bot, Crown, Plus, X } from "lucide-react";
+import { Bot, Crown, Plus, User, X } from "lucide-react";
 import { stripUsernameTag } from "@/lib/username";
 import { cn } from "@/lib/utils";
 import type { RoomPlayerInfo } from "@/types/server";
@@ -53,7 +53,10 @@ export function TableSeatChip({
             className,
           )}
         >
-          <Armchair aria-hidden="true" className="h-3.5 w-3.5" />
+          <User
+            aria-hidden="true"
+            className={cn("h-3.5 w-3.5", size === "room" && "h-5 w-5 sm:h-6 sm:w-6")}
+          />
         </div>
       );
     }
@@ -70,7 +73,10 @@ export function TableSeatChip({
           className,
         )}
       >
-        <Plus aria-hidden="true" className="h-4 w-4" />
+        <Plus
+          aria-hidden="true"
+          className={cn("h-4 w-4", size === "room" && "h-5 w-5 sm:h-6 sm:w-6")}
+        />
       </button>
     );
   }
@@ -88,21 +94,34 @@ export function TableSeatChip({
     >
       <div
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold shadow-md",
+          "relative flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-card text-[10px] font-bold shadow-md",
           size === "room" && "h-12 w-12 text-xs sm:h-14 sm:w-14 sm:text-sm",
-          player.is_bot ? "bg-muted text-muted-foreground" : "bg-primary/20 text-primary",
+          player.is_bot ? "text-muted-foreground" : "text-primary",
           ready && "ring-2 ring-primary/70",
         )}
       >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "absolute inset-0 rounded-full",
+            player.is_bot ? "bg-muted" : "bg-primary/20",
+          )}
+        />
         {player.is_bot ? (
-          <Bot aria-hidden="true" className="h-3.5 w-3.5" />
+          <Bot
+            aria-hidden="true"
+            className={cn("relative h-3.5 w-3.5", size === "room" && "h-5 w-5 sm:h-6 sm:w-6")}
+          />
         ) : (
-          seatInitials(player.username)
+          <span className="relative">{seatInitials(player.username)}</span>
         )}
         {isHost && (
           <Crown
             aria-hidden="true"
-            className="absolute -top-1.5 -right-1.5 h-3 w-3 text-commander"
+            className={cn(
+              "absolute -right-2 -top-2 h-4 w-4 rotate-[40deg] text-commander",
+              size === "room" && "-right-2.5 -top-2.5 h-5 w-5 sm:-right-3 sm:-top-3 sm:h-6 sm:w-6",
+            )}
           />
         )}
         {onRemove && (

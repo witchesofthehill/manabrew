@@ -12,7 +12,6 @@ import DeckEditor from "@/views/DeckEditor";
 
 import Game from "@/views/Game";
 import Play from "@/views/Play";
-import Tabletop from "@/views/Tabletop";
 import Draft from "@/views/Draft";
 import MultiplayerDraft from "@/views/MultiplayerDraft";
 import MultiplayerSealed from "@/views/MultiplayerSealed";
@@ -50,14 +49,6 @@ export const router = createBrowserRouter([
         element: (
           <ErrorBoundary context="Play">
             <Play />
-          </ErrorBoundary>
-        ),
-      },
-      {
-        path: "tabletop",
-        element: (
-          <ErrorBoundary context="Tabletop">
-            <Tabletop />
           </ErrorBoundary>
         ),
       },

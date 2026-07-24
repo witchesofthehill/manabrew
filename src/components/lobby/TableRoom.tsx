@@ -1,10 +1,7 @@
-import { LogOut, Shield, Swords, Users } from "lucide-react";
+import { Shield, Swords } from "lucide-react";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
-import { RelayConnectionStatus } from "@/components/lobby/RelayConnectionStatus";
 import { TableRoomSidebar } from "@/components/lobby/TableRoomSidebar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { stripUsernameTag } from "@/lib/username";
 import type { GameFormat, RoomInfo } from "@/types/server";
 
 interface TableRoomProps {
@@ -17,7 +14,6 @@ interface TableRoomProps {
   onSetMaxPlayers?: (maxPlayers: number) => void;
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
-  onStartTabletop?: () => void;
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
@@ -37,7 +33,6 @@ export function TableRoom({
   onSetMaxPlayers,
   onOpenDeckDialog,
   onStartGame,
-  onStartTabletop,
   onStartDraft,
   onStartSealed,
   startingLimited = false,
@@ -167,97 +162,67 @@ export function TableRoom({
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-      <div className="flex min-h-full flex-col gap-5">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2">
-              <Swords className="h-5 w-5 shrink-0 text-primary" />
-              <h2 className="truncate font-serif text-2xl font-light sm:text-3xl">
-                {room.room_name}
-              </h2>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{modeLabel}</Badge>
-              <Badge variant="outline">{room.engine}</Badge>
-              <Badge variant="outline" className="gap-1">
-                <Users className="h-3 w-3" /> {room.players.length}/{room.max_players}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Hosted by {stripUsernameTag(controllerName ?? room.host)}
-              </span>
-            </div>
-          </div>
-          <div className="flex max-w-full flex-wrap items-center gap-2 sm:justify-end">
-            <RelayConnectionStatus />
-            <Button variant="ghost" size="sm" onClick={onLeaveRoom} className="self-start">
-              <LogOut /> Leave table
-            </Button>
-          </div>
-        </header>
-
-        <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <section className="flex min-h-[30rem] flex-col overflow-hidden rounded-2xl border border-primary/30 bg-card/85 shadow-xl backdrop-blur-md">
-            <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
-              <OpenTableSeats
-                players={room.players}
-                maxPlayers={room.max_players}
-                showSeatLabels
-                openFormat={isOpenFormat}
-                youUsername={username}
-                removableBots={isController && room.status === "Lobby" ? mySpawnedBots : []}
-                onRemoveBot={onRemoveBot}
-                size="room"
-                className="max-w-3xl"
-                centerContent={
-                  <span className="flex flex-col items-center gap-1">
-                    <span className="font-serif text-lg font-light text-foreground/90 sm:text-2xl">
-                      {modeLabel}
-                    </span>
-                    <span className="text-xs font-medium text-muted-foreground sm:text-sm">
-                      {readyCount}/{room.players.length} ready
-                    </span>
+      <div className="grid min-h-full gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <section className="flex min-h-[30rem] flex-col overflow-hidden rounded-2xl border border-primary/30 bg-card/85 shadow-xl backdrop-blur-md">
+          <div className="flex flex-1 items-center justify-center p-4 sm:p-8">
+            <OpenTableSeats
+              players={room.players}
+              maxPlayers={room.max_players}
+              showSeatLabels
+              openFormat={isOpenFormat}
+              youUsername={username}
+              removableBots={isController && room.status === "Lobby" ? mySpawnedBots : []}
+              onRemoveBot={onRemoveBot}
+              size="room"
+              className="max-w-3xl"
+              centerContent={
+                <span className="flex flex-col items-center gap-1">
+                  <span className="font-serif text-lg font-light text-foreground/90 sm:text-2xl">
+                    {modeLabel}
                   </span>
-                }
-              />
+                  <span className="text-xs font-medium text-muted-foreground sm:text-sm">
+                    {readyCount}/{room.players.length} ready
+                  </span>
+                </span>
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-4 border-t border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Your seat
+              </p>
+              <p className="mt-1 truncate text-sm font-medium">
+                {isController
+                  ? "You control when the game begins"
+                  : isOpenFormat
+                    ? myPlayer?.ready
+                      ? "Ready to play"
+                      : "Confirm when you're ready"
+                    : (myPlayer?.selected_deck_name ?? "Choose the deck you want to play")}
+              </p>
             </div>
-            <div className="flex flex-col gap-4 border-t border-border/60 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Your seat
-                </p>
-                <p className="mt-1 truncate text-sm font-medium">
-                  {isController
-                    ? "You control when the game begins"
-                    : isOpenFormat
-                      ? myPlayer?.ready
-                        ? "Ready to play"
-                        : "Confirm when you're ready"
-                      : (myPlayer?.selected_deck_name ?? "Choose the deck you want to play")}
-                </p>
-              </div>
-              {renderPrimaryAction()}
-            </div>
-          </section>
+            {renderPrimaryAction()}
+          </div>
+        </section>
 
-          <TableRoomSidebar
-            room={room}
-            roomPassword={roomPassword}
-            modeLabel={modeLabel}
-            isController={isController}
-            isLimitedRoom={isLimitedRoom}
-            isOpenFormat={isOpenFormat}
-            needsDeck={needsDeck}
-            canStart={canStart}
-            myPlayerReady={myPlayer?.ready === true}
-            openSeats={openSeats}
-            onSetReady={onSetReady}
-            onSetFormat={onSetFormat}
-            onSetMaxPlayers={onSetMaxPlayers}
-            onOpenDeckDialog={onOpenDeckDialog}
-            onStartTabletop={onStartTabletop}
-            onAddBot={onAddBot}
-          />
-        </div>
+        <TableRoomSidebar
+          room={room}
+          roomPassword={roomPassword}
+          modeLabel={modeLabel}
+          isController={isController}
+          isLimitedRoom={isLimitedRoom}
+          isOpenFormat={isOpenFormat}
+          needsDeck={needsDeck}
+          myPlayerReady={myPlayer?.ready === true}
+          openSeats={openSeats}
+          onLeaveRoom={onLeaveRoom}
+          onSetReady={onSetReady}
+          onSetFormat={onSetFormat}
+          onSetMaxPlayers={onSetMaxPlayers}
+          onOpenDeckDialog={onOpenDeckDialog}
+          onAddBot={onAddBot}
+        />
       </div>
     </div>
   );

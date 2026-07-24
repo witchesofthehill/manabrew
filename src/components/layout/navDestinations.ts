@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import {
   Github,
-  Hand,
   HeartPulse,
   Info,
   Layers,
@@ -16,7 +15,6 @@ import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
 import { isFeatureEnabled } from "@/featureFlags";
 import { DISCORD_INVITE_URL, GITHUB_REPO_URL, ROUTES } from "@/lib/constants";
-import { FEATURES } from "@/lib/features";
 
 export interface NavDestination {
   to: string;
@@ -29,6 +27,7 @@ export interface NavMenu {
   id: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
+  iconOnly?: boolean;
   items: NavDestination[];
 }
 
@@ -81,10 +80,6 @@ export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
     { to: ROUTES.SEARCH, label: "Card Search", icon: Search },
     { to: ROUTES.COMPANION, label: "Life Tracker", icon: HeartPulse },
   );
-  if (FEATURES.tabletop) {
-    direct.push({ to: ROUTES.TABLETOP, label: "Tabletop", icon: Hand });
-  }
-
   const more: NavDestination[] = [{ to: ROUTES.ABOUT, label: "About", icon: Info }];
   if (DESIGN_SYSTEM_ENABLED) {
     more.push({ to: ROUTES.DESIGN_SYSTEM, label: "Design System", icon: Palette });
@@ -93,7 +88,7 @@ export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
     { to: DISCORD_INVITE_URL, label: "Discord", icon: DiscordIcon, external: true },
     { to: GITHUB_REPO_URL, label: "GitHub", icon: Github, external: true },
   );
-  menus.push({ id: "more", label: "More", icon: MoreHorizontal, items: more });
+  menus.push({ id: "more", label: "More", icon: MoreHorizontal, iconOnly: true, items: more });
 
   return { direct, menus };
 }

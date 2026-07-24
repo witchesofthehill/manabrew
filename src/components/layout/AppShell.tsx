@@ -28,7 +28,6 @@ export function AppShell() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const pathname =
     location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
-  const isTabletopRoute = pathname.startsWith(ROUTES.TABLETOP);
   const isGameRoute = pathname.startsWith(ROUTES.GAME) || isGameActive;
   const isCompanionRoute = pathname.startsWith(ROUTES.COMPANION);
   const isImmersiveRoute = isGameRoute || isCompanionRoute;
@@ -43,7 +42,7 @@ export function AppShell() {
     pathname.startsWith(ROUTES.GAUNTLET) ||
     pathname.startsWith(ROUTES.DESIGN_SYSTEM) ||
     pathname === "/card-mock";
-  const hideNavChrome = isGameRoute && !isTabletopRoute;
+  const hideNavChrome = isGameRoute;
   const activeTopBarOverride =
     topBarOverride?.locationKey === location.key &&
     topBarOverride.pathname === location.pathname &&
@@ -92,7 +91,6 @@ export function AppShell() {
             !isImmersiveRoute &&
               "pb-[var(--safe-area-inset-bottom)] pl-[var(--safe-area-inset-left)] pr-[var(--safe-area-inset-right)]",
             isImmersiveRoute && "!p-0 !overflow-hidden",
-            isTabletopRoute && isGameRoute && "[--safe-area-inset-top:0px]",
           )}
         >
           {!isImmersiveRoute && (

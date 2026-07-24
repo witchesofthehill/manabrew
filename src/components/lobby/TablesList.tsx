@@ -15,6 +15,7 @@ import { PROTOCOL_VERSION } from "@/protocol";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { ServerErrorCode } from "@/types/server";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
 
@@ -33,6 +34,7 @@ interface TablesListProps {
   onRefresh: () => void;
   refreshing: boolean;
   refreshDisabled: boolean;
+  disabled?: boolean;
   onJoinRoom: (roomId: string, password?: string, format?: GameFormat) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
@@ -40,7 +42,6 @@ interface TablesListProps {
   onSetMaxPlayers?: (maxPlayers: number) => void;
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
-  onStartTabletop?: () => void;
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
@@ -61,6 +62,7 @@ export function TablesList({
   onRefresh,
   refreshing,
   refreshDisabled,
+  disabled = false,
   onJoinRoom,
   onLeaveRoom,
   onSetReady,
@@ -68,7 +70,6 @@ export function TablesList({
   onSetMaxPlayers,
   onOpenDeckDialog,
   onStartGame,
-  onStartTabletop,
   onStartDraft,
   onStartSealed,
   startingLimited = false,
@@ -181,7 +182,6 @@ export function TablesList({
           onSetMaxPlayers={onSetMaxPlayers}
           onOpenDeckDialog={onOpenDeckDialog}
           onStartGame={onStartGame}
-          onStartTabletop={onStartTabletop}
           onStartDraft={onStartDraft}
           onStartSealed={onStartSealed}
           startingLimited={startingLimited}
@@ -214,17 +214,14 @@ export function TablesList({
     return groups;
   }, new Map());
   const hostedRoomGroups = [...hostedRoomsByEngine.entries()];
-  const hostedTableCount = hostedRoomGroups.reduce(
-    (count, [, engineRooms]) => count + engineRooms.length,
-    0,
-  );
   const aggregatedRoomIds = new Set(
     hostedRoomGroups.flatMap(([, engineRooms]) => engineRooms.map((r) => r.room_id)),
   );
   const ordinaryRooms = rooms
     .filter((room) => !aggregatedRoomIds.has(room.room_id))
     .filter((room) => !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()))
-    .filter((room) => room.status === "Lobby");
+    .filter((room) => room.status === "Lobby")
+    .filter((room) => !room.official || room.players.length > 0);
   const visibleRooms = ordinaryRooms.filter(
     (room) =>
       !trimmedSearch ||
@@ -235,64 +232,47 @@ export function TablesList({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 px-4 pb-2 pt-1 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="font-serif text-2xl font-light sm:text-3xl">Find your table</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Join an open table below, or set up one for your group.
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={refreshDisabled || refreshing}
-            className="self-start sm:self-auto"
-          >
-            <RefreshCw className={refreshing ? "animate-spin" : undefined} />
-            Refresh tables
-          </Button>
-        </div>
-      </div>
-
-      {hasTables && (
-        <div className="shrink-0 px-4 py-2 sm:px-6 lg:px-8">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search tables"
-              placeholder="Search tables…"
-              className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
-            />
-          </div>
-        </div>
-      )}
-
       <ScrollArea className="flex-1">
         <div className="space-y-6 px-4 pb-6 pt-3 sm:px-6 lg:px-8">
-          <MultiplayerStartPanel
-            hostedTableCount={hostedTableCount}
-            playerTableCount={ordinaryRooms.length}
-            disabled={refreshDisabled}
-            onSetUp={() => setSetupOpen(true)}
-          />
+          <MultiplayerStartPanel disabled={disabled} onSetUp={() => setSetupOpen(true)} />
 
-          {visibleRooms.length > 0 && (
-            <section className="space-y-3">
-              <div className="flex items-end justify-between gap-2">
-                <div>
-                  <h2 className="font-serif text-xl font-light">Tables from players</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Join a table that is already waiting for players.
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {visibleRooms.length} {visibleRooms.length === 1 ? "table" : "tables"}
-                </span>
+          <section className="space-y-3">
+            <div>
+              <h2 className="font-serif text-3xl font-light sm:text-4xl">
+                Tables from other players
+              </h2>
+              <p className="ml-2 mt-2 text-xs text-muted-foreground">
+                Join a table that is already waiting for players.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Search tables"
+                  placeholder="Search tables…"
+                  className="h-8 pl-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+                />
               </div>
+              <Button
+                variant="outline"
+                onClick={onRefresh}
+                disabled={refreshDisabled || refreshing}
+                title="Refresh tables"
+                className="h-8 w-8 shrink-0 pointer-coarse:h-10 pointer-coarse:w-10"
+              >
+                <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+              </Button>
+            </div>
+
+            <p className="ml-2 text-xs text-muted-foreground">
+              {visibleRooms.length} {visibleRooms.length === 1 ? "table" : "tables"}
+            </p>
+
+            {visibleRooms.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                 {visibleRooms.map((room) => (
                   <OpenTableCard
@@ -304,13 +284,14 @@ export function TablesList({
                   />
                 ))}
               </div>
-            </section>
-          )}
-          {hasTables && visibleRooms.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No tables match your search.
-            </p>
-          )}
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {hasTables
+                  ? "No tables match your search."
+                  : "No player tables waiting. Set one up above."}
+              </p>
+            )}
+          </section>
         </div>
       </ScrollArea>
 

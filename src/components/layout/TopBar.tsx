@@ -31,7 +31,6 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
   if (pathname.startsWith(`${ROUTES.PLAY_DECK}/`)) {
     return { title: "Play Deck", fallback: ROUTES.PLAY };
   }
-  if (pathname === ROUTES.TABLETOP) return { title: "Tabletop", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.LOBBY) return { title: "Multiplayer", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.SEARCH) return { title: "Card Search", fallback: ROUTES.PLAY };
   if (pathname === ROUTES.DECK_EDITOR) {

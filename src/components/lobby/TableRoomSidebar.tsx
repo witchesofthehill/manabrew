@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Bot, Check, ChevronDown, Copy, Hand, Shield } from "lucide-react";
+import { Bot, Check, ChevronDown, Copy, LockKeyhole, LogOut, Shield } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,6 +26,8 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
 
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];
 
+const MULTIPLAYER_FORMATS: GameFormat[] = ["Commander", "Brawl", "Oathbreaker"];
+
 interface TableRoomSidebarProps {
   room: RoomInfo;
   roomPassword?: string | null;
@@ -33,14 +36,13 @@ interface TableRoomSidebarProps {
   isLimitedRoom: boolean;
   isOpenFormat: boolean;
   needsDeck: boolean;
-  canStart: boolean;
   myPlayerReady: boolean;
   openSeats: number;
+  onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
   onSetMaxPlayers?: (maxPlayers: number) => void;
   onOpenDeckDialog: () => void;
-  onStartTabletop?: () => void;
   onAddBot?: () => void;
 }
 
@@ -52,18 +54,18 @@ export function TableRoomSidebar({
   isLimitedRoom,
   isOpenFormat,
   needsDeck,
-  canStart,
   myPlayerReady,
   openSeats,
+  onLeaveRoom,
   onSetReady,
   onSetFormat,
   onSetMaxPlayers,
   onOpenDeckDialog,
-  onStartTabletop,
   onAddBot,
 }: TableRoomSidebarProps) {
   const [copiedPassword, setCopiedPassword] = useState(false);
   const inLobby = room.status === "Lobby";
+  const allowsMultiplayer = MULTIPLAYER_FORMATS.includes(room.format);
 
   async function copyPassword() {
     if (!roomPassword) return;
@@ -71,15 +73,16 @@ export function TableRoomSidebar({
       await navigator.clipboard.writeText(roomPassword);
       setCopiedPassword(true);
       setTimeout(() => setCopiedPassword(false), 1500);
+      toast.success("Password copied to clipboard");
     } catch {
-      return;
+      toast.error("Couldn't copy the password");
     }
   }
 
   return (
     <aside className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
       <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-        <h2 className="text-sm font-semibold">Table settings</h2>
+        <h2 className="truncate font-serif text-xl font-light">{room.room_name}</h2>
         <dl className="mt-3 space-y-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Format</dt>
@@ -111,7 +114,7 @@ export function TableRoomSidebar({
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Seats</dt>
             <dd>
-              {inLobby && isController && room.hosted && !isLimitedRoom && onSetMaxPlayers ? (
+              {inLobby && isController && !isLimitedRoom && onSetMaxPlayers ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -119,15 +122,27 @@ export function TableRoomSidebar({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {PLAYER_COUNT_OPTIONS.map((count) => (
-                      <DropdownMenuItem
-                        key={count}
-                        onSelect={() => onSetMaxPlayers(count)}
-                        disabled={count === room.max_players || count < room.players.length}
-                      >
-                        {count} players
-                      </DropdownMenuItem>
-                    ))}
+                    {PLAYER_COUNT_OPTIONS.map((count) => {
+                      const blockedByFormat = count > 2 && !allowsMultiplayer;
+                      return (
+                        <DropdownMenuItem
+                          key={count}
+                          onSelect={() => onSetMaxPlayers(count)}
+                          disabled={
+                            blockedByFormat ||
+                            count === room.max_players ||
+                            count < room.players.length
+                          }
+                        >
+                          {count} players
+                          {blockedByFormat && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              (Not available in "{room.format}")
+                            </span>
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
@@ -137,8 +152,27 @@ export function TableRoomSidebar({
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Privacy</dt>
-            <dd className="font-medium">
-              {room.password_protected ? "Password protected" : "Open table"}
+            <dd className="flex items-center gap-1.5">
+              {room.password_protected ? (
+                <>
+                  <LockKeyhole aria-hidden="true" className="h-3.5 w-3.5 text-format-badge-amber" />
+                  Password protected
+                  {roomPassword && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={copyPassword}
+                      title="Copy password"
+                      aria-label="Copy password"
+                      className="-my-1 h-7 w-7"
+                    >
+                      {copiedPassword ? <Check /> : <Copy />}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                "Open table"
+              )}
             </dd>
           </div>
           {room.draft_config && (
@@ -166,41 +200,35 @@ export function TableRoomSidebar({
             </div>
           )}
         </dl>
-        {room.password_protected && roomPassword && (
-          <Button variant="outline" size="sm" onClick={copyPassword} className="mt-4 w-full">
-            {copiedPassword ? <Check /> : <Copy />}
-            {copiedPassword ? "Password copied" : "Copy password"}
-          </Button>
-        )}
       </section>
 
-      {inLobby && (
-        <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
-          <h2 className="text-sm font-semibold">Table controls</h2>
-          <div className="mt-3 grid gap-2">
-            {!isOpenFormat && !needsDeck && (
-              <Button variant="outline" onClick={onOpenDeckDialog}>
-                <Shield /> Change deck
-              </Button>
-            )}
-            {isController && openSeats > 0 && !isOpenFormat && onAddBot && (
-              <Button variant="outline" onClick={onAddBot}>
-                <Bot /> Add a bot
-              </Button>
-            )}
-            {isController && !isOpenFormat && onStartTabletop && (
-              <Button variant="outline" onClick={onStartTabletop} disabled={!canStart}>
-                <Hand /> Open tabletop
-              </Button>
-            )}
-            {!isController && myPlayerReady && (
-              <Button variant="outline" onClick={() => onSetReady(false)}>
-                Change readiness
-              </Button>
-            )}
-          </div>
-        </section>
-      )}
+      <section className="rounded-xl border bg-card/85 p-4 backdrop-blur-md">
+        <h2 className="text-sm font-semibold">Table controls</h2>
+        <div className="mt-3 grid gap-2">
+          {inLobby && !isOpenFormat && !needsDeck && (
+            <Button variant="outline" onClick={onOpenDeckDialog}>
+              <Shield /> Change deck
+            </Button>
+          )}
+          {inLobby && isController && openSeats > 0 && !isOpenFormat && onAddBot && (
+            <Button variant="outline" onClick={onAddBot}>
+              <Bot /> Add a bot
+            </Button>
+          )}
+          {inLobby && !isController && myPlayerReady && (
+            <Button variant="outline" onClick={() => onSetReady(false)}>
+              Change readiness
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            onClick={onLeaveRoom}
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <LogOut /> Leave table
+          </Button>
+        </div>
+      </section>
     </aside>
   );
 }

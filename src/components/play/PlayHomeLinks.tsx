@@ -1,4 +1,4 @@
-import { Github, Globe, Hand, HeartPulse, Info, Palette, Search, Settings } from "lucide-react";
+import { Github, Globe, HeartPulse, Info, Palette, Search, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { FeatureTile } from "@/components/play/FeatureTile";
@@ -11,7 +11,6 @@ import {
   ROUTES,
   WEBSITE_URL,
 } from "@/lib/constants";
-import { FEATURES } from "@/lib/features";
 import { cn } from "@/lib/utils";
 
 const TOOL_GRID_BY_COUNT: Record<number, string> = {
@@ -38,17 +37,6 @@ const TOOLS = [
     icon: HeartPulse,
     tone: "rose",
   },
-  ...(FEATURES.tabletop
-    ? [
-        {
-          to: ROUTES.TABLETOP,
-          label: "Tabletop",
-          desc: "A free sandbox table to test anything.",
-          icon: Hand,
-          tone: "amber",
-        },
-      ]
-    : []),
 ];
 
 export function PlayHomeLinks() {

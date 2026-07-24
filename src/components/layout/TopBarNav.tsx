@@ -58,8 +58,12 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
                 disabled={disabled}
               >
                 <MenuIcon className="h-4 w-4" />
-                <span className="hidden xl:inline">{menu.label}</span>
-                <ChevronDown className="h-3 w-3 opacity-60" />
+                {!menu.iconOnly && (
+                  <>
+                    <span className="hidden xl:inline">{menu.label}</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

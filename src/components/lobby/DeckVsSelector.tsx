@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { FEATURES } from "@/lib/features";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,18 +23,7 @@ import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import {
-  Check,
-  ChevronDown,
-  Hand,
-  Loader2,
-  Search,
-  Shuffle,
-  Swords,
-  User,
-  Bot,
-  X,
-} from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 
 interface SelectedDeck {
@@ -59,7 +47,6 @@ interface DeckVsSelectorProps {
     formatId?: string,
     commanderName?: string,
   ) => Promise<boolean>;
-  onStartTabletop?: (deck: Deck, formatId?: string, commanderName?: string) => void;
 }
 
 type PickingSide = "player" | "opponent" | null;
@@ -69,7 +56,6 @@ export function DeckVsSelector({
   preSelectedDeckId,
   showEngineChoice = true,
   onStart,
-  onStartTabletop,
 }: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
@@ -303,14 +289,7 @@ export function DeckVsSelector({
     }
   }
 
-  function handleTabletop() {
-    if (!playerDeck || playerDeck.sourceDeck.cards.length === 0) return;
-    onStartTabletop?.(playerDeck.sourceDeck, playerDeck.formatId, playerDeck.commanderName);
-  }
-
   const isReady = !!playerDeck && !!opponentDeck && opponentConfirmed;
-  const canStartTabletop =
-    !!onStartTabletop && !!playerDeck && playerDeck.sourceDeck.cards.length > 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -557,18 +536,6 @@ export function DeckVsSelector({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          {FEATURES.tabletop && onStartTabletop && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleTabletop}
-              disabled={!canStartTabletop}
-              className="w-full gap-1.5 sm:w-auto"
-            >
-              <Hand className="h-3.5 w-3.5" />
-              Tabletop
-            </Button>
           )}
           <Button
             size="sm"

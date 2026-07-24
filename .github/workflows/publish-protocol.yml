@@ -15,6 +15,16 @@ name: Publish protocol
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        # release.yml passes the freshly created manabrew-protocol-v* tag:
+        # its own trigger commit (github.sha) predates the chore(release)
+        # bump, so checking out the default ref reads the previous version
+        # and skips both registries.
+        description: Git ref holding the version to publish
+        type: string
+        required: false
+        default: ""
   workflow_dispatch:
 
 permissions:
@@ -31,6 +41,9 @@ jobs:
     if: github.repository == 'witchesofthehill/manabrew'
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Empty (workflow_dispatch) falls back to the default ref.
+          ref: ${{ inputs.ref }}
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable

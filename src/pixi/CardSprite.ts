@@ -160,11 +160,11 @@ const KEYWORD_ROW_H = 12;
 const MANA_PIP_SIZE = 9;
 const MAX_VISIBLE_KEYWORDS = 4;
 const RAIL_ANIM_MS = 0.3;
-const RAIL_ROW_GAP = 3;
-const RAIL_ROW_H = 18;
-const RAIL_TRACK_PAD_X = 7;
-const RAIL_LABEL_Y = 4;
-const RAIL_MARKER_R = 4;
+const RAIL_W = 15;
+const RAIL_RIGHT = 3;
+const RAIL_TOP_FRAC = 0.14;
+const RAIL_BOTTOM_FRAC = 0.09;
+const RAIL_MARKER_R = 5;
 const KEYWORD_LABEL_MAX_LEN = 14;
 
 function truncateChipLabel(text: string): string {
@@ -354,8 +354,8 @@ export class CardSprite extends Container {
   private railMarkerGfx: Graphics;
   private railLabels: Text[];
   private railState: CardRailState | null = null;
-  private railNotchXs: number[] = [];
-  private railTrackY = 0;
+  private railNotchYs: number[] = [];
+  private railTrackX = 0;
   private railRendered = false;
   private counterContainer: Container;
   private keywordsContainer: Container;
@@ -378,16 +378,18 @@ export class CardSprite extends Container {
   private hoverDebugGfx: Graphics;
   private _imageLoaded = false;
   private readonly isBattlefield: boolean;
+  private readonly showsBattlefieldRail: boolean;
   private cw: number;
   private ch: number;
   onReorient?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
 
-  constructor(card: CardDto, kind: "battlefield" | "hand" = "battlefield") {
+  constructor(card: CardDto, kind: "battlefield" | "hand" | "zone" = "battlefield") {
     super();
     this.card = card;
-    this.isBattlefield = kind === "battlefield";
+    this.isBattlefield = kind !== "hand";
+    this.showsBattlefieldRail = kind === "battlefield";
     const horizontal = this.isHorizontal();
     this.cw = horizontal ? CARD_H : CARD_W;
     this.ch = horizontal ? CARD_W : CARD_H;
@@ -493,14 +495,7 @@ export class CardSprite extends Container {
     this.railContainer.addChild(this.railBgGfx);
     this.railContainer.addChild(this.railTrackGfx);
     this.railContainer.addChild(this.railMarkerGfx);
-    this.railLabels = Array.from({ length: 4 }, () => {
-      const label = new Text({ text: "", style: RAIL_LABEL_STYLE });
-      label.resolution = TEXT_RASTER_RESOLUTION;
-      label.anchor.set(0.5, 1);
-      label.visible = false;
-      this.railContainer.addChild(label);
-      return label;
-    });
+    this.railLabels = [];
     this.addChild(this.railContainer);
 
     this.counterContainer = new Container();
@@ -868,10 +863,10 @@ export class CardSprite extends Container {
     }
 
     this.renderFrame();
+    this.updateRail();
     this.updatePT();
     this.updateDamage();
     this.updateBadge();
-    this.updateRail();
     this.updateCounters();
     this.updateKeywords();
     this.updateFoil();
@@ -1199,7 +1194,8 @@ export class CardSprite extends Container {
     this.ptText.y = 2;
     // Pivot at the badge center so the stat-pop scales in place, not from a corner.
     this.ptContainer.pivot.set(tw / 2, th / 2);
-    this.ptContainer.x = this.cw - tw - 3 + tw / 2;
+    const railReserve = this.railState ? RAIL_W + RAIL_RIGHT + 2 : 0;
+    this.ptContainer.x = this.cw - tw - 3 - railReserve + tw / 2;
     this.ptContainer.y =
       this.ch - th - 3 - (this.frameTypeBandH > 0 ? this.frameTypeBandH + 1 : 0) + th / 2;
   }
@@ -1230,19 +1226,12 @@ export class CardSprite extends Container {
   }
 
   private updateRail(force = false): void {
-    const next = deriveCardRailState(this.card);
+    const next = this.showsBattlefieldRail ? deriveCardRailState(this.card) : null;
     const prev = this.railState;
     if (!force && next === prev) return;
     this.railState = next;
 
     const canAnimate = animationsEnabled() && !prefersReducedMotion();
-    const rowY =
-      this.ch -
-      COUNTER_HEIGHT -
-      3 -
-      (this.frameCounterReserve > 0 ? this.frameCounterReserve + 1 : 0) -
-      RAIL_ROW_H -
-      RAIL_ROW_GAP;
 
     gsap.killTweensOf(this.railContainer);
     gsap.killTweensOf(this.railMarkerGfx);
@@ -1260,7 +1249,7 @@ export class CardSprite extends Container {
       return;
     }
 
-    this.drawRail(next, rowY);
+    this.drawRail(next);
 
     const sameRail =
       !!prev && prev.id === next.id && prev.kind === next.kind && prev.max === next.max;
@@ -1276,10 +1265,10 @@ export class CardSprite extends Container {
     this.railContainer.scale.set(1);
 
     const markerIndex = next.current > 0 ? next.current - 1 : -1;
-    const markerX = markerIndex >= 0 ? (this.railNotchXs[markerIndex] ?? null) : null;
-    const markerY = this.railTrackY;
+    const markerX = this.railTrackX;
+    const markerY = markerIndex >= 0 ? (this.railNotchYs[markerIndex] ?? null) : null;
 
-    if (markerX == null) {
+    if (markerY == null) {
       this.railMarkerGfx.visible = false;
       this.railMarkerGfx.alpha = 0;
       this.railMarkerGfx.scale.set(1);
@@ -1290,57 +1279,91 @@ export class CardSprite extends Container {
     this.railMarkerGfx.visible = true;
     if (animateMarker && prev) {
       const startIndex = prev.current - 1;
-      const startX = this.railNotchXs[startIndex] ?? markerX;
-      this.railMarkerGfx.position.set(startX, markerY);
+      const startY = this.railNotchYs[startIndex] ?? markerY;
+      this.railMarkerGfx.position.set(markerX, startY);
       this.railMarkerGfx.alpha = 1;
       this.railMarkerGfx.scale.set(1);
-      gsap.to(this.railMarkerGfx, {
-        x: markerX,
+      gsap.to(this.railMarkerGfx.position, {
+        y: markerY,
         duration: RAIL_ANIM_MS,
-        ease: "power2.out",
+        ease: "back.out(1.6)",
       });
     } else {
       this.railMarkerGfx.position.set(markerX, markerY);
-      this.railMarkerGfx.alpha = 1;
-      this.railMarkerGfx.scale.set(1);
+      if (sameRail && prev?.current === 0 && next.current === 1 && canAnimate && !force) {
+        this.railMarkerGfx.alpha = 0;
+        this.railMarkerGfx.scale.set(0.7);
+        gsap.to(this.railMarkerGfx, {
+          alpha: 1,
+          duration: RAIL_ANIM_MS,
+          ease: "power2.out",
+        });
+        gsap.to(this.railMarkerGfx.scale, {
+          x: 1,
+          y: 1,
+          duration: RAIL_ANIM_MS,
+          ease: "back.out(1.6)",
+        });
+      } else {
+        this.railMarkerGfx.alpha = 1;
+        this.railMarkerGfx.scale.set(1);
+      }
     }
 
     this.railRendered = true;
   }
 
-  private drawRail(state: CardRailState, rowY: number): void {
+  private drawRail(state: CardRailState): void {
     const theme = activeTheme.gameTheme;
     const accent = hexToNum(state.kind === "saga" ? theme.counter.lore : theme.counter.level);
-    const shellW = Math.min(this.cw - 8, Math.max(32, 20 + (state.max - 1) * 15));
-    const shellX = (this.cw - shellW) / 2;
-    const shellH = RAIL_ROW_H;
-    const shellTop = 4;
-    const trackY = shellTop + shellH - 4;
-    const trackLeft = shellX + RAIL_TRACK_PAD_X;
-    const trackRight = shellX + shellW - RAIL_TRACK_PAD_X;
-    const notchSpan = Math.max(1, trackRight - trackLeft);
+    const shellX = this.cw - RAIL_RIGHT - RAIL_W;
+    const shellY = Math.round(this.ch * RAIL_TOP_FRAC);
+    const shellH = this.ch - shellY - Math.round(this.ch * RAIL_BOTTOM_FRAC);
+    const trackX = shellX + RAIL_W / 2;
 
-    this.railContainer.y = rowY;
-    this.railTrackY = trackY;
-    this.railNotchXs = state.notches.map((notch) => {
-      const ratio = state.max <= 1 ? 0.5 : (notch.position - 1) / (state.max - 1);
-      return trackLeft + notchSpan * ratio;
-    });
+    this.railContainer.position.set(0, 0);
+    this.railTrackX = trackX;
+    this.railNotchYs = state.notches.map(
+      (_, index) => shellY + (shellH * (index + 0.5)) / state.max,
+    );
 
     this.railBgGfx.clear();
-    this.railBgGfx.roundRect(shellX, shellTop, shellW, shellH - 4, 6);
-    this.railBgGfx.fill({ color: hexToNum(theme.canvas.shadow), alpha: 0.56 });
-    this.railBgGfx.roundRect(shellX, shellTop, shellW, shellH - 4, 6);
-    this.railBgGfx.stroke({ color: accent, width: 1, alpha: 0.24 });
+    this.railBgGfx.roundRect(shellX, shellY, RAIL_W, shellH, RAIL_W / 2);
+    this.railBgGfx.fill({ color: hexToNum(theme.canvas.shadow), alpha: 0.78 });
+    this.railBgGfx.roundRect(shellX, shellY, RAIL_W, shellH, RAIL_W / 2);
+    this.railBgGfx.stroke({ color: accent, width: 1, alpha: 0.7 });
 
     this.railTrackGfx.clear();
-    this.railTrackGfx.roundRect(trackLeft, trackY - 1.5, notchSpan, 3, 1.5);
-    this.railTrackGfx.fill({ color: accent, alpha: 0.2 });
-    for (const x of this.railNotchXs) {
-      this.railTrackGfx.circle(x, trackY, 1.25);
-      this.railTrackGfx.fill({ color: hexToNum(theme.textOnTinted), alpha: 0.36 });
+    const firstY = this.railNotchYs[0] ?? shellY + shellH / 2;
+    const lastY = this.railNotchYs[this.railNotchYs.length - 1] ?? firstY;
+    this.railTrackGfx.roundRect(trackX - 1, firstY, 2, Math.max(1, lastY - firstY), 1);
+    this.railTrackGfx.fill({ color: hexToNum(theme.textMuted), alpha: 0.5 });
+    if (state.current > 0) {
+      const currentY = this.railNotchYs[Math.min(state.current, state.max) - 1] ?? firstY;
+      this.railTrackGfx.roundRect(trackX - 1, firstY, 2, Math.max(1, currentY - firstY), 1);
+      this.railTrackGfx.fill({ color: accent, alpha: 0.85 });
+    }
+    for (let i = 0; i < this.railNotchYs.length; i++) {
+      const y = this.railNotchYs[i]!;
+      const reached = state.notches[i]?.reached ?? false;
+      this.railTrackGfx.circle(trackX, y, 4.5);
+      if (reached) this.railTrackGfx.fill({ color: accent, alpha: 0.45 });
+      else this.railTrackGfx.fill({ color: hexToNum(theme.canvas.shadow), alpha: 1 });
+      this.railTrackGfx.circle(trackX, y, 4.5);
+      this.railTrackGfx.stroke({
+        color: reached ? accent : hexToNum(theme.textMuted),
+        width: 1,
+        alpha: reached ? 0.85 : 0.7,
+      });
     }
 
+    while (this.railLabels.length < state.notches.length) {
+      const label = new Text({ text: "", style: RAIL_LABEL_STYLE });
+      label.resolution = TEXT_RASTER_RESOLUTION;
+      label.anchor.set(0.5);
+      this.railContainer.addChild(label);
+      this.railLabels.push(label);
+    }
     for (let i = 0; i < this.railLabels.length; i++) {
       const label = this.railLabels[i]!;
       const notch = state.notches[i];
@@ -1350,8 +1373,8 @@ export class CardSprite extends Container {
       }
       label.visible = true;
       label.text = notch.label;
-      label.alpha = notch.active ? 1 : 0.72;
-      label.position.set(this.railNotchXs[i]!, RAIL_LABEL_Y);
+      label.alpha = notch.active ? 1 : notch.reached ? 0.9 : 0.58;
+      label.position.set(trackX, this.railNotchYs[i]!);
     }
 
     this.railMarkerGfx.clear();
@@ -1360,9 +1383,8 @@ export class CardSprite extends Container {
       this.railMarkerGfx.visible = false;
       return;
     }
-    const markerX = this.railNotchXs[active.position - 1]!;
     this.railMarkerGfx.visible = true;
-    this.railMarkerGfx.position.set(markerX, trackY);
+    this.railMarkerGfx.position.set(trackX, this.railNotchYs[active.position - 1]!);
     this.railMarkerGfx.circle(0, 0, RAIL_MARKER_R);
     this.railMarkerGfx.fill({ color: accent, alpha: 0.96 });
     this.railMarkerGfx.circle(0, 0, RAIL_MARKER_R);

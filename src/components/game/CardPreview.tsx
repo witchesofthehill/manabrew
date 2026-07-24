@@ -4,6 +4,7 @@ import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
+import { CardRailPreview } from "@/components/game/CardRailPreview";
 import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
@@ -28,7 +29,7 @@ import { useCardFaces } from "@/hooks/useCardFaces";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardRailState } from "@/components/game/cardRailState";
-import { deriveCardRailState } from "@/components/game/cardRailState";
+import { deriveCardRailState, parseCardRailEffects } from "@/components/game/cardRailState";
 
 interface CardPreviewProps {
   card: CardDto;
@@ -56,10 +57,12 @@ function CardDetailOverlay({
   card,
   horizontal,
   rail,
+  compactRail,
 }: {
   card: CardDto;
   horizontal: boolean;
   rail: CardRailState | null;
+  compactRail: boolean;
 }) {
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
@@ -125,8 +128,10 @@ function CardDetailOverlay({
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
   const loyalty = card.counters?.Loyalty;
   const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
-  const railRightClass = rail ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]" : undefined;
-  const railRightStyle = rail ? `calc(5.5% + var(--card-rail-width) + 0.35rem)` : "5.5%";
+  const railRightClass = compactRail
+    ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]"
+    : undefined;
+  const railRightStyle = compactRail ? "calc(5.5% + var(--card-rail-width) + 0.35rem)" : "5.5%";
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
   const showPT = creature && !horizontal && !!card.power && !!card.toughness;
 
@@ -234,7 +239,7 @@ function CardDetailOverlay({
           className={cn(
             "absolute bottom-1 left-1 z-10 max-w-[70%]",
             "flex flex-wrap gap-0.5 pointer-events-none",
-            rail
+            compactRail
               ? "pr-[calc(3rem+var(--card-rail-width)+0.35rem)]"
               : showPT || showLoyalty
                 ? "pr-12"
@@ -282,11 +287,11 @@ export function CardPreview({
 }: CardPreviewProps) {
   const hasActions = actions && actions.length > 0 && onSelectAction;
   const minimal = useIsMobileGame();
-  const showSidePanel = hasActions;
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing;
   const rail = deriveCardRailState(card);
+  const showSidePanel = Boolean(!slot && (hasActions || rail));
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
   const deckCard: DeckCard = isDebugCard
@@ -308,6 +313,14 @@ export function CardPreview({
   );
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
+  const railFace = rail
+    ? cardFaces.faces.find((face) =>
+        face.typeLine?.includes(rail.kind === "saga" ? "Saga" : "Class"),
+      )
+    : undefined;
+  const railEffects = rail
+    ? parseCardRailEffects(rail, railFace?.oracleText ?? front?.oracleText ?? card.text)
+    : [];
   const faceless = isFacelessCard(card);
   const imageUrl = faceless
     ? CARD_BACK_IMAGE_URL
@@ -385,26 +398,33 @@ export function CardPreview({
   const viewRight = window.innerWidth - safe.right;
   const viewTop = safe.top;
   const viewBottom = window.innerHeight - safe.bottom;
-  const previewScale = minimal ? Math.min(1, (viewBottom - viewTop - 16) / CARD_H) : 1;
-  const cardWidth = (horizontal ? CARD_H : CARD_W) * previewScale;
-  const cardHeight = (horizontal ? CARD_W : CARD_H) * previewScale;
+  const naturalCardWidth = horizontal ? CARD_H : CARD_W;
+  const naturalCardHeight = horizontal ? CARD_W : CARD_H;
+  const usableWidth = viewRight - viewLeft;
+  const sidePanelWidth = showSidePanel
+    ? Math.min(ACTIONS_PANEL_W, Math.max(132, usableWidth * 0.4))
+    : 0;
+  const sidePanelSpace = showSidePanel ? sidePanelWidth + 10 : 0;
+  const horizontalScale = Math.max(0.1, (usableWidth - sidePanelSpace - 16) / naturalCardWidth);
+  const verticalScale = minimal ? (viewBottom - viewTop - 16) / naturalCardHeight : 1;
+  const previewScale = Math.min(1, horizontalScale, verticalScale);
+  const cardWidth = naturalCardWidth * previewScale;
+  const cardHeight = naturalCardHeight * previewScale;
 
   let cardLeft: number;
   let top: number;
-  let actionsOnRight: boolean;
 
   if (placement === "pinned") {
-    cardLeft = viewRight - cardWidth - 16;
+    cardLeft = viewRight - cardWidth - sidePanelSpace - 16;
     top = viewTop + 80;
-    actionsOnRight = false;
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = anchorRect.top - cardHeight - 12;
-    cardLeft = Math.max(viewLeft + 8, Math.min(cardLeft, viewRight - cardWidth - 8));
+    cardLeft = Math.max(
+      viewLeft + 8,
+      Math.min(cardLeft, viewRight - cardWidth - sidePanelSpace - 8),
+    );
     top = Math.max(viewTop + 8, top);
-
-    const spaceAfterCard = viewRight - (cardLeft + cardWidth);
-    actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   } else {
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
     const anchorRight = anchorRect ? anchorRect.right : mouseX;
@@ -412,17 +432,20 @@ export function CardPreview({
     const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
     const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
 
-    const fitsRight = anchorRight + 16 + cardWidth <= viewRight - 8;
-    const fitsLeft = anchorLeft - 16 - cardWidth >= viewLeft + 8;
+    const fitsRight = anchorRight + 16 + cardWidth + sidePanelSpace <= viewRight - 8;
+    const fitsLeft = anchorLeft - 16 - cardWidth - sidePanelSpace >= viewLeft + 8;
 
     if (fitsRight) {
       cardLeft = anchorRight + 16;
     } else if (fitsLeft) {
-      cardLeft = anchorLeft - cardWidth - 16;
+      cardLeft = anchorLeft - cardWidth - sidePanelSpace - 16;
     } else {
       cardLeft = Math.max(
         viewLeft + 8,
-        Math.min((anchorLeft + anchorRight) / 2 - cardWidth / 2, viewRight - cardWidth - 8),
+        Math.min(
+          (anchorLeft + anchorRight) / 2 - (cardWidth + sidePanelSpace) / 2,
+          viewRight - cardWidth - sidePanelSpace - 8,
+        ),
       );
     }
 
@@ -439,9 +462,6 @@ export function CardPreview({
           ? Math.min(anchorBottom + 12, viewBottom - cardHeight - 8)
           : Math.max(viewTop + 8, anchorTop - cardHeight - 12);
     }
-
-    const spaceAfterCard = viewRight - (cardLeft + cardWidth);
-    actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   }
 
   const hasDoubleFace = !!doubleFacedData;
@@ -474,7 +494,7 @@ export function CardPreview({
             ? "relative w-full h-full flex items-start justify-center pointer-events-none"
             : cn(
                 "fixed z-[9999]",
-                hasActions && placement !== "pinned"
+                showSidePanel && placement !== "pinned"
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
@@ -485,11 +505,13 @@ export function CardPreview({
       >
         <div
           className="relative @container"
-          style={{
-            ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
-            width: cardWidth,
-            height: cardHeight,
-          }}
+          style={
+            {
+              ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
+              width: cardWidth,
+              height: cardHeight,
+            } as CSSProperties
+          }
         >
           <div
             className={cn(
@@ -558,8 +580,13 @@ export function CardPreview({
                     </span>
                   </div>
                 )}
-                <CardDetailOverlay card={card} horizontal={horizontal} rail={rail} />
-                {rail && <CardRail state={rail} />}
+                <CardDetailOverlay
+                  card={card}
+                  horizontal={horizontal}
+                  rail={rail}
+                  compactRail={Boolean(slot && rail)}
+                />
+                {rail && slot && <CardRail state={rail} />}
                 {showHoverAreas && (
                   <div
                     className="pointer-events-none absolute inset-0 z-30"
@@ -596,8 +623,8 @@ export function CardPreview({
                 )}
               </>
             ) : (
-              <div className="w-full h-full p-4 flex gap-3 bg-card">
-                <div className="flex-1 min-w-0 flex flex-col gap-2">
+              <div className="w-full h-full p-4 bg-card">
+                <div className="flex h-full min-w-0 flex-col gap-2">
                   <div className="flex justify-between items-start gap-2">
                     <span className="font-bold text-sm leading-tight">{currentCardName}</span>
                     {!hasDoubleFace &&
@@ -634,7 +661,7 @@ export function CardPreview({
                     </div>
                   )}
                 </div>
-                {rail && <CardRail state={rail} placement="inline" />}
+                {rail && slot && <CardRail state={rail} />}
               </div>
             )}
           </div>
@@ -642,93 +669,99 @@ export function CardPreview({
           {showSidePanel && (
             <div
               className="absolute top-0 flex flex-col gap-1.5"
-              style={
-                actionsOnRight
-                  ? { left: cardWidth + 10, width: ACTIONS_PANEL_W }
-                  : { right: cardWidth + 10, width: ACTIONS_PANEL_W }
-              }
+              style={{ left: cardWidth + 10, width: sidePanelWidth }}
             >
               <div
                 style={{
                   position: "absolute",
                   top: 0,
-                  left: actionsOnRight ? -10 - cardWidth : 0,
-                  width: cardWidth + 10 + ACTIONS_PANEL_W,
+                  left: -10 - cardWidth,
+                  width: cardWidth + 10 + sidePanelWidth,
                   height: cardHeight,
                   backgroundColor: showHoverAreas
                     ? withAlpha(themeColors.success, 0.28)
                     : "transparent",
-                  borderBottomRightRadius: actionsOnRight ? "100%" : "0",
-                  borderBottomLeftRadius: actionsOnRight ? "0" : "100%",
+                  borderBottomRightRadius: "100%",
+                  borderBottomLeftRadius: "0",
                   zIndex: -1,
                 }}
               />
 
-              <div
-                className={cn("flex flex-col gap-1.5", minimal && "max-h-[60dvh] overflow-y-auto")}
-              >
-                {actions?.map((action, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => onSelectAction(action)}
-                    className={cn(
-                      "group w-full text-left rounded-lg text-xs font-medium",
-                      "bg-popover text-popover-foreground border border-border",
-                      "backdrop-blur-md shadow-lg",
-                      "transition-all duration-150 ease-out",
-                      "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
-                      "flex flex-col px-3 py-2",
-                    )}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = ringColor;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "";
-                      e.currentTarget.style.borderColor = "";
-                    }}
-                  >
-                    <span className="flex items-center justify-between w-full mb-0.5">
-                      <span className="text-xs font-bold min-w-[22px] h-5 flex items-center justify-center rounded border border-border bg-muted shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-                        {idx + 1}
-                      </span>
-                      {action.cost && (
-                        <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                          <DynamicTextRender text={action.cost} />
+              {rail && <CardRailPreview state={rail} effects={railEffects} />}
+              {hasActions && (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    {actions?.map((action, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => onSelectAction(action)}
+                        className={cn(
+                          "group flex w-full flex-col rounded-lg border border-border bg-popover px-3 py-2 text-left text-xs font-medium text-popover-foreground shadow-lg backdrop-blur-md",
+                          "transition-all duration-150 ease-out",
+                          "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
+                        )}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = ringColor;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "";
+                          e.currentTarget.style.borderColor = "";
+                        }}
+                      >
+                        <span className="mb-0.5 flex w-full items-center justify-between">
+                          <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
+                            {idx + 1}
+                          </span>
+                          {action.cost && (
+                            <span className="flex items-center gap-0.5 text-[11px] opacity-90">
+                              <DynamicTextRender text={action.cost} />
+                            </span>
+                          )}
                         </span>
-                      )}
+                        <span className="line-clamp-4 text-[13px] font-semibold leading-snug">
+                          <DynamicTextRender text={action.label} />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
+                    <span>
+                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                        1
+                      </kbd>
+                      -
+                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                        9
+                      </kbd>{" "}
+                      select
                     </span>
-                    <span className="leading-snug text-[13px] font-semibold line-clamp-4">
-                      <DynamicTextRender text={action.label} />
+                    <span>
+                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                        Esc
+                      </kbd>{" "}
+                      close
                     </span>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
-                <span>
-                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                    1
-                  </kbd>
-                  –
-                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                    9
-                  </kbd>{" "}
-                  select
-                </span>
-                <span>
-                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                    Esc
-                  </kbd>{" "}
-                  close
-                </span>
-                {hasFlippableFaces && (
+                    {hasFlippableFaces && (
+                      <span>
+                        <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                          F
+                        </kbd>{" "}
+                        flip
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+              {!hasActions && hasFlippableFaces && (
+                <div className="px-1 text-[10px] text-muted-foreground">
                   <span>
                     <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
                       F
                     </kbd>{" "}
                     flip
                   </span>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>

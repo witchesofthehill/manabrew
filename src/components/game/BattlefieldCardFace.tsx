@@ -192,7 +192,7 @@ export function BattlefieldCardFace({
     return (
       <div
         className={cn(
-          "relative overflow-hidden shadow-sm",
+          "relative @container overflow-hidden shadow-sm",
           card.tapped && "rotate-90",
           card.phasedOut && "opacity-30 grayscale",
           summoned && "opacity-80 grayscale-[0.85]",
@@ -281,7 +281,7 @@ export function BattlefieldCardFace({
   return (
     <div
       className={cn(
-        "relative overflow-hidden flex flex-col",
+        "relative @container overflow-hidden flex flex-col",
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
         summoned && "opacity-80 grayscale-[0.85]",

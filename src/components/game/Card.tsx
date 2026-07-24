@@ -209,7 +209,12 @@ function CardComponent({
         </>
       ) : (
         <div className="absolute inset-0 p-2 flex gap-2 bg-card">
-          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          <div
+            className={cn(
+              "flex-1 min-w-0 flex flex-col gap-1.5",
+              rail && "pr-[calc(var(--card-rail-width)+0.5rem)]",
+            )}
+          >
             <div className="flex justify-between items-start gap-1">
               <span className="font-bold text-xs leading-tight line-clamp-2">{displayName}</span>
               <div className="flex flex-col items-end gap-0.5 shrink-0">
@@ -276,7 +281,7 @@ function CardComponent({
               )}
             </div>
           </div>
-          {rail && <CardRail state={rail} placement="inline" />}
+          {rail && <CardRail state={rail} />}
         </div>
       )}
     </div>

@@ -6,7 +6,14 @@ export interface CardRailNotch {
   id: string;
   label: string;
   position: number;
+  reached: boolean;
   active: boolean;
+}
+
+export interface CardRailEffect {
+  position: number;
+  text: string;
+  cost?: string;
 }
 
 export interface CardRailState {
@@ -23,6 +30,7 @@ export const CARD_RAIL_CURRENT_DATA_ATTR = "data-card-rail-current";
 export const CARD_RAIL_MAX_DATA_ATTR = "data-card-rail-max";
 export const CARD_RAIL_NOTCH_DATA_ATTR = "data-card-rail-notch";
 export const CARD_RAIL_NOTCH_POSITION_DATA_ATTR = "data-card-rail-notch-position";
+export const CARD_RAIL_NOTCH_REACHED_DATA_ATTR = "data-card-rail-notch-reached";
 export const CARD_RAIL_NOTCH_ACTIVE_DATA_ATTR = "data-card-rail-notch-active";
 
 export const CARD_RAIL_ID_PREFIX = "card-rail";
@@ -89,6 +97,7 @@ function buildNotches(
       id: getNotchId(railId, position),
       label: toLabel(position),
       position,
+      reached: false,
       active: false,
     };
   });
@@ -99,6 +108,7 @@ function decorateState(state: CardRailState): CardRailState {
     ...state,
     notches: state.notches.map((notch) => ({
       ...notch,
+      reached: notch.position <= state.current,
       active: state.current === notch.position,
     })),
   };
@@ -137,6 +147,7 @@ export function getCardRailNotchAttributes(
     id: `${notch.id}-${getRailInstanceId(railInstanceId)}`,
     [CARD_RAIL_NOTCH_DATA_ATTR]: String(notch.position),
     [CARD_RAIL_NOTCH_POSITION_DATA_ATTR]: String(notch.position),
+    [CARD_RAIL_NOTCH_REACHED_DATA_ATTR]: String(notch.reached),
     [CARD_RAIL_NOTCH_ACTIVE_DATA_ATTR]: String(notch.active),
   };
 }
@@ -180,4 +191,57 @@ export function deriveClassRailState(card: CardDto): CardRailState | null {
 
 export function deriveCardRailState(card: CardDto): CardRailState | null {
   return deriveSagaRailState(card) ?? deriveClassRailState(card);
+}
+
+function appendEffect(effects: Map<number, CardRailEffect>, position: number, text: string): void {
+  const previous = effects.get(position);
+  effects.set(position, {
+    position,
+    text: previous?.text ? `${previous.text}\n${text}` : text,
+    cost: previous?.cost,
+  });
+}
+
+export function parseCardRailEffects(
+  state: CardRailState,
+  oracleText: string | undefined,
+): CardRailEffect[] {
+  if (!oracleText) return [];
+  const lines = oracleText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const effects = new Map<number, CardRailEffect>();
+
+  if (state.kind === "saga") {
+    let lastPositions: number[] = [];
+    for (const line of lines) {
+      const chapter = line.match(/^([IVXLCDM]+(?:,\s*[IVXLCDM]+)*)\s+[\u2013\u2014-]\s+(.+)$/);
+      if (chapter) {
+        lastPositions = chapter[1]
+          .split(",")
+          .map((label) => state.notches.find((notch) => notch.label === label.trim())?.position)
+          .filter((position): position is number => position != null);
+        for (const position of lastPositions) appendEffect(effects, position, chapter[2]);
+      } else if (lastPositions.length > 0 && !line.startsWith("(")) {
+        for (const position of lastPositions) appendEffect(effects, position, line);
+      }
+    }
+  } else {
+    let position = 1;
+    for (const line of lines) {
+      const level = line.match(/^(.*?):\s*Level\s+(\d+)$/i);
+      if (level) {
+        position = clampPosition(Number(level[2]), state.max);
+        effects.set(position, { position, text: "", cost: level[1].trim() });
+      } else if (!line.startsWith("(")) {
+        appendEffect(effects, position, line);
+      }
+    }
+  }
+
+  return state.notches.flatMap((notch) => {
+    const effect = effects.get(notch.position);
+    return effect ? [effect] : [];
+  });
 }

@@ -9,9 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FormatBadge } from "@/components/game/FormatBadge";
 import { EngineMark } from "@/components/lobby/EngineMark";
-import { FormatPicker } from "./FormatPicker";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn, pickRandom } from "@/lib/utils";
@@ -19,7 +17,7 @@ import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
-import { getFormat, validateDeckSections } from "@/lib/formats";
+import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
@@ -27,7 +25,6 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   Hand,
@@ -106,9 +103,6 @@ export function DeckVsSelector({
     !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
       ? lastOfflineFormatId
       : null;
-  const [stage, setStage] = useState<"format" | "decks">(
-    preSelectedDeckEntry || rememberedFormatId ? "decks" : "format",
-  );
   const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(preSelectedDeckEntry);
   const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
   const [pickingSide, setPickingSide] = useState<PickingSide>(
@@ -127,7 +121,7 @@ export function DeckVsSelector({
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
-    (deck) => (deck.format ?? "standard") === selectedFormat,
+    (deck) => selectedFormat === null || (deck.format ?? "standard") === selectedFormat,
   );
   const filteredDecks = searchLower
     ? formatFilteredPresets.filter(
@@ -182,23 +176,14 @@ export function DeckVsSelector({
   }, [savedDecks, currentDeck]);
 
   const formatFilteredUserDecks = userDeckEntries.filter(
-    (deck) => deck.formatId === selectedFormat,
+    (deck) => selectedFormat === null || deck.formatId === selectedFormat,
   );
   const filteredUserDecks = searchLower
     ? formatFilteredUserDecks.filter((deck) => deck.name.toLowerCase().includes(searchLower))
     : formatFilteredUserDecks;
 
-  // Drop selected decks if the format changed and they no longer match.
-  if (playerDeck && playerDeck.formatId !== selectedFormat) {
-    setPlayerDeck(null);
-  }
-  if (opponentDeck && opponentDeck.formatId !== selectedFormat) {
-    setOpponentDeck(null);
-    setOpponentConfirmed(false);
-  }
-
   useEffect(() => {
-    if (stage !== "decks" || !selectedFormat || opponentDeck || opponentTouchedRef.current) return;
+    if (!selectedFormat || opponentDeck || opponentTouchedRef.current) return;
     const resolved = resolveAiOpponent({
       presets: presetDecks,
       savedDecks,
@@ -217,7 +202,17 @@ export function DeckVsSelector({
       commanderName: resolved.deck.commanders?.[0]?.identity.name,
       coverCardName: resolved.deck.coverCardName,
     });
-  }, [stage, selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
+  }, [selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
+
+  function changeFormat(formatId: PlayFormatId | null) {
+    if (formatId === selectedFormat) return;
+    opponentTouchedRef.current = false;
+    setPlayerDeck(null);
+    setOpponentDeck(null);
+    setOpponentConfirmed(false);
+    setPickingSide("player");
+    setSelectedFormat(formatId);
+  }
 
   function assignDeck(selected: SelectedDeck) {
     if (pickingSide === "player" || pickingSide === null) {
@@ -234,7 +229,8 @@ export function DeckVsSelector({
   }
 
   function selectDeck(deck: Deck) {
-    if (!selectedFormat) return;
+    const formatId = deck.format ?? "standard";
+    if (!selectedFormat) setSelectedFormat(formatId);
     const id = deck.id ?? deck.name;
     assignDeck({
       id,
@@ -243,13 +239,14 @@ export function DeckVsSelector({
       color: deck.color,
       sourceDeck: deck,
       source: "preset",
-      formatId: selectedFormat,
+      formatId,
       commanderName: deck.commanders?.[0]?.identity.name,
       coverCardName: deck.coverCardName,
     });
   }
 
   function selectUserDeck(entry: SelectedDeck) {
+    if (!selectedFormat && entry.formatId) setSelectedFormat(entry.formatId);
     assignDeck(entry);
   }
 
@@ -315,37 +312,33 @@ export function DeckVsSelector({
   const canStartTabletop =
     !!onStartTabletop && !!playerDeck && playerDeck.sourceDeck.cards.length > 0;
 
-  if (stage === "format" || selectedFormat === null) {
-    return (
-      <FormatPicker
-        onSelect={(id) => {
-          opponentTouchedRef.current = false;
-          setPlayerDeck(null);
-          setOpponentDeck(null);
-          setOpponentConfirmed(false);
-          setPickingSide("player");
-          setSelectedFormat(id);
-          setStage("decks");
-        }}
-      />
-    );
-  }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-shrink-0 items-center gap-2 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
-        <button
-          type="button"
-          onClick={() => setStage("format")}
-          className="inline-flex min-h-8 items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground pointer-coarse:min-h-10"
+      <div className="flex flex-shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
+        <div
+          role="group"
+          aria-label="Filter decks by format"
+          className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1 no-scrollbar"
         >
-          <ArrowLeft className="h-3 w-3" />
-          Change format
-        </button>
-        <span className="text-muted-foreground/40">·</span>
-        <FormatBadge formatId={selectedFormat} />
+          {[{ id: null, name: "All" }, ...GAME_FORMATS].map((format) => (
+            <button
+              key={format.id ?? "all"}
+              type="button"
+              aria-pressed={selectedFormat === format.id}
+              onClick={() => changeFormat(format.id)}
+              className={cn(
+                "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-10 pointer-coarse:px-3",
+                selectedFormat === format.id
+                  ? "border-primary/50 bg-primary/15 text-primary"
+                  : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {format.name}
+            </button>
+          ))}
+        </div>
         <p
-          className="ml-auto min-w-0 truncate text-right text-xs font-medium text-muted-foreground"
+          className="hidden shrink-0 text-right text-xs font-medium text-muted-foreground lg:block"
           aria-live="polite"
         >
           {pickingSide === "player"
@@ -470,7 +463,7 @@ export function DeckVsSelector({
                   isSelected={false}
                   isPlayerDeck={playerDeck?.id === (deck.id ?? deck.name)}
                   isOpponentDeck={opponentDeck?.id === (deck.id ?? deck.name)}
-                  formatId={selectedFormat}
+                  formatId={deck.format ?? "standard"}
                   dense={denseDecks}
                   isTouch={isTouch}
                   onSelect={() => selectDeck(deck)}

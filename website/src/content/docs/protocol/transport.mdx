@@ -40,6 +40,11 @@ field:
 | `fatal`     | engine host → all              | `{ "kind": "fatal", "message": <string> }` — the engine died; the session is over                   |
 | `roomRelay` | any → any                      | room-control messages (e.g. bot lifecycle) — implementation defined                                 |
 
+`prompt` and `error` envelopes are private. Engine hosts send them with the
+relay's `BroadcastState.target_player` set to the deciding player's username;
+`forPlayer` identifies the engine seat for dispatch and replay, but is not a
+transport privacy boundary.
+
 ## Audience-aware state
 
 An engine that computes **per-recipient views** (hidden hands, face-down cards)

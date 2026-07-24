@@ -1,7 +1,8 @@
 import { Ban, Check, HeartCrack, WandSparkles } from "lucide-react";
 import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
-import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
+import { ScryfallImg } from "@/components/ScryfallImg";
+import { MODAL_CARD_THUMBNAIL, PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
@@ -32,27 +33,49 @@ export function PayManaCost({
   return (
     <div className={cn(PROMPT_BUTTON_COLUMN, "w-full")}>
       {!minimal && payManaCostInfo && (
-        <>
-          {payManaCostInfo.description ? (
-            <p className="text-xs text-muted-foreground">
-              <DynamicTextRender className="align-middle" text={payManaCostInfo.description} />
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Cast <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
-              for <DynamicTextRender className="align-middle" text={payManaCostInfo.manaCost} />
-            </p>
+        <div className="flex items-center justify-center gap-2">
+          {payManaCostInfo.sourceCard && (
+            <ScryfallImg
+              src={
+                payManaCostInfo.sourceCard.uris.border_crop ??
+                payManaCostInfo.sourceCard.uris.normal
+              }
+              alt={payManaCostInfo.sourceCard.identity.name}
+              className={MODAL_CARD_THUMBNAIL}
+            />
           )}
-          {!!payManaCostInfo.delveCount && (
-            <p className="text-xs text-muted-foreground">
-              Delved for{" "}
-              <DynamicTextRender
-                className="align-middle"
-                text={`{${payManaCostInfo.delveCount}}`}
-              />
-            </p>
-          )}
-        </>
+          <div>
+            {payManaCostInfo.description ? (
+              <p className="text-xs text-muted-foreground">
+                <DynamicTextRender className="align-middle" text={payManaCostInfo.description} />
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Cast{" "}
+                <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
+                for <DynamicTextRender className="align-middle" text={payManaCostInfo.manaCost} />
+              </p>
+            )}
+            {!!payManaCostInfo.delveCount && (
+              <p className="text-xs text-muted-foreground">
+                Delved for{" "}
+                <DynamicTextRender
+                  className="align-middle"
+                  text={`{${payManaCostInfo.delveCount}}`}
+                />
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      {minimal && payManaCostInfo?.sourceCard && (
+        <ScryfallImg
+          src={
+            payManaCostInfo.sourceCard.uris.border_crop ?? payManaCostInfo.sourceCard.uris.normal
+          }
+          alt={payManaCostInfo.sourceCard.identity.name}
+          className={cn(MODAL_CARD_THUMBNAIL, "mx-auto")}
+        />
       )}
       <div className={"flex flex-row flex-wrap items-center justify-center gap-3"}>
         <PromptActionButton

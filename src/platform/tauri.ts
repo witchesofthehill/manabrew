@@ -103,8 +103,8 @@ class TauriServerApi implements IServerApi {
   requestResync(): Promise<void> {
     return this.inner.requestResync();
   }
-  broadcastState(state: Record<string, unknown>): Promise<void> {
-    return this.inner.broadcastState(state);
+  broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
+    return this.inner.broadcastState(state, targetPlayer);
   }
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
     return this.inner.sendRoomMessage(message);

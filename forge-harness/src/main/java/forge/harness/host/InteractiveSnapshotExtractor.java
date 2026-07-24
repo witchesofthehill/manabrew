@@ -343,7 +343,7 @@ public final class InteractiveSnapshotExtractor {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
         final IPaperCard paper = card.getPaperCard();
-       final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
+        final String name = card.isFaceDown() && paper != null ? paper.getName() : card.getName();
         dto.identity = new CardIdentity(
                 normalizeCardName(name),
                 paper != null ? paper.getEdition() : card.getSetCode(),

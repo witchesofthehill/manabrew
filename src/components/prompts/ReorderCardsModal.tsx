@@ -92,9 +92,16 @@ function SortableCard({
   );
 }
 
-export function ReorderCardsModal({ input, respond }: PromptProps<ReorderInput, ReorderOutput>) {
+export function ReorderCardsModal({
+  input,
+  respond,
+  sourceCard,
+}: PromptProps<ReorderInput, ReorderOutput>) {
   const { items } = input;
-  const { preview, presentation } = useModalSourceCard(input.presentation);
+  const { preview, presentation, inlineSourceCard } = useModalSourceCard(
+    input.presentation,
+    sourceCard,
+  );
   const itemsById = useMemo(() => new Map(items.map((i) => [i.id, i as ReorderItem])), [items]);
   const [order, setOrder] = useState<string[] | null>(null);
   const ids = order ?? items.map((i) => i.id);
@@ -113,7 +120,11 @@ export function ReorderCardsModal({ input, respond }: PromptProps<ReorderInput, 
     <Modal maxWidth="max-w-3xl" maxHeight="">
       {preview}
       <div className="p-5">
-        <PromptPresentation presentation={presentation} forceHorizontal />
+        <PromptPresentation
+          presentation={presentation}
+          sourceCard={inlineSourceCard}
+          forceHorizontal
+        />
       </div>
 
       <Modal.Instructions>

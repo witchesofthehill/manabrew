@@ -252,7 +252,6 @@ pub(super) fn pay_combat_cost<T: Responder>(
                     title: attacker_name.clone(),
                     description: None,
                     text: (!description.trim().is_empty()).then(|| description.to_string()),
-                    source_card_id: Some(attacker_id.clone()),
                     targets: Vec::new(),
                 },
                 card_id: attacker_id,
@@ -262,7 +261,7 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 actions,
             },
         ),
-        None,
+        Some(attacker),
     );
     match agent.recv_action() {
         PromptOutput::PayManaCost(PayManaCostOutput::Act { action_id }) => {

@@ -1,4 +1,5 @@
 import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType } from "@/protocol";
@@ -89,6 +90,7 @@ export interface MainActionOverlayProps {
   step: string;
   payManaCostInfo: {
     cardName: string;
+    sourceCard?: DeckCard;
     manaCost: string;
     description?: string;
     manaPool: Record<string, number>;

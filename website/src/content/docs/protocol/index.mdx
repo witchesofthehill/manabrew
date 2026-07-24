@@ -54,8 +54,7 @@ are never conflated:
     specific player. Carries **no** game state.
   </Card>
   <Card title="error" icon="warning">
-    A `ProtocolError` — the engine **rejected** the last response. See
-    [Errors](#errors).
+    A `ProtocolError` — the engine **rejected** the last response. See [Errors](#errors).
   </Card>
 </CardGrid>
 
@@ -67,8 +66,8 @@ The client → engine channel carries **two**:
     response per prompt. See [Answering a prompt](#answering-a-prompt).
   </Card>
   <Card title="directive" icon="right-arrow">
-    A `DirectiveInput` — **out-of-band and fire-and-forget**, never paired with a prompt.
-    Currently only `concede`, legal at any time.
+    A `DirectiveInput` — **out-of-band and fire-and-forget**, never paired with a prompt. Currently
+    only `concede`, legal at any time.
   </Card>
 </CardGrid>
 
@@ -83,10 +82,14 @@ Every prompt is wrapped in an `AgentPrompt`:
 interface AgentPrompt {
   promptId: number; // correlate the response back to this prompt
   decidingPlayerId: string; // who must answer
-  sourceCardId?: string; // the card that caused this prompt, if any
+  sourceCard?: CardDto; // the complete card that caused this prompt, if any
   input: PromptInput; // the discriminated union below
 }
 ```
+
+`sourceCard` is carried inside the privately addressed prompt, so it remains
+available even when the source is outside the recipient's visible game state.
+Image URLs are client-owned metadata and are not part of `CardDto`.
 
 `input` is a discriminated union tagged by a `type` field. Each variant is one
 kind of decision — `mulligan`, `chooseNumber`, `chooseCards`, `payManaCost`,

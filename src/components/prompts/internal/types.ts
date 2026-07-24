@@ -1,4 +1,5 @@
 import type { CombatAssignment } from "@/components/game/game.types";
+import type { DeckCard } from "@/protocol/deck";
 
 export interface PromptActionLayoutProps {
   isWaitingForResponse: boolean;
@@ -55,6 +56,7 @@ export interface ChooseTargetSpellProps extends PromptActionLayoutProps {
 export interface PayManaCostProps extends PromptActionLayoutProps {
   payManaCostInfo?: {
     cardName: string;
+    sourceCard?: DeckCard;
     manaCost: string;
     description?: string;
     manaPool: Record<string, number>;

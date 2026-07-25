@@ -45,10 +45,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { useSignInDialog } from "@/stores/useSignInDialogStore";
-import { isFeatureEnabled } from "@/featureFlags";
+import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
@@ -803,24 +800,6 @@ export function DeckBuilder({
   function handleExport() {
     const text = exportToArena(currentDeck);
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
-  }
-
-  function showAccountSaveNudge() {
-    if (!isFeatureEnabled("accounts")) return;
-    if (useAuthStore.getState().status === "signedIn") return;
-    if (usePreferencesStore.getState().hideAccountSaveNudge) return;
-    toast("Decks without an account live only in this browser", {
-      id: "account-save-nudge",
-      description: "Sign in to keep them safe. Playing never requires an account.",
-      action: {
-        label: "Sign in",
-        onClick: () => useSignInDialog.getState().show(),
-      },
-      cancel: {
-        label: "Don't show again",
-        onClick: () => usePreferencesStore.getState().setHideAccountSaveNudge(true),
-      },
-    });
   }
 
   function handleSave() {

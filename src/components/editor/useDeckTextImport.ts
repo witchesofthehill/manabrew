@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
+import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { getFormat } from "@/lib/formats";
@@ -95,6 +96,7 @@ export function useDeckTextImport() {
       } else {
         toast.success(`Imported "${deckName}"`);
       }
+      showAccountSaveNudge();
       return id;
     },
     [],

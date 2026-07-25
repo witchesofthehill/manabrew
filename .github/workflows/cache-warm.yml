@@ -4,8 +4,12 @@ name: Cache warm
 # PR run are scoped to that PR's branch — invisible to every other PR. Nothing
 # else compiles on main, so without this workflow the first push of every PR
 # starts from a cold cache. Each job here mirrors the build commands and
-# rust-cache shared-key of a build-checks job and saves main-scoped caches,
-# which every PR run (and every tag build) can restore.
+# rust-cache shared-key of a build-checks job (or, for the tauri-macos /
+# tauri-windows keys, of a publish.yml installer job: the desktop builds have
+# no PR trigger at all) and saves main-scoped caches, which every PR run (and
+# every tag build) can restore. publish.yml itself never saves (save-if:
+# false): a cache saved on a tag ref is unreadable by every later tag, so it
+# would only evict the warm caches saved here.
 #
 # Steady-state cost is low: every job is gated on whether its inputs actually
 # changed in the pushed commit (a UI-only merge warms nothing), rust-cache
@@ -129,6 +133,12 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # Installed as the default ld (no RUSTFLAGS change), so artifacts stay
+      # fingerprint-compatible with caches linked by GNU ld. Keep the Linux
+      # cargo jobs in build-checks.yml in sync.
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -159,6 +169,9 @@ jobs:
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -199,6 +212,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -232,3 +248,240 @@ jobs:
 
       - name: Warm xtask (gen:types)
         run: yarn gen:types
+
+  # publish.yml's installer builds restore the four tauri-* keys below but
+  # nothing used to save them anywhere a tag build can read (PR saves are
+  # PR-scoped, tag saves die with their tag), so every release compiled the
+  # full desktop and mobile workspaces from scratch. The desktop warms mirror
+  # publish.yml's macos-dmg / windows-exe jobs up to the tauri crate build,
+  # with dist stubbed instead of running the vite bundle: real assets only
+  # refingerprint the manabrew crate itself, the dependency graph stays warm.
+  # The mobile warms mirror build-checks' ios-build / android-build. Release
+  # bump commits are skipped like everywhere else; the version-bumped
+  # workspace members rebuild on top of the previous merge's warm deps via
+  # rust-cache prefix restore.
+  tauri-macos:
+    name: Warm macOS tauri
+    runs-on: macos-latest
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-macos
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn build:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        run: ./forge-harness/build-native.sh
+
+      - name: Stub frontend dist for tauri context macro
+        run: |
+          mkdir -p dist
+          printf '<!doctype html><title>ci</title>' > dist/index.html
+
+      - name: Build tauri crate with forge-room feature
+        run: cargo build --release -p manabrew --features forge-room
+
+  tauri-windows:
+    name: Warm Windows tauri
+    runs-on: windows-latest
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-windows
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn build:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        run: ./forge-harness/build-native.ps1
+        shell: pwsh
+
+      - name: Stub frontend dist for tauri context macro
+        shell: bash
+        run: |
+          mkdir -p dist
+          printf '<!doctype html><title>ci</title>' > dist/index.html
+
+      - name: Build tauri crate with forge-room feature
+        run: cargo build --release -p manabrew --features forge-room
+
+  tauri-ios:
+    name: Warm iOS tauri
+    # Pinned to macos-15 like publish.yml's ios-ipa (tauri-apps/tauri#15066).
+    runs-on: macos-15
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-ios
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
+
+      - name: Tauri build (iOS, unsigned)
+        run: yarn tauri ios build --no-sign
+
+  tauri-android:
+    name: Warm Android tauri
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-android
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.1
+
+      - run: yarn
+
+      - name: Build WASM + bundle cards
+        run: yarn build:wasm
+
+      - name: Build cardset archive
+        run: |
+          cargo run -p forge-cardset-archive --features build --release \
+            --bin build-cardset-archive
+
+      - name: Tauri build (Android APK, arm64)
+        run: node scripts/mobile-dev.mjs android build --apk --target aarch64

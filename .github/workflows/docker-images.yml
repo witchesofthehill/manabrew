@@ -101,4 +101,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          # Layers saved from a tag build are unreadable by the next tag (GHA
+          # caches are ref-scoped); cache-warm.yml maintains the main-scoped
+          # layers every build restores. Saving here would only evict those,
+          # so tag builds are restore-only. workflow_dispatch runs (from main)
+          # still save: there the cache lands where future builds can see it.
+          cache-to: ${{ github.ref_type != 'tag' && format('type=gha,mode=max,scope={0}', matrix.image) || '' }}

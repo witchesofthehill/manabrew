@@ -20,10 +20,11 @@ name: Publish
 #      after the Release has all its assets, so no installed client is
 #      stranded against a relay it can't talk to.
 #
-#      /manifest.json needs no deploy-time hold anymore: the release job
-#      attaches ops/manifest.json as a Release asset and Caddy redirects to
-#      the LATEST release's copy, so installed apps can only ever be told
-#      about a release whose installers exist.
+#      /manifest.json needs no deploy-time hold anymore: xtask creates the
+#      Release as a DRAFT, the release job attaches ops/manifest.json plus
+#      the installers and publishes it, and Caddy redirects to the LATEST
+#      release's copy — so installed apps can only ever be told about a
+#      release whose installers exist.
 # There is no main-push deploy: main commits only run release.yml.
 #
 # GitHub-hosted runners are free for public repositories (unlimited minutes
@@ -437,9 +438,8 @@ jobs:
       - name: Generate updater manifest (tauri.json)
         run: node scripts/gen-updater-manifest.mjs --tag "${{ github.ref_name }}" --assets release-assets --out release-assets/tauri.json
 
-      # Attach artifacts to the release release-please already created from
-      # CHANGELOG.md. Omitting `body` makes softprops/action-gh-release leave
-      # the existing release notes untouched.
+      # Attach artifacts to the DRAFT release xtask created and publish it
+      # (draft: false). Omitting `body` leaves the release notes untouched.
       - name: Attach artifacts to release
         id: publish
         uses: softprops/action-gh-release@v2
@@ -583,7 +583,7 @@ jobs:
   # no installer published yet to update to.
   #
   # /manifest.json needs no hold: it redirects to the latest Release's copy,
-  # and this release's Release has not published yet at this point.
+  # and this release is still a draft here, so `latest` is the previous one.
   deploy-web:
     name: Deploy web (early)
     needs: [deploy-gate]

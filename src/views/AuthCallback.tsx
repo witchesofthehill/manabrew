@@ -41,7 +41,7 @@ export default function AuthCallback() {
     if (linked) {
       toast.success(`${PROVIDER_LABELS[linked] ?? linked} linked to your account`);
       void useAuthStore.getState().refresh();
-      navigate(ROUTES.SETTINGS, { replace: true });
+      navigate(ROUTES.SETTINGS, { replace: true, state: { settingsTab: "account" } });
       return;
     }
     if (email && code) {

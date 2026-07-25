@@ -40,7 +40,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTheme as useColorMode } from "next-themes";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { HelpCircle, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
@@ -365,9 +365,14 @@ export default function Settings() {
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<
     "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account"
-  >("preferences");
+  >(() =>
+    location.state?.settingsTab === "account" && isFeatureEnabled("accounts")
+      ? "account"
+      : "preferences",
+  );
   const [clearingCache, setClearingCache] = useState(false);
   const [presetOpen, setPresetOpen] = useState(false);
   const [editingThemeColorPath, setEditingThemeColorPath] = useState<string | null>(null);

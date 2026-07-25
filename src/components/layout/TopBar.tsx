@@ -201,7 +201,11 @@ export function TopBar({ override }: TopBarProps) {
             className="h-8 w-8"
             disabled={navigationDisabled}
             title={signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
-            onClick={() => (signedInAccount ? navigate(ROUTES.SETTINGS) : showSignIn())}
+            onClick={() =>
+              signedInAccount
+                ? navigate(ROUTES.SETTINGS, { state: { settingsTab: "account" } })
+                : showSignIn()
+            }
           >
             <CircleUserRound className="h-4 w-4" />
             <span className="sr-only">

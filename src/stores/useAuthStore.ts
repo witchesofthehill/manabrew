@@ -29,7 +29,10 @@ export const useAuthStore = create<AuthState>()(
         status: "unknown",
         lastServer: "",
         lastUsername: "",
-        signIn: (token, account) => set({ token, account, status: "signedIn" }),
+        signIn: (token, account) => {
+          set({ token, account, status: "signedIn" });
+          void get().refresh();
+        },
         setAccount: (account) => set({ account }),
         hydrate: async () => {
           const token = get().token;

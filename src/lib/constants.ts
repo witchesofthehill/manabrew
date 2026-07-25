@@ -3,10 +3,22 @@
 export const ROUTES = {
   LOBBY: "/lobby",
   PLAY: "/play",
+  PLAY_OFFLINE: "/play/offline",
+  PLAY_OFFLINE_CONSTRUCTED: "/play/offline/constructed",
+  PLAY_OFFLINE_LIMITED: "/play/offline/limited",
+  PLAY_DECK: "/play/deck",
+  DRAFT: "/draft",
+  SEALED: "/sealed",
+  WINSTON: "/winston",
+  GAUNTLET: "/gauntlet",
+  GAME: "/game",
   SEARCH: "/search",
   DECK_EDITOR: "/deck-editor",
-
+  HUB: "/hub",
+  COMPANION: "/companion",
   SETTINGS: "/settings",
+  ABOUT: "/about",
+  DESIGN_SYSTEM: "/design-system",
 } as const;
 
 // ─── External Links ──────────────────────────────────────────────────────────

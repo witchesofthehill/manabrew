@@ -1010,6 +1010,9 @@ class WebServerApi implements IServerApi {
   }
 
   async leaveRoom(): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Cannot leave room while disconnected.");
+    }
     this.stopAllBots();
     clearSpawnedBots();
     this.send({ type: "LeaveRoom" });
@@ -1121,6 +1124,14 @@ class WebServerApi implements IServerApi {
         const failure = bot.failure();
         if (failure) {
           console.warn(`[bot ${params.username}] ${failure}`);
+          // A lifecycle failure is terminal — reconnecting would replay the
+          // same rejection forever, silently.
+          entry.stopped = true;
+          forgetSpawnedBot(params.username);
+          this.eventBus.emit("server:bot_failed", {
+            username: params.username,
+            reason: failure,
+          });
           ws.close();
         } else {
           entry.attempt = 0;

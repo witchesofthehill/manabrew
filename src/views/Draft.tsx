@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ const RAIL_WIDE_AT_ROW_WIDTH = 1120;
 
 export default function Draft() {
   const { draftId } = useParams<{ draftId: string }>();
-  const navigate = useNavigate();
   const activeDraft = useLimitedStore((s) => s.activeDraft);
   const pick = useLimitedStore((s) => s.pickDraftCard);
   const undo = useLimitedStore((s) => s.undoDraftPick);
@@ -93,33 +92,30 @@ export default function Draft() {
   const canBuild = activeDraft.pickedPile.length >= 1;
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <LandscapeGate />
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Booster Draft</h1>
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>
-              Round {activeDraft.round} / {activeDraft.totalRounds} · Pick {activeDraft.pickNumber}
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span>
+            Round {activeDraft.round} / {activeDraft.totalRounds} · Pick {activeDraft.pickNumber}
+          </span>
+          {activeDraft.isComplete ? (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              Complete
             </span>
-            {activeDraft.isComplete ? (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                Complete
-              </span>
-            ) : activeDraft.awaitingHuman ? (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                {activeDraft.picksPerPass > 1 && activeDraft.picksRemainingInPack > 0
-                  ? `Your pick (${activeDraft.picksRemainingInPack} of ${activeDraft.picksPerPass})`
-                  : "Your pick"}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                AI thinking…
-              </span>
-            )}
-          </p>
-        </div>
+          ) : activeDraft.awaitingHuman ? (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              {activeDraft.picksPerPass > 1 && activeDraft.picksRemainingInPack > 0
+                ? `Your pick (${activeDraft.picksRemainingInPack} of ${activeDraft.picksPerPass})`
+                : "Your pick"}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              AI thinking…
+            </span>
+          )}
+        </p>
         <div className="flex items-center gap-2">
           <DraftPodButton seats={activeDraft.seatSummaries} />
           {canBuild && !activeDraft.isComplete && (
@@ -140,9 +136,6 @@ export default function Draft() {
               disableDrafting={activeDraft.isComplete}
             />
           )}
-          <Button variant="outline" onClick={() => navigate("/limited")}>
-            Back
-          </Button>
         </div>
       </header>
 

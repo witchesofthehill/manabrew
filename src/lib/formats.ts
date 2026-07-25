@@ -1,10 +1,10 @@
 // Mirrors Forge's DeckFormat (structural rules) + GameFormat (card legality).
 // For our limited card pool, we combine both into a single GameFormat interface.
 
-import type { Deck, DeckCard } from "@/protocol/deck";
+import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 
 export interface GameFormat {
-  id: string;
+  id: DeckFormat;
   name: string;
   /** Short label used in badges, e.g. "STD" / "CMD" */
   shortName: string;

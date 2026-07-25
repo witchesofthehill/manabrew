@@ -53,7 +53,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useLimitedStore } from "@/stores/useLimitedStore";
-import { tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
+import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
 import { intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
@@ -1412,6 +1412,7 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
+    if (peekGauntletMatch()) return;
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
   }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
@@ -1422,14 +1423,15 @@ export default function Game({ exitTo }: GameProps = {}) {
     const pending = tryConsumeGauntletMatch();
     if (!pending) return;
     const humanWon = gameView.winnerId != null && gameView.winnerId === myPlayerSlot;
-    void useLimitedStore
-      .getState()
-      .recordGauntletOutcome(pending.gauntletId, humanWon, true, humanWon)
-      .catch(() => {})
-      .finally(() => {
-        navigate(`/gauntlet/${pending.gauntletId}`);
-      });
-  }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate]);
+    void (async () => {
+      await useLimitedStore
+        .getState()
+        .recordGauntletOutcome(pending.gauntletId, humanWon, true, humanWon)
+        .catch(() => undefined);
+      await endGame();
+      navigate(`/gauntlet/${pending.gauntletId}`);
+    })();
+  }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate, endGame]);
 
   if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
 

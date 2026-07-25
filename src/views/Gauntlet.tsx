@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { arm as armGauntletReturn } from "@/lib/gauntletReturn";
+import { arm as armGauntletReturn, clear as clearGauntletReturn } from "@/lib/gauntletReturn";
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
 import { resolveDeckCards } from "@/lib/limited.utils";
 import type { Deck, DeckFormat } from "@/protocol/deck";
@@ -55,6 +56,11 @@ export default function Gauntlet() {
   const [launchingMatch, setLaunchingMatch] = useState(false);
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const [matchDecks, setMatchDecks] = useState<GauntletMatchDecks | null>(null);
+
+  useTopBarOverride({
+    onBack: () => navigate(ROUTES.PLAY_OFFLINE_LIMITED),
+    onHome: () => navigate(ROUTES.PLAY),
+  });
 
   useEffect(() => {
     if (!gauntletId) return;
@@ -112,7 +118,11 @@ export default function Gauntlet() {
         ),
       ]);
       armGauntletReturn(gauntletId, activeGauntlet.currentRound);
-      await startGame(human, formatId, undefined, [opponent]);
+      const started = await startGame(human, formatId, undefined, [opponent]);
+      if (!started) {
+        clearGauntletReturn();
+        return;
+      }
       navigate(ROUTES.PLAY);
     } catch (err) {
       toast.error(`Failed to launch match: ${err}`);
@@ -144,13 +154,13 @@ export default function Gauntlet() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Gauntlet — {activeGauntlet.kind === "sealed" ? "Sealed" : "Draft"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-sm">
+          <p className="font-semibold text-foreground">
+            {activeGauntlet.kind === "sealed" ? "Sealed" : "Draft"} gauntlet
+          </p>
+          <p className="text-muted-foreground">
             Round {activeGauntlet.currentRound} / {activeGauntlet.rounds} · Wins{" "}
             {activeGauntlet.wins} · Losses {activeGauntlet.losses}{" "}
             {activeGauntlet.completed ? "· Complete" : ""}
@@ -162,9 +172,6 @@ export default function Gauntlet() {
               Sideboard
             </Button>
           )}
-          <Button variant="outline" onClick={() => navigate("/limited")}>
-            Back
-          </Button>
         </div>
       </header>
 

@@ -63,7 +63,7 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
       <DialogContent className="max-w-sm">
         <DialogTitle className="flex items-center gap-2">
           <Lock className="h-4 w-4" />
-          Private room
+          Password-Protected Table
         </DialogTitle>
         <DialogDescription>Enter the password to join {room?.room_name}.</DialogDescription>
 

@@ -8,7 +8,7 @@
     "release:plan": "cargo xtask plan",
     "gen:manifest": "cargo xtask manifest",
     "tauri": "tauri",
-    "dev": "tauri dev",
+    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "android": "node scripts/mobile-dev.mjs android dev",
     "android:init": "node scripts/mobile-dev.mjs android init",
     "android:build": "node scripts/mobile-dev.mjs android build",

@@ -25,9 +25,11 @@ on:
 permissions:
   contents: read
 
+# Never cancel an in-progress warm: every merge is followed ~90s later by its
+# chore(release) push, which would kill the real warm and then skip all jobs.
 concurrency:
   group: cache-warm
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # What changed in this push decides which warms are worth running. The

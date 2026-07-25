@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.0](https://github.com/witchesofthehill/manabrew/compare/v2.0.2...v2.1.0) (2026-07-25)
+
+### Features
+
+* **ui:** add unified play experience ([#494](https://github.com/witchesofthehill/manabrew/issues/494)) ([cb81e47](https://github.com/witchesofthehill/manabrew/commit/cb81e4738f8b15d5aaaec55f3993ce23820bc7d3))
+
 ## [2.0.2](https://github.com/witchesofthehill/manabrew/compare/v2.0.1...v2.0.2) (2026-07-25)
 
 ### Fixes

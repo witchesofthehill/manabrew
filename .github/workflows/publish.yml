@@ -79,9 +79,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: tauri-macos
-          # Restore-only, here and in every job below: a cache saved on a tag
-          # ref is unreadable by every other ref, so saving would only evict
-          # the main-scoped caches cache-warm.yml maintains for these keys.
+          # Restore-only (all jobs below too): tag-scoped saves are unreadable
+          # by later tags and would evict cache-warm.yml's main-scoped caches.
           save-if: false
 
       - name: Install wasm-pack

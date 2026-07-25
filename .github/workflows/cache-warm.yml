@@ -4,12 +4,9 @@ name: Cache warm
 # PR run are scoped to that PR's branch — invisible to every other PR. Nothing
 # else compiles on main, so without this workflow the first push of every PR
 # starts from a cold cache. Each job here mirrors the build commands and
-# rust-cache shared-key of a build-checks job (or, for the tauri-macos /
-# tauri-windows keys, of a publish.yml installer job: the desktop builds have
-# no PR trigger at all) and saves main-scoped caches, which every PR run (and
-# every tag build) can restore. publish.yml itself never saves (save-if:
-# false): a cache saved on a tag ref is unreadable by every later tag, so it
-# would only evict the warm caches saved here.
+# rust-cache shared-key of a build-checks job (or a publish.yml job for the
+# desktop tauri keys) and saves main-scoped caches, which every PR run (and
+# every tag build) can restore. publish.yml itself is restore-only.
 #
 # Steady-state cost is low: every job is gated on whether its inputs actually
 # changed in the pushed commit (a UI-only merge warms nothing), rust-cache
@@ -133,9 +130,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      # Installed as the default ld (no RUSTFLAGS change), so artifacts stay
-      # fingerprint-compatible with caches linked by GNU ld. Keep the Linux
-      # cargo jobs in build-checks.yml in sync.
+      # Default-ld swap: no RUSTFLAGS change, caches stay compatible. Keep
+      # in sync with build-checks.yml.
       - name: Set up mold linker
         uses: rui314/setup-mold@v1
 
@@ -249,17 +245,8 @@ jobs:
       - name: Warm xtask (gen:types)
         run: yarn gen:types
 
-  # publish.yml's installer builds restore the four tauri-* keys below but
-  # nothing used to save them anywhere a tag build can read (PR saves are
-  # PR-scoped, tag saves die with their tag), so every release compiled the
-  # full desktop and mobile workspaces from scratch. The desktop warms mirror
-  # publish.yml's macos-dmg / windows-exe jobs up to the tauri crate build,
-  # with dist stubbed instead of running the vite bundle: real assets only
-  # refingerprint the manabrew crate itself, the dependency graph stays warm.
-  # The mobile warms mirror build-checks' ios-build / android-build. Release
-  # bump commits are skipped like everywhere else; the version-bumped
-  # workspace members rebuild on top of the previous merge's warm deps via
-  # rust-cache prefix restore.
+  # publish.yml restores these tauri-* keys but can never save them anywhere
+  # readable, so releases built cold. Desktop mirrors publish with dist stubbed.
   tauri-macos:
     name: Warm macOS tauri
     runs-on: macos-latest

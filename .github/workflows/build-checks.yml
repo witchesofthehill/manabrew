@@ -18,10 +18,8 @@ concurrency:
 # branch, so cache-warm.yml re-saves them from main on every merge — keep the
 # shared-keys and build commands here in sync with that workflow.
 #
-# The Linux cargo jobs link with mold (rui314/setup-mold installs it as the
-# default ld). No RUSTFLAGS change means cargo fingerprints are untouched, so
-# caches stay interchangeable with GNU-ld-linked ones. Mirrored in
-# cache-warm.yml; not applicable to macOS/Windows runners or wasm targets.
+# Linux cargo jobs link with mold, installed as the default ld: no RUSTFLAGS
+# change, so caches stay valid. Mirrored in cache-warm.yml.
 
 jobs:
   changes:

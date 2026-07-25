@@ -17,6 +17,9 @@ export const featureFlags = {
   // prod OAuth apps and the Resend domain are registered. Hub publishing
   // requires a session once the hub enforces auth, so flip this before deckHub.
   accounts: false,
+  // Email (magic-link) sign-in inside the accounts dialog. Hidden until the
+  // Resend domain is registered; OAuth sign-in is unaffected.
+  emailSignIn: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

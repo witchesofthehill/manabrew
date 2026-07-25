@@ -54,7 +54,7 @@ Two reference routes document the app for developers/designers (see `router.tsx`
 
 ## Feature flags
 
-Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. Current flags: `ironsmithRuntime`, `deckHub`, `accounts` (the whole auth surface — top-bar sign-in, Settings account tab, save nudge, `/auth/callback`).
+Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. Current flags: `ironsmithRuntime`, `deckHub`, `accounts` (the whole auth surface — top-bar sign-in, Settings account tab, save nudge, `/auth/callback`), `emailSignIn` (the email code flow inside the sign-in dialog).
 
 ## Card data — Scryfall store
 

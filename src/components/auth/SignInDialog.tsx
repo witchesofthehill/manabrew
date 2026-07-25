@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
+import { isFeatureEnabled } from "@/featureFlags";
 import {
   exchangeCode,
   fetchAuthProviders,
@@ -184,7 +185,7 @@ export function SignInDialog() {
                 </Button>
               )}
             </div>
-            {providers?.email !== false && (
+            {isFeatureEnabled("emailSignIn") && providers?.email !== false && (
               <>
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-border" />

@@ -3,44 +3,35 @@ import { UserList, type ConnectionState } from "@/components/lobby/UserList";
 import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
-import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useIsDesktop } from "@/hooks/useBreakpoints";
 import { useServerStore } from "@/stores/useServerStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { useGameStore } from "@/stores/useGameStore";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
-import { getFormat } from "@/lib/formats";
+import { getDeckFingerprint } from "@/lib/decks";
+import { ROUTES } from "@/lib/constants";
 import { stripUsernameTag } from "@/lib/username";
 import { getPlatform } from "@/platform";
 import { START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
+  BotFailedPayload,
   DraftConfig,
   GameFormat,
   GameStartedPayload,
-  RoomMessagePayload,
   ServerErrorCode,
   ServerErrorPayload,
 } from "@/types/server";
-import type { ClientGameView } from "@/stores/gameStore.types";
 import type { Deck } from "@/protocol/deck";
-import {
-  MANUAL_TABLETOP_RELAY_PROTOCOL,
-  createRoomRelayEnvelope,
-  isRoomRelayProtocol,
-} from "@/game";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { Settings, RefreshCw, Users, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Settings, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { DESKTOP_QUERY } from "@/lib/responsive";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -72,36 +63,23 @@ function awaitGameStartedAck(roomId: string): Promise<void> {
   });
 }
 
-interface ManualTabletopLaunchPayload {
-  type: "launch";
-  roomId: string;
-  hostPlayer: string;
-  playerOrder: string[];
-  startingLife: number;
-  initialGameView: ClientGameView;
-}
-
 interface SelectedAiDeck {
   name: string;
   deck: Deck;
   commanderName?: string;
 }
 
-function isManualTabletopLaunchPayload(value: unknown): value is ManualTabletopLaunchPayload {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<ManualTabletopLaunchPayload>;
-  return (
-    candidate.type === "launch" &&
-    typeof candidate.roomId === "string" &&
-    typeof candidate.hostPlayer === "string" &&
-    Array.isArray(candidate.playerOrder) &&
-    typeof candidate.startingLife === "number" &&
-    !!candidate.initialGameView
-  );
-}
-
 export default function Lobby() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
+  const initialRouteState = location.state as {
+    preferredSavedDeckId?: unknown;
+  } | null;
+  const initialPreferredSavedDeckId =
+    typeof initialRouteState?.preferredSavedDeckId === "string"
+      ? initialRouteState.preferredSavedDeckId
+      : undefined;
   const {
     connected,
     connecting,
@@ -114,6 +92,7 @@ export default function Lobby() {
     hostingForgeRoom,
     players,
     gameStarted,
+    gameRoomId,
     playerOrder,
     playerDecks,
     startingLife,
@@ -135,14 +114,20 @@ export default function Lobby() {
     : connecting
       ? "connecting"
       : "disconnected";
-  const { currentDeck, savedDecks } = useDeckStore();
-  const { startManualTabletopGame, startManualRoomHost, endGame } = useGameStore();
+  const { savedDecks } = useDeckStore();
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
+  const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
+  const lastPlayedSavedDeck = savedDecks.find((saved) => saved.id === prefs.lastPlayedDeckId);
+  const deckDialogPreSelectedId =
+    preferredSavedDeckId ??
+    (lastPlayedSavedDeck &&
+    (lastPlayedSavedDeck.deck.format ?? "standard") ===
+      (currentRoom?.format ? currentRoom.format.toLowerCase() : "standard")
+      ? lastPlayedSavedDeck.id
+      : undefined);
   const [deckDialogOpen, setDeckDialogOpen] = useState(false);
   const [aiDeckDialogOpen, setAiDeckDialogOpen] = useState(false);
   const [refreshingLobby, setRefreshingLobby] = useState(false);
-  const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const [playersCollapsed, setPlayersCollapsed] = useState(false);
   const [playersDrawerOpen, setPlayersDrawerOpen] = useState(false);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
@@ -150,6 +135,22 @@ export default function Lobby() {
   const [startingGame, setStartingGame] = useState(false);
   const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
+
+  useEffect(() => {
+    if (currentRoom) setPlayersDrawerOpen(false);
+  }, [currentRoom]);
+
+  useEffect(() => {
+    return getPlatform().events.on<BotFailedPayload>("server:bot_failed", (payload) => {
+      setMySpawnedBots((prev) => prev.filter((name) => name !== payload.username));
+      toast.error(`Bot couldn't join the table: ${payload.reason}`);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!initialPreferredSavedDeckId) return;
+    navigate(location.pathname, { replace: true, state: null });
+  }, [initialPreferredSavedDeckId, location.pathname, navigate]);
 
   // Leaving tears down the embedded Forge node (stopRoom), which kills the
   // game for everyone still playing — by design. Make the host confirm it.
@@ -165,14 +166,14 @@ export default function Lobby() {
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
   useEffect(() => {
     if (draftMode === "drafting" && draftSessionId) {
-      navigate("/draft/multiplayer");
+      navigate(`${ROUTES.DRAFT}/multiplayer`);
     }
   }, [draftMode, draftSessionId, navigate]);
 
   const sealedMode = useMultiplayerSealedStore((s) => s.mode);
   useEffect(() => {
     if (sealedMode === "building") {
-      navigate("/sealed/multiplayer");
+      navigate(`${ROUTES.SEALED}/multiplayer`);
     }
   }, [sealedMode, navigate]);
 
@@ -203,13 +204,15 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
-    if (currentRoom?.format === "Draft") {
+    if (!currentRoom) return;
+    if (gameRoomId !== currentRoom.room_id) return;
+    if (currentRoom?.draft_config) {
       useServerStore.setState({ gameStarted: false });
       return;
     }
-    if (currentRoom?.format === "Sealed") {
+    if (currentRoom?.sealed_config) {
       useServerStore.setState({ gameStarted: false });
-      if (currentRoom.status === "InGame" && currentRoom.sealed_config && username) {
+      if (currentRoom.status === "InGame" && username) {
         const room = currentRoom;
         const amHost = room.host === username;
         void startMpSealed({ room, username }).catch((err) => {
@@ -232,42 +235,27 @@ export default function Lobby() {
       startingLife,
     );
     if (launch.error) {
+      useServerStore.setState({ gameStarted: false });
       toast.error(launch.error);
+      if (currentRoom.host === username) {
+        void useServerStore.getState().endGame();
+      } else {
+        void useServerStore.getState().leaveRoom();
+      }
       return;
     }
     useServerStore.setState({ gameStarted: false });
-    navigate("/play", { state: launch.state });
-  }, [gameStarted, currentRoom, navigate, playerDecks, playerOrder, startingLife, username]);
-
-  useEffect(() => {
-    const unsubscribe = getPlatform().events.on<RoomMessagePayload>(
-      "server:room_message",
-      (payload) => {
-        const message = payload.state;
-        if (!isRoomRelayProtocol(message, MANUAL_TABLETOP_RELAY_PROTOCOL)) return;
-        const launch = message.payload;
-        if (!isManualTabletopLaunchPayload(launch)) return;
-        if (!currentRoom || launch.roomId !== currentRoom.room_id) return;
-        const myIndex = launch.playerOrder.indexOf(username ?? "");
-        if (myIndex < 0) {
-          toast.error("Could not determine your player slot for tabletop.");
-          return;
-        }
-        useServerStore.setState({ gameStarted: false });
-        navigate("/tabletop", {
-          state: {
-            manualTabletop: true,
-            playerOrder: launch.playerOrder,
-            isHost: launch.hostPlayer === username,
-            startingLife: launch.startingLife,
-            myPlayerSlot: `player-${myIndex}`,
-            initialGameView: launch.initialGameView,
-          },
-        });
-      },
-    );
-    return unsubscribe;
-  }, [currentRoom, navigate, username]);
+    navigate(ROUTES.PLAY, { replace: true, state: launch.state });
+  }, [
+    gameStarted,
+    gameRoomId,
+    currentRoom,
+    navigate,
+    playerDecks,
+    playerOrder,
+    startingLife,
+    username,
+  ]);
 
   async function refreshLobbyData() {
     if (!connected || refreshingLobby) return;
@@ -290,6 +278,11 @@ export default function Lobby() {
   async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
     try {
       await setDeckSelection(deckName, deck, commanderName);
+      const fingerprint = getDeckFingerprint(deck);
+      const savedId = savedDecks.find(
+        (saved) => getDeckFingerprint(saved.deck) === fingerprint,
+      )?.id;
+      if (savedId) prefs.setLastPlayedDeckId(savedId);
       const controllerName =
         currentRoom?.players.find((player) => !player.is_bot)?.username ??
         currentRoom?.players[0]?.username;
@@ -298,87 +291,6 @@ export default function Lobby() {
       }
     } catch (error) {
       toast.error(`Failed to set deck: ${String(error)}`);
-    }
-  }
-
-  function findLocalDeckByName(deckName: string | undefined) {
-    if (!deckName) return currentDeck.cards.length > 0 ? currentDeck : undefined;
-    if (currentDeck.name === deckName) return currentDeck;
-    return savedDecks.find((saved) => saved.deck.name === deckName)?.deck;
-  }
-
-  function tabletopPlayerOrder(room: NonNullable<typeof currentRoom>) {
-    // Manual tabletop has no server-side GameStarted order, so every peer
-    // derives seats from this deterministic room snapshot: host first, then
-    // stable username ordering for the remaining players.
-    return [...room.players]
-      .sort((a, b) => {
-        if (a.username === room.host) return -1;
-        if (b.username === room.host) return 1;
-        return a.username.localeCompare(b.username);
-      })
-      .map((player) => player.username);
-  }
-
-  async function handleStartTabletop() {
-    const room = currentRoom;
-    if (!room || !username) return;
-    if (!getPlatform().server) {
-      toast.error("Tabletop multiplayer requires a server connection.");
-      return;
-    }
-
-    const playerOrder = tabletopPlayerOrder(room);
-    const myIndex = playerOrder.indexOf(username);
-    if (myIndex < 0) {
-      toast.error("Could not determine your player slot for tabletop.");
-      return;
-    }
-
-    const myDeckName = room.players.find(
-      (player) => player.username === username,
-    )?.selected_deck_name;
-    const deck = findLocalDeckByName(myDeckName);
-    if (!deck) {
-      toast.error("Select one of your local decks before starting tabletop.");
-      return;
-    }
-
-    try {
-      await startManualTabletopGame(deck);
-      const initialGameView = useGameStore.getState().gameView;
-      if (!initialGameView) throw new Error("Manual tabletop state did not initialize.");
-      const startingLife =
-        getFormat(deck.format ?? room.format.toLowerCase())?.deckRules.startingLife ?? 20;
-      await getPlatform().server!.sendRoomMessage(
-        createRoomRelayEnvelope({
-          protocol: MANUAL_TABLETOP_RELAY_PROTOCOL,
-          fromPlayer: `player-${myIndex}`,
-          roomId: room.room_id,
-          payload: {
-            type: "launch",
-            roomId: room.room_id,
-            hostPlayer: username,
-            playerOrder,
-            startingLife,
-            initialGameView,
-          },
-        }),
-      );
-      await startManualRoomHost(`player-${myIndex}`);
-      navigate("/tabletop", {
-        state: {
-          manualTabletop: true,
-          playerOrder,
-          isHost: true,
-          startingLife,
-          myPlayerSlot: `player-${myIndex}`,
-          initialGameView,
-        },
-      });
-    } catch (error) {
-      await endGame();
-      toast.error(error instanceof Error ? error.message : "Failed to start tabletop.");
     }
   }
 
@@ -488,7 +400,7 @@ export default function Lobby() {
     try {
       await getPlatform().server!.spawnAiBot({
         roomId: room.room_id,
-        roomPassword: roomPasswords[room.room_id] ?? null,
+        roomPassword: roomPasswords[room.room_id] ?? roomPassword ?? null,
         username: botName,
         deckName: deck.name,
         deck: deck.deck,
@@ -518,88 +430,47 @@ export default function Lobby() {
   }
 
   return (
-    <div className="h-full w-full flex">
-      <div className="flex-1 min-w-0 flex flex-col mt-2">
-        {/* ── Header ── */}
-        <div className="px-4 h-14 shrink-0 flex items-center gap-3">
-          {connected && (
-            <div className="flex items-center gap-1">
+    <div className="flex h-full w-full min-h-0">
+      <div className="flex min-w-0 flex-1 flex-col">
+        {!currentRoom && (!connected || (!isDesktop && !!myUsername)) && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-4 py-2 sm:px-6 lg:px-8">
+            {!connected && error && (
               <Button
                 size="sm"
-                className="h-7 text-xs"
-                onClick={() => setCreateRoomOpen(true)}
-                disabled={currentRoom != null}
+                variant="outline"
+                onClick={() =>
+                  connect(
+                    prefs.serverHost,
+                    prefs.serverPort,
+                    prefs.serverUsername,
+                    prefs.serverPassword,
+                  )
+                }
               >
-                New Room
+                Retry connection
               </Button>
+            )}
+            {!connected && !connecting && (
+              <Button size="sm" variant="ghost" onClick={() => navigate(ROUTES.SETTINGS)}>
+                <Settings /> Multiplayer settings
+              </Button>
+            )}
+            {myUsername && (
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 text-xs"
-                onClick={refreshLobbyData}
-                disabled={refreshingLobby}
+                className="md:hidden"
+                onClick={() => setPlayersDrawerOpen(true)}
+                title="Show players"
               >
-                <RefreshCw className={cn("h-3 w-3 mr-1", refreshingLobby && "animate-spin")} />
-                Refresh
+                <Users /> Players
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  {players.length}
+                </span>
               </Button>
-            </div>
-          )}
-
-          <div className="flex-1" />
-
-          <ReconnectBanner />
-
-          {!connected && error && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={() =>
-                connect(
-                  prefs.serverHost,
-                  prefs.serverPort,
-                  prefs.serverUsername,
-                  prefs.serverPassword,
-                )
-              }
-            >
-              Retry
-            </Button>
-          )}
-          {!connected && !connecting && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={() => navigate("/settings")}
-            >
-              <Settings className="h-3 w-3 mr-1" /> Settings
-            </Button>
-          )}
-          {myUsername && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={() =>
-                isDesktop
-                  ? setPlayersCollapsed((collapsed) => !collapsed)
-                  : setPlayersDrawerOpen(true)
-              }
-              title={
-                !isDesktop ? "Show players" : playersCollapsed ? "Show players" : "Hide players"
-              }
-            >
-              {!isDesktop ? (
-                <Users className="h-3.5 w-3.5" />
-              ) : playersCollapsed ? (
-                <PanelRightOpen className="h-3.5 w-3.5" />
-              ) : (
-                <PanelRightClose className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* ── Rooms ── */}
         <div className="flex-1 min-h-0">
@@ -612,6 +483,7 @@ export default function Lobby() {
             onRefresh={refreshLobbyData}
             refreshing={refreshingLobby}
             refreshDisabled={!connected || connecting}
+            disabled={!connected || connecting}
             onJoinRoom={handleJoinRoom}
             onLeaveRoom={handleLeaveRoom}
             onSetReady={setReady}
@@ -619,7 +491,6 @@ export default function Lobby() {
             onSetMaxPlayers={handleSetMaxPlayers}
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
             onStartGame={handleStartGame}
-            onStartTabletop={handleStartTabletop}
             onStartDraft={handleStartDraft}
             onStartSealed={handleStartSealed}
             startingLimited={startingLimited}
@@ -631,23 +502,25 @@ export default function Lobby() {
         </div>
       </div>
 
-      {myUsername && isDesktop && !playersCollapsed && (
-        <div className="w-72 shrink-0 border-l h-full">
-          <UserList
-            players={players}
-            rooms={rooms}
-            currentRoom={currentRoom}
-            currentPlayerId={playerId}
-            currentUsername={myUsername}
-            connectionState={connectionState}
-            onJoinRoom={handleJoinRoom}
-          />
-        </div>
+      {myUsername && (
+        <aside className="hidden w-72 shrink-0 flex-col md:flex lg:w-80">
+          <div className="m-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card/70 shadow-sm backdrop-blur-md">
+            <UserList
+              players={players}
+              rooms={rooms}
+              currentRoom={currentRoom}
+              currentPlayerId={playerId}
+              currentUsername={myUsername}
+              connectionState={connectionState}
+              onJoinRoom={handleJoinRoom}
+            />
+          </div>
+        </aside>
       )}
 
-      {myUsername && !isDesktop && (
+      {myUsername && !currentRoom && (
         <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
-          <SheetContent side="left" className="w-72 max-w-[80vw] p-0">
+          <SheetContent side="right" className="w-80 max-w-[88vw] p-0 sm:w-96">
             <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}
@@ -668,6 +541,7 @@ export default function Lobby() {
         onOpenChange={setDeckDialogOpen}
         mode="lobby"
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
+        preSelectedDeckId={deckDialogPreSelectedId}
         onStart={(deck, _formatId, commanderName) => {
           void handleDeckSelection(deck.name, deck, commanderName);
         }}

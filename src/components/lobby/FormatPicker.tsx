@@ -8,8 +8,8 @@ interface FormatPickerProps {
 
 export function FormatPicker({ formats = GAME_FORMATS, onSelect }: FormatPickerProps) {
   return (
-    <div className="flex h-full flex-col overflow-y-auto px-6 py-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col">
+    <div className="flex h-full flex-col overflow-y-auto px-4 py-10 sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col">
         <header className="mb-10 text-center">
           <h2 className="font-serif text-4xl font-light tracking-wide">Choose a format</h2>
           <p className="mt-3 text-sm text-muted-foreground">

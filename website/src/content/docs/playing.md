@@ -29,16 +29,22 @@ Decks are stored locally in your browser (or the desktop app's local storage)
 
 ## Single-player
 
-Pick **Play**, choose a format, then pick your deck and an opponent deck for
-the AI (or let it pick at random) and start the game. The AI plays the same
-engine you do.
+Choose **Play Offline** from Home or the navigation bar, select a format, then
+pick your deck and opponent. The AI opponent is pre-filled, but you can swap it
+before starting. The app remembers your format, engine, deck, and opponent for
+next time. The AI plays the same engine you do. Clicking a deck in Home's **My
+Decks** shelf opens that deck in the editor.
+
+Use the **Constructed** and **Limited** tabs at the top of Play Offline to move
+between deck-based matches and draft, sealed, Winston, or cube setup.
 
 ## Multiplayer
 
 Create a room from the lobby — name it, optionally set a password, choose the
-player count (2–8) and a reconnection timeout (30, 60, or 90 seconds). Other
-players join from the public room list; the host starts the game once seats
-fill.
+player count (2–8) and a reconnection timeout (30, 60, or 90 seconds). The
+lobby remembers your last table setup and pre-selects your last-played deck
+when it's legal in the room's format. Other players join from the public room
+list; the host starts the game once seats fill.
 
 If you disconnect mid-game (tab closed, network blip), you have the room's
 reconnection window to come back: reopen the app and it resumes your seat,
@@ -54,8 +60,8 @@ and play the games online in the same room.
 
 ## Companion: paper-play life tracker
 
-Playing with physical cards? The **Companion** view (in the sidebar) is a
-tabletop life tracker for 2–6 players: preset starting totals (20/40/60),
-poison, energy, and custom counters, commander damage, per-player layouts you
-can drag, rotate and scale, a dice roller, and a game log. It's designed to
-sit flat on the table between players.
+Playing with physical cards? The **Companion** view (in the Home screen's
+Tools area) is a tabletop life tracker for 2–6 players: preset starting
+totals (20/40/60), poison, energy, and custom counters, commander damage,
+per-player layouts you can drag, rotate and scale, a dice roller, and a game
+log. It's designed to sit flat on the table between players.

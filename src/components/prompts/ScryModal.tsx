@@ -204,9 +204,13 @@ function PoolRow({
   );
 }
 
-export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>) {
+export function ScryModal({ input, respond, sourceCard }: PromptProps<ScryInput, ScryOutput>) {
   const { zones } = input;
-  const { preview: sourcePreview, presentation } = useModalSourceCard(input.presentation);
+  const {
+    preview: sourcePreview,
+    presentation,
+    inlineSourceCard,
+  } = useModalSourceCard(input.presentation, sourceCard);
   const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
   const zoneIds = useMemo(() => zones.map((_, i) => `z${i}`), [zones]);
@@ -254,7 +258,11 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
     <Modal maxWidth="max-w-4xl" maxHeight="">
       {sourcePreview}
       <div className="p-5 pb-3">
-        <PromptPresentation presentation={presentation} forceHorizontal />
+        <PromptPresentation
+          presentation={presentation}
+          sourceCard={inlineSourceCard}
+          forceHorizontal
+        />
       </div>
 
       <DndContext

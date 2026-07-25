@@ -262,14 +262,12 @@ function QuickCardSearch({
 
 export function DeckBuilder({
   onToggleSearch,
-  onBack,
   previewSlot,
   setPreviewSlot,
   previewCollapsed,
   onTogglePreview,
 }: {
   onToggleSearch?: () => void;
-  onBack?: () => void;
   previewSlot?: HTMLElement | null;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
   previewCollapsed?: boolean;
@@ -899,7 +897,7 @@ export function DeckBuilder({
       )}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-          <DeckHero onBack={onBack} />
+          <DeckHero />
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
             <div className="relative shrink-0 w-32">

@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.1.0](https://github.com/witchesofthehill/manabrew/compare/v2.0.2...v2.1.0) (2026-07-25)
+
+### Features
+
+* **ui:** add unified play experience ([#494](https://github.com/witchesofthehill/manabrew/issues/494)) ([cb81e47](https://github.com/witchesofthehill/manabrew/commit/cb81e4738f8b15d5aaaec55f3993ce23820bc7d3))
+
+## [2.0.2](https://github.com/witchesofthehill/manabrew/compare/v2.0.1...v2.0.2) (2026-07-25)
+
+### Fixes
+
+* **ironsmith:** Update ironsmith-wasm to 0.1.2 ([#537](https://github.com/witchesofthehill/manabrew/issues/537)) ([538e9dd](https://github.com/witchesofthehill/manabrew/commit/538e9dddf1e6ff5693fb4a0a23e2b06d8d2b9898))
+
+## [2.0.1](https://github.com/witchesofthehill/manabrew/compare/v2.0.0...v2.0.1) (2026-07-24)
+
+### Fixes
+
+* **ironsmith:** use protocol v1 bridge ([#533](https://github.com/witchesofthehill/manabrew/issues/533)) ([e5053d9](https://github.com/witchesofthehill/manabrew/commit/e5053d9e0a671dccca23436b652c541aef0f92c4))
+
+## [2.0.0](https://github.com/witchesofthehill/manabrew/compare/v1.14.0...v2.0.0) (2026-07-24)
+
+### Features
+
+* **protocol:** add source card metadata to prompts ([#522](https://github.com/witchesofthehill/manabrew/issues/522)) ([1dfadc5](https://github.com/witchesofthehill/manabrew/commit/1dfadc59bf687aa2162deb84667ca080f6814e83))
+
 ## [1.14.0](https://github.com/witchesofthehill/manabrew/compare/v1.13.1...v1.14.0) (2026-07-23)
 
 ### Features

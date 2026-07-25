@@ -1,20 +1,30 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { FEATURES } from "@/lib/features";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
-import { FormatBadge } from "@/components/game/FormatBadge";
-import { FormatPicker } from "./FormatPicker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { EngineMark } from "@/components/lobby/EngineMark";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { cn, pickRandom } from "@/lib/utils";
 import { toast } from "sonner";
+import { ROUTES } from "@/lib/constants";
+import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
-import { getFormat, validateDeckSections } from "@/lib/formats";
+import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
+import { getPlatform } from "@/platform";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
-import { ArrowLeft, Hand, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
-import { resolveCoverCard } from "../deck/deckCover.utils";
+import { Check, ChevronDown, Loader2, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
+import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 
 interface SelectedDeck {
   id: string;
@@ -22,39 +32,82 @@ interface SelectedDeck {
   desc?: string;
   color?: string;
   sourceDeck: Deck;
+  source: "preset" | "user";
   formatId?: string;
   commanderName?: string;
   coverCardName?: string;
 }
 
 interface DeckVsSelectorProps {
+  preSelectedDeckId?: string;
+  showEngineChoice?: boolean;
   onStart: (
     playerDeck: Deck,
     opponentDeck: Deck,
     formatId?: string,
     commanderName?: string,
-  ) => void;
-  onStartTabletop?: (deck: Deck, formatId?: string, commanderName?: string) => void;
+  ) => Promise<boolean>;
 }
 
-type PickingSide = "player" | "opponent";
+type PickingSide = "player" | "opponent" | null;
 type PlayFormatId = string;
 
-export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps) {
+export function DeckVsSelector({
+  preSelectedDeckId,
+  showEngineChoice = true,
+  onStart,
+}: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
-  const [stage, setStage] = useState<"format" | "decks">("format");
-  const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(null);
-  const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
-  const [pickingSide, setPickingSide] = useState<PickingSide>("player");
-  const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(null);
-  const [deckSearch, setDeckSearch] = useState("");
   const { savedDecks, currentDeck } = useDeckStore();
+  const preSelectedSavedDeck = savedDecks.find((saved) => saved.id === preSelectedDeckId);
+  const preSelectedFormatId = preSelectedSavedDeck?.deck.format ?? "standard";
+  const preSelectedFormat = getFormat(preSelectedFormatId);
+  const preSelectedCommanderName = preSelectedSavedDeck?.deck.commanders?.[0]?.identity.name;
+  const preSelectedDeckEntry: SelectedDeck | null =
+    preSelectedSavedDeck &&
+    preSelectedFormat &&
+    validateDeckSections(
+      { deck: preSelectedSavedDeck.deck, commanderName: preSelectedCommanderName },
+      preSelectedFormat,
+    ).legal
+      ? {
+          id: preSelectedSavedDeck.id,
+          name: preSelectedSavedDeck.deck.name,
+          sourceDeck: preSelectedSavedDeck.deck,
+          source: "user" as const,
+          formatId: preSelectedFormatId,
+          commanderName: preSelectedCommanderName,
+        }
+      : null;
+  const lastOfflineFormatId = usePreferencesStore((state) => state.lastOfflineFormatId);
+  const lastAiOpponent = usePreferencesStore((state) => state.lastAiOpponent);
+  const lastOfflineEngine = usePreferencesStore((state) => state.lastOfflineEngine);
+  const setLastOfflineEngine = usePreferencesStore((state) => state.setLastOfflineEngine);
+  const rememberedFormatId =
+    !preSelectedDeckEntry && lastOfflineFormatId && getFormat(lastOfflineFormatId)
+      ? lastOfflineFormatId
+      : null;
+  const [playerDeck, setPlayerDeck] = useState<SelectedDeck | null>(preSelectedDeckEntry);
+  const [opponentDeck, setOpponentDeck] = useState<SelectedDeck | null>(null);
+  const [pickingSide, setPickingSide] = useState<PickingSide>(
+    preSelectedDeckEntry ? "opponent" : "player",
+  );
+  const [selectedFormat, setSelectedFormat] = useState<PlayFormatId | null>(
+    preSelectedDeckEntry?.formatId ?? rememberedFormatId,
+  );
+  const [opponentConfirmed, setOpponentConfirmed] = useState(false);
+  const [deckSearch, setDeckSearch] = useState("");
+  const [starting, setStarting] = useState(false);
+  const opponentTouchedRef = useRef(false);
+  const isWeb = getPlatform().type === "web";
+  const hostedAvailable = isHostedEngineAvailable();
+  const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
-    (deck) => (deck.format ?? "standard") === selectedFormat,
+    (deck) => selectedFormat === null || (deck.format ?? "standard") === selectedFormat,
   );
   const filteredDecks = searchLower
     ? formatFilteredPresets.filter(
@@ -66,7 +119,8 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
-    (saved) => getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
+    (saved) =>
+      saved.id === preSelectedDeckId || getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
 
   const currentDeckIsPlayable =
@@ -84,6 +138,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       id,
       name: deck.name,
       sourceDeck: deck,
+      source: "user" as const,
       formatId: deck.format ?? "standard",
       commanderName: deck.commanders?.[0]?.identity.name,
     };
@@ -107,32 +162,61 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
   }, [savedDecks, currentDeck]);
 
   const formatFilteredUserDecks = userDeckEntries.filter(
-    (deck) => deck.formatId === selectedFormat,
+    (deck) => selectedFormat === null || deck.formatId === selectedFormat,
   );
   const filteredUserDecks = searchLower
     ? formatFilteredUserDecks.filter((deck) => deck.name.toLowerCase().includes(searchLower))
     : formatFilteredUserDecks;
 
-  // Drop selected decks if the format changed and they no longer match.
-  if (playerDeck && playerDeck.formatId !== selectedFormat) {
+  useEffect(() => {
+    if (!selectedFormat || opponentDeck || opponentTouchedRef.current) return;
+    const resolved = resolveAiOpponent({
+      presets: presetDecks,
+      savedDecks,
+      formatId: selectedFormat,
+      last: lastAiOpponent,
+    });
+    if (!resolved) return;
+    setOpponentDeck({
+      id: resolved.id,
+      name: resolved.deck.name,
+      desc: resolved.deck.description,
+      color: resolved.deck.color,
+      sourceDeck: resolved.deck,
+      source: resolved.source === "preset" ? "preset" : "user",
+      formatId: selectedFormat,
+      commanderName: resolved.deck.commanders?.[0]?.identity.name,
+      coverCardName: resolved.deck.coverCardName,
+    });
+  }, [selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
+
+  function changeFormat(formatId: PlayFormatId | null) {
+    if (formatId === selectedFormat) return;
+    opponentTouchedRef.current = false;
     setPlayerDeck(null);
-  }
-  if (opponentDeck && opponentDeck.formatId !== selectedFormat) {
     setOpponentDeck(null);
+    setOpponentConfirmed(false);
+    setPickingSide("player");
+    setSelectedFormat(formatId);
   }
 
   function assignDeck(selected: SelectedDeck) {
-    if (pickingSide === "player") {
+    if (pickingSide === "player" || pickingSide === null) {
       setPlayerDeck(selected);
-      if (!opponentDeck) setPickingSide("opponent");
+      setPickingSide("opponent");
       return;
     }
 
+    if (pickingSide !== "opponent") return;
+    opponentTouchedRef.current = true;
     setOpponentDeck(selected);
+    setOpponentConfirmed(true);
+    setPickingSide(playerDeck ? null : "player");
   }
 
   function selectDeck(deck: Deck) {
-    if (!selectedFormat) return;
+    const formatId = deck.format ?? "standard";
+    if (!selectedFormat) setSelectedFormat(formatId);
     const id = deck.id ?? deck.name;
     assignDeck({
       id,
@@ -140,13 +224,15 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       desc: deck.description,
       color: deck.color,
       sourceDeck: deck,
-      formatId: selectedFormat,
+      source: "preset",
+      formatId,
       commanderName: deck.commanders?.[0]?.identity.name,
       coverCardName: deck.coverCardName,
     });
   }
 
   function selectUserDeck(entry: SelectedDeck) {
+    if (!selectedFormat && entry.formatId) setSelectedFormat(entry.formatId);
     assignDeck(entry);
   }
 
@@ -155,20 +241,24 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
     const random = pickRandom(formatFilteredPresets);
     if (!random) return;
     const id = random.id ?? random.name;
+    opponentTouchedRef.current = true;
     setOpponentDeck({
       id,
       name: random.name,
       desc: random.description,
       color: random.color,
       sourceDeck: random,
+      source: "preset",
       formatId: selectedFormat,
       commanderName: random.commanders?.[0]?.identity.name,
       coverCardName: random.coverCardName,
     });
+    setOpponentConfirmed(true);
+    setPickingSide(playerDeck ? null : "player");
   }
 
-  function handleFight() {
-    if (!playerDeck || !opponentDeck) return;
+  async function handleFight() {
+    if (!playerDeck || !opponentDeck || starting) return;
     const empty = [playerDeck, opponentDeck].find(
       (d) => d.sourceDeck.cards.length === 0 && (d.sourceDeck.commanders?.length ?? 0) === 0,
     );
@@ -176,50 +266,73 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       toast.error(`"${empty.name}" has no cards`);
       return;
     }
-    onStart(
+    setStarting(true);
+    const started = await onStart(
       playerDeck.sourceDeck,
       opponentDeck.sourceDeck,
       playerDeck.formatId,
       playerDeck.commanderName,
     );
+    if (!started) {
+      setStarting(false);
+      return;
+    }
+    const prefs = usePreferencesStore.getState();
+    if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);
+    if (playerDeck.source === "user" && playerDeck.id !== "current") {
+      prefs.setLastPlayedDeckId(playerDeck.id);
+    }
+    if (opponentDeck.source === "preset") {
+      prefs.setLastAiOpponent({ kind: "preset", id: opponentDeck.id });
+    } else if (opponentDeck.id !== "current") {
+      prefs.setLastAiOpponent({ kind: "saved", id: opponentDeck.id });
+    }
   }
 
-  function handleTabletop() {
-    if (!playerDeck || playerDeck.sourceDeck.cards.length === 0) return;
-    onStartTabletop?.(playerDeck.sourceDeck, playerDeck.formatId, playerDeck.commanderName);
-  }
-
-  const isReady = !!playerDeck && !!opponentDeck;
-  const canStartTabletop =
-    !!onStartTabletop && !!playerDeck && playerDeck.sourceDeck.cards.length > 0;
-
-  if (stage === "format" || selectedFormat === null) {
-    return (
-      <FormatPicker
-        onSelect={(id) => {
-          setSelectedFormat(id);
-          setStage("decks");
-        }}
-      />
-    );
-  }
+  const isReady = !!playerDeck && !!opponentDeck && opponentConfirmed;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 py-2 border-b bg-muted/5 flex items-center gap-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => setStage("format")}
-          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-shrink-0 items-center gap-3 border-b bg-muted/5 px-4 py-2 sm:px-6 lg:px-8">
+        <div
+          role="group"
+          aria-label="Filter decks by format"
+          className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1 no-scrollbar"
         >
-          <ArrowLeft className="h-3 w-3" />
-          Change format
-        </button>
-        <span className="text-muted-foreground/40">·</span>
-        <FormatBadge formatId={selectedFormat} />
+          {[{ id: null, name: "All" }, ...GAME_FORMATS].map((format) => (
+            <button
+              key={format.id ?? "all"}
+              type="button"
+              aria-pressed={selectedFormat === format.id}
+              onClick={() => changeFormat(format.id)}
+              className={cn(
+                "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-10 pointer-coarse:px-3",
+                selectedFormat === format.id
+                  ? "border-primary/50 bg-primary/15 text-primary"
+                  : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {format.name}
+            </button>
+          ))}
+        </div>
+        <p
+          className="hidden shrink-0 text-right text-xs font-medium text-muted-foreground lg:block"
+          aria-live="polite"
+        >
+          {pickingSide === "player"
+            ? isReady
+              ? "Choose your deck or fight"
+              : "Choose your deck"
+            : pickingSide === "opponent"
+              ? isReady
+                ? "Choose the AI deck or fight"
+                : "Choose the AI deck"
+              : "Matchup ready"}
+        </p>
       </div>
 
-      <div className="px-4 pt-3 pb-2 flex-shrink-0">
+      <div className="flex-shrink-0 px-4 pb-2 pt-3 sm:px-6 lg:px-8">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
@@ -236,7 +349,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-6">
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 lg:px-8">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-2 pb-1">
             Your Decks
@@ -245,7 +358,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
             <p className="text-xs text-muted-foreground italic py-2">
               No decks yet — build one in{" "}
               <Link
-                to="/deck-editor"
+                to={ROUTES.DECK_EDITOR}
                 className="text-primary underline-offset-2 hover:underline not-italic"
               >
                 My Decks
@@ -329,7 +442,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                   isSelected={false}
                   isPlayerDeck={playerDeck?.id === (deck.id ?? deck.name)}
                   isOpponentDeck={opponentDeck?.id === (deck.id ?? deck.name)}
-                  formatId={selectedFormat}
+                  formatId={deck.format ?? "standard"}
                   dense={denseDecks}
                   isTouch={isTouch}
                   onSelect={() => selectDeck(deck)}
@@ -340,16 +453,20 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
         </div>
       </div>
 
-      <div className="px-4 py-3 border-t flex items-center justify-between gap-3 bg-muted/10 flex-shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="grid flex-shrink-0 gap-2 border-t bg-muted/10 px-4 py-2 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:flex sm:gap-2">
           <DeckSlot
             label="YOU"
             icon={<User className="h-3 w-3" />}
             deck={playerDeck}
             sideColor="var(--player-colors-self)"
             isActive={pickingSide === "player"}
+            isConfirmed={!!playerDeck && pickingSide !== "player"}
             onClick={() => setPickingSide("player")}
-            onClear={() => setPlayerDeck(null)}
+            onClear={() => {
+              setPlayerDeck(null);
+              setPickingSide("player");
+            }}
           />
           <span className="text-xs font-bold tracking-wider text-muted-foreground/60">VS</span>
           <DeckSlot
@@ -358,8 +475,17 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
             deck={opponentDeck}
             sideColor="var(--player-colors-opponent1)"
             isActive={pickingSide === "opponent"}
-            onClick={() => setPickingSide("opponent")}
-            onClear={() => setOpponentDeck(null)}
+            isConfirmed={!!opponentDeck && opponentConfirmed && pickingSide !== "opponent"}
+            onClick={() => {
+              setOpponentConfirmed(false);
+              setPickingSide("opponent");
+            }}
+            onClear={() => {
+              opponentTouchedRef.current = true;
+              setOpponentDeck(null);
+              setOpponentConfirmed(false);
+              setPickingSide("opponent");
+            }}
             placeholderExtra={
               !opponentDeck && (
                 <button
@@ -368,7 +494,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
                     e.stopPropagation();
                     handleRandomOpponent();
                   }}
-                  className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                  className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded-r-md text-[10px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground pointer-coarse:w-10"
                   title="Random AI deck"
                 >
                   <Shuffle className="h-3 w-3" />
@@ -377,22 +503,53 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
             }
           />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {FEATURES.tabletop && onStartTabletop && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleTabletop}
-              disabled={!canStartTabletop}
-              className="gap-1.5"
-            >
-              <Hand className="h-3.5 w-3.5" />
-              Tabletop
-            </Button>
+        <div className="grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-shrink-0 sm:items-center">
+          {isWeb && showEngineChoice && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="w-full gap-1.5 sm:w-auto">
+                  <EngineMark engine={offlineEngine} className="h-3.5 w-3.5" />
+                  {offlineEngine}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onSelect={() => setLastOfflineEngine("Forge")}
+                  disabled={!hostedAvailable}
+                  className="gap-1.5 text-xs"
+                >
+                  <EngineMark engine="Forge" className="h-3.5 w-3.5" />
+                  Forge
+                  {hostedAvailable && (
+                    <span className="text-[9px] text-muted-foreground">recommended</span>
+                  )}
+                  {offlineEngine === "Forge" && <Check className="ml-auto h-3 w-3" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setLastOfflineEngine("Manabrew")}
+                  className="gap-1.5 text-xs"
+                >
+                  <EngineMark engine="Manabrew" className="h-3.5 w-3.5" />
+                  Manabrew
+                  {offlineEngine === "Manabrew" && <Check className="ml-auto h-3 w-3" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          <Button size="sm" onClick={handleFight} disabled={!isReady} className="gap-1.5">
-            <Swords className="h-3.5 w-3.5" />
-            Fight!
+          <Button
+            size="sm"
+            onClick={handleFight}
+            disabled={!isReady || starting}
+            aria-busy={starting}
+            className="w-full gap-1.5 sm:w-auto"
+          >
+            {starting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Swords className="h-3.5 w-3.5" />
+            )}
+            {starting ? "Starting…" : "Fight!"}
           </Button>
         </div>
       </div>
@@ -406,6 +563,7 @@ interface DeckSlotProps {
   deck: SelectedDeck | null;
   sideColor: string;
   isActive: boolean;
+  isConfirmed: boolean;
   onClick: () => void;
   onClear: () => void;
   placeholderExtra?: ReactNode;
@@ -417,16 +575,15 @@ function DeckSlot({
   deck,
   sideColor,
   isActive,
+  isConfirmed,
   onClick,
   onClear,
   placeholderExtra,
 }: DeckSlotProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={cn(
-        "group inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors",
+        "group inline-flex min-h-8 min-w-0 max-w-[14rem] items-stretch rounded-md border text-xs transition-colors pointer-coarse:min-h-10 sm:min-w-24",
         isActive ? "ring-1" : "border-border/40 hover:border-border hover:bg-muted/40",
       )}
       style={{
@@ -436,42 +593,52 @@ function DeckSlot({
           : undefined,
       }}
     >
-      <span
-        className="inline-flex items-center gap-0.5 font-bold text-[10px] uppercase tracking-wider"
-        style={{ color: sideColor }}
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-l-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {icon}
-        {label}
-      </span>
-      {deck ? (
-        <>
-          <span className="truncate font-medium text-foreground/90">{deck.name}</span>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClear();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                onClear();
-              }
-            }}
-            className="ml-0.5 inline-flex h-3.5 w-3.5 cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive"
-            title="Clear"
-          >
-            <X className="h-2.5 w-2.5" />
+        <span
+          className="inline-flex shrink-0 items-center gap-0.5 font-bold text-[10px] uppercase tracking-wider"
+          style={{ color: sideColor }}
+        >
+          {icon}
+          {label}
+        </span>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            deck ? "font-medium text-foreground/90" : "italic text-muted-foreground",
+          )}
+        >
+          {deck?.name ?? "pick a deck"}
+        </span>
+        {isActive ? (
+          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-primary">
+            Selecting
           </span>
-        </>
+        ) : isConfirmed ? (
+          <Check className="h-3 w-3 shrink-0 text-primary" />
+        ) : (
+          deck && (
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Suggested
+            </span>
+          )
+        )}
+      </button>
+      {deck ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex w-8 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-destructive pointer-coarse:w-10"
+          title="Clear"
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
       ) : (
-        <>
-          <span className="italic text-muted-foreground">pick a deck</span>
-          {placeholderExtra}
-        </>
+        placeholderExtra
       )}
-    </button>
+    </div>
   );
 }

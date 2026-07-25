@@ -328,6 +328,16 @@ impl Room {
             .any(|p| p.player_id == self.host_player_id)
     }
 
+    pub fn host_connected(&self) -> bool {
+        self.players
+            .iter()
+            .any(|p| p.player_id == self.host_player_id && p.connected)
+            || self
+                .observers
+                .iter()
+                .any(|p| p.player_id == self.host_player_id && p.connected)
+    }
+
     pub fn player_usernames(&self) -> Vec<String> {
         self.players.iter().map(|p| p.username.clone()).collect()
     }

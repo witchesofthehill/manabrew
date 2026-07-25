@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { exchangeCode } from "@/api/auth";
+import { ROUTES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 
@@ -34,18 +35,18 @@ export default function AuthCallback() {
 
     if (error) {
       toast.error(ERROR_MESSAGES[error] ?? "Sign-in failed. Try again.");
-      navigate("/home", { replace: true });
+      navigate(ROUTES.PLAY, { replace: true });
       return;
     }
     if (linked) {
       toast.success(`${PROVIDER_LABELS[linked] ?? linked} linked to your account`);
       void useAuthStore.getState().refresh();
-      navigate("/settings", { replace: true });
+      navigate(ROUTES.SETTINGS, { replace: true });
       return;
     }
     if (email && code) {
       useSignInDialog.getState().show({ email, code });
-      navigate("/home", { replace: true });
+      navigate(ROUTES.PLAY, { replace: true });
       return;
     }
     if (code) {
@@ -62,11 +63,11 @@ export default function AuthCallback() {
           toast.error("Sign-in failed. Try again.");
         })
         .finally(() => {
-          navigate("/home", { replace: true });
+          navigate(ROUTES.PLAY, { replace: true });
         });
       return;
     }
-    navigate("/home", { replace: true });
+    navigate(ROUTES.PLAY, { replace: true });
   }, [navigate]);
 
   return (

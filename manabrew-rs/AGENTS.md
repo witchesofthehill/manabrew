@@ -34,6 +34,10 @@ All under `manabrew-rs/crates/`:
 
 Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb` ← `engine` ← everything else. Don't introduce cycles.
 
+Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.
+
+The relay is the multiplayer trust boundary. Only the room's engine host may emit engine-output envelopes (`State`, `Display`, `Prompt`, `Error`, `Log`, `Snapshot`, `Fatal`); player `Response` and `Directive` envelopes are routed only to that host after the authenticated relay username is matched against the claimed `fromPlayer` engine slot. Replay mutation happens only after this authorization. Inputs are retained with their authenticated sender until subsequent engine output acknowledges delivery, so host reconnect replay is intentionally at-least-once; prompt ID validation rejects duplicate responses and concede directives are idempotent.
+
 ## `manabrew-engine` crate — module map
 
 The engine itself lives at `manabrew-rs/crates/manabrew-engine/src/`. Each module mirrors a Java package under `forge/forge-game/src/main/java/forge/game/`.

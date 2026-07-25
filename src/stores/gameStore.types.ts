@@ -108,7 +108,7 @@ export interface GameState {
     commanderName?: string,
     opponentDecks?: Deck[],
     engine?: EngineKind,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
   startManualRoomClient: (
@@ -127,7 +127,7 @@ export interface GameState {
     format?: GameFormat,
     hostPlayerSlot?: string | null,
     botPlayerSlots?: string[],
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;
   endGame: () => Promise<void>;

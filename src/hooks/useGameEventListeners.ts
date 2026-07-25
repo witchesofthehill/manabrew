@@ -6,6 +6,7 @@ import {
   isRoomRelayProtocol,
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
+import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
@@ -21,10 +22,11 @@ import {
 import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
-import type { AuthResultPayload, RoomMessagePayload } from "@/types/server";
+import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
 
 type SelfHostedNodeRoomPayload = {
   type?: unknown;
+  gameId?: unknown;
 };
 
 const GAME_OVER_PROMPT = { input: { type: "gameOver" } } as Prompt;
@@ -33,11 +35,12 @@ function isGameOverPrompt(prompt: Prompt | null): boolean {
   return prompt?.input.type === "gameOver";
 }
 
-function isSelfHostedNodeGameOverPayload(payload: unknown): boolean {
+function isSelfHostedNodeGameOverPayload(payload: unknown, gameId: string | null): boolean {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    (payload as SelfHostedNodeRoomPayload).type === "gameOver"
+    (payload as SelfHostedNodeRoomPayload).type === "gameOver" &&
+    (payload as SelfHostedNodeRoomPayload).gameId === gameId
   );
 }
 
@@ -94,7 +97,6 @@ async function rejoinAfterRelayRestart() {
     }
     setReconnectPhase("idle");
     if (getState().isGameActive) {
-      clearActiveGameSession();
       toast.error("Game could not be resumed — the room did not come back.");
       void useGameStore.getState().endGame();
     }
@@ -293,7 +295,9 @@ export function useGameEventListeners() {
             ) {
               return;
             }
-            if (!isSelfHostedNodeGameOverPayload(payload.state.payload)) return;
+            const serverState = useServerStore.getState();
+            if (payload.from_player !== serverState.currentRoom?.host) return;
+            if (!isSelfHostedNodeGameOverPayload(payload.state.payload, serverState.gameId)) return;
             const state = getState();
             if (!state.isMultiplayer || !state.isGameActive) return;
             if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
@@ -307,11 +311,13 @@ export function useGameEventListeners() {
       );
 
       unsubscribers.push(
-        platform.events.on("server:game_aborted", () => {
+        platform.events.on<GameAbortedPayload>("server:game_aborted", (payload) => {
           const state = getState();
           if (!state.isMultiplayer || !state.isGameActive) return;
+          const roomId =
+            peekActiveGameSession()?.roomId ?? useServerStore.getState().currentRoom?.room_id;
+          if (roomId && payload.room_id !== roomId) return;
           if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
-          clearActiveGameSession();
           toast.error("Game aborted — a player did not reconnect.");
           void useGameStore.getState().endGame();
         }),
@@ -321,6 +327,7 @@ export function useGameEventListeners() {
         platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
           const message = payload?.message ?? "Forced game exit";
           const { isMultiplayer, isHost } = getState();
+          const activeSession = peekActiveGameSession();
           clearActiveGameSession();
           setState({
             isGameActive: false,
@@ -340,6 +347,8 @@ export function useGameEventListeners() {
           if (isMultiplayer && isHost) {
             toast.error("Game ended unexpectedly — returning the room to the lobby.");
             void useServerStore.getState().endGame();
+          } else if (activeSession?.ownsForgeHost || activeSession?.relayHost) {
+            void teardownForgeAiSession(activeSession);
           }
         }),
       );

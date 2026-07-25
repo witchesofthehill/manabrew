@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use forge_foundation::{ManaAtom, ZoneType};
 use manabrew_engine::agent::notification::GameNotification;
 use manabrew_engine::agent::{
@@ -14,7 +16,7 @@ use manabrew_engine::player::actions::PlayerAction as EnginePlayerAction;
 
 use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
-use crate::game_view_dto::{GameViewDto, GameViewDtoExt, StepKind};
+use crate::game_view_dto::{card_to_dto, CardDto, GameViewDto, GameViewDtoExt, StepKind};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
@@ -84,6 +86,7 @@ pub struct PromptAgent<R: Responder> {
     pub responder: R,
     pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
+    source_cards: HashMap<CardId, CardDto>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
@@ -98,6 +101,7 @@ impl<R: Responder> PromptAgent<R> {
             responder,
             pending_prompt: None,
             latest_view: None,
+            source_cards: HashMap::new(),
             pending_restore_checkpoint: None,
             pass_until: None,
             conceded: false,
@@ -110,7 +114,7 @@ impl<R: Responder> PromptAgent<R> {
         AgentPrompt {
             prompt_id: self.next_prompt_id,
             deciding_player_id: player_id_str(self.player_id),
-            source_card_id: source.map(card_id_str),
+            source_card: source.and_then(|card_id| self.source_cards.get(&card_id).cloned()),
             input: inner,
         }
     }
@@ -452,6 +456,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
     }
 
     fn snapshot_state(&mut self, game: &GameState, mana_pools: &[ManaPool]) {
+        self.source_cards = game
+            .cards
+            .iter()
+            .map(|card| (card.id, card_to_dto(game, card.id)))
+            .collect();
         self.latest_view = Some(GameViewDto::from_engine(
             game,
             mana_pools,
@@ -1410,7 +1419,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                                 title: "Roll for first player".to_string(),
                                 description: None,
                                 text: None,
-                                source_card_id: None,
                                 targets: Vec::new(),
                             },
                             sides,
@@ -1443,7 +1451,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                                 title: "Dice roll".to_string(),
                                 description: None,
                                 text: None,
-                                source_card_id: None,
                                 targets: Vec::new(),
                             },
                             sides,

@@ -18,9 +18,13 @@ const FILTER_THRESHOLD = 5;
 export function ChooseFromSelectionModal({
   input,
   respond,
+  sourceCard,
 }: PromptProps<ChooseFromSelectionInput, ChooseFromSelectionOutput>) {
   const { options, minTotal, maxTotal } = input;
-  const { preview, presentation } = useModalSourceCard(input.presentation);
+  const { preview, presentation, inlineSourceCard } = useModalSourceCard(
+    input.presentation,
+    sourceCard,
+  );
   const [counts, setCounts] = useState<Map<number, number>>(new Map());
   const [filter, setFilter] = useState("");
   const filterRef = useRef<HTMLInputElement>(null);
@@ -88,7 +92,7 @@ export function ChooseFromSelectionModal({
     <Modal maxWidth="max-w-lg" maxHeight="max-h-[75dvh]">
       {preview}
       <div className="shrink-0 p-5">
-        <PromptPresentation presentation={presentation} />
+        <PromptPresentation presentation={presentation} sourceCard={inlineSourceCard} />
       </div>
       {showFilter && (
         <div className="shrink-0 px-5 pb-2">

@@ -20,6 +20,7 @@ services:
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-1}"
       ACCOUNTS: "${ACCOUNTS:-1}"
+      DECK_HUB: "${DECK_HUB:-1}"
       # Hub API is same-origin (path-routed in ops/staging.Caddyfile).
       HUB_API_URL: "https://staging.manabrew.app"
     expose:

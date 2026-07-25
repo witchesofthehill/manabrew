@@ -10,6 +10,7 @@ export function showAccountSaveNudge() {
   if (usePreferencesStore.getState().hideAccountSaveNudge) return;
   toast("Decks without an account live only in this browser", {
     id: "account-save-nudge",
+    duration: 15_000,
     description: "Sign in to keep them safe. Playing never requires an account.",
     action: {
       label: "Sign in",

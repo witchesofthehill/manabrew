@@ -54,7 +54,7 @@ Two reference routes document the app for developers/designers (see `router.tsx`
 
 ## Feature flags
 
-Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. Current flags: `ironsmithRuntime`, `deckHub`, `accounts` (the whole auth surface — top-bar sign-in, Settings account tab, save nudge, `/auth/callback`), `emailSignIn` (the email code flow inside the sign-in dialog).
+Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. A deployment can additionally turn a dark flag on at runtime (never off) via `window.__MANABREW_RUNTIME__.featureFlags`, written by `ops/web-entrypoint.sh` from env (`ACCOUNTS`; staging defaults it on in `compose.staging.yml`). Current flags: `ironsmithRuntime`, `deckHub`, `accounts` (the whole auth surface — top-bar sign-in, Settings account tab, save nudge, `/auth/callback`), `emailSignIn` (the email code flow inside the sign-in dialog).
 
 ## Card data — Scryfall store
 

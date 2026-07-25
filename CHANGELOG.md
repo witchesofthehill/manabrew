@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.2](https://github.com/witchesofthehill/manabrew/compare/v2.0.1...v2.0.2) (2026-07-25)
+
+### Fixes
+
+* **ironsmith:** Update ironsmith-wasm to 0.1.2 ([#537](https://github.com/witchesofthehill/manabrew/issues/537)) ([538e9dd](https://github.com/witchesofthehill/manabrew/commit/538e9dddf1e6ff5693fb4a0a23e2b06d8d2b9898))
+
 ## [2.0.1](https://github.com/witchesofthehill/manabrew/compare/v2.0.0...v2.0.1) (2026-07-24)
 
 ### Fixes

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +22,8 @@ interface CreateGameDialogProps {
   onOpenChange: (open: boolean) => void;
   forcedFormatId?: string;
   preSelectedDeckId?: string;
+  preSelectedHubDeckId?: string;
+  target?: "player" | "bot";
   onStart: (deck: Deck, formatId: string, commanderName?: string) => void;
 }
 
@@ -30,6 +32,8 @@ export function CreateGameDialog({
   onOpenChange,
   forcedFormatId,
   preSelectedDeckId,
+  preSelectedHubDeckId,
+  target = "player",
   onStart,
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
@@ -48,6 +52,7 @@ export function CreateGameDialog({
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
+  const restoredHubDeckRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!forcedFormatId) return;
@@ -58,6 +63,23 @@ export function CreateGameDialog({
   useEffect(() => {
     if (preSelectedDeckId) setSelectedDeck(preSelectedDeckId);
   }, [preSelectedDeckId]);
+
+  useEffect(() => {
+    if (!open || !preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId)
+      return;
+    restoredHubDeckRef.current = preSelectedHubDeckId;
+    setLoadingHubDeckId(preSelectedHubDeckId);
+    void loadHubDeck(preSelectedHubDeckId)
+      .then((detail) => {
+        setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
+        setSelectedDeck(`hub:${detail.id}`);
+        setDeckSearch(detail.name);
+      })
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck"),
+      )
+      .finally(() => setLoadingHubDeckId(null));
+  }, [loadHubDeck, open, preSelectedHubDeckId]);
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
@@ -163,7 +185,8 @@ export function CreateGameDialog({
   const commanderValid = !needsCommander || selectedCommander !== "";
   const selectedDeckIsVisible =
     [...filteredUserDecks, ...filteredPresetEntries].some((entry) => entry.id === selectedDeck) ||
-    hubDecks.decks.some((entry) => `hub:${entry.id}` === selectedDeck);
+    hubDecks.decks.some((entry) => `hub:${entry.id}` === selectedDeck) ||
+    (selectedDeck.startsWith("hub:") && selectedDeckEntry !== undefined);
   const selectedDeckValidation = selectedDeckEntry
     ? selectedDeckEntry.isPreset
       ? { legal: true, errors: [] as string[] }
@@ -260,9 +283,13 @@ export function CreateGameDialog({
         }}
       >
         <div className="px-6 py-4 border-b">
-          <DialogTitle className="text-lg font-semibold">Choose Deck</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">
+            {target === "bot" ? "Choose Bot Deck" : "Choose Your Deck"}
+          </DialogTitle>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Select the deck you will play in this lobby.
+            {target === "bot"
+              ? "Select the deck the AI will play in this lobby."
+              : "Select the deck you will play in this lobby."}
           </p>
         </div>
 
@@ -350,7 +377,12 @@ export function CreateGameDialog({
                     Community decks are downloaded when selected.
                   </p>
                   {hubDecks.error ? (
-                    <p className="text-xs text-destructive">{hubDecks.error}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-destructive">
+                      <span className="min-w-0 break-words">{hubDecks.error}</span>
+                      <Button variant="outline" size="sm" onClick={hubDecks.retry}>
+                        Retry
+                      </Button>
+                    </div>
                   ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic">Loading Deck Hub decks…</p>
                   ) : hubDecks.decks.length === 0 ? (
@@ -366,27 +398,48 @@ export function CreateGameDialog({
                           : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
                       )}
                     >
-                      {hubDecks.decks.map((deck) => (
-                        <DeckSelectionCard
-                          key={deck.id}
-                          name={loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name}
-                          color={deck.colors}
-                          author={deck.author}
-                          cardCount={deck.cardCount + deck.commanders.length}
-                          badge="Deck Hub"
-                          cards={[]}
-                          cover={undefined}
-                          coverImageUrl={deck.coverImageUrl}
-                          isPreset={false}
-                          isHub
-                          isSelected={selectedDeck === `hub:${deck.id}`}
-                          isLegal={true}
-                          dense={denseDecks}
-                          isTouch={isTouch}
-                          onSelect={() => void selectHubDeck(deck)}
-                          onActivate={() => void selectHubDeck(deck, true)}
-                        />
-                      ))}
+                      {hubDecks.decks.map((deck) => {
+                        const loaded = loadedHubDecks[deck.id];
+                        const format = loaded
+                          ? GAME_FORMATS.find((item) => item.id === selectedFormat.id)
+                          : null;
+                        const validation =
+                          loaded && format
+                            ? validateDeckSections(
+                                {
+                                  deck: loaded.deck,
+                                  commanderName: loaded.deck.commanders?.[0]?.identity.name,
+                                },
+                                format,
+                              )
+                            : { legal: true, errors: [] as string[] };
+                        return (
+                          <DeckSelectionCard
+                            key={deck.id}
+                            name={
+                              loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name
+                            }
+                            color={deck.colors}
+                            author={deck.author}
+                            cardCount={deck.cardCount + deck.commanders.length}
+                            badge="Deck Hub"
+                            cards={[]}
+                            cover={undefined}
+                            coverImageUrl={deck.coverImageUrl}
+                            isPreset={false}
+                            isHub
+                            isSelected={selectedDeck === `hub:${deck.id}`}
+                            isLegal={validation.legal}
+                            validationError={validation.errors[0]}
+                            dense={denseDecks}
+                            isTouch={isTouch}
+                            disabled={loadingHubDeckId !== null}
+                            loading={loadingHubDeckId === deck.id}
+                            onSelect={() => void selectHubDeck(deck)}
+                            onActivate={() => void selectHubDeck(deck, true)}
+                          />
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -395,7 +448,7 @@ export function CreateGameDialog({
               <div className="mx-4 border-t" />
 
               <div className="p-4">
-                <SectionLabel>Preset Decks</SectionLabel>
+                <SectionLabel>Starter Decks</SectionLabel>
                 <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
                   Pre-built themed decks — always legal, great for testing mechanics.
                 </p>
@@ -439,10 +492,18 @@ export function CreateGameDialog({
         <div className="px-6 py-3 border-t flex items-center justify-between gap-4 bg-muted/10">
           <div className="flex items-center gap-2 text-sm min-w-0">
             {selectedDeckEntry ? (
-              <span className="text-sm text-muted-foreground truncate">
-                Selected:{" "}
-                <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
-              </span>
+              <div className="min-w-0">
+                <span className="block truncate text-sm text-muted-foreground">
+                  Selected:{" "}
+                  <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
+                </span>
+                {!selectedDeckValidation.legal && (
+                  <span className="block truncate text-xs text-warning">
+                    {selectedDeckValidation.errors[0] ??
+                      "This deck is not legal in the room format."}
+                  </span>
+                )}
+              </div>
             ) : (
               <span className="text-muted-foreground italic text-xs">No deck selected</span>
             )}
@@ -457,7 +518,7 @@ export function CreateGameDialog({
               disabled={!isReady}
               className="gap-1.5"
             >
-              Select Deck
+              {target === "bot" ? "Add Bot" : "Select Deck"}
             </Button>
           </div>
         </div>

@@ -25,6 +25,7 @@ interface HubState {
   fetchMyDecks: (accountId: string, force?: boolean) => Promise<void>;
   clearMyDecks: () => void;
   loadDeck: (id: string) => Promise<HubDeckDetail>;
+  removeDeck: (id: string) => void;
 }
 
 let listRequestId = 0;
@@ -126,4 +127,22 @@ export const useHubStore = create<HubState>((set, get) => ({
     detailRequests.set(id, request);
     return request;
   },
+  removeDeck: (id) =>
+    set((state) => {
+      const details = { ...state.details };
+      delete details[id];
+      const removeFromList = (list: HubDeckList | null) => {
+        if (!list || !list.decks.some((deck) => deck.id === id)) return list;
+        return {
+          ...list,
+          decks: list.decks.filter((deck) => deck.id !== id),
+          total: Math.max(0, list.total - 1),
+        };
+      };
+      return {
+        details,
+        list: removeFromList(state.list),
+        myDecks: removeFromList(state.myDecks),
+      };
+    }),
 }));

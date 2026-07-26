@@ -35,6 +35,8 @@ interface DeckSelectionCardProps {
   formatId?: string;
   dense?: boolean;
   isTouch?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
   onSelect: () => void;
   onActivate?: () => void;
 }
@@ -73,6 +75,8 @@ export function DeckSelectionCard({
   formatId,
   dense,
   isTouch = false,
+  disabled = false,
+  loading = false,
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
@@ -113,6 +117,8 @@ export function DeckSelectionCard({
   return (
     <button
       type="button"
+      disabled={disabled}
+      aria-busy={loading}
       onClick={onSelect}
       onDoubleClick={() => {
         if (!isTouch) onActivate?.();
@@ -122,6 +128,7 @@ export function DeckSelectionCard({
         "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted cursor-pointer",
         dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
         "hover:ring-2 hover:ring-primary hover:border-primary",
+        "disabled:cursor-wait disabled:opacity-60",
         !hasVsSide && isSelected
           ? "border-primary bg-primary/5 ring-1 ring-primary"
           : !hasVsSide

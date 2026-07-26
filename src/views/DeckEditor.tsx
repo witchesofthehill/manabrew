@@ -54,6 +54,7 @@ import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
+import { useSignInDialog } from "@/stores/useSignInDialogStore";
 
 export default function DeckEditor() {
   const {
@@ -87,6 +88,7 @@ export default function DeckEditor() {
     refresh: refreshPublishedDecks,
   } = useMyHubDecks();
   const navigate = useNavigate();
+  const showSignIn = useSignInDialog((state) => state.show);
   const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
   const location = useLocation();
   const routeState = location.state as {
@@ -489,50 +491,68 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {signedIn &&
-                (publishedDecksLoading || publishedDecksError || publishedDecks.length > 0) && (
-                  <div className="mt-4 border-t pt-4">
-                    <div className="mb-3 flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Published on Deck Hub
+              {publishEnabled && (
+                <div className="mt-4 border-t pt-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Published on Deck Hub
+                    </span>
+                    {!publishedDecksLoading && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({filteredPublishedDecks.length})
                       </span>
-                      {!publishedDecksLoading && (
-                        <span className="text-[10px] text-muted-foreground">
-                          ({filteredPublishedDecks.length})
-                        </span>
-                      )}
-                    </div>
-                    {publishedDecksError ? (
-                      <div className="flex items-center gap-2 text-sm text-destructive">
-                        <span>{publishedDecksError}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void refreshPublishedDecks()}
-                        >
-                          Retry
-                        </Button>
-                      </div>
-                    ) : publishedDecksLoading && publishedDecks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Loading published decks…</p>
-                    ) : filteredPublishedDecks.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                        {filteredPublishedDecks.map((deck) => (
-                          <HubDeckCard
-                            key={deck.id}
-                            deck={deck}
-                            onOpen={() => setHubPreviewId(deck.id)}
-                            onPlaytest={() => hubPlaytest(deck.id)}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        No published decks match your filters.
-                      </p>
                     )}
                   </div>
-                )}
+                  {!signedIn ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span>Sign in to see and manage decks you published from any device.</span>
+                      <Button variant="outline" size="sm" onClick={() => showSignIn()}>
+                        Sign in
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.HUB)}>
+                        Browse Deck Hub
+                      </Button>
+                    </div>
+                  ) : publishedDecksError ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+                      <span className="min-w-0 break-words">{publishedDecksError}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void refreshPublishedDecks()}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  ) : publishedDecksLoading && publishedDecks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Loading published decks…</p>
+                  ) : publishedDecks.length === 0 ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span>
+                        You haven’t published a deck yet. Use the share action on any local deck.
+                      </span>
+                      <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
+                        Browse Deck Hub
+                      </Button>
+                    </div>
+                  ) : filteredPublishedDecks.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      {filteredPublishedDecks.map((deck) => (
+                        <HubDeckCard
+                          key={deck.id}
+                          deck={deck}
+                          onOpen={() => setHubPreviewId(deck.id)}
+                          onPlaytest={() => hubPlaytest(deck.id)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No published decks match your filters.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {presetSavedDecks.length > 0 && (
                 <div
@@ -543,7 +563,7 @@ export default function DeckEditor() {
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Preset Decks
+                      Starter Decks
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       ({presetSavedDecks.length})
@@ -596,11 +616,7 @@ export default function DeckEditor() {
 
         {playtestDialog}
 
-        <HubDeckPreviewDialog
-          deckId={hubPreviewId}
-          onClose={() => setHubPreviewId(null)}
-          onUnpublished={() => void refreshPublishedDecks()}
-        />
+        <HubDeckPreviewDialog deckId={hubPreviewId} onClose={() => setHubPreviewId(null)} />
 
         {publishingDeck && (
           <PublishDeckDialog

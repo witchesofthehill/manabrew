@@ -9,6 +9,7 @@ export function useHubDeckSearch(search: string, format?: string) {
   const [decks, setDecks] = useState<HubDeckSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const enabled = isFeatureEnabled("deckHub");
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export function useHubDeckSearch(search: string, format?: string) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [enabled, format, search]);
+  }, [attempt, enabled, format, search]);
 
-  return { decks, loading, error, enabled };
+  return { decks, loading, error, enabled, retry: () => setAttempt((value) => value + 1) };
 }

@@ -31,6 +31,13 @@ export default function Play() {
     typeof routeState.preSelectedDeckId === "string"
       ? routeState.preSelectedDeckId
       : undefined;
+  const preSelectedHubDeckId =
+    routeState &&
+    typeof routeState === "object" &&
+    "preSelectedHubDeckId" in routeState &&
+    typeof routeState.preSelectedHubDeckId === "string"
+      ? routeState.preSelectedHubDeckId
+      : undefined;
   const mpState = useMemo(
     () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
@@ -182,6 +189,7 @@ export default function Play() {
     <OfflinePlayShell>
       <OfflinePlaySetup
         preSelectedDeckId={preSelectedDeckId}
+        preSelectedHubDeckId={preSelectedHubDeckId}
         onStart={(playerDeck, opponentDeck, formatId, commanderName) =>
           startGame(playerDeck, formatId, commanderName, [opponentDeck], resolveOfflineEngine())
         }

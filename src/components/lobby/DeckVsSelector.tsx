@@ -44,6 +44,7 @@ interface SelectedDeck {
 
 interface DeckVsSelectorProps {
   preSelectedDeckId?: string;
+  preSelectedHubDeckId?: string;
   onStart: (
     playerDeck: Deck,
     opponentDeck: Deck,
@@ -55,7 +56,11 @@ interface DeckVsSelectorProps {
 type PickingSide = "player" | "opponent" | null;
 type PlayFormatId = string;
 
-export function DeckVsSelector({ preSelectedDeckId, onStart }: DeckVsSelectorProps) {
+export function DeckVsSelector({
+  preSelectedDeckId,
+  preSelectedHubDeckId,
+  onStart,
+}: DeckVsSelectorProps) {
   const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
@@ -107,6 +112,33 @@ export function DeckVsSelector({ preSelectedDeckId, onStart }: DeckVsSelectorPro
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
+  const restoredHubDeckRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
+    restoredHubDeckRef.current = preSelectedHubDeckId;
+    setLoadingHubDeckId(preSelectedHubDeckId);
+    void loadHubDeck(preSelectedHubDeckId)
+      .then((detail) => {
+        const formatId = detail.deck.format ?? detail.format ?? "standard";
+        setPlayerDeck({
+          id: `hub:${detail.id}`,
+          sourceId: detail.id,
+          name: detail.name,
+          sourceDeck: detail.deck,
+          source: "hub",
+          formatId,
+          commanderName: detail.deck.commanders?.[0]?.identity.name,
+        });
+        setDeckSearch(detail.name);
+        setSelectedFormat(formatId);
+        setPickingSide("opponent");
+      })
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck"),
+      )
+      .finally(() => setLoadingHubDeckId(null));
+  }, [loadHubDeck, preSelectedHubDeckId]);
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
@@ -299,7 +331,7 @@ export function DeckVsSelector({ preSelectedDeckId, onStart }: DeckVsSelectorPro
       return;
     }
     for (const selected of [playerDeck, opponentDeck]) {
-      if (selected.source === "preset") continue;
+      if (selected.source !== "hub") continue;
       const format = getFormat(selected.formatId ?? "standard");
       if (!format) continue;
       const validation = validateDeckSections(
@@ -334,7 +366,23 @@ export function DeckVsSelector({ preSelectedDeckId, onStart }: DeckVsSelectorPro
     }
   }
 
-  const isReady = !!playerDeck && !!opponentDeck && opponentConfirmed;
+  const hubSelectionIsLegal = (selected: SelectedDeck | null) => {
+    if (!selected || selected.source !== "hub") return true;
+    const format = getFormat(selected.formatId ?? "standard");
+    return (
+      !format ||
+      validateDeckSections(
+        { deck: selected.sourceDeck, commanderName: selected.commanderName },
+        format,
+      ).legal
+    );
+  };
+  const isReady =
+    !!playerDeck &&
+    !!opponentDeck &&
+    opponentConfirmed &&
+    hubSelectionIsLegal(playerDeck) &&
+    hubSelectionIsLegal(opponentDeck);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -461,7 +509,12 @@ export function DeckVsSelector({ preSelectedDeckId, onStart }: DeckVsSelectorPro
               Deck Hub
             </p>
             {hubDecks.error ? (
-              <p className="py-2 text-xs text-destructive">{hubDecks.error}</p>
+              <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
+                <span className="min-w-0 break-words">{hubDecks.error}</span>
+                <Button variant="outline" size="sm" onClick={hubDecks.retry}>
+                  Retry
+                </Button>
+              </div>
             ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
               <p className="py-2 text-xs italic text-muted-foreground">Loading Deck Hub decks…</p>
             ) : hubDecks.decks.length === 0 ? (
@@ -477,28 +530,45 @@ export function DeckVsSelector({ preSelectedDeckId, onStart }: DeckVsSelectorPro
                     : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
                 )}
               >
-                {hubDecks.decks.map((deck) => (
-                  <DeckSelectionCard
-                    key={deck.id}
-                    name={loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name}
-                    color={deck.colors}
-                    author={deck.author}
-                    cardCount={deck.cardCount + deck.commanders.length}
-                    badge="Deck Hub"
-                    cards={[]}
-                    cover={undefined}
-                    coverImageUrl={deck.coverImageUrl}
-                    isPreset={false}
-                    isHub
-                    isSelected={false}
-                    isPlayerDeck={playerDeck?.id === `hub:${deck.id}`}
-                    isOpponentDeck={opponentDeck?.id === `hub:${deck.id}`}
-                    formatId={deck.format ?? "standard"}
-                    dense={denseDecks}
-                    isTouch={isTouch}
-                    onSelect={() => void selectHubDeck(deck)}
-                  />
-                ))}
+                {hubDecks.decks.map((deck) => {
+                  const selected = [playerDeck, opponentDeck].find(
+                    (entry) => entry?.source === "hub" && entry.sourceId === deck.id,
+                  );
+                  const format = selected ? getFormat(selected.formatId ?? "standard") : null;
+                  const validation =
+                    selected && format
+                      ? validateDeckSections(
+                          { deck: selected.sourceDeck, commanderName: selected.commanderName },
+                          format,
+                        )
+                      : { legal: true, errors: [] as string[] };
+                  return (
+                    <DeckSelectionCard
+                      key={deck.id}
+                      name={loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name}
+                      color={deck.colors}
+                      author={deck.author}
+                      cardCount={deck.cardCount + deck.commanders.length}
+                      badge="Deck Hub"
+                      cards={[]}
+                      cover={undefined}
+                      coverImageUrl={deck.coverImageUrl}
+                      isPreset={false}
+                      isHub
+                      isSelected={false}
+                      isLegal={validation.legal}
+                      validationError={validation.errors[0]}
+                      isPlayerDeck={playerDeck?.id === `hub:${deck.id}`}
+                      isOpponentDeck={opponentDeck?.id === `hub:${deck.id}`}
+                      formatId={deck.format ?? "standard"}
+                      dense={denseDecks}
+                      isTouch={isTouch}
+                      disabled={loadingHubDeckId !== null}
+                      loading={loadingHubDeckId === deck.id}
+                      onSelect={() => void selectHubDeck(deck)}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>

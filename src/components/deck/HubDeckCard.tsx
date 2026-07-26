@@ -26,6 +26,15 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
         "aspect-[4/3] transition-all hover:ring-2 hover:ring-primary hover:border-primary",
       )}
       onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.currentTarget !== event.target) return;
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onOpen();
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${deck.name} by ${deck.author}`}
     >
       {deck.coverImageUrl ? (
         <img
@@ -43,11 +52,12 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
 
       {onPlaytest && (
-        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
+        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
           <Button
             size="icon"
             className="h-6 w-6"
             title="Playtest vs AI"
+            aria-label={`Playtest ${deck.name} vs AI`}
             onClick={(e) => {
               e.stopPropagation();
               onPlaytest();

@@ -37,6 +37,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
+import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
@@ -795,6 +796,7 @@ export function DeckBuilder({
 
   function handleSave() {
     saveCurrentDeck();
+    showAccountSaveNudge();
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
@@ -850,17 +852,21 @@ export function DeckBuilder({
   return (
     <div className="flex flex-col h-full w-full relative">
       {isReadOnly && (
-        <div className="px-3 py-2 border-b border-warning/40 shrink-0 flex items-center gap-2 bg-warning/10">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2">
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wide text-warning shrink-0">
-            {readOnlySource === "hub" ? "Deck Hub snapshot" : "Preset deck"} — read only
+          <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-warning">
+            {readOnlySource === "hub" ? "Hub snapshot" : "Starter deck"} — read only
           </span>
-          <span className="text-xs text-warning/70 truncate flex-1">
+          <span className="hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block">
             Browse the cards below. Editing is locked.
           </span>
-          <Button size="sm" className="h-7 shrink-0" onClick={handleImportReadOnlyDeck}>
+          <Button
+            size="sm"
+            className="ml-auto h-7 shrink-0 pointer-coarse:h-10"
+            onClick={handleImportReadOnlyDeck}
+          >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Make editable copy
+            Copy and edit
           </Button>
         </div>
       )}

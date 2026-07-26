@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Swords } from "lucide-react";
+import { Swords, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import { useHubStore } from "@/stores/useHubStore";
 import type { DeckCard } from "@/protocol/deck";
 import type { HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
+import { ROUTES } from "@/lib/constants";
 
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
@@ -56,10 +57,17 @@ export function HubDeckPreviewDialog({
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
-  const { decks: myDecks, refresh } = useMyHubDecks();
+  const {
+    decks: myDecks,
+    loading: ownershipLoading,
+    error: ownershipError,
+    signedIn,
+    refresh,
+  } = useMyHubDecks();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
   const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
   const loadDeck = useHubStore((s) => s.loadDeck);
+  const removeDeck = useHubStore((s) => s.removeDeck);
   const published = usePublishedDecksStore((s) => s.published);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
   const [detail, setDetail] = useState<HubDeckDetail | null>(null);
@@ -98,7 +106,7 @@ export function HubDeckPreviewDialog({
     if (!detail) return;
     loadHubDeck(detail.deck as EditorDeck);
     onClose();
-    navigate("/deck-editor");
+    navigate(ROUTES.DECK_EDITOR, { state: { deckEditorFromList: true } });
   }
 
   function handleCopyLink() {
@@ -114,13 +122,26 @@ export function HubDeckPreviewDialog({
     quickPlaytest(detail.deck);
   }
 
+  function handlePlayOffline() {
+    if (!deckId) return;
+    onClose();
+    navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
+  }
+
+  function handleMultiplayer() {
+    if (!deckId) return;
+    onClose();
+    navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
+  }
+
   async function handleUnpublish() {
     if (!deckId || !mine) return;
     setBusy(true);
     try {
       await unpublishDeck(deckId, legacyPublication?.managementToken);
       removePublished(deckId);
-      await refresh();
+      removeDeck(deckId);
+      void refresh();
       toast.success(`"${detail?.name ?? "Deck"}" removed from the Deck Hub`);
       onClose();
       onUnpublished?.();
@@ -157,7 +178,15 @@ export function HubDeckPreviewDialog({
               </div>
             </ScrollArea>
           )}
-          <DialogFooter className="gap-2">
+          {signedIn && ownershipError && !legacyPublication && (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+              <span className="min-w-0 break-words">Couldn’t verify deck ownership.</span>
+              <Button variant="outline" size="sm" onClick={() => void refresh()}>
+                Retry
+              </Button>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
             {error && (
               <Button
                 variant="outline"
@@ -167,7 +196,7 @@ export function HubDeckPreviewDialog({
                 Retry
               </Button>
             )}
-            {mine && (
+            {mine && !ownershipLoading && (
               <Button
                 variant="destructive"
                 size="sm"
@@ -175,7 +204,7 @@ export function HubDeckPreviewDialog({
                 onClick={handleUnpublish}
                 className="mr-auto"
               >
-                {busy ? "Removing…" : "Remove from hub"}
+                {busy ? "Unpublishing…" : "Unpublish"}
               </Button>
             )}
             <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
@@ -185,10 +214,17 @@ export function HubDeckPreviewDialog({
               View snapshot
             </Button>
             <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-              Make editable copy
+              Copy to My Decks
+            </Button>
+            <Button variant="secondary" size="sm" disabled={!detail} onClick={handleMultiplayer}>
+              <Users className="mr-1 h-3.5 w-3.5" />
+              Multiplayer
+            </Button>
+            <Button variant="secondary" size="sm" disabled={!detail} onClick={handlePlayOffline}>
+              <Swords className="mr-1 h-3.5 w-3.5" />
+              Play Offline
             </Button>
             <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
-              <Swords className="mr-1 h-3.5 w-3.5" />
               Playtest
             </Button>
           </DialogFooter>

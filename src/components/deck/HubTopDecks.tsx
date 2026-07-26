@@ -92,8 +92,8 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
         {topError ? (
-          <div className="flex items-center gap-2 text-sm text-destructive">
-            <span>{topError}</span>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+            <span className="min-w-0 break-words">{topError}</span>
             <Button variant="outline" size="sm" onClick={() => void fetchTop(window)}>
               Retry
             </Button>

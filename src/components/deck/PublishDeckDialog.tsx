@@ -73,7 +73,7 @@ export function PublishDeckDialog({
         managementToken: response.managementToken,
         publishedAt: Date.now(),
       });
-      await refresh();
+      void refresh();
       toast.success(`"${deck.name}" published to the Deck Hub`);
       onOpenChange(false);
     } catch (err) {
@@ -89,7 +89,7 @@ export function PublishDeckDialog({
     try {
       await unpublishDeck(existing.hubId, existing.managementToken);
       removePublished(existing.hubId);
-      await refresh();
+      void refresh();
       toast.success(`"${existing.name}" removed from the Deck Hub`);
       onOpenChange(false);
     } catch (err) {
@@ -100,7 +100,6 @@ export function PublishDeckDialog({
   }
 
   function handleSignIn() {
-    onOpenChange(false);
     showSignIn();
   }
 
@@ -132,7 +131,7 @@ export function PublishDeckDialog({
           </Button>
           {existing ? (
             <Button variant="destructive" size="sm" disabled={busy} onClick={handleUnpublish}>
-              {busy ? "Removing…" : "Remove from hub"}
+              {busy ? "Unpublishing…" : "Unpublish"}
             </Button>
           ) : signedIn ? (
             <Button size="sm" disabled={busy || deck.cards.length === 0} onClick={handlePublish}>

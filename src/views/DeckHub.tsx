@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { HubTopDecks } from "@/components/deck/HubTopDecks";
 import type { HubSort } from "@/api/hub";
 import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useHubStore } from "@/stores/useHubStore";
-import { FORMAT_DISPLAY } from "@/lib/constants";
+import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -92,7 +92,7 @@ export default function DeckHub() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search decks, authors, commanders…"
-              className="h-6 max-w-56 text-xs"
+              className="h-6 max-w-56 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
             />
             <div className="flex items-center gap-1 flex-wrap">
               <SegmentedButton
@@ -142,8 +142,8 @@ export default function DeckHub() {
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="p-4 sm:px-6 lg:px-8">
               {listError ? (
-                <div className="flex items-center gap-2 text-sm text-destructive">
-                  <span>{listError}</span>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+                  <span className="min-w-0 break-words">{listError}</span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -160,6 +160,9 @@ export default function DeckHub() {
                   <p className="text-sm text-muted-foreground max-w-sm">
                     Be the first — open My Decks and publish one of your brews to the hub.
                   </p>
+                  <Button asChild size="sm">
+                    <Link to={ROUTES.DECK_EDITOR}>Open My Decks</Link>
+                  </Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">

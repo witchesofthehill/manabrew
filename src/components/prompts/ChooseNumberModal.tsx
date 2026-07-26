@@ -14,9 +14,13 @@ import type { ChooseNumberInput, ChooseNumberOutput } from "@/protocol";
 export function ChooseNumberModal({
   input,
   respond,
+  sourceCard,
 }: PromptProps<ChooseNumberInput, ChooseNumberOutput>) {
   const { min, max } = input;
-  const { preview, presentation } = useModalSourceCard(input.presentation);
+  const { preview, presentation, inlineSourceCard } = useModalSourceCard(
+    input.presentation,
+    sourceCard,
+  );
   const range = max - min + 1;
   const useButtons = range <= 10;
   const [inputValue, setInputValue] = useState(String(min));
@@ -138,7 +142,7 @@ export function ChooseNumberModal({
     <Modal maxWidth="" maxHeight="" className="w-auto max-w-[min(90vw,32rem)]">
       {preview}
       <div className="flex flex-col items-center gap-5 p-6">
-        <PromptPresentation presentation={presentation} />
+        <PromptPresentation presentation={presentation} sourceCard={inlineSourceCard} />
         {controls}
       </div>
     </Modal>

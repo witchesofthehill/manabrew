@@ -3,12 +3,22 @@ import { persist, devtools } from "zustand/middleware";
 import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { ensureUsernameTag, hasUsernameTag } from "@/lib/username";
+import type { AiOpponentRef } from "@/lib/aiOpponent";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
+import type { EngineKind, GameFormat } from "@/types/server";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
+
+export interface LastRoomSetup {
+  kind: "match" | "limited";
+  limitedKind: "draft" | "sealed" | "winston" | "cube";
+  format: GameFormat;
+  engine: EngineKind;
+  players: number | null;
+}
 
 export const CARD_SIZE_MULTIPLIER_MIN = 0.75;
 // Under the 2-rows-minimum battlefield rule, a 2-row fill is only ~1.35-1.5x
@@ -98,6 +108,22 @@ interface PreferencesState {
   gameThemeColorOverrides: Record<string, string>;
   setGameThemeColorOverride: (path: string, color: string) => void;
   resetGameThemeColorOverrides: () => void;
+
+  lastPlayedDeckId: string | null;
+  lastPlayedAtByDeck: Record<string, number>;
+  setLastPlayedDeckId: (id: string | null) => void;
+
+  lastOfflineEngine: EngineKind | null;
+  setLastOfflineEngine: (engine: EngineKind) => void;
+
+  lastOfflineFormatId: string | null;
+  setLastOfflineFormatId: (formatId: string) => void;
+
+  lastAiOpponent: AiOpponentRef | null;
+  setLastAiOpponent: (opponent: AiOpponentRef) => void;
+
+  lastRoomSetup: LastRoomSetup | null;
+  setLastRoomSetup: (setup: LastRoomSetup) => void;
 }
 
 const PERSISTED_PREFERENCE_KEYS = [
@@ -123,6 +149,12 @@ const PERSISTED_PREFERENCE_KEYS = [
   "cardHoverDelayMs",
   "appThemeColorOverrides",
   "gameThemeColorOverrides",
+  "lastPlayedDeckId",
+  "lastPlayedAtByDeck",
+  "lastOfflineEngine",
+  "lastOfflineFormatId",
+  "lastAiOpponent",
+  "lastRoomSetup",
 ] as const satisfies readonly (keyof PreferencesState)[];
 
 function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesState> {
@@ -245,6 +277,28 @@ export const usePreferencesStore = create<PreferencesState>()(
               },
             })),
           resetGameThemeColorOverrides: () => set({ gameThemeColorOverrides: {} }),
+
+          lastPlayedDeckId: null,
+          lastPlayedAtByDeck: {},
+          setLastPlayedDeckId: (lastPlayedDeckId) =>
+            set((state) => ({
+              lastPlayedDeckId,
+              lastPlayedAtByDeck: lastPlayedDeckId
+                ? { ...state.lastPlayedAtByDeck, [lastPlayedDeckId]: Date.now() }
+                : state.lastPlayedAtByDeck,
+            })),
+
+          lastOfflineEngine: null,
+          setLastOfflineEngine: (lastOfflineEngine) => set({ lastOfflineEngine }),
+
+          lastOfflineFormatId: null,
+          setLastOfflineFormatId: (lastOfflineFormatId) => set({ lastOfflineFormatId }),
+
+          lastAiOpponent: null,
+          setLastAiOpponent: (lastAiOpponent) => set({ lastAiOpponent }),
+
+          lastRoomSetup: null,
+          setLastRoomSetup: (lastRoomSetup) => set({ lastRoomSetup }),
         };
       },
       {

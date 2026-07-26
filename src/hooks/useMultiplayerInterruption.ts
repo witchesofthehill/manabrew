@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { clearActiveGameSession } from "@/lib/activeGameSession";
 import { getPlatform } from "@/platform";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -93,7 +92,6 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
         expiredRef.current = true;
         if (selfDisconnected) {
           // Our own socket never came back — nothing left to wait for.
-          clearActiveGameSession();
           toast.error("Game aborted — connection could not be restored.");
           void useGameStore.getState().endGame();
           return;
@@ -105,7 +103,6 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
         );
         if (room && gone.some((p) => p.username === room.host)) {
           // The engine host itself is gone: the game cannot continue.
-          clearActiveGameSession();
           toast.error("Game aborted — the host did not reconnect in time.");
           void useGameStore.getState().endGame();
         }

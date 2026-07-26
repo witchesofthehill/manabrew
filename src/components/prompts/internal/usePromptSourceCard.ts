@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 
-import { asDeckCard } from "@/lib/decks";
+import { asDeckCard, getDeckCardPool } from "@/lib/decks";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { stackObjectToCardStub } from "@/components/game/game.utils";
+import { peekArchivedToken, useCard } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
@@ -28,7 +30,58 @@ export function useResolveDeckCard(cardId: string | undefined): DeckCard | undef
   return useMemo(() => (gc ? asDeckCard(gameDecks[gc.ownerId], gc) : undefined), [gc, gameDecks]);
 }
 
+export function useResolveSourceCard(source: CardDto | undefined): DeckCard | undefined {
+  const gameDecks = useGameStore((s) => s.gameDecks);
+  const identity = source?.identity;
+  const deckCard = useMemo(() => {
+    if (source?.identity.name) {
+      const resolved = asDeckCard(gameDecks[source.ownerId], source);
+      if (resolved.uris.normal || resolved.uris.border_crop) return resolved;
+    }
+    if (!identity?.name) return undefined;
+    const pool = Object.values(gameDecks).flatMap(getDeckCardPool);
+    const exact = pool.find(
+      (card) =>
+        identity.setCode &&
+        identity.cardNumber &&
+        card.identity.setCode.toLowerCase() === identity.setCode.toLowerCase() &&
+        card.identity.cardNumber === identity.cardNumber,
+    );
+    return (
+      exact ??
+      pool.find(
+        (card) =>
+          card.identity.name === identity.name ||
+          card.identity.name.split(" // ").includes(identity.name),
+      )
+    );
+  }, [gameDecks, identity, source]);
+  const exact = useCard(
+    deckCard || !identity?.name
+      ? null
+      : {
+          name: identity.name,
+          setCode: identity.setCode || undefined,
+          cardNumber: identity.cardNumber || undefined,
+        },
+  );
+  const byName = useCard(deckCard || !identity?.name ? null : { name: identity.name });
+  const archivedToken = identity?.isToken
+    ? (peekArchivedToken({
+        name: identity.name,
+        setCode: identity.setCode,
+        cardNumber: identity.cardNumber,
+      }) ?? undefined)
+    : undefined;
+
+  if (deckCard) return deckCard;
+  if (exact) return scryfallToDeckCard(exact.info);
+  if (archivedToken) return archivedToken;
+  if (byName) return scryfallToDeckCard(byName.info);
+  return undefined;
+}
+
 export function usePromptSourceCard(): DeckCard | undefined {
-  const sourceCardId = useGameStore((s) => s.currentPrompt?.sourceCardId);
-  return useResolveDeckCard(sourceCardId);
+  const sourceCard = useGameStore((s) => s.currentPrompt?.sourceCard);
+  return useResolveSourceCard(sourceCard);
 }

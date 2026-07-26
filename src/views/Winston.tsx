@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ type WinstonMode = LimitedDraftMode;
 
 export default function Winston() {
   const { winstonId } = useParams<{ winstonId: string }>();
-  const navigate = useNavigate();
   const activeWinston = useLimitedStore((s) => s.activeWinston);
   const refresh = useLimitedStore((s) => s.refreshWinstonState);
   const take = useLimitedStore((s) => s.winstonTake);
@@ -89,28 +88,25 @@ export default function Winston() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Winston Draft</h1>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Deck: {activeWinston.deckSize} cards left</span>
-            {activeWinston.isComplete ? (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                Complete
-              </span>
-            ) : activeWinston.awaitingHuman ? (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                Your turn — viewing pile {activeIdx + 1}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                AI thinking…
-              </span>
-            )}
-          </p>
-        </div>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Deck: {activeWinston.deckSize} cards left</span>
+          {activeWinston.isComplete ? (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              Complete
+            </span>
+          ) : activeWinston.awaitingHuman ? (
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              Your turn — viewing pile {activeIdx + 1}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              AI thinking…
+            </span>
+          )}
+        </p>
         <div className="flex items-center gap-2">
           {canBuild && (
             <LimitedModeToggle
@@ -119,9 +115,6 @@ export default function Winston() {
               disableDrafting={activeWinston.isComplete}
             />
           )}
-          <Button variant="outline" onClick={() => navigate("/limited")}>
-            Back
-          </Button>
         </div>
       </header>
 

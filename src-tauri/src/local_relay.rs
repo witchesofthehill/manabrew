@@ -34,6 +34,19 @@ impl LocalRelayHost {
 }
 
 #[tauri::command]
+pub fn local_relay_running(relay: State<'_, LocalRelayHost>) -> Result<bool, String> {
+    #[cfg(not(feature = "forge-room"))]
+    {
+        let _ = relay;
+        Ok(false)
+    }
+    #[cfg(feature = "forge-room")]
+    {
+        Ok(relay.running.lock().map_err(|e| e.to_string())?.is_some())
+    }
+}
+
+#[tauri::command]
 pub async fn start_local_relay(relay: State<'_, LocalRelayHost>) -> Result<LocalRelayInfo, String> {
     #[cfg(not(feature = "forge-room"))]
     {

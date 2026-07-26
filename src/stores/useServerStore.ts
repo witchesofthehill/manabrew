@@ -6,7 +6,10 @@ import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { peekActiveGameSession } from "@/lib/activeGameSession";
+import {
+  isActiveGameSessionAbandonmentPending,
+  peekActiveGameSession,
+} from "@/lib/activeGameSession";
 import { claimTabSession, holdTabSession, type TabSessionHolder } from "@/lib/tabSession";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
@@ -58,6 +61,7 @@ interface ServerState {
   players: PlayerInfo[];
 
   gameStarted: boolean;
+  gameRoomId: string;
   gameId: string;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
@@ -79,7 +83,7 @@ interface ServerState {
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   resumeRoomAfterRestart(): Promise<void>;
-  leaveRoom(): Promise<void>;
+  leaveRoom(requireServerLeave?: boolean): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
   setFormat(format: GameFormat): Promise<void>;
@@ -93,6 +97,16 @@ interface ServerState {
 export const JOIN_REJECTED_INCORRECT_PASSWORD = SERVER_ERROR_CODE.IncorrectPassword;
 
 const JOIN_CONFIRM_TIMEOUT_MS = 7000;
+const JOIN_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
+  SERVER_ERROR_CODE.RoomNotFound,
+  SERVER_ERROR_CODE.RoomFull,
+  SERVER_ERROR_CODE.IncorrectPassword,
+  SERVER_ERROR_CODE.AlreadyInRoom,
+  SERVER_ERROR_CODE.GameAlreadyStarted,
+  SERVER_ERROR_CODE.AuthFailed,
+  SERVER_ERROR_CODE.AuthTimeout,
+  SERVER_ERROR_CODE.WebSocket,
+]);
 
 interface PendingJoin {
   roomId: string;
@@ -110,12 +124,13 @@ function releaseTabSession() {
 }
 
 function settlePendingJoin(error: Error | null, roomId?: string) {
-  if (!pendingJoin) return;
-  if (roomId && pendingJoin.roomId !== roomId) return;
+  if (!pendingJoin) return false;
+  if (roomId && pendingJoin.roomId !== roomId) return false;
   clearTimeout(pendingJoin.timer);
   const { settle } = pendingJoin;
   pendingJoin = null;
   settle(error);
+  return true;
 }
 
 export const useServerStore = create<ServerState>()(
@@ -133,6 +148,7 @@ export const useServerStore = create<ServerState>()(
       hostingForgeRoom: false,
       players: [],
       gameStarted: false,
+      gameRoomId: "",
       gameId: "",
       playerOrder: [],
       playerDecks: [],
@@ -179,10 +195,16 @@ export const useServerStore = create<ServerState>()(
         await platform.server.disconnect();
         set({
           connected: false,
+          connecting: false,
+          error: null,
           playerId: null,
           username: null,
+          reconnect: { phase: "idle", attempt: 0 },
           currentRoom: null,
+          roomPassword: null,
+          hostingForgeRoom: false,
           gameStarted: false,
+          gameRoomId: "",
           gameId: "",
           playerOrder: [],
           playerDecks: [],
@@ -276,13 +298,13 @@ export const useServerStore = create<ServerState>()(
         });
       },
 
-      async leaveRoom() {
-        // Reset local room state synchronously so a hung relay socket can't
-        // strand the user in a "still-in-room" UI. The server-side teardown
-        // is attempted afterwards as best-effort; if it fails, the next
-        // listRooms() call will reconcile.
-        // The peer relay listener stays attached — it is connection-scoped
-        // (attached once at auth), not room-scoped.
+      async leaveRoom(requireServerLeave = false) {
+        const platform = getPlatform();
+        if (requireServerLeave) {
+          if (!platform.server) throw new Error("Multiplayer server is unavailable.");
+          await platform.server.leaveRoom();
+        }
+
         teardownDraftHost();
         useMultiplayerDraftStore.getState().clear();
         set({
@@ -290,17 +312,19 @@ export const useServerStore = create<ServerState>()(
           roomPassword: null,
           hostingForgeRoom: false,
           gameStarted: false,
+          gameRoomId: "",
           gameId: "",
           playerOrder: [],
           playerDecks: [],
           startingLife: DEFAULT_STARTING_LIFE,
         });
-        const platform = getPlatform();
         if (!platform.server) return;
-        try {
-          await platform.server.leaveRoom();
-        } catch (e) {
-          console.warn("server.leaveRoom() failed:", e);
+        if (!requireServerLeave) {
+          try {
+            await platform.server.leaveRoom();
+          } catch (e) {
+            console.warn("server.leaveRoom() failed:", e);
+          }
         }
         try {
           await platform.server.stopRoom();
@@ -432,7 +456,9 @@ export const useServerStore = create<ServerState>()(
             // LeaveRoom was in flight must not re-enroll us in the room.
             const inRoom = get().currentRoom?.room_id === payload.room.room_id;
             const joining = pendingJoin?.roomId === payload.room.room_id;
-            const reclaiming = peekActiveGameSession()?.roomId === payload.room.room_id;
+            const reclaiming =
+              !isActiveGameSessionAbandonmentPending() &&
+              peekActiveGameSession()?.roomId === payload.room.room_id;
             if (inRoom || joining || reclaiming) {
               set({ currentRoom: payload.room });
             }
@@ -474,8 +500,11 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on<GameStartedPayload>("server:game_started", (payload) => {
+            const roomId = get().currentRoom?.room_id;
+            if (roomId && payload.room_id !== roomId) return;
             set({
               gameStarted: true,
+              gameRoomId: payload.room_id,
               gameId: payload.game_id,
               playerOrder: payload.player_order,
               playerDecks: payload.player_decks,
@@ -488,21 +517,16 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
-            if (payload.code === SERVER_ERROR_CODE.IncorrectPassword) {
-              settlePendingJoin(new Error(SERVER_ERROR_CODE.IncorrectPassword));
+            if (
+              JOIN_FAILURE_CODES.has(payload.code as ServerErrorCode) &&
+              settlePendingJoin(new Error(payload.code))
+            )
               return;
-            }
-            // Settle immediately instead of letting the join confirm time out:
-            // the post-restart rejoin loop retries until the host resurrects
-            // the room, and each retry must fail fast, not wait 7s.
-            if (payload.code === SERVER_ERROR_CODE.RoomNotFound) {
-              settlePendingJoin(new Error(SERVER_ERROR_CODE.RoomNotFound));
-              return;
-            }
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,
                 gameStarted: false,
+                gameRoomId: "",
                 gameId: "",
                 playerOrder: [],
                 playerDecks: [],
@@ -519,6 +543,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
             if (payload?.terminal) {
+              settlePendingJoin(new Error("disconnected"));
               detachDraftPeer();
               teardownDraftHost();
               useMultiplayerDraftStore.getState().clear();
@@ -529,6 +554,7 @@ export const useServerStore = create<ServerState>()(
                 playerId: null,
                 currentRoom: null,
                 gameStarted: false,
+                gameRoomId: "",
                 gameId: "",
                 playerOrder: [],
                 playerDecks: [],

@@ -112,8 +112,9 @@ pub fn release(ws: &Workspace, root: &Path, dry_run: bool) -> Result<()> {
         run_inherit(root, "git", &["push", "origin", &app.tag])?;
     }
 
-    // The GitHub Release must exist with notes before publish.yml
-    // (triggered by the tag push) attaches installers to it.
+    // Draft until publish.yml attaches the installers: a published release
+    // becomes releases/latest at once, 404ing the manifest.json / tauri.json
+    // redirects and the early-deploy gate until its assets exist.
     if let (Some(app), Some(notes)) = (app, &notes) {
         let notes_path = root.join("target/release-notes.md");
         fs::write(&notes_path, notes)?;
@@ -125,6 +126,7 @@ pub fn release(ws: &Workspace, root: &Path, dry_run: bool) -> Result<()> {
                 "create",
                 &app.tag,
                 "--verify-tag",
+                "--draft",
                 "--title",
                 &app.tag,
                 "--notes-file",

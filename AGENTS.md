@@ -42,7 +42,7 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `src/components/game/AGENTS.md`                                    | Any change under `src/components/game/` (game board, modals, panels, zones)      |
 | `src/components/companion/AGENTS.md`                               | Any change under `src/components/companion/` (paper-play life tracker)           |
 | `src-tauri/AGENTS.md`                                              | Any change under `src-tauri/`                                                    |
-| `manabrew-engine/AGENTS.md`                                        | Any Rust engine work — workspace map and engine module map                       |
+| `manabrew-rs/AGENTS.md`                                            | Any Rust engine work — workspace map and engine module map                       |
 | `manabrew-rs/crates/manabrew-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                           |
 | `manabrew-rs/crates/parity/AGENTS.md`                              | Investigating a parity divergence or editing `regression.json`                   |
 | `forge/AGENTS.md`                                                  | Anything under `forge/` (read-only warning)                                      |
@@ -109,7 +109,7 @@ chore: bump prettier
 perf(carddb): avoid re-parsing SVars on card load
 ```
 
-The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan` in that order (plus `Demo` for UI changes). Installers are not built per-PR — every merge to main releases via `cargo xtask release`, and the resulting `v*` tag runs the full publish pipeline (`publish.yml`: build installers → populate the Release → deploy production). Deploys run as `cargo xtask deploy` from the CI runner at the tag checkout (config rsynced + tag-pinned images; no scripts and no git on the box). Relay-compatible releases deploy the web container early (in parallel with the installer builds); the relay and hub roll out in the final deploy, once installed clients have an installer to update to. `/manifest.json` redirects to the latest Release's copy (attached as a release asset), so it can only advertise a release whose installers exist. A semver-incompatible bump of `manabrew-protocol`/`manabrew-server`/`manabrew-hub` falls back to deploying everything only after the Release has all its assets.
+The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `Why`, `Test plan` in that order (plus `Demo` for UI changes). Installers are not built per-PR — every merge to main releases via `cargo xtask release` (which creates the Release as a draft), and the resulting `v*` tag runs the full publish pipeline (`publish.yml`: build installers → attach them and publish the Release → deploy production). Deploys run as `cargo xtask deploy` from the CI runner at the tag checkout (config rsynced + tag-pinned images; no scripts and no git on the box). Relay-compatible releases deploy the web container early (in parallel with the installer builds); the relay and hub roll out in the final deploy, once installed clients have an installer to update to. `/manifest.json` redirects to the latest Release's copy (attached as a release asset), so it can only advertise a release whose installers exist. A semver-incompatible bump of `manabrew-protocol`/`manabrew-server`/`manabrew-hub` falls back to deploying everything only after the Release has all its assets.
 
 ## Workflow rules
 

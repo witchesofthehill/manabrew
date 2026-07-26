@@ -7,6 +7,7 @@ import {
 } from "@/game/draftRelay";
 import { getPlatform } from "@/platform";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import { useServerStore } from "@/stores/useServerStore";
 import type { RoomRelayEnvelope } from "@/types/server";
 
 let active: { unsubscribe: () => void; myPlayerSlot: string } | null = null;
@@ -45,6 +46,7 @@ function onRelay(
 ): void {
   if (!isDraftRelay(payload.state)) return;
   const env = payload.state;
+  if (!env.roomId || env.roomId !== useServerStore.getState().currentRoom?.room_id) return;
   const msg = env.payload;
   const store = useMultiplayerDraftStore.getState();
 

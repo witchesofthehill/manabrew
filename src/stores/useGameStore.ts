@@ -12,8 +12,16 @@ import {
 } from "@/game";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
-import { armActiveGameSession, clearActiveGameSession } from "@/lib/activeGameSession";
-import { startHostedAiGame, startTauriForgeAiGame } from "@/game/hostedAiPlay";
+import {
+  armActiveGameSession,
+  clearActiveGameSession,
+  peekActiveGameSession,
+} from "@/lib/activeGameSession";
+import {
+  startHostedAiGame,
+  startTauriForgeAiGame,
+  stopLocalHostedAiRelay,
+} from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
@@ -25,6 +33,15 @@ import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
+
+let gameLaunchGeneration = 0;
+let gameLaunchInFlight: number | null = null;
+
+export function cancelPendingGameLaunch(): void {
+  if (gameLaunchInFlight !== null) void useGameStore.getState().endGame();
+}
+
+class GameLaunchCancelledError extends Error {}
 
 function isManualTabletopApi(
   runtime: GameRuntime,
@@ -99,6 +116,7 @@ async function initializeGame({
   set,
   commanderName,
   engine,
+  isLaunchCurrent,
 }: {
   deck: Deck;
   opponentDecks?: Deck[];
@@ -107,6 +125,7 @@ async function initializeGame({
   engine?: EngineKind;
   set: (partial: Partial<GameState>) => void;
   get: () => GameState;
+  isLaunchCurrent: () => boolean;
 }): Promise<void> {
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
@@ -141,38 +160,65 @@ async function initializeGame({
       isPrefetchingCards: true,
       debugInfo: "Starting Forge engine...",
     });
+    let hosted: Awaited<ReturnType<typeof launchForge>> | null = null;
     try {
-      const hosted = await launchForge({
+      const hostedLaunch = await launchForge({
         playerDeck: deck,
         opponentDecks,
         formatId: selectedFormatId,
         commanderName: commanderName ?? null,
       });
+      hosted = hostedLaunch;
+      if (!isLaunchCurrent()) {
+        await useServerStore.getState().leaveRoom();
+        throw new GameLaunchCancelledError();
+      }
+      armActiveGameSession({
+        roomId: hostedLaunch.roomId,
+        gameId: hostedLaunch.gameId,
+        isHost: false,
+        username: hostedLaunch.username,
+        ownsForgeHost: hostedLaunch.ownsForgeHost,
+        relayHost: hostedLaunch.relay?.host,
+        relayPort: hostedLaunch.relay?.port,
+        relayPassword: hostedLaunch.relay?.password,
+      });
       resetSelectedGameRuntime();
       const hostedRuntime = getSelectedGameRuntime();
       const hostedDecks: Record<string, Deck> = {};
-      hosted.playerOrder.forEach((_, index) => {
-        hostedDecks[`player-${index}`] = hosted.decks[index];
+      hostedLaunch.playerOrder.forEach((_, index) => {
+        hostedDecks[`player-${index}`] = hostedLaunch.decks[index];
       });
       set({
         isMultiplayer: true,
         isHost: false,
-        myPlayerSlot: `player-${hosted.enginePlayerIndex}`,
+        myPlayerSlot: `player-${hostedLaunch.enginePlayerIndex}`,
         gameDecks: hostedDecks,
         debugInfo: "Joining Forge engine...",
       });
       await hostedRuntime.api.startMultiplayerGame({
-        playerNames: hosted.playerOrder,
-        decks: hosted.decks,
-        commanderNames: hosted.commanderNames,
-        enginePlayerIndex: hosted.enginePlayerIndex,
+        playerNames: hostedLaunch.playerOrder,
+        decks: hostedLaunch.decks,
+        commanderNames: hostedLaunch.commanderNames,
+        enginePlayerIndex: hostedLaunch.enginePlayerIndex,
         localIsHost: false,
-        startingLife: hosted.startingLife,
+        startingLife: hostedLaunch.startingLife,
       });
+      if (!isLaunchCurrent()) {
+        await hostedRuntime.api.endGame();
+        throw new GameLaunchCancelledError();
+      }
       set({ debugInfo: "Forge game started.", isPrefetchingCards: false });
       return;
     } catch (error) {
-      console.error("[store] Forge host unavailable; falling back to Manabrew:", error);
+      if (hosted) {
+        clearActiveGameSession();
+        await useServerStore.getState().leaveRoom();
+        if (hosted.relay) await stopLocalHostedAiRelay();
+      }
+      if (error instanceof GameLaunchCancelledError) throw error;
+      if (!isLaunchCurrent()) throw new GameLaunchCancelledError();
+      console.error("[store] Forge engine unavailable; falling back to Manabrew:", error);
       toast.error("Forge engine unavailable — using the Manabrew engine.");
       resetSelectedGameRuntime();
       set({ isMultiplayer: false, isHost: false });
@@ -211,6 +257,10 @@ async function initializeGame({
     commanderName: commanderName ?? null,
     opponentDecks: opponentDecks ?? null,
   });
+  if (!isLaunchCurrent()) {
+    await runtime.api.endGame();
+    throw new GameLaunchCancelledError();
+  }
   set({ debugInfo: `Game started: ${result}.` });
 }
 
@@ -254,9 +304,27 @@ export const useGameStore = create<GameState>()(
       dismissIronsmithDeckError: () => set({ ironsmithDeckError: null }),
 
       startGame: async (deck, formatId, commanderName, opponentDecks, engine) => {
+        if (get().isGameActive) return false;
+        if (gameLaunchInFlight !== null) {
+          toast.info("The previous game is still closing. Try again in a moment.");
+          return false;
+        }
+        const launchGeneration = ++gameLaunchGeneration;
+        gameLaunchInFlight = launchGeneration;
         try {
-          await initializeGame({ deck, opponentDecks, formatId, commanderName, engine, set, get });
+          await initializeGame({
+            deck,
+            opponentDecks,
+            formatId,
+            commanderName,
+            engine,
+            set,
+            get,
+            isLaunchCurrent: () => launchGeneration === gameLaunchGeneration,
+          });
+          return true;
         } catch (e) {
+          if (e instanceof GameLaunchCancelledError) return false;
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);
           if (e instanceof IronsmithUnsupportedDeckError) {
@@ -264,12 +332,20 @@ export const useGameStore = create<GameState>()(
           } else {
             toast.error(e instanceof Error ? e.message : "Failed to start game");
           }
+          return false;
+        } finally {
+          if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
         }
       },
 
       startManualTabletopGame: async (deck, formatId, commanderName) => {
         selectGameRuntime("manual-tabletop");
-        await get().startGame(deck, formatId ?? deck.format ?? "standard", commanderName);
+        const started = await get().startGame(
+          deck,
+          formatId ?? deck.format ?? "standard",
+          commanderName,
+        );
+        if (!started) return;
 
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) return;
@@ -374,12 +450,14 @@ export const useGameStore = create<GameState>()(
         // causing every recv_action in game 1 to return Concede and any
         // user clicks made between the two starts to queue in game 2's
         // channel where they'll be misrouted by `await_display_ack`.
-        if (get().isGameActive) {
+        if (get().isGameActive || gameLaunchInFlight !== null) {
           console.warn(
             "[store] startMultiplayerGame called while a game is already active — ignoring duplicate.",
           );
-          return;
+          return false;
         }
+        const launchGeneration = ++gameLaunchGeneration;
+        gameLaunchInFlight = launchGeneration;
         const gameDecks: Record<string, Deck> = {};
         decks.forEach((d, i) => {
           gameDecks[`player-${i}`] = d;
@@ -428,20 +506,33 @@ export const useGameStore = create<GameState>()(
             hostPlayerSlot,
             botPlayerSlots,
           });
+          if (launchGeneration !== gameLaunchGeneration) {
+            await runtime.api.endGame();
+            return false;
+          }
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
+          return true;
         } catch (e) {
+          if (launchGeneration !== gameLaunchGeneration) return false;
           set({
             isGameActive: false,
+            isMultiplayer: false,
+            isHost: false,
+            myPlayerSlot: null,
             debugInfo: `Multiplayer start failed: ${e}`,
             isPrefetchingCards: false,
             gameDecks: {},
           });
+          clearActiveGameSession();
           console.error("[store] Failed to start multiplayer game:", e);
           if (e instanceof IronsmithUnsupportedDeckError) {
             set({ ironsmithDeckError: e.issues });
           } else {
             toast.error(e instanceof Error ? e.message : "Failed to start multiplayer game");
           }
+          return false;
+        } finally {
+          if (gameLaunchInFlight === launchGeneration) gameLaunchInFlight = null;
         }
       },
 
@@ -509,6 +600,8 @@ export const useGameStore = create<GameState>()(
       },
 
       endGame: async () => {
+        gameLaunchGeneration += 1;
+        const activeSession = peekActiveGameSession();
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
@@ -553,6 +646,13 @@ export const useGameStore = create<GameState>()(
           await withTimeout(runtime.api.endGame(), "runtime.endGame()");
         } catch (e) {
           console.warn("runtime.endGame() failed:", e);
+        }
+        if (activeSession?.relayHost) {
+          try {
+            await stopLocalHostedAiRelay();
+          } catch (e) {
+            console.warn("stopLocalHostedAiRelay() failed:", e);
+          }
         }
       },
 

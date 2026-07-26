@@ -1,13 +1,16 @@
 import { Modal } from "@/components/game/modals/Modal";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import type { ManaCode } from "@/types/scryfall";
 import { MANA_BG_CLASS } from "@/themes/gameTheme";
+import { MODAL_CARD_THUMBNAIL } from "@/components/game/game.styles";
+import { useModalSourceCard } from "./internal/ModalSourceCard";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseColorInput, ChooseColorOutput } from "@/protocol";
+import type { DeckCard } from "@/protocol/deck";
 
 const LETTER_BY_NAME: Record<string, string> = {
   White: "W",
@@ -41,9 +44,18 @@ function colorMeta(color: string): { symbol: ManaCode; label: string; bg: string
 export function ChooseColorModal({
   input,
   respond,
+  sourceCard,
 }: PromptProps<ChooseColorInput, ChooseColorOutput>) {
+  const { preview, inlineSourceCard } = useModalSourceCard(input.presentation, sourceCard);
   if (input.amount <= 1) {
-    return <SingleColor validColors={input.validColors} respond={respond} />;
+    return (
+      <SingleColor
+        validColors={input.validColors}
+        respond={respond}
+        sourcePreview={preview}
+        sourceCard={inlineSourceCard}
+      />
+    );
   }
   return (
     <ColorCombo
@@ -51,6 +63,8 @@ export function ChooseColorModal({
       amount={input.amount}
       repeatAllowed={input.repeatAllowed}
       respond={respond}
+      sourcePreview={preview}
+      sourceCard={inlineSourceCard}
     />
   );
 }
@@ -58,9 +72,13 @@ export function ChooseColorModal({
 function SingleColor({
   validColors,
   respond,
+  sourcePreview,
+  sourceCard,
 }: {
   validColors: string[];
   respond: PromptProps<ChooseColorInput, ChooseColorOutput>["respond"];
+  sourcePreview: ReactNode;
+  sourceCard?: DeckCard;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -69,9 +87,19 @@ function SingleColor({
 
   return (
     <Modal maxWidth="max-w-sm" maxHeight="" className="outline-none">
+      {sourcePreview}
       <div ref={dialogRef} tabIndex={-1} className="outline-none" role="dialog" aria-modal="true">
         <Modal.Header>
-          <h2 className="font-semibold text-base">Choose a Color</h2>
+          <div className="flex items-center gap-3">
+            {sourceCard && (
+              <ScryfallImg
+                src={sourceCard.uris.border_crop ?? sourceCard.uris.normal}
+                alt={sourceCard.identity.name}
+                className={MODAL_CARD_THUMBNAIL}
+              />
+            )}
+            <h2 className="font-semibold text-base">Choose a Color</h2>
+          </div>
         </Modal.Header>
         <Modal.Instructions>Click a color to choose it.</Modal.Instructions>
         <div className="p-4 flex flex-wrap gap-3 justify-center">
@@ -107,11 +135,15 @@ function ColorCombo({
   amount,
   repeatAllowed,
   respond,
+  sourcePreview,
+  sourceCard,
 }: {
   validColors: string[];
   amount: number;
   repeatAllowed: boolean;
   respond: PromptProps<ChooseColorInput, ChooseColorOutput>["respond"];
+  sourcePreview: ReactNode;
+  sourceCard?: DeckCard;
 }) {
   const [counts, setCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(validColors.map((c) => [c, 0])),
@@ -142,8 +174,18 @@ function ColorCombo({
 
   return (
     <Modal maxWidth="max-w-sm" maxHeight="">
+      {sourcePreview}
       <Modal.Header>
-        <h2 className="font-semibold text-base">Choose Colors</h2>
+        <div className="flex items-center gap-3">
+          {sourceCard && (
+            <ScryfallImg
+              src={sourceCard.uris.border_crop ?? sourceCard.uris.normal}
+              alt={sourceCard.identity.name}
+              className={MODAL_CARD_THUMBNAIL}
+            />
+          )}
+          <h2 className="font-semibold text-base">Choose Colors</h2>
+        </div>
       </Modal.Header>
       <Modal.Instructions>
         {repeatAllowed

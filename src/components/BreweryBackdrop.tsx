@@ -1,36 +1,48 @@
-export function BreweryBackdrop() {
+import { cn } from "@/lib/utils";
+
+interface BreweryBackdropProps {
+  variant?: "hero" | "ambient" | "subtle";
+  className?: string;
+}
+
+export function BreweryBackdrop({ variant = "hero", className }: BreweryBackdropProps) {
   return (
-    <>
+    <div
+      aria-hidden
+      className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
+    >
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-card/40 to-background"
+        className={cn(
+          "pointer-events-none absolute inset-0 bg-gradient-to-b from-background to-background",
+          variant === "hero" ? "via-card/40" : "via-background/60",
+          variant === "subtle" && "via-background/80",
+        )}
       />
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-border to-transparent"
+        className={cn(
+          "pointer-events-none absolute left-1/2 top-[28%] size-[60vw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl",
+          variant === "ambient" && "opacity-60",
+          variant === "subtle" && "opacity-30",
+        )}
       />
       <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[28%] size-[60vw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
+        className={cn(
+          "pointer-events-none absolute left-1/2 top-[60%] size-[45vw] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl",
+          variant === "ambient" && "opacity-60",
+          variant === "subtle" && "opacity-30",
+        )}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[60%] size-[45vw] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl"
-      />
-      {/* Brewery scene as a full-viewport backdrop. 16:9 source covers
-        any viewport via `object-cover`. Blur is `blur-md` here so the
-        scene reads as a recognizable place behind the haze, not a pure
-        color wash.
-        NOTE: when swapping back to a logo / wordmark source (square,
-        high-contrast graphic), `blur-3xl` looked right — graphic shapes
-        need heavier blur to dissolve into atmosphere. */}
       <img
-        aria-hidden
         src="/manabrew_brewery_1.png"
         alt=""
         draggable={false}
-        className="pointer-events-none absolute inset-0 size-full select-none object-cover opacity-50 blur-md"
+        className={cn(
+          "pointer-events-none absolute inset-0 size-full select-none object-cover",
+          variant === "hero" && "opacity-50 blur-md",
+          variant === "ambient" && "opacity-20 blur-xl",
+          variant === "subtle" && "opacity-10 blur-2xl",
+        )}
       />
-    </>
+    </div>
   );
 }

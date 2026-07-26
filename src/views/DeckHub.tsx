@@ -73,8 +73,7 @@ export default function DeckHub() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-4 py-3 border-b shrink-0 flex items-center gap-1">
-        <h2 className="text-lg font-semibold flex-1">Deck Hub</h2>
+      <div className="flex shrink-0 items-center justify-end gap-1 border-b px-4 py-3 sm:px-6 lg:px-8">
         <SegmentedButton active={tab === "browse"} onClick={() => setTab("browse")}>
           <Search className="mr-1 h-4 w-4" />
           Browse
@@ -87,7 +86,7 @@ export default function DeckHub() {
 
       {tab === "browse" ? (
         <>
-          <div className="mt-2 flex items-center gap-1 px-2 py-1.5 shrink-0 flex-wrap">
+          <div className="mt-2 flex shrink-0 flex-wrap items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -122,7 +121,7 @@ export default function DeckHub() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="p-4">
+            <div className="p-4 sm:px-6 lg:px-8">
               {listError ? (
                 <p className="text-sm text-destructive">{listError}</p>
               ) : list === null ? (

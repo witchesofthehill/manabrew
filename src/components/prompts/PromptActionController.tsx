@@ -11,6 +11,7 @@ import { PromptLabel } from "./PromptLabel";
 import { Mulligan } from "./Mulligan";
 import { MulliganPutBack } from "./MulliganPutBack";
 import type { PromptType as PromptTypeValue } from "@/protocol";
+import type { DeckCard } from "@/protocol/deck";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -76,6 +77,7 @@ interface PromptActionControllerProps {
   // Pay mana cost
   payManaCostInfo?: {
     cardName: string;
+    sourceCard?: DeckCard;
     manaCost: string;
     description?: string;
     manaPool: Record<string, number>;

@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
+import { GAME_FORMATS } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 import { parseDeckListText, type ParsedDeckEntry } from "@/lib/deckImport";
+import type { DeckFormat } from "@/protocol/deck";
 
 interface ImportDeckTextDialogProps {
   open: boolean;
@@ -21,6 +23,7 @@ interface ImportDeckTextDialogProps {
   onImport: (
     entries: ParsedDeckEntry[],
     name: string,
+    formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
   ) => Promise<void>;
 }
@@ -31,9 +34,12 @@ const GUIDE_STEPS = [
   'Choose "Copy Plain Text" and copy it to your clipboard.',
 ];
 
+const IMPORT_FORMATS = GAME_FORMATS.filter((format) => format.id !== "oathbreaker");
+
 export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDeckTextDialogProps) {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
+  const [formatId, setFormatId] = useState<DeckFormat | "">("");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -42,6 +48,7 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
     if (open) return;
     setText("");
     setName("");
+    setFormatId("");
     setImporting(false);
     setProgress(0);
   }, [open]);
@@ -72,13 +79,13 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
     setImporting(true);
     setProgress(0);
     try {
-      await onImport(entries, name, setProgress);
+      await onImport(entries, name, formatId || undefined, setProgress);
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import failed");
       setImporting(false);
     }
-  }, [valid, importing, entries, name, onImport, onOpenChange]);
+  }, [valid, importing, entries, name, formatId, onImport, onOpenChange]);
 
   return (
     <Dialog
@@ -124,13 +131,34 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
                 ))}
               </ol>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium">Deck name</label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={DEFAULT_IMPORT_NAME}
-                />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Deck name</label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={DEFAULT_IMPORT_NAME}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Format</label>
+                  <select
+                    value={formatId}
+                    onChange={(e) =>
+                      setFormatId(
+                        IMPORT_FORMATS.find((format) => format.id === e.target.value)?.id ?? "",
+                      )
+                    }
+                    className="h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-xs pointer-coarse:text-base"
+                  >
+                    <option value="">Auto-detect</option>
+                    {IMPORT_FORMATS.map((format) => (
+                      <option key={format.id} value={format.id}>
+                        {format.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-1.5">

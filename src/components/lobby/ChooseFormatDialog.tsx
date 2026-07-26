@@ -13,6 +13,8 @@ const SELECTABLE_FORMATS: GameFormat[] = [
   "Commander",
   "Brawl",
   "Oathbreaker",
+  "Draft",
+  "Sealed",
 ];
 
 const PICKER_FORMATS = GAME_FORMATS.filter((f) =>

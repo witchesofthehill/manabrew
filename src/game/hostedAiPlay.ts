@@ -1,4 +1,5 @@
 import { getPlatform } from "@/platform";
+import type { ActiveGameSession } from "@/lib/activeGameSession";
 import {
   getHostedAiServerConnectionDefaults,
   isHostedEngineAvailable,
@@ -27,6 +28,11 @@ interface HostedAiGameRequest {
 }
 
 export interface HostedAiGameLaunch {
+  roomId: string;
+  gameId: string;
+  username: string;
+  ownsForgeHost?: boolean;
+  relay?: ServerConnectionDefaults;
   playerOrder: string[];
   decks: Deck[];
   commanderNames: Array<string | null>;
@@ -40,7 +46,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     throw new Error("Hosted AI play requires a multiplayer server.");
   }
 
-  await ensureServerConnection();
+  await ensureServerConnection(getHostedAiServerConnectionDefaults(), true);
   const username = useServerStore.getState().username;
   if (!username) throw new Error("Hosted AI play requires a server username.");
 
@@ -63,19 +69,49 @@ export async function startTauriForgeAiGame(
     throw new Error("Forge play vs AI requires a multiplayer server.");
   }
 
-  await ensureServerConnection(await startLocalRelay());
-  const username = useServerStore.getState().username;
-  if (!username) throw new Error("Forge play vs AI requires a server username.");
+  const serverState = useServerStore.getState();
+  if (serverState.currentRoom) await serverState.leaveRoom(true);
+  if (serverState.connected || serverState.connecting) await serverState.disconnect();
+  const localRelay = await startLocalRelay();
+  try {
+    await ensureServerConnection(localRelay ?? getHostedAiServerConnectionDefaults());
+    const username = useServerStore.getState().username;
+    if (!username) throw new Error("Forge play vs AI requires a server username.");
 
-  const format = serverFormatFromId(request.formatId);
-  const roomId = await platform.server.createRoom({
-    roomName: `${username}'s Forge game`,
-    maxPlayers: 1 + request.opponentDecks.length,
-    format,
-    engine: "Forge",
-  });
-  if (!roomId) throw new Error("Failed to start the local Forge host.");
-  return joinHostedRoomAndPlay(roomId, format, request, username);
+    const format = serverFormatFromId(request.formatId);
+    await leaveCurrentRoomIfNeeded();
+    await useServerStore
+      .getState()
+      .createRoom(`${username}'s Forge game`, 1 + request.opponentDecks.length, format, "Forge");
+    const roomId = useServerStore.getState().currentRoom?.room_id;
+    if (!roomId) throw new Error("Failed to join the local Forge room.");
+    const launch = await joinHostedRoomAndPlay(roomId, format, request, username);
+    return { ...launch, ownsForgeHost: true, relay: localRelay ?? undefined };
+  } catch (error) {
+    await useServerStore.getState().leaveRoom();
+    if (localRelay) await stopLocalHostedAiRelay();
+    throw error;
+  }
+}
+
+export async function teardownForgeAiSession(
+  session: Pick<ActiveGameSession, "relayHost">,
+): Promise<void> {
+  await useServerStore.getState().leaveRoom();
+  if (session.relayHost) await stopLocalHostedAiRelay();
+}
+
+export async function stopLocalHostedAiRelay(): Promise<void> {
+  try {
+    await useServerStore.getState().disconnect();
+  } catch (error) {
+    console.warn("[hostedAiPlay] failed to disconnect from the local relay:", error);
+  }
+  try {
+    await getPlatform().invoke("stop_local_relay");
+  } catch (error) {
+    console.warn("[hostedAiPlay] failed to stop the local relay:", error);
+  }
 }
 
 async function joinHostedRoomAndPlay(
@@ -89,92 +125,82 @@ async function joinHostedRoomAndPlay(
     throw new Error("Hosted AI play requires a multiplayer server.");
   }
 
-  await leaveCurrentRoomIfNeeded(roomId);
-  await platform.server.joinRoom({ roomId });
   try {
-    return await setUpSeatsAndStart(roomId, format, request, username);
+    await leaveCurrentRoomIfNeeded(roomId);
+    if (useServerStore.getState().currentRoom?.room_id !== roomId) {
+      await useServerStore.getState().joinRoom(roomId);
+    }
+
+    await platform.server.setDeckSelection({
+      deckName: request.playerDeck.name || "PlayerDto Deck",
+      deck: request.playerDeck,
+      commanderName: request.commanderName,
+      avatar: usePreferencesStore.getState().customAvatar,
+    });
+    await platform.server.setReady({ ready: true });
+
+    const botDecks = request.opponentDecks.map((opponentDeck, index) => ({
+      deckName: opponentDeck.name || `AI Deck ${index + 1}`,
+      deck: opponentDeck,
+      commanderName: opponentDeck.commanders?.[0]?.identity.name ?? null,
+    }));
+    await platform.server.sendRoomMessage(
+      createRoomRelayEnvelope({
+        protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
+        roomId,
+        payload: {
+          type: "spawnBot",
+          deck: botDecks[0],
+          decks: botDecks,
+        },
+      }),
+    );
+
+    const expectedPlayers = 1 + request.opponentDecks.length;
+    await waitForRoom(
+      (next) =>
+        next.room_id === roomId &&
+        next.players.length >= expectedPlayers &&
+        next.players.every(
+          (player) => player.connected && player.ready && !!player.selected_deck_name,
+        ),
+    );
+
+    const gameStarted = waitForGameStarted(roomId);
+    await platform.server.startGame({ format });
+
+    const payload = await gameStarted;
+    const enginePlayerIndex = payload.player_order.indexOf(username);
+    if (enginePlayerIndex < 0) {
+      throw new Error("Hosted game started without the local player.");
+    }
+
+    return {
+      roomId,
+      gameId: payload.game_id,
+      username,
+      playerOrder: payload.player_order,
+      decks: payload.player_order.map((playerName) => {
+        const entry = payload.player_decks.find((deck) => deck.username === playerName);
+        return entry?.deck ?? emptyDeck(playerName);
+      }),
+      commanderNames: payload.player_order.map((playerName) => {
+        const entry = payload.player_decks.find((deck) => deck.username === playerName);
+        return entry?.commander_name ?? null;
+      }),
+      enginePlayerIndex,
+      startingLife: payload.starting_life,
+    };
   } catch (error) {
-    await platform.server.leaveRoom().catch(() => {});
-    useServerStore.setState({ currentRoom: null });
+    if (useServerStore.getState().currentRoom?.room_id === roomId) {
+      await useServerStore.getState().leaveRoom();
+    }
     throw error;
   }
 }
 
-async function setUpSeatsAndStart(
-  roomId: string,
-  format: GameFormat,
-  request: HostedAiGameRequest,
-  username: string,
-): Promise<HostedAiGameLaunch> {
-  const platform = getPlatform();
-  if (!platform.server) {
-    throw new Error("Hosted AI play requires a multiplayer server.");
-  }
-
-  await waitForRoom((next) => next.room_id === roomId && hasPlayer(next, username));
-
-  await platform.server.setDeckSelection({
-    deckName: request.playerDeck.name || "PlayerDto Deck",
-    deck: request.playerDeck,
-    commanderName: request.commanderName,
-    avatar: usePreferencesStore.getState().customAvatar,
-  });
-  await platform.server.setReady({ ready: true });
-
-  const botDecks = request.opponentDecks.map((opponentDeck, index) => ({
-    deckName: opponentDeck.name || `AI Deck ${index + 1}`,
-    deck: opponentDeck,
-    commanderName: opponentDeck.commanders?.[0]?.identity.name ?? null,
-  }));
-  await platform.server.sendRoomMessage(
-    createRoomRelayEnvelope({
-      protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
-      roomId,
-      payload: {
-        type: "spawnBot",
-        deck: botDecks[0],
-        decks: botDecks,
-      },
-    }),
-  );
-
-  const expectedPlayers = 1 + request.opponentDecks.length;
-  await waitForRoom(
-    (next) =>
-      next.room_id === roomId &&
-      next.players.length >= expectedPlayers &&
-      next.players.every(
-        (player) => player.connected && player.ready && !!player.selected_deck_name,
-      ),
-  );
-
-  const gameStarted = waitForGameStarted(roomId);
-  await platform.server.startGame({ format });
-
-  const payload = await gameStarted;
-  const enginePlayerIndex = payload.player_order.indexOf(username);
-  if (enginePlayerIndex < 0) {
-    throw new Error("Hosted game started without the local player.");
-  }
-
-  return {
-    playerOrder: payload.player_order,
-    decks: payload.player_order.map((playerName) => {
-      const entry = payload.player_decks.find((deck) => deck.username === playerName);
-      return entry?.deck ?? emptyDeck(playerName);
-    }),
-    commanderNames: payload.player_order.map((playerName) => {
-      const entry = payload.player_decks.find((deck) => deck.username === playerName);
-      return entry?.commander_name ?? null;
-    }),
-    enginePlayerIndex,
-    startingLife: payload.starting_life,
-  };
-}
-
 async function startLocalRelay(): Promise<ServerConnectionDefaults | null> {
   const platform = getPlatform();
-  if (useServerStore.getState().connected) return null;
   try {
     const relay = await platform.invoke<{ host: string; port: number; password: string }>(
       "start_local_relay",
@@ -186,22 +212,26 @@ async function startLocalRelay(): Promise<ServerConnectionDefaults | null> {
   }
 }
 
-async function ensureServerConnection(localRelay?: ServerConnectionDefaults | null): Promise<void> {
+async function ensureServerConnection(
+  serverDefaults: ServerConnectionDefaults,
+  reconnect = false,
+): Promise<void> {
   const server = getPlatform().server;
   if (!server) throw new Error("Hosted AI play requires a multiplayer server.");
 
   const state = useServerStore.getState();
-  if (state.connected) return;
+  if (state.connected && !reconnect) return;
+  if (state.currentRoom) await state.leaveRoom(true);
+  if (state.connected || state.connecting) await state.disconnect();
 
   const prefs = usePreferencesStore.getState();
-  const serverDefaults = localRelay ?? getHostedAiServerConnectionDefaults();
   const username = prefs.serverUsername || serverDefaults.username || defaultHostedUsername();
   const auth = waitForEvent<{ success: boolean; error: string | null }>("server:auth_result");
   await server.connect({
     host: serverDefaults.host,
     port: serverDefaults.port,
     username,
-    password: localRelay ? localRelay.password : prefs.serverPassword || serverDefaults.password,
+    password: serverDefaults.password,
   });
   const result = await auth;
   if (!result.success) {
@@ -239,12 +269,10 @@ async function fetchRooms(): Promise<RoomInfo[]> {
   return (await listed).rooms;
 }
 
-async function leaveCurrentRoomIfNeeded(targetRoomId: string): Promise<void> {
-  const server = getPlatform().server;
+async function leaveCurrentRoomIfNeeded(targetRoomId?: string): Promise<void> {
   const currentRoom = useServerStore.getState().currentRoom;
-  if (!server || !currentRoom || currentRoom.room_id === targetRoomId) return;
-  await server.leaveRoom();
-  useServerStore.setState({ currentRoom: null });
+  if (!currentRoom || currentRoom.room_id === targetRoomId) return;
+  await useServerStore.getState().leaveRoom();
 }
 
 function waitForRoom(predicate: (room: RoomInfo) => boolean): Promise<RoomInfo> {
@@ -289,10 +317,6 @@ function waitForEvent<TPayload, TResult = TPayload>(
       reject(new Error(`Timed out waiting for ${event}.`));
     }, HOSTED_AI_TIMEOUT_MS);
   });
-}
-
-function hasPlayer(room: RoomInfo, username: string): boolean {
-  return room.players.some((player) => player.username === username);
 }
 
 function serverFormatFromId(formatId: string): GameFormat {

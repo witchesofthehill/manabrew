@@ -30,7 +30,7 @@ export interface PromptComponentProps<T extends PromptType> {
 type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) => ReactNode;
 
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
-  revealCards: ({ prompt, respond }) => (
+  revealCards: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.cards}
       presentation={{
@@ -40,26 +40,32 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       }}
       min={0}
       max={0}
+      sourceCard={ctx.sourceDeckCard}
       reveal
       onConfirm={() => respond({ type: "revealCardsAcknowledged" })}
     />
   ),
 
-  chooseColor: ({ prompt, respond }) => <ChooseColorModal input={prompt.input} respond={respond} />,
-
-  // $PROMPT_SHARED
-  chooseNumber: ({ prompt, respond }) => (
-    <ChooseNumberModal input={prompt.input} respond={respond} />
+  chooseColor: ({ prompt, respond, ctx }) => (
+    <ChooseColorModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
 
-  scry: ({ prompt, respond }) => <ScryModal input={prompt.input} respond={respond} />,
+  // $PROMPT_SHARED
+  chooseNumber: ({ prompt, respond, ctx }) => (
+    <ChooseNumberModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
+  ),
 
-  chooseCards: ({ prompt, respond }) => (
+  scry: ({ prompt, respond, ctx }) => (
+    <ScryModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
+  ),
+
+  chooseCards: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.cards}
       presentation={prompt.input.presentation}
       min={prompt.input.min}
       max={prompt.input.max}
+      sourceCard={ctx.sourceDeckCard}
       onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
     />
   ),
@@ -68,7 +74,9 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <VAssignCombatDamageModal input={prompt.input} respond={respond} />
   ),
 
-  reorder: ({ prompt, respond }) => <ReorderCardsModal input={prompt.input} respond={respond} />,
+  reorder: ({ prompt, respond, ctx }) => (
+    <ReorderCardsModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
+  ),
 
   // $PROMPT_SHARED
   diceRolled: ({ prompt, respond, ctx }) => (
@@ -82,12 +90,16 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  chooseBoolean: ({ prompt, respond }) => (
-    <ChooseBooleanModal input={prompt.input} respond={respond} />
+  chooseBoolean: ({ prompt, respond, ctx }) => (
+    <ChooseBooleanModal input={prompt.input} respond={respond} sourceCard={ctx.sourceDeckCard} />
   ),
 
-  chooseFromSelection: ({ prompt, respond }) => (
-    <ChooseFromSelectionModal input={prompt.input} respond={respond} />
+  chooseFromSelection: ({ prompt, respond, ctx }) => (
+    <ChooseFromSelectionModal
+      input={prompt.input}
+      respond={respond}
+      sourceCard={ctx.sourceDeckCard}
+    />
   ),
 };
 

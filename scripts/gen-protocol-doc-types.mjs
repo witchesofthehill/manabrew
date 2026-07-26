@@ -153,9 +153,12 @@ const DECK = definedUnder("deck_dto.rs").filter((t) => !STATE.includes(t));
 // automatically; a response-only type (e.g. ManaSourceAction) stays off it.
 const SHARED = (() => {
   const out = new Set();
-  const queue = Object.keys(tsBody)
-    .filter((n) => /Input$/.test(n) && n !== "PromptInput")
-    .flatMap((n) => rawRefs(n, tsBody[n]));
+  const queue = [
+    "CardDto",
+    ...Object.keys(tsBody)
+      .filter((n) => /Input$/.test(n) && n !== "PromptInput")
+      .flatMap((n) => rawRefs(n, tsBody[n])),
+  ];
   while (queue.length) {
     const t = queue.pop();
     if (out.has(t) || /Input$|Output$/.test(t)) continue;

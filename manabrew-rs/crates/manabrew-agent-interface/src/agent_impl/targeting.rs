@@ -5,7 +5,7 @@ use manabrew_engine::ids::{CardId, PlayerId};
 use crate::game_view_dto::{
     intent_is_hostile, target_ref_card, target_ref_player, target_ref_spell, TargetingIntent,
 };
-use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, stack_id_str};
+use crate::ids_codec::{parse_card_id, parse_player_id, stack_id_str};
 use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
@@ -15,7 +15,6 @@ fn board_targets(
     hostile: bool,
     intent: TargetingIntent,
     label: String,
-    source: Option<CardId>,
 ) -> PromptInput {
     PromptInput::ChooseBoardTargets(
         manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
@@ -23,7 +22,6 @@ fn board_targets(
                 title: label,
                 description: None,
                 text: None,
-                source_card_id: source.map(card_id_str),
                 targets: Vec::new(),
             },
             candidates,
@@ -58,7 +56,6 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
                         title: label.to_string(),
                         description: None,
                         text: None,
-                        source_card_id: source.map(card_id_str),
                         targets: Vec::new(),
                     },
                     candidates,
@@ -119,13 +116,7 @@ pub(super) fn choose_target_player<T: Responder>(
         .map(target_ref_player)
         .collect();
     agent.send_prompt(
-        board_targets(
-            candidates,
-            hostile,
-            intent,
-            player_target_title(intent),
-            source,
-        ),
+        board_targets(candidates, hostile, intent, player_target_title(intent)),
         source,
     );
     agent.recv_player_choice_or_first(valid)
@@ -144,7 +135,7 @@ pub(super) fn choose_target_card<T: Responder>(
         .map(target_ref_card)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string(), source),
+        board_targets(candidates, hostile, intent, intent.to_string()),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -169,7 +160,6 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
             intent_is_hostile(intent),
             intent,
             intent.to_string(),
-            source,
         ),
         source,
     );
@@ -195,7 +185,7 @@ pub(super) fn choose_target_any<T: Responder>(
             .map(target_ref_card),
     );
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string(), source),
+        board_targets(candidates, hostile, intent, intent.to_string()),
         source,
     );
     match agent.recv_action() {
@@ -238,7 +228,6 @@ pub(super) fn choose_target_spell<T: Responder>(
             intent_is_hostile(intent),
             intent,
             intent.to_string(),
-            source,
         ),
         source,
     );
@@ -261,7 +250,6 @@ pub(super) fn choose_sacrifice<T: Responder>(
             true,
             TargetingIntent::Sacrifice,
             TargetingIntent::Sacrifice.to_string(),
-            source,
         ),
         source,
     );

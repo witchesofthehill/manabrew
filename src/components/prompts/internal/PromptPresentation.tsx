@@ -5,22 +5,23 @@ import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { PROMPT_SOURCE_CARD_SIZE } from "@/components/game/game.styles";
 import { cn } from "@/lib/utils";
-import { useResolveDeckCard } from "./usePromptSourceCard";
 import { PromptTargets } from "./PromptTargets";
 import { isVerticalPresentation } from "./promptLayout";
 import type { PromptPresentation as PromptPresentationInput } from "@/protocol";
+import type { DeckCard } from "@/protocol/deck";
 
 export function PromptPresentation({
   presentation,
+  sourceCard,
   actions,
   forceHorizontal = false,
 }: {
   presentation: PromptPresentationInput;
+  sourceCard?: DeckCard;
   actions?: ReactNode;
   forceHorizontal?: boolean;
 }) {
-  const { title, description, text, sourceCardId, targets } = presentation;
-  const sourceCard = useResolveDeckCard(sourceCardId ?? undefined);
+  const { title, description, text, targets } = presentation;
   const minimal = useIsMobileGame();
 
   const isVertical = !forceHorizontal && isVerticalPresentation(presentation);

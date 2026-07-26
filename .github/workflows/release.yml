@@ -40,6 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       protocol_bumped: ${{ steps.detect-protocol.outputs.bumped }}
+      protocol_tag: ${{ steps.detect-protocol.outputs.tag }}
     if: >
       github.repository == 'witchesofthehill/manabrew' &&
       (github.event_name == 'workflow_dispatch' ||
@@ -78,12 +79,17 @@ jobs:
         run: cargo xtask release
 
       # `cargo xtask release` tags each bumped crate at HEAD (`<crate>-vX.Y.Z`);
-      # the protocol tag is the signal that its version moved this run.
+      # the protocol tag is the signal that its version moved this run. The tag
+      # is also handed to publish-protocol as its checkout ref: this workflow
+      # runs at the pre-release merge commit (github.sha), and the version bump
+      # only exists in the chore(release) commit created above.
       - name: Detect protocol bump
         id: detect-protocol
         run: |
-          if git tag --points-at HEAD | grep -q '^manabrew-protocol-v'; then
+          TAG=$(git tag --points-at HEAD | grep '^manabrew-protocol-v' || true)
+          if [ -n "$TAG" ]; then
             echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           else
             echo "bumped=false" >> "$GITHUB_OUTPUT"
           fi
@@ -103,4 +109,6 @@ jobs:
     needs: release
     if: needs.release.outputs.protocol_bumped == 'true'
     uses: ./.github/workflows/publish-protocol.yml
+    with:
+      ref: ${{ needs.release.outputs.protocol_tag }}
     secrets: inherit

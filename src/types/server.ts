@@ -218,6 +218,11 @@ export interface ServerErrorPayload {
   message: string;
 }
 
+export interface BotFailedPayload {
+  username: string;
+  reason: string;
+}
+
 export type ReconnectPhase = "idle" | "reconnecting" | "failed";
 
 export interface ReconnectingPayload {

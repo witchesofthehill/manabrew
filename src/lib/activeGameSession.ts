@@ -5,6 +5,10 @@ export interface ActiveGameSession {
   gameId: string;
   isHost: boolean;
   username: string;
+  ownsForgeHost?: boolean;
+  relayHost?: string;
+  relayPort?: number;
+  relayPassword?: string;
 }
 
 export function armActiveGameSession(session: ActiveGameSession): void {
@@ -34,7 +38,29 @@ export function clearActiveGameSession(): void {
 }
 
 const sessionAtPageLoad = peekActiveGameSession();
+let abandonmentPending = false;
 
 export function activeGameSessionAtPageLoad(): ActiveGameSession | null {
   return sessionAtPageLoad;
+}
+
+export function isActiveGameSessionAtPageLoadCurrent(): boolean {
+  const current = peekActiveGameSession();
+  return (
+    sessionAtPageLoad !== null &&
+    current?.roomId === sessionAtPageLoad.roomId &&
+    current.gameId === sessionAtPageLoad.gameId
+  );
+}
+
+export function beginActiveGameSessionAbandonment(): void {
+  abandonmentPending = true;
+}
+
+export function endActiveGameSessionAbandonment(): void {
+  abandonmentPending = false;
+}
+
+export function isActiveGameSessionAbandonmentPending(): boolean {
+  return abandonmentPending;
 }

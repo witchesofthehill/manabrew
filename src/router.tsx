@@ -12,11 +12,9 @@ import DeckEditor from "@/views/DeckEditor";
 
 import Game from "@/views/Game";
 import Play from "@/views/Play";
-import Tabletop from "@/views/Tabletop";
 import Draft from "@/views/Draft";
 import MultiplayerDraft from "@/views/MultiplayerDraft";
 import MultiplayerSealed from "@/views/MultiplayerSealed";
-import Limited from "@/views/Limited";
 import Companion from "@/views/Companion";
 import Sealed from "@/views/Sealed";
 import Winston from "@/views/Winston";
@@ -44,21 +42,13 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/lobby" replace />,
+        element: <Navigate to="/play" replace />,
       },
       {
-        path: "play",
+        path: "play/*",
         element: (
           <ErrorBoundary context="Play">
             <Play />
-          </ErrorBoundary>
-        ),
-      },
-      {
-        path: "tabletop",
-        element: (
-          <ErrorBoundary context="Tabletop">
-            <Tabletop />
           </ErrorBoundary>
         ),
       },
@@ -132,11 +122,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "limited",
-        element: (
-          <ErrorBoundary context="Limited">
-            <Limited />
-          </ErrorBoundary>
-        ),
+        element: <Navigate to="/play/offline/limited" replace />,
       },
       {
         path: "companion",
@@ -168,18 +154,6 @@ export const router = createBrowserRouter([
           <ErrorBoundary context="Gauntlet">
             <Gauntlet />
           </ErrorBoundary>
-        ),
-      },
-      {
-        path: "matches",
-        element: (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-3">
-            <div className="text-4xl opacity-20">🚧</div>
-            <h2 className="text-lg font-semibold">Active Matches</h2>
-            <p className="text-sm text-muted-foreground">
-              This feature is currently under development.
-            </p>
-          </div>
         ),
       },
       {

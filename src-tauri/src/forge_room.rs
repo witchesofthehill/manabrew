@@ -21,6 +21,16 @@ impl ForgeRoomHost {
     }
 }
 
+#[tauri::command]
+pub fn forge_room_available() -> bool {
+    cfg!(feature = "forge-room")
+}
+
+#[tauri::command]
+pub fn forge_room_running(forge: State<'_, ForgeRoomHost>) -> Result<bool, String> {
+    Ok(forge.running.lock().map_err(|e| e.to_string())?.is_some())
+}
+
 /// Spawn the embedded self-hosted-node Forge host and return the id of the room
 /// it created, so the UI can immediately join it through the web relay client.
 #[tauri::command]

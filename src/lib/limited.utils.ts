@@ -249,27 +249,15 @@ export function groupByName(entries: PoolEntry[]): Array<{ name: string; entries
 export const BASIC_LAND_NAMES = ["Plains", "Island", "Swamp", "Mountain", "Forest"] as const;
 export type BasicLandName = (typeof BASIC_LAND_NAMES)[number];
 
-const BASIC_LAND_NAME_SET: Set<string> = new Set([
-  ...BASIC_LAND_NAMES,
-  "Wastes",
-  "Snow-Covered Plains",
-  "Snow-Covered Island",
-  "Snow-Covered Swamp",
-  "Snow-Covered Mountain",
-  "Snow-Covered Forest",
-]);
-
 export interface DeckValidationIssue {
   /** Stable code for tests / styling. */
-  kind: "main_too_small" | "main_too_large" | "too_many_copies";
+  kind: "main_too_small";
   message: string;
 }
 
 export function validateLimitedDeck(
   main: DraftCard[],
-  sideboard: DraftCard[],
   targetMainSize: number,
-  maxCopies = 4,
 ): DeckValidationIssue[] {
   const issues: DeckValidationIssue[] = [];
   if (main.length < targetMainSize) {
@@ -277,25 +265,6 @@ export function validateLimitedDeck(
       kind: "main_too_small",
       message: `Main deck has ${main.length} cards, needs ${targetMainSize}.`,
     });
-  }
-  if (main.length > targetMainSize + 20) {
-    issues.push({
-      kind: "main_too_large",
-      message: `Main deck has ${main.length} cards (target ${targetMainSize}).`,
-    });
-  }
-  const counts = new Map<string, number>();
-  for (const card of [...main, ...sideboard]) {
-    if (BASIC_LAND_NAME_SET.has(card.name)) continue;
-    counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
-  }
-  for (const [name, n] of counts) {
-    if (n > maxCopies) {
-      issues.push({
-        kind: "too_many_copies",
-        message: `${n}× ${name} (max ${maxCopies}).`,
-      });
-    }
   }
   return issues;
 }

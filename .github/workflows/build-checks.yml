@@ -13,9 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 # Cargo caches use rust-cache shared-keys (engine / relay / web-wasm /
-# tauri-ios / tauri-android). PR-saved caches are only visible to the same
+# tauri-ios / tauri-android; cache-warm.yml additionally owns tauri-macos /
+# tauri-windows for publish.yml). PR-saved caches are only visible to the same
 # branch, so cache-warm.yml re-saves them from main on every merge — keep the
 # shared-keys and build commands here in sync with that workflow.
+#
+# Linux cargo jobs link with mold, installed as the default ld: no RUSTFLAGS
+# change, so caches stay valid. Mirrored in cache-warm.yml.
 
 jobs:
   changes:
@@ -136,6 +140,9 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -196,6 +203,9 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -227,6 +237,9 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -249,6 +262,9 @@ jobs:
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
@@ -280,6 +296,9 @@ jobs:
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
 
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2

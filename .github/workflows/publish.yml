@@ -80,6 +80,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: tauri-macos
+          # Restore-only (all jobs below too): tag-scoped saves are unreadable
+          # by later tags and would evict cache-warm.yml's main-scoped caches.
+          save-if: false
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -181,6 +184,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: tauri-windows
+          save-if: false
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -282,6 +286,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: tauri-ios
+          save-if: false
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -352,6 +357,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: tauri-android
+          save-if: false
 
       - name: Install wasm-pack
         uses: taiki-e/install-action@v2
@@ -404,6 +410,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
+          save-if: false
 
       # Prebuilt deploy tool: an evergreen binary — it fetches the deployed
       # ref's config from GitHub at run time, so one download deploys (or
@@ -559,6 +566,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
+          save-if: false
 
       # Semver compatibility of the client-facing crates vs the previous
       # release, decided in Rust with the same semver crate the release
@@ -607,6 +615,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
+          save-if: false
 
       - name: Deploy web (xtask, from the runner)
         id: deploy
@@ -688,6 +697,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: xtask-deploy
+          save-if: false
 
       - name: Deploy production (xtask, from the runner)
         id: deploy

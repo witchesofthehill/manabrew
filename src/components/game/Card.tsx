@@ -360,6 +360,12 @@ export const Card = memo(CardComponent, (prev, next) => {
   if (!arraysEqual(pc.types, nc.types)) return false;
   if (!arraysEqual(pc.subtypes, nc.subtypes)) return false;
   if (!arraysEqual(pc.keywords, nc.keywords)) return false;
+  if (pc.classLevels !== nc.classLevels) {
+    if (JSON.stringify(pc.classLevels) !== JSON.stringify(nc.classLevels)) return false;
+  }
+  if (pc.sagaChapters !== nc.sagaChapters) {
+    if (JSON.stringify(pc.sagaChapters) !== JSON.stringify(nc.sagaChapters)) return false;
+  }
   if (pc.counters !== nc.counters) {
     if (JSON.stringify(pc.counters) !== JSON.stringify(nc.counters)) return false;
   }

@@ -28,7 +28,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardRailState } from "@/components/game/cardRailState";
-import { deriveCardRailState, parseCardRailEffects } from "@/components/game/cardRailState";
+import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 
 interface CardPreviewProps {
   card: CardDto;
@@ -51,6 +51,88 @@ interface CardPreviewProps {
 const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
 const MAX_PREVIEW_KEYWORDS = 8;
+
+interface IndexedPreviewAction {
+  action: HandActionOption;
+  index: number;
+}
+
+function PreviewActions({
+  actions,
+  onSelect,
+  ringColor,
+  showHelp,
+  hasFlippableFaces,
+}: {
+  actions: IndexedPreviewAction[];
+  onSelect: (action: HandActionOption) => void;
+  ringColor: string;
+  showHelp: boolean;
+  hasFlippableFaces: boolean;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1.5">
+        {actions.map(({ action, index }) => (
+          <button
+            key={index}
+            onClick={() => onSelect(action)}
+            className={cn(
+              "group flex w-full flex-col rounded-lg border border-border bg-popover px-3 py-2 text-left text-xs font-medium text-popover-foreground shadow-lg backdrop-blur-md",
+              "transition-all duration-150 ease-out",
+              "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
+            )}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.borderColor = ringColor;
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.backgroundColor = "";
+              event.currentTarget.style.borderColor = "";
+            }}
+          >
+            <span className="mb-0.5 flex w-full items-center justify-between">
+              <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
+                {index + 1}
+              </span>
+              {action.cost && (
+                <span className="flex items-center gap-0.5 text-[11px] opacity-90">
+                  <DynamicTextRender text={action.cost} />
+                </span>
+              )}
+            </span>
+            <span className="text-[13px] font-semibold leading-snug">
+              <DynamicTextRender text={action.label} />
+            </span>
+          </button>
+        ))}
+      </div>
+      {showHelp && (
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
+          <span>
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">1</kbd>
+            -
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">9</kbd>{" "}
+            select
+          </span>
+          <span>
+            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+              Esc
+            </kbd>{" "}
+            close
+          </span>
+          {hasFlippableFaces && (
+            <span>
+              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                F
+              </kbd>{" "}
+              flip
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 
 function CardDetailOverlay({
   card,
@@ -284,12 +366,19 @@ export function CardPreview({
   slot,
   imageSize = "large",
 }: CardPreviewProps) {
-  const hasActions = actions && actions.length > 0 && onSelectAction;
+  const hasActions = Boolean(actions?.length && onSelectAction);
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing;
   const rail = deriveCardRailState(card);
-  const showSidePanel = Boolean(hasActions || rail);
+  const indexedActions = hasActions
+    ? (actions ?? []).map((action, index) => ({ action, index }))
+    : [];
+  const rightActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
+  const leftActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
+  const hasRightPanel = Boolean(rail || rightActions.length);
+  const hasLeftPanel = leftActions.length > 0;
+  const showSidePanel = hasLeftPanel || hasRightPanel;
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
   const deckCard: DeckCard = isDebugCard
@@ -311,16 +400,11 @@ export function CardPreview({
   );
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
-  const railFace = rail
-    ? cardFaces.faces.find((face) =>
-        face.typeLine?.includes(rail.kind === "saga" ? "Saga" : "Class"),
-      )
-    : undefined;
-  const railEffects = rail
-    ? parseCardRailEffects(rail, railFace?.oracleText ?? front?.oracleText ?? card.text)
-    : [];
-  const sidePanelRef = useRef<HTMLDivElement>(null);
-  const [sidePanelHeight, setSidePanelHeight] = useState(0);
+  const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
+  const [leftPanelHeight, setLeftPanelHeight] = useState(0);
+  const [rightPanelHeight, setRightPanelHeight] = useState(0);
   const [, setLayoutVersion] = useState(0);
 
   useLayoutEffect(() => {
@@ -335,14 +419,19 @@ export function CardPreview({
   }, [slot]);
 
   useLayoutEffect(() => {
-    const panel = sidePanelRef.current;
-    if (!panel) return;
-    const measure = () => setSidePanelHeight(panel.offsetHeight);
-    measure();
+    const measure = () => {
+      setLeftPanelHeight(leftPanelRef.current?.offsetHeight ?? 0);
+      setRightPanelHeight(rightPanelRef.current?.offsetHeight ?? 0);
+    };
     const observer = new ResizeObserver(measure);
-    observer.observe(panel);
-    return () => observer.disconnect();
-  }, [showSidePanel, card.id]);
+    if (leftPanelRef.current) observer.observe(leftPanelRef.current);
+    if (rightPanelRef.current) observer.observe(rightPanelRef.current);
+    const frame = requestAnimationFrame(measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [hasLeftPanel, hasRightPanel, card.id]);
 
   const faceless = isFacelessCard(card);
   const imageUrl = faceless
@@ -424,33 +513,48 @@ export function CardPreview({
   const naturalCardWidth = horizontal ? CARD_H : CARD_W;
   const naturalCardHeight = horizontal ? CARD_W : CARD_H;
   const usableWidth = slot ? slot.clientWidth : viewRight - viewLeft;
+  const panelCount = Number(hasLeftPanel) + Number(hasRightPanel);
+  const maxPanelWidth =
+    panelCount > 0 ? (usableWidth - naturalCardWidth * 0.1 - panelCount * 10 - 16) / panelCount : 0;
   const sidePanelWidth = showSidePanel
-    ? Math.min(ACTIONS_PANEL_W, Math.max(132, usableWidth * 0.4))
+    ? Math.max(48, Math.min(ACTIONS_PANEL_W, usableWidth * 0.4, maxPanelWidth))
     : 0;
-  const sidePanelSpace = showSidePanel ? sidePanelWidth + 10 : 0;
-  const horizontalScale = Math.max(0.1, (usableWidth - sidePanelSpace - 16) / naturalCardWidth);
+  const leftPanelSpace = hasLeftPanel ? sidePanelWidth + 10 : 0;
+  const rightPanelSpace = hasRightPanel ? sidePanelWidth + 10 : 0;
+  const horizontalScale = Math.max(
+    0.1,
+    (usableWidth - leftPanelSpace - rightPanelSpace - 16) / naturalCardWidth,
+  );
   const availableHeight = Math.max(1, slot ? slot.clientHeight - 8 : viewBottom - viewTop - 16);
   const verticalScale = availableHeight / naturalCardHeight;
   const previewScale = Math.min(1, horizontalScale, verticalScale);
   const cardWidth = naturalCardWidth * previewScale;
   const cardHeight = naturalCardHeight * previewScale;
-  const effectiveSidePanelHeight = showSidePanel ? sidePanelHeight : 0;
-  const sidePanelScale =
-    effectiveSidePanelHeight > 0 ? Math.min(1, availableHeight / effectiveSidePanelHeight) : 1;
-  const previewHeight = Math.max(cardHeight, effectiveSidePanelHeight * sidePanelScale);
+  const effectiveLeftPanelHeight = hasLeftPanel ? leftPanelHeight : 0;
+  const effectiveRightPanelHeight = hasRightPanel ? rightPanelHeight : 0;
+  const leftPanelScale =
+    effectiveLeftPanelHeight > 0 ? Math.min(1, availableHeight / effectiveLeftPanelHeight) : 1;
+  const rightPanelScale =
+    effectiveRightPanelHeight > 0 ? Math.min(1, availableHeight / effectiveRightPanelHeight) : 1;
+  const previewHeight = Math.max(
+    cardHeight,
+    effectiveLeftPanelHeight * leftPanelScale,
+    effectiveRightPanelHeight * rightPanelScale,
+  );
+  const totalWidth = leftPanelSpace + cardWidth + rightPanelSpace;
 
   let cardLeft: number;
   let top: number;
 
   if (placement === "pinned") {
-    cardLeft = viewRight - cardWidth - sidePanelSpace - 16;
+    cardLeft = viewRight - cardWidth - rightPanelSpace - 16;
     top = viewTop + 80;
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = anchorRect.top - cardHeight - 12;
     cardLeft = Math.max(
-      viewLeft + 8,
-      Math.min(cardLeft, viewRight - cardWidth - sidePanelSpace - 8),
+      viewLeft + leftPanelSpace + 8,
+      Math.min(cardLeft, viewRight - cardWidth - rightPanelSpace - 8),
     );
     top = Math.max(viewTop + 8, top);
   } else {
@@ -460,19 +564,19 @@ export function CardPreview({
     const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
     const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
 
-    const fitsRight = anchorRight + 16 + cardWidth + sidePanelSpace <= viewRight - 8;
-    const fitsLeft = anchorLeft - 16 - cardWidth - sidePanelSpace >= viewLeft + 8;
+    const fitsRight = anchorRight + 16 + totalWidth <= viewRight - 8;
+    const fitsLeft = anchorLeft - 16 - totalWidth >= viewLeft + 8;
 
     if (fitsRight) {
-      cardLeft = anchorRight + 16;
+      cardLeft = anchorRight + 16 + leftPanelSpace;
     } else if (fitsLeft) {
-      cardLeft = anchorLeft - cardWidth - sidePanelSpace - 16;
+      cardLeft = anchorLeft - cardWidth - rightPanelSpace - 16;
     } else {
       cardLeft = Math.max(
-        viewLeft + 8,
+        viewLeft + leftPanelSpace + 8,
         Math.min(
-          (anchorLeft + anchorRight) / 2 - (cardWidth + sidePanelSpace) / 2,
-          viewRight - cardWidth - sidePanelSpace - 8,
+          (anchorLeft + anchorRight) / 2 - totalWidth / 2 + leftPanelSpace,
+          viewRight - cardWidth - rightPanelSpace - 8,
         ),
       );
     }
@@ -492,6 +596,10 @@ export function CardPreview({
     }
   }
 
+  cardLeft = Math.max(
+    viewLeft + leftPanelSpace + 8,
+    Math.min(cardLeft, viewRight - cardWidth - rightPanelSpace - 8),
+  );
   top = Math.max(viewTop + 8, Math.min(top, viewBottom - previewHeight - 8));
 
   const hasDoubleFace = !!doubleFacedData;
@@ -541,7 +649,7 @@ export function CardPreview({
               width: cardWidth,
               height: cardHeight,
               marginLeft: slot
-                ? Math.max(0, (slot.clientWidth - cardWidth - sidePanelSpace) / 2)
+                ? Math.max(leftPanelSpace, (slot.clientWidth - totalWidth) / 2 + leftPanelSpace)
                 : undefined,
             } as CSSProperties
           }
@@ -697,14 +805,50 @@ export function CardPreview({
             )}
           </div>
 
-          {showSidePanel && (
+          {hasLeftPanel && (
             <div
-              ref={sidePanelRef}
+              ref={leftPanelRef}
+              className="absolute top-0 flex flex-col gap-1.5"
+              style={{
+                right: cardWidth + 10,
+                width: sidePanelWidth,
+                transform: `scale(${leftPanelScale})`,
+                transformOrigin: "top right",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: -10 - cardWidth,
+                  width: cardWidth + 10 + sidePanelWidth,
+                  height: cardHeight,
+                  backgroundColor: showHoverAreas
+                    ? withAlpha(themeColors.success, 0.28)
+                    : "transparent",
+                  borderBottomRightRadius: "0",
+                  borderBottomLeftRadius: "100%",
+                  zIndex: -1,
+                }}
+              />
+              <PreviewActions
+                actions={leftActions}
+                onSelect={onSelectAction!}
+                ringColor={ringColor}
+                showHelp
+                hasFlippableFaces={hasFlippableFaces}
+              />
+            </div>
+          )}
+
+          {hasRightPanel && (
+            <div
+              ref={rightPanelRef}
               className="absolute top-0 flex flex-col gap-1.5"
               style={{
                 left: cardWidth + 10,
                 width: sidePanelWidth,
-                transform: `scale(${sidePanelScale})`,
+                transform: `scale(${rightPanelScale})`,
                 transformOrigin: "top left",
               }}
             >
@@ -723,71 +867,15 @@ export function CardPreview({
                   zIndex: -1,
                 }}
               />
-
               {rail && <CardRailPreview state={rail} effects={railEffects} />}
-              {hasActions && (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    {actions?.map((action, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => onSelectAction(action)}
-                        className={cn(
-                          "group flex w-full flex-col rounded-lg border border-border bg-popover px-3 py-2 text-left text-xs font-medium text-popover-foreground shadow-lg backdrop-blur-md",
-                          "transition-all duration-150 ease-out",
-                          "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
-                        )}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = ringColor;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "";
-                          e.currentTarget.style.borderColor = "";
-                        }}
-                      >
-                        <span className="mb-0.5 flex w-full items-center justify-between">
-                          <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-                            {idx + 1}
-                          </span>
-                          {action.cost && (
-                            <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                              <DynamicTextRender text={action.cost} />
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[13px] font-semibold leading-snug">
-                          <DynamicTextRender text={action.label} />
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
-                    <span>
-                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                        1
-                      </kbd>
-                      -
-                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                        9
-                      </kbd>{" "}
-                      select
-                    </span>
-                    <span>
-                      <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                        Esc
-                      </kbd>{" "}
-                      close
-                    </span>
-                    {hasFlippableFaces && (
-                      <span>
-                        <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                          F
-                        </kbd>{" "}
-                        flip
-                      </span>
-                    )}
-                  </div>
-                </>
+              {rightActions.length > 0 && (
+                <PreviewActions
+                  actions={rightActions}
+                  onSelect={onSelectAction!}
+                  ringColor={ringColor}
+                  showHelp={!hasLeftPanel}
+                  hasFlippableFaces={hasFlippableFaces}
+                />
               )}
               {!hasActions && hasFlippableFaces && (
                 <div className="px-1 text-[10px] text-muted-foreground">

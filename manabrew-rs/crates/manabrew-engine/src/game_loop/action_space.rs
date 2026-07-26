@@ -165,6 +165,9 @@ impl GameLoop {
                             .unwrap_or_default(),
                         cost: ability.and_then(|a| a.cost_string()),
                         is_mana_ability: ability.map(|a| a.is_mana_ability).unwrap_or(false),
+                        is_class_level_up: ability.is_some_and(|a| {
+                            a.ability_api == Some(crate::ability::api_type::ApiType::ClassLevelUp)
+                        }),
                         produced_mana,
                         produced_mana_amount,
                     }
@@ -206,6 +209,7 @@ impl GameLoop {
                     description: ability.display_description(&card.card_name),
                     cost: ability.cost_string(),
                     is_mana_ability: true,
+                    is_class_level_up: false,
                     produced_mana,
                     produced_mana_amount,
                 });

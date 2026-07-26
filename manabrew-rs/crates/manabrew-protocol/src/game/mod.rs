@@ -177,6 +177,25 @@ pub struct CardIdentity {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "game/index.ts")]
+pub struct ClassLevelDto {
+    pub level: i32,
+    pub oracle: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cost: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "game/index.ts")]
+pub struct SagaChapterDto {
+    pub chapters: Vec<i32>,
+    pub oracle: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "game/index.ts")]
 pub struct CardDto {
     pub id: String,
     pub identity: CardIdentity,
@@ -200,6 +219,8 @@ pub struct CardDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub class_level: Option<i32>,
+    pub class_levels: Vec<ClassLevelDto>,
+    pub saga_chapters: Vec<SagaChapterDto>,
     pub text: String,
     pub controller_id: String,
     pub owner_id: String,

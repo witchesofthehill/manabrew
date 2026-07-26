@@ -155,7 +155,10 @@ export function getCardRailNotchAttributes(
 
 export function deriveSagaRailState(card: CardDto): CardRailState | null {
   if (!card.subtypes.includes("Saga")) return null;
-  const max = card.finalChapter ?? 0;
+  const max = Math.max(
+    card.finalChapter ?? 0,
+    ...(card.sagaChapters ?? []).flatMap((chapter) => chapter.chapters),
+  );
   if (max <= 0) return null;
   const current = clampPosition(card.counters.Lore ?? 0, max);
   const cacheKey = `${card.id}:saga`;
@@ -173,9 +176,9 @@ export function deriveSagaRailState(card: CardDto): CardRailState | null {
 
 export function deriveClassRailState(card: CardDto): CardRailState | null {
   if (!card.subtypes.includes("Class")) return null;
-  const max = 3;
+  const max = Math.max(0, ...(card.classLevels ?? []).map((level) => level.level));
   const current = card.classLevel ?? 0;
-  if (current <= 0) return null;
+  if (current <= 0 || max <= 0) return null;
   const clamped = clampPosition(current, max);
   const cacheKey = `${card.id}:class`;
   const signature = `class:${clamped}/${max}`;
@@ -194,74 +197,32 @@ export function deriveCardRailState(card: CardDto): CardRailState | null {
   return deriveSagaRailState(card) ?? deriveClassRailState(card);
 }
 
-function appendEffect(effects: Map<number, CardRailEffect>, position: number, text: string): void {
+function appendEffect(
+  effects: Map<number, CardRailEffect>,
+  position: number,
+  text: string,
+  cost?: string,
+): void {
   const previous = effects.get(position);
   effects.set(position, {
     position,
     text: previous?.text ? `${previous.text}\n${text}` : text,
-    cost: previous?.cost,
+    cost: cost ?? previous?.cost,
   });
 }
 
-function isChapterAnnotation(text: string): boolean {
-  if (/^Choose one(?: at random)?$/i.test(text)) return true;
-  const words = text.split(/\s+/);
-  return (
-    words.length <= 6 &&
-    !text.includes('"') &&
-    words.every(
-      (word, index) =>
-        index === 0 || /^(?:a|an|and|of|the|to)$/i.test(word) || /^[A-Z0-9]/.test(word),
-    )
-  );
-}
-
-export function parseCardRailEffects(
-  state: CardRailState,
-  oracleText: string | undefined,
-): CardRailEffect[] {
-  if (!oracleText) return [];
-  const lines = oracleText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+export function deriveCardRailEffects(card: CardDto, state: CardRailState): CardRailEffect[] {
   const effects = new Map<number, CardRailEffect>();
 
   if (state.kind === "saga") {
-    let currentPositions: number[] = [];
-    for (const line of lines) {
-      const chapter = line.match(/^([IVXLCDM]+(?:,\s*[IVXLCDM]+)*)\s+[\u2013\u2014-]\s+(.+)$/);
-      if (chapter) {
-        currentPositions = chapter[1]
-          .split(",")
-          .map((label) => state.notches.find((notch) => notch.label === label.trim())?.position)
-          .filter((position): position is number => position != null);
-        const annotation = chapter[2].match(/^(.+?)\s+[\u2013\u2014-]\s+(.+)$/);
-        const label =
-          annotation?.[1] && isChapterAnnotation(annotation[1]) ? annotation[1] : undefined;
-        for (const position of currentPositions) {
-          effects.set(position, {
-            position,
-            label,
-            text: label ? (annotation?.[2] ?? chapter[2]) : chapter[2],
-          });
-        }
-      } else if (line.startsWith("•")) {
-        for (const position of currentPositions) {
-          appendEffect(effects, position, line);
-        }
+    for (const chapter of card.sagaChapters ?? []) {
+      for (const position of chapter.chapters) {
+        appendEffect(effects, position, chapter.oracle);
       }
     }
   } else {
-    let position = 1;
-    for (const line of lines) {
-      const level = line.match(/^(.*?):\s*Level\s+(\d+)$/i);
-      if (level) {
-        position = clampPosition(Number(level[2]), state.max);
-        effects.set(position, { position, text: "", cost: level[1].trim() });
-      } else if (!line.startsWith("(")) {
-        appendEffect(effects, position, line);
-      }
+    for (const level of card.classLevels ?? []) {
+      appendEffect(effects, level.level, level.oracle, level.cost);
     }
   }
 

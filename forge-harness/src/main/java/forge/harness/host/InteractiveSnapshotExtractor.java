@@ -3,6 +3,8 @@ package forge.harness.host;
 import forge.harness.common.SnapshotExtractor;
 import forge.harness.protocol.CardDto;
 import forge.harness.protocol.CardIdentity;
+import forge.harness.protocol.ClassLevelDto;
+import forge.harness.protocol.SagaChapterDto;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -270,6 +272,8 @@ public final class InteractiveSnapshotExtractor {
     private static void redact(final CardDto dto) {
         dto.finalChapter = null;
         dto.classLevel = null;
+        dto.classLevels = Collections.emptyList();
+        dto.sagaChapters = Collections.emptyList();
         dto.identity = new CardIdentity("", "", "", false);
         dto.text = "";
         dto.manaCost = "";
@@ -372,7 +376,9 @@ public final class InteractiveSnapshotExtractor {
                 dto.classLevel = card.getClassLevel();
             }
         }
-        dto.text = card.getOracleText();
+        dto.classLevels = classLevels(card);
+        dto.sagaChapters = sagaChapters(card);
+        dto.text = normalizedOracle(card);
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
         dto.tapped = card.isTapped();
@@ -441,6 +447,116 @@ public final class InteractiveSnapshotExtractor {
             dto.effectiveManaCost = effectiveManaCost(card);
         }
         return dto;
+    }
+
+    private static String normalizedOracle(final Card card) {
+        return card.getOracleText().replace("\\n", "\n");
+    }
+
+    private static List<ClassLevelDto> classLevels(final Card card) {
+        if (!card.isClassCard() || card.isFaceDown()) {
+            return Collections.emptyList();
+        }
+        final List<ClassLevelDto> levels = new ArrayList<>();
+        levels.add(new ClassLevelDto(1, "", null));
+        int current = 0;
+        for (final String rawLine : normalizedOracle(card).split("\\R")) {
+            final String line = rawLine.trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+            if (line.startsWith("(") && levels.size() == 1 && levels.get(0).oracle.isEmpty()) {
+                continue;
+            }
+            final int marker = line.lastIndexOf(": Level ");
+            if (marker >= 0) {
+                try {
+                    final int level = Integer.parseInt(line.substring(marker + 8));
+                    levels.add(new ClassLevelDto(level, "", line.substring(0, marker).trim()));
+                    current = levels.size() - 1;
+                    continue;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            final ClassLevelDto level = levels.get(current);
+            level.oracle = level.oracle.isEmpty() ? line : level.oracle + "\n" + line;
+        }
+        levels.sort(java.util.Comparator.comparingInt(level -> level.level));
+        return levels;
+    }
+
+    private static List<SagaChapterDto> sagaChapters(final Card card) {
+        if (!card.getType().hasSubtype("Saga") || card.isFaceDown()) {
+            return Collections.emptyList();
+        }
+        final List<SagaChapterDto> chapters = new ArrayList<>();
+        SagaChapterDto current = null;
+        for (final String rawLine : normalizedOracle(card).split("\\R")) {
+            final String line = rawLine.trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+            final String[] heading = splitChapterHeading(line);
+            if (heading != null) {
+                final List<Integer> positions = new ArrayList<>();
+                boolean valid = true;
+                for (final String label : heading[0].split(",")) {
+                    final Integer position = romanValue(label.trim());
+                    if (position == null) {
+                        valid = false;
+                        break;
+                    }
+                    positions.add(position);
+                }
+                if (valid) {
+                    current = new SagaChapterDto(positions, heading[1]);
+                    chapters.add(current);
+                    continue;
+                }
+            }
+            if (current != null && line.startsWith("•")) {
+                current.oracle = current.oracle + "\n" + line;
+            }
+        }
+        return chapters;
+    }
+
+    private static String[] splitChapterHeading(final String line) {
+        for (final String separator : new String[] {" — ", " – ", " - "}) {
+            final int index = line.indexOf(separator);
+            if (index >= 0) {
+                return new String[] {
+                    line.substring(0, index),
+                    line.substring(index + separator.length())
+                };
+            }
+        }
+        return null;
+    }
+
+    private static Integer romanValue(final String value) {
+        int total = 0;
+        int previous = 0;
+        for (int i = value.length() - 1; i >= 0; --i) {
+            final int current;
+            switch (value.charAt(i)) {
+                case 'I': current = 1; break;
+                case 'V': current = 5; break;
+                case 'X': current = 10; break;
+                case 'L': current = 50; break;
+                case 'C': current = 100; break;
+                case 'D': current = 500; break;
+                case 'M': current = 1000; break;
+                default: return null;
+            }
+            if (current < previous) {
+                total -= current;
+            } else {
+                total += current;
+                previous = current;
+            }
+        }
+        return total > 0 ? total : null;
     }
 
     private static String keywordCost(final Card card, final String name) {

@@ -89,6 +89,7 @@ pub struct ActivatableAction {
     pub description: String,
     pub cost: Option<String>,
     pub is_mana_ability: bool,
+    pub is_class_level_up: bool,
     pub produced_mana: Option<String>,
     pub produced_mana_amount: Option<i32>,
 }

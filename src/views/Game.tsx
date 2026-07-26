@@ -117,6 +117,10 @@ function buildDebugKeywordCard(
       subtypes: ["Saga"],
       counters: { ...base.counters, Lore: current },
       finalChapter: final,
+      sagaChapters: Array.from({ length: final }, (_, index) => ({
+        chapters: [index + 1],
+        oracle: `Chapter ${index + 1} ability.`,
+      })),
     };
   }
 
@@ -126,6 +130,11 @@ function buildDebugKeywordCard(
       types: ["Enchantment"],
       subtypes: ["Class"],
       classLevel: current,
+      classLevels: Array.from({ length: final }, (_, index) => ({
+        level: index + 1,
+        oracle: `Level ${index + 1} ability.`,
+        cost: index === 0 ? undefined : `{${index}}`,
+      })),
     };
   }
 
@@ -289,6 +298,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       abilityIndex: number;
       description: string;
       isManaAbility: boolean;
+      isClassLevelUp?: boolean;
       cost?: string;
       displayManaLetters?: string[];
       colorChoice?: string;
@@ -300,6 +310,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     abilityIndex: a.abilityIndex,
     label: a.description,
     isManaAbility: a.isManaAbility,
+    isClassLevelUp: a.isClassLevelUp,
     cost: a.cost,
     displayManaLetters: a.displayManaLetters,
     colorChoice: a.colorChoice,
@@ -345,6 +356,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           abilityIndex: a.abilityIndex,
           description: a.description,
           isManaAbility: true,
+          isClassLevelUp: false,
           cost: a.cost,
           producedMana: a.producedMana,
           actionId: a.id,
@@ -527,7 +539,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     const abilities = getBattlefieldAbilityOptions(card);
     if (abilities.length === 0) return false;
 
-    if (abilities.length === 1) {
+    if (abilities.length === 1 && !abilities[0].isClassLevelUp) {
       return respondHandAction(abilities[0]);
     }
 

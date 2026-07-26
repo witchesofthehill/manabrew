@@ -95,6 +95,8 @@ pub fn parse_plotted_turn(kw: &str) -> Option<u32> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardOtherPart {
     pub name: String,
+    #[serde(default)]
+    pub oracle_text: String,
     /// True when the card's split type is `Modal` (MDFC). Only a modal back face
     /// may be played from hand; transform/meld backs may not. Mirrors
     /// `Card.isModal()` (`getRules().getSplitType() == CardSplitType.Modal`).
@@ -173,6 +175,8 @@ pub struct CloneState {
     #[serde(default)]
     pub expires_at_cleanup: bool,
     pub original_card_name: String,
+    #[serde(default)]
+    pub original_oracle_text: String,
     pub original_type_line: CardTypeLine,
     pub original_mana_cost: ManaCost,
     pub original_color: ColorSet,
@@ -209,6 +213,8 @@ pub struct Card {
     /// For non-split cards, this equals `card_name`. Used for hand/graveyard display and
     /// database lookups.
     pub full_name: String,
+    #[serde(default)]
+    pub oracle_text: String,
 
     // Ownership and control
     pub owner: PlayerId,
@@ -746,6 +752,7 @@ impl Card {
             id,
             card_name,
             full_name,
+            oracle_text: String::new(),
             owner,
             controller: owner,
             zone: ZoneType::None,
@@ -2287,6 +2294,7 @@ impl Card {
         CloneState {
             expires_at_cleanup: false,
             original_card_name: self.card_name.clone(),
+            original_oracle_text: self.oracle_text.clone(),
             original_type_line: self.type_line.clone(),
             original_mana_cost: self.mana_cost.clone(),
             original_color: self.color,
@@ -2306,6 +2314,7 @@ impl Card {
 
     pub fn restore_clone_snapshot(&mut self, state: CloneState) {
         self.card_name = state.original_card_name;
+        self.oracle_text = state.original_oracle_text;
         self.type_line = state.original_type_line;
         self.mana_cost = state.original_mana_cost;
         self.color = state.original_color;
@@ -3621,6 +3630,7 @@ impl Card {
     pub fn transform(&mut self) {
         if let Some(other) = self.other_part.as_mut() {
             std::mem::swap(&mut self.card_name, &mut other.name);
+            std::mem::swap(&mut self.oracle_text, &mut other.oracle_text);
             std::mem::swap(&mut self.type_line, &mut other.type_line);
             std::mem::swap(&mut self.mana_cost, &mut other.mana_cost);
             std::mem::swap(&mut self.color, &mut other.color);

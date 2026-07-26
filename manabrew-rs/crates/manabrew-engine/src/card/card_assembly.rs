@@ -178,6 +178,7 @@ pub(crate) fn assemble_card(
     // Set the full combined name for split/room cards (e.g. "A // B").
     // card_name stays as the front face; full_name is used for hand/graveyard/lookup.
     card.full_name = full_name;
+    card.oracle_text = face.oracle_text.replace("\\n", "\n");
     // Preserve rules-level color identity (CR 903.4: includes mana symbols in
     // oracle text, e.g. Ashling, the Limitless mentions {W}{U}{B}{R}{G} so its
     // identity is five-colour even though its mana cost is just {2}{R}).
@@ -333,6 +334,7 @@ pub(crate) fn assemble_card(
 
             card.other_part = Some(CardOtherPart {
                 name: back_face.name.clone(),
+                oracle_text: back_face.oracle_text.replace("\\n", "\n"),
                 is_modal: rules.split_type == forge_foundation::CardSplitType::Modal,
                 type_line: back_face.type_line.clone(),
                 mana_cost: back_face.mana_cost.clone(),

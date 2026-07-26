@@ -13,11 +13,13 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormatBadge } from "@/components/game/FormatBadge";
-import { fetchHubDeck, unpublishDeck } from "@/api/hub";
+import { unpublishDeck } from "@/api/hub";
+import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { groupCards } from "@/views/myDecks.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
+import { useHubStore } from "@/stores/useHubStore";
 import type { DeckCard } from "@/protocol/deck";
 import type { HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
@@ -54,20 +56,23 @@ export function HubDeckPreviewDialog({
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const { decks: myDecks, refresh } = useMyHubDecks();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
-  const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
+  const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
+  const loadDeck = useHubStore((s) => s.loadDeck);
   const published = usePublishedDecksStore((s) => s.published);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
   const [detail, setDetail] = useState<HubDeckDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     setDetail(null);
     setError(null);
     if (!deckId) return;
     let cancelled = false;
-    fetchHubDeck(deckId)
+    loadDeck(deckId)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
@@ -77,9 +82,10 @@ export function HubDeckPreviewDialog({
     return () => {
       cancelled = true;
     };
-  }, [deckId]);
+  }, [deckId, loadAttempt, loadDeck]);
 
-  const mine = published.find((p) => p.hubId === deckId);
+  const legacyPublication = published.find((record) => record.hubId === deckId);
+  const mine = myDecks.some((deck) => deck.id === deckId) || legacyPublication !== undefined;
 
   function handleSave() {
     if (!detail) return;
@@ -90,7 +96,7 @@ export function HubDeckPreviewDialog({
 
   function handleOpen() {
     if (!detail) return;
-    loadPresetDeck(detail.deck as EditorDeck);
+    loadHubDeck(detail.deck as EditorDeck);
     onClose();
     navigate("/deck-editor");
   }
@@ -109,12 +115,13 @@ export function HubDeckPreviewDialog({
   }
 
   async function handleUnpublish() {
-    if (!mine) return;
+    if (!deckId || !mine) return;
     setBusy(true);
     try {
-      await unpublishDeck(mine.hubId, mine.managementToken);
-      removePublished(mine.hubId);
-      toast.success(`"${mine.name}" removed from the Deck Hub`);
+      await unpublishDeck(deckId, legacyPublication?.managementToken);
+      removePublished(deckId);
+      await refresh();
+      toast.success(`"${detail?.name ?? "Deck"}" removed from the Deck Hub`);
       onClose();
       onUnpublished?.();
     } catch (err) {
@@ -130,7 +137,9 @@ export function HubDeckPreviewDialog({
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="truncate">{detail?.name ?? "Loading…"}</span>
+              <span className="truncate">
+                {detail?.name ?? (error ? "Deck unavailable" : "Loading…")}
+              </span>
               {detail && <FormatBadge formatId={detail.format ?? "commander"} />}
             </DialogTitle>
             <DialogDescription>
@@ -149,6 +158,15 @@ export function HubDeckPreviewDialog({
             </ScrollArea>
           )}
           <DialogFooter className="gap-2">
+            {error && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLoadAttempt((value) => value + 1)}
+              >
+                Retry
+              </Button>
+            )}
             {mine && (
               <Button
                 variant="destructive"
@@ -164,10 +182,10 @@ export function HubDeckPreviewDialog({
               Copy link
             </Button>
             <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
-              Open read-only
+              View snapshot
             </Button>
             <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-              Save to My Decks
+              Make editable copy
             </Button>
             <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
               <Swords className="mr-1 h-3.5 w-3.5" />

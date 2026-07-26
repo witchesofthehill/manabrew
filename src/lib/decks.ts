@@ -98,10 +98,6 @@ export function deriveTokens(deck: Deck): DeckCard[] {
   return out;
 }
 
-export function getDeckCardNames(deck: Deck): string[] {
-  return [...deck.cards, ...(deck.commanders ?? [])].map((c) => c.identity.name);
-}
-
 export function getDeckFingerprint(deck: Deck): string {
   const tag = (section: string, list: DeckCard[]) =>
     list.map((c) => `${section}:${c.identity.name}:${c.identity.setCode}`);

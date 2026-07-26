@@ -6,40 +6,33 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import {
-  GAME_FORMATS,
-  validateDeckSections,
-  partnerPairLabel,
-  type GameFormat,
-} from "@/lib/formats";
-import { PartnerBadge } from "@/components/deck/PartnerBadge";
-import { FormatBadge } from "@/components/game/FormatBadge";
+import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { cn } from "@/lib/utils";
-import { Search, Shuffle, Swords } from "lucide-react";
+import { Search } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
+import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
+import { useHubStore } from "@/stores/useHubStore";
+import type { HubDeckDetail, HubDeckSummary } from "@/api/hubTypes";
 
 interface CreateGameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode?: "play" | "lobby";
   forcedFormatId?: string;
   preSelectedDeckId?: string;
-  onStart: (deck: Deck, formatId: string, commanderName?: string, playerCount?: number) => void;
+  onStart: (deck: Deck, formatId: string, commanderName?: string) => void;
 }
 
 export function CreateGameDialog({
   open,
   onOpenChange,
-  mode = "play",
   forcedFormatId,
   preSelectedDeckId,
   onStart,
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
-  const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
 
@@ -50,8 +43,11 @@ export function CreateGameDialog({
     currentDeck.commanders?.[0]?.identity.name ?? "",
   );
   const presetDecks = usePresetDecks();
-  const [playerCount, setPlayerCount] = useState(2);
   const [deckSearch, setDeckSearch] = useState("");
+  const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, HubDeckDetail>>({});
+  const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
+  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id);
+  const loadHubDeck = useHubStore((state) => state.loadDeck);
 
   useEffect(() => {
     if (!forcedFormatId) return;
@@ -125,8 +121,21 @@ export function CreateGameDialog({
     formatId: deck.format ?? "standard",
     commanderName: deck.commanders?.[0]?.identity.name,
   }));
+  const hubDeckEntries = Object.values(loadedHubDecks).map((detail) => ({
+    id: `hub:${detail.id}`,
+    name: detail.name,
+    desc: detail.description,
+    color: detail.colors,
+    badge: "Deck Hub",
+    sourceDeck: detail.deck,
+    isPreset: false as const,
+    cover: resolveCoverCard(detail.deck),
+    cards: allDeckCards(detail.deck),
+    formatId: detail.deck.format ?? detail.format ?? "standard",
+    commanderName: detail.deck.commanders?.[0]?.identity.name,
+  }));
 
-  const allDecks = [...userDecks, ...presetDeckEntries];
+  const allDecks = [...userDecks, ...hubDeckEntries, ...presetDeckEntries];
 
   const searchLower = deckSearch.toLowerCase();
   const formatPresetEntries = presetDeckEntries.filter((d) => d.formatId === selectedFormat.id);
@@ -150,35 +159,11 @@ export function CreateGameDialog({
   const selectedDeckEntry = allDecks.find(
     (d) => d.id === selectedDeck && d.formatId === selectedFormat.id,
   );
-  const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
-  const selectedPartnerLabel =
-    selectedDeckCommanders.length === 2
-      ? partnerPairLabel(selectedDeckCommanders[0], selectedDeckCommanders[1])
-      : null;
-
-  const legendaryCreatures = selectedDeckEntry
-    ? Array.from(
-        new Map([
-          ...(selectedDeckEntry.commanderName
-            ? [
-                [selectedDeckEntry.commanderName, selectedDeckEntry.commanderName] as [
-                  string,
-                  string,
-                ],
-              ]
-            : []),
-          ...selectedDeckEntry.cards
-            .filter((c) => c.supertypes?.includes("Legendary") && c.types?.includes("Creature"))
-            .map((c) => [c.identity.name, c.identity.name] as [string, string]),
-        ]).values(),
-      )
-    : [];
-
   const needsCommander = selectedFormat.deckRules.requiresCommander;
   const commanderValid = !needsCommander || selectedCommander !== "";
-  const selectedDeckIsVisible = [...filteredUserDecks, ...filteredPresetEntries].some(
-    (entry) => entry.id === selectedDeck,
-  );
+  const selectedDeckIsVisible =
+    [...filteredUserDecks, ...filteredPresetEntries].some((entry) => entry.id === selectedDeck) ||
+    hubDecks.decks.some((entry) => `hub:${entry.id}` === selectedDeck);
   const selectedDeckValidation = selectedDeckEntry
     ? selectedDeckEntry.isPreset
       ? { legal: true, errors: [] as string[] }
@@ -191,6 +176,34 @@ export function CreateGameDialog({
         )
     : { legal: false, errors: [] as string[] };
   const isReady = selectedDeckIsVisible && selectedDeckValidation.legal && commanderValid;
+
+  async function selectHubDeck(summary: HubDeckSummary, activate = false) {
+    if (loadingHubDeckId) return;
+    setLoadingHubDeckId(summary.id);
+    try {
+      const detail = await loadHubDeck(summary.id);
+      setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
+      const entry = {
+        id: `hub:${detail.id}`,
+        name: detail.name,
+        desc: detail.description,
+        color: detail.colors,
+        badge: "Deck Hub",
+        sourceDeck: detail.deck,
+        isPreset: false as const,
+        cover: resolveCoverCard(detail.deck),
+        cards: allDeckCards(detail.deck),
+        formatId: detail.deck.format ?? detail.format ?? "standard",
+        commanderName: detail.deck.commanders?.[0]?.identity.name,
+      };
+      setSelectedDeck(entry.id);
+      if (activate) handleCreate(entry, entry.commanderName);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
+    } finally {
+      setLoadingHubDeckId(null);
+    }
+  }
 
   function handleCreate(
     entry: (typeof allDecks)[number] | undefined = selectedDeckIsVisible
@@ -231,7 +244,6 @@ export function CreateGameDialog({
       entry.sourceDeck,
       selectedFormat.id,
       selectedFormat.deckRules.requiresCommander ? commander || entry.commanderName : undefined,
-      playerCount,
     );
   }
 
@@ -248,148 +260,13 @@ export function CreateGameDialog({
         }}
       >
         <div className="px-6 py-4 border-b">
-          <DialogTitle className="text-lg font-semibold">
-            {isLobbyMode ? "Choose Deck" : "New Game"}
-          </DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Choose Deck</DialogTitle>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {isLobbyMode
-              ? "Select the deck you will play in this lobby."
-              : "Pick a deck and battle a random AI opponent"}
+            Select the deck you will play in this lobby.
           </p>
         </div>
 
         <div className="flex min-h-0 overflow-hidden">
-          {!isLobbyMode && (
-            <div className="w-48 border-r flex-shrink-0 p-4 space-y-5 overflow-y-auto bg-muted/20">
-              <div>
-                <SectionLabel>Format</SectionLabel>
-                <div className="mt-2 space-y-2">
-                  {GAME_FORMATS.map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setSelectedFormat(f)}
-                      className={cn(
-                        "w-full rounded-lg border p-2.5 text-left transition-colors",
-                        selectedFormat.id === f.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-muted/60",
-                      )}
-                    >
-                      <div className="mb-1">
-                        <FormatBadge formatId={f.id} />
-                      </div>
-                      <p className="font-medium text-xs">{f.name}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-                        {f.description}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <SectionLabel>Rules</SectionLabel>
-                <div className="mt-2 space-y-1.5">
-                  <RulePill
-                    label="Deck"
-                    value={
-                      selectedFormat.deckRules.minDeckSize +
-                      (selectedFormat.deckRules.maxDeckSize
-                        ? `–${selectedFormat.deckRules.maxDeckSize}`
-                        : "+") +
-                      " cards"
-                    }
-                  />
-                  <RulePill
-                    label="Copies"
-                    value={
-                      selectedFormat.deckRules.maxCopies === 1
-                        ? "Singleton"
-                        : `Max ${selectedFormat.deckRules.maxCopies}`
-                    }
-                  />
-                  <RulePill label="Life" value={`${selectedFormat.deckRules.startingLife}`} />
-                </div>
-              </div>
-
-              {needsCommander && (
-                <div>
-                  <SectionLabel>Commander</SectionLabel>
-                  <div className="mt-2 space-y-1.5">
-                    {selectedPartnerLabel ? (
-                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-xs">
-                        <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
-                        <span className="text-muted-foreground">+</span>
-                        <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
-                        <PartnerBadge label={selectedPartnerLabel} />
-                      </div>
-                    ) : (
-                      <>
-                        {legendaryCreatures.length === 0 && (
-                          <p className="text-[10px] text-muted-foreground italic">
-                            No legendaries in deck — type a name below.
-                          </p>
-                        )}
-                        {legendaryCreatures.length > 0 ? (
-                          <select
-                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                            value={selectedCommander}
-                            onChange={(e) => setSelectedCommander(e.target.value)}
-                          >
-                            <option value="">— Choose —</option>
-                            {legendaryCreatures.map((name) => (
-                              <option key={name} value={name}>
-                                {name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
-                            placeholder="Card name"
-                            value={selectedCommander}
-                            onChange={(e) => setSelectedCommander(e.target.value)}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck={false}
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <SectionLabel>
-                  Opponents
-                  <span className="ml-1 text-[9px] font-mono text-warning bg-warning/10 px-1 rounded">
-                    DEV
-                  </span>
-                </SectionLabel>
-                <div className="mt-2 flex gap-1">
-                  {[2, 3, 4].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setPlayerCount(n)}
-                      className={cn(
-                        "flex-1 py-1 rounded border text-xs transition-colors",
-                        playerCount === n
-                          ? "border-warning bg-warning/10 text-warning font-semibold"
-                          : "border-border hover:bg-muted/60",
-                      )}
-                    >
-                      {n - 1}v1
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="px-4 pt-4 pb-2 bg-background">
               <div className="relative">
@@ -444,7 +321,6 @@ export function CreateGameDialog({
                       return (
                         <DeckSelectionCard
                           key={d.id}
-                          id={d.id}
                           name={d.name}
                           badge={d.badge}
                           labels={d.labels}
@@ -464,6 +340,57 @@ export function CreateGameDialog({
                   </div>
                 )}
               </div>
+
+              <div className="mx-4 border-t" />
+
+              {hubDecks.enabled && (
+                <div className="p-4">
+                  <SectionLabel>Deck Hub</SectionLabel>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                    Community decks are downloaded when selected.
+                  </p>
+                  {hubDecks.error ? (
+                    <p className="text-xs text-destructive">{hubDecks.error}</p>
+                  ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">Loading Deck Hub decks…</p>
+                  ) : hubDecks.decks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">
+                      No Deck Hub decks match your search.
+                    </p>
+                  ) : (
+                    <div
+                      className={cn(
+                        "grid gap-3",
+                        denseDecks
+                          ? "grid-cols-2 md:grid-cols-3"
+                          : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                      )}
+                    >
+                      {hubDecks.decks.map((deck) => (
+                        <DeckSelectionCard
+                          key={deck.id}
+                          name={loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name}
+                          color={deck.colors}
+                          author={deck.author}
+                          cardCount={deck.cardCount + deck.commanders.length}
+                          badge="Deck Hub"
+                          cards={[]}
+                          cover={undefined}
+                          coverImageUrl={deck.coverImageUrl}
+                          isPreset={false}
+                          isHub
+                          isSelected={selectedDeck === `hub:${deck.id}`}
+                          isLegal={true}
+                          dense={denseDecks}
+                          isTouch={isTouch}
+                          onSelect={() => void selectHubDeck(deck)}
+                          onActivate={() => void selectHubDeck(deck, true)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mx-4 border-t" />
 
@@ -488,7 +415,6 @@ export function CreateGameDialog({
                     {filteredPresetEntries.map((deck) => (
                       <DeckSelectionCard
                         key={deck.id}
-                        id={deck.id}
                         name={deck.name}
                         desc={deck.desc}
                         color={deck.color}
@@ -512,17 +438,7 @@ export function CreateGameDialog({
 
         <div className="px-6 py-3 border-t flex items-center justify-between gap-4 bg-muted/10">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            {!isLobbyMode && selectedDeckEntry ? (
-              <>
-                <span className="text-muted-foreground shrink-0">Playing</span>
-                <span className="font-medium truncate">{selectedDeckEntry.name}</span>
-                <span className="text-muted-foreground shrink-0">vs</span>
-                <span className="inline-flex items-center gap-1 text-muted-foreground shrink-0">
-                  <Shuffle className="h-3 w-3" />
-                  Random AI
-                </span>
-              </>
-            ) : selectedDeckEntry ? (
+            {selectedDeckEntry ? (
               <span className="text-sm text-muted-foreground truncate">
                 Selected:{" "}
                 <span className="font-medium text-foreground">{selectedDeckEntry.name}</span>
@@ -541,8 +457,7 @@ export function CreateGameDialog({
               disabled={!isReady}
               className="gap-1.5"
             >
-              {!isLobbyMode && <Swords className="h-3.5 w-3.5" />}
-              {isLobbyMode ? "Select Deck" : "Play"}
+              Select Deck
             </Button>
           </div>
         </div>
@@ -556,14 +471,5 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
       {children}
     </Label>
-  );
-}
-
-function RulePill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
   );
 }

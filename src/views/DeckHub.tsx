@@ -46,6 +46,7 @@ export default function DeckHub() {
   const urlDeckId = searchParams.get("deck");
 
   const list = useHubStore((s) => s.list);
+  const listLoading = useHubStore((s) => s.listLoading);
   const listError = useHubStore((s) => s.listError);
   const fetchDecks = useHubStore((s) => s.fetchDecks);
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
@@ -94,7 +95,13 @@ export default function DeckHub() {
               className="h-6 max-w-56 text-xs"
             />
             <div className="flex items-center gap-1 flex-wrap">
-              <SegmentedButton active={format === ""} onClick={() => setFormat("")}>
+              <SegmentedButton
+                active={format === ""}
+                onClick={() => {
+                  setFormat("");
+                  setPage(1);
+                }}
+              >
                 All
               </SegmentedButton>
               {HUB_FORMATS.map((f) => (
@@ -111,10 +118,22 @@ export default function DeckHub() {
               ))}
             </div>
             <div className="ml-auto flex items-center gap-1">
-              <SegmentedButton active={sort === "newest"} onClick={() => setSort("newest")}>
+              <SegmentedButton
+                active={sort === "newest"}
+                onClick={() => {
+                  setSort("newest");
+                  setPage(1);
+                }}
+              >
                 Newest
               </SegmentedButton>
-              <SegmentedButton active={sort === "name"} onClick={() => setSort("name")}>
+              <SegmentedButton
+                active={sort === "name"}
+                onClick={() => {
+                  setSort("name");
+                  setPage(1);
+                }}
+              >
                 Name
               </SegmentedButton>
             </div>
@@ -123,7 +142,16 @@ export default function DeckHub() {
           <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="p-4 sm:px-6 lg:px-8">
               {listError ? (
-                <p className="text-sm text-destructive">{listError}</p>
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <span>{listError}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRefreshKey((key) => key + 1)}
+                  >
+                    Retry
+                  </Button>
+                </div>
               ) : list === null ? (
                 <p className="text-sm text-muted-foreground">Loading decks…</p>
               ) : list.decks.length === 0 ? (
@@ -144,6 +172,9 @@ export default function DeckHub() {
                     />
                   ))}
                 </div>
+              )}
+              {listLoading && list !== null && (
+                <p className="mt-3 text-xs text-muted-foreground">Updating decks…</p>
               )}
             </div>
           </div>

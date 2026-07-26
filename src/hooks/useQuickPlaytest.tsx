@@ -1,12 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { fetchHubDeck } from "@/api/hub";
 import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
 import { getDefaultAiEngine } from "@/game/hostedAiPlay";
 import { pickRandomDistinct } from "@/lib/utils";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
+import { useHubStore } from "@/stores/useHubStore";
 import type { Deck } from "@/protocol/deck";
 
 export function useQuickPlaytest(): {
@@ -63,7 +63,9 @@ export function useQuickPlaytest(): {
 
 export function useHubDeckPlaytest(quickPlaytest: (deck: Deck) => void): (deckId: string) => void {
   return (deckId) => {
-    void fetchHubDeck(deckId)
+    void useHubStore
+      .getState()
+      .loadDeck(deckId)
       .then((detail) => quickPlaytest(detail.deck))
       .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load deck"));
   };

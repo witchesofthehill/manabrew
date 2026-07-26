@@ -10,8 +10,6 @@ interface AuthState {
   account: AuthAccount | null;
   identities: AuthIdentity[];
   status: AuthStatus;
-  lastServer: string;
-  lastUsername: string;
   signIn: (token: string, account: AuthAccount) => void;
   setAccount: (account: AuthAccount) => void;
   hydrate: () => Promise<void>;
@@ -27,8 +25,6 @@ export const useAuthStore = create<AuthState>()(
         account: null,
         identities: [],
         status: "unknown",
-        lastServer: "",
-        lastUsername: "",
         signIn: (token, account) => {
           set({ token, account, status: "signedIn" });
           void get().refresh();
@@ -69,8 +65,6 @@ export const useAuthStore = create<AuthState>()(
         // read it could call the API directly anyway. Sign-out revokes the
         // session server-side, and the hub stores only its sha256.
         partialize: (state) => ({
-          lastServer: state.lastServer,
-          lastUsername: state.lastUsername,
           token: state.token,
         }),
       },

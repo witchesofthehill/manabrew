@@ -68,6 +68,7 @@ function TopDeckRow({
 export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) => void }) {
   const [window, setWindow] = useState<TopDecksWindow>("30d");
   const topDecks = useHubStore((s) => s.topDecks);
+  const topLoading = useHubStore((s) => s.topLoading);
   const topError = useHubStore((s) => s.topError);
   const fetchTop = useHubStore((s) => s.fetchTop);
 
@@ -91,7 +92,12 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
         {topError ? (
-          <p className="text-sm text-destructive">{topError}</p>
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <span>{topError}</span>
+            <Button variant="outline" size="sm" onClick={() => void fetchTop(window)}>
+              Retry
+            </Button>
+          </div>
         ) : topDecks === null ? (
           <p className="text-sm text-muted-foreground">Loading top decks…</p>
         ) : topDecks.length === 0 ? (
@@ -107,6 +113,9 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
               />
             ))}
           </ol>
+        )}
+        {topLoading && topDecks !== null && (
+          <p className="mt-3 text-xs text-muted-foreground">Updating top decks…</p>
         )}
       </div>
       <p className="text-xs text-muted-foreground px-4 py-2 border-t shrink-0">

@@ -11,14 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   X,
   Save,
   Trash2,
@@ -45,7 +37,6 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
@@ -75,6 +66,7 @@ import { DeckValidationPanel } from "./DeckValidationPanel";
 import { DeckBracketPanel } from "./DeckBracketPanel";
 import { CombosPanel } from "./CombosPanel";
 import { useDeckAnalysis } from "@/hooks/useDeckAnalysis";
+import { isFeatureEnabled } from "@/featureFlags";
 import { useDeckSelection } from "./useDeckSelection";
 import {
   type CardGroup,
@@ -270,13 +262,15 @@ export function DeckBuilder({
   previewCollapsed?: boolean;
   onTogglePreview?: () => void;
 } = {}) {
+  const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
   const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
-  const importPresetToMyDecks = useDeckStore((s) => s.importPresetToMyDecks);
+  const readOnlySource = useDeckStore((s) => s.readOnlySource);
+  const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
   const {
     currentDeck,
@@ -323,9 +317,6 @@ export function DeckBuilder({
     return snap;
   });
   const [confirmClear, setConfirmClear] = useState(false);
-  const [pendingDeleteDeck, setPendingDeleteDeck] = useState<{ id: string; name: string } | null>(
-    null,
-  );
   const filterInputRef = useRef<HTMLInputElement>(null);
   const enrichedNamesRef = useRef(new Set<string>());
 
@@ -804,7 +795,6 @@ export function DeckBuilder({
 
   function handleSave() {
     saveCurrentDeck();
-    showAccountSaveNudge();
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
@@ -851,10 +841,10 @@ export function DeckBuilder({
     }
   }
 
-  function handleImportPresetToMyDecks() {
+  function handleImportReadOnlyDeck() {
     const importedName = currentDeck.name;
-    importPresetToMyDecks();
-    toast.success(`Imported "${importedName}" — now editable`);
+    importReadOnlyDeck();
+    toast.success(`Copied "${importedName}" to My Decks`);
   }
 
   return (
@@ -863,14 +853,14 @@ export function DeckBuilder({
         <div className="px-3 py-2 border-b border-warning/40 shrink-0 flex items-center gap-2 bg-warning/10">
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
           <span className="text-xs font-semibold uppercase tracking-wide text-warning shrink-0">
-            Preset deck — read only
+            {readOnlySource === "hub" ? "Deck Hub snapshot" : "Preset deck"} — read only
           </span>
           <span className="text-xs text-warning/70 truncate flex-1">
             Browse the cards below. Editing is locked.
           </span>
-          <Button size="sm" className="h-7 shrink-0" onClick={handleImportPresetToMyDecks}>
+          <Button size="sm" className="h-7 shrink-0" onClick={handleImportReadOnlyDeck}>
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Import to my decks
+            Make editable copy
           </Button>
         </div>
       )}
@@ -1005,7 +995,7 @@ export function DeckBuilder({
                 variant="ghost"
                 disabled
                 className="h-7 shrink-0 gap-1 text-xs text-muted-foreground/60"
-                title="Preset deck — import to enable editing"
+                title="Make an editable copy to enable saving"
               >
                 <Save className="h-3.5 w-3.5" />
                 Save
@@ -1061,12 +1051,14 @@ export function DeckBuilder({
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setPublishOpen(true)}
-                  disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
-                >
-                  <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
-                </DropdownMenuItem>
+                {publishEnabled && (
+                  <DropdownMenuItem
+                    onSelect={() => setPublishOpen(true)}
+                    disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
+                  >
+                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={handleSaveDraft}>
                   <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
@@ -1366,12 +1358,14 @@ export function DeckBuilder({
           />
         )}
         <DeckLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} />
-        <PublishDeckDialog
-          open={publishOpen}
-          onOpenChange={setPublishOpen}
-          deck={currentDeck}
-          localDeckId={currentDeckId}
-        />
+        {publishEnabled && (
+          <PublishDeckDialog
+            open={publishOpen}
+            onOpenChange={setPublishOpen}
+            deck={currentDeck}
+            localDeckId={currentDeckId}
+          />
+        )}
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (
@@ -1417,42 +1411,6 @@ export function DeckBuilder({
             </div>
           </div>
         )}
-
-        {/* Delete deck confirmation (from My Decks dropdown) */}
-        <Dialog
-          open={!!pendingDeleteDeck}
-          onOpenChange={(open) => {
-            if (!open) setPendingDeleteDeck(null);
-          }}
-        >
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Delete Deck</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete &ldquo;{pendingDeleteDeck?.name}&rdquo;? This action
-                cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPendingDeleteDeck(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  if (pendingDeleteDeck) {
-                    deleteSavedDeck(pendingDeleteDeck.id);
-                    toast.success(`Deleted "${pendingDeleteDeck.name}"`);
-                    setPendingDeleteDeck(null);
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </fieldset>
     </div>
   );

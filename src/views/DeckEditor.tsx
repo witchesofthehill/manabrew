@@ -48,8 +48,12 @@ import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/vi
 import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
+import { useHubDeckPlaytest } from "@/hooks/useQuickPlaytest";
+import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
+import { HubDeckCard } from "@/components/deck/HubDeckCard";
+import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 
 export default function DeckEditor() {
   const {
@@ -74,7 +78,16 @@ export default function DeckEditor() {
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
+  const {
+    decks: publishedDecks,
+    loading: publishedDecksLoading,
+    error: publishedDecksError,
+    signedIn,
+    refresh: refreshPublishedDecks,
+  } = useMyHubDecks();
   const navigate = useNavigate();
+  const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
   const location = useLocation();
   const routeState = location.state as {
     directToEditor?: boolean;
@@ -98,6 +111,7 @@ export default function DeckEditor() {
   );
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
   const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
+  const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
 
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(
@@ -219,6 +233,18 @@ export default function DeckEditor() {
     colorFilter,
     sortBy,
   });
+  const filteredPublishedDecks = publishedDecks
+    .filter((deck) => {
+      if (search && !deck.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (formatFilter && (deck.format ?? "standard") !== formatFilter) return false;
+      return colorFilter.every((color) => deck.colors.includes(color));
+    })
+    .slice()
+    .sort((left, right) => {
+      if (sortBy === "name") return left.name.localeCompare(right.name);
+      if (sortBy === "color") return left.colors.localeCompare(right.colors);
+      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    });
 
   function handleSelectDeck(id: string) {
     setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
@@ -433,7 +459,7 @@ export default function DeckEditor() {
                     onPlaytest={() => quickPlaytest(s.deck)}
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
-                    onPublish={isFeatureEnabled("deckHub") ? () => setPublishingDeck(s) : undefined}
+                    onPublish={publishEnabled ? () => setPublishingDeck(s) : undefined}
                     onPlay={() => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)}
                   />
                 ))}
@@ -462,6 +488,51 @@ export default function DeckEditor() {
                   </div>
                 </div>
               )}
+
+              {signedIn &&
+                (publishedDecksLoading || publishedDecksError || publishedDecks.length > 0) && (
+                  <div className="mt-4 border-t pt-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Published on Deck Hub
+                      </span>
+                      {!publishedDecksLoading && (
+                        <span className="text-[10px] text-muted-foreground">
+                          ({filteredPublishedDecks.length})
+                        </span>
+                      )}
+                    </div>
+                    {publishedDecksError ? (
+                      <div className="flex items-center gap-2 text-sm text-destructive">
+                        <span>{publishedDecksError}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void refreshPublishedDecks()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : publishedDecksLoading && publishedDecks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Loading published decks…</p>
+                    ) : filteredPublishedDecks.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                        {filteredPublishedDecks.map((deck) => (
+                          <HubDeckCard
+                            key={deck.id}
+                            deck={deck}
+                            onOpen={() => setHubPreviewId(deck.id)}
+                            onPlaytest={() => hubPlaytest(deck.id)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No published decks match your filters.
+                      </p>
+                    )}
+                  </div>
+                )}
 
               {presetSavedDecks.length > 0 && (
                 <div
@@ -524,6 +595,12 @@ export default function DeckEditor() {
         />
 
         {playtestDialog}
+
+        <HubDeckPreviewDialog
+          deckId={hubPreviewId}
+          onClose={() => setHubPreviewId(null)}
+          onUnpublished={() => void refreshPublishedDecks()}
+        />
 
         {publishingDeck && (
           <PublishDeckDialog

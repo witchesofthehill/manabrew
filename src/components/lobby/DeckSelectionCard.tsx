@@ -14,16 +14,19 @@ import { cn } from "@/lib/utils";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
 
 interface DeckSelectionCardProps {
-  id: string;
   name: string;
   desc?: string;
   color?: string;
+  author?: string;
+  cardCount?: number;
   badge?: string | null;
   labels?: DeckLabel[];
   cards: DeckCard[];
   cover: DeckCard | null | undefined;
+  coverImageUrl?: string;
   coverFallbackClassName?: string;
   isPreset: boolean;
+  isHub?: boolean;
   isSelected: boolean;
   isLegal?: boolean;
   validationError?: string;
@@ -33,7 +36,6 @@ interface DeckSelectionCardProps {
   dense?: boolean;
   isTouch?: boolean;
   onSelect: () => void;
-  /** Double-click to immediately confirm this deck (skip the Select button). */
   onActivate?: () => void;
 }
 
@@ -50,16 +52,19 @@ function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
 }
 
 export function DeckSelectionCard({
-  id,
   name,
   desc,
   color,
+  author,
+  cardCount,
   badge,
   labels,
   cards,
   cover,
+  coverImageUrl,
   coverFallbackClassName,
   isPreset,
+  isHub = false,
   isSelected,
   isLegal = true,
   validationError,
@@ -71,10 +76,21 @@ export function DeckSelectionCard({
   onSelect,
   onActivate,
 }: DeckSelectionCardProps) {
-  const colorCost = getDeckColorCost(cards);
-  const titleColorClass = getDeckNameColorClass(cards, isPreset ? color : undefined);
-  const breakdown = isPreset ? desc : getDeckTypeBreakdown(cards);
-  const fallbackColorLabel = !isPreset && getDeckColors(cards).length === 0;
+  const colorCost = isHub
+    ? (color ?? "")
+        .split("")
+        .map((letter) => `{${letter}}`)
+        .join("")
+    : getDeckColorCost(cards);
+  const titleColorClass = getDeckNameColorClass(cards, isPreset || isHub ? color : undefined);
+  const breakdown = isHub
+    ? author
+      ? `by ${author}`
+      : desc
+    : isPreset
+      ? desc
+      : getDeckTypeBreakdown(cards);
+  const fallbackColorLabel = !isPreset && !isHub && getDeckColors(cards).length === 0;
   const showManaRow = !!colorCost || fallbackColorLabel;
   const hasVsSide = isPlayerDeck || isOpponentDeck;
 
@@ -96,7 +112,6 @@ export function DeckSelectionCard({
 
   return (
     <button
-      key={id}
       type="button"
       onClick={onSelect}
       onDoubleClick={() => {
@@ -118,7 +133,16 @@ export function DeckSelectionCard({
       )}
       style={sideStyle}
     >
-      <DeckCoverImage cover={cover} alt={name} fallbackClassName={coverFallbackClassName} />
+      {coverImageUrl ? (
+        <img
+          src={coverImageUrl}
+          alt={name}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <DeckCoverImage cover={cover} alt={name} fallbackClassName={coverFallbackClassName} />
+      )}
 
       <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
 
@@ -221,7 +245,11 @@ export function DeckSelectionCard({
                 <span
                   className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
                 >
-                  {isPreset ? "Preset deck" : `${cards.length} cards`}
+                  {isHub
+                    ? `Deck Hub · ${cardCount ?? cards.length} cards`
+                    : isPreset
+                      ? "Preset deck"
+                      : `${cards.length} cards`}
                 </span>
               )}
               {badge && (

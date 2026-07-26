@@ -12,6 +12,7 @@ import {
 import { publishDeck, unpublishDeck } from "@/api/hub";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import {
   findPublishedByLocalDeckId,
   usePublishedDecksStore,
@@ -50,6 +51,7 @@ export function PublishDeckDialog({
   const published = usePublishedDecksStore((s) => s.published);
   const addPublished = usePublishedDecksStore((s) => s.addPublished);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
+  const { refresh } = useMyHubDecks();
   const [busy, setBusy] = useState(false);
 
   const existing = findPublishedByLocalDeckId(published, localDeckId);
@@ -71,6 +73,7 @@ export function PublishDeckDialog({
         managementToken: response.managementToken,
         publishedAt: Date.now(),
       });
+      await refresh();
       toast.success(`"${deck.name}" published to the Deck Hub`);
       onOpenChange(false);
     } catch (err) {
@@ -86,6 +89,7 @@ export function PublishDeckDialog({
     try {
       await unpublishDeck(existing.hubId, existing.managementToken);
       removePublished(existing.hubId);
+      await refresh();
       toast.success(`"${existing.name}" removed from the Deck Hub`);
       onOpenChange(false);
     } catch (err) {

@@ -41,6 +41,7 @@ pub struct AppState {
     pub auth_email_limiter: RateLimiter,
     pub auth_code_limiter: RateLimiter,
     pub http: reqwest::Client,
+    pub identity: auth::IdentityKeys,
 }
 
 // The Tauri shells load from fixed webview origins; the web app origin comes
@@ -97,6 +98,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(auth::me_handler).patch(auth::update_handle_handler),
         )
         .route("/api/auth/logout", post(auth::logout_handler))
+        .route("/api/auth/token", post(auth::token_handler))
+        .route("/api/auth/jwks", get(auth::jwks_handler))
         .route(
             "/api/auth/identities/:provider",
             delete(auth::unlink_identity_handler),
@@ -455,6 +458,7 @@ mod tests {
             auth_email_limiter: RateLimiter::new(100),
             auth_code_limiter: RateLimiter::new(100),
             http: reqwest::Client::new(),
+            identity: auth::token_tests::ephemeral(),
         })
     }
 
@@ -982,6 +986,56 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test]
+    async fn identity_token_requires_session_and_verifies_against_jwks() {
+        let state = test_state(100, 100);
+        let router = build_router(state.clone());
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::post("/api/auth/token")
+                    .body(Body::empty())
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let session = sign_up(&state, "brewer", "brewer@example.com");
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::post("/api/auth/token")
+                    .header("authorization", format!("Bearer {session}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let minted: manabrew_hub::dto::IdentityTokenResponse =
+            serde_json::from_slice(&bytes).unwrap();
+
+        let response = router
+            .oneshot(with_ip(
+                Request::get("/api/auth/jwks").body(Body::empty()).unwrap(),
+            ))
+            .await
+            .unwrap();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let jwks: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let claims =
+            auth::token_tests::verify(&minted.token, jwks["keys"][0]["x"].as_str().unwrap())
+                .unwrap();
+        assert_eq!(claims.handle, "brewer");
+        assert_eq!(claims.exp - claims.iat, i64::from(minted.expires_in));
     }
 
     #[test]

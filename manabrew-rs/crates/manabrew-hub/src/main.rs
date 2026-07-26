@@ -39,6 +39,8 @@ async fn main() {
         auth_code_limiter: RateLimiter::new(config.auth.auth_attempts_per_hour),
         auth: config.auth.clone(),
         http: reqwest::Client::new(),
+        identity: auth::IdentityKeys::load_or_generate(&config.jwt_key_path)
+            .expect("load jwt signing key"),
     });
     let addr = format!("{}:{}", config.host, config.port);
     let listener = tokio::net::TcpListener::bind(&addr)

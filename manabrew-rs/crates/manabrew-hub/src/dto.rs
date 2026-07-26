@@ -169,3 +169,11 @@ pub struct EmailVerifyRequest {
 pub struct UpdateHandleRequest {
     pub handle: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "authTypes.ts")]
+pub struct IdentityTokenResponse {
+    pub token: String,
+    pub expires_in: u32,
+}

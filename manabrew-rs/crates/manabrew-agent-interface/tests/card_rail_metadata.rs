@@ -1,5 +1,6 @@
 use forge_foundation::{CardTypeLine, ColorSet, ManaCost, ZoneType};
 use manabrew_agent_interface::game_view_dto::card_to_dto;
+use manabrew_engine::ability::activated::parse_activated_ability;
 use manabrew_engine::card::Card;
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::{CardId, PlayerId};
@@ -72,6 +73,75 @@ fn visible_battlefield_rails_are_populated_from_live_state() {
 }
 
 #[test]
+fn structured_rail_metadata_uses_engine_oracle_text() {
+    let mut game = make_game();
+
+    let mut saga = make_card(
+        CardId(0),
+        "Rail Saga",
+        "Enchantment Saga",
+        vec![],
+        ZoneType::Battlefield,
+    );
+    saga.oracle_text = "(As this Saga enters, add a lore counter.)\nI, II — Draw a card.\nIII — Choose one —\n• Create a token.\n• Gain 3 life.".to_string();
+    add_chapter_trigger(&mut saga, 3);
+    let saga_id = game.create_card(saga);
+
+    let mut class_card = make_card(
+        CardId(1),
+        "Rail Class",
+        "Enchantment Class",
+        vec![],
+        ZoneType::Battlefield,
+    );
+    class_card.oracle_text = "(Gain the next level as a sorcery to add its ability.)\nYou have no maximum hand size.\n{2}{U}: Level 2\nWhen this Class becomes level 2, draw two cards.\n{4}{U}: Level 3\nWhenever you draw a card, put a +1/+1 counter on target creature you control.".to_string();
+    class_card.activated_abilities = [
+        "AB$ ClassLevelUp | Cost$ 2 U | ClassLevel$ EQ1 | SorcerySpeed$ True | SpellDescription$ Level 2",
+        "AB$ ClassLevelUp | Cost$ 4 U | ClassLevel$ EQ2 | SorcerySpeed$ True | SpellDescription$ Level 3",
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, ability)| parse_activated_ability(ability, index).expect("class ability"))
+    .collect();
+    class_card.set_class_level(1);
+    let class_id = game.create_card(class_card);
+
+    let saga_dto = card_to_dto(&game, saga_id);
+    assert_eq!(saga_dto.saga_chapters.len(), 2);
+    assert_eq!(saga_dto.saga_chapters[0].chapters, vec![1, 2]);
+    assert_eq!(saga_dto.saga_chapters[0].oracle, "Draw a card.");
+    assert_eq!(saga_dto.saga_chapters[1].chapters, vec![3]);
+    assert_eq!(
+        saga_dto.saga_chapters[1].oracle,
+        "Choose one —\n• Create a token.\n• Gain 3 life."
+    );
+
+    let class_dto = card_to_dto(&game, class_id);
+    assert_eq!(class_dto.class_levels.len(), 3);
+    assert_eq!(
+        class_dto.class_levels[0].oracle,
+        "You have no maximum hand size."
+    );
+    assert_eq!(class_dto.class_levels[1].level, 2);
+    assert_eq!(class_dto.class_levels[1].cost.as_deref(), Some("{2}{U}"));
+    assert_eq!(
+        class_dto.class_levels[1].oracle,
+        "When this Class becomes level 2, draw two cards."
+    );
+    assert_eq!(class_dto.class_levels[2].level, 3);
+    assert_eq!(class_dto.class_levels[2].cost.as_deref(), Some("{4}{U}"));
+    assert_eq!(
+        class_dto.class_levels[2].oracle,
+        "Whenever you draw a card, put a +1/+1 counter on target creature you control."
+    );
+
+    game.card_mut(class_id).face_down = true;
+    let hidden_class = card_to_dto(&game, class_id);
+    assert!(hidden_class.class_levels.is_empty());
+    assert!(hidden_class.saga_chapters.is_empty());
+}
+
+#[test]
 fn negative_rails_stay_hidden_for_nonmatching_or_unsupported_cards() {
     let mut game = make_game();
 
@@ -138,5 +208,7 @@ fn negative_rails_stay_hidden_for_nonmatching_or_unsupported_cards() {
         let dto = card_to_dto(&game, id);
         assert_eq!(dto.final_chapter, None);
         assert_eq!(dto.class_level, None);
+        assert!(dto.class_levels.is_empty());
+        assert!(dto.saga_chapters.is_empty());
     }
 }

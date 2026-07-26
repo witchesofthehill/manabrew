@@ -389,6 +389,10 @@ fn visible_class_levels(card: &Card) -> Vec<ClassLevelDto> {
             append_oracle(&mut levels[current].oracle, line);
         }
     }
+    if levels.iter().all(|level| level.oracle.is_empty()) {
+        return Vec::new();
+    }
+
     levels.sort_by_key(|level| level.level);
     levels
 }

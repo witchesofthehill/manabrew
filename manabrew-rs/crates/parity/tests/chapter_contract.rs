@@ -786,43 +786,54 @@ fn unrelated_source_spell_does_not_block_final_saga_sacrifice() {
 
 #[test]
 fn multi_lore_addition_observes_cumulative_chapter_totals_in_order() {
-    let player = PlayerId(0);
-    let mut game = GameState::new(&["Alice", "Bob"], 20);
-    let saga = game.create_card(chapter_probe());
-    resolve_permanent(&mut game, saga);
-    set_lore_total(&mut game, saga, 1);
+    thread::scope(|scope| {
+        let handle = thread::Builder::new()
+            .name("multi_lore_addition_observes_cumulative_chapter_totals_in_order".to_string())
+            .stack_size(PARITY_THREAD_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let player = PlayerId(0);
+                let mut game = GameState::new(&["Alice", "Bob"], 20);
+                let saga = game.create_card(chapter_probe());
+                resolve_permanent(&mut game, saga);
+                set_lore_total(&mut game, saga, 1);
 
-    let ability = SpellAbility::new_simple(
-        Some(saga),
-        player,
-        "DB$ PutCounter | Defined$ Self | CounterType$ LORE | CounterNum$ 2",
-    );
+                let ability = SpellAbility::new_simple(
+                    Some(saga),
+                    player,
+                    "DB$ PutCounter | Defined$ Self | CounterType$ LORE | CounterNum$ 2",
+                );
 
-    let mut game_loop = GameLoop::new(2);
-    game_loop
-        .trigger_handler
-        .register_active_trigger(&game, saga);
-    let mut agents = pass_agents();
-    resolve_put_counter(&mut game, &mut game_loop.trigger_handler, &ability);
-    game_loop.trigger_handler.process_waiting_triggers(
-        &game_loop.mana_pools,
-        &mut game,
-        &mut agents,
-    );
-    while !game.stack.is_empty() {
-        game_loop.resolve_stack(&mut game, &mut agents);
-        game_loop.trigger_handler.process_waiting_triggers(
-            &game_loop.mana_pools,
-            &mut game,
-            &mut agents,
-        );
-    }
+                let mut game_loop = GameLoop::new(2);
+                game_loop
+                    .trigger_handler
+                    .register_active_trigger(&game, saga);
+                let mut agents = pass_agents();
+                resolve_put_counter(&mut game, &mut game_loop.trigger_handler, &ability);
+                game_loop.trigger_handler.process_waiting_triggers(
+                    &game_loop.mana_pools,
+                    &mut game,
+                    &mut agents,
+                );
+                while !game.stack.is_empty() {
+                    game_loop.resolve_stack(&mut game, &mut agents);
+                    game_loop.trigger_handler.process_waiting_triggers(
+                        &game_loop.mana_pools,
+                        &mut game,
+                        &mut agents,
+                    );
+                }
 
-    assert_eq!(
-        game.card(saga).counter_count(&CounterType::P1P1),
-        110,
-        "a two-Lore addition from total one must observe Chapter totals two then three"
-    );
+                assert_eq!(
+                    game.card(saga).counter_count(&CounterType::P1P1),
+                    110,
+                    "a two-Lore addition from total one must observe Chapter totals two then three"
+                );
+            })
+            .expect("spawn cumulative chapter test thread");
+        handle
+            .join()
+            .expect("multi_lore_addition_observes_cumulative_chapter_totals_in_order panicked");
+    });
 }
 
 #[test]

@@ -481,6 +481,10 @@ public final class InteractiveSnapshotExtractor {
             final ClassLevelDto level = levels.get(current);
             level.oracle = level.oracle.isEmpty() ? line : level.oracle + "\n" + line;
         }
+        if (levels.stream().allMatch(level -> level.oracle.isEmpty())) {
+            return Collections.emptyList();
+        }
+
         levels.sort(java.util.Comparator.comparingInt(level -> level.level));
         return levels;
     }

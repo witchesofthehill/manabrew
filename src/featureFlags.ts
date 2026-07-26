@@ -28,6 +28,7 @@ export type FeatureFlag = keyof typeof featureFlags;
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   if (featureFlags[flag]) return true;
+  if (import.meta.env.DEV && (flag === "accounts" || flag === "deckHub")) return true;
   return (
     typeof window !== "undefined" && window.__MANABREW_RUNTIME__?.featureFlags?.[flag] === true
   );

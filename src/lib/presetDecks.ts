@@ -71,7 +71,11 @@ export function expandPresetDeckDefinition(preset: PresetDeckDefinition): Deck {
   let commander: DeckCard | undefined;
 
   const presetCommander = preset.commander ? frontFaceName(preset.commander) : undefined;
-  const appendCards = (entries: PresetDeckCardDefinition[], destination: DeckCard[]) => {
+  const appendCards = (
+    entries: PresetDeckCardDefinition[],
+    destination: DeckCard[],
+    extractCommander = false,
+  ) => {
     for (const entry of entries) {
       const name = frontFaceName(entry.name);
       for (let copy = 0; copy < entry.count; copy += 1) {
@@ -99,7 +103,7 @@ export function expandPresetDeckDefinition(preset: PresetDeckDefinition): Deck {
           allParts: entry.allParts,
         };
 
-        if (!commander && name === presetCommander) {
+        if (extractCommander && !commander && name === presetCommander) {
           commander = card;
         } else {
           destination.push(card);
@@ -107,7 +111,7 @@ export function expandPresetDeckDefinition(preset: PresetDeckDefinition): Deck {
       }
     }
   };
-  appendCards(preset.cards, cards);
+  appendCards(preset.cards, cards, true);
   appendCards(preset.sideboard ?? [], sideboard);
 
   // Commander goes in `commanders[]`, not the main 99 — strip it out of cards.

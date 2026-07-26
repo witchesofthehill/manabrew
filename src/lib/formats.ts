@@ -327,18 +327,17 @@ function getCardIdentity(card?: DeckCard): string[] {
 
 // ─── Partner utilities ───────────────────────────────────────────────────────
 
-/** Returns true if the card has the generic "Partner" keyword (not "Partner with"). */
-export function hasPartner(card?: DeckCard): boolean {
+function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;
   if (card.keywords?.some((k) => /^partner$/i.test(k.trim()))) return true;
-  return /(?:^|\n)partner(?!\s+with)/im.test(card.text);
+  return /(?:^|\n)partner(?!\s+with)(?!\s*—)/im.test(card.text);
 }
 
 /**
  * Returns the specific partner name this card must pair with ("Partner with Xxx"),
  * or null if it doesn't have the specific-partner ability.
  */
-export function getPartnerWithName(card?: DeckCard): string | null {
+function getPartnerWithName(card?: DeckCard): string | null {
   if (!card) return null;
   const fromKeywords = card.keywords?.find((k) => /^partner with /i.test(k));
   if (fromKeywords) return fromKeywords.replace(/^partner with /i, "").trim();
@@ -346,10 +345,11 @@ export function getPartnerWithName(card?: DeckCard): string | null {
   return match ? match[1].trim() : null;
 }
 
-function hasFriendsForever(card?: DeckCard): boolean {
-  if (!card) return false;
-  if (card.keywords?.some((k) => /^friends forever$/i.test(k.trim()))) return true;
-  return /friends forever/i.test(card.text);
+function partnerType(card?: DeckCard): string | null {
+  const fromKeywords = card?.keywords?.find((k) => /^partner:/i.test(k));
+  if (fromKeywords) return fromKeywords.slice(fromKeywords.indexOf(":") + 1).trim();
+  const match = card?.text.match(/partner\s*—\s*([^\n(]+)/i);
+  return match ? match[1].trim() : null;
 }
 
 function hasChooseBackground(card?: DeckCard): boolean {
@@ -362,9 +362,21 @@ function isBackgroundCard(card?: DeckCard): boolean {
   return card.subtypes?.some((s) => s.toLowerCase() === "background") ?? false;
 }
 
+function hasDoctorsCompanion(card?: DeckCard): boolean {
+  if (!card) return false;
+  if (card.keywords?.some((k) => /^doctor's companion$/i.test(k.trim()))) return true;
+  return /doctor's companion/i.test(card.text);
+}
+
+function isTimeLordDoctor(card?: DeckCard): boolean {
+  const subtypes = card?.subtypes?.join(" ").toLowerCase() ?? "";
+  return subtypes.includes("time lord") && subtypes.includes("doctor");
+}
+
 export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
   if (hasPartner(a) && hasPartner(b)) return "Partner";
-  if (hasFriendsForever(a) && hasFriendsForever(b)) return "Friends forever";
+  const typeA = partnerType(a);
+  if (typeA && typeA.toLowerCase() === partnerType(b)?.toLowerCase()) return typeA;
   const pwA = getPartnerWithName(a);
   const pwB = getPartnerWithName(b);
   if (
@@ -376,15 +388,31 @@ export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
     return "Partner with";
   if (hasChooseBackground(a) && isBackgroundCard(b)) return "Background";
   if (hasChooseBackground(b) && isBackgroundCard(a)) return "Background";
+  if (hasDoctorsCompanion(a) && isTimeLordDoctor(b)) return "Doctor's companion";
+  if (hasDoctorsCompanion(b) && isTimeLordDoctor(a)) return "Doctor's companion";
   return null;
 }
 
 /**
  * Returns true if two cards are a legal pair of partner commanders.
- * Handles: generic Partner, "Partner with [Name]", Friends forever, and Background.
+ * Handles: generic Partner, "Partner with [Name]", the restricted "Partner—Xxx"
+ * types, Background, and Doctor's companion.
  */
 export function canBePartners(a: DeckCard, b: DeckCard): boolean {
   return partnerPairLabel(a, b) !== null;
+}
+
+export function canBePartnerCommander(card?: DeckCard): boolean {
+  if (isBackgroundCard(card)) return true;
+  if (!isCommanderEligible(card)) return false;
+  return (
+    hasPartner(card) ||
+    getPartnerWithName(card) !== null ||
+    partnerType(card) !== null ||
+    hasChooseBackground(card) ||
+    hasDoctorsCompanion(card) ||
+    isTimeLordDoctor(card)
+  );
 }
 
 export function isCommanderEligible(card?: DeckCard): boolean {

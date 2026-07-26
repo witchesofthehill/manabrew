@@ -25,7 +25,7 @@ import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PrintPickerModal } from "@/components/editor/PrintPickerModal";
 import { getScryfallManaCost } from "@/api/scryfall";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
 import { useSetLookup } from "@/stores/useScryfallStore";
 import { FORMAT_DISPLAY, LEGALITY_STYLES } from "@/lib/constants";
@@ -80,6 +80,7 @@ export function CardDetailModal({
   }
 
   const card = selectedPrint ?? initialCard;
+  const deckCardName = frontFaceName(card.name);
   const storeCard = useCard({
     id: card.id,
     name: card.name,
@@ -119,8 +120,8 @@ export function CardDetailModal({
   function handleAddNewTag() {
     if (!newTagInput.trim() || !deckEditorActions?.onTagCard) return;
     deckEditorActions.onAddTag?.(newTagInput.trim());
-    deckEditorActions.onTagCard(card.name, newTagInput.trim());
-    toast.success(`Tagged "${card.name}" with "${newTagInput.trim()}"`);
+    deckEditorActions.onTagCard(deckCardName, newTagInput.trim());
+    toast.success(`Tagged "${deckCardName}" with "${newTagInput.trim()}"`);
     setNewTagInput("");
     setShowDeckPicker(false);
   }
@@ -135,9 +136,9 @@ export function CardDetailModal({
       imageUrl: newEntry.uris.png,
     });
     if (deckEditorActions && deckEditorActions.isToken && deckEditorActions.onUpdateTokenPrint) {
-      deckEditorActions.onUpdateTokenPrint(card.name, print);
+      deckEditorActions.onUpdateTokenPrint(deckCardName, print);
     } else if (deckEditorActions) {
-      updatePrint(card.name, print);
+      updatePrint(deckCardName, print);
     }
   }
 
@@ -361,14 +362,14 @@ export function CardDetailModal({
                     className="h-7 w-7"
                     title="Remove one copy"
                     onClick={() => {
-                      deckEditorActions.onRemoveOne(card.name);
-                      toast.success(`Removed one ${card.name}`);
+                      deckEditorActions.onRemoveOne(deckCardName);
+                      toast.success(`Removed one ${deckCardName}`);
                     }}
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
                   <span className="min-w-6 px-1 text-center text-xs font-semibold tabular-nums">
-                    {currentDeck.cards.filter((c) => c.identity.name === card.name).length}
+                    {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
                   <Button
                     size="icon"
@@ -376,8 +377,8 @@ export function CardDetailModal({
                     className="h-7 w-7"
                     title="Add one copy"
                     onClick={() => {
-                      deckEditorActions.onAddOne(card.name);
-                      toast.success(`Added ${card.name}`);
+                      deckEditorActions.onAddOne(deckCardName);
+                      toast.success(`Added ${deckCardName}`);
                     }}
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -418,11 +419,11 @@ export function CardDetailModal({
                         deckEditorActions.isCommander ? "Remove as commander" : "Set as commander"
                       }
                       onClick={() => {
-                        deckEditorActions.onSetCommander(card.name);
+                        deckEditorActions.onSetCommander(deckCardName);
                         toast.success(
                           deckEditorActions.isCommander
-                            ? `Removed ${card.name} as commander`
-                            : `Set ${card.name} as commander`,
+                            ? `Removed ${deckCardName} as commander`
+                            : `Set ${deckCardName} as commander`,
                         );
                       }}
                     >
@@ -450,9 +451,9 @@ export function CardDetailModal({
                             type="button"
                             className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
                             onClick={() => {
-                              deckEditorActions.onTagCard!(card.name, tag);
+                              deckEditorActions.onTagCard!(deckCardName, tag);
                               setShowDeckPicker(false);
-                              toast.success(`Tagged "${card.name}" with "${tag}"`);
+                              toast.success(`Tagged "${deckCardName}" with "${tag}"`);
                             }}
                           >
                             <Tag className="h-3 w-3 text-primary/60" />

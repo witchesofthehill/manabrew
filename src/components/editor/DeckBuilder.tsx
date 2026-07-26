@@ -49,7 +49,7 @@ import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
-import { needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { frontFaceName, needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
@@ -59,8 +59,7 @@ import {
   canHaveAnyNumberOf,
   isCommanderEligible,
   canBePartners,
-  hasPartner,
-  getPartnerWithName,
+  canBePartnerCommander,
   copyLimitFromText,
 } from "@/lib/formats";
 import { DeckListView } from "./DeckListView";
@@ -738,9 +737,8 @@ export function DeckBuilder({
     const existing = currentDeck.commanders ?? [];
     if (eligible && existing.length >= 1 && !canBePartners(existing[0], card)) {
       // Incompatible pairing — explain why before the store silently replaces
-      const existingHasPartner =
-        hasPartner(existing[0]) || getPartnerWithName(existing[0]) !== null;
-      const newHasPartner = hasPartner(card) || getPartnerWithName(card) !== null;
+      const existingHasPartner = canBePartnerCommander(existing[0]);
+      const newHasPartner = canBePartnerCommander(card);
 
       if (!existingHasPartner && !newHasPartner) {
         toast.info(
@@ -1348,17 +1346,15 @@ export function DeckBuilder({
                   if (card) handleSetCommander(card);
                 }
               },
-              isCommander: detailCard
-                ? (currentDeck.commanders?.some((c) => c.identity.name === detailCard.name) ??
-                  false)
-                : false,
+              isCommander:
+                currentDeck.commanders?.some(
+                  (c) => c.identity.name === frontFaceName(detailCard.name),
+                ) ?? false,
               deckFormat: currentDeck.format ?? "standard",
               customTags: currentDeck.customTags,
               onTagCard: tagCard,
               onAddTag: addCustomTag,
-              isToken: detailCard
-                ? mergedTokens.some((t) => t.identity.name === detailCard.name)
-                : false,
+              isToken: mergedTokens.some((t) => t.identity.name === frontFaceName(detailCard.name)),
               onUpdateTokenPrint: updatePrint,
             }}
           />

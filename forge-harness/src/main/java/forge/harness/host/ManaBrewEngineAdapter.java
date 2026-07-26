@@ -68,11 +68,7 @@ public final class ManaBrewEngineAdapter {
         final CountingRandom rng = new CountingRandom(request.getSeed(), "hosted");
 
         final int playerCount = request.getPlayers().size();
-        final boolean commanderGame = playerCount > 2
-                || request.getStartingLife() == 40
-                || request.getPlayers().stream().anyMatch(player ->
-                        !player.getCommanderNames().isEmpty());
-        final GameType gameType = commanderGame ? GameType.Commander : GameType.Constructed;
+        final GameType gameType = resolveGameType(request);
         final Set<GameType> variants = EnumSet.of(gameType);
         final GameRules rules = new GameRules(gameType);
         rules.setAppliedVariants(variants);
@@ -224,9 +220,33 @@ public final class ManaBrewEngineAdapter {
         }
     }
 
+    private static GameType resolveGameType(final StartGameRequest request) {
+        final String variant = request.getVariant();
+        if (variant != null && !variant.isBlank()) {
+            switch (variant) {
+                case "Commander":
+                    return GameType.Commander;
+                case "Oathbreaker":
+                    return GameType.Oathbreaker;
+                case "Brawl":
+                    return GameType.Brawl;
+                case "Constructed":
+                    return GameType.Constructed;
+                default:
+                    throw new IllegalArgumentException("unknown game variant: " + variant);
+            }
+        }
+        final boolean commanderGame = request.getPlayers().size() > 2
+                || request.getStartingLife() == 40
+                || request.getPlayers().stream().anyMatch(player ->
+                        !player.getCommanderNames().isEmpty());
+        return commanderGame ? GameType.Commander : GameType.Constructed;
+    }
+
     private static StartGameRequest parseStartGameRequest(final String requestJson) {
         JsonObject root = JsonParser.parseString(requestJson).getAsJsonObject();
         String gameId = requiredString(root, "gameId");
+        String variant = optionalString(root, "variant");
         int startingLife = root.has("startingLife") ? root.get("startingLife").getAsInt() : 20;
         long seed = root.has("seed") ? root.get("seed").getAsLong() : 42L;
         JsonArray playerValues = root.getAsJsonArray("players");
@@ -267,7 +287,7 @@ public final class ManaBrewEngineAdapter {
                     && playerObject.get("ai").getAsBoolean();
             players.add(new PlayerConfig(name, deck, commanderNames, ai));
         }
-        return new StartGameRequest(gameId, startingLife, seed, players);
+        return new StartGameRequest(gameId, variant, startingLife, seed, players);
     }
 
     private static String requiredString(final JsonObject object, final String key) {
@@ -287,12 +307,14 @@ public final class ManaBrewEngineAdapter {
 
     public static final class StartGameRequest {
         private final String gameId;
+        private final String variant;
         private final int startingLife;
         private final long seed;
         private final List<PlayerConfig> players;
 
         public StartGameRequest(
                 final String gameId,
+                final String variant,
                 final int startingLife,
                 final long seed,
                 final List<PlayerConfig> players
@@ -304,6 +326,7 @@ public final class ManaBrewEngineAdapter {
                 throw new IllegalArgumentException("at least two players are required");
             }
             this.gameId = gameId;
+            this.variant = variant;
             this.startingLife = startingLife;
             this.seed = seed;
             this.players = List.copyOf(players);
@@ -311,6 +334,10 @@ public final class ManaBrewEngineAdapter {
 
         public String getGameId() {
             return gameId;
+        }
+
+        public String getVariant() {
+            return variant;
         }
 
         public int getStartingLife() {

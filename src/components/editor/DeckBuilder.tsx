@@ -60,8 +60,11 @@ import {
   isCommanderEligible,
   canBePartners,
   canBePartnerCommander,
+  canBeOathbreaker,
+  canBeSignatureSpell,
   copyLimitFromText,
 } from "@/lib/formats";
+import { commanderSlotFor } from "./deckEditor.utils";
 import { DeckListView } from "./DeckListView";
 import { DeckHero } from "./DeckHero";
 import { PreviewRail } from "./PreviewRail";
@@ -729,13 +732,24 @@ export function DeckBuilder({
   }
 
   function handleSetCommander(card: DeckCard) {
-    const eligible = isCommanderEligible(card);
-    if (!eligible) {
+    if (currentDeck.format === "oathbreaker") {
+      if (!canBeOathbreaker(card) && !canBeSignatureSpell(card)) {
+        toast.warning(
+          `"${card.identity.name}" is not a legal oathbreaker or signature spell — an oathbreaker must be a planeswalker, a signature spell an instant or sorcery`,
+        );
+        return;
+      }
+      setCommander(card);
+      return;
+    }
+
+    if (!isCommanderEligible(card)) {
       toast.warning(`"${card.identity.name}" is not a legal commander`);
+      return;
     }
 
     const existing = currentDeck.commanders ?? [];
-    if (eligible && existing.length >= 1 && !canBePartners(existing[0], card)) {
+    if (existing.length >= 1 && !canBePartners(existing[0], card)) {
       // Incompatible pairing — explain why before the store silently replaces
       const existingHasPartner = canBePartnerCommander(existing[0]);
       const newHasPartner = canBePartnerCommander(card);
@@ -1350,6 +1364,12 @@ export function DeckBuilder({
                 currentDeck.commanders?.some(
                   (c) => c.identity.name === frontFaceName(detailCard.name),
                 ) ?? false,
+              commanderSlot: commanderSlotFor(
+                [...currentDeck.cards, ...(currentDeck.commanders ?? [])].find(
+                  (c) => c.identity.name === frontFaceName(detailCard.name),
+                ),
+                currentDeck.format,
+              ),
               deckFormat: currentDeck.format ?? "standard",
               customTags: currentDeck.customTags,
               onTagCard: tagCard,

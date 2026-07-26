@@ -1,6 +1,25 @@
 import type { LucideIcon } from "lucide-react";
 import { Plus, Minus, Tag } from "lucide-react";
 import type React from "react";
+import type { GameIconName } from "@/components/game/GameIcon";
+import type { DeckCard } from "@/protocol/deck";
+import { canBeSignatureSpell } from "@/lib/formats";
+
+export interface CommanderSlot {
+  noun: string;
+  icon: GameIconName;
+}
+
+export const DEFAULT_COMMANDER_SLOT: CommanderSlot = { noun: "commander", icon: "overlord-helm" };
+
+/** What a card's command-zone action is called in this format — Oathbreaker
+ *  splits it into the oathbreaker and the signature spell. */
+export function commanderSlotFor(card: DeckCard | undefined, deckFormat?: string): CommanderSlot {
+  if (deckFormat !== "oathbreaker") return DEFAULT_COMMANDER_SLOT;
+  return canBeSignatureSpell(card)
+    ? { noun: "signature spell", icon: "scroll-quill" }
+    : { noun: "oathbreaker", icon: "overlord-helm" };
+}
 
 export interface OverlayAction {
   label: string;

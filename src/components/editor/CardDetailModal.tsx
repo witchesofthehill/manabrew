@@ -29,6 +29,8 @@ import { frontFaceName, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
 import { useSetLookup } from "@/stores/useScryfallStore";
 import { FORMAT_DISPLAY, LEGALITY_STYLES } from "@/lib/constants";
+import { formatRequiresCommander } from "@/lib/formats";
+import { DEFAULT_COMMANDER_SLOT, type CommanderSlot } from "@/components/editor/deckEditor.utils";
 import { toast } from "sonner";
 import type { ScryfallCard } from "@/types/scryfall";
 
@@ -38,6 +40,7 @@ interface DeckEditorActions {
   onPickPrint: (cardName: string) => void;
   onSetCommander: (cardName: string) => void;
   isCommander?: boolean;
+  commanderSlot?: CommanderSlot;
   deckFormat?: string;
   customTags?: string[];
   onTagCard?: (cardName: string, tag: string) => void;
@@ -81,6 +84,7 @@ export function CardDetailModal({
 
   const card = selectedPrint ?? initialCard;
   const deckCardName = frontFaceName(card.name);
+  const commanderSlot = deckEditorActions?.commanderSlot ?? DEFAULT_COMMANDER_SLOT;
   const storeCard = useCard({
     id: card.id,
     name: card.name,
@@ -410,24 +414,26 @@ export function CardDetailModal({
                       <RotateCcw className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  {deckEditorActions.deckFormat === "commander" && (
+                  {formatRequiresCommander(deckEditorActions.deckFormat) && (
                     <Button
                       size="icon"
                       variant="ghost"
                       className={cn("h-7 w-7", deckEditorActions.isCommander && "text-commander")}
                       title={
-                        deckEditorActions.isCommander ? "Remove as commander" : "Set as commander"
+                        deckEditorActions.isCommander
+                          ? `Remove as ${commanderSlot.noun}`
+                          : `Set as ${commanderSlot.noun}`
                       }
                       onClick={() => {
                         deckEditorActions.onSetCommander(deckCardName);
                         toast.success(
                           deckEditorActions.isCommander
-                            ? `Removed ${deckCardName} as commander`
-                            : `Set ${deckCardName} as commander`,
+                            ? `Removed ${deckCardName} as ${commanderSlot.noun}`
+                            : `Set ${deckCardName} as ${commanderSlot.noun}`,
                         );
                       }}
                     >
-                      <GameIcon name="overlord-helm" className="h-3.5 w-3.5" />
+                      <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>

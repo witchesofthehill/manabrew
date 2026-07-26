@@ -12,7 +12,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { GAME_FORMATS, getFormat, partnerPairLabel } from "@/lib/formats";
+import { GAME_FORMATS, getFormat, commanderSlotBadge } from "@/lib/formats";
 import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
@@ -36,8 +36,9 @@ export function DeckHero() {
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
 
   const commanders = currentDeck.commanders ?? [];
-  const partnerLabel =
-    commanders.length === 2 ? partnerPairLabel(commanders[0], commanders[1]) : null;
+  const slotBadges = commanders.map((_, i) =>
+    commanderSlotBadge(commanders, currentDeck.format, i),
+  );
   const mainCount = currentDeck.cards.length + commanders.length;
   const sideCount = currentDeck.sideboard.length;
   const maybeCount = currentDeck.maybeboard?.length ?? 0;
@@ -189,7 +190,7 @@ export function DeckHero() {
                 <span key={c.identity.id} className="flex min-w-0 items-center gap-1.5">
                   {index > 0 && <span className="text-muted-foreground">·</span>}
                   <span className="truncate">{c.identity.name}</span>
-                  {index === 1 && <PartnerBadge label={partnerLabel} />}
+                  {slotBadges[index] && <PartnerBadge label={slotBadges[index]!.label} />}
                 </span>
               ))}
             </span>

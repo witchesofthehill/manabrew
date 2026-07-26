@@ -33,7 +33,7 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
       throw new Error("Too many Deck Hub requests from your connection. Try again later.");
     }
     if (response.status === 401) {
-      if (token) {
+      if (token && useAuthStore.getState().token === token) {
         useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
       }
       throw new Error("Your Deck Hub session expired. Sign in again.");

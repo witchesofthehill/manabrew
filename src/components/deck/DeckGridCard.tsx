@@ -58,7 +58,7 @@ export function DeckGridCard({
       <div
         className={cn(
           "relative group cursor-pointer rounded-lg overflow-hidden border bg-muted",
-          "aspect-[4/3] transition-all hover:ring-2 hover:ring-primary hover:border-primary",
+          "aspect-[4/3] transition-all hover:ring-2 hover:ring-primary hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
         onClick={onOpen}
         onKeyDown={(event) => {

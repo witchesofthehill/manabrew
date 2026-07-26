@@ -94,6 +94,9 @@ export default function DeckEditor() {
   const routeState = location.state as {
     directToEditor?: boolean;
     deckEditorFromList?: boolean;
+    resumePublishDeckId?: string;
+    resumePublishDeck?: SavedDeck["deck"];
+    resumeCurrentPublish?: boolean;
   } | null;
 
   function handleOpenPreset(deck: DeckType) {
@@ -112,8 +115,17 @@ export default function DeckEditor() {
     Boolean((location.state as { openImport?: boolean } | null)?.openImport),
   );
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
-  const [publishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
+  const [selectedPublishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
+  const routePublishingDeck = routeState?.resumePublishDeck
+    ? {
+        deck: routeState.resumePublishDeck,
+        localDeckId: routeState.resumePublishDeckId ?? null,
+      }
+    : null;
+  const publishingDeck = selectedPublishingDeck
+    ? { deck: selectedPublishingDeck.deck, localDeckId: selectedPublishingDeck.id }
+    : routePublishingDeck;
 
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(
@@ -136,7 +148,7 @@ export default function DeckEditor() {
 
   const [stateView, setStateView] = useState<"list" | "editor">(() => {
     if (useDeckStore.getState().isReadOnly) return "editor";
-    return routeState?.directToEditor ? "editor" : "list";
+    return routeState?.directToEditor || routeState?.resumeCurrentPublish ? "editor" : "list";
   });
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;
@@ -616,16 +628,25 @@ export default function DeckEditor() {
 
         {playtestDialog}
 
-        <HubDeckPreviewDialog deckId={hubPreviewId} onClose={() => setHubPreviewId(null)} />
+        <HubDeckPreviewDialog
+          deckId={hubPreviewId}
+          onClose={() => setHubPreviewId(null)}
+          onViewSnapshot={() => setView("editor")}
+        />
 
         {publishingDeck && (
           <PublishDeckDialog
             open
             onOpenChange={(open) => {
-              if (!open) setPublishingDeck(null);
+              if (!open) {
+                setPublishingDeck(null);
+                if (routeState?.resumePublishDeck) {
+                  navigate(`${location.pathname}${location.search}`, { replace: true });
+                }
+              }
             }}
             deck={publishingDeck.deck}
-            localDeckId={publishingDeck.id}
+            localDeckId={publishingDeck.localDeckId}
           />
         )}
 
@@ -678,6 +699,13 @@ export default function DeckEditor() {
               setPreviewSlot={setPreviewSlot}
               previewCollapsed={previewCollapsed}
               onTogglePreview={togglePreview}
+              resumedPublication={routeState?.resumeCurrentPublish ? routePublishingDeck : null}
+              onResumedPublicationClose={() =>
+                navigate(`${location.pathname}${location.search}`, {
+                  replace: true,
+                  state: { directToEditor: true },
+                })
+              }
             />
           </div>
           {showSearch && (

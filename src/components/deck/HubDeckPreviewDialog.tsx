@@ -29,6 +29,7 @@ interface HubDeckPreviewDialogProps {
   deckId: string | null;
   onClose: () => void;
   onUnpublished?: () => void;
+  onViewSnapshot?: () => void;
 }
 
 function CardSection({ title, cards }: { title: string; cards: DeckCard[] }) {
@@ -54,6 +55,7 @@ export function HubDeckPreviewDialog({
   deckId,
   onClose,
   onUnpublished,
+  onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
@@ -74,10 +76,12 @@ export function HubDeckPreviewDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
 
   useEffect(() => {
     setDetail(null);
     setError(null);
+    setConfirmingUnpublish(false);
     if (!deckId) return;
     let cancelled = false;
     loadDeck(deckId)
@@ -106,14 +110,22 @@ export function HubDeckPreviewDialog({
     if (!detail) return;
     loadHubDeck(detail.deck as EditorDeck);
     onClose();
-    navigate(ROUTES.DECK_EDITOR, { state: { deckEditorFromList: true } });
+    if (onViewSnapshot) {
+      onViewSnapshot();
+    } else {
+      navigate(ROUTES.DECK_EDITOR, { state: { directToEditor: true } });
+    }
   }
 
-  function handleCopyLink() {
+  async function handleCopyLink() {
     if (!deckId) return;
     const url = `${window.location.origin}/hub?deck=${encodeURIComponent(deckId)}`;
-    void navigator.clipboard.writeText(url);
-    toast.success("Share link copied — anyone can open and play this deck");
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied — anyone can open and play this deck");
+    } catch {
+      toast.error("Couldn’t copy the share link");
+    }
   }
 
   function handlePlaytest() {
@@ -139,6 +151,7 @@ export function HubDeckPreviewDialog({
     setBusy(true);
     try {
       await unpublishDeck(deckId, legacyPublication?.managementToken);
+      setConfirmingUnpublish(false);
       removePublished(deckId);
       removeDeck(deckId);
       void refresh();
@@ -197,17 +210,48 @@ export function HubDeckPreviewDialog({
               </Button>
             )}
             {mine && !ownershipLoading && (
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={busy || !detail}
-                onClick={handleUnpublish}
-                className="mr-auto"
-              >
-                {busy ? "Unpublishing…" : "Unpublish"}
-              </Button>
+              <div className="mr-auto flex flex-wrap items-center gap-2">
+                {confirmingUnpublish ? (
+                  <>
+                    <span role="status" aria-live="polite" className="text-xs text-destructive">
+                      Remove this public snapshot?
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => setConfirmingUnpublish(false)}
+                    >
+                      Keep published
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      autoFocus
+                      disabled={busy || !detail}
+                      onClick={handleUnpublish}
+                    >
+                      {busy ? "Unpublishing…" : "Confirm unpublish"}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={busy || !detail}
+                    onClick={() => setConfirmingUnpublish(true)}
+                  >
+                    Unpublish
+                  </Button>
+                )}
+              </div>
             )}
-            <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!deckId}
+              onClick={() => void handleCopyLink()}
+            >
               Copy link
             </Button>
             <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>

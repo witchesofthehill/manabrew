@@ -6,18 +6,19 @@ import type { HubDeckSummary } from "@/api/hubTypes";
 const SEARCH_DELAY_MS = 300;
 
 export function useHubDeckSearch(search: string, format?: string) {
-  const [decks, setDecks] = useState<HubDeckSummary[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    key: string;
+    decks: HubDeckSummary[];
+    error: string | null;
+  }>({ key: "", decks: [], error: null });
   const [attempt, setAttempt] = useState(0);
   const enabled = isFeatureEnabled("deckHub");
+  const key = `${format ?? ""}\n${search.trim()}\n${attempt}`;
 
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      setLoading(true);
-      setError(null);
       void fetchHubDecks({
         search: search.trim() || undefined,
         format: format || undefined,
@@ -26,22 +27,30 @@ export function useHubDeckSearch(search: string, format?: string) {
         pageSize: 10,
       })
         .then((result) => {
-          if (!cancelled) setDecks(result.decks);
+          if (!cancelled) setResult({ key, decks: result.decks, error: null });
         })
         .catch((err) => {
           if (!cancelled) {
-            setError(err instanceof Error ? err.message : "Failed to load Deck Hub decks");
+            setResult({
+              key,
+              decks: [],
+              error: err instanceof Error ? err.message : "Failed to load Deck Hub decks",
+            });
           }
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
         });
     }, SEARCH_DELAY_MS);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [attempt, enabled, format, search]);
+  }, [attempt, enabled, format, key, search]);
 
-  return { decks, loading, error, enabled, retry: () => setAttempt((value) => value + 1) };
+  const current = enabled && result.key === key;
+  return {
+    decks: current ? result.decks : [],
+    loading: enabled && !current,
+    error: current ? result.error : null,
+    enabled,
+    retry: () => setAttempt((value) => value + 1),
+  };
 }

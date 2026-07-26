@@ -97,6 +97,16 @@ export function DeckSelectionCard({
   const fallbackColorLabel = !isPreset && !isHub && getDeckColors(cards).length === 0;
   const showManaRow = !!colorCost || fallbackColorLabel;
   const hasVsSide = isPlayerDeck || isOpponentDeck;
+  const assignment =
+    isPlayerDeck && isOpponentDeck
+      ? ", assigned to you and the AI"
+      : isPlayerDeck
+        ? ", assigned to you"
+        : isOpponentDeck
+          ? ", assigned to the AI"
+          : isSelected
+            ? ", selected"
+            : "";
 
   // Derive side-specific inline styles from theme CSS vars
   const sideStyle: React.CSSProperties | undefined = hasVsSide
@@ -119,6 +129,8 @@ export function DeckSelectionCard({
       type="button"
       disabled={disabled}
       aria-busy={loading}
+      aria-pressed={Boolean(hasVsSide || isSelected)}
+      aria-label={`${name}${assignment}${isLegal ? "" : ", not legal"}`}
       onClick={onSelect}
       onDoubleClick={() => {
         if (!isTouch) onActivate?.();
@@ -127,7 +139,7 @@ export function DeckSelectionCard({
       className={cn(
         "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted cursor-pointer",
         dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
-        "hover:ring-2 hover:ring-primary hover:border-primary",
+        "hover:ring-2 hover:ring-primary hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:cursor-wait disabled:opacity-60",
         !hasVsSide && isSelected
           ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -151,31 +163,33 @@ export function DeckSelectionCard({
         <DeckCoverImage cover={cover} alt={name} fallbackClassName={coverFallbackClassName} />
       )}
 
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
 
       <div className="relative z-10 h-full">
         <div className="absolute right-3 top-3 flex items-center gap-1">
           {isPlayerDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-white"
+              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
               style={{ backgroundColor: "var(--player-colors-self)" }}
             >
-              <User className="h-3 w-3" />
+              <User aria-hidden="true" className="h-3 w-3" />
             </span>
           )}
           {isOpponentDeck && (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-white"
+              className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
               style={{ backgroundColor: "var(--player-colors-opponent1)" }}
             >
-              <Bot className="h-3 w-3" />
+              <Bot aria-hidden="true" className="h-3 w-3" />
             </span>
           )}
           {!hasVsSide && isSelected && (
             <Check
               className={cn(
                 "h-3.5 w-3.5",
-                cover ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-primary",
+                cover
+                  ? "text-text-on-tinted drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                  : "text-primary",
               )}
             />
           )}
@@ -183,7 +197,9 @@ export function DeckSelectionCard({
             <AlertCircle
               className={cn(
                 "h-3.5 w-3.5",
-                cover ? "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" : "text-warning",
+                cover
+                  ? "text-text-on-tinted drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+                  : "text-warning",
               )}
             />
           )}
@@ -192,7 +208,7 @@ export function DeckSelectionCard({
         <div
           className={cn(
             "absolute inset-x-0 bottom-0 flex flex-col gap-1",
-            "px-3 py-1.5 rounded-b-xl bg-black/50 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.4)]",
+            "px-3 py-1.5 rounded-b-xl bg-overlay/50 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.4)]",
           )}
         >
           <div className="flex items-start justify-between gap-2">
@@ -221,7 +237,10 @@ export function DeckSelectionCard({
                   <ManaSymbols cost={colorCost} size="sm" />
                 ) : fallbackColorLabel ? (
                   <span
-                    className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
+                    className={cn(
+                      "text-[10px]",
+                      cover ? "text-text-on-tinted/85" : "text-muted-foreground",
+                    )}
                   >
                     Colorless
                   </span>
@@ -238,7 +257,11 @@ export function DeckSelectionCard({
               className={cn(
                 "text-[11px] leading-tight",
                 dense ? "line-clamp-1" : "line-clamp-2",
-                !isLegal ? "text-warning" : cover ? "text-white/85" : "text-muted-foreground",
+                !isLegal
+                  ? "text-warning"
+                  : cover
+                    ? "text-text-on-tinted/85"
+                    : "text-muted-foreground",
                 DECK_NAME_SHADOW_CLASS,
               )}
             >
@@ -250,7 +273,10 @@ export function DeckSelectionCard({
             <div className="flex items-center gap-1 flex-wrap">
               {!dense && (
                 <span
-                  className={cn("text-[10px]", cover ? "text-white/85" : "text-muted-foreground")}
+                  className={cn(
+                    "text-[10px]",
+                    cover ? "text-text-on-tinted/85" : "text-muted-foreground",
+                  )}
                 >
                   {isHub
                     ? `Deck Hub · ${cardCount ?? cards.length} cards`

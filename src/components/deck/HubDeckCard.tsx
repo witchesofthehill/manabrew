@@ -23,7 +23,7 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
     <div
       className={cn(
         "relative group cursor-pointer rounded-lg overflow-hidden border bg-muted",
-        "aspect-[4/3] transition-all hover:ring-2 hover:ring-primary hover:border-primary",
+        "aspect-[4/3] transition-all hover:ring-2 hover:ring-primary hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       )}
       onClick={onOpen}
       onKeyDown={(event) => {
@@ -49,7 +49,7 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
 
       {onPlaytest && (
         <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
@@ -71,19 +71,19 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
       <div className="absolute bottom-0 left-0 right-0 px-2 pt-6 pb-2 z-10">
         <p
           className={cn(
-            "text-white text-sm font-semibold truncate leading-tight",
+            "text-text-on-tinted text-sm font-semibold truncate leading-tight",
             DECK_NAME_SHADOW_CLASS,
           )}
         >
           {deck.name}
         </p>
-        <p className={cn("text-white/85 text-[11px] truncate", DECK_NAME_SHADOW_CLASS)}>
+        <p className={cn("text-text-on-tinted/85 text-[11px] truncate", DECK_NAME_SHADOW_CLASS)}>
           by {deck.author}
         </p>
         <div className="flex items-center gap-1 mt-1 flex-wrap">
           <FormatBadge formatId={deck.format ?? "commander"} />
           {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
-          <span className="ml-auto text-[10px] text-white/85">{cardCount} cards</span>
+          <span className="ml-auto text-[10px] text-text-on-tinted/85">{cardCount} cards</span>
         </div>
       </div>
     </div>

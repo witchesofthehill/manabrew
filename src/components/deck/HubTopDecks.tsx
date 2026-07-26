@@ -21,7 +21,6 @@ const WINDOW_COPY: Record<TopDecksWindow, string> = {
 export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) => void }) {
   const [window, setWindow] = useState<TopDecksWindow>("30d");
   const topDecks = useHubStore((s) => s.topDecks);
-  const topLoading = useHubStore((s) => s.topLoading);
   const topError = useHubStore((s) => s.topError);
   const fetchTop = useHubStore((s) => s.fetchTop);
 
@@ -29,7 +28,7 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
     void fetchTop(window);
   }, [fetchTop, window]);
 
-  const totalPlays = topDecks?.reduce((total, stat) => total + stat.plays, 0) ?? 0;
+  const displayedPlays = topDecks?.reduce((total, stat) => total + stat.plays, 0) ?? 0;
   const maxPlays = topDecks?.[0]?.plays ?? 0;
   const featured = topDecks?.slice(0, 3) ?? [];
   const rankings = topDecks?.slice(3) ?? [];
@@ -45,7 +44,7 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Decks seen most often across online games in {WINDOW_COPY[window]}.
+            Decks seen most often across official public-relay games in {WINDOW_COPY[window]}.
           </p>
         </div>
         <div
@@ -112,7 +111,7 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
                   Leaders
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {totalPlays.toLocaleString()} tracked {totalPlays === 1 ? "play" : "plays"}
+                  {displayedPlays.toLocaleString()} plays across the {topDecks.length} listed decks
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">Select a deck to find it in Browse</p>
@@ -125,7 +124,7 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
                   stat={stat}
                   rank={index + 1}
                   maxPlays={maxPlays}
-                  totalPlays={totalPlays}
+                  displayedPlays={displayedPlays}
                   featured
                   onOpen={() => onSearchDeck?.(stat.deckName)}
                 />
@@ -147,7 +146,7 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
                       stat={stat}
                       rank={index + 4}
                       maxPlays={maxPlays}
-                      totalPlays={totalPlays}
+                      displayedPlays={displayedPlays}
                       onOpen={() => onSearchDeck?.(stat.deckName)}
                     />
                   ))}
@@ -156,13 +155,10 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
             )}
           </div>
         )}
-        {topLoading && topDecks !== null && (
-          <p className="mt-4 text-center text-xs text-muted-foreground">Updating leaderboard…</p>
-        )}
       </div>
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
-        Rankings measure play frequency, not win rate. Deck names are matched to published lists
-        when you open them.
+        Rankings measure play frequency, not win rate. Selecting a name searches Browse for a
+        published deck with the same name; some played decks may not be published.
       </p>
     </div>
   );

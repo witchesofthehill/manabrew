@@ -1,4 +1,5 @@
 import { ArrowUpRight, Layers } from "lucide-react";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import { chooseImageUrisForCard, useCard } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import type { TopDeckStat } from "@/api/hubTypes";
@@ -7,7 +8,7 @@ interface HubTopDeckEntryProps {
   stat: TopDeckStat;
   rank: number;
   maxPlays: number;
-  totalPlays: number;
+  displayedPlays: number;
   featured?: boolean;
   onOpen: () => void;
 }
@@ -29,13 +30,13 @@ export function HubTopDeckEntry({
   stat,
   rank,
   maxPlays,
-  totalPlays,
+  displayedPlays,
   featured = false,
   onOpen,
 }: HubTopDeckEntryProps) {
   const card = useCard({ name: stat.commander ?? stat.deckName });
   const art = card ? chooseImageUrisForCard(card.info, { frontOnly: true })?.art_crop : undefined;
-  const share = totalPlays > 0 ? (stat.plays / totalPlays) * 100 : 0;
+  const share = displayedPlays > 0 ? (stat.plays / displayedPlays) * 100 : 0;
   const relativeWidth = maxPlays > 0 ? Math.max(4, (stat.plays / maxPlays) * 100) : 0;
   const lastPlayed = lastPlayedLabel(stat.lastPlayed);
 
@@ -52,7 +53,7 @@ export function HubTopDeckEntry({
         aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Search Deck Hub.`}
       >
         {art ? (
-          <img
+          <ScryfallImg
             src={art}
             alt=""
             loading="lazy"
@@ -97,7 +98,7 @@ export function HubTopDeckEntry({
               </span>
               <span className="text-right text-[11px] text-text-on-tinted/75">
                 <span className="block font-semibold text-text-on-tinted">
-                  {share.toFixed(1)}% of field
+                  {share.toFixed(1)}% of shown plays
                 </span>
                 {lastPlayed}
               </span>
@@ -121,7 +122,7 @@ export function HubTopDeckEntry({
         </span>
         <span className="flex h-11 overflow-hidden rounded-md bg-muted sm:h-12">
           {art ? (
-            <img src={art} alt="" loading="lazy" className="h-full w-full object-cover" />
+            <ScryfallImg src={art} alt="" loading="lazy" className="h-full w-full object-cover" />
           ) : (
             <Layers className="m-auto h-4 w-4 text-muted-foreground/40" />
           )}
@@ -142,7 +143,7 @@ export function HubTopDeckEntry({
             />
           </span>
           <span className="mt-1 block text-[10px] text-muted-foreground">
-            {share.toFixed(1)}% of tracked plays
+            {share.toFixed(1)}% of shown plays
           </span>
         </span>
         <span className="flex items-center gap-2 pl-1">

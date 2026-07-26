@@ -42,6 +42,7 @@ import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
+import type { EditorDeck } from "@/types/manabrew";
 import { needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
 import { useDroppable } from "@dnd-kit/core";
@@ -256,12 +257,16 @@ export function DeckBuilder({
   setPreviewSlot,
   previewCollapsed,
   onTogglePreview,
+  resumedPublication,
+  onResumedPublicationClose,
 }: {
   onToggleSearch?: () => void;
   previewSlot?: HTMLElement | null;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
   previewCollapsed?: boolean;
   onTogglePreview?: () => void;
+  resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
+  onResumedPublicationClose?: () => void;
 } = {}) {
   const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
   const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
@@ -1364,14 +1369,25 @@ export function DeckBuilder({
           />
         )}
         <DeckLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} />
-        {publishEnabled && (
+        {publishEnabled && resumedPublication ? (
+          <PublishDeckDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) onResumedPublicationClose?.();
+            }}
+            deck={resumedPublication.deck}
+            localDeckId={resumedPublication.localDeckId}
+            resumeInEditor
+          />
+        ) : publishEnabled ? (
           <PublishDeckDialog
             open={publishOpen}
             onOpenChange={setPublishOpen}
             deck={currentDeck}
             localDeckId={currentDeckId}
+            resumeInEditor
           />
-        )}
+        ) : null}
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

@@ -13,12 +13,12 @@ interface HubState {
   listLoading: boolean;
   listError: string | null;
   topDecks: TopDeckStat[] | null;
-  topLoading: boolean;
   topError: string | null;
   myDecks: HubDeckList | null;
   myDecksLoading: boolean;
   myDecksError: string | null;
   myDecksAccountId: string | null;
+  myDecksFetchedAt: number | null;
   details: Record<string, HubDeckDetail>;
   fetchDecks: (params: HubListParams) => Promise<void>;
   fetchTop: (window: TopDecksWindow) => Promise<void>;
@@ -32,22 +32,23 @@ let listRequestId = 0;
 let topRequestId = 0;
 let myDecksRequestId = 0;
 const detailRequests = new Map<string, Promise<HubDeckDetail>>();
+const MY_DECKS_MAX_AGE_MS = 30_000;
 
 export const useHubStore = create<HubState>((set, get) => ({
   list: null,
   listLoading: false,
   listError: null,
   topDecks: null,
-  topLoading: false,
   topError: null,
   myDecks: null,
   myDecksLoading: false,
   myDecksError: null,
   myDecksAccountId: null,
+  myDecksFetchedAt: null,
   details: {},
   fetchDecks: async (params) => {
     const requestId = ++listRequestId;
-    set({ listLoading: true, listError: null });
+    set({ list: null, listLoading: true, listError: null });
     try {
       const list = await fetchHubDecks(params);
       if (requestId === listRequestId) set({ list, listLoading: false });
@@ -62,14 +63,13 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
   fetchTop: async (window) => {
     const requestId = ++topRequestId;
-    set({ topLoading: true, topError: null });
+    set({ topDecks: null, topError: null });
     try {
       const topDecks = await fetchTopDecks(window);
-      if (requestId === topRequestId) set({ topDecks, topLoading: false });
+      if (requestId === topRequestId) set({ topDecks });
     } catch (err) {
       if (requestId === topRequestId) {
         set({
-          topLoading: false,
           topError: err instanceof Error ? err.message : "Failed to load top decks",
         });
       }
@@ -77,10 +77,13 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
   fetchMyDecks: async (accountId, force = false) => {
     const state = get();
+    if (state.myDecksAccountId === accountId && state.myDecksLoading) return;
     if (
       !force &&
       state.myDecksAccountId === accountId &&
-      (state.myDecks !== null || state.myDecksLoading)
+      state.myDecks !== null &&
+      state.myDecksFetchedAt !== null &&
+      Date.now() - state.myDecksFetchedAt < MY_DECKS_MAX_AGE_MS
     )
       return;
     const requestId = ++myDecksRequestId;
@@ -93,7 +96,7 @@ export const useHubStore = create<HubState>((set, get) => ({
     try {
       const myDecks = await fetchAccountDecks();
       if (requestId === myDecksRequestId && get().myDecksAccountId === accountId) {
-        set({ myDecks, myDecksLoading: false });
+        set({ myDecks, myDecksLoading: false, myDecksFetchedAt: Date.now() });
       }
     } catch (err) {
       if (requestId === myDecksRequestId && get().myDecksAccountId === accountId) {
@@ -111,6 +114,7 @@ export const useHubStore = create<HubState>((set, get) => ({
       myDecksLoading: false,
       myDecksError: null,
       myDecksAccountId: null,
+      myDecksFetchedAt: null,
     });
   },
   loadDeck: async (id) => {

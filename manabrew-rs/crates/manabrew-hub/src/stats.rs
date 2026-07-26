@@ -54,6 +54,7 @@ impl StatsCache {
             "SELECT gp.deck_name, gp.commander, count(*) AS plays, max(g.started_at) AS last_played
              FROM game_players gp JOIN games g ON g.game_id = gp.game_id
              WHERE gp.deck_name IS NOT NULL AND gp.is_bot = 0
+               AND g.official = 1
                AND (?1 IS NULL OR g.started_at >= ?1)
              GROUP BY gp.deck_name, gp.commander
              ORDER BY plays DESC

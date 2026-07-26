@@ -3,6 +3,8 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 
+const MY_DECKS_REFRESH_INTERVAL_MS = 30_000;
+
 export function useMyHubDecks() {
   const accountId = useAuthStore((state) => state.account?.id ?? null);
   const status = useAuthStore((state) => state.status);
@@ -20,6 +22,17 @@ export function useMyHubDecks() {
     }
     void fetchMyDecks(accountId);
   }, [accountId, clearMyDecks, enabled, fetchMyDecks, status]);
+
+  useEffect(() => {
+    if (!enabled || status !== "signedIn" || !accountId) return;
+    const refreshOnFocus = () => void fetchMyDecks(accountId);
+    const interval = window.setInterval(refreshOnFocus, MY_DECKS_REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [accountId, enabled, fetchMyDecks, status]);
 
   return {
     decks: myDecks?.decks ?? [],

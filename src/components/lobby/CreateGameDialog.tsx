@@ -50,6 +50,8 @@ export function CreateGameDialog({
   const [deckSearch, setDeckSearch] = useState("");
   const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, HubDeckDetail>>({});
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
+  const selectedFormatRef = useRef(selectedFormat);
+  selectedFormatRef.current = selectedFormat;
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
   const restoredHubDeckRef = useRef<string | null>(null);
@@ -71,15 +73,22 @@ export function CreateGameDialog({
     setLoadingHubDeckId(preSelectedHubDeckId);
     void loadHubDeck(preSelectedHubDeckId)
       .then((detail) => {
+        const formatId = detail.deck.format ?? detail.format ?? "standard";
+        if (formatId !== selectedFormat.id) {
+          restoredHubDeckRef.current = null;
+          toast.error(`"${detail.name}" is not a ${selectedFormat.name} deck`);
+          return;
+        }
         setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
         setSelectedDeck(`hub:${detail.id}`);
         setDeckSearch(detail.name);
       })
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck"),
-      )
+      .catch((err) => {
+        restoredHubDeckRef.current = null;
+        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
+      })
       .finally(() => setLoadingHubDeckId(null));
-  }, [loadHubDeck, open, preSelectedHubDeckId]);
+  }, [loadHubDeck, open, preSelectedHubDeckId, selectedFormat.id, selectedFormat.name]);
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(
@@ -219,6 +228,11 @@ export function CreateGameDialog({
         formatId: detail.deck.format ?? detail.format ?? "standard",
         commanderName: detail.deck.commanders?.[0]?.identity.name,
       };
+      const currentFormat = selectedFormatRef.current;
+      if (entry.formatId !== currentFormat.id) {
+        toast.error(`"${detail.name}" is not a ${currentFormat.name} deck`);
+        return;
+      }
       setSelectedDeck(entry.id);
       if (activate) handleCreate(entry, entry.commanderName);
     } catch (err) {
@@ -277,7 +291,12 @@ export function CreateGameDialog({
         onKeyDown={(e) => {
           if (e.key !== "Enter") return;
           const target = e.target as HTMLElement;
-          if (target.closest("[role='combobox'], [role='listbox'], textarea")) return;
+          if (
+            target.closest(
+              "input, button, a, textarea, [contenteditable='true'], [role='combobox'], [role='listbox']",
+            )
+          )
+            return;
           e.preventDefault();
           handleCreate();
         }}
@@ -300,10 +319,11 @@ export function CreateGameDialog({
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
+                  aria-label="Filter decks"
                   placeholder="Filter decks..."
                   value={deckSearch}
                   onChange={(e) => setDeckSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"

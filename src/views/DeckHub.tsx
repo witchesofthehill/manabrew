@@ -27,7 +27,12 @@ function SegmentedButton({
   children: React.ReactNode;
 }) {
   return (
-    <Button variant={active ? "secondary" : "ghost"} size="sm" onClick={onClick}>
+    <Button
+      variant={active ? "secondary" : "ghost"}
+      size="sm"
+      aria-pressed={active}
+      onClick={onClick}
+    >
       {children}
     </Button>
   );
@@ -91,6 +96,7 @@ export default function DeckHub() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search Deck Hub"
               placeholder="Search decks, authors, commanders…"
               className="h-6 max-w-56 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
             />
@@ -188,9 +194,10 @@ export default function DeckHub() {
                 variant="outline"
                 size="sm"
                 disabled={page <= 1}
+                aria-label="Previous page"
                 onClick={() => setPage((p) => p - 1)}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft aria-hidden="true" className="h-4 w-4" />
               </Button>
               <span className="text-sm text-muted-foreground">
                 Page {page} of {totalPages}
@@ -199,9 +206,10 @@ export default function DeckHub() {
                 variant="outline"
                 size="sm"
                 disabled={page >= totalPages}
+                aria-label="Next page"
                 onClick={() => setPage((p) => p + 1)}
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight aria-hidden="true" className="h-4 w-4" />
               </Button>
             </div>
           )}

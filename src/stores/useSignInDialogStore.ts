@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import type { AuthReturnIntent } from "@/lib/authReturn";
 
-export interface SignInPrefill {
+export interface SignInPrefill extends Partial<AuthReturnIntent> {
   email?: string;
   code?: string;
   claimHandle?: boolean;

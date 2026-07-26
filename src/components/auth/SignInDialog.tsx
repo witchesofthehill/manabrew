@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { getPlatformType } from "@/platform";
+import { clearAuthReturnIntent, storeAuthReturnIntent } from "@/lib/authReturn";
 import type { AuthProviders, AuthSessionResponse } from "@/api/authTypes";
 
 type Step = "start" | "email-code" | "desktop-code" | "handle";
@@ -44,6 +45,15 @@ export function SignInDialog() {
   const [handle, setHandle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [providersError, setProvidersError] = useState(false);
+
+  function loadProviders() {
+    setProviders(null);
+    setProvidersError(false);
+    void fetchAuthProviders()
+      .then(setProviders)
+      .catch(() => setProvidersError(true));
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +62,7 @@ export function SignInDialog() {
     setCode(prefill?.code ?? "");
     setEmail(prefill?.email ?? "");
     setHandle("");
+    setProvidersError(false);
     if (prefill?.claimHandle) {
       setStep("handle");
     } else if (prefill?.email && prefill?.code) {
@@ -59,12 +70,14 @@ export function SignInDialog() {
     } else {
       setStep("start");
     }
-    fetchAuthProviders()
+    setProviders(null);
+    void fetchAuthProviders()
       .then(setProviders)
-      .catch(() => setProviders({ github: false, discord: false, email: true }));
+      .catch(() => setProvidersError(true));
   }, [open, prefill]);
 
   function completeSignIn(session: AuthSessionResponse) {
+    clearAuthReturnIntent();
     signIn(session.token, session.account);
     if (session.account.handlePending) {
       setError(null);
@@ -96,6 +109,7 @@ export function SignInDialog() {
         window.open(url, "_blank", "noopener");
         setStep("desktop-code");
       } else {
+        storeAuthReturnIntent(prefill ?? undefined);
         window.location.assign(url);
       }
     });
@@ -104,6 +118,7 @@ export function SignInDialog() {
   function handleSendCode() {
     void run(async () => {
       await requestMagicLink(email.trim());
+      storeAuthReturnIntent(prefill ?? undefined);
       setCode("");
       setStep("email-code");
     });
@@ -127,6 +142,7 @@ export function SignInDialog() {
       if (!token) return;
       try {
         const account = await updateHandle(token, handle.trim());
+        if (useAuthStore.getState().token !== token) return;
         setAccount(account);
         toast.success(`Signed in as @${account.handle}`);
         hide();
@@ -161,8 +177,16 @@ export function SignInDialog() {
 
         {step === "start" && (
           <div className="space-y-4">
+            {providersError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                <p>Sign-in methods could not be loaded.</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={loadProviders}>
+                  Try again
+                </Button>
+              </div>
+            )}
             <div className="space-y-2">
-              {providers?.github !== false && (
+              {!providersError && providers?.github !== false && (
                 <Button
                   variant="outline"
                   className="w-full justify-center"
@@ -173,7 +197,7 @@ export function SignInDialog() {
                   Continue with GitHub
                 </Button>
               )}
-              {providers?.discord !== false && (
+              {!providersError && providers?.discord !== false && (
                 <Button
                   variant="outline"
                   className="w-full justify-center"
@@ -185,7 +209,7 @@ export function SignInDialog() {
                 </Button>
               )}
             </div>
-            {isFeatureEnabled("emailSignIn") && providers?.email !== false && (
+            {!providersError && isFeatureEnabled("emailSignIn") && providers?.email !== false && (
               <>
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-border" />

@@ -106,6 +106,8 @@ export function DeckVsSelector({
   const [deckSearch, setDeckSearch] = useState("");
   const [starting, setStarting] = useState(false);
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
+  const selectedFormatRef = useRef(selectedFormat);
+  selectedFormatRef.current = selectedFormat;
   const opponentTouchedRef = useRef(false);
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
@@ -277,7 +279,14 @@ export function DeckVsSelector({
       const detail = await loadHubDeck(summary.id);
       const deck = detail.deck;
       const formatId = deck.format ?? summary.format ?? "standard";
-      if (!selectedFormat) setSelectedFormat(formatId);
+      const currentFormat = selectedFormatRef.current;
+      if (currentFormat && formatId !== currentFormat) {
+        toast.error(
+          `"${detail.name}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
+        );
+        return;
+      }
+      if (!currentFormat) setSelectedFormat(formatId);
       assignDeck({
         id: `hub:${summary.id}`,
         sourceId: summary.id,
@@ -430,10 +439,11 @@ export function DeckVsSelector({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
+            aria-label="Filter decks"
             placeholder="Filter decks..."
             value={deckSearch}
             onChange={(e) => setDeckSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-3 py-1.5 rounded-md border bg-background text-sm pointer-coarse:h-10 pointer-coarse:text-base focus:outline-none focus:ring-1 focus:ring-primary"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"

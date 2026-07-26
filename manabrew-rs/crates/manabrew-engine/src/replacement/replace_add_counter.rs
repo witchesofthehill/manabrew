@@ -180,6 +180,7 @@ pub fn execute(
     _source_card_id: CardId,
     agents: Option<&mut [Box<dyn crate::agent::PlayerAgent>]>,
 ) -> ReplacementResult {
+    let etb = matches!(event, ReplacementEvent::Moved { .. });
     let (target, cause, is_effect, counter_map, after_replacement_static_abilities) = match event {
         ReplacementEvent::AddCounter {
             target,
@@ -298,6 +299,10 @@ pub fn execute(
                 return ReplacementResult::Updated;
             }
         }
+    }
+    if etb {
+        counter_map.clear();
+        return ReplacementResult::Updated;
     }
     ReplacementResult::Replaced
 }

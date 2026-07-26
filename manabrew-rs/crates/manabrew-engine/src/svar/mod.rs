@@ -1973,6 +1973,12 @@ pub fn resolve_count_svar_for_sa(
         }
     }
 
+    if let Some(rest) = expr.strip_prefix("Count$RememberedNumber") {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        let count = game.card(source_id).remembered_cmc.iter().sum();
+        return do_x_math(count, operators, game, source_id, controller, sa);
+    }
+
     // Count$RememberedSize — mirrors Java `Card.getRememberedCount()`
     // (cards + players + integers).
     if let Some(rest) = expr.strip_prefix("Count$RememberedSize") {

@@ -34,7 +34,7 @@ export function HubTopDeckEntry({
   featured = false,
   onOpen,
 }: HubTopDeckEntryProps) {
-  const card = useCard({ name: stat.commander ?? stat.deckName });
+  const card = useCard(stat.commander ? { name: stat.commander } : null);
   const art = card ? chooseImageUrisForCard(card.info, { frontOnly: true })?.art_crop : undefined;
   const share = displayedPlays > 0 ? (stat.plays / displayedPlays) * 100 : 0;
   const relativeWidth = maxPlays > 0 ? Math.max(4, (stat.plays / maxPlays) * 100) : 0;
@@ -50,7 +50,7 @@ export function HubTopDeckEntry({
           "hover:-translate-y-0.5 hover:border-primary hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           rank === 1 && "border-primary/60 shadow-md",
         )}
-        aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Search Deck Hub.`}
+        aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Search published decks.`}
       >
         {art ? (
           <ScryfallImg
@@ -76,7 +76,7 @@ export function HubTopDeckEntry({
               {rank}
             </span>
             <span className="flex items-center gap-1 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100">
-              Find in Hub
+              Search Hub
               <ArrowUpRight className="h-3 w-3" />
             </span>
           </span>
@@ -115,7 +115,7 @@ export function HubTopDeckEntry({
         type="button"
         onClick={onOpen}
         className="group grid w-full grid-cols-[2rem_3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-[2rem_4.5rem_minmax(0,1fr)_minmax(7rem,12rem)_auto] sm:px-3"
-        aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Search Deck Hub.`}
+        aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Search published decks.`}
       >
         <span className="text-right font-mono text-sm font-semibold tabular-nums text-muted-foreground">
           {rank}

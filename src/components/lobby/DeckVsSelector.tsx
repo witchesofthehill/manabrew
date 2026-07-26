@@ -115,6 +115,7 @@ export function DeckVsSelector({
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
   const restoredHubDeckRef = useRef<string | null>(null);
+  const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);
 
   useEffect(() => {
     if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
@@ -136,11 +137,17 @@ export function DeckVsSelector({
         setSelectedFormat(formatId);
         setPickingSide("opponent");
       })
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck"),
-      )
+      .catch((err) => {
+        restoredHubDeckRef.current = null;
+        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck", {
+          action: {
+            label: "Retry",
+            onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
+          },
+        });
+      })
       .finally(() => setLoadingHubDeckId(null));
-  }, [loadHubDeck, preSelectedHubDeckId]);
+  }, [hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(

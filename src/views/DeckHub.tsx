@@ -92,56 +92,54 @@ export default function DeckHub() {
 
       {tab === "browse" ? (
         <>
-          <div className="mt-2 flex shrink-0 flex-wrap items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8">
+          <div className="mt-2 flex shrink-0 flex-col gap-2 px-4 py-1.5 sm:flex-row sm:items-center sm:px-6 lg:px-8">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search Deck Hub"
               placeholder="Search decks, authors, commanders…"
-              className="h-6 max-w-56 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
+              className="h-8 w-full text-xs pointer-coarse:h-10 pointer-coarse:text-base sm:max-w-56"
             />
-            <div className="flex items-center gap-1 flex-wrap">
-              <SegmentedButton
-                active={format === ""}
-                onClick={() => {
-                  setFormat("");
-                  setPage(1);
-                }}
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                role="group"
+                aria-label="Filter Deck Hub by format"
+                className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 pb-1 no-scrollbar"
               >
-                All
-              </SegmentedButton>
-              {HUB_FORMATS.map((f) => (
                 <SegmentedButton
-                  key={f}
-                  active={format === f}
+                  active={format === ""}
                   onClick={() => {
-                    setFormat(f);
+                    setFormat("");
                     setPage(1);
                   }}
                 >
-                  {FORMAT_DISPLAY[f] ?? f}
+                  All
                 </SegmentedButton>
-              ))}
-            </div>
-            <div className="ml-auto flex items-center gap-1">
-              <SegmentedButton
-                active={sort === "newest"}
-                onClick={() => {
-                  setSort("newest");
+                {HUB_FORMATS.map((f) => (
+                  <SegmentedButton
+                    key={f}
+                    active={format === f}
+                    onClick={() => {
+                      setFormat(f);
+                      setPage(1);
+                    }}
+                  >
+                    {FORMAT_DISPLAY[f] ?? f}
+                  </SegmentedButton>
+                ))}
+              </div>
+              <select
+                value={sort}
+                aria-label="Sort Deck Hub"
+                className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
+                onChange={(event) => {
+                  setSort(event.target.value as HubSort);
                   setPage(1);
                 }}
               >
-                Newest
-              </SegmentedButton>
-              <SegmentedButton
-                active={sort === "name"}
-                onClick={() => {
-                  setSort("name");
-                  setPage(1);
-                }}
-              >
-                Name
-              </SegmentedButton>
+                <option value="newest">Newest</option>
+                <option value="name">Name</option>
+              </select>
             </div>
           </div>
 
@@ -162,16 +160,39 @@ export default function DeckHub() {
                 <p className="text-sm text-muted-foreground">Loading decks…</p>
               ) : list.decks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-                  <p className="text-lg font-semibold">No decks here yet</p>
-                  <p className="text-sm text-muted-foreground max-w-sm">
-                    Be the first — open My Decks and publish one of your brews to the hub.
-                  </p>
-                  <Button asChild size="sm">
-                    <Link to={ROUTES.DECK_EDITOR}>Open My Decks</Link>
-                  </Button>
+                  {debouncedSearch || format ? (
+                    <>
+                      <p className="text-lg font-semibold">No published decks match</p>
+                      <p className="max-w-sm text-sm text-muted-foreground">
+                        Try another name or format. Leaderboard decks are not always published.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearch("");
+                          setDebouncedSearch("");
+                          setFormat("");
+                          setPage(1);
+                        }}
+                      >
+                        Clear filters
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-semibold">No decks here yet</p>
+                      <p className="max-w-sm text-sm text-muted-foreground">
+                        Be the first — open My Decks and publish one of your brews to the hub.
+                      </p>
+                      <Button asChild size="sm">
+                        <Link to={ROUTES.DECK_EDITOR}>Open My Decks</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {list.decks.map((deck) => (
                     <HubDeckCard
                       key={deck.id}

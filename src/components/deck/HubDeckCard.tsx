@@ -22,70 +22,67 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
   return (
     <div
       className={cn(
-        "relative group cursor-pointer rounded-lg overflow-hidden border bg-muted",
-        "aspect-[4/3] transition-all hover:ring-2 hover:ring-primary hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative group overflow-hidden rounded-lg border bg-muted",
+        "aspect-[4/3] transition-all hover:border-primary hover:ring-2 hover:ring-primary",
       )}
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.currentTarget !== event.target) return;
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        onOpen();
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`Open ${deck.name} by ${deck.author}`}
     >
-      {deck.coverImageUrl ? (
-        <img
-          src={deck.coverImageUrl}
-          alt={deck.coverCardName ?? deck.name}
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
-        </div>
-      )}
+      <button
+        type="button"
+        className="absolute inset-0 w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        onClick={onOpen}
+        aria-label={`Open ${deck.name} by ${deck.author}`}
+      >
+        {deck.coverImageUrl ? (
+          <img
+            src={deck.coverImageUrl}
+            alt={deck.coverCardName ?? deck.name}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
+          </span>
+        )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
+        <span className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
+
+        <span className="absolute bottom-0 left-0 right-0 z-10 block px-2 pb-2 pt-6">
+          <span
+            className={cn(
+              "block truncate text-sm font-semibold leading-tight text-text-on-tinted",
+              DECK_NAME_SHADOW_CLASS,
+            )}
+          >
+            {deck.name}
+          </span>
+          <span
+            className={cn(
+              "block truncate text-[11px] text-text-on-tinted/85",
+              DECK_NAME_SHADOW_CLASS,
+            )}
+          >
+            by {deck.author}
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-1">
+            <FormatBadge formatId={deck.format ?? "commander"} />
+            {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
+            <span className="ml-auto text-[10px] text-text-on-tinted/85">{cardCount} cards</span>
+          </span>
+        </span>
+      </button>
 
       {onPlaytest && (
-        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
-          <Button
-            size="icon"
-            className="h-6 w-6"
-            title="Playtest vs AI"
-            aria-label={`Playtest ${deck.name} vs AI`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlaytest();
-            }}
-          >
-            <Swords className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
-      <div className="absolute bottom-0 left-0 right-0 px-2 pt-6 pb-2 z-10">
-        <p
-          className={cn(
-            "text-text-on-tinted text-sm font-semibold truncate leading-tight",
-            DECK_NAME_SHADOW_CLASS,
-          )}
+        <Button
+          size="icon"
+          className="absolute right-1.5 top-1.5 z-20 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
+          title="Playtest vs AI"
+          aria-label={`Playtest ${deck.name} vs AI`}
+          onClick={onPlaytest}
         >
-          {deck.name}
-        </p>
-        <p className={cn("text-text-on-tinted/85 text-[11px] truncate", DECK_NAME_SHADOW_CLASS)}>
-          by {deck.author}
-        </p>
-        <div className="flex items-center gap-1 mt-1 flex-wrap">
-          <FormatBadge formatId={deck.format ?? "commander"} />
-          {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
-          <span className="ml-auto text-[10px] text-text-on-tinted/85">{cardCount} cards</span>
-        </div>
-      </div>
+          <Swords className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 }

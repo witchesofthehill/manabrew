@@ -114,7 +114,9 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
                   {displayedPlays.toLocaleString()} plays across the {topDecks.length} listed decks
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground">Select a deck to find it in Browse</p>
+              <p className="text-xs text-muted-foreground">
+                Select a deck to search published copies
+              </p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
@@ -157,8 +159,8 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
         )}
       </div>
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
-        Rankings measure play frequency, not win rate. Selecting a name searches Browse for a
-        published deck with the same name; some played decks may not be published.
+        Rankings measure play frequency, not win rate. Selecting a name searches for a published
+        copy; some played decks may not be available in the Hub.
       </p>
     </div>
   );

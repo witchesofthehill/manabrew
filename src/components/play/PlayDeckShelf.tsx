@@ -181,7 +181,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         </div>
       )}
 
-      {hubAccountsEnabled && (
+      {hubAccountsEnabled && signedIn && (
         <div className="mt-5 border-t border-border/50 pt-4">
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -193,17 +193,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
               </span>
             )}
           </div>
-          {!signedIn ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>Sign in to see decks you published from any device.</span>
-              <Button variant="outline" size="sm" onClick={() => showSignIn()}>
-                Sign in
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-                Browse Deck Hub
-              </Button>
-            </div>
-          ) : publishedDecksError ? (
+          {publishedDecksError ? (
             <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
               <span className="min-w-0 break-words">{publishedDecksError}</span>
               <Button variant="outline" size="sm" onClick={() => void refreshPublishedDecks()}>
@@ -295,6 +285,23 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             </p>
           ))}
       </div>
+
+      {hubAccountsEnabled && !signedIn && (
+        <div className="mt-5 border-t border-border/50 pt-4">
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Published on Deck Hub
+          </span>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>Sign in to see decks you published from any device.</span>
+            <Button variant="outline" size="sm" onClick={() => showSignIn()}>
+              Sign in
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.HUB)}>
+              Browse Deck Hub
+            </Button>
+          </div>
+        </div>
+      )}
 
       <NewDeckChoiceDialog
         open={choiceOpen}

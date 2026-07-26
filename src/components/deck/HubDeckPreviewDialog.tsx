@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Swords, Users } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Swords, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { unpublishDeck } from "@/api/hub";
@@ -168,7 +174,7 @@ export function HubDeckPreviewDialog({
   return (
     <>
       <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="flex max-w-lg flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="truncate">
@@ -183,7 +189,7 @@ export function HubDeckPreviewDialog({
             </DialogDescription>
           </DialogHeader>
           {detail && (
-            <ScrollArea className="max-h-[50dvh] pr-3">
+            <ScrollArea className="min-h-0 max-h-[50dvh] pr-3">
               <div className="space-y-3">
                 <CardSection title="Commanders" cards={detail.deck.commanders ?? []} />
                 <CardSection title="Main deck" cards={detail.deck.cards} />
@@ -199,79 +205,94 @@ export function HubDeckPreviewDialog({
               </Button>
             </div>
           )}
-          <DialogFooter className="gap-2 sm:flex-wrap sm:space-x-0">
-            {error && (
+          {mine && !ownershipLoading && confirmingUnpublish && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span role="status" aria-live="polite" className="mr-auto text-xs text-destructive">
+                Remove this public snapshot?
+              </span>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={() => setLoadAttempt((value) => value + 1)}
+                disabled={busy}
+                onClick={() => setConfirmingUnpublish(false)}
               >
-                Retry
+                Keep published
               </Button>
-            )}
-            {mine && !ownershipLoading && (
-              <div className="mr-auto flex flex-wrap items-center gap-2">
-                {confirmingUnpublish ? (
-                  <>
-                    <span role="status" aria-live="polite" className="text-xs text-destructive">
-                      Remove this public snapshot?
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => setConfirmingUnpublish(false)}
-                    >
-                      Keep published
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      autoFocus
-                      disabled={busy || !detail}
-                      onClick={handleUnpublish}
-                    >
-                      {busy ? "Unpublishing…" : "Confirm unpublish"}
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={busy || !detail}
-                    onClick={() => setConfirmingUnpublish(true)}
-                  >
-                    Unpublish
-                  </Button>
-                )}
-              </div>
-            )}
+              <Button
+                variant="destructive"
+                size="sm"
+                autoFocus
+                disabled={busy || !detail}
+                onClick={handleUnpublish}
+              >
+                {busy ? "Unpublishing…" : "Confirm unpublish"}
+              </Button>
+            </div>
+          )}
+          {error ? (
             <Button
               variant="outline"
               size="sm"
-              disabled={!deckId}
-              onClick={() => void handleCopyLink()}
+              onClick={() => setLoadAttempt((value) => value + 1)}
             >
-              Copy link
+              Retry
             </Button>
-            <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
-              View snapshot
-            </Button>
-            <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-              Copy to My Decks
-            </Button>
-            <Button variant="secondary" size="sm" disabled={!detail} onClick={handleMultiplayer}>
-              <Users className="mr-1 h-3.5 w-3.5" />
-              Multiplayer
-            </Button>
-            <Button variant="secondary" size="sm" disabled={!detail} onClick={handlePlayOffline}>
-              <Swords className="mr-1 h-3.5 w-3.5" />
-              Play Offline
-            </Button>
-            <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
-              Playtest
-            </Button>
-          </DialogFooter>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
+                Playtest
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm" disabled={!detail}>
+                    Play
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={handlePlayOffline}>
+                    <Swords />
+                    Play Offline
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={handleMultiplayer}>
+                    <Users />
+                    Multiplayer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
+                Save editable copy
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                    More
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled={!detail} onSelect={handleOpen}>
+                    View read-only snapshot
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!deckId} onSelect={() => void handleCopyLink()}>
+                    Copy share link
+                  </DropdownMenuItem>
+                  {mine && !ownershipLoading && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        disabled={busy || !detail}
+                        className="text-destructive focus:text-destructive"
+                        onSelect={() => setConfirmingUnpublish(true)}
+                      >
+                        Unpublish
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       {playtestDialog}

@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use aws_lc_rs::signature::{Ed25519KeyPair, KeyPair};
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -12,11 +11,12 @@ use manabrew_hub::dto::IdentityTokenResponse;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::bearer_account;
-use crate::routes::{internal_error, AppState};
+use super::SessionAccount;
+use crate::routes::AppState;
 
 const TOKEN_TTL_SECS: u32 = 600;
 pub const ISSUER: &str = "manabrew-hub";
+pub const AUDIENCE: &str = "manabrew-relay";
 
 pub struct IdentityKeys {
     key_pair: Ed25519KeyPair,
@@ -29,6 +29,7 @@ pub struct IdentityClaims {
     pub sub: String,
     pub handle: String,
     pub iss: String,
+    pub aud: String,
     pub iat: i64,
     pub exp: i64,
 }
@@ -85,17 +86,16 @@ impl IdentityKeys {
     }
 }
 
-pub async fn token_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
-    let account = match bearer_account(&state, &headers) {
-        Ok(Some(account)) => account,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(error) => return internal_error(error),
-    };
+pub async fn token_handler(
+    State(state): State<Arc<AppState>>,
+    SessionAccount(account): SessionAccount,
+) -> Response {
     let now = Utc::now().timestamp();
     let claims = IdentityClaims {
         sub: account.id,
         handle: account.handle,
         iss: ISSUER.into(),
+        aud: AUDIENCE.into(),
         iat: now,
         exp: now + i64::from(TOKEN_TTL_SECS),
     };
@@ -137,6 +137,7 @@ pub mod tests {
             sub: "acct-1".into(),
             handle: "brewer".into(),
             iss: ISSUER.into(),
+            aud: AUDIENCE.into(),
             iat: now,
             exp: now + i64::from(TOKEN_TTL_SECS),
         }
@@ -175,6 +176,7 @@ pub mod tests {
         assert_eq!(verified.sub, "acct-1");
         assert_eq!(verified.handle, "brewer");
         assert_eq!(verified.iss, ISSUER);
+        assert_eq!(verified.aud, AUDIENCE);
         assert_eq!(verified.exp - verified.iat, i64::from(TOKEN_TTL_SECS));
     }
 

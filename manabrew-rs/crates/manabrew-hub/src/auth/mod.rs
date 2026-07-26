@@ -14,15 +14,16 @@ pub use token::{jwks_handler, token_handler, IdentityKeys};
 
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::http::HeaderMap;
+use axum::extract::{FromRequestParts, State};
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use chrono::{Duration, SecondsFormat, Utc};
 use manabrew_hub::dto::{AuthAccount, AuthProviders, AuthSessionResponse};
 use rand::Rng;
 
-use crate::routes::{generate_token, hash_token, AppState};
+use crate::routes::{generate_token, hash_token, internal_error, AppState};
 use crate::storage::{is_unique_violation, AccountRow};
 
 const SESSION_TTL_DAYS: i64 = 90;
@@ -88,6 +89,24 @@ pub fn bearer_account(
         &ts_in(Duration::days(SESSION_TTL_DAYS)),
     )?;
     Ok(Some(account))
+}
+
+pub struct SessionAccount(pub AccountRow);
+
+#[axum::async_trait]
+impl FromRequestParts<Arc<AppState>> for SessionAccount {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<AppState>,
+    ) -> Result<Self, Self::Rejection> {
+        match bearer_account(state, &parts.headers) {
+            Ok(Some(account)) => Ok(SessionAccount(account)),
+            Ok(None) => Err(StatusCode::UNAUTHORIZED.into_response()),
+            Err(error) => Err(internal_error(error)),
+        }
+    }
 }
 
 fn create_session(state: &AppState, account: &AccountRow) -> rusqlite::Result<AuthSessionResponse> {

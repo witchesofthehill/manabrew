@@ -165,13 +165,9 @@ async fn publish_handler(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
+    auth::SessionAccount(account): auth::SessionAccount,
     Json(request): Json<PublishDeckRequest>,
 ) -> Response {
-    let account = match auth::bearer_account(&state, &headers) {
-        Ok(Some(account)) => account,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(error) => return internal_error(error),
-    };
     let ip = client_ip(&headers, addr);
     let request = PublishDeckRequest {
         author: account.handle.clone(),
@@ -264,12 +260,10 @@ async fn delete_handler(
 
 const MY_DECKS_LIMIT: u32 = 200;
 
-async fn my_decks_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
-    let account = match auth::bearer_account(&state, &headers) {
-        Ok(Some(account)) => account,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(error) => return internal_error(error),
-    };
+async fn my_decks_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
     match state
         .storage
         .lock()

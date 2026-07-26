@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.1](https://github.com/witchesofthehill/manabrew/compare/v2.1.0...v2.1.1) (2026-07-26)
+
+### Fixes
+
+* **ui:** allow playing cards from opponent zones ([#553](https://github.com/witchesofthehill/manabrew/issues/553)) ([e0ba419](https://github.com/witchesofthehill/manabrew/commit/e0ba4198f5af2a373e516ec06399811931b4fada))
+
 ## [2.1.0](https://github.com/witchesofthehill/manabrew/compare/v2.0.2...v2.1.0) (2026-07-25)
 
 ### Features

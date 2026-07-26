@@ -1,69 +1,22 @@
 import { useEffect, useState } from "react";
-import { Layers } from "lucide-react";
+import { BarChart3, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TopDecksWindow } from "@/api/hub";
 import { useHubStore } from "@/stores/useHubStore";
-import { chooseImageUrisForCard, useCard } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
-import type { TopDeckStat } from "@/api/hubTypes";
+import { HubTopDeckEntry } from "@/components/deck/HubTopDeckEntry";
 
 const TOP_WINDOWS: { value: TopDecksWindow; label: string }[] = [
-  { value: "7d", label: "7 days" },
-  { value: "30d", label: "30 days" },
+  { value: "7d", label: "7D" },
+  { value: "30d", label: "30D" },
   { value: "all", label: "All time" },
 ];
 
-function TopDeckRow({
-  stat,
-  rank,
-  onOpen,
-}: {
-  stat: TopDeckStat;
-  rank: number;
-  onOpen: () => void;
-}) {
-  const card = useCard({ name: stat.commander ?? stat.deckName });
-  const art = card ? chooseImageUrisForCard(card.info, { frontOnly: true })?.art_crop : undefined;
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          "w-full flex items-center gap-3 rounded-md border px-3 py-2 text-left",
-          "transition-all hover:ring-2 hover:ring-primary hover:border-primary cursor-pointer",
-          rank === 1 && "border-primary",
-        )}
-      >
-        <span className="text-sm font-bold text-muted-foreground w-6 text-right shrink-0">
-          {rank}
-        </span>
-        <div className="h-12 w-20 shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
-          {art ? (
-            <img
-              src={art}
-              alt={stat.commander ?? stat.deckName}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <Layers className="h-5 w-5 text-muted-foreground opacity-40" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold truncate">{stat.deckName}</p>
-          {stat.commander && stat.commander !== stat.deckName && (
-            <p className="text-xs text-muted-foreground truncate">{stat.commander}</p>
-          )}
-        </div>
-        <span className="text-sm text-muted-foreground shrink-0">
-          {stat.plays} {stat.plays === 1 ? "game" : "games"}
-        </span>
-      </button>
-    </li>
-  );
-}
+const WINDOW_COPY: Record<TopDecksWindow, string> = {
+  "7d": "the last seven days",
+  "30d": "the last thirty days",
+  all: "all recorded games",
+};
 
 export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) => void }) {
   const [window, setWindow] = useState<TopDecksWindow>("30d");
@@ -76,52 +29,141 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
     void fetchTop(window);
   }, [fetchTop, window]);
 
+  const totalPlays = topDecks?.reduce((total, stat) => total + stat.plays, 0) ?? 0;
+  const maxPlays = topDecks?.[0]?.plays ?? 0;
+  const featured = topDecks?.slice(0, 3) ?? [];
+  const rankings = topDecks?.slice(3) ?? [];
+
   return (
-    <>
-      <div className="mt-2 flex items-center gap-1 px-2 py-1.5 shrink-0">
-        {TOP_WINDOWS.map((w) => (
-          <Button
-            key={w.value}
-            variant={window === w.value ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setWindow(w.value)}
-          >
-            {w.label}
-          </Button>
-        ))}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div>
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-primary" />
+            <h2 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">
+              Most Played
+            </h2>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            Decks seen most often across online games in {WINDOW_COPY[window]}.
+          </p>
+        </div>
+        <div
+          role="group"
+          aria-label="Leaderboard time period"
+          className="flex w-fit items-center rounded-lg border bg-muted/40 p-1"
+        >
+          {TOP_WINDOWS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setWindow(item.value)}
+              aria-pressed={window === item.value}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors pointer-coarse:min-h-10 pointer-coarse:px-4",
+                window === item.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         {topError ? (
-          <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
-            <span className="min-w-0 break-words">{topError}</span>
-            <Button variant="outline" size="sm" onClick={() => void fetchTop(window)}>
-              Retry
+          <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center">
+            <BarChart3 className="h-8 w-8 text-destructive" />
+            <p className="mt-3 text-sm font-medium">Leaderboard unavailable</p>
+            <p className="mt-1 max-w-md text-xs text-muted-foreground">{topError}</p>
+            <Button
+              className="mt-4"
+              variant="outline"
+              size="sm"
+              onClick={() => void fetchTop(window)}
+            >
+              Try again
             </Button>
           </div>
         ) : topDecks === null ? (
-          <p className="text-sm text-muted-foreground">Loading top decks…</p>
+          <div className="grid min-h-48 place-items-center text-sm text-muted-foreground">
+            Building the leaderboard…
+          </div>
         ) : topDecks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No games recorded in this window.</p>
+          <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center">
+            <Trophy className="h-8 w-8 text-muted-foreground/50" />
+            <p className="mt-3 text-sm font-medium">No games in this window</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Try a wider time range to see which decks players bring most often.
+            </p>
+            {window !== "all" && (
+              <Button className="mt-4" variant="outline" size="sm" onClick={() => setWindow("all")}>
+                View all time
+              </Button>
+            )}
+          </div>
         ) : (
-          <ol className="space-y-1 max-w-2xl">
-            {topDecks.map((stat, index) => (
-              <TopDeckRow
-                key={`${stat.deckName}-${stat.commander ?? ""}`}
-                stat={stat}
-                rank={index + 1}
-                onOpen={() => onSearchDeck?.(stat.deckName)}
-              />
-            ))}
-          </ol>
+          <div className="space-y-7">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Leaders
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {totalPlays.toLocaleString()} tracked {totalPlays === 1 ? "play" : "plays"}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">Select a deck to find it in Browse</p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {featured.map((stat, index) => (
+                <HubTopDeckEntry
+                  key={`${stat.deckName}-${stat.commander ?? ""}`}
+                  stat={stat}
+                  rank={index + 1}
+                  maxPlays={maxPlays}
+                  totalPlays={totalPlays}
+                  featured
+                  onOpen={() => onSearchDeck?.(stat.deckName)}
+                />
+              ))}
+            </div>
+
+            {rankings.length > 0 && (
+              <section>
+                <div className="mb-2 flex items-center justify-between gap-3 border-b pb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    The Field
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground">Relative to #1</span>
+                </div>
+                <ol className="space-y-0.5">
+                  {rankings.map((stat, index) => (
+                    <HubTopDeckEntry
+                      key={`${stat.deckName}-${stat.commander ?? ""}`}
+                      stat={stat}
+                      rank={index + 4}
+                      maxPlays={maxPlays}
+                      totalPlays={totalPlays}
+                      onOpen={() => onSearchDeck?.(stat.deckName)}
+                    />
+                  ))}
+                </ol>
+              </section>
+            )}
+          </div>
         )}
         {topLoading && topDecks !== null && (
-          <p className="mt-3 text-xs text-muted-foreground">Updating top decks…</p>
+          <p className="mt-4 text-center text-xs text-muted-foreground">Updating leaderboard…</p>
         )}
       </div>
-      <p className="text-xs text-muted-foreground px-4 py-2 border-t shrink-0">
-        Most-played decks across online games — click one to search for it in the hub. Win rates
-        arrive once winner tracking is fixed for hosted games.
+      <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
+        Rankings measure play frequency, not win rate. Deck names are matched to published lists
+        when you open them.
       </p>
-    </>
+    </div>
   );
 }

@@ -10,20 +10,29 @@ use super::trigger::TriggerBehavior;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerCounterAddedOnce {
     pub valid_card: Option<crate::parsing::CompiledSelector>,
+    pub valid_player: Option<crate::parsing::CompiledSelector>,
+    pub valid_entity: Option<crate::parsing::CompiledSelector>,
     pub counter_type: Option<String>,
     pub valid_source: Option<crate::parsing::CompiledSelector>,
+    pub first_time_only: bool,
 }
 
 impl TriggerCounterAddedOnce {
     pub fn parse(
         valid_card: Option<crate::parsing::CompiledSelector>,
+        valid_player: Option<crate::parsing::CompiledSelector>,
+        valid_entity: Option<crate::parsing::CompiledSelector>,
         counter_type: Option<String>,
         valid_source: Option<crate::parsing::CompiledSelector>,
+        first_time_only: bool,
     ) -> Box<dyn TriggerBehavior> {
         Box::new(Self {
             valid_card,
+            valid_player,
+            valid_entity,
             counter_type,
             valid_source,
+            first_time_only,
         })
     }
 }
@@ -40,9 +49,27 @@ impl TriggerBehavior for TriggerCounterAddedOnce {
         params: &RunParams,
         game: &GameState,
     ) -> bool {
-        let host_controller = trigger.base.card_trait_base.host_controller(game);
         if !trigger.matches_optional_valid_card_filter(&self.valid_card, params.card, game) {
             return false;
+        }
+        if let Some(filter) = &self.valid_player {
+            let Some(player) = params.player else {
+                return false;
+            };
+            if !trigger.matches_valid_player_filter(filter, player, game) {
+                return false;
+            }
+        }
+        if let Some(filter) = &self.valid_entity {
+            let matches = params
+                .card
+                .is_some_and(|card| trigger.matches_valid_card_filter(filter, card, game))
+                || params.player.is_some_and(|player| {
+                    trigger.matches_valid_player_filter(filter, player, game)
+                });
+            if !matches {
+                return false;
+            }
         }
         if !super::trigger::Trigger::matches_counter_type_filter(
             &self.counter_type,
@@ -51,11 +78,14 @@ impl TriggerBehavior for TriggerCounterAddedOnce {
             return false;
         }
         if let Some(filter) = &self.valid_source {
-            if filter.is_any_of(["You"]) {
-                return params.cause_player == Some(host_controller);
+            let Some(source) = params.source_player else {
+                return false;
+            };
+            if !trigger.matches_valid_player_filter(filter, source, game) {
+                return false;
             }
         }
-        true
+        !self.first_time_only || params.first_time == Some(true)
     }
 
     fn set_triggering_objects(

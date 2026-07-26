@@ -103,6 +103,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                         source_id,
                         &crate::card::CounterType::P1P1,
                         1,
+                        sa,
                         crate::event::RunParams::default(),
                     );
                 }

@@ -299,7 +299,6 @@ fn visible_battlefield_saga_final_chapter(card: &Card) -> Option<i32> {
         || card.face_down
         || !card.type_line.has_subtype("Saga")
         || !card.has_chapter()
-        || card.has_keyword("Read ahead")
     {
         return None;
     }

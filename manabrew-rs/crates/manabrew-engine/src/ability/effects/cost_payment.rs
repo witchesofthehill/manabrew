@@ -530,10 +530,11 @@ fn try_pay_effect_cost(
                     counter_type,
                     amount_n,
                     crate::event::RunParams {
-                        cause_player: Some(payer),
+                        source_player: Some(payer),
+                        cause: Some(sa.clone()),
                         ..Default::default()
                     },
-                    false,
+                    true,
                 );
             }
             CostPart::Discard {

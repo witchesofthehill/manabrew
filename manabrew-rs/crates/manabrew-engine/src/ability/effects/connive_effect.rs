@@ -90,6 +90,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             conniver_id,
             &crate::card::CounterType::P1P1,
             nonland_count,
+            sa,
             RunParams {
                 player: Some(controller),
                 ..Default::default()

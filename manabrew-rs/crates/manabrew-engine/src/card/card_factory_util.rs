@@ -272,6 +272,22 @@ pub fn make_etb_counter(kw: &str, card: &Card, intrinsic: bool) -> Option<Replac
     Some(replacement)
 }
 
+pub fn make_read_ahead(card: &Card, intrinsic: bool) -> Option<ReplacementEffect> {
+    let ability_text = "DB$ PutCounter | Defined$ Self | CounterType$ LORE | ETB$ True | UpTo$ True | UpToMin$ 1 | CounterNum$ Count$FinalChapterNr";
+    let mut ability = crate::spellability::build_spell_ability_from_host_card(
+        card,
+        ability_text,
+        card.controller,
+    );
+    ability.set_intrinsic(intrinsic);
+
+    let replacement_text = "R$ Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | Secondary$ True | ReplacementResult$ Updated | Description$ Choose a chapter and start with that many lore counters.";
+    let mut replacement = parse_replacement_effect(replacement_text)?;
+    replacement.base.card_trait_base.set_intrinsic(intrinsic);
+    replacement.base.set_overriding_ability(ability);
+    Some(replacement)
+}
+
 pub fn add_madness_replacement(card: &mut Card) {
     let keywords = card.keywords.as_string_list();
     for keyword in keywords {

@@ -70,6 +70,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             card_id,
             &counter_type,
             num,
+            sa,
             crate::event::RunParams::default(),
         );
 

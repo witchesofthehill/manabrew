@@ -198,11 +198,21 @@ pub(crate) fn assemble_card(
         card.add_trigger(trig);
     }
     card.generate_keyword_chapter_triggers();
-    if card.type_line.has_subtype("Saga") && card.has_chapter() && !card.has_keyword("Read ahead") {
-        if let Some(replacement) =
+    if card.type_line.has_subtype("Saga") && card.has_chapter() {
+        let read_ahead = card.has_keyword("Read ahead");
+        let replacement = if read_ahead {
+            super::card_factory_util::make_read_ahead(&card, true)
+        } else {
             super::card_factory_util::make_etb_counter("etbCounter:LORE:1", &card, true)
-        {
+        };
+        if let Some(replacement) = replacement {
             card.add_replacement_effect(replacement);
+        }
+        if read_ahead {
+            let raw = "S$ Mode$ DisableTriggers | ValidCard$ Card.Self+ThisTurnEntered | ValidTrigger$ Triggered.ChapterNotLore | Secondary$ True | Description$ Chapter abilities of this Saga can't trigger the turn it entered the battlefield unless it has exactly the number of lore counters on it specified in the chapter symbol of that ability.";
+            if let Some(static_ability) = crate::staticability::parse_static_ability(raw) {
+                card.add_static_ability(static_ability);
+            }
         }
     }
 

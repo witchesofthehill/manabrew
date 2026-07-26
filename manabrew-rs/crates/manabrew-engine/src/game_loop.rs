@@ -250,45 +250,35 @@ impl GameLoop {
         );
     }
 
-    pub(crate) fn add_saga_lore_counter(
+    pub(crate) fn add_saga_lore_counters(
         &mut self,
         game: &mut GameState,
         agents: &mut [Box<dyn PlayerAgent>],
-        card_id: CardId,
+        cards: &[CardId],
     ) {
-        let controller = {
+        let mut table = crate::game_entity_counter_table::GameEntityCounterTable::default();
+        for &card_id in cards {
             let card = game.card(card_id);
             if card.zone != ZoneType::Battlefield
                 || !card.has_subtype("Saga")
                 || !card.has_chapter()
-                || card.has_keyword("Read ahead")
             {
-                return;
+                continue;
             }
-            card.controller
-        };
-        let mut ctx = EffectContext {
+            table.put(
+                Some(card.controller),
+                crate::agent::GameEntity::Card(card_id),
+                CounterType::Lore,
+                1,
+            );
+        }
+        table.replace_counter_effect(
             game,
-            combat: Some(&mut self.combat),
-            agents,
-            trigger_handler: &mut self.trigger_handler,
-            token_templates: &self.token_templates,
-            token_art_variants: &self.token_art_variants,
-            token_fallback: &self.token_fallback,
-            edition_dates: &self.edition_dates,
-            mana_pools: &mut self.mana_pools,
-            parent_target_card: None,
-            rng: &mut *self.game_rng,
-        };
-        ctx.add_counter(
-            card_id,
-            &CounterType::Lore,
-            1,
-            RunParams {
-                player: Some(controller),
-                cause_player: Some(controller),
-                ..Default::default()
-            },
+            Some(&mut self.trigger_handler),
+            Some(agents),
+            None,
+            false,
+            RunParams::default(),
         );
     }
 

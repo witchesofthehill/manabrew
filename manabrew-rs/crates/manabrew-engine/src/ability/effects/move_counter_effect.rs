@@ -94,5 +94,5 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         },
         false,
     );
-    ctx.add_counter(to, &counter_type, actual, RunParams::default());
+    ctx.add_counter(to, &counter_type, actual, sa, RunParams::default());
 }

@@ -79,7 +79,7 @@ pub(super) fn resolve_stack_removal(
             crate::parsing::keys::WITH_COUNTERS_AMOUNT,
             1,
         );
-        ctx.add_counter(card_id, ct, amount, crate::event::RunParams::default());
+        ctx.add_counter(card_id, ct, amount, sa, crate::event::RunParams::default());
     }
 
     // Remember/Imprint

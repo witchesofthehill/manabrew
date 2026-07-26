@@ -812,7 +812,8 @@ impl GameLoop {
                         counter_type,
                         amount_n,
                         RunParams {
-                            cause_player: Some(player),
+                            source_player: Some(player),
+                            cause: sa.as_deref().cloned(),
                             ..Default::default()
                         },
                         false,
@@ -1264,7 +1265,14 @@ impl GameLoop {
                 }
                 CostPart::Blight(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    self.pay_blight_cost(game, agents, player, card_id, resolved_amount);
+                    self.pay_blight_cost(
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        resolved_amount,
+                        sa.as_deref(),
+                    );
                 }
                 CostPart::ExileCtrlOrGrave {
                     amount,
@@ -1486,7 +1494,8 @@ impl GameLoop {
                             counter_type,
                             amount_n,
                             RunParams {
-                                cause_player: Some(player),
+                                source_player: Some(player),
+                                cause: sa.as_deref().cloned(),
                                 ..Default::default()
                             },
                             false,
@@ -1980,7 +1989,14 @@ impl GameLoop {
                 }
                 CostPart::Blight(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    self.pay_blight_cost(game, agents, player, card_id, resolved_amount);
+                    self.pay_blight_cost(
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        resolved_amount,
+                        sa.as_deref(),
+                    );
                 }
                 CostPart::ExileCtrlOrGrave {
                     amount,
@@ -3075,25 +3091,44 @@ impl GameLoop {
         game: &mut GameState,
         agents: &mut [Box<dyn PlayerAgent>],
         player: PlayerId,
-        source: CardId,
+        _source: CardId,
         amount: i32,
+        cause: Option<&SpellAbility>,
     ) {
-        for _ in 0..amount {
-            let valid: Vec<CardId> = game
-                .cards_in_zone(ZoneType::Battlefield, player)
-                .iter()
-                .copied()
-                .filter(|&cid| game.card(cid).is_creature())
-                .collect();
-            if valid.is_empty() {
-                break;
-            }
-            if let Some(chosen) =
-                agents[player.index()].choose_sacrifice(player, &valid, Some(source))
-            {
-                game.card_mut(chosen)
-                    .add_counter(&crate::card::CounterType::M1M1, 1);
-            }
+        let valid: Vec<CardId> = game
+            .cards_in_zone(ZoneType::Battlefield, player)
+            .iter()
+            .copied()
+            .filter(|&card| {
+                game.card(card).is_creature()
+                    && !game.card(card).phased_out
+                    && !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
+                        &game.cards,
+                        game.card(card),
+                        &crate::card::CounterType::M1M1,
+                    )
+            })
+            .collect();
+        if let Some(chosen) = agents[player.index()]
+            .choose_cards_for_effect(player, &valid, 1, 1)
+            .into_iter()
+            .next()
+        {
+            let mut table = crate::game_entity_counter_table::GameEntityCounterTable::default();
+            table.put(
+                Some(player),
+                crate::agent::GameEntity::Card(chosen),
+                crate::card::CounterType::M1M1,
+                amount,
+            );
+            table.replace_counter_effect(
+                game,
+                Some(&mut self.trigger_handler),
+                Some(agents),
+                cause,
+                false,
+                Default::default(),
+            );
         }
     }
 

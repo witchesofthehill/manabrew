@@ -64,6 +64,15 @@ export function CardRail({ state, className }: CardRailProps) {
     state.current > 1 && state.max > 1
       ? (connectorHeight * (state.current - 1)) / (state.max - 1)
       : 0;
+  const currentNotch = state.notches.find((notch) => notch.active);
+  const firstNotch = state.notches[0]!;
+  const finalNotch = state.notches[state.notches.length - 1]!;
+  const accessibleLabel =
+    state.kind === "saga"
+      ? state.current > 0
+        ? `${state.current} lore counters. Current chapter ${currentNotch?.label ?? state.current} of ${finalNotch.label}.`
+        : `No lore counters. Awaiting chapter ${firstNotch.label} of ${finalNotch.label}.`
+      : `Class level ${state.current} of ${state.max}.`;
 
   return (
     <div
@@ -72,10 +81,12 @@ export function CardRail({ state, className }: CardRailProps) {
         "pointer-events-none absolute right-1 top-[14%] bottom-[9%] w-[var(--card-rail-width)] select-none text-[clamp(6px,2.2cqw,9px)]",
         className,
       )}
-      aria-hidden="true"
+      role="img"
+      aria-label={accessibleLabel}
       style={{ ["--card-rail-width" as string]: CARD_RAIL_WIDTH } as CSSProperties}
     >
       <div
+        aria-hidden="true"
         className={cn(
           "relative h-full overflow-hidden rounded-full border bg-canvas-shadow/80 shadow-sm",
           RAIL_KIND_CLASSES[state.kind],
@@ -109,7 +120,7 @@ export function CardRail({ state, className }: CardRailProps) {
                     ? cn(
                         RAIL_ACCENT_CLASSES[state.kind],
                         "border-text-on-tinted text-text-on-tinted ring-1 ring-canvas-shadow",
-                        animate && "scale-125",
+                        animate && "scale-125 motion-reduce:scale-100",
                         RAIL_TRANSITION,
                       )
                     : notch.reached

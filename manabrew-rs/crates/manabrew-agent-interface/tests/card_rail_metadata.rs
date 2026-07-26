@@ -96,6 +96,7 @@ fn negative_rails_stay_hidden_for_nonmatching_or_unsupported_cards() {
     );
     add_chapter_trigger(&mut read_ahead_saga, 3);
     let read_ahead_saga = game.create_card(read_ahead_saga);
+    assert_eq!(card_to_dto(&game, read_ahead_saga).final_chapter, Some(3));
     let mut nonbattlefield_saga = make_card(
         CardId(2),
         "Hand Saga",
@@ -130,7 +131,6 @@ fn negative_rails_stay_hidden_for_nonmatching_or_unsupported_cards() {
 
     for id in [
         face_down_saga,
-        read_ahead_saga,
         nonbattlefield_saga,
         nonbattlefield_class,
         generic_level,

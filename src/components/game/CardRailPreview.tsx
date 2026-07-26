@@ -130,9 +130,15 @@ export function CardRailPreview({ state, effects, className }: CardRailPreviewPr
                     </span>
                   )}
                 </div>
+                {effect?.label && (
+                  <div className="mt-0.5 text-[11px] font-semibold leading-snug">
+                    {effect.label}
+                  </div>
+                )}
                 <div
                   className={cn(
-                    "mt-0.5 whitespace-pre-line text-[11px] leading-snug",
+                    "whitespace-pre-line text-[11px] leading-snug",
+                    !effect?.label && "mt-0.5",
                     notch.reached ? "text-popover-foreground" : "text-muted-foreground",
                   )}
                 >

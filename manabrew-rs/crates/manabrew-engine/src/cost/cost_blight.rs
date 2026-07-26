@@ -7,16 +7,24 @@ use crate::ids::CardId;
 
 /// Execute blight payment for selected creatures.
 /// Puts a -1/-1 counter on each chosen creature.
-pub fn pay_as_decided_cards(game: &mut GameState, cards: &[CardId]) -> bool {
-    for &cid in cards {
+pub fn pay_as_decided_cards(
+    game: &mut GameState,
+    player: crate::ids::PlayerId,
+    cards: &[CardId],
+    amount: i32,
+) -> bool {
+    if let Some(&card) = cards.first() {
         crate::ability::effects::effect_context::add_counter_with_context(
             game,
             None,
             None,
-            cid,
+            card,
             &CounterType::M1M1,
-            1,
-            crate::event::RunParams::default(),
+            amount,
+            crate::event::RunParams {
+                source_player: Some(player),
+                ..Default::default()
+            },
             false,
         );
     }
@@ -32,45 +40,47 @@ pub fn refund(game: &mut GameState, cards: &[CardId]) {
 
 pub fn can_pay(
     game: &crate::game::GameState,
-    source: crate::ids::CardId,
+    _source: crate::ids::CardId,
     player: crate::ids::PlayerId,
     part: &super::CostPart,
 ) -> bool {
-    let super::CostPart::Blight(amount) = part else {
+    let super::CostPart::Blight(_) = part else {
         return false;
     };
-    let resolved_amount = amount.resolve(game, source, player);
     let battlefield_cards: Vec<_> = game
         .players
         .iter()
         .flat_map(|p| game.cards_in_zone(forge_foundation::ZoneType::Battlefield, p.id))
         .map(|&cid| game.card(cid).clone())
         .collect();
-    let creature_count = game
+    let has_creature = game
         .cards_in_zone(forge_foundation::ZoneType::Battlefield, player)
         .iter()
-        .filter(|&&cid| {
+        .any(|&cid| {
             let c = game.card(cid);
             c.is_creature()
+                && !c.phased_out
                 && !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
                     &battlefield_cards,
                     c,
                     &CounterType::M1M1,
                 )
-        })
-        .count() as i32;
-    creature_count >= resolved_amount
+        });
+    has_creature
 }
 
 pub fn pay_with_decision(
     game: &mut GameState,
-    _player: crate::ids::PlayerId,
-    _source: CardId,
-    _part: &super::CostPart,
+    player: crate::ids::PlayerId,
+    source: CardId,
+    part: &super::CostPart,
     decision: &crate::cost::payment_decision::PaymentDecision,
 ) -> bool {
     if let crate::cost::payment_decision::PaymentDecision::Cards(cards) = decision {
-        return pay_as_decided_cards(game, cards);
+        let super::CostPart::Blight(amount) = part else {
+            return false;
+        };
+        return pay_as_decided_cards(game, player, cards, amount.resolve(game, source, player));
     }
     false
 }

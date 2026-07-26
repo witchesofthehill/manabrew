@@ -862,6 +862,12 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Card(card)) => Some(*card),
             Some(AbilityValue::Cards(cards)) => cards.first().copied(),
+            Some(AbilityValue::GameEntities(entities)) => {
+                entities.iter().find_map(|entity| match entity {
+                    crate::agent::GameEntity::Card(card) => Some(*card),
+                    crate::agent::GameEntity::Player(_) => None,
+                })
+            }
             _ => None,
         }
     }
@@ -871,6 +877,12 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Player(player)) => Some(*player),
             Some(AbilityValue::Players(players)) => players.first().copied(),
+            Some(AbilityValue::GameEntities(entities)) => {
+                entities.iter().find_map(|entity| match entity {
+                    crate::agent::GameEntity::Player(player) => Some(*player),
+                    crate::agent::GameEntity::Card(_) => None,
+                })
+            }
             _ => None,
         }
     }
@@ -880,6 +892,13 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Card(card)) => vec![*card],
             Some(AbilityValue::Cards(cards)) => cards.clone(),
+            Some(AbilityValue::GameEntities(entities)) => entities
+                .iter()
+                .filter_map(|entity| match entity {
+                    crate::agent::GameEntity::Card(card) => Some(*card),
+                    crate::agent::GameEntity::Player(_) => None,
+                })
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -889,6 +908,13 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Player(player)) => vec![*player],
             Some(AbilityValue::Players(players)) => players.clone(),
+            Some(AbilityValue::GameEntities(entities)) => entities
+                .iter()
+                .filter_map(|entity| match entity {
+                    crate::agent::GameEntity::Player(player) => Some(*player),
+                    crate::agent::GameEntity::Card(_) => None,
+                })
+                .collect(),
             _ => Vec::new(),
         }
     }

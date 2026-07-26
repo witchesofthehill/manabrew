@@ -19,6 +19,12 @@ const CURRENT_MAX_PRESETS: Array<{ current: number; final: number }> = [
   { current: 4, final: 4 },
 ];
 
+const CLASS_PRESETS: Array<{ current: number; final: number }> = [
+  { current: 1, final: 3 },
+  { current: 2, final: 3 },
+  { current: 3, final: 3 },
+];
+
 const REPLAY_STEP_MS = 180;
 
 export function CardRailDevControls() {
@@ -77,8 +83,16 @@ export function CardRailDevControls() {
   };
 
   useEffect(() => () => stopReplay(), [stopReplay]);
+  useEffect(() => {
+    if (mode === "class" && (current < 1 || current > 3 || final !== 3)) {
+      setRail(Math.max(1, Math.min(3, current)), 3);
+    }
+  }, [current, final, mode, setRail]);
 
   const dirty = isReplaying || mode !== "page" || current !== 1 || final !== 3;
+  const presets = mode === "class" ? CLASS_PRESETS : CURRENT_MAX_PRESETS;
+  const minimumCurrent = mode === "class" ? 1 : 0;
+  const maximumCurrent = mode === "class" ? 3 : final;
 
   return (
     <div className="flex flex-col gap-2 mt-2 rounded-md border border-border/70 p-2">
@@ -112,6 +126,9 @@ export function CardRailDevControls() {
             )}
             onClick={() => {
               stopReplay();
+              if (railMode === "class") {
+                setRail(Math.max(1, Math.min(3, current)), 3);
+              }
               setMode(railMode);
             }}
           >
@@ -120,8 +137,8 @@ export function CardRailDevControls() {
         ))}
       </div>
 
-      <div className="grid grid-cols-4 gap-1.5">
-        {CURRENT_MAX_PRESETS.map((preset) => {
+      <div className={cn("grid gap-1.5", mode === "class" ? "grid-cols-3" : "grid-cols-4")}>
+        {presets.map((preset) => {
           const active = current === preset.current && final === preset.final;
           return (
             <button
@@ -147,7 +164,8 @@ export function CardRailDevControls() {
       <div className="grid grid-cols-4 gap-1.5">
         <button
           type="button"
-          className="px-2 py-1.5 rounded text-xs font-medium border border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          className="px-2 py-1.5 rounded text-xs font-medium border border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          disabled={current <= minimumCurrent}
           onClick={() => {
             stopReplay();
             setCurrent(current - 1);
@@ -157,7 +175,8 @@ export function CardRailDevControls() {
         </button>
         <button
           type="button"
-          className="px-2 py-1.5 rounded text-xs font-medium border border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          className="px-2 py-1.5 rounded text-xs font-medium border border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          disabled={current >= maximumCurrent}
           onClick={() => {
             stopReplay();
             setCurrent(current + 1);

@@ -60,6 +60,11 @@ pub struct CombatDamageEvent {
     pub lifelink_amount: i32,
 }
 
+pub struct CombatDamageResolution {
+    pub events: Vec<CombatDamageEvent>,
+    pub counter_table: crate::game_entity_counter_table::GameEntityCounterTable,
+}
+
 /// Tracks combat state for the current combat phase.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CombatState {
@@ -297,13 +302,17 @@ impl CombatState {
         agents: &mut [Box<dyn PlayerAgent>],
         first_strike_only: bool,
         as_unblocked_choices: &HashSet<CardId>,
-    ) -> Vec<CombatDamageEvent> {
+    ) -> CombatDamageResolution {
         // Fog effect: skip all combat damage this turn (issue #22).
         if game.prevent_all_combat_damage {
-            return Vec::new();
+            return CombatDamageResolution {
+                events: Vec::new(),
+                counter_table: Default::default(),
+            };
         }
 
         let mut events = Vec::new();
+        let mut counter_table = crate::game_entity_counter_table::GameEntityCounterTable::default();
         let mut blocker_damage_allocations: HashMap<(CardId, CardId), i32> = HashMap::new();
         let mut computed_blocker_allocations: HashSet<CardId> = HashSet::new();
         // Java parity: combat damage in a step is simultaneous, so replacement checks
@@ -440,7 +449,8 @@ impl CombatState {
                             attacker_has_lifelink,
                             attacker_controller,
                             attacker_has_wither || attacker_has_infect_for_creature,
-                        Some(agents),
+                            Some(agents),
+                            &mut counter_table,
                         );
                         events.push(CombatDamageEvent {
                             source: attacker_id,
@@ -467,6 +477,7 @@ impl CombatState {
                             attacker_has_infect_for_player,
                             attacker_toxic_count,
                             Some(agents),
+                            &mut counter_table,
                         );
                         events.push(CombatDamageEvent {
                             source: attacker_id,
@@ -522,6 +533,7 @@ impl CombatState {
                             attacker_controller,
                             attacker_has_wither || attacker_has_infect_for_creature,
                             Some(agents),
+                            &mut counter_table,
                         );
                         events.push(CombatDamageEvent {
                             source: attacker_id,
@@ -555,6 +567,7 @@ impl CombatState {
                             attacker_has_infect_for_player,
                             attacker_toxic_count,
                             Some(agents),
+                            &mut counter_table,
                         );
                         events.push(CombatDamageEvent {
                             source: attacker_id,
@@ -594,6 +607,7 @@ impl CombatState {
                             attacker_controller,
                             attacker_has_wither || attacker_has_infect_for_creature,
                             Some(agents),
+                            &mut counter_table,
                         );
                         events.push(CombatDamageEvent {
                             source: attacker_id,
@@ -811,6 +825,7 @@ impl CombatState {
                         attacker_controller,
                         attacker_has_wither || attacker_has_infect_for_creature,
                         Some(agents),
+                        &mut counter_table,
                     );
                     events.push(CombatDamageEvent {
                         source: attacker_id,
@@ -844,6 +859,7 @@ impl CombatState {
                                 attacker_has_infect_for_player,
                                 attacker_toxic_count,
                                 None, // TODO: thread agents for RNG parity
+                                &mut counter_table,
                             );
                             events.push(CombatDamageEvent {
                                 source: attacker_id,
@@ -881,6 +897,7 @@ impl CombatState {
                                 attacker_controller,
                                 attacker_has_wither || attacker_has_infect_for_creature,
                                 Some(agents),
+                                &mut counter_table,
                             );
                             events.push(CombatDamageEvent {
                                 source: attacker_id,
@@ -918,6 +935,7 @@ impl CombatState {
                         info.controller,
                         info.has_wither_or_infect,
                         Some(agents),
+                        &mut counter_table,
                     );
                     events.push(CombatDamageEvent {
                         source: info.blocker_id,
@@ -939,7 +957,10 @@ impl CombatState {
             }
         }
 
-        events
+        CombatDamageResolution {
+            events,
+            counter_table,
+        }
     }
 
     // ── Missing symbols for Java Combat.java parity ──────────────────
@@ -1140,7 +1161,7 @@ impl CombatState {
         agents: &mut [Box<dyn PlayerAgent>],
         first_strike_damage: bool,
         as_unblocked_choices: &HashSet<CardId>,
-    ) -> Vec<CombatDamageEvent> {
+    ) -> CombatDamageResolution {
         self.resolve_damage_step(game, agents, first_strike_damage, as_unblocked_choices)
     }
 
@@ -1545,6 +1566,7 @@ fn deal_combat_damage_to_player(
     source_has_infect: bool,
     source_toxic_count: Option<i32>,
     agents: Option<&mut [Box<dyn PlayerAgent>]>,
+    counter_table: &mut crate::game_entity_counter_table::GameEntityCounterTable,
 ) {
     if amount > 0 {
         if source_has_infect {
@@ -1554,7 +1576,12 @@ fn deal_combat_damage_to_player(
                 target,
                 &crate::card::CounterType::Poison,
             ) {
-                game.player_add_poison(target, amount);
+                counter_table.put(
+                    Some(source_controller),
+                    crate::agent::GameEntity::Player(target),
+                    crate::card::CounterType::Poison,
+                    amount,
+                );
             }
         } else {
             let dealt = game.deal_damage_to_player_from_with_agents(
@@ -1573,7 +1600,12 @@ fn deal_combat_damage_to_player(
                 target,
                 &crate::card::CounterType::Poison,
             ) {
-                game.player_add_poison(target, toxic);
+                counter_table.put(
+                    Some(source_controller),
+                    crate::agent::GameEntity::Player(target),
+                    crate::card::CounterType::Poison,
+                    toxic,
+                );
             }
         }
         if lifelink
@@ -1629,6 +1661,7 @@ fn deal_combat_damage_to_card(
     source_controller: PlayerId,
     source_has_wither_or_infect: bool,
     agents: Option<&mut [Box<dyn PlayerAgent>]>,
+    counter_table: &mut crate::game_entity_counter_table::GameEntityCounterTable,
 ) {
     if amount > 0 {
         if crate::staticability::static_ability_colorless_damage_source::target_is_protected_from_source(
@@ -1649,18 +1682,11 @@ fn deal_combat_damage_to_card(
                 game.card(target),
                 &crate::card::CounterType::M1M1,
             ) {
-                crate::ability::effects::effect_context::add_counter_with_context(
-                    game,
-                    None,
-                    agents,
-                    target,
-                    &crate::card::CounterType::M1M1,
+                counter_table.put(
+                    Some(source_controller),
+                    crate::agent::GameEntity::Card(target),
+                    crate::card::CounterType::M1M1,
                     amount,
-                    crate::event::RunParams {
-                        cause_player: Some(source_controller),
-                        ..Default::default()
-                    },
-                    false,
                 );
             }
         } else {

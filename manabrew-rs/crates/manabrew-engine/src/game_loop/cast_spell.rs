@@ -668,7 +668,7 @@ impl GameLoop {
                         &crate::card::CounterType::Time,
                         counters,
                         crate::event::RunParams {
-                            cause_player: Some(player),
+                            source_player: Some(player),
                             ..Default::default()
                         },
                         true,

@@ -64,8 +64,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     cid,
                     &CounterType::Time,
                     1,
+                    sa,
                     crate::event::RunParams {
-                        cause_player: Some(controller),
+                        source_player: Some(controller),
                         ..Default::default()
                     },
                 );

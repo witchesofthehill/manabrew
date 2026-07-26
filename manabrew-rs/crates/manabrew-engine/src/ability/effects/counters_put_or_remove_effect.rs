@@ -71,8 +71,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             target_id,
             &counter_type,
             amount,
+            sa,
             crate::event::RunParams {
-                cause_player: Some(controller),
+                source_player: Some(controller),
                 ..Default::default()
             },
         );

@@ -3,7 +3,7 @@ import { Loader2, RotateCw } from "lucide-react";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
-import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
+import { CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { CardRailPreview } from "@/components/game/CardRailPreview";
 import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
@@ -19,14 +19,13 @@ import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
 import { getSafeAreaInsets } from "@/lib/safeArea";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
-import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardRailState } from "@/components/game/cardRailState";
 import { deriveCardRailState, parseCardRailEffects } from "@/components/game/cardRailState";
@@ -286,12 +285,11 @@ export function CardPreview({
   imageSize = "large",
 }: CardPreviewProps) {
   const hasActions = actions && actions.length > 0 && onSelectAction;
-  const minimal = useIsMobileGame();
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing;
   const rail = deriveCardRailState(card);
-  const showSidePanel = Boolean(!slot && (hasActions || rail));
+  const showSidePanel = Boolean(hasActions || rail);
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
   const deckCard: DeckCard = isDebugCard
@@ -321,6 +319,31 @@ export function CardPreview({
   const railEffects = rail
     ? parseCardRailEffects(rail, railFace?.oracleText ?? front?.oracleText ?? card.text)
     : [];
+  const sidePanelRef = useRef<HTMLDivElement>(null);
+  const [sidePanelHeight, setSidePanelHeight] = useState(0);
+  const [, setLayoutVersion] = useState(0);
+
+  useLayoutEffect(() => {
+    const update = () => setLayoutVersion((version) => version + 1);
+    const observer = new ResizeObserver(update);
+    if (slot) observer.observe(slot);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [slot]);
+
+  useLayoutEffect(() => {
+    const panel = sidePanelRef.current;
+    if (!panel) return;
+    const measure = () => setSidePanelHeight(panel.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [showSidePanel, card.id]);
+
   const faceless = isFacelessCard(card);
   const imageUrl = faceless
     ? CARD_BACK_IMAGE_URL
@@ -400,16 +423,21 @@ export function CardPreview({
   const viewBottom = window.innerHeight - safe.bottom;
   const naturalCardWidth = horizontal ? CARD_H : CARD_W;
   const naturalCardHeight = horizontal ? CARD_W : CARD_H;
-  const usableWidth = viewRight - viewLeft;
+  const usableWidth = slot ? slot.clientWidth : viewRight - viewLeft;
   const sidePanelWidth = showSidePanel
     ? Math.min(ACTIONS_PANEL_W, Math.max(132, usableWidth * 0.4))
     : 0;
   const sidePanelSpace = showSidePanel ? sidePanelWidth + 10 : 0;
   const horizontalScale = Math.max(0.1, (usableWidth - sidePanelSpace - 16) / naturalCardWidth);
-  const verticalScale = minimal ? (viewBottom - viewTop - 16) / naturalCardHeight : 1;
+  const availableHeight = Math.max(1, slot ? slot.clientHeight - 8 : viewBottom - viewTop - 16);
+  const verticalScale = availableHeight / naturalCardHeight;
   const previewScale = Math.min(1, horizontalScale, verticalScale);
   const cardWidth = naturalCardWidth * previewScale;
   const cardHeight = naturalCardHeight * previewScale;
+  const effectiveSidePanelHeight = showSidePanel ? sidePanelHeight : 0;
+  const sidePanelScale =
+    effectiveSidePanelHeight > 0 ? Math.min(1, availableHeight / effectiveSidePanelHeight) : 1;
+  const previewHeight = Math.max(cardHeight, effectiveSidePanelHeight * sidePanelScale);
 
   let cardLeft: number;
   let top: number;
@@ -464,6 +492,8 @@ export function CardPreview({
     }
   }
 
+  top = Math.max(viewTop + 8, Math.min(top, viewBottom - previewHeight - 8));
+
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
   const currentCardName =
@@ -491,7 +521,7 @@ export function CardPreview({
         className={cn(
           "select-none transition-opacity",
           slot
-            ? "relative w-full h-full flex items-start justify-center pointer-events-none"
+            ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
                 "fixed z-[9999]",
                 showSidePanel && placement !== "pinned"
@@ -510,6 +540,9 @@ export function CardPreview({
               ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
               width: cardWidth,
               height: cardHeight,
+              marginLeft: slot
+                ? Math.max(0, (slot.clientWidth - cardWidth - sidePanelSpace) / 2)
+                : undefined,
             } as CSSProperties
           }
         >
@@ -584,9 +617,8 @@ export function CardPreview({
                   card={card}
                   horizontal={horizontal}
                   rail={rail}
-                  compactRail={Boolean(slot && rail)}
+                  compactRail={false}
                 />
-                {rail && slot && <CardRail state={rail} />}
                 {showHoverAreas && (
                   <div
                     className="pointer-events-none absolute inset-0 z-30"
@@ -661,15 +693,20 @@ export function CardPreview({
                     </div>
                   )}
                 </div>
-                {rail && slot && <CardRail state={rail} />}
               </div>
             )}
           </div>
 
           {showSidePanel && (
             <div
+              ref={sidePanelRef}
               className="absolute top-0 flex flex-col gap-1.5"
-              style={{ left: cardWidth + 10, width: sidePanelWidth }}
+              style={{
+                left: cardWidth + 10,
+                width: sidePanelWidth,
+                transform: `scale(${sidePanelScale})`,
+                transformOrigin: "top left",
+              }}
             >
               <div
                 style={{
@@ -718,7 +755,7 @@ export function CardPreview({
                             </span>
                           )}
                         </span>
-                        <span className="line-clamp-4 text-[13px] font-semibold leading-snug">
+                        <span className="text-[13px] font-semibold leading-snug">
                           <DynamicTextRender text={action.label} />
                         </span>
                       </button>

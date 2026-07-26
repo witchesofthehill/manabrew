@@ -10,19 +10,16 @@ use std::collections::HashMap;
 
 use forge_foundation::ZoneType;
 
+use crate::agent::GameEntity;
 use crate::agent::PlayerAgent;
 use crate::card::{Card, CounterType};
 use crate::event::RunParams;
 use crate::game::GameState;
+use crate::game_entity_counter_table::GameEntityCounterTable;
 use crate::ids::{CardId, PlayerId};
 use crate::mana::ManaPool;
-use crate::replacement::replacement_handler::{
-    apply_replacements, apply_replacements_with_agents, ReplacementEvent,
-};
-use crate::replacement::ReplacementResult;
 use crate::spellability::SpellAbility;
 use crate::trigger::handler::TriggerHandler;
-use crate::trigger::TriggerType;
 
 /// Everything an effect needs to resolve.
 pub struct EffectContext<'a> {
@@ -56,78 +53,28 @@ pub(crate) fn add_counter_with_context(
     card_id: CardId,
     counter_type: &CounterType,
     amount: i32,
-    mut params: RunParams,
+    params: RunParams,
     is_effect: bool,
 ) -> i32 {
-    if amount <= 0 {
-        return 0;
-    }
-
-    let mut event = ReplacementEvent::AddCounter {
-        target: card_id,
-        counter_type: counter_type.clone(),
-        count: amount,
-        is_effect,
-    };
-    let result = match agents {
-        Some(agents) => apply_replacements_with_agents(game, agents, &mut event),
-        None => apply_replacements(game, &mut event),
-    };
-    if !matches!(
-        result,
-        ReplacementResult::NotReplaced | ReplacementResult::Updated
-    ) {
-        return 0;
-    }
-    let ReplacementEvent::AddCounter { count, .. } = event else {
-        return 0;
-    };
-    if count <= 0 {
-        return 0;
-    }
-    if game.card(card_id).phased_out
-        || crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-            &game.cards,
-            game.card(card_id),
-            counter_type,
+    let source = params.source_player.or(params.cause_player);
+    let cause = params.cause.clone();
+    let mut table = GameEntityCounterTable::default();
+    table.put(
+        source,
+        GameEntity::Card(card_id),
+        counter_type.clone(),
+        amount,
+    );
+    table
+        .replace_counter_effect(
+            game,
+            trigger_handler,
+            agents,
+            cause.as_ref(),
+            is_effect,
+            params,
         )
-    {
-        return 0;
-    }
-
-    let old_value = game.card(card_id).counter_count(counter_type);
-    let count = if let Some(max) = crate::staticability::static_ability_max_counter::max_counter(
-        &game.cards,
-        game.card(card_id),
-        counter_type,
-    ) {
-        (max - old_value).clamp(0, count)
-    } else {
-        count
-    };
-    if count <= 0 {
-        return 0;
-    }
-
-    game.card_mut(card_id)
-        .add_counter_internal(counter_type, count);
-    let new_value = game.card(card_id).counter_count(counter_type);
-    if new_value <= old_value {
-        return 0;
-    }
-
-    if let Some(trigger_handler) = trigger_handler {
-        params.card = Some(card_id);
-        params.counter_type = Some(format!("{counter_type:?}"));
-        for counter_amount in (old_value + 1)..=new_value {
-            params.counter_amount = Some(counter_amount);
-            trigger_handler.run_trigger(TriggerType::CounterAdded, params.clone(), false);
-        }
-        params.counter_amount = Some(new_value - old_value);
-        trigger_handler.run_trigger(TriggerType::CounterAddedOnce, params, false);
-    }
-
-    new_value - old_value
+        .get(source, GameEntity::Card(card_id), counter_type)
 }
 
 impl EffectContext<'_> {
@@ -200,8 +147,11 @@ impl EffectContext<'_> {
         card_id: CardId,
         counter_type: &CounterType,
         amount: i32,
-        params: RunParams,
+        sa: &SpellAbility,
+        mut params: RunParams,
     ) -> i32 {
+        params.source_player.get_or_insert(sa.activating_player);
+        params.cause.get_or_insert_with(|| sa.clone());
         add_counter_with_context(
             self.game,
             Some(self.trigger_handler),
@@ -212,5 +162,35 @@ impl EffectContext<'_> {
             params,
             true,
         )
+    }
+
+    pub(crate) fn add_player_counter(
+        &mut self,
+        player: PlayerId,
+        counter_type: &CounterType,
+        amount: i32,
+        sa: &SpellAbility,
+        mut params: RunParams,
+    ) -> i32 {
+        params.source_player.get_or_insert(sa.activating_player);
+        params.cause.get_or_insert_with(|| sa.clone());
+        let source = params.source_player;
+        let mut table = GameEntityCounterTable::default();
+        table.put(
+            source,
+            GameEntity::Player(player),
+            counter_type.clone(),
+            amount,
+        );
+        table
+            .replace_counter_effect(
+                self.game,
+                Some(self.trigger_handler),
+                Some(self.agents),
+                Some(sa),
+                true,
+                params,
+            )
+            .get(source, GameEntity::Player(player), counter_type)
     }
 }

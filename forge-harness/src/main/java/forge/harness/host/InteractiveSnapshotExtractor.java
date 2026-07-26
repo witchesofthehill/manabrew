@@ -364,8 +364,9 @@ public final class InteractiveSnapshotExtractor {
             dto.baseToughness = card.getBaseToughness();
         }
         if (card.isInPlay()) {
-            if (card.getType().hasSubtype("Saga")) {
-                dto.finalChapter = card.getFinalChapterNr();
+            if (card.getType().hasSubtype("Saga") && card.hasChapter()) {
+                final int finalChapter = card.getFinalChapterNr();
+                dto.finalChapter = finalChapter > 0 ? finalChapter : null;
             }
             if (card.isClassCard()) {
                 dto.classLevel = card.getClassLevel();

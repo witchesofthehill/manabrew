@@ -407,8 +407,9 @@ pub(super) fn apply_post_move(
                     card_id,
                     counter_type,
                     amount,
+                    sa,
                     crate::event::RunParams {
-                        cause_player: Some(controller),
+                        source_player: Some(controller),
                         ..Default::default()
                     },
                 );
@@ -539,8 +540,9 @@ pub(super) fn apply_post_move(
                     card_id,
                     &ct,
                     amount,
+                    sa,
                     crate::event::RunParams {
-                        cause_player: Some(controller),
+                        source_player: Some(controller),
                         ..Default::default()
                     },
                 );

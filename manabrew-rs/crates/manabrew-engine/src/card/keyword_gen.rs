@@ -755,7 +755,7 @@ impl Card {
     }
 
     pub(crate) fn generate_keyword_chapter_triggers(&mut self) {
-        if self.keywords.contains_string_ignore_case("Read ahead") || !self.has_subtype("Saga") {
+        if !self.has_subtype("Saga") {
             return;
         }
 

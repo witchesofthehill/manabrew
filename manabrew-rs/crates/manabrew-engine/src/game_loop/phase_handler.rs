@@ -153,9 +153,7 @@ impl GameLoop {
                     let battlefield = game
                         .cards_in_zone(ZoneType::Battlefield, game.active_player())
                         .to_vec();
-                    for card_id in battlefield {
-                        self.add_saga_lore_counter(game, agents, card_id);
-                    }
+                    self.add_saga_lore_counters(game, agents, &battlefield);
                     if game
                         .cards_in_zone(ZoneType::Battlefield, game.active_player())
                         .iter()

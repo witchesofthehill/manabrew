@@ -1141,14 +1141,18 @@ pub fn parse_trigger(raw: &str, next_id: &mut u32) -> Option<Trigger> {
         "LifeLostAll" => crate::trigger::trigger_life_lost_all::TriggerLifeLostAll::parse(&params),
         "CounterAddedOnce" => {
             let valid_card = params.selector_cloned(keys::VALID_CARD);
+            let valid_player = params.selector_cloned(keys::VALID_PLAYER);
+            let valid_entity = params.selector_cloned("ValidEntity");
             let counter_type = params.get_cloned(keys::COUNTER_TYPE);
             let valid_source = params.selector_cloned(keys::VALID_SOURCE);
-            crate::trigger::trigger_counter_added_once::TriggerCounterAddedOnce::parse(valid_card, counter_type, valid_source)
+            let first_time_only = params.has("FirstTime");
+            crate::trigger::trigger_counter_added_once::TriggerCounterAddedOnce::parse(valid_card, valid_player, valid_entity, counter_type, valid_source, first_time_only)
         }
         "CounterAddedAll" => {
             let counter_type = params.get_cloned(keys::COUNTER_TYPE);
             let valid = params.selector_cloned_any(&[keys::VALID, keys::VALID_CARD]);
-            crate::trigger::trigger_counter_added_all::TriggerCounterAddedAll::parse(counter_type, valid)
+            let valid_source = params.selector_cloned(keys::VALID_SOURCE);
+            crate::trigger::trigger_counter_added_all::TriggerCounterAddedAll::parse(counter_type, valid, valid_source)
         }
         "CounterPlayerAddedAll" => {
             let valid_source = params.selector_cloned("ValidSource");

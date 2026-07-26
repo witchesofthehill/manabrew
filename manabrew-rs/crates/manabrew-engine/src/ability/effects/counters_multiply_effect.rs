@@ -4,6 +4,8 @@
 //! Double the number of each type of counter on target permanent.
 
 use super::EffectContext;
+use crate::agent::GameEntity;
+use crate::game_entity_counter_table::GameEntityCounterTable;
 use forge_foundation::ZoneType;
 
 /// Struct form of this effect so it can participate in the
@@ -20,6 +22,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         sa.source.into_iter().collect()
     };
 
+    let mut table = GameEntityCounterTable::default();
     for card_id in targets {
         if ctx.game.card(card_id).zone != ZoneType::Battlefield {
             continue;
@@ -30,7 +33,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             let current = *ctx.game.card(card_id).counters.get(ct).unwrap_or(&0);
             let to_add = current * (multiplier - 1);
             if to_add > 0 {
-                ctx.add_counter(card_id, ct, to_add, crate::event::RunParams::default());
+                table.put(
+                    Some(sa.activating_player),
+                    GameEntity::Card(card_id),
+                    ct.clone(),
+                    to_add,
+                );
             }
         } else {
             // Multiply ALL counter types
@@ -44,9 +52,22 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             for (ct, current) in counters {
                 let to_add = current * (multiplier - 1);
                 if to_add > 0 {
-                    ctx.add_counter(card_id, &ct, to_add, crate::event::RunParams::default());
+                    table.put(
+                        Some(sa.activating_player),
+                        GameEntity::Card(card_id),
+                        ct,
+                        to_add,
+                    );
                 }
             }
         }
     }
+    table.replace_counter_effect(
+        ctx.game,
+        Some(ctx.trigger_handler),
+        Some(ctx.agents),
+        Some(sa),
+        true,
+        Default::default(),
+    );
 }

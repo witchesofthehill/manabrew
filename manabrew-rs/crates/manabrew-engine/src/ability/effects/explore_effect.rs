@@ -70,7 +70,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 ctx.game.card(explorer_id),
                 &CounterType::P1P1,
             ) {
-                ctx.add_counter(explorer_id, &CounterType::P1P1, 1, RunParams::default());
+                ctx.add_counter(explorer_id, &CounterType::P1P1, 1, sa, RunParams::default());
             }
             continue;
         }
@@ -97,7 +97,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 ctx.game.card(explorer_id),
                 &CounterType::P1P1,
             ) {
-                ctx.add_counter(explorer_id, &CounterType::P1P1, 1, RunParams::default());
+                ctx.add_counter(explorer_id, &CounterType::P1P1, 1, sa, RunParams::default());
             }
 
             // Player may put revealed card into graveyard (otherwise it stays on top).

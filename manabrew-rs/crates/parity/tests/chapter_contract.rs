@@ -10,14 +10,16 @@ use manabrew_engine::ability::effects::counters_put_effect::CountersPutEffect;
 use manabrew_engine::ability::effects::move_counter_effect::MoveCounterEffect;
 use manabrew_engine::ability::effects::EffectContext;
 use manabrew_engine::ability::spell_ability_effect::SpellAbilityEffect;
-use manabrew_engine::agent::{PassAgent, PlayerAgent};
+use manabrew_engine::agent::{PassAgent, PlayerAgent, PriorityActionSpace, TargetChoice};
 use manabrew_engine::card::{Card, CounterType};
+use manabrew_engine::combat::DefenderId;
 use manabrew_engine::event::RunParams;
 use manabrew_engine::game::GameState;
 use manabrew_engine::game_loop::GameLoop;
 use manabrew_engine::game_rng::ThreadRngAdapter;
-use manabrew_engine::ids::PlayerId;
+use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
+use manabrew_engine::player::actions::PlayerAction;
 use manabrew_engine::spellability::{build_spell_ability_for_card_cast, SpellAbility, StackEntry};
 use manabrew_engine::trigger::handler::TriggerHandler;
 use manabrew_engine::trigger::TriggerType;
@@ -48,6 +50,106 @@ fn card_from_script_for_player(path: &str, player: PlayerId) -> Card {
 
 fn pass_agents() -> Vec<Box<dyn PlayerAgent>> {
     vec![Box::new(PassAgent), Box::new(PassAgent)]
+}
+
+struct ChooseMaximumAgent;
+
+impl PlayerAgent for ChooseMaximumAgent {
+    fn mulligan_decision(
+        &mut self,
+        _player: PlayerId,
+        _hand: &[CardId],
+        _mulligan_count: u32,
+    ) -> bool {
+        true
+    }
+
+    fn choose_action(
+        &mut self,
+        _player: PlayerId,
+        _action_space: Option<&PriorityActionSpace>,
+        _request_action_space: &mut dyn FnMut() -> PriorityActionSpace,
+    ) -> PlayerAction {
+        PlayerAction::PassPriority
+    }
+
+    fn choose_attackers(
+        &mut self,
+        _player: PlayerId,
+        _available: &[CardId],
+        _possible_defenders: &[DefenderId],
+    ) -> Vec<(CardId, DefenderId)> {
+        Vec::new()
+    }
+
+    fn choose_blockers(
+        &mut self,
+        _player: PlayerId,
+        _attackers: &[CardId],
+        _available_blockers: &[CardId],
+        _max_blockers: Option<usize>,
+    ) -> Vec<(CardId, CardId)> {
+        Vec::new()
+    }
+
+    fn choose_targets_for(
+        &mut self,
+        _sa: &mut SpellAbility,
+        _game: &GameState,
+        _mana_pools: &[ManaPool],
+    ) -> bool {
+        true
+    }
+
+    fn choose_target_player(
+        &mut self,
+        _player: PlayerId,
+        valid: &[PlayerId],
+        _sa: Option<&SpellAbility>,
+    ) -> Option<PlayerId> {
+        valid.first().copied()
+    }
+
+    fn choose_target_card(
+        &mut self,
+        _player: PlayerId,
+        valid: &[CardId],
+        _sa: Option<&SpellAbility>,
+    ) -> Option<CardId> {
+        valid.first().copied()
+    }
+
+    fn choose_target_any(
+        &mut self,
+        _player: PlayerId,
+        valid_players: &[PlayerId],
+        valid_cards: &[CardId],
+        _sa: Option<&SpellAbility>,
+    ) -> TargetChoice {
+        if let Some(&player) = valid_players.first() {
+            TargetChoice::Player(player)
+        } else if let Some(&card) = valid_cards.first() {
+            TargetChoice::Card(card)
+        } else {
+            TargetChoice::None
+        }
+    }
+
+    fn choose_land_or_spell(&mut self, _player: PlayerId) -> Option<bool> {
+        None
+    }
+
+    fn choose_number(
+        &mut self,
+        _player: PlayerId,
+        _source: Option<manabrew_engine::ids::CardId>,
+        _title: &str,
+        _description: Option<&str>,
+        _min: i32,
+        max: i32,
+    ) -> Option<i32> {
+        Some(max)
+    }
 }
 
 fn stack_entry(spell_ability: SpellAbility, is_permanent_spell: bool) -> StackEntry {
@@ -365,16 +467,38 @@ fn chapter_count_and_ability_list_mismatch_is_rejected() {
 }
 
 #[test]
-fn intrinsic_read_ahead_saga_does_not_lower_chapter_triggers() {
+fn intrinsic_read_ahead_saga_lowers_chapter_triggers() {
     let phasing = card_from_script("forge/forge-gui/res/cardsfolder/t/the_phasing_of_zhalfir.txt");
 
     assert!(phasing
         .visit_keywords()
         .iter()
         .any(|keyword| keyword == "Read ahead"));
-    assert!(
-        phasing.triggers.iter().all(|trigger| !trigger.is_chapter()),
-        "intrinsic Read ahead remains inert until its dedicated lifecycle exists"
+    let chapters: Vec<_> = phasing
+        .triggers
+        .iter()
+        .filter_map(|trigger| trigger.get_chapter())
+        .collect();
+    assert_eq!(chapters, vec![1, 2, 3]);
+    assert_eq!(phasing.get_final_chapter_nr(), 3);
+    let read_ahead = phasing
+        .replacement_effects
+        .iter()
+        .find(|replacement| {
+            replacement
+                .base
+                .get_overriding_ability()
+                .is_some_and(|ability| ability.ir.up_to)
+        })
+        .expect("Read ahead ETB replacement");
+    let ability = read_ahead
+        .base
+        .get_overriding_ability()
+        .expect("Read ahead counter ability");
+    assert_eq!(ability.ir.counter_type_text.as_deref(), Some("LORE"));
+    assert_eq!(
+        ability.ir.counter_num_text.as_deref(),
+        Some("Count$FinalChapterNr")
     );
 }
 
@@ -388,6 +512,33 @@ fn standard_saga_gets_lore_when_its_permanent_spell_resolves() {
         1,
         "a standard Saga enters with one Lore counter"
     );
+}
+
+#[test]
+fn standard_saga_gets_lore_on_each_battlefield_entry() {
+    let player = PlayerId(0);
+    let mut game = GameState::new(&["Alice", "Bob"], 20);
+    let history = game.create_card(chapter_probe());
+
+    game.move_card(history, ZoneType::Battlefield, player);
+    assert_eq!(game.card(history).counter_count(&CounterType::Lore), 1);
+
+    game.move_card(history, ZoneType::Graveyard, player);
+    game.move_card(history, ZoneType::Battlefield, player);
+    assert_eq!(game.card(history).counter_count(&CounterType::Lore), 1);
+}
+
+#[test]
+fn saga_token_gets_lore_on_battlefield_entry() {
+    let player = PlayerId(0);
+    let mut game = GameState::new(&["Alice", "Bob"], 20);
+    let mut token = chapter_probe();
+    token.is_token = true;
+    let saga = game.create_card(token);
+
+    game.move_card(saga, ZoneType::Battlefield, player);
+
+    assert_eq!(game.card(saga).counter_count(&CounterType::Lore), 1);
 }
 
 #[test]
@@ -481,18 +632,47 @@ fn automatic_saga_lore_requires_saga_and_structured_chapter_identity() {
 }
 
 #[test]
-fn automatic_saga_lore_keeps_read_ahead_inert() {
-    let mut game = GameState::new(&["Alice", "Bob"], 20);
-    let read_ahead = game.create_card(saga_lifecycle_probe(
-        "Enchantment Saga",
-        "K:Read ahead\nK:Chapter:1:ChapterOne",
-        "",
-    ));
+fn read_ahead_starts_at_the_chosen_chapter() {
+    thread::scope(|scope| {
+        let handle = thread::Builder::new()
+            .name("read_ahead_starts_at_the_chosen_chapter".to_string())
+            .stack_size(PARITY_THREAD_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let mut game = GameState::new(&["Alice", "Bob"], 20);
+                let read_ahead = game.create_card(card_from_script(
+                    "forge/forge-gui/res/cardsfolder/t/the_phasing_of_zhalfir.txt",
+                ));
+                game.move_card(read_ahead, ZoneType::Stack, PlayerId(0));
+                let spell = build_spell_ability_for_card_cast(&game, read_ahead, PlayerId(0));
+                game.stack.push(stack_entry(spell, true));
 
-    resolve_permanent(&mut game, read_ahead);
+                let mut game_loop = GameLoop::new(2);
+                let mut agents: Vec<Box<dyn PlayerAgent>> =
+                    vec![Box::new(ChooseMaximumAgent), Box::new(PassAgent)];
+                game_loop.resolve_stack(&mut game, &mut agents);
 
-    assert_eq!(game.card(read_ahead).counter_count(&CounterType::Lore), 0);
-    assert!(!game.card(read_ahead).has_chapter());
+                assert_eq!(game.card(read_ahead).counter_count(&CounterType::Lore), 3);
+                let pending = game_loop.trigger_handler.run_waiting_triggers(&game);
+                assert_eq!(pending.len(), 1);
+                let trigger_id = pending[0]
+                    .entry
+                    .spell_ability
+                    .source_trigger_id
+                    .expect("chapter trigger id");
+                let chapter = game
+                    .card(read_ahead)
+                    .triggers
+                    .iter()
+                    .find(|trigger| trigger.id == trigger_id)
+                    .and_then(|trigger| trigger.get_chapter());
+                assert_eq!(chapter, Some(3));
+            })
+            .expect("failed to spawn Read ahead test thread");
+
+        if let Err(panic) = handle.join() {
+            std::panic::resume_unwind(panic);
+        }
+    });
 }
 
 #[test]

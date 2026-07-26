@@ -89,6 +89,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         target,
         &counter_type,
         amount,
+        sa,
         crate::event::RunParams::default(),
     );
 

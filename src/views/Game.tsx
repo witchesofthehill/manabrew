@@ -437,12 +437,14 @@ export default function Game({ exitTo }: GameProps = {}) {
     const acts = chooseActionInput?.actions ?? [];
     const castActions = acts.flatMap((a) => (a.type === "cast" && a.cardId === cardId ? [a] : []));
     if (castActions.length > 1) {
-      const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
-      const gc =
-        myPlayer?.hand.find((c) => c.id === cardId) ??
-        myPlayer?.graveyard.find((c) => c.id === cardId) ??
-        myPlayer?.exile.find((c) => c.id === cardId) ??
-        myPlayer?.commandZone.find((c) => c.id === cardId);
+      const gc = gameView?.players
+        .flatMap((player) => [
+          ...player.hand,
+          ...player.graveyard,
+          ...player.exile,
+          ...player.commandZone,
+        ])
+        .find((card) => card.id === cardId);
       if (!gc) throw new Error(`No game card to cast: ${cardId}`);
       const card = asDeckCard(gameDecks[gc.ownerId], gc);
       openPlayModePicker({

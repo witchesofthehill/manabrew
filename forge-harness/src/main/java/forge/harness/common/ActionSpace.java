@@ -142,6 +142,9 @@ public final class ActionSpace {
                 if (!validTargets) {
                     continue;
                 }
+                if (!sa.checkRestrictions(player)) {
+                    continue;
+                }
                 actions.add(sa);
             }
         }

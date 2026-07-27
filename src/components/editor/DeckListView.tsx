@@ -43,7 +43,7 @@ import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { PartnerBadge } from "@/components/deck/PartnerBadge";
-import { partnerPairLabel } from "@/lib/formats";
+import { commanderSlotBadge, formatRequiresCommander } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, getTaggedGroups } from "./deckBuilder.utils";
@@ -58,7 +58,13 @@ import {
   SectionHeader,
   EmptyDropZone,
 } from "./deckEditor.primitives";
-import { buildCardActions, handleCardClick } from "./deckEditor.utils";
+import {
+  buildCardActions,
+  commanderSlotFor,
+  handleCardClick,
+  DEFAULT_COMMANDER_SLOT,
+  type CommanderSlot,
+} from "./deckEditor.utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 
@@ -86,6 +92,7 @@ interface CardContextActions {
   onToggleFoil?: () => void;
   isFoil?: boolean;
   isCommander?: boolean;
+  commanderSlot?: CommanderSlot;
   onSetCommander?: () => void;
   onRemoveCommander?: () => void;
   isCover?: boolean;
@@ -250,6 +257,7 @@ function CardContextMenu({
   onToggleFoil,
   isFoil,
   isCommander,
+  commanderSlot = DEFAULT_COMMANDER_SLOT,
   onSetCommander,
   onRemoveCommander,
   isCover,
@@ -337,8 +345,8 @@ function CardContextMenu({
         {(commanderHandler || onSetCover || onSetCoverBack) && <ContextMenuSeparator />}
         {commanderHandler && (
           <ContextMenuItem onSelect={commanderHandler}>
-            <GameIcon name="overlord-helm" className="mr-2 h-3.5 w-3.5" />
-            {isCommander ? "Remove commander" : "Set as commander"}
+            <GameIcon name={commanderSlot.icon} className="mr-2 h-3.5 w-3.5" />
+            {isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
           </ContextMenuItem>
         )}
         {onSetCover && (
@@ -631,6 +639,7 @@ interface CardVisualProps {
   onUntag?: () => void;
   isCommander?: boolean;
   showCommander?: boolean;
+  commanderSlot?: CommanderSlot;
   onSetCommander?: () => void;
   onRemoveCommander?: () => void;
   isCover?: boolean;
@@ -652,6 +661,7 @@ function CardVisual({
   onUntag,
   isCommander,
   showCommander,
+  commanderSlot = DEFAULT_COMMANDER_SLOT,
   onSetCommander,
   onRemoveCommander,
   isCover,
@@ -707,14 +717,14 @@ function CardVisual({
                 ? "bg-commander/90 text-white"
                 : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
             )}
-            title={isCommander ? "Remove commander" : "Set as commander"}
+            title={isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
             onClick={(e) => {
               e.stopPropagation();
               if (isCommander) onRemoveCommander?.();
               else onSetCommander?.();
             }}
           >
-            <GameIcon name="overlord-helm" className="h-3.5 w-3.5" />
+            <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
           </button>
         )}
         {onSetCover && (
@@ -1059,10 +1069,13 @@ function CardSection({
                       onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
                       isFoil: !!g.card.identity.foil,
                       isCommander: commanderNames?.has(name) ?? false,
-                      onSetCommander:
-                        deckFormat === "commander" ? () => onSetCommander(g.card) : undefined,
-                      onRemoveCommander:
-                        deckFormat === "commander" ? () => onRemoveCommander(g.card) : undefined,
+                      commanderSlot: commanderSlotFor(g.card, deckFormat),
+                      onSetCommander: formatRequiresCommander(deckFormat)
+                        ? () => onSetCommander(g.card)
+                        : undefined,
+                      onRemoveCommander: formatRequiresCommander(deckFormat)
+                        ? () => onRemoveCommander(g.card)
+                        : undefined,
                       isCover: coverCardName === name && (coverCardFace ?? 0) === 0,
                       onSetCover: onSetCover ? () => onSetCover(g.card) : undefined,
                       isCoverBack: coverCardName === name && coverCardFace === 1,
@@ -1112,7 +1125,8 @@ function CardSection({
                   onSelect={onSelectCard}
                   onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
                   isCommander={commanderNames?.has(name) ?? false}
-                  showCommander={deckFormat === "commander"}
+                  showCommander={formatRequiresCommander(deckFormat)}
+                  commanderSlot={commanderSlotFor(g.card, deckFormat)}
                   onSetCommander={() => onSetCommander(g.card)}
                   onRemoveCommander={onRemoveCommander}
                   isCover={coverCardName === name && (coverCardFace ?? 0) === 0}
@@ -1361,8 +1375,7 @@ export function DeckListView({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
-  const partnerLabel =
-    commanders.length === 2 ? partnerPairLabel(commanders[0], commanders[1]) : null;
+  const slotBadges = commanders.map((_, i) => commanderSlotBadge(commanders, deckFormat, i));
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1682,7 +1695,7 @@ export function DeckListView({
       return (
         <div key={id} data-stack-id={id} className={wrapperClass}>
           <StackColumn
-            label="Commander"
+            label={deckFormat === "oathbreaker" ? "Oathbreaker" : "Commander"}
             sectionId="commander"
             groups={commanders.map((c) => ({ card: c, count: 1 }))}
             cardWidth={cardWidth}
@@ -1942,7 +1955,9 @@ export function DeckListView({
             <div className="flex items-center gap-1 mb-1.5">
               <GameIcon name="overlord-helm" className="h-3 w-3 text-commander shrink-0" />
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Commander{commanders.length > 1 ? "s" : ""}
+                {deckFormat === "oathbreaker"
+                  ? "Oathbreaker"
+                  : `Commander${commanders.length > 1 ? "s" : ""}`}
               </span>
             </div>
             {viewMode === "list" ? (
@@ -1959,6 +1974,7 @@ export function DeckListView({
                       onToggleFoil={onToggleFoil ? () => onToggleFoil(name) : undefined}
                       isFoil={!!foil}
                       isCommander
+                      commanderSlot={commanderSlotFor(cmd, deckFormat)}
                       onRemoveCommander={() => onRemoveCommander(cmd)}
                       isCover={coverCardName === name && (coverCardFace ?? 0) === 0}
                       onSetCover={onSetCover ? () => onSetCover(cmd) : undefined}
@@ -1973,11 +1989,13 @@ export function DeckListView({
                         onClick={() => onShowInfo?.(name)}
                       >
                         <GameIcon
-                          name="overlord-helm"
+                          name={commanderSlotFor(cmd, deckFormat).icon}
                           className="h-3 w-3 text-commander shrink-0"
                         />
                         <span className="text-sm flex-1 truncate">{name}</span>
-                        {commanderIndex === 1 && <PartnerBadge label={partnerLabel} />}
+                        {slotBadges[commanderIndex] && (
+                          <PartnerBadge label={slotBadges[commanderIndex]!.label} />
+                        )}
                         {cmd.manaCost && (
                           <ManaSymbols cost={cmd.manaCost} size="sm" className="shrink-0" />
                         )}
@@ -1993,11 +2011,17 @@ export function DeckListView({
                   return (
                     <div key={id} className="relative shrink-0" style={{ width: cardWidth }}>
                       <div className="absolute top-1 right-1 z-20 bg-overlay/70 rounded-full p-0.5 shadow">
-                        <GameIcon name="overlord-helm" className="h-3.5 w-3.5 text-commander" />
+                        <GameIcon
+                          name={commanderSlotFor(cmd, deckFormat).icon}
+                          className="h-3.5 w-3.5 text-commander"
+                        />
                       </div>
-                      {commanderIndex === 1 && (
-                        <div className="absolute top-1 left-1 z-20">
-                          <PartnerBadge label={partnerLabel} className="bg-overlay/70" />
+                      {slotBadges[commanderIndex] && (
+                        <div className="absolute top-1 left-1 z-20 max-w-[calc(100%-0.5rem)]">
+                          <PartnerBadge
+                            label={slotBadges[commanderIndex]!.label}
+                            className="bg-overlay/70"
+                          />
                         </div>
                       )}
                       <CardVisual

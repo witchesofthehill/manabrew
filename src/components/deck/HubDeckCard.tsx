@@ -1,5 +1,4 @@
-import { Layers, Swords } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Layers } from "lucide-react";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DECK_NAME_SHADOW_CLASS } from "@/components/deck/deckDisplay.utils";
@@ -9,10 +8,9 @@ import type { HubDeckSummary } from "@/api/hubTypes";
 interface HubDeckCardProps {
   deck: HubDeckSummary;
   onOpen: () => void;
-  onPlaytest?: () => void;
 }
 
-export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
+export function HubDeckCard({ deck, onOpen }: HubDeckCardProps) {
   const cardCount = deck.cardCount + deck.commanders.length;
   const colorCost = deck.colors
     .split("")
@@ -71,18 +69,6 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
           </span>
         </span>
       </button>
-
-      {onPlaytest && (
-        <Button
-          size="icon"
-          className="absolute right-1.5 top-1.5 z-20 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:opacity-100"
-          title="Playtest vs AI"
-          aria-label={`Playtest ${deck.name} vs AI`}
-          onClick={onPlaytest}
-        >
-          <Swords className="h-3 w-3" />
-        </Button>
-      )}
     </div>
   );
 }

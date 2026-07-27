@@ -16,7 +16,6 @@ import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
-import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
@@ -40,8 +39,6 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importDeckText = useDeckTextImport();
-  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
-  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
   const {
     decks: publishedDecks,
     loading: publishedDecksLoading,
@@ -216,11 +213,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             <DeckShelfRow label="Published Deck Hub decks">
               {filteredPublishedDecks.map((deck) => (
                 <div key={deck.id} className={SHELF_CARD_CLASS}>
-                  <HubDeckCard
-                    deck={deck}
-                    onOpen={() => setHubPreviewId(deck.id)}
-                    onPlaytest={() => hubPlaytest(deck.id)}
-                  />
+                  <HubDeckCard deck={deck} onOpen={() => setHubPreviewId(deck.id)} />
                 </div>
               ))}
             </DeckShelfRow>
@@ -314,7 +307,6 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
       />
       <ImportDeckTextDialog open={importOpen} onOpenChange={setImportOpen} onImport={importDeck} />
       <HubDeckPreviewDialog deckId={hubPreviewId} onClose={() => setHubPreviewId(null)} />
-      {playtestDialog}
     </section>
   );
 }

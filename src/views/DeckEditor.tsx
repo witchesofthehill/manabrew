@@ -48,7 +48,6 @@ import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/vi
 import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
-import { useHubDeckPlaytest } from "@/hooks/useQuickPlaytest";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
@@ -79,7 +78,6 @@ export default function DeckEditor() {
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
-  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
   const {
     decks: publishedDecks,
     loading: publishedDecksLoading,
@@ -554,7 +552,6 @@ export default function DeckEditor() {
                           key={deck.id}
                           deck={deck}
                           onOpen={() => setHubPreviewId(deck.id)}
-                          onPlaytest={() => hubPlaytest(deck.id)}
                         />
                       ))}
                     </div>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Layers3, Search, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,6 @@ import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
 import type { HubSort, TopDecksWindow } from "@/api/hub";
-import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useHubStore } from "@/stores/useHubStore";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 
@@ -57,7 +56,9 @@ function SegmentedButton({
 }
 
 export default function DeckHub() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const openedPreviewId = useRef<string | null>(null);
   const initialSearch = searchParams.get("q") ?? "";
   const initialFormat = searchParams.get("format") ?? "";
   const [tab, setTab] = useState<HubTab>(searchParams.get("tab") === "top" ? "top" : "browse");
@@ -73,7 +74,6 @@ export default function DeckHub() {
     getInitialTopWindow(searchParams.get("period")),
   );
   const [page, setPage] = useState(() => getInitialPage(searchParams.get("page")));
-  const [previewId, setPreviewId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const urlDeckId = searchParams.get("deck");
 
@@ -81,9 +81,6 @@ export default function DeckHub() {
   const listLoading = useHubStore((s) => s.listLoading);
   const listError = useHubStore((s) => s.listError);
   const fetchDecks = useHubStore((s) => s.fetchDecks);
-  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
-  const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
-
   useEffect(() => {
     if (search === debouncedSearch) return;
     const timer = setTimeout(() => {
@@ -133,15 +130,19 @@ export default function DeckHub() {
   }
 
   function openPreview(deckId: string) {
-    setPreviewId(deckId);
+    openedPreviewId.current = deckId;
     const next = new URLSearchParams(searchParams);
     next.set("deck", deckId);
-    setSearchParams(next, { replace: true });
+    setSearchParams(next);
   }
 
   function closePreview() {
-    setPreviewId(null);
     if (!urlDeckId) return;
+    if (openedPreviewId.current === urlDeckId) {
+      openedPreviewId.current = null;
+      navigate(-1);
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.delete("deck");
     setSearchParams(next, { replace: true });
@@ -305,12 +306,7 @@ export default function DeckHub() {
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {list.decks.map((deck) => (
-                    <HubDeckCard
-                      key={deck.id}
-                      deck={deck}
-                      onOpen={() => openPreview(deck.id)}
-                      onPlaytest={() => hubPlaytest(deck.id)}
-                    />
+                    <HubDeckCard key={deck.id} deck={deck} onOpen={() => openPreview(deck.id)} />
                   ))}
                 </div>
               )}
@@ -358,11 +354,10 @@ export default function DeckHub() {
       )}
 
       <HubDeckPreviewDialog
-        deckId={previewId ?? urlDeckId}
+        deckId={urlDeckId}
         onClose={closePreview}
         onUnpublished={() => setRefreshKey((k) => k + 1)}
       />
-      {playtestDialog}
     </div>
   );
 }

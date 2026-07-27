@@ -22,7 +22,6 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { unpublishDeck } from "@/api/hub";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
-import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -44,7 +43,6 @@ export function HubDeckPreviewDialog({
   onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
-  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const {
     decks: myDecks,
     loading: ownershipLoading,
@@ -125,12 +123,6 @@ export function HubDeckPreviewDialog({
     } catch {
       toast.error("Couldn’t copy the share link");
     }
-  }
-
-  function handlePlaytest() {
-    if (!detail) return;
-    onClose();
-    quickPlaytest(detail.deck);
   }
 
   function handlePlayOffline() {
@@ -249,12 +241,9 @@ export function HubDeckPreviewDialog({
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
-                  Playtest
-                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" disabled={!detail}>
+                    <Button variant="secondary" size="sm" disabled={!detail} className="col-span-2">
                       Play
                       <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
@@ -306,7 +295,6 @@ export function HubDeckPreviewDialog({
           </div>
         </DialogContent>
       </Dialog>
-      {playtestDialog}
     </>
   );
 }

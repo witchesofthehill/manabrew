@@ -6,7 +6,6 @@ import { getDefaultAiEngine } from "@/game/hostedAiPlay";
 import { pickRandomDistinct } from "@/lib/utils";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
-import { useHubStore } from "@/stores/useHubStore";
 import type { Deck } from "@/protocol/deck";
 
 export function useQuickPlaytest(): {
@@ -59,14 +58,4 @@ export function useQuickPlaytest(): {
   ) : null;
 
   return { quickPlaytest, playtestDialog };
-}
-
-export function useHubDeckPlaytest(quickPlaytest: (deck: Deck) => void): (deckId: string) => void {
-  return (deckId) => {
-    void useHubStore
-      .getState()
-      .loadDeck(deckId)
-      .then((detail) => quickPlaytest(detail.deck))
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load deck"));
-  };
 }

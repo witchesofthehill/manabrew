@@ -190,11 +190,103 @@ impl GameState {
                 );
             }
         }
+        let mut etb_counters = std::collections::BTreeMap::new();
+        if dest_zone == ZoneType::Battlefield {
+            for keyword in self.cards[card_id.index()].keywords.as_string_list() {
+                let mut parts = keyword.split(':');
+                if !parts
+                    .next()
+                    .is_some_and(|head| head.eq_ignore_ascii_case("etbCounter"))
+                {
+                    continue;
+                }
+                let counter_type =
+                    crate::ability::effects::parse_counter_type(parts.next().unwrap_or_default());
+                let amount_text = parts.next().unwrap_or_default();
+                let amount = amount_text.parse::<i32>().unwrap_or_else(|_| {
+                    let card = &self.cards[card_id.index()];
+                    card.svars
+                        .get(amount_text)
+                        .map(|expression| {
+                            if matches!(expression.as_str(), "Count$xPaid" | "Count$XPaid") {
+                                card.svars
+                                    .get("XPaid")
+                                    .and_then(|value| value.parse().ok())
+                                    .unwrap_or(0)
+                            } else {
+                                expression.parse().unwrap_or_else(|_| {
+                                    crate::svar::resolve_count_svar(
+                                        expression, self, card_id, dest_owner,
+                                    )
+                                })
+                            }
+                        })
+                        .unwrap_or(0)
+                });
+                *etb_counters.entry(counter_type).or_default() += amount.max(0);
+            }
+            let card = &self.cards[card_id.index()];
+            if card.type_line.has_subtype("Saga") && card.has_chapter() {
+                let amount = if card.has_keyword("Read ahead") {
+                    agents
+                        .as_deref_mut()
+                        .and_then(|agents| {
+                            agents[dest_owner.index()].choose_number(
+                                dest_owner,
+                                Some(card_id),
+                                "How many lore counters?",
+                                Some("Choose a chapter and start with that many lore counters."),
+                                1,
+                                card.get_final_chapter_nr(),
+                            )
+                        })
+                        .unwrap_or(1)
+                        .clamp(1, card.get_final_chapter_nr())
+                } else {
+                    1
+                };
+                *etb_counters.entry(CounterType::Lore).or_default() += amount;
+            }
+            if card.type_line.is_planeswalker() {
+                let loyalty = card
+                    .initial_loyalty
+                    .as_deref()
+                    .and_then(|value| value.parse::<i32>().ok())
+                    .unwrap_or(0);
+                *etb_counters
+                    .entry(crate::card::CounterType::Loyalty)
+                    .or_default() += loyalty.max(0);
+            }
+            *etb_counters
+                .entry(crate::card::CounterType::P1P1)
+                .or_default() += card.etb_counters_p1p1.max(0);
+            let sunburst = card.sunburst_count();
+            if sunburst > 0 && card.has_keyword("Sunburst") {
+                let counter_type = if card.is_creature() {
+                    crate::card::CounterType::P1P1
+                } else {
+                    crate::card::CounterType::Charge
+                };
+                *etb_counters.entry(counter_type).or_default() += sunburst;
+            }
+            etb_counters.retain(|_, amount| *amount > 0);
+        }
+        let counter_cause = self.cards[card_id.index()].cast_sa.clone();
+        let counter_map = (!etb_counters.is_empty()).then(|| {
+            vec![crate::replacement::replacement_handler::CounterMapValue {
+                source: Some(dest_owner),
+                counters: etb_counters,
+            }]
+        });
         let mut moved_event = ReplacementEvent::Moved {
             card: card_id,
             origin: src_zone,
             destination: dest_zone,
             is_discard,
+            counter_map,
+            counter_cause,
+            counter_is_effect: dest_zone == ZoneType::Battlefield,
+            after_replacement_static_abilities: Vec::new(),
         };
         let tapped_before_replacement = self.card(card_id).tapped;
         if apply_move_replacement {
@@ -204,10 +296,22 @@ impl GameState {
                 apply_replacements(self, &mut moved_event);
             }
         }
-        let dest_zone = match moved_event {
-            ReplacementEvent::Moved { destination, .. } => destination,
-            _ => dest_zone,
-        };
+        let (dest_zone, etb_counter_map, counter_cause, after_replacement_static_abilities) =
+            match moved_event {
+                ReplacementEvent::Moved {
+                    destination,
+                    counter_map,
+                    counter_cause,
+                    after_replacement_static_abilities,
+                    ..
+                } => (
+                    destination,
+                    counter_map,
+                    counter_cause,
+                    after_replacement_static_abilities,
+                ),
+                _ => (dest_zone, None, None, Vec::new()),
+            };
         let replacement_marked_etb_tapped = dest_zone == ZoneType::Battlefield
             && self.card(card_id).tapped
             && !tapped_before_replacement;
@@ -328,163 +432,32 @@ impl GameState {
                 // here — Java's flow runs the choose-and-apply step exactly
                 // once via the replacement chain.
                 if !replacement_marked_etb_tapped {
-                    apply_etb_tapped_with_agents(self, card_id, agents.as_deref_mut());
+                    apply_etb_tapped_with_agents(self, card_id, agents);
                 }
-                // Keyword ETB counters: K:etbCounter:TYPE:N
-                // N can be a literal integer or an SVar name (e.g. "X" for X-cost spells).
-                let etb_keywords = self.cards[card_id.index()].keywords.as_string_list();
-                for kw in etb_keywords {
-                    let mut parts = kw.split(':');
-                    let head = parts.next().unwrap_or_default();
-                    if !head.eq_ignore_ascii_case("etbCounter") {
-                        continue;
-                    }
-                    let counter_type = parts.next().unwrap_or_default();
-                    let amount_str = parts.next().unwrap_or_default();
-                    let amount = amount_str.parse::<i32>().unwrap_or_else(|_| {
-                        // Resolve SVar reference (e.g. "X" → card.svars["X"] = "Count$xPaid"
-                        // → card.svars["XPaid"] = "3").
-                        let card = &self.cards[card_id.index()];
-                        if let Some(svar_expr) = card.svars.get(amount_str) {
-                            if svar_expr == "Count$xPaid" || svar_expr == "Count$XPaid" {
-                                card.svars
-                                    .get("XPaid")
-                                    .and_then(|v| v.parse::<i32>().ok())
-                                    .unwrap_or(0)
-                            } else if let Ok(n) = svar_expr.parse::<i32>() {
-                                n
-                            } else {
-                                crate::svar::resolve_count_svar(
-                                    svar_expr,
-                                    self,
-                                    card_id,
-                                    card.controller,
-                                )
-                            }
-                        } else {
-                            0
-                        }
-                    });
-                    if amount <= 0 {
-                        continue;
-                    }
-                    let ct = crate::ability::effects::parse_counter_type(counter_type);
-                    // Respect CantPutCounter (e.g. Solemnity) before placing ETB counters.
-                    if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-                        &self.cards,
-                        &self.cards[card_id.index()],
-                        &ct,
-                    ) {
-                        // Fire AddCounter replacement (Hardened Scales, Doubling Season)
-                        // ETB counters are treated as effect-based in Java (EffectOnly=true
-                        // is set when entering the battlefield in GameAction.moveToPlay).
-                        let mut add_event = ReplacementEvent::AddCounter {
-                            target: card_id,
-                            counter_type: ct.clone(),
-                            count: amount,
-                            is_effect: true,
-                        };
-                        if let Some(agents) = agents.as_deref_mut() {
-                            apply_replacements_with_agents(self, agents, &mut add_event);
-                        } else {
-                            apply_replacements(self, &mut add_event);
-                        }
-                        let final_amount = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-                            count
-                        } else {
-                            amount
-                        };
-                        if final_amount > 0 {
-                            self.cards[card_id.index()].add_counter(&ct, final_amount);
-                        }
+                if let Some(handler) = trigger_handler.as_deref_mut() {
+                    handler.register_active_trigger(self, card_id);
+                }
+                if let Some(counter_map) = etb_counter_map {
+                    let table =
+                        crate::game_entity_counter_table::GameEntityCounterTable::from_counter_map(
+                            crate::agent::GameEntity::Card(card_id),
+                            counter_map,
+                        );
+                    table.apply_replaced_counter_effect(
+                        self,
+                        trigger_handler.as_deref_mut(),
+                        counter_cause.as_deref(),
+                        RunParams::default(),
+                    );
+                    for (source, static_abilities) in after_replacement_static_abilities {
+                        crate::replacement::replace_add_counter::apply_after_replacement_static_abilities(
+                            self,
+                            source,
+                            static_abilities,
+                        );
                     }
                 }
-                // Planeswalkers enter with loyalty counters equal to printed loyalty.
-                // Java exposes this as CardState's synthetic etbCounter replacement.
-                if self.cards[card_id.index()].type_line.is_planeswalker() {
-                    let loyalty = self.cards[card_id.index()]
-                        .initial_loyalty
-                        .as_deref()
-                        .and_then(|value| value.parse::<i32>().ok())
-                        .unwrap_or(0);
-                    if loyalty > 0 {
-                        let ct = crate::card::CounterType::Loyalty;
-                        if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-                            &self.cards,
-                            &self.cards[card_id.index()],
-                            &ct,
-                        ) {
-                            let mut add_event = ReplacementEvent::AddCounter {
-                                target: card_id,
-                                counter_type: ct.clone(),
-                                count: loyalty,
-                                is_effect: true,
-                            };
-                            if let Some(agents) = agents.as_deref_mut() {
-                                apply_replacements_with_agents(self, agents, &mut add_event);
-                            } else {
-                                apply_replacements(self, &mut add_event);
-                            }
-                            let final_amount = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-                                count
-                            } else {
-                                loyalty
-                            };
-                            if final_amount > 0 {
-                                self.cards[card_id.index()].add_counter(&ct, final_amount);
-                            }
-                        }
-                    }
-                }
-                // Apply +1/+1 counters from mana that adds counters (Guildmages' Forum, Opal Palace)
-                let etb_p1p1 = self.cards[card_id.index()].etb_counters_p1p1;
-                if etb_p1p1 > 0 {
-                    let ct = crate::card::CounterType::P1P1;
-                    if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-                        &self.cards,
-                        &self.cards[card_id.index()],
-                        &ct,
-                    ) {
-                        // Fire AddCounter replacement (Hardened Scales, Doubling Season)
-                        // ETB counters from mana are treated as effect-based in Java.
-                        let mut add_event = ReplacementEvent::AddCounter {
-                            target: card_id,
-                            counter_type: ct.clone(),
-                            count: etb_p1p1,
-                            is_effect: true,
-                        };
-                        if let Some(agents) = agents {
-                            apply_replacements_with_agents(self, agents, &mut add_event);
-                        } else {
-                            apply_replacements(self, &mut add_event);
-                        }
-                        let final_count = if let ReplacementEvent::AddCounter { count, .. } = add_event {
-                            count
-                        } else {
-                            etb_p1p1
-                        };
-                        if final_count > 0 {
-                            self.cards[card_id.index()].add_counter(&ct, final_count);
-                        }
-                    }
-                    self.cards[card_id.index()].etb_counters_p1p1 = 0;
-                }
-                // Sunburst: add counters based on colors of mana spent
-                let sunburst = self.cards[card_id.index()].sunburst_count();
-                if sunburst > 0 && self.cards[card_id.index()].has_keyword("Sunburst") {
-                    let ct = if self.cards[card_id.index()].is_creature() {
-                        crate::card::CounterType::P1P1
-                    } else {
-                        crate::card::CounterType::Charge
-                    };
-                    if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-                        &self.cards,
-                        &self.cards[card_id.index()],
-                        &ct,
-                    ) {
-                        self.cards[card_id.index()].add_counter(&ct, sunburst);
-                    }
-                }
+                self.cards[card_id.index()].etb_counters_p1p1 = 0;
                 // Update LKI snapshot: card just entered the battlefield.
                 // Ensures it's available for later TriggeredCard$CardPower lookups
                 // even if it dies within the same resolution chain.
@@ -861,6 +834,36 @@ impl GameState {
         self.check_state_based_actions_impl(trigger_handler, None, Some(agents))
     }
 
+    fn state_based_action_saga(
+        &self,
+        cid: CardId,
+        trigger_handler: Option<&TriggerHandler>,
+        sacrifice_list: &mut Vec<CardId>,
+    ) -> bool {
+        let card = self.card(cid);
+        if !card.type_line.has_subtype("Saga") || !card.has_chapter() {
+            return false;
+        }
+        if crate::staticability::static_ability_cant_sacrifice::cant_sacrifice(
+            &self.cards,
+            card,
+            None,
+            true,
+        ) {
+            return false;
+        }
+        if card.counter_count(&CounterType::Lore) < card.get_final_chapter_nr() {
+            return false;
+        }
+        if self.stack.has_source_chapter_on_stack(self, cid)
+            || trigger_handler.is_some_and(|handler| handler.has_source_chapter_pending(self, cid))
+        {
+            return false;
+        }
+        sacrifice_list.push(cid);
+        true
+    }
+
     fn on_player_lost(
         &mut self,
         player: PlayerId,
@@ -975,6 +978,10 @@ impl GameState {
             origin: ZoneType::Battlefield,
             destination: ZoneType::Graveyard,
             is_discard: false,
+            counter_map: None,
+            counter_cause: None,
+            counter_is_effect: false,
+            after_replacement_static_abilities: Vec::new(),
         };
         if let Some(agents) = agents.as_deref_mut() {
             apply_replacements_with_agents(self, agents, &mut moved_event);
@@ -1034,6 +1041,7 @@ impl GameState {
 
         let mut any_changes = false;
         let mut newly_lost_players: Vec<PlayerId> = Vec::new();
+        let mut sacrifice_list: Vec<CardId> = Vec::new();
 
         // Check players with 0 or less life
         for pid in self.player_order.clone() {
@@ -1258,6 +1266,35 @@ impl GameState {
 
             self.move_battlefield_card_to_graveyard_for_sba(cid, &mut trigger_handler, &mut agents);
             any_changes = true;
+        }
+
+        let saga_cards: Vec<CardId> = self
+            .player_order
+            .clone()
+            .iter()
+            .flat_map(|&pid| self.cards_in_zone(ZoneType::Battlefield, pid).to_vec())
+            .collect();
+        for cid in saga_cards {
+            any_changes |=
+                self.state_based_action_saga(cid, trigger_handler.as_deref(), &mut sacrifice_list);
+        }
+
+        if !sacrifice_list.is_empty() {
+            if let (Some(handler), Some(agents)) =
+                (trigger_handler.as_deref_mut(), agents.as_deref_mut())
+            {
+                if !crate::game_loop::perform_sacrifice(self, handler, agents, &sacrifice_list)
+                    .is_empty()
+                {
+                    any_changes = true;
+                }
+            } else {
+                for cid in sacrifice_list.drain(..) {
+                    let owner = self.card(cid).owner;
+                    self.move_card_without_replacement(cid, ZoneType::Graveyard, owner);
+                }
+                any_changes = true;
+            }
         }
 
         // CR 704.5q: +1/+1 and -1/-1 counter cancellation

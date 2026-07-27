@@ -952,9 +952,12 @@ impl GameLoop {
             game.copy_last_state();
 
             let fs_unblocked_choices = self.choose_assign_as_unblocked(game, agents, true);
-            let fs_events =
-                self.combat
-                    .resolve_damage_step(game, agents, true, &fs_unblocked_choices);
+            let combat::CombatDamageResolution {
+                events: fs_events,
+                counter_table: fs_counter_table,
+            } = self
+                .combat
+                .resolve_damage_step(game, agents, true, &fs_unblocked_choices);
             // Record damage in source damage history for player-targeted combat damage
             for event in &fs_events {
                 if event.target_player.is_some() && event.amount > 0 {
@@ -965,6 +968,14 @@ impl GameLoop {
             }
             let fs_damage_assigned = !fs_events.is_empty();
             self.fire_combat_damage_triggers(&fs_events);
+            fs_counter_table.replace_counter_effect(
+                game,
+                Some(&mut self.trigger_handler),
+                Some(agents),
+                None,
+                false,
+                Default::default(),
+            );
             // Flush triggers before SBA so that triggers from creatures about
             // to die (e.g. enrage) are matched while still on the battlefield.
             self.trigger_handler.flush_waiting_triggers(game);
@@ -1000,9 +1011,12 @@ impl GameLoop {
             game.copy_last_state();
 
             let unblocked_choices = self.choose_assign_as_unblocked(game, agents, false);
-            let dmg_events =
-                self.combat
-                    .resolve_damage_step(game, agents, false, &unblocked_choices);
+            let combat::CombatDamageResolution {
+                events: dmg_events,
+                counter_table: damage_counter_table,
+            } = self
+                .combat
+                .resolve_damage_step(game, agents, false, &unblocked_choices);
             // Record damage in source damage history for player-targeted combat damage
             for event in &dmg_events {
                 if event.target_player.is_some() && event.amount > 0 {
@@ -1019,6 +1033,14 @@ impl GameLoop {
                 self.notify_state_changed(game, agents);
             }
             self.fire_combat_damage_triggers(&dmg_events);
+            damage_counter_table.replace_counter_effect(
+                game,
+                Some(&mut self.trigger_handler),
+                Some(agents),
+                None,
+                false,
+                Default::default(),
+            );
             // Flush triggers before SBA so that triggers from creatures about
             // to die (e.g. enrage) are matched while still on the battlefield.
             self.trigger_handler.flush_waiting_triggers(game);

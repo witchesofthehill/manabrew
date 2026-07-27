@@ -37,6 +37,7 @@ pub fn copy_stats(
 /// Copy copiable characteristics from one card into another.
 pub fn copy_copiable_characteristics(copy_from: &Card, to: &mut Card) {
     to.card_name = copy_from.card_name.clone();
+    to.oracle_text = copy_from.oracle_text.clone();
     to.type_line = copiable_type_line(copy_from);
     to.mana_cost = copy_from.mana_cost.clone();
     to.color = copy_from

@@ -10,9 +10,12 @@ use std::collections::HashMap;
 
 use forge_foundation::ZoneType;
 
+use crate::agent::GameEntity;
 use crate::agent::PlayerAgent;
-use crate::card::Card;
+use crate::card::{Card, CounterType};
+use crate::event::RunParams;
 use crate::game::GameState;
+use crate::game_entity_counter_table::GameEntityCounterTable;
 use crate::ids::{CardId, PlayerId};
 use crate::mana::ManaPool;
 use crate::spellability::SpellAbility;
@@ -41,6 +44,37 @@ pub struct EffectContext<'a> {
     /// Parity tests inject a JavaRandom-backed implementation; normal gameplay
     /// uses the default ThreadRngAdapter.
     pub rng: &'a mut dyn crate::game_rng::GameRng,
+}
+
+pub(crate) fn add_counter_with_context(
+    game: &mut GameState,
+    trigger_handler: Option<&mut TriggerHandler>,
+    agents: Option<&mut [Box<dyn PlayerAgent>]>,
+    card_id: CardId,
+    counter_type: &CounterType,
+    amount: i32,
+    params: RunParams,
+    is_effect: bool,
+) -> i32 {
+    let source = params.source_player.or(params.cause_player);
+    let cause = params.cause.clone();
+    let mut table = GameEntityCounterTable::default();
+    table.put(
+        source,
+        GameEntity::Card(card_id),
+        counter_type.clone(),
+        amount,
+    );
+    table
+        .replace_counter_effect(
+            game,
+            trigger_handler,
+            agents,
+            cause.as_ref(),
+            is_effect,
+            params,
+        )
+        .get(source, GameEntity::Card(card_id), counter_type)
 }
 
 impl EffectContext<'_> {
@@ -106,5 +140,57 @@ impl EffectContext<'_> {
             self.agents,
             &mut runtime,
         );
+    }
+
+    pub(crate) fn add_counter(
+        &mut self,
+        card_id: CardId,
+        counter_type: &CounterType,
+        amount: i32,
+        sa: &SpellAbility,
+        mut params: RunParams,
+    ) -> i32 {
+        params.source_player.get_or_insert(sa.activating_player);
+        params.cause.get_or_insert_with(|| sa.clone());
+        add_counter_with_context(
+            self.game,
+            Some(self.trigger_handler),
+            Some(self.agents),
+            card_id,
+            counter_type,
+            amount,
+            params,
+            true,
+        )
+    }
+
+    pub(crate) fn add_player_counter(
+        &mut self,
+        player: PlayerId,
+        counter_type: &CounterType,
+        amount: i32,
+        sa: &SpellAbility,
+        mut params: RunParams,
+    ) -> i32 {
+        params.source_player.get_or_insert(sa.activating_player);
+        params.cause.get_or_insert_with(|| sa.clone());
+        let source = params.source_player;
+        let mut table = GameEntityCounterTable::default();
+        table.put(
+            source,
+            GameEntity::Player(player),
+            counter_type.clone(),
+            amount,
+        );
+        table
+            .replace_counter_effect(
+                self.game,
+                Some(self.trigger_handler),
+                Some(self.agents),
+                Some(sa),
+                true,
+                params,
+            )
+            .get(source, GameEntity::Player(player), counter_type)
     }
 }

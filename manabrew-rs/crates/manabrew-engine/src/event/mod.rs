@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::ability::AbilityKey;
+use crate::agent::GameEntity;
 use crate::card::card_damage_map::CardDamageMap;
 use crate::card::card_zone_table::CardZoneTable;
 use crate::ids::{CardId, PlayerId};
@@ -18,6 +19,14 @@ pub struct ZoneChangeRecord {
     pub card: CardId,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CounterTableEntry {
+    pub source: Option<PlayerId>,
+    pub object_card: Option<CardId>,
+    pub object_player: Option<PlayerId>,
+    pub counters: BTreeMap<String, i32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Display)]
 #[allow(clippy::large_enum_variant)]
 pub enum AbilityValue {
@@ -25,6 +34,7 @@ pub enum AbilityValue {
     Player(PlayerId),
     Cards(Vec<CardId>),
     Players(Vec<PlayerId>),
+    GameEntities(Vec<GameEntity>),
     VoteMap(Vec<(String, Vec<PlayerId>)>),
     SpellAbility(crate::spellability::SpellAbility),
     CardZoneTable(CardZoneTable),
@@ -297,6 +307,7 @@ pub struct RunParams {
     pub object_player: Option<PlayerId>,
     /// Counter type -> amount map payload.
     pub counter_map: Option<BTreeMap<String, i32>>,
+    pub counter_table: Option<Vec<CounterTableEntry>>,
     /// Java AbilityKey.DamageMap.
     pub damage_map: Option<CardDamageMap>,
     /// Clash outcome.

@@ -18,6 +18,8 @@ const HUB_OUT: &str = "src/api";
 const DECK_IMPORT: &str = "import type { Deck, DeckFormat } from \"@/protocol/deck\";\n\n";
 
 pub fn generate(root: &Path) -> Result<()> {
+    let hub_path = root.join(HUB_OUT).join("hubTypes.ts");
+    let _ = fs::remove_file(&hub_path);
     let status = Command::new("cargo")
         .args([
             "run",

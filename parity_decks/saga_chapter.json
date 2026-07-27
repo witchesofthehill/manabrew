@@ -1,0 +1,19 @@
+{
+  "label": "Saga Chapter Contract",
+  "desc": "History of Benalia Chapter lowering and lifecycle parity",
+  "color": "text-amber-400",
+  "format": "constructed",
+  "opponent": "saga_chapter",
+  "ai_eligible": true,
+  "order": 1000,
+  "cards": [
+    {
+      "name": "History of Benalia",
+      "count": 4
+    },
+    {
+      "name": "Plains",
+      "count": 56
+    }
+  ]
+}

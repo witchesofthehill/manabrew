@@ -12,6 +12,8 @@ export const GAME_CARD_DEFAULTS: ClientCardDto = {
   supertypes: [],
   power: null,
   toughness: null,
+  classLevels: [],
+  sagaChapters: [],
   text: "",
   controllerId: "",
   ownerId: "",

@@ -471,7 +471,11 @@ impl CardState {
         self.get_triggers().iter().any(|t| t.ir.chapter.is_some())
     }
     pub fn get_final_chapter_nr(&self) -> i32 {
-        0
+        self.get_triggers()
+            .iter()
+            .filter_map(|trigger| trigger.get_chapter())
+            .max()
+            .unwrap_or(0)
     }
     pub fn get_manifest_up(&self) -> Option<SpellAbility> {
         self.manifest_up.clone()
@@ -799,9 +803,15 @@ pub fn change_text_intrinsic(card: &mut Card) {
 }
 
 pub fn has_chapter(card: &Card) -> bool {
+    card.triggers.iter().any(Trigger::is_chapter)
+}
+
+pub fn get_final_chapter_nr(card: &Card) -> i32 {
     card.triggers
         .iter()
-        .any(|t| t.ir.chapter.is_some() || t.description.to_ascii_lowercase().contains("chapter"))
+        .filter_map(Trigger::get_chapter)
+        .max()
+        .unwrap_or(0)
 }
 
 pub fn set_type(card: &mut Card, type_line: &str) {

@@ -2,10 +2,10 @@ use forge_foundation::ZoneType;
 
 use super::{parse_counter_type, resolve_defined_player, resolve_numeric_svar, EffectContext};
 use crate::ability::ability_ir::DefinedRef;
-use crate::card::CounterType;
+use crate::agent::GameEntity;
 use crate::event::RunParams;
+use crate::game_entity_counter_table::GameEntityCounterTable;
 use crate::parsing::keys;
-use crate::replacement::replacement_handler::{apply_replacements_with_agents, ReplacementEvent};
 use crate::spellability::SpellAbility;
 use crate::trigger::TriggerType;
 
@@ -14,6 +14,54 @@ use crate::trigger::TriggerType;
 /// `CountersPutEffect` class extending `SpellAbilityEffect`.
 #[manabrew_engine_macros::spell_effect(CountersPutEffect)]
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
+    let source_controller = sa
+        .source
+        .map(|id| ctx.game.card(id).controller)
+        .unwrap_or_else(|| ctx.game.player_order[0]);
+    let placer = if sa.ir.placer_text.as_deref() == Some("TriggeredSource") {
+        sa.get_triggering_player(crate::ability::AbilityKey::Source)
+    } else {
+        sa.ir.placer_text.as_deref().and_then(|defined| {
+            crate::ability::ability_utils::resolve_defined_players_with_sa(
+                defined,
+                sa,
+                source_controller,
+                ctx.game,
+            )
+            .first()
+            .copied()
+        })
+    }
+    .unwrap_or(sa.activating_player);
+    if sa.ir.triggered_counter_map {
+        let Some(crate::event::AbilityValue::CounterMap(counter_map)) = sa
+            .trigger_objects
+            .get(&crate::ability::AbilityKey::CounterMap)
+        else {
+            return;
+        };
+        let Some(card) = resolve_card_target(ctx.game, sa) else {
+            return;
+        };
+        let mut table = GameEntityCounterTable::default();
+        for (counter_type, amount) in counter_map {
+            table.put(
+                Some(placer),
+                GameEntity::Card(card),
+                parse_counter_type(counter_type),
+                sa.ir.counter_map_values.unwrap_or(*amount),
+            );
+        }
+        table.replace_counter_effect(
+            ctx.game,
+            Some(ctx.trigger_handler),
+            Some(ctx.agents),
+            Some(sa),
+            true,
+            RunParams::default(),
+        );
+        return;
+    }
     let counter_type_str = sa.ir.counter_type_text.as_deref().unwrap_or("P1P1");
     // Mirror Java CountersPutEffect.java:625-636 — when none of the multi-type
     // dispatch params are present, route the type through the player controller's
@@ -22,10 +70,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // keeps deterministic-parity entropy aligned with Java for fixed-type cards
     // like Rottenmouth Viper (CounterType$ BLIGHT).
     let counter_type = if matches_choose_from_list_path(sa) {
-        let placer_controller = sa
-            .source
-            .map(|id| ctx.game.card(id).controller)
-            .unwrap_or_else(|| ctx.game.player_order[0]);
         let options: Vec<crate::card::CounterType> = counter_type_str
             .split(',')
             .map(str::trim)
@@ -35,9 +79,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         if options.is_empty() {
             return;
         }
-        ctx.agents[placer_controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        match ctx.agents[placer_controller.index()].choose_counter_type(
-            placer_controller,
+        ctx.agents[placer.index()].snapshot_state(ctx.game, ctx.mana_pools);
+        match ctx.agents[placer.index()].choose_counter_type(
+            placer,
             &options,
             "Select counter type",
         ) {
@@ -60,61 +104,30 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     }
 
     // Resolve the controller of this ability (for Defined$ You etc.)
-    let source_controller = sa
-        .source
-        .map(|id| ctx.game.card(id).controller)
-        .unwrap_or_else(|| ctx.game.player_order[0]);
     // Check for Defined$ — if targeting a player (e.g. Defined$ You for energy),
     // handle player-level counters like ENERGY instead of card counters.
     if let Some(defined) = sa.defined() {
         if let Some(target_player) = resolve_defined_player(defined, source_controller, ctx.game) {
-            match &counter_type {
-                CounterType::Named(name) if name == "ENERGY" => {
-                    ctx.game.player_add_energy(target_player, count);
-                    return;
-                }
-                _ => {
-                    // Other player-level counters (e.g. EXPERIENCE) can be
-                    // added here in the future. For now, fall through to
-                    // the card path if we somehow arrive here.
-                }
-            }
+            ctx.add_player_counter(
+                target_player,
+                &counter_type,
+                count,
+                sa,
+                RunParams {
+                    source_player: Some(placer),
+                    ..Default::default()
+                },
+            );
+            return;
         }
     }
 
     // Resolve target card: mirror Java's getDefinedEntitiesOrTargeted().
     // When the SA uses targeting (ValidTgts$), use the chosen target.
     // Otherwise fall back to the Defined$ parameter (default "Self").
-    let uses_targeting = sa.target_restrictions.is_some();
-    let target_id = if uses_targeting && sa.ir.defined.is_none() {
-        // Targeting mode — use the actual chosen target (Necropede death trigger, etc.)
-        sa.target_chosen.target_card
-    } else {
-        match sa.defined_ref() {
-            // Java AbilityUtils "TriggeredTarget*" / "Targeted" resolve from actual
-            // target choices only; if no target was chosen (e.g. TargetMin$ 0), they
-            // resolve to empty and do nothing.
-            Some(
-                DefinedRef::TriggeredTarget
-                | DefinedRef::TriggeredTargetLkiCopy
-                | DefinedRef::Targeted,
-            ) => sa.target_chosen.target_card,
-            _ => sa.source,
-        }
-    };
-    let Some(card_id) = target_id else { return };
-    if matches!(sa.defined_ref(), None | Some(DefinedRef::SelfCard)) && sa.source == Some(card_id) {
-        // Java parity: self-referential card effects must apply to the same object instance.
-        // If host card changed zones, this ability resolves with no effect on the new object.
-        if let Some(created_at) = sa.source_zone_timestamp {
-            if ctx.game.card(card_id).zone_timestamp != created_at {
-                return;
-            }
-        }
-    }
-    if ctx.game.card(card_id).zone != ZoneType::Battlefield {
+    let Some(card_id) = resolve_card_target(ctx.game, sa) else {
         return;
-    }
+    };
 
     // Adapt gate: if Adapt$ True, only place counters if creature has no +1/+1 counters.
     // Mirrors Java CountersPutEffect lines 498-501.
@@ -156,56 +169,20 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             return;
         }
     }
-    // Run AddCounter replacement effects (e.g. Hardened Scales adds extra).
-    let mut event = ReplacementEvent::AddCounter {
-        target: card_id,
-        counter_type: counter_type.clone(),
+    let count = ctx.add_counter(
+        card_id,
+        &counter_type,
         count,
-        is_effect: true,
-    };
-    apply_replacements_with_agents(&mut *ctx.game, ctx.agents, &mut event);
-    let count = if let ReplacementEvent::AddCounter {
-        count: final_count, ..
-    } = event
-    {
-        final_count
-    } else {
-        count
-    };
-    let cause_player = ctx.game.card(card_id).controller;
-    ctx.game.card_mut(card_id).add_counter(&counter_type, count);
+        sa,
+        RunParams {
+            source_player: Some(placer),
+            ..Default::default()
+        },
+    );
 
-    // Mark creature as renowned after successfully placing counters.
-    if sa.ir.renown {
+    if sa.ir.renown && count > 0 {
         ctx.game.card_mut(card_id).set_renowned(true);
     }
-
-    // Per-target `CounterAdded` firing.
-    ctx.trigger_handler.run_trigger(
-        TriggerType::CounterAdded,
-        RunParams {
-            card: Some(card_id),
-            counter_type: Some(format!("{:?}", counter_type)),
-            counter_amount: Some(count),
-            cause_player: Some(cause_player),
-            ..Default::default()
-        },
-        false,
-    );
-    // Java fires `CounterAddedOnce` once per effect regardless of target
-    // count. Rust's counters_put_effect currently handles a single target per
-    // resolve, so firing it once here matches Java semantics.
-    ctx.trigger_handler.run_trigger(
-        TriggerType::CounterAddedOnce,
-        RunParams {
-            card: Some(card_id),
-            counter_type: Some(format!("{:?}", counter_type)),
-            counter_amount: Some(count),
-            cause_player: Some(cause_player),
-            ..Default::default()
-        },
-        false,
-    );
 
     if is_monstrosity {
         ctx.game.card_mut(card_id).set_monstrous(true);
@@ -219,6 +196,33 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             false,
         );
     }
+}
+
+fn resolve_card_target(
+    game: &crate::game::GameState,
+    sa: &crate::spellability::SpellAbility,
+) -> Option<crate::ids::CardId> {
+    let card = if sa.target_restrictions.is_some() && sa.ir.defined.is_none() {
+        sa.target_chosen.target_card
+    } else {
+        match sa.defined_ref() {
+            Some(
+                DefinedRef::TriggeredTarget
+                | DefinedRef::TriggeredTargetLkiCopy
+                | DefinedRef::Targeted,
+            ) => sa.target_chosen.target_card,
+            _ => sa.source,
+        }
+    }?;
+    if matches!(sa.defined_ref(), None | Some(DefinedRef::SelfCard))
+        && sa.source == Some(card)
+        && sa
+            .source_zone_timestamp
+            .is_some_and(|created_at| game.card(card).zone_timestamp != created_at)
+    {
+        return None;
+    }
+    (game.card(card).zone == ZoneType::Battlefield).then_some(card)
 }
 
 /// True when CountersPutEffect.java:625-636 would route the CounterType

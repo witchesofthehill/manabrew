@@ -1,19 +1,25 @@
 import type { CSSProperties, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export function PtBadge({
   value,
   style,
   baseValue,
+  className,
   children,
 }: {
   value: string;
   style: CSSProperties;
   baseValue?: string | null;
+  className?: string;
   children?: ReactNode;
 }) {
   return (
     <div
-      className="absolute bottom-[5.5cqw] right-[5.5cqw] z-10 flex flex-col items-end gap-[0.2em] pointer-events-none"
+      className={cn(
+        "absolute bottom-[5.5cqw] right-[5.5cqw] z-10 flex flex-col items-end gap-[0.2em] pointer-events-none",
+        className,
+      )}
       style={{ fontSize: "clamp(8px, 5.8cqw, 22px)" }}
     >
       {baseValue && (

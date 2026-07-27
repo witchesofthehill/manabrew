@@ -85,7 +85,13 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // Step 4: Add +1/+1 counters
     let counter_type = parse_counter_type("P1P1");
-    ctx.game.card_mut(target).add_counter(&counter_type, amount);
+    ctx.add_counter(
+        target,
+        &counter_type,
+        amount,
+        sa,
+        crate::event::RunParams::default(),
+    );
 
     // Step 5: If Army doesn't have the amass type, add it via effect
     let has_type = ctx

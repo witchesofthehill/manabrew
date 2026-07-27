@@ -105,9 +105,20 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     ctx.game.card(cid),
                     &crate::card::CounterType::M1M1,
                 ) {
-                    ctx.game
-                        .card_mut(cid)
-                        .add_counter(&crate::card::CounterType::M1M1, damage);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        ctx.game,
+                        Some(ctx.trigger_handler),
+                        Some(ctx.agents),
+                        cid,
+                        &crate::card::CounterType::M1M1,
+                        damage,
+                        crate::event::RunParams {
+                            source_player: sa.source.map(|src_id| ctx.game.card(src_id).controller),
+                            cause: Some(sa.clone()),
+                            ..Default::default()
+                        },
+                        true,
+                    );
                 }
             } else if use_damage_map {
                 if let Some(src_id) = sa.source {
@@ -158,12 +169,17 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                         map.put(src_id, DamageTarget::Player(target_player), damage);
                     }
                 }
-            } else if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_player(
-                    &ctx.game.cards,
+            } else {
+                ctx.add_player_counter(
                     target_player,
                     &crate::card::CounterType::Poison,
-                ) {
-                ctx.game.player_add_poison(target_player, damage);
+                    damage,
+                    sa,
+                    crate::event::RunParams {
+                        source_player: sa.source.map(|source| ctx.game.card(source).controller),
+                        ..Default::default()
+                    },
+                );
             }
         } else if use_damage_map {
             if let Some(src_id) = sa.source {
@@ -262,9 +278,20 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     ctx.game.card(target_card),
                     &crate::card::CounterType::M1M1,
                 ) {
-                    ctx.game
-                        .card_mut(target_card)
-                        .add_counter(&crate::card::CounterType::M1M1, damage);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        ctx.game,
+                        Some(ctx.trigger_handler),
+                        Some(ctx.agents),
+                        target_card,
+                        &crate::card::CounterType::M1M1,
+                        damage,
+                        crate::event::RunParams {
+                            source_player: sa.source.map(|src_id| ctx.game.card(src_id).controller),
+                            cause: Some(sa.clone()),
+                            ..Default::default()
+                        },
+                        true,
+                    );
                 }
             } else if use_damage_map {
                 if let Some(src_id) = sa.source {

@@ -165,6 +165,9 @@ impl GameLoop {
                             .unwrap_or_default(),
                         cost: ability.and_then(|a| a.cost_string()),
                         is_mana_ability: ability.map(|a| a.is_mana_ability).unwrap_or(false),
+                        is_class_level_up: ability.is_some_and(|a| {
+                            a.ability_api == Some(crate::ability::api_type::ApiType::ClassLevelUp)
+                        }),
                         produced_mana,
                         produced_mana_amount,
                     }
@@ -206,6 +209,7 @@ impl GameLoop {
                     description: ability.display_description(&card.card_name),
                     cost: ability.cost_string(),
                     is_mana_ability: true,
+                    is_class_level_up: false,
                     produced_mana,
                     produced_mana_amount,
                 });
@@ -227,7 +231,7 @@ mod tests {
     use super::*;
     use crate::ability::activated::parse_activated_ability;
     use crate::card::Card;
-    use forge_foundation::{CardTypeLine, ColorSet, ManaCost};
+    use forge_foundation::{CardTypeLine, ColorSet, ManaCost, PhaseType};
 
     fn make_card(
         id: u32,
@@ -334,5 +338,41 @@ mod tests {
         assert!(!GameLoop::mana_source_available_for_payment(
             &game, player, vista
         ));
+    }
+
+    #[test]
+    fn action_space_marks_only_class_level_up_abilities() {
+        let player = PlayerId(0);
+        let mut game = GameState::new(&["P1", "P2"], 20);
+        game.turn.phase = PhaseType::Main1;
+        let class = game.create_card(make_card(
+            1,
+            player,
+            "Test Class",
+            "Enchantment Class",
+            vec![
+                "AB$ ClassLevelUp | Cost$ 0 | ClassLevel$ EQ1 | SorcerySpeed$ True | SpellDescription$ Level 2",
+                "AB$ Draw | Cost$ 0 | Defined$ You | NumCards$ 1 | SpellDescription$ Draw a card.",
+            ],
+        ));
+        game.card_mut(class).set_class_level(1);
+        game.add_card_to_zone(ZoneType::Battlefield, player, class);
+        game.card_mut(class).zone = ZoneType::Battlefield;
+
+        let game_loop = GameLoop::new(2);
+        let action_space = game_loop.action_space(&game, player, true);
+        let class_level_up = action_space
+            .activatable
+            .iter()
+            .find(|action| action.description == "Level 2")
+            .expect("class level action");
+        let draw = action_space
+            .activatable
+            .iter()
+            .find(|action| action.description == "Draw a card.")
+            .expect("ordinary activated ability");
+
+        assert!(class_level_up.is_class_level_up);
+        assert!(!draw.is_class_level_up);
     }
 }

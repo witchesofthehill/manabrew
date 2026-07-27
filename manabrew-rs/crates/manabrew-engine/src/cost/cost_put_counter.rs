@@ -12,11 +12,24 @@ use crate::ids::CardId;
 /// Mirrors Java's `CostPutCounter.doPayment()`.
 pub fn pay_as_decided(
     game: &mut GameState,
+    player: crate::ids::PlayerId,
     source: CardId,
     amount: i32,
     counter_type: &CounterType,
 ) -> bool {
-    game.card_mut(source).add_counter(counter_type, amount);
+    crate::ability::effects::effect_context::add_counter_with_context(
+        game,
+        None,
+        None,
+        source,
+        counter_type,
+        amount,
+        crate::event::RunParams {
+            source_player: Some(player),
+            ..Default::default()
+        },
+        false,
+    );
     // TODO: Fire counter placement triggers via GameEntityCounterTable
     // Java's CostPutCounter.triggerCounterPutAll() handles this
     true
@@ -61,7 +74,7 @@ pub fn pay_with_decision(
         return false;
     };
     let resolved = amount.resolve(game, source, player);
-    pay_as_decided(game, source, resolved, counter_type)
+    pay_as_decided(game, player, source, resolved, counter_type)
 }
 
 pub fn reset_lists() {}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.2](https://github.com/witchesofthehill/manabrew/compare/v2.1.1...v2.1.2) (2026-07-27)
+
+### Fixes
+
+* deck editor commanders that can't be cast, and oathbreaker ([#555](https://github.com/witchesofthehill/manabrew/issues/555)) ([87292cb](https://github.com/witchesofthehill/manabrew/commit/87292cb0df7435f4ca1244d796d145e658dc8d13))
+
 ## [2.1.1](https://github.com/witchesofthehill/manabrew/compare/v2.1.0...v2.1.1) (2026-07-26)
 
 ### Fixes

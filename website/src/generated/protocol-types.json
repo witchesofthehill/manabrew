@@ -140,7 +140,7 @@
     },
     "CardView": {
       "ts": "type CardView =\n  | ({ visibility: \"visible\" } & CardDto)\n  | { visibility: \"hidden\"; id: string };",
-      "rust": "#[serde(\n    tag = \"visibility\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardView {\n    Visible(CardDto),\n    Hidden { id: String },\n}",
+      "rust": "#[allow(clippy::large_enum_variant)]\n#[serde(\n    tag = \"visibility\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardView {\n    Visible(CardDto),\n    Hidden { id: String },\n}",
       "refs": ["CardDto"]
     },
     "ChooseActionInput": {

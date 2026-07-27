@@ -76,6 +76,19 @@ public final class ParityOrder {
         if (sa.isAlternativeCost(AlternativeCost.Emerge)) return "Emerge";
         if (sa.isCastFaceDown()) return "Morph";
         if (sa.isAlternativeCost(AlternativeCost.Bestow)) return "Bestow";
+        if (sa.isAlternativeCost(AlternativeCost.Awaken)) return "Awaken";
+        if (sa.isAlternativeCost(AlternativeCost.Disturb)) return "Disturb";
+        if (sa.isAlternativeCost(AlternativeCost.Harmonize)) return "Harmonize";
+        if (sa.isAlternativeCost(AlternativeCost.Freerunning)) return "Freerunning";
+        if (sa.isAlternativeCost(AlternativeCost.Impending)) return "Impending";
+        if (sa.isAlternativeCost(AlternativeCost.Mayhem)) return "Mayhem";
+        if (sa.isAlternativeCost(AlternativeCost.MTMtE)) return "MTMtE";
+        if (sa.isAlternativeCost(AlternativeCost.Mutate)) return "Mutate";
+        if (sa.isAlternativeCost(AlternativeCost.Prowl)) return "Prowl";
+        if (sa.isAlternativeCost(AlternativeCost.Sneak)) return "Sneak";
+        if (sa.isAlternativeCost(AlternativeCost.Surge)) return "Surge";
+        if (sa.isAlternativeCost(AlternativeCost.WebSlinging)) return "WebSlinging";
+        if (sa.isAlternativeCost(AlternativeCost.Plotted)) return "Plotted";
         return "0";
     }
 

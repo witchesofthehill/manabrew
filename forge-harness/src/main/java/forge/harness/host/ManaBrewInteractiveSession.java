@@ -24,6 +24,7 @@ import forge.game.cost.Cost;
 import forge.game.player.Player;
 import forge.game.player.PlayerView;
 import forge.game.spellability.AbilityManaPart;
+import forge.game.spellability.AlternativeCost;
 import forge.game.spellability.SpellAbility;
 import forge.game.staticability.StaticAbilityCantAttackBlock;
 import forge.game.staticability.StaticAbilityMustAttack;
@@ -1756,7 +1757,7 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
             if (sa.isLandAbility() || sa.isSpell()) {
-                actionsArray.add(new AvailableAction_cast(id, cardId, new PlayCardMode_normal(), label));
+                actionsArray.add(new AvailableAction_cast(id, cardId, playCardMode(sa), label));
             } else if (sa.isManaAbility()) {
                 final String description = abilityDescription(sa, label);
                 final String produced = resolveProducedMana(sa);
@@ -1784,6 +1785,45 @@ public final class ManaBrewInteractiveSession {
     private static String abilityDescription(final SpellAbility sa, final String fallback) {
         final String text = sa.toString().trim();
         return text.isEmpty() ? fallback : text;
+    }
+
+    private static PlayCardMode playCardMode(final SpellAbility sa) {
+        final AlternativeCost alt = sa.getAlternativeCost();
+        if (alt == null) {
+            return new PlayCardMode_normal();
+        }
+        return new PlayCardMode_alternative(alternativeCostKind(alt));
+    }
+
+    private static AlternativeCostKind alternativeCostKind(final AlternativeCost alt) {
+        switch (alt) {
+            case Awaken: return AlternativeCostKind.AWAKEN;
+            case Bestow: return AlternativeCostKind.BESTOW;
+            case Blitz: return AlternativeCostKind.BLITZ;
+            case Dash: return AlternativeCostKind.DASH;
+            case Disturb: return AlternativeCostKind.DISTURB;
+            case Emerge: return AlternativeCostKind.EMERGE;
+            case Escape: return AlternativeCostKind.ESCAPE;
+            case Evoke: return AlternativeCostKind.EVOKE;
+            case Flashback: return AlternativeCostKind.FLASHBACK;
+            case Harmonize: return AlternativeCostKind.HARMONIZE;
+            case Foretold: return AlternativeCostKind.FORETELL;
+            case Freerunning: return AlternativeCostKind.FREERUNNING;
+            case Impending: return AlternativeCostKind.IMPENDING;
+            case Madness: return AlternativeCostKind.MADNESS;
+            case Mayhem: return AlternativeCostKind.MAYHEM;
+            case MTMtE: return AlternativeCostKind.MORE_THAN_MEETS_THE_EYE;
+            case Mutate: return AlternativeCostKind.MUTATE;
+            case Overload: return AlternativeCostKind.OVERLOAD;
+            case Prowl: return AlternativeCostKind.PROWL;
+            case Plotted: return AlternativeCostKind.PLOTTED;
+            case Sneak: return AlternativeCostKind.SNEAK;
+            case Spectacle: return AlternativeCostKind.SPECTACLE;
+            case Surge: return AlternativeCostKind.SURGE;
+            case Warp: return AlternativeCostKind.WARP;
+            case WebSlinging: return AlternativeCostKind.WEB_SLINGING;
+        }
+        throw new IllegalArgumentException("unknown alternative cost: " + alt);
     }
 
     private ChooseCardsInput chooseCardsInput(

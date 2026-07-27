@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0](https://github.com/witchesofthehill/manabrew/compare/v2.1.2...v3.0.0) (2026-07-27)
+
+### Features
+
+* add saga lifecycle and card rails ([#534](https://github.com/witchesofthehill/manabrew/issues/534)) ([0ee45bc](https://github.com/witchesofthehill/manabrew/commit/0ee45bc89391551e93553b1876b3fccaef1ff52d))
+
 ## [2.1.2](https://github.com/witchesofthehill/manabrew/compare/v2.1.1...v2.1.2) (2026-07-27)
 
 ### Fixes

@@ -182,7 +182,7 @@ public final class HarnessPlayPlumbing {
         sa = GameActionUtil.addExtraKeywordCost(sa);
 
         if (!announceType(sa) || !announceValuesLikeX(sa) || !sa.checkRestrictions(ai)
-                || !sa.setupTargets()) {
+                || !sa.setupTargets() || !sa.isLegalAfterStack()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
                 GameActionUtil.rollbackAbility(sa, hz, zonePosition,
                         new CostPayment(sa.getPayCosts(), sa), host);

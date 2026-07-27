@@ -55,6 +55,18 @@ const MAX_PREVIEW_KEYWORDS = 8;
 interface IndexedPreviewAction {
   action: HandActionOption;
   index: number;
+  shortcut: number;
+}
+
+function getPreviewActionShortcut(
+  index: number,
+  classLevelUpIndex: number | null,
+  classLevel: number | null,
+): number {
+  if (classLevel !== null && index === classLevelUpIndex) return classLevel;
+  const actionPosition =
+    index - (classLevelUpIndex !== null && classLevelUpIndex < index ? 1 : 0) + 1;
+  return classLevel !== null && actionPosition >= classLevel ? actionPosition + 1 : actionPosition;
 }
 
 function PreviewActions({
@@ -73,7 +85,7 @@ function PreviewActions({
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        {actions.map(({ action, index }) => (
+        {actions.map(({ action, index, shortcut }) => (
           <button
             key={index}
             onClick={() => onSelect(action)}
@@ -92,7 +104,7 @@ function PreviewActions({
           >
             <span className="mb-0.5 flex w-full items-center justify-between">
               <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-                {index + 1}
+                {shortcut}
               </span>
               {action.cost && (
                 <span className="flex items-center gap-0.5 text-[11px] opacity-90">
@@ -371,11 +383,40 @@ export function CardPreview({
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing;
   const rail = deriveCardRailState(card);
-  const indexedActions = hasActions
-    ? (actions ?? []).map((action, index) => ({ action, index }))
-    : [];
-  const rightActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
+  const nextClassLevel =
+    rail?.kind === "class" && rail.current < rail.max ? rail.current + 1 : null;
+  const availableActions = hasActions ? (actions ?? []) : [];
+  const classLevelUpIndex = nextClassLevel
+    ? availableActions.findIndex((action) => action.isClassLevelUp)
+    : -1;
+  const integratedClassLevelUpIndex = classLevelUpIndex >= 0 ? classLevelUpIndex : null;
+  const indexedActions = availableActions.map((action, index) => ({
+    action,
+    index,
+    shortcut: getPreviewActionShortcut(
+      index,
+      integratedClassLevelUpIndex,
+      integratedClassLevelUpIndex === null ? null : nextClassLevel,
+    ),
+  }));
+  const classLevelUpActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
+  const railClassLevelUpAction =
+    integratedClassLevelUpIndex === null ? undefined : indexedActions[integratedClassLevelUpIndex];
+  const rightActions = railClassLevelUpAction
+    ? classLevelUpActions.filter(({ index }) => index !== railClassLevelUpAction.index)
+    : classLevelUpActions;
   const leftActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
+  const railInteractions =
+    nextClassLevel && railClassLevelUpAction
+      ? [
+          {
+            position: nextClassLevel,
+            shortcut: railClassLevelUpAction.shortcut,
+            label: railClassLevelUpAction.action.label,
+            onActivate: () => onSelectAction!(railClassLevelUpAction.action),
+          },
+        ]
+      : [];
   const hasRightPanel = Boolean(rail || rightActions.length);
   const hasLeftPanel = leftActions.length > 0;
   const showSidePanel = hasLeftPanel || hasRightPanel;
@@ -480,9 +521,17 @@ export function CardPreview({
       }
       if (!hasActions) return;
       const num = parseInt(e.key);
-      if (num >= 1 && num <= actions!.length) {
+      const action = actions?.find(
+        (_, index) =>
+          getPreviewActionShortcut(
+            index,
+            integratedClassLevelUpIndex,
+            integratedClassLevelUpIndex === null ? null : nextClassLevel,
+          ) === num,
+      );
+      if (num >= 1 && num <= 9 && action) {
         e.preventDefault();
-        onSelectAction!(actions![num - 1]);
+        onSelectAction!(action);
       }
     }
     function handleClick(e: PointerEvent) {
@@ -502,7 +551,15 @@ export function CardPreview({
       clearTimeout(timer);
       window.removeEventListener("pointerdown", handleClick);
     };
-  }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
+  }, [
+    hasActions,
+    isSticky,
+    onDismiss,
+    onSelectAction,
+    actions,
+    integratedClassLevelUpIndex,
+    nextClassLevel,
+  ]);
 
   const horizontal = horizontalCard && !orientationFlipped;
   const safe = getSafeAreaInsets();
@@ -867,7 +924,13 @@ export function CardPreview({
                   zIndex: -1,
                 }}
               />
-              {rail && <CardRailPreview state={rail} effects={railEffects} />}
+              {rail && (
+                <CardRailPreview
+                  state={rail}
+                  effects={railEffects}
+                  interactions={railInteractions}
+                />
+              )}
               {rightActions.length > 0 && (
                 <PreviewActions
                   actions={rightActions}

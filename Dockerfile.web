@@ -10,12 +10,18 @@
 # --- Base: Rust + Node toolchain shared by the planner and builder stages ---
 FROM rust:1.88-slim AS base
 
-# Install Node.js 20 and build tools
+# Install Node.js 20 and build tools. The NodeSource script is downloaded to a
+# file, not piped: a piped curl failure exits 0 (no pipefail in /bin/sh), apt
+# then falls back to Debian's node 18 — which has no corepack — and the broken
+# layer caches. The version/corepack check makes that failure mode impossible.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl ca-certificates build-essential pkg-config libssl-dev && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    curl -fsSL -o /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_20.x && \
+    bash /tmp/nodesource-setup.sh && \
+    rm /tmp/nodesource-setup.sh && \
     apt-get install -y --no-install-recommends nodejs && \
+    node --version | grep -q '^v20\.' && command -v corepack && \
     rm -rf /var/lib/apt/lists/*
 
 # Install wasm32 target and wasm-pack (pinned; newer versions track latest rustc)

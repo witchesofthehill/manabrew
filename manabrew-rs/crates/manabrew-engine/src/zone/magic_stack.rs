@@ -102,7 +102,6 @@ pub struct MagicStack {
     #[serde(default)]
     cur_resolving_card: Option<CardId>,
 
-    /// The stack entry currently being resolved.
     #[serde(default, skip)]
     resolving_entry: Option<StackEntry>,
 
@@ -337,13 +336,10 @@ impl MagicStack {
     /// Mirrors Java's `MagicStack.hasSourceOnStack()`.
     pub fn has_source_on_stack(&self, card_id: CardId) -> bool {
         let matches = |entry: &StackEntry| entry.spell_ability.source == Some(card_id);
-        self.entries.iter().any(|entry| matches(entry))
-            || self.frozen_stack.iter().any(|entry| matches(entry))
-            || self.simultaneous_entries.iter().any(|entry| matches(entry))
-            || self
-                .resolving_entry
-                .as_ref()
-                .is_some_and(|entry| matches(entry))
+        self.entries.iter().any(&matches)
+            || self.frozen_stack.iter().any(&matches)
+            || self.simultaneous_entries.iter().any(&matches)
+            || self.resolving_entry.as_ref().is_some_and(matches)
     }
 
     pub fn has_source_chapter_on_stack(&self, game: &GameState, card_id: CardId) -> bool {
@@ -361,13 +357,10 @@ impl MagicStack {
                     })
         };
 
-        self.entries.iter().any(|entry| matches(entry))
-            || self.frozen_stack.iter().any(|entry| matches(entry))
-            || self.simultaneous_entries.iter().any(|entry| matches(entry))
-            || self
-                .resolving_entry
-                .as_ref()
-                .is_some_and(|entry| matches(entry))
+        self.entries.iter().any(&matches)
+            || self.frozen_stack.iter().any(&matches)
+            || self.simultaneous_entries.iter().any(&matches)
+            || self.resolving_entry.as_ref().is_some_and(matches)
     }
 
     /// Check if the top entry has legal targeting (at least one target chosen).

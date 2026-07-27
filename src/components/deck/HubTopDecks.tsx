@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { BarChart3, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TopDecksWindow } from "@/api/hub";
@@ -18,15 +18,37 @@ const WINDOW_COPY: Record<TopDecksWindow, string> = {
   all: "all recorded games",
 };
 
-export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) => void }) {
-  const [window, setWindow] = useState<TopDecksWindow>("30d");
+function HubTopDecksSkeleton() {
+  return (
+    <div role="status" aria-label="Building the leaderboard" className="space-y-6">
+      <div className="grid gap-3 md:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="h-44 animate-pulse rounded-xl border bg-muted/50" />
+        ))}
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="h-16 animate-pulse rounded-lg bg-muted/40" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface HubTopDecksProps {
+  timeWindow: TopDecksWindow;
+  onTimeWindowChange: (window: TopDecksWindow) => void;
+  onSearchDeck?: (name: string) => void;
+}
+
+export function HubTopDecks({ timeWindow, onTimeWindowChange, onSearchDeck }: HubTopDecksProps) {
   const topDecks = useHubStore((s) => s.topDecks);
   const topError = useHubStore((s) => s.topError);
   const fetchTop = useHubStore((s) => s.fetchTop);
 
   useEffect(() => {
-    void fetchTop(window);
-  }, [fetchTop, window]);
+    void fetchTop(timeWindow);
+  }, [fetchTop, timeWindow]);
 
   const displayedPlays = topDecks?.reduce((total, stat) => total + stat.plays, 0) ?? 0;
   const maxPlays = topDecks?.[0]?.plays ?? 0;
@@ -44,7 +66,7 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Decks seen most often across official public-relay games in {WINDOW_COPY[window]}.
+            Decks seen most often across official public-relay games in {WINDOW_COPY[timeWindow]}.
           </p>
         </div>
         <div
@@ -56,11 +78,11 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
             <button
               key={item.value}
               type="button"
-              onClick={() => setWindow(item.value)}
-              aria-pressed={window === item.value}
+              onClick={() => onTimeWindowChange(item.value)}
+              aria-pressed={timeWindow === item.value}
               className={cn(
                 "rounded-md px-3 py-1.5 text-xs font-medium transition-colors pointer-coarse:min-h-10 pointer-coarse:px-4",
-                window === item.value
+                timeWindow === item.value
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
@@ -81,15 +103,13 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
               className="mt-4"
               variant="outline"
               size="sm"
-              onClick={() => void fetchTop(window)}
+              onClick={() => void fetchTop(timeWindow)}
             >
               Try again
             </Button>
           </div>
         ) : topDecks === null ? (
-          <div className="grid min-h-48 place-items-center text-sm text-muted-foreground">
-            Building the leaderboard…
-          </div>
+          <HubTopDecksSkeleton />
         ) : topDecks.length === 0 ? (
           <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center">
             <Trophy className="h-8 w-8 text-muted-foreground/50" />
@@ -97,8 +117,13 @@ export function HubTopDecks({ onSearchDeck }: { onSearchDeck?: (name: string) =>
             <p className="mt-1 text-xs text-muted-foreground">
               Try a wider time range to see which decks players bring most often.
             </p>
-            {window !== "all" && (
-              <Button className="mt-4" variant="outline" size="sm" onClick={() => setWindow("all")}>
+            {timeWindow !== "all" && (
+              <Button
+                className="mt-4"
+                variant="outline"
+                size="sm"
+                onClick={() => onTimeWindowChange("all")}
+              >
                 View all time
               </Button>
             )}

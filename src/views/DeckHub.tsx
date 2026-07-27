@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Search, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers3, Search, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
-import type { HubSort } from "@/api/hub";
+import type { HubSort, TopDecksWindow } from "@/api/hub";
 import { useHubDeckPlaytest, useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useHubStore } from "@/stores/useHubStore";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
@@ -16,6 +16,24 @@ const SEARCH_DEBOUNCE_MS = 300;
 const HUB_FORMATS = ["commander", "standard", "pioneer", "modern", "pauper", "brawl"] as const;
 
 type HubTab = "browse" | "top";
+
+function getInitialPage(value: string | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function getInitialTopWindow(value: string | null): TopDecksWindow {
+  if (value === "7d" || value === "all") return value;
+  return "30d";
+}
+
+function HubDeckSkeleton() {
+  return (
+    <div className="aspect-[4/3] animate-pulse overflow-hidden rounded-lg border bg-muted">
+      <div className="h-full bg-gradient-to-t from-muted-foreground/10 to-transparent" />
+    </div>
+  );
+}
 
 function SegmentedButton({
   active,
@@ -39,15 +57,24 @@ function SegmentedButton({
 }
 
 export default function DeckHub() {
-  const [tab, setTab] = useState<HubTab>("browse");
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [format, setFormat] = useState<string>("");
-  const [sort, setSort] = useState<HubSort>("newest");
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSearch = searchParams.get("q") ?? "";
+  const initialFormat = searchParams.get("format") ?? "";
+  const [tab, setTab] = useState<HubTab>(searchParams.get("tab") === "top" ? "top" : "browse");
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+  const [format, setFormat] = useState<string>(
+    HUB_FORMATS.some((value) => value === initialFormat) ? initialFormat : "",
+  );
+  const [sort, setSort] = useState<HubSort>(
+    searchParams.get("sort") === "name" ? "name" : "newest",
+  );
+  const [topWindow, setTopWindow] = useState<TopDecksWindow>(() =>
+    getInitialTopWindow(searchParams.get("period")),
+  );
+  const [page, setPage] = useState(() => getInitialPage(searchParams.get("page")));
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [searchParams, setSearchParams] = useSearchParams();
   const urlDeckId = searchParams.get("deck");
 
   const list = useHubStore((s) => s.list);
@@ -58,12 +85,32 @@ export default function DeckHub() {
   const hubPlaytest = useHubDeckPlaytest(quickPlaytest);
 
   useEffect(() => {
+    if (search === debouncedSearch) return;
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, debouncedSearch]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === "top") next.set("tab", "top");
+    else next.delete("tab");
+    if (search) next.set("q", search);
+    else next.delete("q");
+    if (format) next.set("format", format);
+    else next.delete("format");
+    if (sort === "name") next.set("sort", "name");
+    else next.delete("sort");
+    if (topWindow !== "30d") next.set("period", topWindow);
+    else next.delete("period");
+    if (page > 1) next.set("page", String(page));
+    else next.delete("page");
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [format, page, search, searchParams, setSearchParams, sort, tab, topWindow]);
 
   useEffect(() => {
     void fetchDecks({
@@ -76,30 +123,98 @@ export default function DeckHub() {
   }, [fetchDecks, debouncedSearch, format, sort, page, refreshKey]);
 
   const totalPages = list ? Math.max(1, Math.ceil(list.total / PAGE_SIZE)) : 1;
+  const hasFilters = Boolean(search || format);
+
+  function clearFilters() {
+    setSearch("");
+    setDebouncedSearch("");
+    setFormat("");
+    setPage(1);
+  }
+
+  function openPreview(deckId: string) {
+    setPreviewId(deckId);
+    const next = new URLSearchParams(searchParams);
+    next.set("deck", deckId);
+    setSearchParams(next, { replace: true });
+  }
+
+  function closePreview() {
+    setPreviewId(null);
+    if (!urlDeckId) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("deck");
+    setSearchParams(next, { replace: true });
+  }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex shrink-0 items-center justify-end gap-1 border-b px-4 py-3 sm:px-6 lg:px-8">
-        <SegmentedButton active={tab === "browse"} onClick={() => setTab("browse")}>
-          <Search className="mr-1 h-4 w-4" />
-          Browse
-        </SegmentedButton>
-        <SegmentedButton active={tab === "top"} onClick={() => setTab("top")}>
-          <Trophy className="mr-1 h-4 w-4" />
-          Top Decks
-        </SegmentedButton>
+    <div className="flex h-full flex-col">
+      <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Layers3 className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <h1 className="truncate text-lg font-semibold">Deck Hub</h1>
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Discover community decks, inspect every card, and start playing.
+          </p>
+        </div>
+        <div className="flex w-fit items-center gap-1 rounded-lg bg-muted/60 p-1">
+          <SegmentedButton active={tab === "browse"} onClick={() => setTab("browse")}>
+            <Search className="mr-1 h-4 w-4" />
+            Browse
+          </SegmentedButton>
+          <SegmentedButton active={tab === "top"} onClick={() => setTab("top")}>
+            <Trophy className="mr-1 h-4 w-4" />
+            Top Decks
+          </SegmentedButton>
+        </div>
       </div>
 
       {tab === "browse" ? (
         <>
-          <div className="mt-2 flex shrink-0 flex-col gap-2 px-4 py-1.5 sm:flex-row sm:items-center sm:px-6 lg:px-8">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search Deck Hub"
-              placeholder="Search decks, authors, commanders…"
-              className="h-8 w-full text-xs pointer-coarse:h-10 pointer-coarse:text-base sm:max-w-56"
-            />
+          <div className="flex shrink-0 flex-col gap-2 border-b px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  aria-label="Search Deck Hub"
+                  placeholder="Search decks, authors, commanders…"
+                  className="h-9 pl-8 pr-8 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearch("")}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <select
+                  value={sort}
+                  aria-label="Sort Deck Hub"
+                  className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-10 pointer-coarse:text-base"
+                  onChange={(event) => {
+                    setSort(event.target.value as HubSort);
+                    setPage(1);
+                  }}
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="name">Deck name</option>
+                </select>
+                {list && (
+                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+                    {list.total.toLocaleString()} {list.total === 1 ? "deck" : "decks"}
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex min-w-0 items-center gap-2">
               <div
                 role="group"
@@ -128,18 +243,16 @@ export default function DeckHub() {
                   </SegmentedButton>
                 ))}
               </div>
-              <select
-                value={sort}
-                aria-label="Sort Deck Hub"
-                className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-xs pointer-coarse:h-10 pointer-coarse:text-base"
-                onChange={(event) => {
-                  setSort(event.target.value as HubSort);
-                  setPage(1);
-                }}
-              >
-                <option value="newest">Newest</option>
-                <option value="name">Name</option>
-              </select>
+              {hasFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-muted-foreground"
+                  onClick={clearFilters}
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 
@@ -157,25 +270,23 @@ export default function DeckHub() {
                   </Button>
                 </div>
               ) : list === null ? (
-                <p className="text-sm text-muted-foreground">Loading decks…</p>
+                <div
+                  className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  aria-label="Loading decks"
+                >
+                  {Array.from({ length: 10 }, (_, index) => (
+                    <HubDeckSkeleton key={index} />
+                  ))}
+                </div>
               ) : list.decks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
                   {debouncedSearch || format ? (
                     <>
                       <p className="text-lg font-semibold">No published decks match</p>
                       <p className="max-w-sm text-sm text-muted-foreground">
                         Try another name or format. Leaderboard decks are not always published.
                       </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSearch("");
-                          setDebouncedSearch("");
-                          setFormat("");
-                          setPage(1);
-                        }}
-                      >
+                      <Button variant="outline" size="sm" onClick={clearFilters}>
                         Clear filters
                       </Button>
                     </>
@@ -197,7 +308,7 @@ export default function DeckHub() {
                     <HubDeckCard
                       key={deck.id}
                       deck={deck}
-                      onOpen={() => setPreviewId(deck.id)}
+                      onOpen={() => openPreview(deck.id)}
                       onPlaytest={() => hubPlaytest(deck.id)}
                     />
                   ))}
@@ -237,6 +348,8 @@ export default function DeckHub() {
         </>
       ) : (
         <HubTopDecks
+          timeWindow={topWindow}
+          onTimeWindowChange={setTopWindow}
           onSearchDeck={(name) => {
             setSearch(name);
             setTab("browse");
@@ -246,10 +359,7 @@ export default function DeckHub() {
 
       <HubDeckPreviewDialog
         deckId={previewId ?? urlDeckId}
-        onClose={() => {
-          setPreviewId(null);
-          if (urlDeckId) setSearchParams({}, { replace: true });
-        }}
+        onClose={closePreview}
         onUnpublished={() => setRefreshKey((k) => k + 1)}
       />
       {playtestDialog}

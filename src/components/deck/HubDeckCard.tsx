@@ -35,7 +35,7 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
         {deck.coverImageUrl ? (
           <img
             src={deck.coverImageUrl}
-            alt={deck.coverCardName ?? deck.name}
+            alt=""
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -75,7 +75,7 @@ export function HubDeckCard({ deck, onOpen, onPlaytest }: HubDeckCardProps) {
       {onPlaytest && (
         <Button
           size="icon"
-          className="absolute right-1.5 top-1.5 z-20 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
+          className="absolute right-1.5 top-1.5 z-20 h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:h-10 pointer-coarse:w-10 pointer-coarse:opacity-100"
           title="Playtest vs AI"
           aria-label={`Playtest ${deck.name} vs AI`}
           onClick={onPlaytest}

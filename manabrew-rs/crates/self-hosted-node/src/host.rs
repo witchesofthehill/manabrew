@@ -1295,6 +1295,25 @@ fn is_commander_variant(format: GameFormat) -> bool {
     }
 }
 
+// Forge GameType name for the java backend; empty = let the adapter infer
+// commander-ness the pre-variant way (Any rooms carry no concrete format here).
+fn java_game_variant(format: GameFormat) -> &'static str {
+    match format {
+        GameFormat::Any => "",
+        GameFormat::Commander => "Commander",
+        GameFormat::Brawl => "Brawl",
+        GameFormat::Oathbreaker => "Oathbreaker",
+        GameFormat::Standard
+        | GameFormat::Pioneer
+        | GameFormat::Modern
+        | GameFormat::Legacy
+        | GameFormat::Vintage
+        | GameFormat::Pauper
+        | GameFormat::Draft
+        | GameFormat::Sealed => "Constructed",
+    }
+}
+
 fn maybe_start_hosted_engine(
     config: &Config,
     engine_session: &SharedEngineSession,
@@ -1390,13 +1409,13 @@ fn maybe_start_hosted_engine(
     }
 
     let player_names = player_order;
-    let commander_variant = is_commander_variant(
-        snapshot
-            .lock()
-            .ok()
-            .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
-            .unwrap_or(GameFormat::Any),
-    );
+    let room_format = snapshot
+        .lock()
+        .ok()
+        .and_then(|snap| snap.room_info.as_ref().map(|room| room.format.clone()))
+        .unwrap_or(GameFormat::Any);
+    let commander_variant = is_commander_variant(room_format.clone());
+    let game_variant = java_game_variant(room_format).to_string();
 
     match backend {
         EngineBackendKind::Manabrew => {
@@ -1526,6 +1545,7 @@ fn maybe_start_hosted_engine(
                         ordered_decks,
                         commander_names,
                         commander_variant,
+                        game_variant,
                         local_player_index,
                         ai_player_indices,
                         starting_life,

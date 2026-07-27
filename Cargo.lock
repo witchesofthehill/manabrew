@@ -3764,7 +3764,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "2.1.0"
+version = "2.1.2"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -6284,7 +6284,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "forge-carddb",
  "forge-foundation",

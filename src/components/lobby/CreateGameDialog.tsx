@@ -9,7 +9,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import {
   GAME_FORMATS,
   validateDeckSections,
-  partnerPairLabel,
+  commanderPairLabel,
   type GameFormat,
 } from "@/lib/formats";
 import { PartnerBadge } from "@/components/deck/PartnerBadge";
@@ -151,10 +151,10 @@ export function CreateGameDialog({
     (d) => d.id === selectedDeck && d.formatId === selectedFormat.id,
   );
   const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
-  const selectedPartnerLabel =
-    selectedDeckCommanders.length === 2
-      ? partnerPairLabel(selectedDeckCommanders[0], selectedDeckCommanders[1])
-      : null;
+  const selectedPartnerLabel = commanderPairLabel(
+    selectedDeckCommanders,
+    selectedDeckEntry?.sourceDeck.format,
+  );
 
   const legendaryCreatures = selectedDeckEntry
     ? Array.from(

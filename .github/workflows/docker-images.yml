@@ -101,4 +101,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          # Tag-scoped layer saves are unreadable by the next tag; cache-warm
+          # owns the main-scoped layers. Dispatch runs (from main) still save.
+          cache-to: ${{ github.ref_type != 'tag' && format('type=gha,mode=max,scope={0}', matrix.image) || '' }}

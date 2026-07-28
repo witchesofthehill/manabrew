@@ -328,7 +328,16 @@ async fn top_decks_handler(
         .limit
         .unwrap_or(DEFAULT_TOP_DECKS)
         .clamp(1, MAX_TOP_DECKS);
-    Json(state.stats.top_decks(window, limit)).into_response()
+    let mut stats = state.stats.top_decks(window, limit);
+    let storage = state.storage.lock().unwrap();
+    for stat in &mut stats {
+        stat.published_deck_id =
+            match storage.find_published_deck_id(&stat.deck_name, stat.commander.as_deref()) {
+                Ok(id) => id,
+                Err(error) => return internal_error(error),
+            };
+    }
+    Json(stats).into_response()
 }
 
 // Last hop only: earlier entries are client-supplied and spoofable; the final

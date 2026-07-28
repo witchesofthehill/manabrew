@@ -1,4 +1,4 @@
-import { ArrowUpRight, Layers, Loader2 } from "lucide-react";
+import { ArrowUpRight, Layers } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { chooseImageUrisForCard, useCard } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
@@ -10,8 +10,7 @@ interface HubTopDeckEntryProps {
   maxPlays: number;
   displayedPlays: number;
   featured?: boolean;
-  disabled?: boolean;
-  loading?: boolean;
+  available: boolean;
   onOpen: () => void;
 }
 
@@ -34,8 +33,7 @@ export function HubTopDeckEntry({
   maxPlays,
   displayedPlays,
   featured = false,
-  disabled = false,
-  loading = false,
+  available,
   onOpen,
 }: HubTopDeckEntryProps) {
   const card = useCard(stat.commander ? { name: stat.commander } : null);
@@ -49,22 +47,29 @@ export function HubTopDeckEntry({
       <button
         type="button"
         onClick={onOpen}
-        disabled={disabled}
+        disabled={!available}
         className={cn(
           "group relative isolate min-h-44 overflow-hidden rounded-xl border bg-card text-left shadow-sm transition-all",
           "hover:-translate-y-0.5 hover:border-primary hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          "disabled:cursor-wait disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-sm",
+          "disabled:cursor-default disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-sm",
           rank === 1 && "border-primary/60 shadow-md",
         )}
-        aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Open a published copy.`}
-        aria-busy={loading}
+        aria-label={
+          available
+            ? `Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Open published copy.`
+            : `Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. No published copy.`
+        }
       >
         {art ? (
           <ScryfallImg
             src={art}
             alt=""
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
+            className={cn(
+              "absolute inset-0 h-full w-full object-cover",
+              available &&
+                "transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none",
+            )}
           />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center bg-muted">
@@ -82,13 +87,16 @@ export function HubTopDeckEntry({
             >
               {rank}
             </span>
-            <span className="flex items-center gap-1 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100">
-              {loading ? "Opening…" : "Open deck"}
-              {loading ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <ArrowUpRight className="h-3 w-3" />
+            <span
+              className={cn(
+                "flex items-center gap-1 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm",
+                available
+                  ? "opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100"
+                  : "opacity-100",
               )}
+            >
+              {available ? "Open deck" : "Stats only"}
+              {available && <ArrowUpRight className="h-3 w-3" />}
             </span>
           </span>
           <span>
@@ -125,10 +133,13 @@ export function HubTopDeckEntry({
       <button
         type="button"
         onClick={onOpen}
-        disabled={disabled}
-        className="group grid w-full grid-cols-[2rem_3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70 sm:grid-cols-[2rem_4.5rem_minmax(0,1fr)_minmax(7rem,12rem)_auto] sm:px-3"
-        aria-label={`Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Open a published copy.`}
-        aria-busy={loading}
+        disabled={!available}
+        className="group grid w-full grid-cols-[2rem_3.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-border hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent sm:grid-cols-[2rem_4.5rem_minmax(0,1fr)_minmax(7rem,12rem)_auto] sm:px-3"
+        aria-label={
+          available
+            ? `Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. Open published copy.`
+            : `Rank ${rank}: ${stat.deckName}, ${stat.plays} plays. No published copy.`
+        }
       >
         <span className="text-right font-mono text-sm font-semibold tabular-nums text-muted-foreground">
           {rank}
@@ -164,10 +175,12 @@ export function HubTopDeckEntry({
             <span className="block text-sm font-semibold tabular-nums">{stat.plays}</span>
             <span className="block text-[10px] text-muted-foreground">plays</span>
           </span>
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          ) : (
+          {available ? (
             <ArrowUpRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+          ) : (
+            <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Stats only
+            </span>
           )}
         </span>
       </button>

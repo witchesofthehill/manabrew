@@ -122,6 +122,8 @@ impl Storage {
                 unlisted              INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_hub_decks_browse ON hub_decks(unlisted, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_hub_decks_public_name
+                ON hub_decks(unlisted, name COLLATE NOCASE, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_hub_decks_format ON hub_decks(format);
             CREATE INDEX IF NOT EXISTS idx_hub_decks_ip_day ON hub_decks(publish_ip, created_at);
             CREATE TABLE IF NOT EXISTS accounts (
@@ -292,6 +294,35 @@ impl Storage {
                 .ok()
                 .map(|deck| HubDeckDetail { summary, deck })
         }))
+    }
+
+    pub fn find_published_deck_id(
+        &self,
+        name: &str,
+        commander: Option<&str>,
+    ) -> SqlResult<Option<String>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, commanders FROM hub_decks
+             WHERE unlisted = 0 AND name = ?1 COLLATE NOCASE
+             ORDER BY created_at DESC",
+        )?;
+        let candidates = stmt.query_map(params![name], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for candidate in candidates {
+            let (id, commanders) = candidate?;
+            let commanders: Vec<String> = serde_json::from_str(&commanders).unwrap_or_default();
+            let matches = match commander {
+                Some(expected) => commanders
+                    .iter()
+                    .any(|name| name.trim().eq_ignore_ascii_case(expected.trim())),
+                None => true,
+            };
+            if matches {
+                return Ok(Some(id));
+            }
+        }
+        Ok(None)
     }
 
     pub fn delete_deck(&self, id: &str, token_hash: &str) -> SqlResult<DeleteOutcome> {
@@ -825,6 +856,58 @@ mod tests {
         params.search = Some("neheb, the".into());
         let (_, total) = storage.list_decks(&params).unwrap();
         assert_eq!(total, 2);
+    }
+
+    #[test]
+    fn published_deck_lookup_requires_exact_name_and_commander() {
+        let storage = Storage::open_memory().unwrap();
+        let mut wrong_commander =
+            sample("wrong", "Imported Deck", "1.1.1.1", "2026-07-03T00:00:00Z");
+        wrong_commander.summary.commanders = vec!["Atraxa, Praetors' Voice".into()];
+        storage.insert_deck(&wrong_commander).unwrap();
+
+        let matching = sample(
+            "matching",
+            "Imported Deck",
+            "1.1.1.1",
+            "2026-07-02T00:00:00Z",
+        );
+        storage.insert_deck(&matching).unwrap();
+
+        let mut unlisted = sample(
+            "unlisted",
+            "Imported Deck",
+            "1.1.1.1",
+            "2026-07-04T00:00:00Z",
+        );
+        unlisted.summary.commanders = vec!["Neheb, the Worthy".into()];
+        storage.insert_deck(&unlisted).unwrap();
+        storage.admin_unlist("unlisted").unwrap();
+
+        assert_eq!(
+            storage
+                .find_published_deck_id("imported deck", Some("neheb, THE worthy"))
+                .unwrap(),
+            Some("matching".into())
+        );
+        assert_eq!(
+            storage
+                .find_published_deck_id("Imported Deck", Some("Muldrotha, the Gravetide"))
+                .unwrap(),
+            None
+        );
+        assert_eq!(
+            storage
+                .find_published_deck_id("Imported", Some("Neheb, the Worthy"))
+                .unwrap(),
+            None
+        );
+        assert_eq!(
+            storage
+                .find_published_deck_id("Imported Deck", None)
+                .unwrap(),
+            Some("wrong".into())
+        );
     }
 
     #[test]

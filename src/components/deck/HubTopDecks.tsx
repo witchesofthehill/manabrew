@@ -40,15 +40,9 @@ interface HubTopDecksProps {
   timeWindow: TopDecksWindow;
   onTimeWindowChange: (window: TopDecksWindow) => void;
   onOpenDeck: (deck: TopDeckStat) => void;
-  openingDeck: TopDeckStat | null;
 }
 
-export function HubTopDecks({
-  timeWindow,
-  onTimeWindowChange,
-  onOpenDeck,
-  openingDeck,
-}: HubTopDecksProps) {
+export function HubTopDecks({ timeWindow, onTimeWindowChange, onOpenDeck }: HubTopDecksProps) {
   const topDecks = useHubStore((s) => s.topDecks);
   const topError = useHubStore((s) => s.topError);
   const fetchTop = useHubStore((s) => s.fetchTop);
@@ -147,7 +141,7 @@ export function HubTopDecks({
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Select a deck to open a published copy
+                Published copies open in the deck viewer
               </p>
             </div>
 
@@ -160,8 +154,7 @@ export function HubTopDecks({
                   maxPlays={maxPlays}
                   displayedPlays={displayedPlays}
                   featured
-                  disabled={openingDeck !== null}
-                  loading={openingDeck === stat}
+                  available={Boolean(stat.publishedDeckId)}
                   onOpen={() => onOpenDeck(stat)}
                 />
               ))}
@@ -183,8 +176,7 @@ export function HubTopDecks({
                       rank={index + 4}
                       maxPlays={maxPlays}
                       displayedPlays={displayedPlays}
-                      disabled={openingDeck !== null}
-                      loading={openingDeck === stat}
+                      available={Boolean(stat.publishedDeckId)}
                       onOpen={() => onOpenDeck(stat)}
                     />
                   ))}
@@ -195,8 +187,8 @@ export function HubTopDecks({
         )}
       </div>
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
-        Rankings measure play frequency, not win rate. The viewer opens a matching published
-        snapshot when available; played decks are not published automatically.
+        Rankings measure play frequency, not win rate. Stats only means no matching published
+        snapshot is available; played decks are not published automatically.
       </p>
     </div>
   );

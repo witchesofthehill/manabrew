@@ -65,6 +65,7 @@ impl StatsCache {
                 Ok(TopDeckStat {
                     deck_name: row.get(0)?,
                     commander: row.get(1)?,
+                    published_deck_id: None,
                     plays: row.get(2)?,
                     last_played: row.get(3)?,
                 })

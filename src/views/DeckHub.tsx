@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Search, Trophy, X } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
-import { fetchHubDecks } from "@/api/hub";
 import type { HubSort, TopDecksWindow } from "@/api/hub";
 import type { TopDeckStat } from "@/api/hubTypes";
 import { useHubStore } from "@/stores/useHubStore";
@@ -78,7 +76,6 @@ export default function DeckHub() {
   );
   const [page, setPage] = useState(() => getInitialPage(searchParams.get("page")));
   const [refreshKey, setRefreshKey] = useState(0);
-  const [openingTopDeck, setOpeningTopDeck] = useState<TopDeckStat | null>(null);
   const urlDeckId = searchParams.get("deck");
 
   const list = useHubStore((s) => s.list);
@@ -153,40 +150,8 @@ export default function DeckHub() {
     setSearchParams(next, { replace: true });
   }
 
-  async function openTopDeck(stat: TopDeckStat) {
-    if (openingTopDeck) return;
-    setOpeningTopDeck(stat);
-    try {
-      const result = await fetchHubDecks({
-        search: stat.deckName,
-        sort: "newest",
-        page: 1,
-        pageSize: 50,
-      });
-      const deckName = stat.deckName.trim().toLocaleLowerCase();
-      const exactMatches = result.decks.filter(
-        (deck) => deck.name.trim().toLocaleLowerCase() === deckName,
-      );
-      const commander = stat.commander?.trim().toLocaleLowerCase();
-      const commanderMatch = commander
-        ? exactMatches.find((deck) =>
-            deck.commanders.some((name) => name.trim().toLocaleLowerCase() === commander),
-          )
-        : undefined;
-      const match =
-        commanderMatch ?? (!commander || exactMatches.length === 1 ? exactMatches[0] : undefined);
-      if (!match) {
-        toast.info("No published copy is available", {
-          description: `"${stat.deckName}" has appeared in games, but its card list has not been published to the Deck Hub.`,
-        });
-        return;
-      }
-      openPreview(match.id);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn’t open this deck");
-    } finally {
-      setOpeningTopDeck(null);
-    }
+  function openTopDeck(stat: TopDeckStat) {
+    if (stat.publishedDeckId) openPreview(stat.publishedDeckId);
   }
 
   return (
@@ -381,8 +346,7 @@ export default function DeckHub() {
         <HubTopDecks
           timeWindow={topWindow}
           onTimeWindowChange={setTopWindow}
-          onOpenDeck={(deck) => void openTopDeck(deck)}
-          openingDeck={openingTopDeck}
+          onOpenDeck={openTopDeck}
         />
       )}
 

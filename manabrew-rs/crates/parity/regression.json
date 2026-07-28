@@ -102,5 +102,9 @@
   {
     "name": "starter_animar",
     "args": "--deck1 starter_deck_animar --deck2 starter_deck_animar --seed 42 --max-turns 40 --games 10"
+  },
+  {
+    "name": "saga_chapter",
+    "args": "--deck1 saga_chapter --deck2 saga_chapter --seed 42 --max-turns 40 --games 3 --prefer-actions --deep --investigate"
   }
 ]

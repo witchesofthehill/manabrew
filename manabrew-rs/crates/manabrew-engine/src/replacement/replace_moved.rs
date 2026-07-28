@@ -38,6 +38,7 @@ pub fn can_replace(
             origin,
             destination,
             is_discard,
+            ..
         } => (*card, *origin, *destination, *is_discard),
         _ => return false,
     };

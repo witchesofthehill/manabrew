@@ -862,6 +862,12 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Card(card)) => Some(*card),
             Some(AbilityValue::Cards(cards)) => cards.first().copied(),
+            Some(AbilityValue::GameEntities(entities)) => {
+                entities.iter().find_map(|entity| match entity {
+                    crate::agent::GameEntity::Card(card) => Some(*card),
+                    crate::agent::GameEntity::Player(_) => None,
+                })
+            }
             _ => None,
         }
     }
@@ -871,6 +877,12 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Player(player)) => Some(*player),
             Some(AbilityValue::Players(players)) => players.first().copied(),
+            Some(AbilityValue::GameEntities(entities)) => {
+                entities.iter().find_map(|entity| match entity {
+                    crate::agent::GameEntity::Player(player) => Some(*player),
+                    crate::agent::GameEntity::Card(_) => None,
+                })
+            }
             _ => None,
         }
     }
@@ -880,6 +892,13 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Card(card)) => vec![*card],
             Some(AbilityValue::Cards(cards)) => cards.clone(),
+            Some(AbilityValue::GameEntities(entities)) => entities
+                .iter()
+                .filter_map(|entity| match entity {
+                    crate::agent::GameEntity::Card(card) => Some(*card),
+                    crate::agent::GameEntity::Player(_) => None,
+                })
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -889,6 +908,13 @@ impl SpellAbility {
         match self.get_triggering_value(key) {
             Some(AbilityValue::Player(player)) => vec![*player],
             Some(AbilityValue::Players(players)) => players.clone(),
+            Some(AbilityValue::GameEntities(entities)) => entities
+                .iter()
+                .filter_map(|entity| match entity {
+                    crate::agent::GameEntity::Player(player) => Some(*player),
+                    crate::agent::GameEntity::Card(_) => None,
+                })
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -1408,6 +1434,20 @@ impl SpellAbility {
             "SplitSecond" => self.ir.split_second,
             _ => false,
         }
+    }
+
+    pub fn is_last_chapter(&self, game: &crate::game::GameState) -> bool {
+        let Some(source) = self.trigger_source.or(self.source) else {
+            return false;
+        };
+        let Some(trigger_id) = self.source_trigger_id else {
+            return false;
+        };
+        let card = game.card(source);
+        card.triggers
+            .iter()
+            .find(|trigger| trigger.id == trigger_id)
+            .is_some_and(|trigger| trigger.is_last_chapter(card))
     }
 
     /// Whether this ability tracks mana spent.

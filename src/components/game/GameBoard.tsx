@@ -1029,10 +1029,28 @@ export function GameBoard({
       const gyTargets = opZoneTargetIds("Graveyard", op.graveyard);
       const exTargets = opZoneTargetIds("Exile", op.exile);
       const cmdTargets = opZoneTargetIds("Command", op.commandZone);
-      const openOpZone = (title: string, cards: CardDto[], targetIds: string[]) =>
-        targetIds.length > 0
-          ? onOpenZone(title, cards, onTargetFromZone, targetIds, hostileTargeting)
-          : onOpenZone(title, cards);
+      const playableIn = (cards: CardDto[]) =>
+        promptType === "chooseAction" ? cards.filter((card) => playableIds.has(card.id)) : [];
+      const openOpZone = (title: string, cards: CardDto[], targetIds: string[]) => {
+        if (targetIds.length > 0) {
+          onOpenZone(title, cards, onTargetFromZone, targetIds, hostileTargeting);
+          return;
+        }
+        const playable = playableIn(cards);
+        if (playable.length > 0) {
+          onOpenZoneAndCast(
+            title,
+            cards,
+            (_cardId) => {},
+            playable.map((card) => card.id),
+          );
+          return;
+        }
+        onOpenZone(title, cards);
+      };
+      const gyPlayable = playableIn(op.graveyard).length > 0;
+      const exPlayable = playableIn(op.exile).length > 0;
+      const cmdPlayable = playableIn(op.commandZone).length > 0;
       const tiles: ZoneTileSpec[] = [
         {
           key: ZONE_TILE_KEY.library,
@@ -1052,7 +1070,7 @@ export function GameBoard({
           topCard: top(op.graveyard),
           onOpen: () =>
             openOpZone(`${stripUsernameTag(op.name)}'s Graveyard`, op.graveyard, gyTargets),
-          highlightColor: gyTargets.length > 0 ? targetColor : undefined,
+          highlightColor: gyTargets.length > 0 ? targetColor : gyPlayable ? active : undefined,
         },
         {
           key: ZONE_TILE_KEY.exile,
@@ -1060,7 +1078,7 @@ export function GameBoard({
           count: op.exile.length,
           topCard: top(op.exile),
           onOpen: () => openOpZone(`${stripUsernameTag(op.name)}'s Exile`, op.exile, exTargets),
-          highlightColor: exTargets.length > 0 ? targetColor : undefined,
+          highlightColor: exTargets.length > 0 ? targetColor : exPlayable ? active : undefined,
         },
       ];
       if ((op.commandZone?.length ?? 0) > 0) {
@@ -1071,7 +1089,7 @@ export function GameBoard({
           topCard: top(op.commandZone),
           onOpen: () =>
             openOpZone(`${stripUsernameTag(op.name)}'s Command Zone`, op.commandZone, cmdTargets),
-          highlightColor: cmdTargets.length > 0 ? targetColor : undefined,
+          highlightColor: cmdTargets.length > 0 ? targetColor : cmdPlayable ? active : undefined,
           commander: playerColors[OPPONENT_SEATS[oppIndex] ?? "opponent1"],
         });
       }
@@ -1099,6 +1117,7 @@ export function GameBoard({
     boardTargets,
     onTargetFromZone,
     onOpenZone,
+    onOpenZoneAndCast,
     openCommandZone,
     openGraveyard,
     openExile,

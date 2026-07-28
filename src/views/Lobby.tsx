@@ -545,6 +545,7 @@ export default function Lobby() {
       <CreateGameDialog
         open={deckDialogOpen}
         onOpenChange={setDeckDialogOpen}
+        mode="lobby"
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
         preSelectedDeckId={deckDialogPreSelectedId}
         preSelectedHubDeckId={preferredHubDeckId}
@@ -558,6 +559,7 @@ export default function Lobby() {
           setAiDeckDialogOpen(open);
           if (!open) setBotDeckTarget(null);
         }}
+        mode="lobby"
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
         target="bot"
         onStart={(deck, _formatId, commanderName) => {

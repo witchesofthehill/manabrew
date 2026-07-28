@@ -278,7 +278,7 @@ export class BoardZoneTiles {
     if (spec.topCard) {
       const faceCard = { ...spec.topCard, summoningSick: false };
       if (!tile.face) {
-        tile.face = new CardSprite(faceCard);
+        tile.face = new CardSprite(faceCard, "zone");
         tile.container.addChildAt(tile.face, 0);
       }
       tile.face.updateCardContent(faceCard);

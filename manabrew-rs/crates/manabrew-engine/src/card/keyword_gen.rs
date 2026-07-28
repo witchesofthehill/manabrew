@@ -13,6 +13,31 @@ use crate::trigger::parse_trigger;
 
 use super::Card;
 
+fn roman_chapter(mut chapter: usize) -> String {
+    let mut result = String::new();
+    for (value, numeral) in [
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ] {
+        while chapter >= value {
+            result.push_str(numeral);
+            chapter -= value;
+        }
+    }
+    result
+}
+
 impl Card {
     fn parsed_svar_params(&mut self, name: &str) -> Option<Params> {
         match self.parsed_s_var(name)?.kind {
@@ -726,6 +751,83 @@ impl Card {
                 .or_insert_with(|| {
                     "DB$ PutCounter | Defined$ Self | CounterType$ P1P1 | CounterNum$ 1".to_string()
                 });
+        }
+    }
+
+    pub(crate) fn generate_keyword_chapter_triggers(&mut self) {
+        if !self.has_subtype("Saga") {
+            return;
+        }
+
+        let mut next_id = self.triggers.len() as u32;
+        for kw in self.keywords.as_string_list() {
+            if !kw.starts_with("Chapter") {
+                continue;
+            }
+            let Some((count, svars)) = kw
+                .strip_prefix("Chapter:")
+                .and_then(|value| value.split_once(':'))
+            else {
+                panic!("invalid Chapter keyword: {kw}");
+            };
+            let count = count
+                .parse::<usize>()
+                .unwrap_or_else(|_| panic!("invalid Chapter count: {count}"));
+            let svars: Vec<&str> = svars.split(',').collect();
+            assert!(
+                !svars.iter().any(|svar| svar.is_empty()),
+                "Chapter ability list must not contain empty SVars"
+            );
+            assert_eq!(svars.len(), count, "Saga max differ from Ability amount");
+
+            let mut groups: Vec<(String, Vec<usize>)> = Vec::new();
+            for (chapter, svar) in svars.iter().enumerate() {
+                let chapter = chapter + 1;
+                if let Some((_, chapters)) = groups
+                    .iter_mut()
+                    .find(|(existing_svar, _)| existing_svar == svar)
+                {
+                    chapters.push(chapter);
+                } else {
+                    groups.push(((*svar).to_string(), vec![chapter]));
+                }
+            }
+
+            for (svar, chapters) in groups {
+                let description = self
+                    .get_s_var(&svar)
+                    .and_then(|raw| {
+                        raw.split('|').find_map(|param| {
+                            param
+                                .trim()
+                                .strip_prefix("SpellDescription$")
+                                .map(str::trim)
+                        })
+                    })
+                    .map(str::to_string)
+                    .unwrap_or_default();
+                let grouped_chapters = chapters
+                    .iter()
+                    .map(|chapter| roman_chapter(*chapter))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                for (index, chapter) in chapters.iter().enumerate() {
+                    let mut trigger = format!(
+                        "Mode$ CounterAdded | ValidCard$ Card.Self | TriggerZones$ Battlefield | Chapter$ {chapter} | CounterType$ LORE | CounterAmount$ EQ{chapter} | Execute$ {svar}"
+                    );
+                    if index > 0 {
+                        trigger.push_str(" | Secondary$ True");
+                    }
+                    trigger.push_str(&format!(
+                        " | TriggerDescription$ {grouped_chapters} — {description}"
+                    ));
+                    let Some(trigger) = parse_trigger(&trigger, &mut next_id) else {
+                        panic!("invalid Chapter trigger");
+                    };
+                    self.add_trigger(trigger);
+                }
+            }
         }
     }
 

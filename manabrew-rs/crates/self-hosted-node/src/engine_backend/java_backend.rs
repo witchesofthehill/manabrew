@@ -66,6 +66,7 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
     let deck_b = smoke_deck("Forest", "Grizzly Bears");
     let request = StartGameRequest::new(
         "self-hosted-java-smoke".to_string(),
+        String::new(),
         20,
         42,
         vec![
@@ -131,6 +132,7 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
 
     let request = StartGameRequest::new(
         format!("self-hosted-java-scenario-{}", scenario.name()),
+        String::new(),
         20,
         42,
         vec![
@@ -193,6 +195,7 @@ pub fn run_self_play(
     for game_index in 0..games.max(1) {
         let request = StartGameRequest::new(
             format!("self-hosted-java-self-play-{game_index}"),
+            String::new(),
             starting_life,
             seed.wrapping_add(game_index as u64),
             players.clone(),
@@ -904,6 +907,7 @@ pub fn run_concurrent_self_play(
         let handle = pool.handle();
         let request = StartGameRequest::new(
             format!("self-hosted-java-concurrent-{game_index}"),
+            String::new(),
             starting_life,
             seed.wrapping_add(game_index as u64),
             players.clone(),
@@ -1053,6 +1057,7 @@ pub fn run_hosted_engine_game(
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
     commander_variant: bool,
+    game_variant: String,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -1067,6 +1072,7 @@ pub fn run_hosted_engine_game(
         decks,
         commander_names,
         commander_variant,
+        game_variant,
         local_player_index,
         ai_player_indices,
         starting_life,
@@ -1084,6 +1090,7 @@ pub fn run_hosted_engine_game(
     _decks: Vec<Deck>,
     _commander_names: Vec<Option<String>>,
     _commander_variant: bool,
+    _game_variant: String,
     _local_player_index: Option<usize>,
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
@@ -1102,6 +1109,7 @@ fn run_hosted_engine_game_inner(
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
     commander_variant: bool,
+    game_variant: String,
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
@@ -1131,7 +1139,13 @@ fn run_hosted_engine_game_inner(
             player.ai = true;
         }
     }
-    let request = StartGameRequest::new(game_id.clone(), starting_life, rand::random(), players);
+    let request = StartGameRequest::new(
+        game_id.clone(),
+        game_variant,
+        starting_life,
+        rand::random(),
+        players,
+    );
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(game_id, session_id, "hosted java-forge session started");
 
@@ -1729,7 +1743,13 @@ fn run_concede_game<B: JavaBridge>(
     let players: Vec<PlayerConfig> = (0..seats)
         .map(|i| PlayerConfig::new(format!("Concede {}", i + 1), &identities, Vec::new()))
         .collect();
-    let request = StartGameRequest::new(format!("concede-smoke-{seats}p"), 20, 7, players);
+    let request = StartGameRequest::new(
+        format!("concede-smoke-{seats}p"),
+        String::new(),
+        20,
+        7,
+        players,
+    );
     let session_id = session.start_game(&request)?;
     info!(
         session_id,
@@ -2447,6 +2467,7 @@ fn resolve_java_bin(config: &JavaRuntimeConfig) -> String {
 #[serde(rename_all = "camelCase")]
 pub struct StartGameRequest {
     game_id: String,
+    variant: String,
     starting_life: i32,
     seed: u64,
     players: Vec<PlayerConfig>,
@@ -2477,9 +2498,16 @@ struct StartGameResponse {
 }
 
 impl StartGameRequest {
-    pub fn new(game_id: String, starting_life: i32, seed: u64, players: Vec<PlayerConfig>) -> Self {
+    pub fn new(
+        game_id: String,
+        variant: String,
+        starting_life: i32,
+        seed: u64,
+        players: Vec<PlayerConfig>,
+    ) -> Self {
         Self {
             game_id,
+            variant,
             starting_life,
             seed,
             players,

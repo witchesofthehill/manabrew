@@ -26,6 +26,7 @@ pub mod core;
 pub mod cost;
 pub mod event;
 pub mod game;
+pub mod game_entity_counter_table;
 pub mod game_log;
 pub mod game_log_entry;
 pub mod game_log_entry_type;

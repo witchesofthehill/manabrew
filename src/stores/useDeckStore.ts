@@ -6,7 +6,15 @@ import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { migrateDeck, completeDeckMigrations } from "@/migrations/deck";
-import { getFormat, canBePartners, canHaveAnyNumberOf, copyLimitFromText } from "@/lib/formats";
+import {
+  getFormat,
+  canBePartners,
+  canBeOathbreaker,
+  canBeSignatureSpell,
+  formatRequiresCommander,
+  canHaveAnyNumberOf,
+  copyLimitFromText,
+} from "@/lib/formats";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { collectAllPartsNames } from "@/lib/decks";
 
@@ -441,32 +449,49 @@ export const useDeckStore = create<DeckState>()(
             const selectedCard =
               selectedIndex !== -1 ? nextMain.splice(selectedIndex, 1)[0] : { ...card };
 
-            const commanders = [...(deck.commanders ?? [])];
+            let commanders = [...(deck.commanders ?? [])];
+            const returnToMain = (c: DeckCard) =>
+              nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
 
-            if (commanders.length >= 1) {
-              if (!canBePartners(commanders[0], selectedCard)) {
-                // New card can't partner with the existing commander — replace all
-                for (const c of commanders.splice(0)) {
-                  nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
+            if (deck.format === "oathbreaker") {
+              const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
+              const spells = commanders.filter((c) => canBeSignatureSpell(c));
+
+              if (canBeSignatureSpell(selectedCard)) {
+                while (spells.length >= Math.max(1, oathbreakers.length)) {
+                  returnToMain(spells.shift()!);
                 }
-              } else if (commanders.length >= 2) {
-                // Valid partner pair but already have 2 — replace the second
-                const removed = commanders.pop()!;
-                nextMain.push({
-                  ...removed,
-                  identity: { ...removed.identity, id: crypto.randomUUID() },
-                });
+                spells.push(selectedCard);
+              } else if (
+                oathbreakers.length === 1 &&
+                canBePartners(oathbreakers[0], selectedCard)
+              ) {
+                oathbreakers.push(selectedCard);
+              } else {
+                while (oathbreakers.length) returnToMain(oathbreakers.shift()!);
+                oathbreakers.push(selectedCard);
+                while (spells.length > 1) returnToMain(spells.shift()!);
               }
-            }
 
-            commanders.push(selectedCard!);
+              commanders = oathbreakers.flatMap((o, i) => (spells[i] ? [o, spells[i]] : [o]));
+              commanders.push(...spells.slice(oathbreakers.length));
+            } else {
+              if (commanders.length >= 1) {
+                if (!canBePartners(commanders[0], selectedCard)) {
+                  for (const c of commanders.splice(0)) returnToMain(c);
+                } else if (commanders.length >= 2) {
+                  returnToMain(commanders.pop()!);
+                }
+              }
+              commanders.push(selectedCard);
+            }
 
             const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === DEFAULT_DECK_NAME;
             return {
               currentDeck: {
                 ...deck,
                 name: autoRename ? commanders.map((c) => c.identity.name).join(" / ") : deck.name,
-                format: "commander",
+                format: formatRequiresCommander(deck.format) ? deck.format : "commander",
                 cards: nextMain,
                 commanders,
               },

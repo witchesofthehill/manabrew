@@ -1,11 +1,13 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
 use forge_foundation::ZoneType;
 use serde::{Deserialize, Serialize};
 
+use crate::agent::GameEntity;
 use crate::card::card_damage_map::CardDamageMap;
 use crate::card::card_zone_table::CardZoneTable;
 use crate::card::Card;
+use crate::card::CounterType;
 use crate::ids::{CardId, PlayerId};
 use crate::phase::ExtraTurn;
 use crate::phase::TurnState;
@@ -192,6 +194,8 @@ pub struct GameState {
     /// Mirrors Java's `sa.getPaidList("SacrificedCards")`.
     #[serde(skip)]
     pub last_sacrificed_card: Option<CardId>,
+    #[serde(skip)]
+    pub counter_added_this_turn: BTreeMap<(GameEntity, Option<u64>, CounterType), i32>,
 }
 
 impl GameState {
@@ -236,6 +240,7 @@ impl GameState {
             last_state_battlefield: Vec::new(),
             pre_sba_battlefield: Vec::new(),
             last_sacrificed_card: None,
+            counter_added_this_turn: BTreeMap::new(),
         }
     }
 
@@ -342,9 +347,49 @@ impl GameState {
     }
 
     pub fn reset_card_turn_tracking(&mut self) {
+        self.counter_added_this_turn.clear();
         for card in &mut self.cards {
             card.reset_activations_per_turn();
             card.reset_ability_resolved_this_turn();
+        }
+    }
+
+    pub fn counter_added_this_turn(
+        &self,
+        entity: GameEntity,
+        counter_type: Option<&CounterType>,
+    ) -> i32 {
+        self.counter_added_this_turn
+            .iter()
+            .filter(|((entry_entity, timestamp, entry_type), _)| {
+                *entry_entity == entity
+                    && *timestamp == self.counter_entity_timestamp(entity)
+                    && counter_type.is_none_or(|ct| ct == entry_type)
+            })
+            .map(|(_, amount)| *amount)
+            .sum()
+    }
+
+    pub fn record_counter_added(
+        &mut self,
+        entity: GameEntity,
+        counter_type: &CounterType,
+        amount: i32,
+    ) {
+        *self
+            .counter_added_this_turn
+            .entry((
+                entity,
+                self.counter_entity_timestamp(entity),
+                counter_type.clone(),
+            ))
+            .or_default() += amount;
+    }
+
+    fn counter_entity_timestamp(&self, entity: GameEntity) -> Option<u64> {
+        match entity {
+            GameEntity::Card(card) => Some(self.card(card).zone_timestamp),
+            GameEntity::Player(_) => None,
         }
     }
 

@@ -12,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 use forge_foundation::{PhaseType, ZoneType};
 
+use crate::agent::GameEntity;
 use crate::card::Card;
 use crate::card::CounterType;
 use crate::card_trait_base::CardTrait;
@@ -26,6 +27,12 @@ use crate::replacement::replacement_layer::ReplacementLayer;
 use crate::replacement::replacement_result::ReplacementResult;
 use crate::replacement::replacement_type::ReplacementType;
 use crate::trigger::TriggerHandler;
+
+#[derive(Debug, Clone)]
+pub struct CounterMapValue {
+    pub source: Option<PlayerId>,
+    pub counters: std::collections::BTreeMap<CounterType, i32>,
+}
 
 // ── ReplacementEvent ──────────────────────────────────────────────────────────
 
@@ -79,6 +86,10 @@ pub enum ReplacementEvent {
         /// True when this move originates from a discard action.
         /// Mirrors Java's `AbilityKey.Discard` in replacement params.
         is_discard: bool,
+        counter_map: Option<Vec<CounterMapValue>>,
+        counter_cause: Option<Box<crate::spellability::SpellAbility>>,
+        counter_is_effect: bool,
+        after_replacement_static_abilities: Vec<(CardId, Vec<String>)>,
     },
 
     /// A player is gaining life.
@@ -95,9 +106,13 @@ pub enum ReplacementEvent {
     /// Counter(s) are being added to a permanent.
     /// `is_effect` is `true` when placed by a spell/ability, `false` for ETB keywords/game rules.
     AddCounter {
-        target: CardId,
+        target: GameEntity,
+        source: Option<PlayerId>,
         counter_type: CounterType,
         count: i32,
+        counter_map: Vec<CounterMapValue>,
+        after_replacement_static_abilities: Vec<(CardId, Vec<String>)>,
+        cause: Option<Box<crate::spellability::SpellAbility>>,
         is_effect: bool,
     },
 
@@ -405,7 +420,10 @@ fn affected_player_for_event(event: &ReplacementEvent, game: &GameState) -> Play
         ReplacementEvent::Moved { card, .. } => game.cards[card.index()].controller,
         ReplacementEvent::GainLife { player, .. } => *player,
         ReplacementEvent::CreateToken { player, .. } => *player,
-        ReplacementEvent::AddCounter { target, .. } => game.cards[target.index()].controller,
+        ReplacementEvent::AddCounter { target, .. } => match target {
+            GameEntity::Card(target) => game.cards[target.index()].controller,
+            GameEntity::Player(target) => *target,
+        },
         ReplacementEvent::GameLoss { player, .. } => *player,
         ReplacementEvent::GameWin { player } => *player,
         ReplacementEvent::Counter { card } => game.cards[card.index()].controller,
@@ -474,6 +492,10 @@ pub fn apply_moved_replacement(
         origin: src_zone,
         destination: ZoneType::Graveyard,
         is_discard: false,
+        counter_map: None,
+        counter_cause: None,
+        counter_is_effect: false,
+        after_replacement_static_abilities: Vec::new(),
     };
     let mut handler = ReplacementHandler::new();
     handler.run(game, agents, None, &mut event);
@@ -584,7 +606,7 @@ pub(crate) fn resolve_replace_value(
     let rest = expr.strip_prefix("ReplaceCount$")?;
     let (field, ops) = rest.split_once('/').unwrap_or((rest, ""));
     let base = match field {
-        "DamageAmount" | "LifeGained" | "Amount" | "Number" | "TokenNum" | "CounterNum" => {
+        "DamageAmount" | "LifeGained" | "Amount" | "Number" | "TokenNum" | "CounterNum" | "Num" => {
             replacement_event_amount(event)?
         }
         "Ignore" => match event {
@@ -625,7 +647,7 @@ pub(crate) fn execute_replace_effect_ir(
             game,
             source_card_id,
         ),
-        ReplacementChainIr::ReplaceCounter { amount_expr } => {
+        ReplacementChainIr::ReplaceCounter { amount_expr, .. } => {
             execute_replace_counter_chain(amount_expr, event, game, source_card_id)
         }
         ReplacementChainIr::ReplaceEffect {
@@ -1032,7 +1054,18 @@ fn collect_effects(
                 continue;
             }
             // Zone filter — effect is only active when host is in a valid zone.
-            if !re.active_in_zone(card.zone) {
+            let entering_self_counter = matches!(
+                event,
+                ReplacementEvent::Moved {
+                    card: moved,
+                    destination: ZoneType::Battlefield,
+                    counter_map: Some(_),
+                    ..
+                } if *moved == card_id
+                    && re.event == ReplacementType::AddCounter
+                    && re.ir.valid_card_text.as_deref().is_some_and(|valid| valid.starts_with("Card.Self"))
+            );
+            if !re.active_in_zone(card.zone) && !entering_self_counter {
                 continue;
             }
             if !re.requirements_check(game, card) {
@@ -1213,7 +1246,9 @@ fn execute_effect(
         }
         ReplacementType::GainLife => replace_gain_life::execute(effect, event, game, card_id),
         ReplacementType::CreateToken => replace_token::execute(effect, event, game, card_id),
-        ReplacementType::AddCounter => replace_add_counter::execute(effect, event, game, card_id),
+        ReplacementType::AddCounter => {
+            replace_add_counter::execute(effect, event, game, card_id, agents)
+        }
         ReplacementType::GameLoss => replace_game_loss::execute(effect, event, game, card_id),
         ReplacementType::GameWin => replace_game_win::execute(effect, event, game, card_id),
         ReplacementType::Counter => replace_counter::execute(effect, event, game, card_id),
@@ -1849,6 +1884,10 @@ mod tests {
             origin: ZoneType::Battlefield,
             destination: ZoneType::Graveyard,
             is_discard: false,
+            counter_map: None,
+            counter_cause: None,
+            counter_is_effect: false,
+            after_replacement_static_abilities: Vec::new(),
         };
         let result = apply_replacements(&mut game, &mut event);
         assert_eq!(result, ReplacementResult::Updated);
@@ -1877,6 +1916,10 @@ mod tests {
             origin: ZoneType::Hand,
             destination: ZoneType::Graveyard,
             is_discard: false,
+            counter_map: None,
+            counter_cause: None,
+            counter_is_effect: false,
+            after_replacement_static_abilities: Vec::new(),
         };
         let result = apply_replacements(&mut game, &mut event);
         assert_eq!(result, ReplacementResult::NotReplaced);
@@ -1906,6 +1949,10 @@ mod tests {
             origin: ZoneType::Battlefield,
             destination: ZoneType::Graveyard,
             is_discard: false,
+            counter_map: None,
+            counter_cause: None,
+            counter_is_effect: false,
+            after_replacement_static_abilities: Vec::new(),
         };
         let result = apply_replacements_with_agents(&mut game, agents.as_mut_slice(), &mut event);
         assert_eq!(result, ReplacementResult::Updated);
@@ -1939,6 +1986,10 @@ mod tests {
             origin: ZoneType::Battlefield,
             destination: ZoneType::Graveyard,
             is_discard: false,
+            counter_map: None,
+            counter_cause: None,
+            counter_is_effect: false,
+            after_replacement_static_abilities: Vec::new(),
         };
         let result = apply_replacements_with_agents(&mut game, agents.as_mut_slice(), &mut event);
         assert_eq!(result, ReplacementResult::Updated);

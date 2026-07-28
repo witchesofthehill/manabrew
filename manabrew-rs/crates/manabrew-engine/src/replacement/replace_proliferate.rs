@@ -52,5 +52,14 @@ pub fn execute(
         *count = 0;
         return ReplacementResult::Prevented;
     }
+    if let Some(result) = super::replacement_handler::execute_replace_with_numeric_update(
+        effect,
+        event,
+        _game,
+        _source_card_id,
+        "Num",
+    ) {
+        return result;
+    }
     ReplacementResult::Replaced
 }

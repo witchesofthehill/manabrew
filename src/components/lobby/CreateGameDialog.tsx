@@ -6,12 +6,19 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
+import {
+  GAME_FORMATS,
+  validateDeckSections,
+  commanderPairLabel,
+  type GameFormat,
+} from "@/lib/formats";
+import { PartnerBadge } from "@/components/deck/PartnerBadge";
+import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { cn } from "@/lib/utils";
-import { Search } from "lucide-react";
+import { Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
@@ -20,16 +27,18 @@ import type { HubDeckDetail, HubDeckSummary } from "@/api/hubTypes";
 interface CreateGameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: "play" | "lobby";
   forcedFormatId?: string;
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
   target?: "player" | "bot";
-  onStart: (deck: Deck, formatId: string, commanderName?: string) => void;
+  onStart: (deck: Deck, formatId: string, commanderName?: string, playerCount?: number) => void;
 }
 
 export function CreateGameDialog({
   open,
   onOpenChange,
+  mode = "play",
   forcedFormatId,
   preSelectedDeckId,
   preSelectedHubDeckId,
@@ -37,6 +46,7 @@ export function CreateGameDialog({
   onStart,
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
+  const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
 
@@ -47,6 +57,7 @@ export function CreateGameDialog({
     currentDeck.commanders?.[0]?.identity.name ?? "",
   );
   const presetDecks = usePresetDecks();
+  const [playerCount, setPlayerCount] = useState(2);
   const [deckSearch, setDeckSearch] = useState("");
   const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, HubDeckDetail>>({});
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
@@ -190,6 +201,30 @@ export function CreateGameDialog({
   const selectedDeckEntry = allDecks.find(
     (d) => d.id === selectedDeck && d.formatId === selectedFormat.id,
   );
+  const selectedDeckCommanders = selectedDeckEntry?.sourceDeck.commanders ?? [];
+  const selectedPartnerLabel = commanderPairLabel(
+    selectedDeckCommanders,
+    selectedDeckEntry?.sourceDeck.format,
+  );
+
+  const legendaryCreatures = selectedDeckEntry
+    ? Array.from(
+        new Map([
+          ...(selectedDeckEntry.commanderName
+            ? [
+                [selectedDeckEntry.commanderName, selectedDeckEntry.commanderName] as [
+                  string,
+                  string,
+                ],
+              ]
+            : []),
+          ...selectedDeckEntry.cards
+            .filter((c) => c.supertypes?.includes("Legendary") && c.types?.includes("Creature"))
+            .map((c) => [c.identity.name, c.identity.name] as [string, string]),
+        ]).values(),
+      )
+    : [];
+
   const needsCommander = selectedFormat.deckRules.requiresCommander;
   const commanderValid = !needsCommander || selectedCommander !== "";
   const selectedDeckIsVisible =
@@ -281,6 +316,7 @@ export function CreateGameDialog({
       entry.sourceDeck,
       selectedFormat.id,
       selectedFormat.deckRules.requiresCommander ? commander || entry.commanderName : undefined,
+      playerCount,
     );
   }
 
@@ -303,16 +339,149 @@ export function CreateGameDialog({
       >
         <div className="px-6 py-4 border-b">
           <DialogTitle className="text-lg font-semibold">
-            {target === "bot" ? "Choose Bot Deck" : "Choose Your Deck"}
+            {target === "bot" ? "Choose Bot Deck" : isLobbyMode ? "Choose Deck" : "New Game"}
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-0.5">
             {target === "bot"
               ? "Select the deck the AI will play in this lobby."
-              : "Select the deck you will play in this lobby."}
+              : isLobbyMode
+                ? "Select the deck you will play in this lobby."
+                : "Pick a deck and battle a random AI opponent"}
           </p>
         </div>
 
         <div className="flex min-h-0 overflow-hidden">
+          {!isLobbyMode && (
+            <div className="w-48 border-r flex-shrink-0 p-4 space-y-5 overflow-y-auto bg-muted/20">
+              <div>
+                <SectionLabel>Format</SectionLabel>
+                <div className="mt-2 space-y-2">
+                  {GAME_FORMATS.map((format) => (
+                    <button
+                      key={format.id}
+                      type="button"
+                      onClick={() => setSelectedFormat(format)}
+                      className={cn(
+                        "w-full rounded-lg border p-2.5 text-left transition-colors",
+                        selectedFormat.id === format.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-muted/60",
+                      )}
+                    >
+                      <div className="mb-1">
+                        <FormatBadge formatId={format.id} />
+                      </div>
+                      <p className="font-medium text-xs">{format.name}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                        {format.description}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <SectionLabel>Rules</SectionLabel>
+                <div className="mt-2 space-y-1.5">
+                  <RulePill
+                    label="Deck"
+                    value={
+                      selectedFormat.deckRules.minDeckSize +
+                      (selectedFormat.deckRules.maxDeckSize
+                        ? `–${selectedFormat.deckRules.maxDeckSize}`
+                        : "+") +
+                      " cards"
+                    }
+                  />
+                  <RulePill
+                    label="Copies"
+                    value={
+                      selectedFormat.deckRules.maxCopies === 1
+                        ? "Singleton"
+                        : `Max ${selectedFormat.deckRules.maxCopies}`
+                    }
+                  />
+                  <RulePill label="Life" value={`${selectedFormat.deckRules.startingLife}`} />
+                </div>
+              </div>
+
+              {needsCommander && (
+                <div>
+                  <SectionLabel>Commander</SectionLabel>
+                  <div className="mt-2 space-y-1.5">
+                    {selectedPartnerLabel ? (
+                      <div className="flex flex-wrap items-center gap-1.5 rounded border border-border bg-background px-2 py-1.5 text-xs">
+                        <span className="truncate">{selectedDeckCommanders[0].identity.name}</span>
+                        <span className="text-muted-foreground">+</span>
+                        <span className="truncate">{selectedDeckCommanders[1].identity.name}</span>
+                        <PartnerBadge label={selectedPartnerLabel} />
+                      </div>
+                    ) : (
+                      <>
+                        {legendaryCreatures.length === 0 && (
+                          <p className="text-[10px] text-muted-foreground italic">
+                            No legendaries in deck — type a name below.
+                          </p>
+                        )}
+                        {legendaryCreatures.length > 0 ? (
+                          <select
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            value={selectedCommander}
+                            onChange={(event) => setSelectedCommander(event.target.value)}
+                          >
+                            <option value="">— Choose —</option>
+                            {legendaryCreatures.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
+                            placeholder="Card name"
+                            value={selectedCommander}
+                            onChange={(event) => setSelectedCommander(event.target.value)}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <SectionLabel>
+                  Opponents
+                  <span className="ml-1 text-[9px] font-mono text-warning bg-warning/10 px-1 rounded">
+                    DEV
+                  </span>
+                </SectionLabel>
+                <div className="mt-2 flex gap-1">
+                  {[2, 3, 4].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => setPlayerCount(count)}
+                      className={cn(
+                        "flex-1 py-1 rounded border text-xs transition-colors",
+                        playerCount === count
+                          ? "border-warning bg-warning/10 text-warning font-semibold"
+                          : "border-border hover:bg-muted/60",
+                      )}
+                    >
+                      {count - 1}v1
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="px-4 pt-4 pb-2 bg-background">
               <div className="relative">
@@ -511,7 +680,17 @@ export function CreateGameDialog({
 
         <div className="px-6 py-3 border-t flex items-center justify-between gap-4 bg-muted/10">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            {selectedDeckEntry ? (
+            {!isLobbyMode && selectedDeckEntry ? (
+              <>
+                <span className="text-muted-foreground shrink-0">Playing</span>
+                <span className="font-medium truncate">{selectedDeckEntry.name}</span>
+                <span className="text-muted-foreground shrink-0">vs</span>
+                <span className="inline-flex items-center gap-1 text-muted-foreground shrink-0">
+                  <Shuffle className="h-3 w-3" />
+                  Random AI
+                </span>
+              </>
+            ) : selectedDeckEntry ? (
               <div className="min-w-0">
                 <span className="block truncate text-sm text-muted-foreground">
                   Selected:{" "}
@@ -538,7 +717,8 @@ export function CreateGameDialog({
               disabled={!isReady}
               className="gap-1.5"
             >
-              {target === "bot" ? "Add Bot" : "Select Deck"}
+              {!isLobbyMode && <Swords className="h-3.5 w-3.5" />}
+              {target === "bot" ? "Add Bot" : isLobbyMode ? "Select Deck" : "Play"}
             </Button>
           </div>
         </div>
@@ -552,5 +732,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
       {children}
     </Label>
+  );
+}
+
+function RulePill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
   );
 }

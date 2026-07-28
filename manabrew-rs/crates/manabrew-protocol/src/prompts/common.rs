@@ -84,6 +84,9 @@ pub struct ActivatableAbilityInfo {
     pub is_mana_ability: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub is_class_level_up: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub cost: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

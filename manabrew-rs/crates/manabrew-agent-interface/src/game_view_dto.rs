@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use forge_foundation::ZoneType;
+use manabrew_engine::card::Card;
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
@@ -293,6 +294,144 @@ fn should_show_command_zone_card(game: &GameState, cid: CardId) -> bool {
             .any(|subtype| subtype.eq_ignore_ascii_case("Effect")))
 }
 
+fn visible_battlefield_saga_final_chapter(card: &Card) -> Option<i32> {
+    if card.zone != ZoneType::Battlefield
+        || card.face_down
+        || !card.type_line.has_subtype("Saga")
+        || !card.has_chapter()
+    {
+        return None;
+    }
+    let final_chapter = card.get_final_chapter_nr();
+    (final_chapter > 0).then_some(final_chapter)
+}
+
+fn visible_battlefield_class_level(card: &Card) -> Option<i32> {
+    if card.zone != ZoneType::Battlefield || card.face_down || !card.type_line.has_subtype("Class")
+    {
+        return None;
+    }
+    (card.class_level > 0).then_some(card.class_level)
+}
+
+fn roman_value(value: &str) -> Option<i32> {
+    let mut total = 0;
+    let mut previous = 0;
+    for ch in value.chars().rev() {
+        let current = match ch {
+            'I' => 1,
+            'V' => 5,
+            'X' => 10,
+            'L' => 50,
+            'C' => 100,
+            'D' => 500,
+            'M' => 1000,
+            _ => return None,
+        };
+        if current < previous {
+            total -= current;
+        } else {
+            total += current;
+            previous = current;
+        }
+    }
+    (total > 0).then_some(total)
+}
+
+fn append_oracle(oracle: &mut String, line: &str) {
+    if !oracle.is_empty() {
+        oracle.push('\n');
+    }
+    oracle.push_str(line);
+}
+
+fn visible_class_levels(card: &Card) -> Vec<ClassLevelDto> {
+    if card.face_down || !card.type_line.has_subtype("Class") {
+        return Vec::new();
+    }
+    let mut levels = vec![ClassLevelDto {
+        level: 1,
+        oracle: String::new(),
+        cost: None,
+    }];
+    let mut current = 0;
+    for line in card
+        .oracle_text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        if line.starts_with('(') && levels.len() == 1 && levels[0].oracle.is_empty() {
+            continue;
+        }
+        let heading = line
+            .rsplit_once(": Level ")
+            .and_then(|(cost, level)| level.parse::<i32>().ok().map(|level| (cost.trim(), level)));
+        if let Some((printed_cost, level)) = heading {
+            let cost = card
+                .activated_abilities
+                .iter()
+                .find(|ability| {
+                    ability.ability_api
+                        == Some(manabrew_engine::ability::api_type::ApiType::ClassLevelUp)
+                        && ability.params.get("ClassLevel")
+                            == Some(format!("EQ{}", level - 1).as_str())
+                })
+                .and_then(|ability| ability.cost_string())
+                .or_else(|| Some(printed_cost.to_string()));
+            levels.push(ClassLevelDto {
+                level,
+                oracle: String::new(),
+                cost,
+            });
+            current = levels.len() - 1;
+        } else {
+            append_oracle(&mut levels[current].oracle, line);
+        }
+    }
+    if levels.iter().all(|level| level.oracle.is_empty()) {
+        return Vec::new();
+    }
+
+    levels.sort_by_key(|level| level.level);
+    levels
+}
+
+fn visible_saga_chapters(card: &Card) -> Vec<SagaChapterDto> {
+    if card.face_down || !card.type_line.has_subtype("Saga") {
+        return Vec::new();
+    }
+    let mut chapters: Vec<SagaChapterDto> = Vec::new();
+    let mut current = None;
+    for line in card
+        .oracle_text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let heading = [" — ", " – ", " - "].into_iter().find_map(|separator| {
+            let (labels, oracle) = line.split_once(separator)?;
+            let positions: Option<Vec<_>> = labels
+                .split(',')
+                .map(|label| roman_value(label.trim()))
+                .collect();
+            positions.map(|positions| (positions, oracle))
+        });
+        if let Some((positions, oracle)) = heading {
+            chapters.push(SagaChapterDto {
+                chapters: positions,
+                oracle: oracle.to_string(),
+            });
+            current = Some(chapters.len() - 1);
+        } else if line.starts_with('•') {
+            if let Some(index) = current {
+                append_oracle(&mut chapters[index].oracle, line);
+            }
+        }
+    }
+    chapters
+}
+
 pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
     let card = game.card(cid);
     let types: Vec<String> = card
@@ -322,22 +461,25 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
         .map(|(k, &v)| (format!("{k:?}"), v as u32))
         .collect();
 
-    // Build ability text from abilities
-    let text = card
-        .abilities
-        .iter()
-        .filter_map(|a| {
-            // Extract SpellDescription$ if present
-            for part in a.split('|') {
-                let part = part.trim();
-                if let Some(desc) = part.strip_prefix("SpellDescription$ ") {
-                    return Some(desc.to_string());
+    let text = if card.oracle_text.is_empty() {
+        card.abilities
+            .iter()
+            .filter_map(|a| {
+                for part in a.split('|') {
+                    let part = part.trim();
+                    if let Some(desc) = part.strip_prefix("SpellDescription$ ") {
+                        return Some(desc.to_string());
+                    }
                 }
-            }
-            None
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+                None
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        card.oracle_text.clone()
+    };
+    let class_levels = visible_class_levels(card);
+    let saga_chapters = visible_saga_chapters(card);
 
     // Face-down cards show as nameless 2/2 creatures with no info
     let morph_pt = manabrew_engine::spellability::MORPH_PT.to_string();
@@ -404,6 +546,10 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
         toughness,
         base_power,
         base_toughness,
+        final_chapter: visible_battlefield_saga_final_chapter(card),
+        class_level: visible_battlefield_class_level(card),
+        class_levels,
+        saga_chapters,
         text,
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),

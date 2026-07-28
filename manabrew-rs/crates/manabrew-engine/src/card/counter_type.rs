@@ -39,6 +39,7 @@ pub fn parse_counter_type(s: &str) -> CounterType {
     match s.to_uppercase().as_str() {
         "P1P1" | "+1/+1" => CounterType::P1P1,
         "M1M1" | "-1/-1" => CounterType::M1M1,
+        "POISON" => CounterType::Poison,
         "LOYALTY" => CounterType::Loyalty,
         "CHARGE" => CounterType::Charge,
         "QUEST" => CounterType::Quest,

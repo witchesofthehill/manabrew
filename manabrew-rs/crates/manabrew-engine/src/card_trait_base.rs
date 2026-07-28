@@ -181,6 +181,10 @@ impl CardTraitBase {
             .expect("CardTraitBase host_card_id must be bound before use")
     }
 
+    pub fn get_host_card_id(&self) -> Option<CardId> {
+        self.host_card_id
+    }
+
     pub fn set_host_card_id(&mut self, id: CardId) {
         self.host_card_id = Some(id);
     }

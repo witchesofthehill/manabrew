@@ -127,6 +127,7 @@ pub struct SpellAbilityIr {
     pub defined_text: Option<String>,
     pub defined_player_text: Option<String>,
     pub controller_text: Option<String>,
+    pub placer_text: Option<String>,
     pub effect_owner: Option<DefinedExpr>,
     pub effect_owner_text: Option<String>,
     pub origin_text: Option<String>,
@@ -227,6 +228,9 @@ pub struct SpellAbilityIr {
     pub alter_attribute_activate: bool,
     pub alter_attribute_attributes: Vec<String>,
     pub remember_amass: bool,
+    pub remember_put: bool,
+    pub remember_amount: bool,
+    pub max_from_effect: Option<i32>,
     pub remember_flag: bool,
     pub remember_chosen: bool,
     pub imprint_chosen: bool,
@@ -247,6 +251,8 @@ pub struct SpellAbilityIr {
     pub counter_type_text: Option<String>,
     pub counter_type: Option<CounterType>,
     pub simple_counter_type_choice_path: bool,
+    pub triggered_counter_map: bool,
+    pub counter_map_values: Option<i32>,
     pub modular: bool,
     pub adapt: bool,
     pub monstrosity: bool,
@@ -618,6 +624,7 @@ impl SpellAbilityIr {
             defined_text: params.get(keys::DEFINED).map(str::to_string),
             defined_player_text: params.get(keys::DEFINED_PLAYER).map(str::to_string),
             controller_text: params.get(keys::CONTROLLER).map(str::to_string),
+            placer_text: params.get("Placer").map(str::to_string),
             effect_owner: params.get(keys::EFFECT_OWNER).map(DefinedExpr::parse),
             effect_owner_text: params.get(keys::EFFECT_OWNER).map(str::to_string),
             origin_text: params.get(keys::ORIGIN).map(str::to_string),
@@ -731,6 +738,11 @@ impl SpellAbilityIr {
             alter_attribute_activate: parsed_bool_default(params.get(keys::ACTIVATE), true),
             alter_attribute_attributes: split_param_list_value(params.get(keys::ATTRIBUTES), ","),
             remember_amass: parsed_true(params.get(keys::REMEMBER_AMASS)),
+            remember_put: params.has("RememberPut"),
+            remember_amount: params.has("RememberAmount"),
+            max_from_effect: params
+                .get("MaxFromEffect")
+                .and_then(|value| value.parse().ok()),
             remember_flag: params.has(keys::REMEMBER),
             remember_chosen: parsed_true(params.get(keys::REMEMBER_CHOSEN)),
             imprint_chosen: parsed_true(params.get(keys::IMPRINT_CHOSEN)),
@@ -767,6 +779,10 @@ impl SpellAbilityIr {
                 ]
                 .iter()
                 .any(|key| params.has(key)),
+            triggered_counter_map: params.has("TriggeredCounterMap"),
+            counter_map_values: params
+                .get("CounterMapValues")
+                .and_then(|value| value.parse().ok()),
             modular: parsed_true(params.get(keys::MODULAR)),
             adapt: parsed_true(params.get(keys::ADAPT)),
             monstrosity: parsed_true(params.get(keys::MONSTROSITY)),

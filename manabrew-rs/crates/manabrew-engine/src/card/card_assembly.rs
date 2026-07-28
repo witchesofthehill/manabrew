@@ -178,6 +178,7 @@ pub(crate) fn assemble_card(
     // Set the full combined name for split/room cards (e.g. "A // B").
     // card_name stays as the front face; full_name is used for hand/graveyard/lookup.
     card.full_name = full_name;
+    card.oracle_text = face.oracle_text.replace("\\n", "\n");
     // Preserve rules-level color identity (CR 903.4: includes mana symbols in
     // oracle text, e.g. Ashling, the Limitless mentions {W}{U}{B}{R}{G} so its
     // identity is five-colour even though its mana cost is just {2}{R}).
@@ -185,7 +186,10 @@ pub(crate) fn assemble_card(
     card.attraction_lights = face.attraction_lights.clone();
     card.initial_loyalty = face.initial_loyalty.clone();
 
-    // Append parsed triggers to keyword-generated ones.
+    for (k, v) in &face.svars {
+        card.svars.entry(k.clone()).or_insert_with(|| v.clone());
+    }
+
     if rules.split_type == forge_foundation::CardSplitType::Split
         && card.type_line.has_subtype("Room")
     {
@@ -194,10 +198,23 @@ pub(crate) fn assemble_card(
     for trig in components.triggers {
         card.add_trigger(trig);
     }
-
-    // Merge card-text SVars (keyword-generated SVars already set by constructor)
-    for (k, v) in &face.svars {
-        card.svars.entry(k.clone()).or_insert_with(|| v.clone());
+    card.generate_keyword_chapter_triggers();
+    if card.type_line.has_subtype("Saga") && card.has_chapter() {
+        let read_ahead = card.has_keyword("Read ahead");
+        let replacement = if read_ahead {
+            super::card_factory_util::make_read_ahead(&card, true)
+        } else {
+            super::card_factory_util::make_etb_counter("etbCounter:LORE:1", &card, true)
+        };
+        if let Some(replacement) = replacement {
+            card.add_replacement_effect(replacement);
+        }
+        if read_ahead {
+            let raw = "S$ Mode$ DisableTriggers | ValidCard$ Card.Self+ThisTurnEntered | ValidTrigger$ Triggered.ChapterNotLore | Secondary$ True | Description$ Chapter abilities of this Saga can't trigger the turn it entered the battlefield unless it has exactly the number of lore counters on it specified in the chapter symbol of that ability.";
+            if let Some(static_ability) = crate::staticability::parse_static_ability(raw) {
+                card.add_static_ability(static_ability);
+            }
+        }
     }
 
     // Java parity: convert ETBReplacement keywords into intrinsic
@@ -317,6 +334,7 @@ pub(crate) fn assemble_card(
 
             card.other_part = Some(CardOtherPart {
                 name: back_face.name.clone(),
+                oracle_text: back_face.oracle_text.replace("\\n", "\n"),
                 is_modal: rules.split_type == forge_foundation::CardSplitType::Modal,
                 type_line: back_face.type_line.clone(),
                 mana_cost: back_face.mana_cost.clone(),

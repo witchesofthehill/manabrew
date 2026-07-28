@@ -8,8 +8,8 @@
 use eframe::egui;
 use forge_card_script::{
     ParamEntry, ParsedCardScript, ScriptAbility, ScriptAbilityRecord, ScriptDiagnostic,
-    ScriptDiagnosticKind, ScriptLineKind, ScriptParamRecord, ScriptSVar, ScriptSVarValue,
-    SemanticAmount, SemanticParamValue, SemanticParamValueKind,
+    ScriptLineKind, ScriptParamRecord, ScriptSVar, ScriptSVarValue, SemanticAmount,
+    SemanticParamValue, SemanticParamValueKind,
 };
 
 use crate::ts_view::{tree_sitter_ast_nodes, AstNodeModel};
@@ -263,6 +263,7 @@ fn kind_label(kind: SemanticParamValueKind) -> &'static str {
     match kind {
         SemanticParamValueKind::AbilityRecord => "AbilityRecord",
         SemanticParamValueKind::Symbol => "Symbol",
+        SemanticParamValueKind::ProducedMana => "ProducedMana",
         SemanticParamValueKind::Boolean => "Bool",
         SemanticParamValueKind::Integer => "Int",
         SemanticParamValueKind::Amount => "Amount",
@@ -396,7 +397,7 @@ pub(crate) fn render_ast_param_pill(
                 ui.colored_label(color, egui::RichText::new(key).size(10.0).strong());
                 ui.colored_label(
                     theme::FG_1,
-                    egui::RichText::new(shorten_list(&value, 28)).size(10.0),
+                    egui::RichText::new(shorten_list(value, 28)).size(10.0),
                 );
             });
         });
@@ -448,6 +449,9 @@ pub(crate) fn render_svar(ui: &mut egui::Ui, line_no: usize, svar: &ScriptSVar<'
             }
             ScriptSVarValue::Params(rec) => {
                 render_params(ui, rec.params.entries());
+            }
+            ScriptSVarValue::NumericExpression(_) => {
+                ui.monospace(svar.value);
             }
             ScriptSVarValue::Raw(raw) => {
                 ui.monospace(*raw);

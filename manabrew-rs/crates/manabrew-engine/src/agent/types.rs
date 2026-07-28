@@ -6,7 +6,7 @@ use crate::spellability::AlternativeCost;
 /// A game entity that can be a player or a card (permanent).
 /// Used by effects like Proliferate that operate on mixed entity lists.
 /// Mirrors Java's `GameEntity` hierarchy used in `chooseEntitiesForEffect`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum GameEntity {
     Player(PlayerId),
     Card(CardId),
@@ -89,6 +89,7 @@ pub struct ActivatableAction {
     pub description: String,
     pub cost: Option<String>,
     pub is_mana_ability: bool,
+    pub is_class_level_up: bool,
     pub produced_mana: Option<String>,
     pub produced_mana_amount: Option<i32>,
 }

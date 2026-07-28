@@ -25,6 +25,7 @@ use tracing::{info, warn};
 use super::HostedGameOver;
 use crate::config::workspace_root;
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_hosted_engine_game(
     game_id: String,
     player_names: Vec<String>,

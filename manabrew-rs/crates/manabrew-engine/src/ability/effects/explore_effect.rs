@@ -70,20 +70,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 ctx.game.card(explorer_id),
                 &CounterType::P1P1,
             ) {
-                ctx.game
-                    .card_mut(explorer_id)
-                    .add_counter(&CounterType::P1P1, 1);
+                ctx.add_counter(explorer_id, &CounterType::P1P1, 1, sa, RunParams::default());
             }
-            ctx.trigger_handler.run_trigger(
-                TriggerType::CounterAdded,
-                RunParams {
-                    card: Some(explorer_id),
-                    counter_type: Some("P1P1".to_string()),
-                    counter_amount: Some(1),
-                    ..Default::default()
-                },
-                false,
-            );
             continue;
         }
 
@@ -109,27 +97,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 ctx.game.card(explorer_id),
                 &CounterType::P1P1,
             ) {
-                ctx.game
-                    .card_mut(explorer_id)
-                    .add_counter(&CounterType::P1P1, 1);
+                ctx.add_counter(explorer_id, &CounterType::P1P1, 1, sa, RunParams::default());
             }
-            ctx.trigger_handler.run_trigger(
-                TriggerType::CounterAdded,
-                RunParams {
-                    card: Some(explorer_id),
-                    counter_type: Some("P1P1".to_string()),
-                    counter_amount: Some(1),
-                    ..Default::default()
-                },
-                false,
-            );
 
             // Player may put revealed card into graveyard (otherwise it stays on top).
             // Java's ExploreEffect calls controller.confirmAction() which in the
             // harness DeterministicController uses a random boolean (pickBool).
             // Use confirm_action here to match that RNG-consuming path.
             let card_name = ctx.game.card(top_card).card_name.clone();
-            let explorer_name = ctx.game.card(explorer_id).card_name.clone();
+            let _explorer_name = ctx.game.card(explorer_id).card_name.clone();
             let msg = format!("Put {} into your graveyard?", card_name);
             let put_in_gy = ctx.agents[controller.index()].confirm_action(
                 controller,

@@ -13,6 +13,7 @@ import {
 } from "@/stores/useGameDevStore";
 import { PlayerBadgeDevControls } from "@/components/dev/PlayerBadgeDevControls";
 import { CardBadgeDevControls } from "@/components/dev/CardBadgeDevControls";
+import { CardRailDevControls } from "@/components/dev/CardRailDevControls";
 import { BattlefieldKeywordDevControls } from "@/components/dev/BattlefieldKeywordDevControls";
 
 const DEV_LABELS: Record<DevPromptActionOverride, string> = {
@@ -161,6 +162,7 @@ export function RightActionPanel({
             </div>
             <PlayerBadgeDevControls />
             <CardBadgeDevControls />
+            {import.meta.env.DEV ? <CardRailDevControls /> : null}
             <BattlefieldKeywordDevControls />
           </div>
         )}

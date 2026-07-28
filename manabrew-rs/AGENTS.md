@@ -101,6 +101,8 @@ yarn scan                         # Java vs Rust file coverage
 
 Any `manabrew-protocol` type change needs three regens: `yarn gen:types` (ts-rs → `src/protocol/`, gitignored), `yarn build:harness` (Java prompt DTOs, gitignored), and `yarn gen:protocol-docs` (`website/src/generated/protocol-types.json`, **committed** — CI fails the PR if stale).
 
+`yarn gen:types` must remain idempotent because lint and build invoke it repeatedly in the same worktree. The protocol generator recreates `src/protocol/`, and xtask removes `src/api/hubTypes.ts` before ts-rs exports; do not change either path to append to existing generated files.
+
 Known debt (as of 2026-07): `yarn lint:rust` (`cargo clippy --workspace -D warnings`) fails on a cold cache with ~110 pre-existing warnings in `manabrew-engine`, `forge-limited`, and `manabrew-server` (mostly `unused_variables`, `needless_bool`). Warm incremental caches hide them until a dependency edit forces a re-check, so a lint failure in crates your diff never touched is probably this — verify against `main` before assuming your change caused it. The parity regression suite (`regression.json`) likewise has pre-existing failing entries (e.g. `kaalia_regression`, `keyword_advanced`, `starter_*`); baseline on `main` before attributing failures to your change.
 
 ## Cardset archive

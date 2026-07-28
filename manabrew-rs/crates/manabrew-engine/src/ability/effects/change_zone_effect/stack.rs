@@ -79,7 +79,7 @@ pub(super) fn resolve_stack_removal(
             crate::parsing::keys::WITH_COUNTERS_AMOUNT,
             1,
         );
-        ctx.game.card_mut(card_id).add_counter(ct, amount);
+        ctx.add_counter(card_id, ct, amount, sa, crate::event::RunParams::default());
     }
 
     // Remember/Imprint

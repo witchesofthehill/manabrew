@@ -20,7 +20,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let defined = sa.defined().unwrap_or("You");
     let players = resolve_defined_players(defined, sa.activating_player, ctx.game);
     let optional = sa.ir.optional;
-    let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+    let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
 
     for pid in players {
         if optional {

@@ -56,6 +56,7 @@ pub(crate) fn mana_ability_actions(
                     ability_index,
                     description: description.to_string(),
                     is_mana_ability: true,
+                    is_class_level_up: Some(false),
                     cost: cost.clone(),
                     produced_mana: choice.produced_mana,
                 },
@@ -87,7 +88,7 @@ fn split_mana_choices(
         .map(String::as_str)
         .filter(|token| *token != "COMBO")
         .collect();
-    let is_any = mana_tokens.iter().any(|token| *token == "ANY");
+    let is_any = mana_tokens.contains(&"ANY");
     let amount = produced_mana_amount.unwrap_or(1).max(1);
 
     if is_any && !is_combo {

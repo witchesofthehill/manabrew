@@ -97,6 +97,7 @@ pub(crate) fn spawn() -> std::io::Result<TraceWorkerHandle> {
     })
 }
 
+#[allow(unused_assignments)]
 fn worker_loop(command_rx: Receiver<TraceWorkerCommand>, event_tx: Sender<TraceWorkerEvent>) {
     let mut loaded_data: Option<LoadedData> = None;
     let mut java_server: Option<JavaServer> = None;

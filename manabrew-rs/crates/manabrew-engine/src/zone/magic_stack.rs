@@ -6,6 +6,7 @@
 use forge_foundation::ZoneType;
 use serde::{Deserialize, Serialize};
 
+use crate::game::GameState;
 use crate::ids::{CardId, PlayerId};
 use crate::spellability::SpellAbility;
 
@@ -101,6 +102,9 @@ pub struct MagicStack {
     #[serde(default)]
     cur_resolving_card: Option<CardId>,
 
+    #[serde(default, skip)]
+    resolving_entry: Option<StackEntry>,
+
     /// Short-lived LKI cache of entries that were removed from the stack
     /// during the current resolution cycle (e.g. by Counter effects). Used
     /// by `find_by_id` so sub-abilities like An Offer You Can't Refuse's
@@ -159,6 +163,7 @@ impl MagicStack {
             frozen_stack: Vec::new(),
             resolving: false,
             cur_resolving_card: None,
+            resolving_entry: None,
             this_turn_cast: Vec::new(),
             last_turn_cast: Vec::new(),
             this_turn_activated: Vec::new(),
@@ -313,6 +318,7 @@ impl MagicStack {
         self.frozen_stack.clear();
         self.resolving = false;
         self.cur_resolving_card = None;
+        self.resolving_entry = None;
         self.last_turn_cast.clear();
         self.this_turn_cast.clear();
         self.simultaneous_entries.clear();
@@ -329,9 +335,32 @@ impl MagicStack {
     /// Check if any entry has the given source card.
     /// Mirrors Java's `MagicStack.hasSourceOnStack()`.
     pub fn has_source_on_stack(&self, card_id: CardId) -> bool {
-        self.entries
-            .iter()
-            .any(|e| e.spell_ability.source == Some(card_id))
+        let matches = |entry: &StackEntry| entry.spell_ability.source == Some(card_id);
+        self.entries.iter().any(&matches)
+            || self.frozen_stack.iter().any(&matches)
+            || self.simultaneous_entries.iter().any(&matches)
+            || self.resolving_entry.as_ref().is_some_and(matches)
+    }
+
+    pub fn has_source_chapter_on_stack(&self, game: &GameState, card_id: CardId) -> bool {
+        let matches = |entry: &StackEntry| {
+            entry.spell_ability.is_trigger
+                && entry.spell_ability.source == Some(card_id)
+                && entry
+                    .spell_ability
+                    .source_trigger_id
+                    .is_some_and(|trigger_id| {
+                        game.card(card_id)
+                            .triggers
+                            .iter()
+                            .any(|trigger| trigger.id == trigger_id && trigger.is_chapter())
+                    })
+        };
+
+        self.entries.iter().any(&matches)
+            || self.frozen_stack.iter().any(&matches)
+            || self.simultaneous_entries.iter().any(&matches)
+            || self.resolving_entry.as_ref().is_some_and(matches)
     }
 
     /// Check if the top entry has legal targeting (at least one target chosen).
@@ -426,6 +455,10 @@ impl MagicStack {
 
     pub fn cur_resolving_card(&self) -> Option<CardId> {
         self.cur_resolving_card
+    }
+
+    pub fn set_resolving_entry(&mut self, entry: Option<StackEntry>) {
+        self.resolving_entry = entry;
     }
 
     // ── Undo stack ───────────────────────────────────────────────────
@@ -562,6 +595,7 @@ impl MagicStack {
         let entry = self.entries.pop()?;
         self.resolving = true;
         self.cur_resolving_card = entry.spell_ability.source;
+        self.resolving_entry = Some(entry.clone());
         Some(entry)
     }
 
@@ -569,6 +603,7 @@ impl MagicStack {
     pub fn finish_resolving(&mut self) {
         self.resolving = false;
         self.cur_resolving_card = None;
+        self.resolving_entry = None;
     }
 
     // ── Turn tracking ────────────────────────────────────────────────

@@ -505,13 +505,7 @@ fn resolve_discarded_valid_svar(
     }
     for &rem_id in remembered {
         let rem_card = game.card(rem_id);
-        let matches = if filter.contains("nonLand") {
-            !rem_card.is_land()
-        } else if filter == "Card" {
-            true
-        } else {
-            true
-        };
+        let matches = !filter.contains("nonLand") || !rem_card.is_land();
         if matches {
             return times;
         }
@@ -1544,6 +1538,18 @@ pub fn resolve_count_svar_for_sa(
         return game.card(source_id).sunburst_count();
     }
 
+    if let Some(operators) = expr.strip_prefix("Count$FinalChapterNr") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        return do_x_math(
+            game.card(source_id).get_final_chapter_nr(),
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
+    }
+
     if expr == "Count$YourSpeed" {
         return game.player(controller).speed;
     }
@@ -1959,6 +1965,12 @@ pub fn resolve_count_svar_for_sa(
         if let Some(zone) = zone {
             return game.cards_in_zone(zone, controller).len() as i32;
         }
+    }
+
+    if let Some(rest) = expr.strip_prefix("Count$RememberedNumber") {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        let count = game.card(source_id).remembered_cmc.iter().sum();
+        return do_x_math(count, operators, game, source_id, controller, sa);
     }
 
     // Count$RememberedSize — mirrors Java `Card.getRememberedCount()`

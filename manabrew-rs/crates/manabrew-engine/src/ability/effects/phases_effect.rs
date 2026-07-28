@@ -26,28 +26,26 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Defined$ DelayTriggerRememberedLKI / Remembered — phase the cards
     // remembered by the parent delayed trigger (e.g. Teferi's Veil's
     // "creature phases out at end of combat" queues the attacker's LKI).
-    match sa.defined_ref() {
-        Some(
-            DefinedRef::DelayTriggerRememberedLki
-            | DefinedRef::DelayTriggerRemembered
-            | DefinedRef::Remembered,
-        ) => {
-            let ids: Vec<crate::ids::CardId> = sa
-                .trigger_remembered
-                .iter()
-                .filter_map(|v| match v {
-                    AbilityValue::Card(cid) => Some(*cid),
-                    _ => None,
-                })
-                .collect();
-            for cid in ids {
-                if ctx.game.card(cid).zone == ZoneType::Battlefield {
-                    apply_phase(ctx, cid, phase_mode);
-                }
+    if let Some(
+        DefinedRef::DelayTriggerRememberedLki
+        | DefinedRef::DelayTriggerRemembered
+        | DefinedRef::Remembered,
+    ) = sa.defined_ref()
+    {
+        let ids: Vec<crate::ids::CardId> = sa
+            .trigger_remembered
+            .iter()
+            .filter_map(|v| match v {
+                AbilityValue::Card(cid) => Some(*cid),
+                _ => None,
+            })
+            .collect();
+        for cid in ids {
+            if ctx.game.card(cid).zone == ZoneType::Battlefield {
+                apply_phase(ctx, cid, phase_mode);
             }
-            return;
         }
-        _ => {}
+        return;
     }
 
     // Targeted: use the chosen target card.

@@ -205,13 +205,13 @@ export const GAME_FORMATS: GameFormat[] = [
     id: "oathbreaker",
     name: "Oathbreaker",
     shortName: "OAT",
-    description: "60 cards, singleton, 20 life, planeswalker commander",
+    description: "60 cards, singleton, 20 life, planeswalker + signature spell",
     badgeColor: "orange",
     deckRules: {
       minDeckSize: 60,
       maxDeckSize: 60,
       maxCopies: 1,
-      sideboardMax: 0,
+      sideboardMax: 10,
       startingLife: 20,
       requiresCommander: true,
     },
@@ -327,18 +327,17 @@ function getCardIdentity(card?: DeckCard): string[] {
 
 // ─── Partner utilities ───────────────────────────────────────────────────────
 
-/** Returns true if the card has the generic "Partner" keyword (not "Partner with"). */
-export function hasPartner(card?: DeckCard): boolean {
+function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;
   if (card.keywords?.some((k) => /^partner$/i.test(k.trim()))) return true;
-  return /(?:^|\n)partner(?!\s+with)/im.test(card.text);
+  return /(?:^|\n)partner(?!\s+with)(?!\s*—)/im.test(card.text);
 }
 
 /**
  * Returns the specific partner name this card must pair with ("Partner with Xxx"),
  * or null if it doesn't have the specific-partner ability.
  */
-export function getPartnerWithName(card?: DeckCard): string | null {
+function getPartnerWithName(card?: DeckCard): string | null {
   if (!card) return null;
   const fromKeywords = card.keywords?.find((k) => /^partner with /i.test(k));
   if (fromKeywords) return fromKeywords.replace(/^partner with /i, "").trim();
@@ -346,10 +345,11 @@ export function getPartnerWithName(card?: DeckCard): string | null {
   return match ? match[1].trim() : null;
 }
 
-function hasFriendsForever(card?: DeckCard): boolean {
-  if (!card) return false;
-  if (card.keywords?.some((k) => /^friends forever$/i.test(k.trim()))) return true;
-  return /friends forever/i.test(card.text);
+function partnerType(card?: DeckCard): string | null {
+  const fromKeywords = card?.keywords?.find((k) => /^partner:/i.test(k));
+  if (fromKeywords) return fromKeywords.slice(fromKeywords.indexOf(":") + 1).trim();
+  const match = card?.text.match(/partner\s*—\s*([^\n(]+)/i);
+  return match ? match[1].trim() : null;
 }
 
 function hasChooseBackground(card?: DeckCard): boolean {
@@ -362,9 +362,21 @@ function isBackgroundCard(card?: DeckCard): boolean {
   return card.subtypes?.some((s) => s.toLowerCase() === "background") ?? false;
 }
 
+function hasDoctorsCompanion(card?: DeckCard): boolean {
+  if (!card) return false;
+  if (card.keywords?.some((k) => /^doctor's companion$/i.test(k.trim()))) return true;
+  return /doctor's companion/i.test(card.text);
+}
+
+function isTimeLordDoctor(card?: DeckCard): boolean {
+  const subtypes = card?.subtypes?.join(" ").toLowerCase() ?? "";
+  return subtypes.includes("time lord") && subtypes.includes("doctor");
+}
+
 export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
   if (hasPartner(a) && hasPartner(b)) return "Partner";
-  if (hasFriendsForever(a) && hasFriendsForever(b)) return "Friends forever";
+  const typeA = partnerType(a);
+  if (typeA && typeA.toLowerCase() === partnerType(b)?.toLowerCase()) return typeA;
   const pwA = getPartnerWithName(a);
   const pwB = getPartnerWithName(b);
   if (
@@ -376,15 +388,31 @@ export function partnerPairLabel(a: DeckCard, b: DeckCard): string | null {
     return "Partner with";
   if (hasChooseBackground(a) && isBackgroundCard(b)) return "Background";
   if (hasChooseBackground(b) && isBackgroundCard(a)) return "Background";
+  if (hasDoctorsCompanion(a) && isTimeLordDoctor(b)) return "Doctor's companion";
+  if (hasDoctorsCompanion(b) && isTimeLordDoctor(a)) return "Doctor's companion";
   return null;
 }
 
 /**
  * Returns true if two cards are a legal pair of partner commanders.
- * Handles: generic Partner, "Partner with [Name]", Friends forever, and Background.
+ * Handles: generic Partner, "Partner with [Name]", the restricted "Partner—Xxx"
+ * types, Background, and Doctor's companion.
  */
 export function canBePartners(a: DeckCard, b: DeckCard): boolean {
   return partnerPairLabel(a, b) !== null;
+}
+
+export function canBePartnerCommander(card?: DeckCard): boolean {
+  if (isBackgroundCard(card)) return true;
+  if (!isCommanderEligible(card)) return false;
+  return (
+    hasPartner(card) ||
+    getPartnerWithName(card) !== null ||
+    partnerType(card) !== null ||
+    hasChooseBackground(card) ||
+    hasDoctorsCompanion(card) ||
+    isTimeLordDoctor(card)
+  );
 }
 
 export function isCommanderEligible(card?: DeckCard): boolean {
@@ -403,6 +431,58 @@ export function isCommanderEligible(card?: DeckCard): boolean {
   const isBackground = card.subtypes?.some((s) => s.toLowerCase() === "background") ?? false;
   if (isBackground) return true;
   return false;
+}
+
+export function commanderPairLabel(commanders: DeckCard[], formatId?: string): string | null {
+  if (commanders.length !== 2) return null;
+  if (formatId === "oathbreaker") {
+    return commanders.some((c) => canBeOathbreaker(c)) &&
+      commanders.some((c) => canBeSignatureSpell(c))
+      ? "Signature spell"
+      : null;
+  }
+  return partnerPairLabel(commanders[0], commanders[1]);
+}
+
+export function commanderSlotBadge(
+  commanders: DeckCard[],
+  formatId: string | undefined,
+  index: number,
+): { label: string | null } | null {
+  const card = commanders[index];
+  if (!card) return null;
+
+  if (formatId !== "oathbreaker") {
+    return index === 1 ? { label: partnerPairLabel(commanders[0], card) } : null;
+  }
+
+  const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
+  if (canBeSignatureSpell(card)) {
+    const paired = oathbreakers[commanders.filter((c) => canBeSignatureSpell(c)).indexOf(card)];
+    return {
+      label:
+        oathbreakers.length > 1 && paired
+          ? `Signature: ${paired.identity.name}`
+          : "Signature spell",
+    };
+  }
+  if (oathbreakers.length !== 2 || oathbreakers.indexOf(card) !== 1) return null;
+  return { label: partnerPairLabel(oathbreakers[0], oathbreakers[1]) };
+}
+
+export function canBeOathbreaker(card?: DeckCard): boolean {
+  if (!card) return false;
+  if (card.text.toLowerCase().includes("can be your commander")) return true;
+  return card.types.includes("Planeswalker");
+}
+
+export function canBeSignatureSpell(card?: DeckCard): boolean {
+  if (!card) return false;
+  return card.types.includes("Instant") || card.types.includes("Sorcery");
+}
+
+export function formatRequiresCommander(formatId?: string): boolean {
+  return getFormat(formatId ?? "")?.deckRules.requiresCommander ?? false;
 }
 
 export function validateDeckSections(
@@ -460,34 +540,63 @@ export function validateDeckSections(
   }
 
   if (format.deckRules.requiresCommander) {
-    if (commanders.length === 0) {
-      errors.push("Deck must have at least 1 commander");
-    } else if (commanders.length > 2) {
-      errors.push(`Deck can have at most 2 commanders (has ${commanders.length})`);
-    }
-
     const expectedMainSize = format.deckRules.minDeckSize - commanders.length;
     if (mainDeck.length !== expectedMainSize) {
       errors.push(
-        `Commander deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
+        `${format.name} deck must have exactly ${expectedMainSize} non-commander cards (has ${mainDeck.length})`,
       );
     }
 
-    for (const cmd of commanders) {
-      if (!isCommanderEligible(cmd)) {
-        errors.push(`"${cmd.identity.name}" is not a legal commander`);
+    let identitySource = commanders;
+    if (format.id === "oathbreaker") {
+      const oathbreakers = commanders.filter((c) => canBeOathbreaker(c));
+      const spells = commanders.filter((c) => canBeSignatureSpell(c));
+
+      for (const cmd of commanders) {
+        if (!canBeOathbreaker(cmd) && !canBeSignatureSpell(cmd)) {
+          errors.push(`"${cmd.identity.name}" is not a legal oathbreaker or signature spell`);
+        }
+      }
+
+      if (oathbreakers.length === 0) errors.push("Deck is missing an oathbreaker");
+      if (spells.length === 0) errors.push("Deck is missing a signature spell");
+      if (oathbreakers.length > 2) {
+        errors.push(`Deck can have at most 2 oathbreakers (has ${oathbreakers.length})`);
+      } else if (oathbreakers.length === 2 && !canBePartners(oathbreakers[0], oathbreakers[1])) {
+        errors.push(
+          `"${oathbreakers[0].identity.name}" and "${oathbreakers[1].identity.name}" cannot be paired — two oathbreakers must have a compatible partner ability`,
+        );
+      }
+      if (spells.length > Math.max(1, oathbreakers.length)) {
+        errors.push(
+          `Deck can have one signature spell per oathbreaker (has ${spells.length} for ${oathbreakers.length})`,
+        );
+      }
+
+      identitySource = oathbreakers;
+    } else {
+      if (commanders.length === 0) {
+        errors.push("Deck must have at least 1 commander");
+      } else if (commanders.length > 2) {
+        errors.push(`Deck can have at most 2 commanders (has ${commanders.length})`);
+      }
+
+      for (const cmd of commanders) {
+        if (!isCommanderEligible(cmd)) {
+          errors.push(`"${cmd.identity.name}" is not a legal commander`);
+        }
+      }
+
+      if (commanders.length === 2 && !canBePartners(commanders[0], commanders[1])) {
+        errors.push(
+          `"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
+        );
       }
     }
 
-    if (commanders.length === 2 && !canBePartners(commanders[0], commanders[1])) {
-      errors.push(
-        `"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
-      );
-    }
-
-    const commanderIdentity = new Set(commanders.flatMap((cmd) => getCardIdentity(cmd)));
+    const commanderIdentity = new Set(identitySource.flatMap((cmd) => getCardIdentity(cmd)));
     if (commanderIdentity.size > 0) {
-      const invalid = mainDeck.find((card) =>
+      const invalid = [...mainDeck, ...commanders].find((card) =>
         getCardIdentity(card).some((color) => !commanderIdentity.has(color)),
       );
       if (invalid) {

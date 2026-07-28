@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.0](https://github.com/witchesofthehill/manabrew/compare/v2.1.2...v3.0.0) (2026-07-27)
+
+### Features
+
+* add saga lifecycle and card rails ([#534](https://github.com/witchesofthehill/manabrew/issues/534)) ([0ee45bc](https://github.com/witchesofthehill/manabrew/commit/0ee45bc89391551e93553b1876b3fccaef1ff52d))
+
+## [2.1.2](https://github.com/witchesofthehill/manabrew/compare/v2.1.1...v2.1.2) (2026-07-27)
+
+### Fixes
+
+* deck editor commanders that can't be cast, and oathbreaker ([#555](https://github.com/witchesofthehill/manabrew/issues/555)) ([87292cb](https://github.com/witchesofthehill/manabrew/commit/87292cb0df7435f4ca1244d796d145e658dc8d13))
+
+## [2.1.1](https://github.com/witchesofthehill/manabrew/compare/v2.1.0...v2.1.1) (2026-07-26)
+
+### Fixes
+
+* **ui:** allow playing cards from opponent zones ([#553](https://github.com/witchesofthehill/manabrew/issues/553)) ([e0ba419](https://github.com/witchesofthehill/manabrew/commit/e0ba4198f5af2a373e516ec06399811931b4fada))
+
 ## [2.1.0](https://github.com/witchesofthehill/manabrew/compare/v2.0.2...v2.1.0) (2026-07-25)
 
 ### Features

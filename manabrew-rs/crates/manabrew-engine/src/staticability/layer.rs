@@ -230,8 +230,7 @@ pub fn apply_continuous_effects(game: &mut GameState) {
         player.unlimited_hand_size = false;
     }
     let player_ids: Vec<PlayerId> = game.player_order.clone();
-    for player_idx in 0..player_ids.len() {
-        let pid = player_ids[player_idx];
+    for &pid in &player_ids {
         let battlefield_cards: Vec<CardId> =
             game.cards_in_zone(ZoneType::Battlefield, pid).to_vec();
         for source_id in battlefield_cards {

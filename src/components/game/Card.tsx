@@ -2,6 +2,7 @@ import type { CardDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { memo, useState, useMemo, type CSSProperties } from "react";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { PtBadge } from "@/components/game/PtBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { KeywordChips } from "@/components/game/CardKeywords";
@@ -13,6 +14,7 @@ import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
 import { useGameStore } from "@/stores/useGameStore";
+import { deriveCardRailState } from "@/components/game/cardRailState";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 
@@ -73,6 +75,14 @@ function CardComponent({
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
   const onBattlefield = card.zoneId === "battlefield";
+  const rail = deriveCardRailState(card);
+  const railRightClass = rail ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]" : undefined;
+  const visibleCounters =
+    rail?.kind === "saga" && card.counters
+      ? Object.fromEntries(
+          Object.entries(card.counters).filter(([type, count]) => count > 0 && type !== "Lore"),
+        )
+      : card.counters;
 
   const ptStyle = useMemo(() => {
     const fg = themeColors.textOnTinted;
@@ -116,7 +126,7 @@ function CardComponent({
         className,
       )}
       onClick={onClick}
-      style={style}
+      style={{ ["--card-rail-width" as string]: CARD_RAIL_WIDTH, ...style } as CSSProperties}
     >
       {imageUrl && !hasError ? (
         <>
@@ -166,15 +176,19 @@ function CardComponent({
               {card.keywords && card.keywords.length > 0 && (
                 <KeywordChips keywords={card.keywords} />
               )}
-              {card.counters && (
+              {visibleCounters && (
                 <CounterDisplay
-                  counters={card.counters}
+                  counters={visibleCounters}
                   size="sm"
                   className="absolute bottom-1 left-1 z-10"
                 />
               )}
               {creature && card.power && card.toughness && (
-                <PtBadge value={`${card.power}/${card.toughness}`} style={ptStyle}>
+                <PtBadge
+                  value={`${card.power}/${card.toughness}`}
+                  style={ptStyle}
+                  className={railRightClass}
+                >
                   {card.damage != null && card.damage > 0 && (
                     <span
                       className="font-bold bg-black/60 rounded leading-none"
@@ -189,78 +203,85 @@ function CardComponent({
                   )}
                 </PtBadge>
               )}
+              {rail && <CardRail state={rail} />}
             </>
           )}
         </>
       ) : (
-        <div className="absolute inset-0 p-2 flex flex-col justify-between">
-          <div className="flex justify-between items-start gap-1">
-            <span className="font-bold text-xs leading-tight line-clamp-2">{displayName}</span>
-            <div className="flex flex-col items-end gap-0.5 shrink-0">
-              {(card.identity.isToken || card.isTransformed) && (
-                <span
-                  className={cn(
-                    "text-[8px] font-bold px-1 py-0.5 rounded leading-none",
-                    card.isTransformed ? CARD_BADGES.transformed.style : CARD_BADGES.token.style,
-                  )}
-                >
-                  {card.isTransformed ? CARD_BADGES.transformed.label : CARD_BADGES.token.label}
-                </span>
-              )}
-              {card.effectiveManaCost ? (
-                <div className="flex flex-col items-end">
-                  <span className="line-through opacity-50">
-                    <ManaSymbols cost={card.manaCost} size="sm" />
-                  </span>
+        <div className="absolute inset-0 p-2 flex gap-2 bg-card">
+          <div
+            className={cn(
+              "flex-1 min-w-0 flex flex-col gap-1.5",
+              rail && "pr-[calc(var(--card-rail-width)+0.5rem)]",
+            )}
+          >
+            <div className="flex justify-between items-start gap-1">
+              <span className="font-bold text-xs leading-tight line-clamp-2">{displayName}</span>
+              <div className="flex flex-col items-end gap-0.5 shrink-0">
+                {(card.identity.isToken || card.isTransformed) && (
                   <span
-                    className="rounded px-0.5"
-                    style={{
-                      backgroundColor: withAlpha(themeColors.promptAction.defenseAction, 0.2),
-                    }}
+                    className={cn(
+                      "text-[8px] font-bold px-1 py-0.5 rounded leading-none",
+                      card.isTransformed ? CARD_BADGES.transformed.style : CARD_BADGES.token.style,
+                    )}
                   >
-                    <ManaSymbols cost={card.effectiveManaCost} size="sm" />
+                    {card.isTransformed ? CARD_BADGES.transformed.label : CARD_BADGES.token.label}
                   </span>
-                </div>
-              ) : (
-                <ManaSymbols cost={card.manaCost} size="sm" />
+                )}
+                {card.effectiveManaCost ? (
+                  <div className="flex flex-col items-end">
+                    <span className="line-through opacity-50">
+                      <ManaSymbols cost={card.manaCost} size="sm" />
+                    </span>
+                    <span
+                      className="rounded px-0.5"
+                      style={{
+                        backgroundColor: withAlpha(themeColors.promptAction.defenseAction, 0.2),
+                      }}
+                    >
+                      <ManaSymbols cost={card.effectiveManaCost} size="sm" />
+                    </span>
+                  </div>
+                ) : (
+                  <ManaSymbols cost={card.manaCost} size="sm" />
+                )}
+              </div>
+            </div>
+            <div className="flex-1 text-xs text-muted-foreground text-center line-clamp-5 whitespace-pre-wrap">
+              {card.text}
+            </div>
+            {visibleCounters && <CounterDisplay counters={visibleCounters} size="sm" />}
+            <div className="flex justify-between items-end">
+              <span className="text-xs text-muted-foreground truncate">
+                {card.types?.join(" ")}
+              </span>
+              {creature && card.power && card.toughness && (
+                <span
+                  className="font-bold text-sm shrink-0"
+                  style={{
+                    color: lethal
+                      ? themeColors.promptAction.attackAction
+                      : card.basePower != null && parseInt(card.power, 10) > card.basePower
+                        ? withAlpha(themeColors.promptAction.defenseAction, 0.92)
+                        : card.basePower != null && parseInt(card.power, 10) < card.basePower
+                          ? withAlpha(themeColors.promptAction.attackAction, 0.92)
+                          : undefined,
+                  }}
+                >
+                  {card.power}/{card.toughness}
+                  {card.damage != null && card.damage > 0 && (
+                    <span
+                      className="text-xs ml-0.5"
+                      style={{ color: withAlpha(themeColors.promptAction.attackAction, 0.9) }}
+                    >
+                      ⚔{card.damage}
+                    </span>
+                  )}
+                </span>
               )}
             </div>
           </div>
-          <div className="flex-1 flex items-center justify-center px-1">
-            <span className="text-xs text-muted-foreground text-center line-clamp-5">
-              {card.text}
-            </span>
-          </div>
-          {card.counters && (
-            <CounterDisplay counters={card.counters} size="sm" className="mb-0.5" />
-          )}
-          <div className="flex justify-between items-end">
-            <span className="text-xs text-muted-foreground truncate">{card.types?.join(" ")}</span>
-            {creature && card.power && card.toughness && (
-              <span
-                className="font-bold text-sm shrink-0"
-                style={{
-                  color: lethal
-                    ? themeColors.promptAction.attackAction
-                    : card.basePower != null && parseInt(card.power, 10) > card.basePower
-                      ? withAlpha(themeColors.promptAction.defenseAction, 0.92)
-                      : card.basePower != null && parseInt(card.power, 10) < card.basePower
-                        ? withAlpha(themeColors.promptAction.attackAction, 0.92)
-                        : undefined,
-                }}
-              >
-                {card.power}/{card.toughness}
-                {card.damage != null && card.damage > 0 && (
-                  <span
-                    className="text-xs ml-0.5"
-                    style={{ color: withAlpha(themeColors.promptAction.attackAction, 0.9) }}
-                  >
-                    ⚔{card.damage}
-                  </span>
-                )}
-              </span>
-            )}
-          </div>
+          {rail && <CardRail state={rail} />}
         </div>
       )}
     </div>
@@ -331,11 +352,20 @@ export const Card = memo(CardComponent, (prev, next) => {
     pc.zoneId !== nc.zoneId ||
     pc.text !== nc.text ||
     pc.manaCost !== nc.manaCost ||
-    pc.effectiveManaCost !== nc.effectiveManaCost
+    pc.effectiveManaCost !== nc.effectiveManaCost ||
+    pc.finalChapter !== nc.finalChapter ||
+    pc.classLevel !== nc.classLevel
   )
     return false;
   if (!arraysEqual(pc.types, nc.types)) return false;
+  if (!arraysEqual(pc.subtypes, nc.subtypes)) return false;
   if (!arraysEqual(pc.keywords, nc.keywords)) return false;
+  if (pc.classLevels !== nc.classLevels) {
+    if (JSON.stringify(pc.classLevels) !== JSON.stringify(nc.classLevels)) return false;
+  }
+  if (pc.sagaChapters !== nc.sagaChapters) {
+    if (JSON.stringify(pc.sagaChapters) !== JSON.stringify(nc.sagaChapters)) return false;
+  }
   if (pc.counters !== nc.counters) {
     if (JSON.stringify(pc.counters) !== JSON.stringify(nc.counters)) return false;
   }

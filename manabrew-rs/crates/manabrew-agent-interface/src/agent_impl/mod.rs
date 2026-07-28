@@ -581,6 +581,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         description: a.description.clone(),
                         cost: a.cost.clone(),
                         is_mana_ability: false,
+                        is_class_level_up: Some(a.is_class_level_up),
                         produced_mana: None,
                     }),
                 });

@@ -79,7 +79,9 @@ impl TriggerReplacementBase {
     pub fn set_overriding_ability(&mut self, overriding_ability: SpellAbility) {
         self.overriding_ability = Some(overriding_ability);
         if let Some(ability) = self.overriding_ability.as_mut() {
-            ability.set_host_card_id(self.card_trait_base.host_card_id());
+            if let Some(host_card_id) = self.card_trait_base.get_host_card_id() {
+                ability.set_host_card_id(host_card_id);
+            }
             if let Some(keyword) = self.card_trait_base.get_keyword().cloned() {
                 ability.set_keyword(keyword);
             }

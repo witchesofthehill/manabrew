@@ -100,6 +100,7 @@ impl SealedCardPoolGenerator {
         Some(prod.open(rng))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_sealed_deck<R: Rng + ?Sized, ColorFn, LandFn>(
         &mut self,
         deck_name: impl Into<String>,

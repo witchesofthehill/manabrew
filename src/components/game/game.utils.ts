@@ -21,6 +21,7 @@ export function manaAbilityInfos(
             abilityIndex: a.abilityIndex,
             description: a.description,
             isManaAbility: true,
+            isClassLevelUp: false,
             cost: a.cost,
             producedMana: a.producedMana,
             actionId: a.id,

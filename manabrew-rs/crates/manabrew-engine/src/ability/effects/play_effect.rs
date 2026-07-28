@@ -180,7 +180,7 @@ fn resolve_target_cards(ctx: &EffectContext, sa: &SpellAbility) -> Vec<CardId> {
             return Vec::new();
         };
         let source = ctx.game.card(source_id);
-        let selector = crate::parsing::cached_compiled_selector(&valid);
+        let selector = crate::parsing::cached_compiled_selector(valid);
         let valid_sa = crate::parsing::raw_get(&sa.ability_text, crate::parsing::keys::VALID_SA);
         return ctx
             .game
@@ -193,10 +193,7 @@ fn resolve_target_cards(ctx: &EffectContext, sa: &SpellAbility) -> Vec<CardId> {
                 )
             })
             .filter(|card| {
-                if valid_sa
-                    .as_deref()
-                    .is_some_and(|v| v.eq_ignore_ascii_case("Spell"))
-                {
+                if valid_sa.is_some_and(|v| v.eq_ignore_ascii_case("Spell")) {
                     !card.is_land()
                 } else {
                     true

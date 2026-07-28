@@ -11,7 +11,7 @@ use crate::agent::BinaryChoiceKind;
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let controller = sa.activating_player;
     let Some(source_id) = sa.source else { return };
-    let source_name = ctx.game.card(source_id).card_name.clone();
+    let _source_name = ctx.game.card(source_id).card_name.clone();
     let choose_left = ctx.agents[controller.index()].choose_binary(
         controller,
         "Choose direction",

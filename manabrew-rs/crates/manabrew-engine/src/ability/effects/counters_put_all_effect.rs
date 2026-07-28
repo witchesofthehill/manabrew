@@ -1,10 +1,10 @@
 use forge_foundation::ZoneType;
 
 use super::{matches_valid_cards_for_sa, resolve_numeric_svar, EffectContext};
+use crate::agent::GameEntity;
 use crate::card::CounterType;
-use crate::event::RunParams;
+use crate::game_entity_counter_table::GameEntityCounterTable;
 use crate::ids::CardId;
-use crate::trigger::TriggerType;
 
 /// `SP$ PutCounterAll` — put counters on all matching permanents.
 ///
@@ -46,6 +46,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
     }
 
+    let placer = sa.activating_player;
+    let mut table = GameEntityCounterTable::default();
     for card_id in targets {
         if ctx.game.card(card_id).zone == zone {
             if crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
@@ -55,32 +57,20 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             ) {
                 continue;
             }
-            let add_count = if let Some(max) =
-                crate::staticability::static_ability_max_counter::max_counter(
-                    &ctx.game.cards,
-                    ctx.game.card(card_id),
-                    &counter_type,
-                ) {
-                (max - ctx.game.card(card_id).counter_count(&counter_type)).clamp(0, count)
-            } else {
-                count
-            };
-            if add_count <= 0 {
-                continue;
-            }
-            ctx.game
-                .card_mut(card_id)
-                .add_counter(&counter_type, add_count);
-            ctx.trigger_handler.run_trigger(
-                TriggerType::CounterAdded,
-                RunParams {
-                    card: Some(card_id),
-                    counter_type: Some(format!("{:?}", counter_type)),
-                    counter_amount: Some(add_count),
-                    ..Default::default()
-                },
-                false,
+            table.put(
+                Some(placer),
+                GameEntity::Card(card_id),
+                counter_type.clone(),
+                count,
             );
         }
     }
+    table.replace_counter_effect(
+        ctx.game,
+        Some(ctx.trigger_handler),
+        Some(ctx.agents),
+        Some(sa),
+        true,
+        Default::default(),
+    );
 }

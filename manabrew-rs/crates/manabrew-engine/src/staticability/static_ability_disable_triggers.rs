@@ -251,6 +251,11 @@ fn trigger_matches(
                 trimmed.starts_with("AB$") || trimmed.starts_with("DB$")
             }
             "trigger" => true,
+            "triggered.chapternotlore" => {
+                regtrig.is_chapter()
+                    && regtrig.get_chapter()
+                        != Some(host.counter_count(&crate::card::CounterType::Lore))
+            }
             _ => true,
         })
 }

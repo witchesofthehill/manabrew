@@ -48,9 +48,24 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     if to_move <= 0 {
         return;
     }
+    if ctx.game.card(to).phased_out
+        || crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
+            &ctx.game.cards,
+            ctx.game.card(to),
+            &counter_type,
+        )
+    {
+        return;
+    }
 
     ctx.game
         .card_mut(from)
         .remove_counter(&counter_type, to_move);
-    ctx.game.card_mut(to).add_counter(&counter_type, to_move);
+    ctx.add_counter(
+        to,
+        &counter_type,
+        to_move,
+        sa,
+        crate::event::RunParams::default(),
+    );
 }

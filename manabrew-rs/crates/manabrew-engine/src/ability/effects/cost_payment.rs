@@ -522,9 +522,20 @@ fn try_pay_effect_cost(
                 counter_type,
             } => {
                 let amount_n = amount.resolve(ctx.game, source, payer);
-                ctx.game
-                    .card_mut(source)
-                    .add_counter(counter_type, amount_n);
+                crate::ability::effects::effect_context::add_counter_with_context(
+                    ctx.game,
+                    Some(ctx.trigger_handler),
+                    Some(ctx.agents),
+                    source,
+                    counter_type,
+                    amount_n,
+                    crate::event::RunParams {
+                        source_player: Some(payer),
+                        cause: Some(sa.clone()),
+                        ..Default::default()
+                    },
+                    true,
+                );
             }
             CostPart::Discard {
                 amount,
@@ -797,7 +808,7 @@ pub(super) fn resolve_effect_with_unless_cost(
                     .next()
                 })
                 .unwrap_or(sa.activating_player);
-            let card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+            let _card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
             let prompt = sa
                 .ir
                 .spell_description_text

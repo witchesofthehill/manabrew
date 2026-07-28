@@ -74,7 +74,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // Handle optional shuffle.
     if may_shuffle {
-        let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
+        let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
         let wants_shuffle = ctx.agents[sa.activating_player.index()].confirm_action(
             sa.activating_player,
             None,

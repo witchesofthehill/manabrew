@@ -51,6 +51,7 @@ pub struct Room {
 }
 
 impl Room {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         room_id: String,
         room_name: String,

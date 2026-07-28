@@ -13,7 +13,7 @@ use forge_foundation::{PhaseType, ZoneType};
 // Comment test 2
 use crate::ability::effects::{self, EffectContext};
 use crate::agent::{CombatCostAction, MainPhaseAction, ManaCostAction, PlayerAgent};
-use crate::card::Card;
+use crate::card::{Card, CounterType};
 use crate::combat::{self, CombatState};
 use crate::cost::{self, parse_cost, CostPart};
 use crate::event::RunParams;
@@ -247,6 +247,38 @@ impl GameLoop {
             dest_owner,
             agents,
             &mut runtime,
+        );
+    }
+
+    pub(crate) fn add_saga_lore_counters(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        cards: &[CardId],
+    ) {
+        let mut table = crate::game_entity_counter_table::GameEntityCounterTable::default();
+        for &card_id in cards {
+            let card = game.card(card_id);
+            if card.zone != ZoneType::Battlefield
+                || !card.has_subtype("Saga")
+                || !card.has_chapter()
+            {
+                continue;
+            }
+            table.put(
+                Some(card.controller),
+                crate::agent::GameEntity::Card(card_id),
+                CounterType::Lore,
+                1,
+            );
+        }
+        table.replace_counter_effect(
+            game,
+            Some(&mut self.trigger_handler),
+            Some(agents),
+            None,
+            false,
+            RunParams::default(),
         );
     }
 
@@ -503,7 +535,7 @@ impl GameLoop {
                 }
 
                 agents[takes_action.index()].snapshot_state(game, &self.mana_pools);
-                let card_name = game.card(source_id).card_name.clone();
+                let _card_name = game.card(source_id).card_name.clone();
                 let prompt = sa
                     .ir
                     .spell_description_text

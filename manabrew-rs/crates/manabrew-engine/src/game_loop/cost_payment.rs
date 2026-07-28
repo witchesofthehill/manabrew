@@ -804,7 +804,20 @@ impl GameLoop {
                     counter_type,
                 } => {
                     let amount_n = amount.resolve(game, card_id, player);
-                    game.card_mut(card_id).add_counter(counter_type, amount_n);
+                    crate::ability::effects::effect_context::add_counter_with_context(
+                        game,
+                        Some(&mut self.trigger_handler),
+                        Some(agents),
+                        card_id,
+                        counter_type,
+                        amount_n,
+                        RunParams {
+                            source_player: Some(player),
+                            cause: sa.as_deref().cloned(),
+                            ..Default::default()
+                        },
+                        false,
+                    );
                 }
                 CostPart::Exile {
                     amount,
@@ -1093,7 +1106,7 @@ impl GameLoop {
                 CostPart::FlipCoin(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
                     for _ in 0..resolved_amount {
-                        let source_name = game.card(card_id).card_name.clone();
+                        let _source_name = game.card(card_id).card_name.clone();
                         let called_heads = agents[player.index()].choose_binary(
                             player,
                             "Call the coin flip",
@@ -1252,7 +1265,14 @@ impl GameLoop {
                 }
                 CostPart::Blight(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    self.pay_blight_cost(game, agents, player, card_id, resolved_amount);
+                    self.pay_blight_cost(
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        resolved_amount,
+                        sa.as_deref(),
+                    );
                 }
                 CostPart::ExileCtrlOrGrave {
                     amount,
@@ -1466,7 +1486,20 @@ impl GameLoop {
                 } => {
                     let amount_n = amount.resolve(game, card_id, player);
                     if game.card(card_id).zone == ZoneType::Battlefield {
-                        game.card_mut(card_id).add_counter(counter_type, amount_n);
+                        crate::ability::effects::effect_context::add_counter_with_context(
+                            game,
+                            Some(&mut self.trigger_handler),
+                            Some(agents),
+                            card_id,
+                            counter_type,
+                            amount_n,
+                            RunParams {
+                                source_player: Some(player),
+                                cause: sa.as_deref().cloned(),
+                                ..Default::default()
+                            },
+                            false,
+                        );
                     }
                 }
                 CostPart::Exile {
@@ -1797,7 +1830,7 @@ impl GameLoop {
                 CostPart::FlipCoin(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
                     for _ in 0..resolved_amount {
-                        let source_name = game.card(card_id).card_name.clone();
+                        let _source_name = game.card(card_id).card_name.clone();
                         let called_heads = agents[player.index()].choose_binary(
                             player,
                             "Call the coin flip",
@@ -1956,7 +1989,14 @@ impl GameLoop {
                 }
                 CostPart::Blight(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
-                    self.pay_blight_cost(game, agents, player, card_id, resolved_amount);
+                    self.pay_blight_cost(
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        resolved_amount,
+                        sa.as_deref(),
+                    );
                 }
                 CostPart::ExileCtrlOrGrave {
                     amount,
@@ -2158,7 +2198,7 @@ impl GameLoop {
 
         if !untapped.is_empty() && remaining > 0 {
             // Reuse the convoke agent method — waterbend is convoke+improvise combined
-            let card_name = game.card(card_id).card_name.clone();
+            let _card_name = game.card(card_id).card_name.clone();
             let generic_cost = forge_foundation::ManaCost::generic(remaining);
             agents[player.index()].snapshot_state(game, &self.mana_pools);
             let to_tap = agents[player.index()].choose_convoke(
@@ -3051,25 +3091,44 @@ impl GameLoop {
         game: &mut GameState,
         agents: &mut [Box<dyn PlayerAgent>],
         player: PlayerId,
-        source: CardId,
+        _source: CardId,
         amount: i32,
+        cause: Option<&SpellAbility>,
     ) {
-        for _ in 0..amount {
-            let valid: Vec<CardId> = game
-                .cards_in_zone(ZoneType::Battlefield, player)
-                .iter()
-                .copied()
-                .filter(|&cid| game.card(cid).is_creature())
-                .collect();
-            if valid.is_empty() {
-                break;
-            }
-            if let Some(chosen) =
-                agents[player.index()].choose_sacrifice(player, &valid, Some(source))
-            {
-                game.card_mut(chosen)
-                    .add_counter(&crate::card::CounterType::M1M1, 1);
-            }
+        let valid: Vec<CardId> = game
+            .cards_in_zone(ZoneType::Battlefield, player)
+            .iter()
+            .copied()
+            .filter(|&card| {
+                game.card(card).is_creature()
+                    && !game.card(card).phased_out
+                    && !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
+                        &game.cards,
+                        game.card(card),
+                        &crate::card::CounterType::M1M1,
+                    )
+            })
+            .collect();
+        if let Some(chosen) = agents[player.index()]
+            .choose_cards_for_effect(player, &valid, 1, 1)
+            .into_iter()
+            .next()
+        {
+            let mut table = crate::game_entity_counter_table::GameEntityCounterTable::default();
+            table.put(
+                Some(player),
+                crate::agent::GameEntity::Card(chosen),
+                crate::card::CounterType::M1M1,
+                amount,
+            );
+            table.replace_counter_effect(
+                game,
+                Some(&mut self.trigger_handler),
+                Some(agents),
+                cause,
+                false,
+                Default::default(),
+            );
         }
     }
 
@@ -3211,7 +3270,7 @@ impl GameLoop {
         type_filter: &str,
         amount: i32,
         min_total_power: Option<i32>,
-        mut sa: Option<&mut SpellAbility>,
+        sa: Option<&mut SpellAbility>,
     ) {
         let mut tapped_cards = Vec::new();
         if let Some(power_threshold) = min_total_power {
@@ -3307,7 +3366,7 @@ impl GameLoop {
                 );
             }
         }
-        if let Some(sa) = sa.as_deref_mut() {
+        if let Some(sa) = sa {
             for cid in tapped_cards {
                 let value = cid.to_string();
                 sa.add_cost_to_hash_list(crate::cost::cost_tap_type::HASH_LKI, &value);

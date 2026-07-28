@@ -2,8 +2,10 @@
 //! Ported from Java's DamageResolveEffect.
 
 use super::EffectContext;
+use crate::agent::GameEntity;
 use crate::card::card_damage_map::DamageTarget;
 use crate::card::CounterType;
+use crate::game_entity_counter_table::GameEntityCounterTable;
 
 /// Struct form of this effect so it can participate in the
 /// `SpellAbilityEffect` trait hierarchy — mirrors Java's
@@ -27,6 +29,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         prevent_map.trigger_prevent_damage(ctx.trigger_handler, false);
     }
 
+    let mut counter_table = GameEntityCounterTable::default();
     for (source, target, amount) in damage_map.entries() {
         if amount <= 0 {
             continue;
@@ -60,13 +63,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                         );
 
                     if source_has_infect || source_has_wither {
-                        if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
-                            &ctx.game.cards,
-                            ctx.game.card(cid),
-                            &CounterType::M1M1,
-                        ) {
-                            ctx.game.card_mut(cid).add_counter(&CounterType::M1M1, amount);
-                        }
+                        counter_table.put(
+                            Some(ctx.game.card(source).controller),
+                            GameEntity::Card(cid),
+                            CounterType::M1M1,
+                            amount,
+                        );
                     } else {
                         ctx.game.deal_damage_to_card(cid, amount);
                     }
@@ -81,13 +83,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                         ctx.game.card(source).controller,
                     );
                 if source_has_infect {
-                    if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_player(
-                        &ctx.game.cards,
-                        pid,
-                        &CounterType::Poison,
-                    ) {
-                        ctx.game.player_add_poison(pid, amount);
-                    }
+                    counter_table.put(
+                        Some(ctx.game.card(source).controller),
+                        GameEntity::Player(pid),
+                        CounterType::Poison,
+                        amount,
+                    );
                 } else {
                     let dealt = ctx.game.deal_damage_to_player(pid, amount);
                     ctx.game
@@ -105,6 +106,14 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     }
 
     damage_map.trigger_damage_done_once(ctx.game, ctx.trigger_handler, false);
+    counter_table.replace_counter_effect(
+        ctx.game,
+        Some(ctx.trigger_handler),
+        Some(ctx.agents),
+        Some(sa),
+        true,
+        Default::default(),
+    );
 
     // Pre-match DamageDoneOnce triggers while damaged creatures are still on
     // the battlefield.  SBAs run after effect resolution and would move

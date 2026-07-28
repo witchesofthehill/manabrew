@@ -11,6 +11,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import forge.harness.protocol.*;
 import forge.game.Game;
+import forge.game.ability.ApiType;
 import forge.game.GameEntity;
 import forge.game.Match;
 import forge.game.card.Card;
@@ -574,14 +575,14 @@ public final class ManaBrewInteractiveSession {
                         ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
                         : "tap:" + cardId + ":" + abilityIndex;
                 actionList.add(new PaymentAction_activateManaAbility(
-                        actionId, cardId, abilityIndex, description, true, cost, choice.producedMana));
+                        actionId, cardId, abilityIndex, description, true, false, cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
             final String cardId = SnapshotExtractor.javaCardId(card);
             actionList.add(new PaymentAction_activateManaAbility(
-                    "tap:" + cardId, cardId, 0, card.getName(), true, null, null));
+                    "tap:" + cardId, cardId, 0, card.getName(), true, false, null, null));
         }
         for (final Card card : untappableCards) {
             final String cardId = SnapshotExtractor.javaCardId(card);
@@ -1765,11 +1766,12 @@ public final class ManaBrewInteractiveSession {
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, description, true, cost, choice.producedMana));
+                            actionId, cardId, i, description, true, false, cost, choice.producedMana));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(
-                        id, cardId, i, abilityDescription(sa, label), false, null, null));
+                        id, cardId, i, abilityDescription(sa, label), false,
+                        sa.getApi() == ApiType.ClassLevelUp, simpleCostText(sa), null));
             }
         }
         for (final Card card : untappableCards) {

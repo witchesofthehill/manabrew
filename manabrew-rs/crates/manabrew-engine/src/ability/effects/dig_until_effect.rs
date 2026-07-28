@@ -87,7 +87,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     ctx.game.card_mut(source_id).add_imprinted_card(cid);
                 }
             }
-        } else {
         }
     }
     let rest: Vec<_> = revealed

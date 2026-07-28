@@ -88,6 +88,8 @@ pub struct ReplacementEffectIr {
     pub valid_card_selector: Option<CompiledSelector>,
     pub valid_player_text: Option<String>,
     pub valid_player_selector: Option<CompiledSelector>,
+    pub valid_object_selector: Option<CompiledSelector>,
+    pub valid_cause_text: Option<String>,
     pub valid_target_selector: Option<CompiledSelector>,
     pub valid_source_selector: Option<CompiledSelector>,
     pub valid_activator_text: Option<String>,
@@ -134,6 +136,8 @@ pub enum ReplacementChainIr {
     },
     ReplaceCounter {
         amount_expr: String,
+        choose_counter: bool,
+        after_replacement_static_abilities: Vec<String>,
     },
     ReplaceEffect {
         var_name: Option<String>,
@@ -511,8 +515,18 @@ impl ReplacementEffect {
                 } => {
                     // Java `ReplaceAddCounter.setReplacingObjects`: CounterMap,
                     // Card/Player (polymorphic on Affected), Object.
-                    let target_csv = target.0.to_string();
-                    node.set_triggering_object(AbilityKey::Card, target_csv.as_str());
+                    let target_csv = match target {
+                        crate::agent::GameEntity::Card(card) => card.0.to_string(),
+                        crate::agent::GameEntity::Player(player) => player.0.to_string(),
+                    };
+                    match target {
+                        crate::agent::GameEntity::Card(_) => {
+                            node.set_triggering_object(AbilityKey::Card, target_csv.as_str());
+                        }
+                        crate::agent::GameEntity::Player(_) => {
+                            node.set_triggering_object(AbilityKey::Player, target_csv.as_str());
+                        }
+                    }
                     node.set_triggering_object(AbilityKey::Affected, target_csv.as_str());
                     node.set_triggering_object(AbilityKey::Object, target_csv.as_str());
                     node.set_triggering_object(
@@ -700,6 +714,8 @@ impl ReplacementEffectIr {
             valid_card_selector: params.selector_cloned(keys::VALID_CARD),
             valid_player_text: params.get(keys::VALID_PLAYER).map(str::to_string),
             valid_player_selector: params.selector_cloned(keys::VALID_PLAYER),
+            valid_object_selector: params.selector_cloned("ValidObject"),
+            valid_cause_text: params.get(keys::VALID_CAUSE).map(str::to_string),
             valid_target_selector: params.selector_cloned(keys::VALID_TARGET),
             valid_source_selector: params.selector_cloned(keys::VALID_SOURCE),
             valid_activator_text: params.get(keys::VALID_ACTIVATOR).map(str::to_string),
@@ -723,7 +739,7 @@ impl ReplacementEffectIr {
             skip: params.has(keys::SKIP),
             prevent: parsed_true(params.get(keys::PREVENT)),
             optional: params.has(keys::OPTIONAL),
-            effect_only: parsed_true(params.get("EffectOnly")),
+            effect_only: params.has("EffectOnly"),
             discard: parsed_bool(params.get("Discard")),
             flashback_cast: parsed_bool(params.get("FlashbackCast")),
             harmonize_cast: parsed_bool(params.get("HarmonizeCast")),
@@ -911,6 +927,25 @@ pub(crate) fn parse_replacement_chain(
         }),
         "ReplaceCounter" => Some(ReplacementChainIr::ReplaceCounter {
             amount_expr: params.get("Amount")?.to_string(),
+            choose_counter: params.has("ChooseCounter"),
+            after_replacement_static_abilities: params
+                .get(keys::SUB_ABILITY)
+                .and_then(|name| svars.get_svar(name))
+                .map(Params::from_raw)
+                .filter(|sub| {
+                    sub.get(keys::DB) == Some("ImmediateTrigger") && sub.has("AfterReplacement")
+                })
+                .and_then(|sub| sub.get(keys::EXECUTE).and_then(|name| svars.get_svar(name)))
+                .map(Params::from_raw)
+                .filter(|execute| execute.get(keys::DB) == Some("Effect"))
+                .and_then(|execute| execute.get(keys::STATIC_ABILITIES).map(str::to_string))
+                .map(|names| {
+                    names
+                        .split(',')
+                        .filter_map(|name| svars.get_svar(name.trim()).map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default(),
         }),
         "ReplaceEffect" => {
             let sub_ability = params

@@ -150,6 +150,10 @@ impl GameLoop {
                             emit_phase_trigger: true,
                         },
                     );
+                    let battlefield = game
+                        .cards_in_zone(ZoneType::Battlefield, game.active_player())
+                        .to_vec();
+                    self.add_saga_lore_counters(game, agents, &battlefield);
                     if game
                         .cards_in_zone(ZoneType::Battlefield, game.active_player())
                         .iter()
@@ -364,7 +368,7 @@ impl GameLoop {
                     "You may choose not to untap CARDNAME during your untap step.";
                 let should_untap = if game.card(cid).has_keyword(optional_keyword) {
                     let question = format!("Untap {}?", game.card(cid).card_name);
-                    let source_name = game.card(cid).card_name.clone();
+                    let _source_name = game.card(cid).card_name.clone();
                     agents[active.index()].choose_binary(
                         active,
                         &question,

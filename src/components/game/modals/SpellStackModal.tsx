@@ -136,7 +136,9 @@ export function SpellStackModal({
                   <div className="relative">
                     <Card
                       card={cardStub}
-                      showBackFace={flippedIds.has(obj.id) ? !obj.isTransformed : obj.isTransformed}
+                      showBackFace={
+                        flippedIds.has(obj.id) ? obj.faceIndex !== 0 : obj.faceIndex === 1
+                      }
                       className={cn(
                         MODAL_CARD_SIZE,
                         "transition-transform",

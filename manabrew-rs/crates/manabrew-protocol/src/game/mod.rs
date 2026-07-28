@@ -298,7 +298,7 @@ pub struct StackObjectDto {
     pub is_permanent_spell: bool,
     pub is_casting: bool,
     pub is_double_faced: bool,
-    pub is_transformed: bool,
+    pub face_index: u8,
     pub targets: Vec<TargetRef>,
 }
 

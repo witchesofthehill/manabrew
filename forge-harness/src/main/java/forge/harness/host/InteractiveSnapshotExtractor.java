@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import forge.card.ColorSet;
+import forge.card.CardStateName;
 import forge.card.MagicColor;
 import forge.game.Game;
 import forge.game.GameEntity;
@@ -726,8 +727,9 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("text", item.getStackDescription());
             stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
-            stackItem.put("isDoubleFaced", source != null && source.isDoubleFaced());
-            stackItem.put("isTransformed", source != null && source.isTransformed());
+            stackItem.put("isDoubleFaced", source != null
+                    && (source.isDoubleFaced() || source.isModal()));
+            stackItem.put("faceIndex", stackFaceIndex(source, sa));
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
             index++;
@@ -772,10 +774,20 @@ public final class InteractiveSnapshotExtractor {
         stackItem.put("text", castingAbility.getStackDescription());
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
-        stackItem.put("isDoubleFaced", source.isDoubleFaced());
-        stackItem.put("isTransformed", source.isTransformed());
+        stackItem.put("isDoubleFaced", source.isDoubleFaced() || source.isModal());
+        stackItem.put("faceIndex", stackFaceIndex(source, castingAbility));
         stackItem.put("targets", stackTargets(game, castingAbility));
         return stackItem;
+    }
+
+    private static int stackFaceIndex(final Card source, final SpellAbility ability) {
+        if (source == null) {
+            return 0;
+        }
+        final CardStateName state = ability != null && ability.getCardState() != null
+                ? ability.getCardStateName()
+                : source.getCurrentStateName();
+        return state == CardStateName.Backside ? 1 : 0;
     }
 
     private static List<Map<String, Object>> stackTargets(final Game game, final SpellAbility ability) {

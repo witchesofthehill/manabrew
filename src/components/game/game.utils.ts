@@ -72,6 +72,6 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
     ownerId: obj.ownerId,
     zoneId: "stack",
     isDoubleFaced: obj.isDoubleFaced,
-    isTransformed: obj.isTransformed,
+    isTransformed: obj.faceIndex === 1,
   };
 }

@@ -296,8 +296,15 @@ export class StackLayer implements StackAnchorProvider {
     const n = cards.length;
     if (this.viewW === 0 || this.viewH === 0) return;
 
-    const cw = this.cardWidth();
-    const ch = this.cardHeight();
+    const sizes = cards.map((card) => this.sprites.get(card.id)?.getSize());
+    const flashWidth = this.flashSprite
+      ? (this.flashSprite.horizontalFrame ? CARD_H : CARD_W) * this.faceScale()
+      : 0;
+    const flashHeight = this.flashSprite
+      ? (this.flashSprite.horizontalFrame ? CARD_W : CARD_H) * this.faceScale()
+      : 0;
+    const cw = Math.max(this.cardWidth(), flashWidth, ...sizes.map((size) => size?.width ?? 0));
+    const ch = Math.max(this.cardHeight(), flashHeight, ...sizes.map((size) => size?.height ?? 0));
     const spanX = Math.max(0, n - 1) * OFFSET_X;
     const pileHeight = ch + Math.max(0, n - 1) * OFFSET_Y;
     const pileWidth = spanX + 2 * HOVER_PUSH_X + cw;
@@ -334,6 +341,7 @@ export class StackLayer implements StackAnchorProvider {
     cards.forEach((card, idx) => {
       const sprite = this.sprites.get(card.id);
       if (!sprite) return;
+      const size = sprite.getSize();
       const baseLeft = idx * OFFSET_X * DIRECTION_SIGN;
       const pushed =
         hoveredIndex < 0 || idx === hoveredIndex
@@ -341,8 +349,8 @@ export class StackLayer implements StackAnchorProvider {
           : baseLeft + (idx < hoveredIndex ? -1 : 1) * DIRECTION_SIGN * HOVER_PUSH_DIST;
       const boxLeft = pushed + xShift;
       const boxTop = (n - 1 - idx) * OFFSET_Y;
-      const cx = drawLeft + boxLeft + cw / 2;
-      const cy = panelTop + boxTop + ch / 2;
+      const cx = drawLeft + boxLeft + size.width / 2;
+      const cy = panelTop + boxTop + size.height / 2;
       const zIndex =
         hoveredIndex < 0
           ? idx + 1
@@ -361,7 +369,9 @@ export class StackLayer implements StackAnchorProvider {
         : topIdx * OFFSET_X * DIRECTION_SIGN +
           (topIdx < hoveredIndex ? -1 : 1) * DIRECTION_SIGN * HOVER_PUSH_DIST;
     const topScale = hoveredIndex === topIdx ? HOVER_SCALE : 1;
-    const topLeftEdge = drawLeft + topPushed + xShift + cw / 2 - (cw / 2) * topScale;
+    const topWidth =
+      topIdx >= 0 ? (this.sprites.get(cards[topIdx]!.id)?.getSize().width ?? cw) : cw;
+    const topLeftEdge = drawLeft + topPushed + xShift + topWidth / 2 - (topWidth / 2) * topScale;
     const btnTargetX = topLeftEdge - BTN_GAP - BTN_W / 2;
     this.layoutButton(n > 0, btnTargetX, centerY, transitioning);
 
@@ -509,8 +519,10 @@ export class StackLayer implements StackAnchorProvider {
   private layoutFlash(drawLeft: number, panelTop: number, xShift: number, n: number): void {
     if (!this.flashSprite) return;
     const baseLeft = n > 0 ? (n - 1) * OFFSET_X * DIRECTION_SIGN : 0;
-    const cx = drawLeft + baseLeft + xShift + this.cardWidth() / 2;
-    const cy = panelTop + this.cardHeight() / 2;
+    const width = (this.flashSprite.horizontalFrame ? CARD_H : CARD_W) * this.faceScale();
+    const height = (this.flashSprite.horizontalFrame ? CARD_W : CARD_H) * this.faceScale();
+    const cx = drawLeft + baseLeft + xShift + width / 2;
+    const cy = panelTop + height / 2;
     this.flashSprite.position.set(cx, cy);
   }
 }

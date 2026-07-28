@@ -176,6 +176,10 @@ export class StackCardSprite {
     return { x: this.container.position.x, y: this.container.position.y };
   }
 
+  getSize(): { width: number; height: number } {
+    return { width: this.width, height: this.height };
+  }
+
   getFaceControlPosition(): { x: number; y: number } {
     return {
       x: this.container.position.x + this.width / 2 - 18,

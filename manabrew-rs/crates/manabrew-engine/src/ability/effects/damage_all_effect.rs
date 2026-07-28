@@ -43,11 +43,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // Pass 1 — collect matching battlefield permanents
     let mut to_damage: Vec<CardId> = Vec::new();
-    if valid_cards_filter.is_some() {
+    if let Some(valid_cards_filter) = valid_cards_filter {
         for &pid in &player_ids {
             let zone_cards = ctx.game.cards_in_zone(ZoneType::Battlefield, pid).to_vec();
             for cid in zone_cards {
-                if damage_all_matches_valid_card(ctx, sa, valid_cards_filter.unwrap(), cid) {
+                if damage_all_matches_valid_card(ctx, sa, valid_cards_filter, cid) {
                     to_damage.push(cid);
                 }
             }

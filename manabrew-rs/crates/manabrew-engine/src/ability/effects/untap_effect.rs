@@ -86,9 +86,7 @@ fn choose_untap_type_targets(
     let candidates: Vec<CardId> = if scope_to_controller {
         ctx.game
             .cards_in_zone(ZoneType::Battlefield, controller)
-            .iter()
-            .copied()
-            .collect()
+            .to_vec()
     } else {
         ctx.game.cards_in_all_zones(ZoneType::Battlefield).collect()
     };

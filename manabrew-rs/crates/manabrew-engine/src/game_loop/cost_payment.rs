@@ -1106,7 +1106,7 @@ impl GameLoop {
                 CostPart::FlipCoin(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
                     for _ in 0..resolved_amount {
-                        let source_name = game.card(card_id).card_name.clone();
+                        let _source_name = game.card(card_id).card_name.clone();
                         let called_heads = agents[player.index()].choose_binary(
                             player,
                             "Call the coin flip",
@@ -1830,7 +1830,7 @@ impl GameLoop {
                 CostPart::FlipCoin(amount) => {
                     let resolved_amount = amount.resolve(game, card_id, player);
                     for _ in 0..resolved_amount {
-                        let source_name = game.card(card_id).card_name.clone();
+                        let _source_name = game.card(card_id).card_name.clone();
                         let called_heads = agents[player.index()].choose_binary(
                             player,
                             "Call the coin flip",
@@ -2198,7 +2198,7 @@ impl GameLoop {
 
         if !untapped.is_empty() && remaining > 0 {
             // Reuse the convoke agent method — waterbend is convoke+improvise combined
-            let card_name = game.card(card_id).card_name.clone();
+            let _card_name = game.card(card_id).card_name.clone();
             let generic_cost = forge_foundation::ManaCost::generic(remaining);
             agents[player.index()].snapshot_state(game, &self.mana_pools);
             let to_tap = agents[player.index()].choose_convoke(
@@ -3270,7 +3270,7 @@ impl GameLoop {
         type_filter: &str,
         amount: i32,
         min_total_power: Option<i32>,
-        mut sa: Option<&mut SpellAbility>,
+        sa: Option<&mut SpellAbility>,
     ) {
         let mut tapped_cards = Vec::new();
         if let Some(power_threshold) = min_total_power {
@@ -3366,7 +3366,7 @@ impl GameLoop {
                 );
             }
         }
-        if let Some(sa) = sa.as_deref_mut() {
+        if let Some(sa) = sa {
             for cid in tapped_cards {
                 let value = cid.to_string();
                 sa.add_cost_to_hash_list(crate::cost::cost_tap_type::HASH_LKI, &value);

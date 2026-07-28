@@ -309,12 +309,7 @@ impl LimitedManager {
 
     fn drain_winston_ai(draft: &mut WinstonDraft) {
         use forge_limited::WinstonOutcome;
-        loop {
-            match draft.tick() {
-                WinstonOutcome::Picked { .. } => continue,
-                WinstonOutcome::AwaitingHuman | WinstonOutcome::Complete => break,
-            }
-        }
+        while let WinstonOutcome::Picked { .. } = draft.tick() {}
     }
 
     pub fn start_gauntlet_from_sealed(

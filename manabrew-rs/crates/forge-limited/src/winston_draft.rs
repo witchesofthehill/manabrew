@@ -128,20 +128,18 @@ impl WinstonDraft {
     /// Drive the loop: if the AI is on the clock, run AI picks until
     /// either the draft is done or the human is on the clock.
     pub fn tick(&mut self) -> WinstonOutcome {
-        loop {
-            if self.is_complete() {
-                return WinstonOutcome::Complete;
-            }
-            if self.is_human_turn() {
-                self.pending_human_pile = Some(self.current_pile);
-                return WinstonOutcome::AwaitingHuman;
-            }
-            let cards = self.ai_resolve_turn();
-            let seat = self.active_seat;
-            self.seats[seat].picked.extend(cards.iter().cloned());
-            self.advance_seat();
-            return WinstonOutcome::Picked { seat, cards };
+        if self.is_complete() {
+            return WinstonOutcome::Complete;
         }
+        if self.is_human_turn() {
+            self.pending_human_pile = Some(self.current_pile);
+            return WinstonOutcome::AwaitingHuman;
+        }
+        let cards = self.ai_resolve_turn();
+        let seat = self.active_seat;
+        self.seats[seat].picked.extend(cards.iter().cloned());
+        self.advance_seat();
+        WinstonOutcome::Picked { seat, cards }
     }
 
     /// Human accepts the current pile.

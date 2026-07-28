@@ -50,7 +50,7 @@ fn draw_for_player(
     let upto = sa.ir.upto;
     let optional = sa.ir.optional_present || sa.ir.optional_decider.is_some() || upto;
     if optional {
-        let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
+        let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
         let accepted = ctx.agents[target.index()].confirm_action(
             target,
             None,

@@ -1115,7 +1115,7 @@ fn apply_convoke_or_improvise_reduction(
     if remaining_cost.cmc() <= 0 {
         return;
     }
-    let card_name = game.card(source).card_name.clone();
+    let _card_name = game.card(source).card_name.clone();
     agents[payer.index()].snapshot_state(game, mana_pools);
     let chosen = if artifacts && !creatures {
         agents[payer.index()].choose_improvise(payer, &untapped, &remaining_cost, Some(source))

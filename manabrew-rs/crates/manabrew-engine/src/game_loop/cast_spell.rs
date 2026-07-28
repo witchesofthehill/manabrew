@@ -866,7 +866,7 @@ impl GameLoop {
             let combined = mana_cost.add(&kicker_mc);
             let available_mana = mana::calculate_available_mana(self.pool(player), game, player);
             if available_mana.can_pay(&combined) {
-                let name = game.card(card_id).card_name.clone();
+                let _name = game.card(card_id).card_name.clone();
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
                 agents[player.index()].choose_kicker(player, &kicker_cost_str, Some(card_id))
             } else {
@@ -892,7 +892,7 @@ impl GameLoop {
             let combined = mana_cost.add(&buyback_mc);
             let available_mana = mana::calculate_available_mana(self.pool(player), game, player);
             if available_mana.can_pay(&combined) {
-                let name = game.card(card_id).card_name.clone();
+                let _name = game.card(card_id).card_name.clone();
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
                 agents[player.index()].choose_buyback(player, &buyback_cost_str, Some(card_id))
             } else {
@@ -931,7 +931,7 @@ impl GameLoop {
                 }
             }
             if max_kicks > 0 {
-                let name = game.card(card_id).card_name.clone();
+                let _name = game.card(card_id).card_name.clone();
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
                 agents[player.index()].choose_multikicker(
                     player,
@@ -981,7 +981,7 @@ impl GameLoop {
                 }
             }
             if max_reps > 0 {
-                let name = game.card(card_id).card_name.clone();
+                let _name = game.card(card_id).card_name.clone();
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
                 agents[player.index()].choose_replicate(
                     player,
@@ -1117,7 +1117,7 @@ impl GameLoop {
             let combined = mana_cost.add(&entwine_mc);
             let available_mana = mana::calculate_available_mana(self.pool(player), game, player);
             if available_mana.can_pay(&combined) {
-                let name = game.card(card_id).card_name.clone();
+                let _name = game.card(card_id).card_name.clone();
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
                 agents[player.index()].choose_kicker(player, &entwine_cost_str, Some(card_id))
             } else {

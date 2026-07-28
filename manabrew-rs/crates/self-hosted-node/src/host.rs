@@ -1888,9 +1888,9 @@ fn spawn_remote_prompt_forwarder(
             let Ok(session) = engine_session.lock() else {
                 break;
             };
-            if !session
+            if session
                 .as_ref()
-                .is_some_and(|session| session.game_id() == game_id)
+                .is_none_or(|session| session.game_id() != game_id)
             {
                 break;
             }
@@ -1973,9 +1973,9 @@ fn spawn_game_over_forwarder(
             let Ok(session) = session_handle.lock() else {
                 return;
             };
-            if !session
+            if session
                 .as_ref()
-                .is_some_and(|session| session.game_id() == game_id)
+                .is_none_or(|session| session.game_id() != game_id)
             {
                 warn!(
                     game_id,

@@ -23,6 +23,7 @@ pub const PARITY_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 /// on the current thread so callers can pass `&mut JavaServer` without extra
 /// locking. CLI and debugger side-by-side runs should use this helper instead
 /// of hand-rolling their own thread shape.
+#[allow(clippy::type_complexity)]
 pub fn run_parallel<RustFn, JavaFn, RustOut, JavaOut>(
     rust_thread_name: &str,
     rust_fn: RustFn,
@@ -492,6 +493,7 @@ fn compare_results(
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn compare_results_with_java_data(
     config: &RunConfig,
     rust_result: Result<GameTrace, String>,

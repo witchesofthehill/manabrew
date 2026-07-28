@@ -17,6 +17,7 @@ const MIN_RECONNECT_TIMEOUT_S: u32 = 10;
 // Must stay below manabrew_game_runtime 's 120s relay response_timeout
 const MAX_RECONNECT_TIMEOUT_S: u32 = 90;
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_room_sync(
     state: &Arc<ServerState>,
     player_id: &str,

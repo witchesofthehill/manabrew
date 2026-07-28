@@ -5,6 +5,7 @@ import type { TopDecksWindow } from "@/api/hub";
 import { useHubStore } from "@/stores/useHubStore";
 import { cn } from "@/lib/utils";
 import { HubTopDeckEntry } from "@/components/deck/HubTopDeckEntry";
+import type { TopDeckStat } from "@/api/hubTypes";
 
 const TOP_WINDOWS: { value: TopDecksWindow; label: string }[] = [
   { value: "7d", label: "7D" },
@@ -38,10 +39,16 @@ function HubTopDecksSkeleton() {
 interface HubTopDecksProps {
   timeWindow: TopDecksWindow;
   onTimeWindowChange: (window: TopDecksWindow) => void;
-  onSearchDeck?: (name: string) => void;
+  onOpenDeck: (deck: TopDeckStat) => void;
+  openingDeck: TopDeckStat | null;
 }
 
-export function HubTopDecks({ timeWindow, onTimeWindowChange, onSearchDeck }: HubTopDecksProps) {
+export function HubTopDecks({
+  timeWindow,
+  onTimeWindowChange,
+  onOpenDeck,
+  openingDeck,
+}: HubTopDecksProps) {
   const topDecks = useHubStore((s) => s.topDecks);
   const topError = useHubStore((s) => s.topError);
   const fetchTop = useHubStore((s) => s.fetchTop);
@@ -140,7 +147,7 @@ export function HubTopDecks({ timeWindow, onTimeWindowChange, onSearchDeck }: Hu
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Select a deck to search published copies
+                Select a deck to open a published copy
               </p>
             </div>
 
@@ -153,7 +160,9 @@ export function HubTopDecks({ timeWindow, onTimeWindowChange, onSearchDeck }: Hu
                   maxPlays={maxPlays}
                   displayedPlays={displayedPlays}
                   featured
-                  onOpen={() => onSearchDeck?.(stat.deckName)}
+                  disabled={openingDeck !== null}
+                  loading={openingDeck === stat}
+                  onOpen={() => onOpenDeck(stat)}
                 />
               ))}
             </div>
@@ -174,7 +183,9 @@ export function HubTopDecks({ timeWindow, onTimeWindowChange, onSearchDeck }: Hu
                       rank={index + 4}
                       maxPlays={maxPlays}
                       displayedPlays={displayedPlays}
-                      onOpen={() => onSearchDeck?.(stat.deckName)}
+                      disabled={openingDeck !== null}
+                      loading={openingDeck === stat}
+                      onOpen={() => onOpenDeck(stat)}
                     />
                   ))}
                 </ol>
@@ -184,8 +195,8 @@ export function HubTopDecks({ timeWindow, onTimeWindowChange, onSearchDeck }: Hu
         )}
       </div>
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
-        Rankings measure play frequency, not win rate. Selecting a name searches for a published
-        copy; some played decks may not be available in the Hub.
+        Rankings measure play frequency, not win rate. The viewer opens a matching published
+        snapshot when available; played decks are not published automatically.
       </p>
     </div>
   );

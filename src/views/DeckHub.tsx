@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Layers3, Search, Trophy, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Trophy, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDecks } from "@/components/deck/HubTopDecks";
+import { fetchHubDecks } from "@/api/hub";
 import type { HubSort, TopDecksWindow } from "@/api/hub";
+import type { TopDeckStat } from "@/api/hubTypes";
 import { useHubStore } from "@/stores/useHubStore";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 
@@ -75,6 +78,7 @@ export default function DeckHub() {
   );
   const [page, setPage] = useState(() => getInitialPage(searchParams.get("page")));
   const [refreshKey, setRefreshKey] = useState(0);
+  const [openingTopDeck, setOpeningTopDeck] = useState<TopDeckStat | null>(null);
   const urlDeckId = searchParams.get("deck");
 
   const list = useHubStore((s) => s.list);
@@ -110,6 +114,7 @@ export default function DeckHub() {
   }, [format, page, search, searchParams, setSearchParams, sort, tab, topWindow]);
 
   useEffect(() => {
+    if (tab !== "browse") return;
     void fetchDecks({
       search: debouncedSearch || undefined,
       format: format || undefined,
@@ -117,7 +122,7 @@ export default function DeckHub() {
       page,
       pageSize: PAGE_SIZE,
     });
-  }, [fetchDecks, debouncedSearch, format, sort, page, refreshKey]);
+  }, [fetchDecks, debouncedSearch, format, sort, page, refreshKey, tab]);
 
   const totalPages = list ? Math.max(1, Math.ceil(list.total / PAGE_SIZE)) : 1;
   const hasFilters = Boolean(search || format);
@@ -148,18 +153,48 @@ export default function DeckHub() {
     setSearchParams(next, { replace: true });
   }
 
+  async function openTopDeck(stat: TopDeckStat) {
+    if (openingTopDeck) return;
+    setOpeningTopDeck(stat);
+    try {
+      const result = await fetchHubDecks({
+        search: stat.deckName,
+        sort: "newest",
+        page: 1,
+        pageSize: 50,
+      });
+      const deckName = stat.deckName.trim().toLocaleLowerCase();
+      const exactMatches = result.decks.filter(
+        (deck) => deck.name.trim().toLocaleLowerCase() === deckName,
+      );
+      const commander = stat.commander?.trim().toLocaleLowerCase();
+      const commanderMatch = commander
+        ? exactMatches.find((deck) =>
+            deck.commanders.some((name) => name.trim().toLocaleLowerCase() === commander),
+          )
+        : undefined;
+      const match =
+        commanderMatch ?? (!commander || exactMatches.length === 1 ? exactMatches[0] : undefined);
+      if (!match) {
+        toast.info("No published copy is available", {
+          description: `"${stat.deckName}" has appeared in games, but its card list has not been published to the Deck Hub.`,
+        });
+        return;
+      }
+      openPreview(match.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn’t open this deck");
+    } finally {
+      setOpeningTopDeck(null);
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Layers3 className="h-5 w-5 shrink-0 text-muted-foreground" />
-            <h1 className="truncate text-lg font-semibold">Deck Hub</h1>
-          </div>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Discover community decks, inspect every card, and start playing.
-          </p>
-        </div>
+        <p className="min-w-0 text-sm text-muted-foreground">
+          Discover community decks, inspect every card, and start playing.
+        </p>
         <div className="flex w-fit items-center gap-1 rounded-lg bg-muted/60 p-1">
           <SegmentedButton active={tab === "browse"} onClick={() => setTab("browse")}>
             <Search className="mr-1 h-4 w-4" />
@@ -346,10 +381,8 @@ export default function DeckHub() {
         <HubTopDecks
           timeWindow={topWindow}
           onTimeWindowChange={setTopWindow}
-          onSearchDeck={(name) => {
-            setSearch(name);
-            setTab("browse");
-          }}
+          onOpenDeck={(deck) => void openTopDeck(deck)}
+          openingDeck={openingTopDeck}
         />
       )}
 

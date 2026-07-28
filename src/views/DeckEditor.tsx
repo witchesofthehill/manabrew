@@ -53,7 +53,6 @@ import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
-import { useSignInDialog } from "@/stores/useSignInDialogStore";
 
 export default function DeckEditor() {
   const {
@@ -86,7 +85,6 @@ export default function DeckEditor() {
     refresh: refreshPublishedDecks,
   } = useMyHubDecks();
   const navigate = useNavigate();
-  const showSignIn = useSignInDialog((state) => state.show);
   const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
   const location = useLocation();
   const routeState = location.state as {
@@ -501,7 +499,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {publishEnabled && (
+              {publishEnabled && signedIn && (
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -513,17 +511,7 @@ export default function DeckEditor() {
                       </span>
                     )}
                   </div>
-                  {!signedIn ? (
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span>Sign in to see and manage decks you published from any device.</span>
-                      <Button variant="outline" size="sm" onClick={() => showSignIn()}>
-                        Sign in
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-                        Browse Deck Hub
-                      </Button>
-                    </div>
-                  ) : publishedDecksError ? (
+                  {publishedDecksError ? (
                     <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
                       <span className="min-w-0 break-words">{publishedDecksError}</span>
                       <Button

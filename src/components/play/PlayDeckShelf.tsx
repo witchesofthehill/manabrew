@@ -18,7 +18,6 @@ import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { isFeatureEnabled } from "@/featureFlags";
-import { useSignInDialog } from "@/stores/useSignInDialogStore";
 
 const SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
 
@@ -47,8 +46,8 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     refresh: refreshPublishedDecks,
   } = useMyHubDecks();
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
-  const showSignIn = useSignInDialog((state) => state.show);
-  const hubAccountsEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
+  const hubEnabled = isFeatureEnabled("deckHub");
+  const hubAccountsEnabled = hubEnabled && isFeatureEnabled("accounts");
 
   const ownedDecks = savedDecks.filter((savedDeck) => !savedDeck.deck.draft);
   const matchesFormat = (format?: string) =>
@@ -105,7 +104,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={addDeck}>
+          {hubEnabled && (
+            <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
+              <LibraryBig className="h-4 w-4" />
+              Deck Hub
+            </Button>
+          )}
+          <Button size="sm" onClick={addDeck}>
             <Plus className="h-4 w-4" />
             Build / Import
           </Button>
@@ -205,9 +210,6 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
               <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.DECK_EDITOR)}>
                 Open My Decks
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-                Browse Deck Hub
-              </Button>
             </div>
           ) : filteredPublishedDecks.length > 0 ? (
             <DeckShelfRow label="Published Deck Hub decks">
@@ -278,23 +280,6 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             </p>
           ))}
       </div>
-
-      {hubAccountsEnabled && !signedIn && (
-        <div className="mt-5 border-t border-border/50 pt-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Published on Deck Hub
-          </span>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>Sign in to see decks you published from any device.</span>
-            <Button variant="outline" size="sm" onClick={() => showSignIn()}>
-              Sign in
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-              Browse Deck Hub
-            </Button>
-          </div>
-        </div>
-      )}
 
       <NewDeckChoiceDialog
         open={choiceOpen}

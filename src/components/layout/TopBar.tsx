@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { cn } from "@/lib/utils";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
@@ -196,9 +197,9 @@ export function TopBar({ override }: TopBarProps) {
         )}
         {isFeatureEnabled("accounts") && (
           <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8"
+            size="sm"
+            variant={signedInAccount ? "ghost" : "outline"}
+            className="h-8 gap-1.5 px-2.5"
             disabled={navigationDisabled}
             title={signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
             onClick={() =>
@@ -208,7 +209,7 @@ export function TopBar({ override }: TopBarProps) {
             }
           >
             <CircleUserRound className="h-4 w-4" />
-            <span className="sr-only">
+            <span className={cn("max-w-28 truncate", signedInAccount && "hidden sm:inline")}>
               {signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
             </span>
           </Button>

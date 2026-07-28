@@ -5,14 +5,14 @@ import type { HubDeckSummary } from "@/api/hubTypes";
 
 const SEARCH_DELAY_MS = 300;
 
-export function useHubDeckSearch(search: string, format?: string) {
+export function useHubDeckSearch(search: string, format?: string, active = true) {
   const [result, setResult] = useState<{
     key: string;
     decks: HubDeckSummary[];
     error: string | null;
   }>({ key: "", decks: [], error: null });
   const [attempt, setAttempt] = useState(0);
-  const enabled = isFeatureEnabled("deckHub");
+  const enabled = isFeatureEnabled("deckHub") && active;
   const key = `${format ?? ""}\n${search.trim()}\n${attempt}`;
 
   useEffect(() => {

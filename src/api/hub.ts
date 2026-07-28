@@ -36,7 +36,11 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
       if (token && useAuthStore.getState().token === token) {
         useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
       }
-      throw new Error("Your Deck Hub session expired. Sign in again.");
+      throw new Error(
+        token
+          ? "Your Deck Hub session expired. Sign in again."
+          : "Sign in to publish decks to the Deck Hub.",
+      );
     }
     throw new Error(message || `Hub request failed (${response.status})`);
   }

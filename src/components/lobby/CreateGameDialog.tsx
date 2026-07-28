@@ -63,7 +63,7 @@ export function CreateGameDialog({
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
-  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id);
+  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id, open);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
   const restoredHubDeckRef = useRef<string | null>(null);
 

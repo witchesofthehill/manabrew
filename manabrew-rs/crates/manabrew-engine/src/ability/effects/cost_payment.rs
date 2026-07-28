@@ -808,7 +808,7 @@ pub(super) fn resolve_effect_with_unless_cost(
                     .next()
                 })
                 .unwrap_or(sa.activating_player);
-            let card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+            let _card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
             let prompt = sa
                 .ir
                 .spell_description_text

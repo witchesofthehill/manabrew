@@ -63,7 +63,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // `Optional$` — activator confirms before any pump applies (Java L283–L292).
     if sa.ir.optional_present {
-        let card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+        let _card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
         let prompt = sa
             .ir
             .option_question

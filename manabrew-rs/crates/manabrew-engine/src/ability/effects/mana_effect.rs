@@ -52,7 +52,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // `Optional$` — activator confirms before producing (Java ManaEffect
     // optional-prompt branch).
     if sa.ir.optional {
-        let card_name = ctx.game.card(source_id).card_name.clone();
+        let _card_name = ctx.game.card(source_id).card_name.clone();
         if !ctx.agents[player.index()].confirm_action(
             player,
             Some("ProduceMana"),
@@ -236,7 +236,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         // Emit a summary `specify_mana_combo` callback so the parity trace
         // matches Java's harness logging pattern. The agent's pick here is
         // ignored; the per-unit `choose_color` results above are authoritative.
-        let card_name = ctx.game.card(source_id).card_name.clone();
+        let _card_name = ctx.game.card(source_id).card_name.clone();
         let _summary = ctx.agents[chooser.index()].specify_mana_combo(
             chooser,
             &per_unit,

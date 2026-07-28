@@ -188,7 +188,7 @@ pub(super) fn resolve_known_origin(
     // optional ChangeZone for a peeked land).
     let cards_to_move = if sa.ir.optional && !cards_to_move.is_empty() {
         let chooser = controller;
-        let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+        let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
         cards_to_move
             .into_iter()
             .filter(|&cid| {

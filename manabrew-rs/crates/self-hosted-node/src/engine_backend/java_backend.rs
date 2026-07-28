@@ -1051,6 +1051,7 @@ impl JavaRuntimeConfig {
 }
 
 #[cfg(forge_backend)]
+#[allow(clippy::too_many_arguments)]
 pub fn run_hosted_engine_game(
     game_id: String,
     player_names: Vec<String>,
@@ -1084,6 +1085,7 @@ pub fn run_hosted_engine_game(
 }
 
 #[cfg(not(forge_backend))]
+#[allow(clippy::too_many_arguments)]
 pub fn run_hosted_engine_game(
     _game_id: String,
     _player_names: Vec<String>,

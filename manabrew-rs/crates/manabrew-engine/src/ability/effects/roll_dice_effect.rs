@@ -592,7 +592,7 @@ pub fn roll_to_visit_attractions(
 
 fn apply_chosen_ignores(
     agents: &mut [Box<dyn crate::agent::PlayerAgent>],
-    card_name: &str,
+    _card_name: &str,
     natural_rolls: &mut Vec<i32>,
     ignore_chosen: &HashMap<PlayerId, i32>,
 ) -> (Vec<i32>, Vec<i32>) {
@@ -625,7 +625,7 @@ fn roll_action(
     ignore: i32,
     ignored_rolls: &mut Vec<i32>,
     dice_pt_exchanges: &mut HashSet<crate::ids::CardId>,
-    source: Option<crate::ids::CardId>,
+    _source: Option<crate::ids::CardId>,
 ) -> Vec<i32> {
     let mut event = ReplacementEvent::RollDice {
         player,
@@ -1226,7 +1226,7 @@ fn apply_keyword_roll_rerolls(
             }
         }
 
-        let reroll_card_name = ctx.game.card(card_id).card_name.clone();
+        let _reroll_card_name = ctx.game.card(card_id).card_name.clone();
         let rerolled = roll_action(
             ctx.game,
             ctx.rng,

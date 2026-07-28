@@ -11,7 +11,7 @@ use crate::ids::PlayerId;
 #[manabrew_engine_macros::spell_effect(ChooseEvenOddEffect)]
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let Some(source_id) = sa.source else { return };
-    let source_name = ctx.game.card(source_id).card_name.clone();
+    let _source_name = ctx.game.card(source_id).card_name.clone();
 
     let players: Vec<PlayerId> = if let Some(pid) = sa.target_chosen.target_player {
         vec![pid]

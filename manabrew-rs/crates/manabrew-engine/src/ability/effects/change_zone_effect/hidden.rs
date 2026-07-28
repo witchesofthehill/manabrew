@@ -144,25 +144,22 @@ pub(super) fn resolve_hidden_origin(
             // optional moves originating from a hidden zone (Library).
             if sa.ir.optional {
                 let chooser = controller;
-                let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
-                ordered = ordered
-                    .into_iter()
-                    .filter(|&cid| {
-                        let card_name = ctx.game.card(cid).card_name.clone();
-                        let prompt = format!(
-                            "Do you want to move {} from {} to {}?",
-                            card_name, origin_zone, dest_zone,
-                        );
-                        ctx.agents[chooser.index()].confirm_action(
-                            chooser,
-                            None,
-                            &prompt,
-                            &[],
-                            sa.source,
-                            Some(crate::ability::api_type::ApiType::ChangeZone),
-                        )
-                    })
-                    .collect();
+                let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+                ordered.retain(|&cid| {
+                    let card_name = ctx.game.card(cid).card_name.clone();
+                    let prompt = format!(
+                        "Do you want to move {} from {} to {}?",
+                        card_name, origin_zone, dest_zone,
+                    );
+                    ctx.agents[chooser.index()].confirm_action(
+                        chooser,
+                        None,
+                        &prompt,
+                        &[],
+                        sa.source,
+                        Some(crate::ability::api_type::ApiType::ChangeZone),
+                    )
+                });
             }
             // For Defined card moves, suppress the post-move library shuffle.
             // Java's changeHiddenOriginResolve checks `!defined` before shuffling
@@ -371,7 +368,7 @@ pub(super) fn resolve_hidden_origin(
     };
 
     if optional_confirm {
-        let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
+        let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
         let origin_label = origin_zone.to_string().to_lowercase();
         let message = if is_defined {
             format!(

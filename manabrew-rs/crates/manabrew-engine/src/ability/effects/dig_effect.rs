@@ -103,7 +103,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Otherwise Optional$ True is modeled by allowing 0 selected cards in choose_dig.
     let may_be_skipped = sa.ir.prompt_to_skip_optional_ability;
     if optional && may_be_skipped && !valid.is_empty() {
-        let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
+        let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.clone());
         let prompt = sa
             .ir
             .optional_ability_prompt

@@ -78,7 +78,7 @@ pub(super) fn resolve_single_search(
     }
 
     if !sa.ir.skip_cancel_prompt && !candidates.is_empty() {
-        let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
+        let _source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
         ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
         let _ = ctx.agents[chooser.index()].confirm_action(
             chooser,

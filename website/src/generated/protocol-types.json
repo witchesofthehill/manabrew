@@ -376,8 +376,8 @@
       "refs": []
     },
     "StackObjectDto": {
-      "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  identity: CardIdentity;\n  text: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  targets: Array<TargetRef>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub identity: CardIdentity,\n    pub text: String,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    pub targets: Vec<TargetRef>,\n}",
+      "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  ownerId: string;\n  identity: CardIdentity;\n  text: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  isDoubleFaced: boolean;\n  isTransformed: boolean;\n  targets: Array<TargetRef>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub owner_id: String,\n    pub identity: CardIdentity,\n    pub text: String,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    pub is_double_faced: bool,\n    pub is_transformed: bool,\n    pub targets: Vec<TargetRef>,\n}",
       "refs": ["CardIdentity", "TargetRef"]
     },
     "StepKind": {

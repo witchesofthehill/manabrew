@@ -793,10 +793,15 @@ impl GameViewDtoExt for GameViewDto {
                         .map(card_id_str)
                         .unwrap_or_default(),
                     controller_id: player_id_str(entry.spell_ability.activating_player),
+                    owner_id: source_card
+                        .map(|c| player_id_str(c.owner))
+                        .unwrap_or_default(),
                     identity,
                     text: entry.spell_ability.ability_text.clone(),
                     is_permanent_spell: entry.is_creature_spell || entry.is_permanent_spell,
                     is_casting: entry.is_pending_cast,
+                    is_double_faced: source_card.map(|c| c.is_double_faced()).unwrap_or(false),
+                    is_transformed: source_card.map(|c| c.is_transformed).unwrap_or(false),
                     targets: collect_stack_targets(&entry.spell_ability),
                 }
             })

@@ -56,6 +56,7 @@ export class StackLayer implements StackAnchorProvider {
   private theme: Theme;
   private readonly callbacks: StackCallbacks;
   private sprites = new Map<string, StackCardSprite>();
+  private faceOverrides = new Map<string, boolean>();
   private spec: StackSpec = {
     cards: [],
     flash: null,
@@ -157,6 +158,11 @@ export class StackLayer implements StackAnchorProvider {
     }
     for (const card of spec.cards) {
       seen.add(card.id);
+      const transformed = this.faceOverrides.get(card.id);
+      const displayCard =
+        transformed === undefined
+          ? card
+          : { ...card, card: { ...card.card, isTransformed: transformed } };
       let sprite = this.sprites.get(card.id);
       if (!sprite) {
         const staleId = reusableBySource.get(card.sourceId);
@@ -166,13 +172,13 @@ export class StackLayer implements StackAnchorProvider {
           this.sprites.delete(staleId!);
           this.sprites.set(card.id, reused);
           if (this.hoveredId === staleId) this.hoveredId = card.id;
-          reused.setSpec(card);
+          reused.setSpec(displayCard);
           continue;
         }
         this.builtCardWidth = this.cardWidth();
         sprite = new StackCardSprite(
           this.theme,
-          card,
+          displayCard,
           this.builtCardWidth,
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
@@ -181,13 +187,14 @@ export class StackLayer implements StackAnchorProvider {
         this.container.addChild(sprite.container);
         this.sprites.set(card.id, sprite);
       } else {
-        sprite.setSpec(card);
+        sprite.setSpec(displayCard);
       }
     }
     for (const [id, sprite] of [...this.sprites]) {
       if (seen.has(id)) continue;
       sprite.destroy();
       this.sprites.delete(id);
+      this.faceOverrides.delete(id);
       if (this.hoveredId === id) this.hoveredId = null;
     }
 
@@ -237,6 +244,20 @@ export class StackLayer implements StackAnchorProvider {
 
   getBounds(): ScreenBounds | null {
     return this.bounds;
+  }
+
+  getFaceControlPosition(stackObjectId: string): ScreenPos | null {
+    return this.sprites.get(stackObjectId)?.getFaceControlPosition() ?? null;
+  }
+
+  toggleFace(stackObjectId: string): void {
+    const card = this.spec.cards.find((candidate) => candidate.id === stackObjectId);
+    if (!card?.card.isDoubleFaced) return;
+    const current = this.faceOverrides.get(stackObjectId) ?? card.card.isTransformed;
+    this.faceOverrides.set(stackObjectId, !current);
+    this.sprites.get(stackObjectId)?.destroy();
+    this.sprites.delete(stackObjectId);
+    this.setSpec(this.spec);
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────

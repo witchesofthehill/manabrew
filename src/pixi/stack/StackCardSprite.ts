@@ -176,6 +176,13 @@ export class StackCardSprite {
     return { x: this.container.position.x, y: this.container.position.y };
   }
 
+  getFaceControlPosition(): { x: number; y: number } {
+    return {
+      x: this.container.position.x + this.width / 2 - 18,
+      y: this.container.position.y - this.height / 2 + 18,
+    };
+  }
+
   destroy(): void {
     this.longPress.cancel();
     this.moveTween?.kill();

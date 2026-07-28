@@ -716,6 +716,9 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("controllerId", sa != null && sa.getActivatingPlayer() != null
                     ? "player-" + SnapshotExtractor.playerIndex(game, sa.getActivatingPlayer())
                     : activePlayerId);
+            stackItem.put("ownerId", source != null && source.getOwner() != null
+                    ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
+                    : "");
             final String name = source == null
                     ? item.getStackDescription()
                     : normalizeCardName(source.getName());
@@ -723,6 +726,8 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("text", item.getStackDescription());
             stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
+            stackItem.put("isDoubleFaced", source != null && source.isDoubleFaced());
+            stackItem.put("isTransformed", source != null && source.isTransformed());
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
             index++;
@@ -760,10 +765,15 @@ public final class InteractiveSnapshotExtractor {
         stackItem.put("controllerId", castingAbility.getActivatingPlayer() != null
                 ? "player-" + SnapshotExtractor.playerIndex(game, castingAbility.getActivatingPlayer())
                 : activePlayerId);
+        stackItem.put("ownerId", source.getOwner() != null
+                ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
+                : "");
         stackItem.put("identity", stackIdentity(normalizeCardName(source.getName()), source));
         stackItem.put("text", castingAbility.getStackDescription());
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
+        stackItem.put("isDoubleFaced", source.isDoubleFaced());
+        stackItem.put("isTransformed", source.isTransformed());
         stackItem.put("targets", stackTargets(game, castingAbility));
         return stackItem;
     }

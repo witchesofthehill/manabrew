@@ -69,7 +69,9 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
     identity: obj.identity,
     text: obj.text,
     controllerId: obj.controllerId,
-    ownerId: obj.controllerId,
+    ownerId: obj.ownerId,
     zoneId: "stack",
+    isDoubleFaced: obj.isDoubleFaced,
+    isTransformed: obj.isTransformed,
   };
 }

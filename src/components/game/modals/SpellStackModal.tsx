@@ -13,6 +13,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
+import { RotateCw } from "lucide-react";
+import { useState } from "react";
+import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface SpellStackModalProps {
   stack: StackObjectDto[];
@@ -32,6 +35,8 @@ export function SpellStackModal({
   playerColorMap,
 }: SpellStackModalProps) {
   const preview = useCardPreview();
+  const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
@@ -40,6 +45,18 @@ export function SpellStackModal({
 
   // Display newest (top of stack) first — stack[last] = top, stack[0] = bottom
   const displayStack = [...stack].reverse();
+  const hoveredObject = displayStack.find((obj) => obj.id === hoveredId);
+  const toggleFace = (id: string) =>
+    setFlippedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  useKeybindings(
+    hoveredObject?.isDoubleFaced ? { "flip-card": () => toggleFace(hoveredObject.id) } : {},
+  );
 
   const longPress = useLongPressPreview<CardDto>({
     resolve: (e) => {
@@ -106,23 +123,41 @@ export function SpellStackModal({
                   )}
                   onPointerEnter={(e) => {
                     if (e.pointerType === "touch") return;
+                    setHoveredId(obj.id);
                     preview.handleMouseEnter(cardStub, e);
                   }}
                   onPointerLeave={(e) => {
                     if (e.pointerType === "touch") return;
+                    setHoveredId(null);
                     preview.handleMouseLeave();
                   }}
                   onClick={isValid ? () => onTarget(obj.id) : undefined}
                 >
-                  <Card
-                    card={cardStub}
-                    className={cn(
-                      MODAL_CARD_SIZE,
-                      "transition-transform",
-                      isValid && "ring-2 group-hover:scale-105 group-hover:-translate-y-2",
+                  <div className="relative">
+                    <Card
+                      card={cardStub}
+                      showBackFace={flippedIds.has(obj.id) ? !obj.isTransformed : obj.isTransformed}
+                      className={cn(
+                        MODAL_CARD_SIZE,
+                        "transition-transform",
+                        isValid && "ring-2 group-hover:scale-105 group-hover:-translate-y-2",
+                      )}
+                      style={Object.keys(glowStyle).length > 0 ? glowStyle : undefined}
+                    />
+                    {obj.isDoubleFaced && (
+                      <button
+                        type="button"
+                        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground shadow hover:bg-background"
+                        title="Flip card to view the other face (F)"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleFace(obj.id);
+                        }}
+                      >
+                        <RotateCw className="h-3.5 w-3.5" />
+                      </button>
                     )}
-                    style={Object.keys(glowStyle).length > 0 ? glowStyle : undefined}
-                  />
+                  </div>
                   <div className="flex items-center gap-1">
                     <Badge variant={isTop ? "default" : "outline"} className="text-[10px] h-4 px-1">
                       {isTop ? "TOP" : `+${idx}`}

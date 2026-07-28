@@ -292,10 +292,13 @@ pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,
     pub controller_id: String,
+    pub owner_id: String,
     pub identity: CardIdentity,
     pub text: String,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
+    pub is_double_faced: bool,
+    pub is_transformed: bool,
     pub targets: Vec<TargetRef>,
 }
 

@@ -141,7 +141,7 @@ export function HubTopDecks({ timeWindow, onTimeWindowChange, onOpenDeck }: HubT
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Published copies open in the deck viewer
+                Published snapshots open in the deck viewer
               </p>
             </div>
 

@@ -281,9 +281,14 @@ export default function Lobby() {
     if (format) await setFormat(format);
   }
 
-  async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
+  async function handleDeckSelection(
+    deckName: string,
+    deck: Deck,
+    commanderName?: string,
+    publishedDeckId?: string,
+  ) {
     try {
-      await setDeckSelection(deckName, deck, commanderName);
+      await setDeckSelection(deckName, deck, commanderName, publishedDeckId);
       const fingerprint = getDeckFingerprint(deck);
       const savedId = savedDecks.find(
         (saved) => getDeckFingerprint(saved.deck) === fingerprint,
@@ -549,8 +554,8 @@ export default function Lobby() {
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
         preSelectedDeckId={deckDialogPreSelectedId}
         preSelectedHubDeckId={preferredHubDeckId}
-        onStart={(deck, _formatId, commanderName) => {
-          void handleDeckSelection(deck.name, deck, commanderName);
+        onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) => {
+          void handleDeckSelection(deck.name, deck, commanderName, publishedDeckId);
         }}
       />
       <CreateGameDialog

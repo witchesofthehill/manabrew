@@ -5,6 +5,7 @@ import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
+import { hasPendingEditorPublication } from "@/lib/authReturn";
 import { migrateDeck, completeDeckMigrations } from "@/migrations/deck";
 import {
   getFormat,
@@ -786,8 +787,13 @@ export const useDeckStore = create<DeckState>()(
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
           merged.readOnlySource = null;
-          merged.currentDeck = { ...initialDeck };
-          merged.currentDeckId = null;
+          if (p.currentDeck && hasPendingEditorPublication()) {
+            merged.currentDeck = normalizeDeck(migrateDeck(p.currentDeck));
+            merged.currentDeckId = p.currentDeckId ?? null;
+          } else {
+            merged.currentDeck = { ...initialDeck };
+            merged.currentDeckId = null;
+          }
           return merged;
         },
         onRehydrateStorage: () => (_state, error) => {

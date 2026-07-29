@@ -32,7 +32,13 @@ interface CreateGameDialogProps {
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
   target?: "player" | "bot";
-  onStart: (deck: Deck, formatId: string, commanderName?: string, playerCount?: number) => void;
+  onStart: (
+    deck: Deck,
+    formatId: string,
+    commanderName?: string,
+    playerCount?: number,
+    publishedDeckId?: string,
+  ) => void;
 }
 
 export function CreateGameDialog({
@@ -351,6 +357,7 @@ export function CreateGameDialog({
       selectedFormat.id,
       selectedFormat.deckRules.requiresCommander ? commander || entry.commanderName : undefined,
       playerCount,
+      entry.id.startsWith("hub:") ? entry.id.slice(4) : undefined,
     );
   }
 

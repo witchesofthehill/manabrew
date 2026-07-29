@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS game_players (
   is_bot INTEGER,
   deck_name TEXT,
   commander TEXT,
+  published_deck_id TEXT,
+  deck_fingerprint TEXT,
   PRIMARY KEY (game_id, username)
 );
 CREATE TABLE IF NOT EXISTS decks (
@@ -75,7 +77,15 @@ def open_db(path: Path) -> sqlite3.Connection:
     db = sqlite3.connect(path)
     db.execute("PRAGMA journal_mode=WAL")
     db.executescript(SCHEMA)
+    ensure_column(db, "game_players", "published_deck_id", "TEXT")
+    ensure_column(db, "game_players", "deck_fingerprint", "TEXT")
     return db
+
+
+def ensure_column(db, table: str, column: str, declaration: str):
+    columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
 
 def ingest_game_started(db, ev):
@@ -105,14 +115,17 @@ def ingest_game_started(db, ev):
     for seat in players:
         db.execute(
             """INSERT OR REPLACE INTO game_players
-               (game_id, username, is_bot, deck_name, commander)
-               VALUES (?, ?, ?, ?, ?)""",
+               (game_id, username, is_bot, deck_name, commander,
+                published_deck_id, deck_fingerprint)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
                 ev.get("game_id"),
                 seat.get("username"),
                 int(bool(seat.get("is_bot"))),
                 seat.get("deck_name"),
                 seat.get("commander"),
+                seat.get("published_deck_id"),
+                seat.get("deck_fingerprint"),
             ),
         )
 

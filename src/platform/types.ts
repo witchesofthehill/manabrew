@@ -93,6 +93,7 @@ export interface SetReadyParams {
 export interface SetDeckSelectionParams {
   deckName: string;
   deck: Deck;
+  publishedDeckId?: string;
   commanderName: string | null;
   avatar?: string;
 }

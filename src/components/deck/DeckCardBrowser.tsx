@@ -105,6 +105,7 @@ function BrowserVisualCard({
   return (
     <button
       type="button"
+      aria-label={`${group.card.identity.name}, ${group.count} ${group.count === 1 ? "copy" : "copies"}`}
       data-card-name={group.card.identity.name}
       className="group relative shrink-0 rounded-lg text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:hover:translate-y-0"
       style={{ width }}
@@ -154,6 +155,7 @@ function BrowserStackColumn({
           <button
             key={group.card.identity.name}
             type="button"
+            aria-label={`${group.card.identity.name}, ${group.count} ${group.count === 1 ? "copy" : "copies"}`}
             data-card-name={group.card.identity.name}
             className="absolute left-0 rounded-lg text-left transition-[top,transform] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             style={{ top: topFor(index), width, zIndex: index + 1 }}

@@ -912,6 +912,7 @@ async fn seat_client(
         .send(&ClientMessage::SetDeckSelection {
             deck_name: deck.name.clone(),
             deck: deck.deck.clone(),
+            published_deck_id: None,
             commander_name: deck.commander_name.clone(),
             avatar: None,
         })

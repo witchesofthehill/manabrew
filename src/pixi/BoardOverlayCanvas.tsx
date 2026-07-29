@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Application } from "pixi.js";
-import { RotateCw } from "lucide-react";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 
 installPixiPatches();
@@ -40,11 +39,7 @@ export function BoardOverlayCanvas({
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
   const unregisterRef = useRef<(() => void) | null>(null);
-  const [faceControlObjectId, setFaceControlObjectId] = useState<string | null>(null);
-  const [faceControlPosition, setFaceControlPosition] = useState<{ x: number; y: number } | null>(
-    null,
-  );
-  const faceControlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hoveredStackObjectId, setHoveredStackObjectId] = useState<string | null>(null);
 
   const cbRef = useRef({ onOpenStack, onTargetSpell, onHoverStack, onToggleStack });
   useEffect(() => {
@@ -85,16 +80,7 @@ export function BoardOverlayCanvas({
           onOpen: () => cbRef.current.onOpenStack(),
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
           onHover: (id) => {
-            if (faceControlTimerRef.current) clearTimeout(faceControlTimerRef.current);
-            if (id) {
-              setFaceControlObjectId(id);
-              setFaceControlPosition(stack.getFaceControlPosition(id));
-            } else {
-              faceControlTimerRef.current = setTimeout(() => {
-                setFaceControlObjectId(null);
-                setFaceControlPosition(null);
-              }, 100);
-            }
+            setHoveredStackObjectId(id);
             cbRef.current.onHoverStack(id);
           },
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
@@ -130,7 +116,6 @@ export function BoardOverlayCanvas({
       arrowRef.current = null;
       stackRef.current?.destroy();
       stackRef.current = null;
-      if (faceControlTimerRef.current) clearTimeout(faceControlTimerRef.current);
       destroyPixiApp(appRef.current);
       appRef.current = null;
     };
@@ -231,46 +216,22 @@ export function BoardOverlayCanvas({
     [],
   );
 
-  const faceControlCard = stackSpec.cards.find((card) => card.id === faceControlObjectId);
-  const toggleFace = (id: string) => {
-    stackRef.current?.toggleFace(id);
-    setFaceControlPosition(stackRef.current?.getFaceControlPosition(id) ?? null);
-  };
+  const hoveredStackCard = stackSpec.cards.find((card) => card.id === hoveredStackObjectId);
 
   useKeybindings(
-    faceControlObjectId && faceControlCard?.card.isDoubleFaced
+    hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced
       ? {
-          "flip-card": () => toggleFace(faceControlObjectId),
+          "flip-card": () => stackRef.current?.toggleFace(hoveredStackObjectId),
         }
       : {},
   );
 
   return (
-    <>
-      <canvas
-        ref={canvasRef}
-        className={className}
-        style={{ width: "100%", height: "100%", display: "block", pointerEvents: "none" }}
-        onContextMenu={(e) => e.preventDefault()}
-      />
-      {faceControlObjectId && faceControlCard?.card.isDoubleFaced && faceControlPosition && (
-        <button
-          type="button"
-          className="pointer-events-auto absolute inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground shadow hover:bg-background"
-          style={{ left: faceControlPosition.x - 14, top: faceControlPosition.y - 14 }}
-          title="Flip card to view the other face (F)"
-          onPointerEnter={() => {
-            if (faceControlTimerRef.current) clearTimeout(faceControlTimerRef.current);
-          }}
-          onPointerLeave={() => {
-            setFaceControlObjectId(null);
-            setFaceControlPosition(null);
-          }}
-          onClick={() => toggleFace(faceControlObjectId)}
-        >
-          <RotateCw className="h-3.5 w-3.5" />
-        </button>
-      )}
-    </>
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{ width: "100%", height: "100%", display: "block", pointerEvents: "none" }}
+      onContextMenu={(e) => e.preventDefault()}
+    />
   );
 }

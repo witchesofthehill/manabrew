@@ -7,30 +7,17 @@ import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
 import type { ScreenBounds, ScreenPos } from "../types";
 import { HOVER_SCALE, StackCardSprite } from "./StackCardSprite";
+import { computeStackLayout } from "./stackLayout";
 import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.types";
 
-const DIRECTION_SIGN = -1;
 const CARD_WIDTH = 220;
 const MAX_CARD_HEIGHT_FRAC = 0.55;
-const OFFSET_X = 36;
-const OFFSET_Y = 4;
-const CENTER_OFFSET_Y = -60;
-const HOVER_PUSH_X = 60;
-// How far a card shifts when a neighbour is hovered (separate from the layout
-// padding above), and the shared snappy timing for hover repositioning — the
-// button rides the top card with the exact same tween, so they never desync.
-const HOVER_PUSH_DIST = 42;
 const HOVER_MOVE_MS = 0.16;
 const HOVER_EASE = "power2.out";
-const RIGHT_MARGIN = 10;
 
 const PEEK_HOLD_S = 1.2;
-// Collapse/expand/peek slide: fast, decelerating toward the end.
 const COLLAPSE_MS = 0.2;
 const COLLAPSE_EASE = "power3.out";
-// How much of the top card stays on screen (border + a sliver) when collapsed.
-const PEEK_W = 16;
-
 const BTN_W = 18;
 const BTN_H = 64;
 const BTN_RADIUS = 5;
@@ -183,6 +170,7 @@ export class StackLayer implements StackAnchorProvider {
           () => this.callbacks.onOpen(),
           (id) => this.callbacks.onTargetSpell(id),
           (id) => this.setHovered(id),
+          (id) => this.toggleFace(id),
         );
         this.container.addChild(sprite.container);
         this.sprites.set(card.id, sprite);
@@ -246,13 +234,10 @@ export class StackLayer implements StackAnchorProvider {
     return this.bounds;
   }
 
-  getFaceControlPosition(stackObjectId: string): ScreenPos | null {
-    return this.sprites.get(stackObjectId)?.getFaceControlPosition() ?? null;
-  }
-
   toggleFace(stackObjectId: string): void {
     const card = this.spec.cards.find((candidate) => candidate.id === stackObjectId);
     if (!card?.card.isDoubleFaced) return;
+    if (this.hoveredId === stackObjectId) this.setHovered(null);
     const current = this.faceOverrides.get(stackObjectId) ?? card.card.isTransformed;
     this.faceOverrides.set(stackObjectId, !current);
     this.sprites.get(stackObjectId)?.destroy();
@@ -296,29 +281,8 @@ export class StackLayer implements StackAnchorProvider {
     const n = cards.length;
     if (this.viewW === 0 || this.viewH === 0) return;
 
-    const sizes = cards.map((card) => this.sprites.get(card.id)?.getSize());
-    const flashWidth = this.flashSprite
-      ? (this.flashSprite.horizontalFrame ? CARD_H : CARD_W) * this.faceScale()
-      : 0;
-    const flashHeight = this.flashSprite
-      ? (this.flashSprite.horizontalFrame ? CARD_W : CARD_H) * this.faceScale()
-      : 0;
-    const cw = Math.max(this.cardWidth(), flashWidth, ...sizes.map((size) => size?.width ?? 0));
-    const ch = Math.max(this.cardHeight(), flashHeight, ...sizes.map((size) => size?.height ?? 0));
-    const spanX = Math.max(0, n - 1) * OFFSET_X;
-    const pileHeight = ch + Math.max(0, n - 1) * OFFSET_Y;
-    const pileWidth = spanX + 2 * HOVER_PUSH_X + cw;
-
-    const panelLeft = this.viewW - RIGHT_MARGIN - pileWidth;
-    const panelTop = this.viewH / 2 - pileHeight / 2 + CENTER_OFFSET_Y;
-    const centerY = panelTop + pileHeight / 2;
-
     const collapsed = this.effectiveCollapsed();
     const fanOut = !this.spec.collapsed || this.peeking;
-    // Collapsed: slide right until the top card's left edge peeks PEEK_W on screen.
-    const peekLeft = this.viewW - PEEK_W - HOVER_PUSH_X;
-    const drawLeft = fanOut ? panelLeft : peekLeft;
-
     const transitioning = this.prevFanOut !== null && this.prevFanOut !== fanOut;
     this.prevFanOut = fanOut;
 
@@ -326,6 +290,30 @@ export class StackLayer implements StackAnchorProvider {
       collapsed || this.hoveredId === null ? -1 : cards.findIndex((c) => c.id === this.hoveredId);
     const hoverMove = !transitioning && hoveredIndex !== this.prevHoveredIndex;
     this.prevHoveredIndex = hoveredIndex;
+    const layout = computeStackLayout({
+      viewWidth: this.viewW,
+      viewHeight: this.viewH,
+      cards: cards.map(
+        (card) =>
+          this.sprites.get(card.id)?.getSize() ?? {
+            width: this.cardWidth(),
+            height: this.cardHeight(),
+          },
+      ),
+      fallbackWidth: this.cardWidth(),
+      fallbackHeight: this.cardHeight(),
+      flash: this.flashSprite
+        ? {
+            width: (this.flashSprite.horizontalFrame ? CARD_H : CARD_W) * this.faceScale(),
+            height: (this.flashSprite.horizontalFrame ? CARD_W : CARD_H) * this.faceScale(),
+          }
+        : null,
+      fanOut,
+      hoveredIndex,
+      hoverScale: HOVER_SCALE,
+      buttonWidth: BTN_W,
+      buttonGap: BTN_GAP,
+    });
 
     let moveDur: number | undefined;
     let moveEase: string | undefined;
@@ -337,56 +325,38 @@ export class StackLayer implements StackAnchorProvider {
       moveEase = HOVER_EASE;
     }
 
-    const xShift = spanX + HOVER_PUSH_X;
     cards.forEach((card, idx) => {
       const sprite = this.sprites.get(card.id);
       if (!sprite) return;
-      const size = sprite.getSize();
-      const baseLeft = idx * OFFSET_X * DIRECTION_SIGN;
-      const pushed =
-        hoveredIndex < 0 || idx === hoveredIndex
-          ? baseLeft
-          : baseLeft + (idx < hoveredIndex ? -1 : 1) * DIRECTION_SIGN * HOVER_PUSH_DIST;
-      const boxLeft = pushed + xShift;
-      const boxTop = (n - 1 - idx) * OFFSET_Y;
-      const cx = drawLeft + boxLeft + size.width / 2;
-      const cy = panelTop + boxTop + size.height / 2;
-      const zIndex =
-        hoveredIndex < 0
-          ? idx + 1
-          : 200 - Math.abs(idx - hoveredIndex) * 10 + (idx === hoveredIndex ? 5 : 0);
+      const position = layout.cards[idx]!;
       const flashed = this.spec.flash?.card.id === card.sourceId;
-      sprite.place(cx, cy, zIndex, flashed, moveDur, moveEase);
+      sprite.place(position.x, position.y, position.zIndex, flashed, moveDur, moveEase);
     });
 
-    // One toggle button just left of the top card's *effective* left edge — it
-    // follows the fan's ease, the top card's hover-push, and the hover zoom (so
-    // it's pushed aside when the adjacent card grows).
-    const topIdx = n - 1;
-    const topPushed =
-      hoveredIndex < 0 || topIdx === hoveredIndex
-        ? topIdx * OFFSET_X * DIRECTION_SIGN
-        : topIdx * OFFSET_X * DIRECTION_SIGN +
-          (topIdx < hoveredIndex ? -1 : 1) * DIRECTION_SIGN * HOVER_PUSH_DIST;
-    const topScale = hoveredIndex === topIdx ? HOVER_SCALE : 1;
-    const topWidth =
-      topIdx >= 0 ? (this.sprites.get(cards[topIdx]!.id)?.getSize().width ?? cw) : cw;
-    const topLeftEdge = drawLeft + topPushed + xShift + topWidth / 2 - (topWidth / 2) * topScale;
-    const btnTargetX = topLeftEdge - BTN_GAP - BTN_W / 2;
-    this.layoutButton(n > 0, btnTargetX, centerY, transitioning);
+    this.layoutButton(n > 0, layout.buttonX, layout.centerY, transitioning);
 
     if (n === 0) {
       this.bounds = null;
     } else if (collapsed) {
       const halfW = (BTN_W / 2) * BTN_HOVER_SCALE + 8;
       const halfH = (BTN_H / 2) * BTN_HOVER_SCALE + 6;
-      const x = btnTargetX - halfW;
-      this.bounds = { x, y: centerY - halfH, width: this.viewW - x, height: halfH * 2 };
+      const x = layout.buttonX - halfW;
+      this.bounds = {
+        x,
+        y: layout.centerY - halfH,
+        width: this.viewW - x,
+        height: halfH * 2,
+      };
     } else {
-      this.bounds = { x: panelLeft, y: panelTop, width: pileWidth, height: pileHeight };
+      this.bounds = {
+        x: layout.panelLeft,
+        y: layout.panelTop,
+        width: layout.pileWidth,
+        height: layout.pileHeight,
+      };
     }
 
-    this.layoutFlash(drawLeft, panelTop, xShift, n);
+    this.layoutFlash(layout.flash);
   }
 
   private layoutButton(
@@ -516,13 +486,8 @@ export class StackLayer implements StackAnchorProvider {
     );
   }
 
-  private layoutFlash(drawLeft: number, panelTop: number, xShift: number, n: number): void {
-    if (!this.flashSprite) return;
-    const baseLeft = n > 0 ? (n - 1) * OFFSET_X * DIRECTION_SIGN : 0;
-    const width = (this.flashSprite.horizontalFrame ? CARD_H : CARD_W) * this.faceScale();
-    const height = (this.flashSprite.horizontalFrame ? CARD_W : CARD_H) * this.faceScale();
-    const cx = drawLeft + baseLeft + xShift + width / 2;
-    const cy = panelTop + height / 2;
-    this.flashSprite.position.set(cx, cy);
+  private layoutFlash(position: { x: number; y: number } | null): void {
+    if (!this.flashSprite || !position) return;
+    this.flashSprite.position.set(position.x, position.y);
   }
 }

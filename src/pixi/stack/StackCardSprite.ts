@@ -1,4 +1,4 @@
-import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics, Rectangle, Text, type FederatedPointerEvent } from "pixi.js";
 import { gsap } from "../effects/gsap";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import type { Theme } from "@/hooks/useTheme";
@@ -16,6 +16,8 @@ export const HOVER_SCALE = 1.12;
 const HOVER_LIFT_PX = 2;
 const RING_RADIUS_FRAC = 0.05;
 const GLOW_PAD = 6;
+const FLIP_BUTTON_SIZE = 28;
+const FLIP_BUTTON_INSET = 17;
 
 export class StackCardSprite {
   readonly container: Container;
@@ -28,6 +30,12 @@ export class StackCardSprite {
   private glow = new Graphics();
   private ring = new Graphics();
   private face: CardSprite;
+  private flipButton = new Container();
+  private flipButtonBg = new Graphics();
+  private flipButtonLabel = new Text({
+    text: "↻",
+    style: { fontSize: 17, fontWeight: "bold" },
+  });
   private hovered = false;
   private entered = false;
   private lastTargetKey = "";
@@ -43,6 +51,7 @@ export class StackCardSprite {
     onOpen: () => void,
     onTarget: (id: string) => void,
     onHover: (id: string | null) => void,
+    onFlip: (id: string) => void,
   ) {
     this.theme = theme;
     this.spec = spec;
@@ -79,6 +88,7 @@ export class StackCardSprite {
     hit.on("pointerdown", (e: FederatedPointerEvent) => {
       this.longPress.start(e, this.spec.id, () => {
         this.hovered = true;
+        this.syncFlipButton();
         this.applyHover();
         onHover(this.spec.id);
       });
@@ -95,16 +105,37 @@ export class StackCardSprite {
     hit.on("pointerover", (e: FederatedPointerEvent) => {
       if (e.pointerType === "touch") return;
       this.hovered = true;
+      this.syncFlipButton();
       this.applyHover();
       onHover(this.spec.id);
     });
     hit.on("pointerout", () => {
       this.hovered = false;
+      this.syncFlipButton();
       this.applyHover();
       onHover(null);
     });
 
-    this.container.addChild(this.glow, this.face, this.ring, hit);
+    this.flipButtonLabel.anchor.set(0.5);
+    this.flipButton.position.set(
+      this.width / 2 - FLIP_BUTTON_INSET,
+      -this.height / 2 + FLIP_BUTTON_INSET,
+    );
+    this.flipButton.eventMode = "static";
+    this.flipButton.cursor = "pointer";
+    this.flipButton.hitArea = new Rectangle(
+      -FLIP_BUTTON_SIZE / 2,
+      -FLIP_BUTTON_SIZE / 2,
+      FLIP_BUTTON_SIZE,
+      FLIP_BUTTON_SIZE,
+    );
+    this.flipButton.on("pointertap", (e: FederatedPointerEvent) => {
+      e.stopPropagation();
+      onFlip(this.spec.id);
+    });
+    this.flipButton.addChild(this.flipButtonBg, this.flipButtonLabel);
+
+    this.container.addChild(this.glow, this.face, this.ring, hit, this.flipButton);
     this.redraw();
   }
 
@@ -121,6 +152,7 @@ export class StackCardSprite {
       spec.isValidTarget !== this.spec.isValidTarget;
     const dimChanged = spec.isDimmed !== this.spec.isDimmed;
     this.spec = spec;
+    this.syncFlipButton();
     if (dimChanged) this.container.alpha = spec.isDimmed ? 0.6 : 1;
     if (ringChanged) this.redraw();
   }
@@ -180,13 +212,6 @@ export class StackCardSprite {
     return { width: this.width, height: this.height };
   }
 
-  getFaceControlPosition(): { x: number; y: number } {
-    return {
-      x: this.container.position.x + this.width / 2 - 18,
-      y: this.container.position.y - this.height / 2 + 18,
-    };
-  }
-
   destroy(): void {
     this.longPress.cancel();
     this.moveTween?.kill();
@@ -214,6 +239,7 @@ export class StackCardSprite {
     this.ring.clear();
     this.castingTween?.kill();
     this.castingTween = null;
+    this.drawFlipButton();
 
     const seat = this.spec.seatColor ? hexToNum(this.spec.seatColor) : null;
     if (seat !== null) {
@@ -254,5 +280,18 @@ export class StackCardSprite {
         .roundRect(-hw, -hh, this.width, this.height, r)
         .stroke({ color: c, width: 2, alpha: 0.85 });
     }
+  }
+
+  private syncFlipButton(): void {
+    this.flipButton.visible = this.spec.card.isDoubleFaced;
+  }
+
+  private drawFlipButton(): void {
+    const background = hexToNum(this.theme.gameTheme.activeAction.active);
+    const foreground = hexToNum(this.theme.gameTheme.canvas.shadow);
+    this.flipButtonBg.clear();
+    this.flipButtonBg.circle(0, 0, FLIP_BUTTON_SIZE / 2).fill({ color: background, alpha: 0.9 });
+    this.flipButtonLabel.style.fill = foreground;
+    this.syncFlipButton();
   }
 }

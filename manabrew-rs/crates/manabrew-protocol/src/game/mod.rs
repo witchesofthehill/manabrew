@@ -302,6 +302,49 @@ pub struct StackObjectDto {
     pub targets: Vec<TargetRef>,
 }
 
+#[cfg(test)]
+mod stack_object_tests {
+    use super::{CardIdentity, StackObjectDto};
+
+    #[test]
+    fn serializes_card_face_fields() {
+        let stack_object = StackObjectDto {
+            id: "stack-1".into(),
+            source_id: "card-1".into(),
+            controller_id: "player-0".into(),
+            owner_id: "player-1".into(),
+            identity: CardIdentity::default(),
+            text: String::new(),
+            is_permanent_spell: true,
+            is_casting: true,
+            is_double_faced: true,
+            face_index: 1,
+            targets: Vec::new(),
+        };
+
+        let value = serde_json::to_value(stack_object).unwrap();
+
+        assert_eq!(value["ownerId"], "player-1");
+        assert_eq!(value["isDoubleFaced"], true);
+        assert_eq!(value["faceIndex"], 1);
+    }
+
+    #[test]
+    fn defaults_missing_card_face_fields() {
+        let value = serde_json::json!({
+            "id": "stack-1",
+            "sourceId": "card-1",
+            "controllerId": "player-0"
+        });
+
+        let stack_object: StackObjectDto = serde_json::from_value(value).unwrap();
+
+        assert!(stack_object.owner_id.is_empty());
+        assert!(!stack_object.is_double_faced);
+        assert_eq!(stack_object.face_index, 0);
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,
 )]

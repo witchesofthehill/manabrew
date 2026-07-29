@@ -784,9 +784,14 @@ public final class InteractiveSnapshotExtractor {
         if (source == null) {
             return 0;
         }
-        final CardStateName state = ability != null && ability.getCardState() != null
+        final CardStateName abilityState = ability != null && ability.getCardState() != null
                 ? ability.getCardStateName()
-                : source.getCurrentStateName();
+                : null;
+        return stackFaceIndex(abilityState, source.getCurrentStateName());
+    }
+
+    static int stackFaceIndex(final CardStateName abilityState, final CardStateName sourceState) {
+        final CardStateName state = abilityState != null ? abilityState : sourceState;
         return state == CardStateName.Backside ? 1 : 0;
     }
 

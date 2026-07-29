@@ -38,6 +38,17 @@ export interface StackLayoutResult {
   flash: { x: number; y: number } | null;
 }
 
+export function reconcileStackHover(
+  hoveredId: string | null,
+  incomingIds: ReadonlySet<string>,
+  replacements: ReadonlyMap<string, string>,
+): string | null {
+  if (hoveredId === null) return null;
+  const replacement = replacements.get(hoveredId);
+  if (replacement !== undefined) return replacement;
+  return incomingIds.has(hoveredId) ? hoveredId : null;
+}
+
 export function computeStackLayout(input: StackLayoutInput): StackLayoutResult {
   const n = input.cards.length;
   const flashWidth = input.flash?.width ?? 0;

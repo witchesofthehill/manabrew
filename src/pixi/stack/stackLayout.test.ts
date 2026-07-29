@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeStackLayout } from "./stackLayout";
+import { computeStackLayout, reconcileStackHover } from "./stackLayout";
 
 const portrait = { width: 220, height: 308 };
 const landscape = { width: 308, height: 220 };
@@ -68,5 +68,21 @@ describe("computeStackLayout", () => {
     expect(result.flash).not.toBeNull();
     expect(result.flash!.x).toBe(result.drawLeft + result.xShift + landscape.width / 2);
     expect(result.flash!.y).toBe(result.panelTop + landscape.height / 2);
+  });
+});
+
+describe("reconcileStackHover", () => {
+  it("publishes the replacement stack id for a reused source", () => {
+    expect(
+      reconcileStackHover("casting-1", new Set(["stack-2"]), new Map([["casting-1", "stack-2"]])),
+    ).toBe("stack-2");
+  });
+
+  it("clears a hovered stack object that disappeared", () => {
+    expect(reconcileStackHover("stack-1", new Set(), new Map())).toBeNull();
+  });
+
+  it("preserves a hovered stack object that remains", () => {
+    expect(reconcileStackHover("stack-1", new Set(["stack-1"]), new Map())).toBe("stack-1");
   });
 });

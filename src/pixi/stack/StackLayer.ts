@@ -7,7 +7,7 @@ import { CardSprite } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
 import type { ScreenBounds, ScreenPos } from "../types";
 import { HOVER_SCALE, StackCardSprite } from "./StackCardSprite";
-import { computeStackLayout } from "./stackLayout";
+import { computeStackLayout, reconcileStackHover } from "./stackLayout";
 import type { StackAnchorProvider, StackCallbacks, StackSpec } from "./stack.types";
 
 const CARD_WIDTH = 220;
@@ -127,7 +127,10 @@ export class StackLayer implements StackAnchorProvider {
     if (this.sprites.size > 0 && this.cardWidth() !== this.builtCardWidth) {
       for (const sprite of this.sprites.values()) sprite.destroy();
       this.sprites.clear();
-      this.hoveredId = null;
+      if (this.hoveredId !== null) {
+        this.hoveredId = null;
+        this.callbacks.onHover(null);
+      }
       this.prevCardIds = new Set();
       this.setSpec(this.spec);
       return;
@@ -140,16 +143,12 @@ export class StackLayer implements StackAnchorProvider {
     const seen = new Set<string>();
     const incoming = new Set(spec.cards.map((c) => c.id));
     const reusableBySource = new Map<string, string>();
+    const replacements = new Map<string, string>();
     for (const [id, sprite] of this.sprites) {
       if (!incoming.has(id)) reusableBySource.set(sprite.sourceId, id);
     }
     for (const card of spec.cards) {
       seen.add(card.id);
-      const transformed = this.faceOverrides.get(card.id);
-      const displayCard =
-        transformed === undefined
-          ? card
-          : { ...card, card: { ...card.card, isTransformed: transformed } };
       let sprite = this.sprites.get(card.id);
       if (!sprite) {
         const staleId = reusableBySource.get(card.sourceId);
@@ -158,10 +157,22 @@ export class StackLayer implements StackAnchorProvider {
           reusableBySource.delete(card.sourceId);
           this.sprites.delete(staleId!);
           this.sprites.set(card.id, reused);
-          if (this.hoveredId === staleId) this.hoveredId = card.id;
+          replacements.set(staleId!, card.id);
+          const staleOverride = this.faceOverrides.get(staleId!);
+          this.faceOverrides.delete(staleId!);
+          if (staleOverride !== undefined) this.faceOverrides.set(card.id, staleOverride);
+          const displayCard =
+            staleOverride === undefined
+              ? card
+              : { ...card, card: { ...card.card, isTransformed: staleOverride } };
           reused.setSpec(displayCard);
           continue;
         }
+        const transformed = this.faceOverrides.get(card.id);
+        const displayCard =
+          transformed === undefined
+            ? card
+            : { ...card, card: { ...card.card, isTransformed: transformed } };
         this.builtCardWidth = this.cardWidth();
         sprite = new StackCardSprite(
           this.theme,
@@ -175,6 +186,11 @@ export class StackLayer implements StackAnchorProvider {
         this.container.addChild(sprite.container);
         this.sprites.set(card.id, sprite);
       } else {
+        const transformed = this.faceOverrides.get(card.id);
+        const displayCard =
+          transformed === undefined
+            ? card
+            : { ...card, card: { ...card.card, isTransformed: transformed } };
         sprite.setSpec(displayCard);
       }
     }
@@ -183,7 +199,11 @@ export class StackLayer implements StackAnchorProvider {
       sprite.destroy();
       this.sprites.delete(id);
       this.faceOverrides.delete(id);
-      if (this.hoveredId === id) this.hoveredId = null;
+    }
+    const nextHoveredId = reconcileStackHover(this.hoveredId, incoming, replacements);
+    if (nextHoveredId !== this.hoveredId) {
+      this.hoveredId = nextHoveredId;
+      this.callbacks.onHover(nextHoveredId);
     }
 
     const hasNewCard = spec.cards.some((c) => !this.prevCardIds.has(c.id));

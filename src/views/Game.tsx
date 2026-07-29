@@ -474,8 +474,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const handleCastSpell = (cardId: string) => {
-    const acts = chooseActionInput?.actions ?? [];
-    const castActions = acts.flatMap((a) => (a.type === "cast" && a.cardId === cardId ? [a] : []));
+    const castActions = castOptionsByCardId.get(cardId) ?? [];
     if (castActions.length > 1) {
       const gc = gameView?.players
         .flatMap((player) => [
@@ -486,21 +485,15 @@ export default function Game({ exitTo }: GameProps = {}) {
         ])
         .find((card) => card.id === cardId);
       if (!gc) throw new Error(`No game card to cast: ${cardId}`);
-      const card = asDeckCard(gameDecks[gc.ownerId], gc);
       openPlayModePicker({
         cardId,
-        card,
-        options: castActions.map((a) => ({
-          actionId: a.id,
-          cardId: a.cardId,
-          mode: a.mode.type,
-          modeLabel: a.label,
-        })),
+        card: asDeckCard(gameDecks[gc.ownerId], gc),
+        options: castActions,
       });
       return;
     }
     const single = castActions[0];
-    if (single) respond({ type: "act", actionId: single.id });
+    if (single) respondHandAction(single);
   };
 
   const handleHandCardAction = (card: CardDto, e?: { clientX: number; clientY: number }) => {
@@ -521,7 +514,17 @@ export default function Game({ exitTo }: GameProps = {}) {
       return;
     }
 
-    preview.showSticky(card, e?.clientX, e?.clientY);
+    if (e) {
+      preview.showSticky(card, e.clientX, e.clientY);
+      return;
+    }
+    // Zone-viewer clicks carry no anchor point, and the sticky preview would be
+    // dismissed by the viewer closing — use the modal picker instead.
+    openPlayModePicker({
+      cardId: card.id,
+      card: asDeckCard(gameDecks[card.ownerId], card),
+      options: actions,
+    });
   };
 
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
@@ -2017,9 +2020,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         <PlayModePicker
           card={playModePicker.card}
           options={playModePicker.options}
-          onSelect={(mode) => {
-            const opt = playModePicker.options.find((o) => o.mode === mode);
-            if (opt) respond({ type: "act", actionId: opt.actionId });
+          onSelect={(option) => {
+            respondHandAction(option);
             closePlayModePicker();
           }}
           onCancel={closePlayModePicker}

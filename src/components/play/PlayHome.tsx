@@ -1,11 +1,9 @@
-import { LibraryBig, Swords, Users } from "lucide-react";
+import { Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
-import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
@@ -138,26 +136,6 @@ export function PlayHome() {
               pendingDeckId={pendingDeckId}
             />
           </div>
-
-          {isFeatureEnabled("deckHub") && (
-            <div
-              className={cn("motion-safe:animate-onboard-fade-up", resumePending && "hidden")}
-              style={{ animationDelay: "140ms" }}
-            >
-              <Link
-                to={ROUTES.HUB}
-                className="group flex min-w-0 items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 p-5 backdrop-blur-md hover:border-primary/60 motion-safe:transition-colors motion-reduce:transition-none sm:gap-4"
-              >
-                <span className="flex min-w-0 items-center gap-3 sm:gap-4">
-                  <LibraryBig className="h-6 w-6 shrink-0 text-primary" />
-                  <span className="min-w-0">
-                    <span className="block font-medium">Discover decks from the community</span>
-                    <span className="text-sm text-muted-foreground">Browse the Deck Hub.</span>
-                  </span>
-                </span>
-              </Link>
-            </div>
-          )}
 
           <div
             className={cn(

@@ -5,6 +5,7 @@ import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
+import { hasPendingEditorPublication } from "@/lib/authReturn";
 import { migrateDeck, completeDeckMigrations } from "@/migrations/deck";
 import {
   getFormat,
@@ -177,16 +178,14 @@ const deckStorage = createJSONStorage(() => ({
 interface DeckState {
   currentDeck: EditorDeck;
   currentDeckId: string | null;
-  /** True when browsing a preset — gates editing controls in DeckBuilder. */
   isReadOnly: boolean;
-  pool: DeckCard[];
+  readOnlySource: "preset" | "hub" | null;
   savedDecks: SavedDeck[];
   migrationError: boolean;
   addToMain: (card: DeckCard) => void;
   addToSide: (card: DeckCard) => void;
   addToMaybe: (card: DeckCard) => void;
   removeFromMaybe: (cardId: string) => void;
-  addToPool: (card: DeckCard) => void;
   removeFromMain: (cardId: string) => void;
   removeFromSide: (cardId: string) => void;
   setDeckName: (name: string) => void;
@@ -194,7 +193,8 @@ interface DeckState {
   clearDeck: () => void;
   loadDeck: (deck: EditorDeck) => void;
   loadPresetDeck: (deck: EditorDeck) => void;
-  importPresetToMyDecks: () => string | null;
+  loadHubDeck: (deck: EditorDeck) => void;
+  importReadOnlyDeck: () => string | null;
   addSavedDeck: (deck: EditorDeck) => string;
   saveCurrentDeck: () => void;
   saveDraft: () => void;
@@ -202,11 +202,8 @@ interface DeckState {
   deleteSavedDeck: (id: string) => void;
   setCommander: (card: DeckCard) => void;
   removeCommander: (card?: DeckCard) => void;
-  setCompanion: (card: DeckCard) => void;
-  removeCompanion: () => void;
   updatePrint: (cardName: string, scryfallCard: ScryfallCard) => void;
   toggleFoil: (cardName: string) => void;
-  addToken: (token: DeckCard) => void;
   removeToken: (name: string) => void;
   enrichDeckCards: (updates: Map<string, CardPatch>) => void;
   addCardToSavedDeck: (id: string, card: DeckCard) => void;
@@ -242,7 +239,7 @@ export const useDeckStore = create<DeckState>()(
         currentDeck: initialDeck,
         currentDeckId: null,
         isReadOnly: false,
-        pool: [],
+        readOnlySource: null,
         savedDecks: [],
         migrationError: false,
         addToMain: (card) =>
@@ -308,10 +305,6 @@ export const useDeckStore = create<DeckState>()(
             maybeboard.splice(idx, 1);
             return { currentDeck: pruneOrphanedTokens({ ...state.currentDeck, maybeboard }) };
           }),
-        addToPool: (card) =>
-          set((state) => ({
-            pool: [...state.pool, card],
-          })),
         removeFromMain: (cardId) =>
           set((state) => {
             const index = state.currentDeck.cards.findIndex((c) => c.identity.id === cardId);
@@ -394,16 +387,33 @@ export const useDeckStore = create<DeckState>()(
             };
           }),
         clearDeck: () =>
-          set({ currentDeck: { ...initialDeck }, currentDeckId: null, isReadOnly: false }),
+          set({
+            currentDeck: { ...initialDeck },
+            currentDeckId: null,
+            isReadOnly: false,
+            readOnlySource: null,
+          }),
         loadDeck: (deck) =>
-          set({ currentDeck: normalizeDeck(migrateDeck(deck)), isReadOnly: false }),
+          set({
+            currentDeck: normalizeDeck(migrateDeck(deck)),
+            isReadOnly: false,
+            readOnlySource: null,
+          }),
         loadPresetDeck: (deck) =>
           set({
             currentDeck: normalizeDeck(deck),
             currentDeckId: null,
             isReadOnly: true,
+            readOnlySource: "preset",
           }),
-        importPresetToMyDecks: () => {
+        loadHubDeck: (deck) =>
+          set({
+            currentDeck: normalizeDeck(deck),
+            currentDeckId: null,
+            isReadOnly: true,
+            readOnlySource: "hub",
+          }),
+        importReadOnlyDeck: () => {
           const state = get();
           const id = crypto.randomUUID();
           const baseName = state.currentDeck.name || DEFAULT_DECK_NAME;
@@ -418,6 +428,7 @@ export const useDeckStore = create<DeckState>()(
             currentDeck: imported,
             currentDeckId: id,
             isReadOnly: false,
+            readOnlySource: null,
             savedDecks: [...s.savedDecks, savedDeck],
           }));
           return id;
@@ -507,53 +518,6 @@ export const useDeckStore = create<DeckState>()(
                 ],
                 commanders: commanders.filter((c) => c.identity.name !== toRemove.identity.name),
               },
-            };
-          }),
-        setCompanion: (card) =>
-          set((state) => {
-            const deck = normalizeDeck(state.currentDeck);
-            const nextSide = [...deck.sideboard];
-            const idx = nextSide.findIndex((c) => c.identity.id === card.identity.id);
-            const selected = idx !== -1 ? nextSide.splice(idx, 1)[0] : { ...card };
-
-            // Move old companion back to sideboard
-            if (deck.companion) {
-              nextSide.push({
-                ...deck.companion,
-                identity: { ...deck.companion.identity, id: crypto.randomUUID() },
-              });
-            }
-
-            return {
-              currentDeck: { ...deck, sideboard: nextSide, companion: selected },
-            };
-          }),
-        removeCompanion: () =>
-          set((state) => {
-            const deck = normalizeDeck(state.currentDeck);
-            if (!deck.companion) return state;
-            return {
-              currentDeck: {
-                ...deck,
-                sideboard: [
-                  ...deck.sideboard,
-                  {
-                    ...deck.companion,
-                    identity: { ...deck.companion.identity, id: crypto.randomUUID() },
-                  },
-                ],
-                companion: undefined,
-              },
-            };
-          }),
-        addToken: (token) =>
-          set((state) => {
-            const existing = state.currentDeck.tokens ?? [];
-            if (existing.some((t) => t.identity.name === token.identity.name)) {
-              return state;
-            }
-            return {
-              currentDeck: { ...state.currentDeck, tokens: [...existing, token] },
             };
           }),
         removeToken: (name) =>
@@ -676,6 +640,7 @@ export const useDeckStore = create<DeckState>()(
               currentDeck: normalizeDeck(migrateDeck(found.deck)),
               currentDeckId: id,
               isReadOnly: false,
+              readOnlySource: null,
             };
           }),
         deleteSavedDeck: (id) =>
@@ -821,8 +786,14 @@ export const useDeckStore = create<DeckState>()(
           const p = persisted as Partial<DeckState>;
           const merged = { ...current, ...p } as DeckState;
           merged.isReadOnly = false;
-          merged.currentDeck = { ...initialDeck };
-          merged.currentDeckId = null;
+          merged.readOnlySource = null;
+          if (p.currentDeck && hasPendingEditorPublication()) {
+            merged.currentDeck = normalizeDeck(migrateDeck(p.currentDeck));
+            merged.currentDeckId = p.currentDeckId ?? null;
+          } else {
+            merged.currentDeck = { ...initialDeck };
+            merged.currentDeckId = null;
+          }
           return merged;
         },
         onRehydrateStorage: () => (_state, error) => {

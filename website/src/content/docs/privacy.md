@@ -57,7 +57,7 @@ card list) under your handle, and both are publicly visible to everyone. You
 can remove a published deck from any device you are signed in on.
 
 The top-decks board shows aggregates from public-relay games: deck names,
-commanders, and play counts. No usernames appear there.
+commanders, play counts, and recent-play timing. No usernames appear there.
 
 ## What leaves your machine
 

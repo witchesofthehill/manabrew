@@ -325,7 +325,28 @@ async fn top_decks_handler(
         .limit
         .unwrap_or(DEFAULT_TOP_DECKS)
         .clamp(1, MAX_TOP_DECKS);
-    Json(state.stats.top_decks(window, limit)).into_response()
+    let ranked = state.stats.top_decks(window, limit);
+    let storage = state.storage.lock().unwrap();
+    let mut stats = Vec::with_capacity(ranked.len());
+    for mut deck in ranked {
+        let linked = match (
+            deck.stat.published_deck_id.as_deref(),
+            deck.deck_fingerprint.as_deref(),
+        ) {
+            (Some(id), Some(fingerprint)) => {
+                match storage.published_deck_matches(id, fingerprint) {
+                    Ok(matches) => matches,
+                    Err(error) => return internal_error(error),
+                }
+            }
+            _ => false,
+        };
+        if !linked {
+            deck.stat.published_deck_id = None;
+        }
+        stats.push(deck.stat);
+    }
+    Json(stats).into_response()
 }
 
 // Last hop only: earlier entries are client-supplied and spoofable; the final

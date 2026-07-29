@@ -1,73 +1,74 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Swords } from "lucide-react";
+import { ChevronDown, Loader2, MoreHorizontal, Swords, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DeckCardBrowser } from "@/components/deck/DeckCardBrowser";
 import { FormatBadge } from "@/components/game/FormatBadge";
-import { fetchHubDeck, unpublishDeck } from "@/api/hub";
-import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
-import { groupCards } from "@/views/myDecks.utils";
+import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { unpublishDeck } from "@/api/hub";
+import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
-import type { DeckCard } from "@/protocol/deck";
+import { useHubStore } from "@/stores/useHubStore";
 import type { HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
+import { ROUTES } from "@/lib/constants";
 
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
   onClose: () => void;
   onUnpublished?: () => void;
-}
-
-function CardSection({ title, cards }: { title: string; cards: DeckCard[] }) {
-  if (cards.length === 0) return null;
-  return (
-    <div>
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-        {title} ({cards.length})
-      </p>
-      <ul className="text-sm space-y-0.5">
-        {groupCards(cards).map((group) => (
-          <li key={group.card.identity.name} className="flex gap-2">
-            <span className="text-muted-foreground w-6 text-right shrink-0">{group.count}</span>
-            <span className="truncate">{group.card.identity.name}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  onViewSnapshot?: () => void;
 }
 
 export function HubDeckPreviewDialog({
   deckId,
   onClose,
   onUnpublished,
+  onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
   const navigate = useNavigate();
-  const { quickPlaytest, playtestDialog } = useQuickPlaytest();
+  const {
+    decks: myDecks,
+    loading: ownershipLoading,
+    error: ownershipError,
+    signedIn,
+    refresh,
+  } = useMyHubDecks();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
-  const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
+  const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
+  const loadDeck = useHubStore((s) => s.loadDeck);
+  const removeDeck = useHubStore((s) => s.removeDeck);
   const published = usePublishedDecksStore((s) => s.published);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
   const [detail, setDetail] = useState<HubDeckDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
 
   useEffect(() => {
     setDetail(null);
     setError(null);
+    setConfirmingUnpublish(false);
     if (!deckId) return;
     let cancelled = false;
-    fetchHubDeck(deckId)
+    loadDeck(deckId)
       .then((d) => {
         if (!cancelled) setDetail(d);
       })
@@ -77,9 +78,23 @@ export function HubDeckPreviewDialog({
     return () => {
       cancelled = true;
     };
-  }, [deckId]);
+  }, [deckId, loadAttempt, loadDeck]);
 
-  const mine = published.find((p) => p.hubId === deckId);
+  const legacyPublication = published.find((record) => record.hubId === deckId);
+  const mine = myDecks.some((deck) => deck.id === deckId) || legacyPublication !== undefined;
+  const mainCardCount = detail
+    ? detail.deck.cards.length +
+      (detail.deck.commanders?.length ?? 0) +
+      (detail.deck.attractions?.length ?? 0) +
+      (detail.deck.contraptions?.length ?? 0) +
+      (detail.deck.schemes?.length ?? 0) +
+      (detail.deck.planes?.length ?? 0)
+    : 0;
+  const sideboardCount = detail?.deck.sideboard.length ?? 0;
+  const colorCost = detail?.colors
+    .split("")
+    .map((color) => `{${color}}`)
+    .join("");
 
   function handleSave() {
     if (!detail) return;
@@ -90,31 +105,48 @@ export function HubDeckPreviewDialog({
 
   function handleOpen() {
     if (!detail) return;
-    loadPresetDeck(detail.deck as EditorDeck);
+    loadHubDeck(detail.deck as EditorDeck);
     onClose();
-    navigate("/deck-editor");
+    if (onViewSnapshot) {
+      onViewSnapshot();
+    } else {
+      navigate(ROUTES.DECK_EDITOR, { state: { directToEditor: true } });
+    }
   }
 
-  function handleCopyLink() {
+  async function handleCopyLink() {
     if (!deckId) return;
     const url = `${window.location.origin}/hub?deck=${encodeURIComponent(deckId)}`;
-    void navigator.clipboard.writeText(url);
-    toast.success("Share link copied — anyone can open and play this deck");
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied — anyone can open and play this deck");
+    } catch {
+      toast.error("Couldn’t copy the share link");
+    }
   }
 
-  function handlePlaytest() {
-    if (!detail) return;
+  function handlePlayOffline() {
+    if (!deckId) return;
     onClose();
-    quickPlaytest(detail.deck);
+    navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
+  }
+
+  function handleMultiplayer() {
+    if (!deckId) return;
+    onClose();
+    navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
   }
 
   async function handleUnpublish() {
-    if (!mine) return;
+    if (!deckId || !mine) return;
     setBusy(true);
     try {
-      await unpublishDeck(mine.hubId, mine.managementToken);
-      removePublished(mine.hubId);
-      toast.success(`"${mine.name}" removed from the Deck Hub`);
+      await unpublishDeck(deckId, legacyPublication?.managementToken);
+      setConfirmingUnpublish(false);
+      removePublished(deckId);
+      removeDeck(deckId);
+      void refresh();
+      toast.success(`"${detail?.name ?? "Deck"}" removed from the Deck Hub`);
       onClose();
       onUnpublished?.();
     } catch (err) {
@@ -127,56 +159,142 @@ export function HubDeckPreviewDialog({
   return (
     <>
       <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="truncate">{detail?.name ?? "Loading…"}</span>
-              {detail && <FormatBadge formatId={detail.format ?? "commander"} />}
+        <DialogContent className="flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]">
+          <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5">
+            <DialogTitle className="truncate">
+              {detail?.name ?? (error ? "Deck unavailable" : "Loading…")}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="line-clamp-2">
               {detail
                 ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
                 : (error ?? "Fetching deck from the hub…")}
             </DialogDescription>
-          </DialogHeader>
-          {detail && (
-            <ScrollArea className="max-h-[50dvh] pr-3">
-              <div className="space-y-3">
-                <CardSection title="Commanders" cards={detail.deck.commanders ?? []} />
-                <CardSection title="Main deck" cards={detail.deck.cards} />
-                <CardSection title="Sideboard" cards={detail.deck.sideboard} />
+            {detail && (
+              <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
+                <FormatBadge formatId={detail.format ?? detail.deck.format ?? "commander"} />
+                {colorCost && <ManaSymbols cost={colorCost} size="sm" className="m-0" />}
+                <span>{mainCardCount} main</span>
+                {sideboardCount > 0 && <span>{sideboardCount} sideboard</span>}
+                <span aria-hidden="true">·</span>
+                <span>Public snapshot</span>
               </div>
-            </ScrollArea>
-          )}
-          <DialogFooter className="gap-2">
-            {mine && (
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={busy || !detail}
-                onClick={handleUnpublish}
-                className="mr-auto"
-              >
-                {busy ? "Removing…" : "Remove from hub"}
-              </Button>
             )}
-            <Button variant="outline" size="sm" disabled={!deckId} onClick={handleCopyLink}>
-              Copy link
-            </Button>
-            <Button variant="outline" size="sm" disabled={!detail} onClick={handleOpen}>
-              Open read-only
-            </Button>
-            <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-              Save to My Decks
-            </Button>
-            <Button size="sm" disabled={!detail} onClick={handlePlaytest}>
-              <Swords className="mr-1 h-3.5 w-3.5" />
-              Playtest
-            </Button>
-          </DialogFooter>
+          </DialogHeader>
+
+          {error ? (
+            <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
+              <div>
+                <p className="text-sm font-medium">This deck could not be loaded</p>
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">{error}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => setLoadAttempt((value) => value + 1)}
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : detail ? (
+            <DeckCardBrowser deck={detail.deck} />
+          ) : (
+            <div className="grid min-h-0 flex-1 place-items-center">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading deck…
+              </div>
+            </div>
+          )}
+
+          <div className="shrink-0 border-t bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
+            {signedIn && ownershipError && !legacyPublication && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
+                <span className="min-w-0 break-words">Couldn’t verify deck ownership.</span>
+                <Button variant="outline" size="sm" onClick={() => void refresh()}>
+                  Retry
+                </Button>
+              </div>
+            )}
+            {mine && !ownershipLoading && confirmingUnpublish ? (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span role="status" aria-live="polite" className="mr-auto text-xs text-destructive">
+                  Remove this public snapshot?
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => setConfirmingUnpublish(false)}
+                >
+                  Keep published
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  autoFocus
+                  disabled={busy || !detail}
+                  onClick={handleUnpublish}
+                >
+                  {busy ? "Unpublishing…" : "Confirm unpublish"}
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="sm" disabled={!detail} className="col-span-2">
+                      Play
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={handlePlayOffline}>
+                      <Swords />
+                      Play Offline
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={handleMultiplayer}>
+                      <Users />
+                      Multiplayer
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
+                  Save editable copy
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                      More
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem disabled={!detail} onSelect={handleOpen}>
+                      Open in Deck Editor
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!deckId} onSelect={() => void handleCopyLink()}>
+                      Copy share link
+                    </DropdownMenuItem>
+                    {mine && !ownershipLoading && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          disabled={busy || !detail}
+                          className="text-destructive focus:text-destructive"
+                          onSelect={() => setConfirmingUnpublish(true)}
+                        >
+                          Unpublish
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
-      {playtestDialog}
     </>
   );
 }

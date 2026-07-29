@@ -1,5 +1,5 @@
 use manabrew_hub::dto::{HubDeckDetail, HubDeckSummary};
-use manabrew_protocol::deck_dto::{Deck, DeckFormat};
+use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckFormat};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row};
 
 pub struct ListParams {
@@ -294,6 +294,20 @@ impl Storage {
         }))
     }
 
+    pub fn published_deck_matches(&self, id: &str, fingerprint: &str) -> SqlResult<bool> {
+        let deck_json = self
+            .conn
+            .query_row(
+                "SELECT deck_json FROM hub_decks WHERE id = ?1 AND unlisted = 0",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(deck_json
+            .and_then(|json| serde_json::from_str::<Deck>(&json).ok())
+            .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint))
+    }
+
     pub fn delete_deck(&self, id: &str, token_hash: &str) -> SqlResult<DeleteOutcome> {
         let stored: Option<String> = self
             .conn
@@ -367,7 +381,9 @@ impl Storage {
         let mut stmt = self.conn.prepare(
             "SELECT id, name, author, description, format, commanders, colors, card_count,
                     cover_card_name, cover_image_url, created_at
-             FROM hub_decks WHERE account_id = ?1 ORDER BY created_at DESC LIMIT ?2",
+             FROM hub_decks
+             WHERE account_id = ?1 AND unlisted = 0
+             ORDER BY created_at DESC LIMIT ?2",
         )?;
         let decks = stmt
             .query_map(params![account_id, limit], map_summary)?

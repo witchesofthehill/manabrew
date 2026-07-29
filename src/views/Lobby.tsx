@@ -75,10 +75,15 @@ export default function Lobby() {
   const isDesktop = useIsDesktop();
   const initialRouteState = location.state as {
     preferredSavedDeckId?: unknown;
+    preferredHubDeckId?: unknown;
   } | null;
   const initialPreferredSavedDeckId =
     typeof initialRouteState?.preferredSavedDeckId === "string"
       ? initialRouteState.preferredSavedDeckId
+      : undefined;
+  const initialPreferredHubDeckId =
+    typeof initialRouteState?.preferredHubDeckId === "string"
+      ? initialRouteState.preferredHubDeckId
       : undefined;
   const {
     connected,
@@ -117,6 +122,7 @@ export default function Lobby() {
   const { savedDecks } = useDeckStore();
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
+  const [preferredHubDeckId] = useState(initialPreferredHubDeckId);
   const lastPlayedSavedDeck = savedDecks.find((saved) => saved.id === prefs.lastPlayedDeckId);
   const deckDialogPreSelectedId =
     preferredSavedDeckId ??
@@ -148,9 +154,9 @@ export default function Lobby() {
   }, []);
 
   useEffect(() => {
-    if (!initialPreferredSavedDeckId) return;
+    if (!initialPreferredSavedDeckId && !initialPreferredHubDeckId) return;
     navigate(location.pathname, { replace: true, state: null });
-  }, [initialPreferredSavedDeckId, location.pathname, navigate]);
+  }, [initialPreferredHubDeckId, initialPreferredSavedDeckId, location.pathname, navigate]);
 
   // Leaving tears down the embedded Forge node (stopRoom), which kills the
   // game for everyone still playing — by design. Make the host confirm it.
@@ -275,9 +281,14 @@ export default function Lobby() {
     if (format) await setFormat(format);
   }
 
-  async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
+  async function handleDeckSelection(
+    deckName: string,
+    deck: Deck,
+    commanderName?: string,
+    publishedDeckId?: string,
+  ) {
     try {
-      await setDeckSelection(deckName, deck, commanderName);
+      await setDeckSelection(deckName, deck, commanderName, publishedDeckId);
       const fingerprint = getDeckFingerprint(deck);
       const savedId = savedDecks.find(
         (saved) => getDeckFingerprint(saved.deck) === fingerprint,
@@ -542,8 +553,9 @@ export default function Lobby() {
         mode="lobby"
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
         preSelectedDeckId={deckDialogPreSelectedId}
-        onStart={(deck, _formatId, commanderName) => {
-          void handleDeckSelection(deck.name, deck, commanderName);
+        preSelectedHubDeckId={preferredHubDeckId}
+        onStart={(deck, _formatId, commanderName, _playerCount, publishedDeckId) => {
+          void handleDeckSelection(deck.name, deck, commanderName, publishedDeckId);
         }}
       />
       <CreateGameDialog
@@ -554,6 +566,7 @@ export default function Lobby() {
         }}
         mode="lobby"
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
+        target="bot"
         onStart={(deck, _formatId, commanderName) => {
           if (botDeckTarget) {
             void spawnBot(botDeckTarget, {

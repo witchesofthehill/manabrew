@@ -28,6 +28,12 @@ export type FeatureFlag = keyof typeof featureFlags;
 
 export function isFeatureEnabled(flag: FeatureFlag): boolean {
   if (featureFlags[flag]) return true;
+  const browserDevelopment =
+    import.meta.env.DEV &&
+    import.meta.env.MODE !== "test" &&
+    typeof window !== "undefined" &&
+    !("__TAURI_INTERNALS__" in window);
+  if (browserDevelopment && (flag === "accounts" || flag === "deckHub")) return true;
   return (
     typeof window !== "undefined" && window.__MANABREW_RUNTIME__?.featureFlags?.[flag] === true
   );

@@ -41,6 +41,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
     setError(null);
     try {
       const updated = await updateHandle(token, handle.trim());
+      if (useAuthStore.getState().token !== token) return;
       setAccount(updated);
       toast.success(`Handle updated to @${updated.handle}`);
       onOpenChange(false);

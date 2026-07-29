@@ -31,13 +31,23 @@ export function CardCountBadge({ count, className }: { count: number; className?
 
 // ─── Card Thumbnail (image or fallback) ──────────────────────────────────────
 
-export function CardThumbnail({ card }: { card: DeckCard }) {
+export function CardThumbnail({
+  card,
+  imageSize = "normal",
+  loading,
+}: {
+  card: DeckCard;
+  imageSize?: "small" | "normal";
+  loading?: "eager" | "lazy";
+}) {
   const { name, foil } = card.identity;
   return (
     <div className={cn("relative w-full", foil && "draft-tile-foil")}>
       <ScryfallImg
-        src={card.uris.normal}
+        src={card.uris[imageSize]}
         alt={name}
+        loading={loading}
+        decoding={loading === "lazy" ? "async" : undefined}
         className={cn("w-full rounded-lg border border-border/50 shadow-sm")}
         draggable={false}
       />

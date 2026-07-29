@@ -5,13 +5,13 @@ import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
 
 export type AuthStatus = "unknown" | "signedOut" | "signedIn";
 
+let refreshRequestId = 0;
+
 interface AuthState {
   token: string | null;
   account: AuthAccount | null;
   identities: AuthIdentity[];
   status: AuthStatus;
-  lastServer: string;
-  lastUsername: string;
   signIn: (token: string, account: AuthAccount) => void;
   setAccount: (account: AuthAccount) => void;
   hydrate: () => Promise<void>;
@@ -27,13 +27,16 @@ export const useAuthStore = create<AuthState>()(
         account: null,
         identities: [],
         status: "unknown",
-        lastServer: "",
-        lastUsername: "",
         signIn: (token, account) => {
-          set({ token, account, status: "signedIn" });
+          refreshRequestId += 1;
+          set({ token, account, identities: [], status: "signedIn" });
           void get().refresh();
         },
-        setAccount: (account) => set({ account }),
+        setAccount: (account) => {
+          refreshRequestId += 1;
+          set({ account });
+          void get().refresh();
+        },
         hydrate: async () => {
           const token = get().token;
           if (!token) {
@@ -45,17 +48,25 @@ export const useAuthStore = create<AuthState>()(
         refresh: async () => {
           const token = get().token;
           if (!token) return;
+          const requestId = ++refreshRequestId;
           try {
             const me = await fetchMe(token);
+            if (get().token !== token || requestId !== refreshRequestId) return;
             set({ account: me.account, identities: me.identities, status: "signedIn" });
           } catch (err) {
-            if (err instanceof AuthRequestError && err.status === 401) {
+            if (
+              get().token === token &&
+              requestId === refreshRequestId &&
+              err instanceof AuthRequestError &&
+              err.status === 401
+            ) {
               set({ token: null, account: null, identities: [], status: "signedOut" });
             }
           }
         },
         signOut: async () => {
           const token = get().token;
+          refreshRequestId += 1;
           set({ token: null, account: null, identities: [], status: "signedOut" });
           if (token) {
             await signOutSession(token).catch(() => {});
@@ -69,8 +80,6 @@ export const useAuthStore = create<AuthState>()(
         // read it could call the API directly anyway. Sign-out revokes the
         // session server-side, and the hub stores only its sha256.
         partialize: (state) => ({
-          lastServer: state.lastServer,
-          lastUsername: state.lastUsername,
           token: state.token,
         }),
       },

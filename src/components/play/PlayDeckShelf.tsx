@@ -14,6 +14,10 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
+import { HubDeckCard } from "@/components/deck/HubDeckCard";
+import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
+import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { isFeatureEnabled } from "@/featureFlags";
 
 const SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
 
@@ -34,6 +38,16 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importDeckText = useDeckTextImport();
+  const {
+    decks: publishedDecks,
+    loading: publishedDecksLoading,
+    error: publishedDecksError,
+    signedIn,
+    refresh: refreshPublishedDecks,
+  } = useMyHubDecks();
+  const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
+  const hubEnabled = isFeatureEnabled("deckHub");
+  const hubAccountsEnabled = hubEnabled && isFeatureEnabled("accounts");
 
   const ownedDecks = savedDecks.filter((savedDeck) => !savedDeck.deck.draft);
   const matchesFormat = (format?: string) =>
@@ -45,6 +59,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
       (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
     );
   const filteredPresets = presetDecks.filter((preset) => matchesFormat(preset.format));
+  const filteredPublishedDecks = publishedDecks.filter((deck) => matchesFormat(deck.format));
   const presetsCollapsed = presetsCollapsedOverride ?? ownedDecks.length > 0;
   const formatName =
     formatFilter === "all" ? null : (getFormat(formatFilter)?.name ?? formatFilter);
@@ -89,7 +104,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={addDeck}>
+          {hubEnabled && (
+            <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
+              <LibraryBig className="h-4 w-4" />
+              Deck Hub
+            </Button>
+          )}
+          <Button size="sm" onClick={addDeck}>
             <Plus className="h-4 w-4" />
             Build / Import
           </Button>
@@ -162,6 +183,50 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         </div>
       )}
 
+      {hubAccountsEnabled && signedIn && (
+        <div className="mt-5 border-t border-border/50 pt-4">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Published on Deck Hub
+            </span>
+            {!publishedDecksLoading && (
+              <span className="text-[11px] text-muted-foreground">
+                {filteredPublishedDecks.length}
+              </span>
+            )}
+          </div>
+          {publishedDecksError ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+              <span className="min-w-0 break-words">{publishedDecksError}</span>
+              <Button variant="outline" size="sm" onClick={() => void refreshPublishedDecks()}>
+                Retry
+              </Button>
+            </div>
+          ) : publishedDecksLoading && publishedDecks.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Loading published decks…</p>
+          ) : publishedDecks.length === 0 ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>You haven’t published a deck yet.</span>
+              <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.DECK_EDITOR)}>
+                Open My Decks
+              </Button>
+            </div>
+          ) : filteredPublishedDecks.length > 0 ? (
+            <DeckShelfRow label="Published Deck Hub decks">
+              {filteredPublishedDecks.map((deck) => (
+                <div key={deck.id} className={SHELF_CARD_CLASS}>
+                  <HubDeckCard deck={deck} onOpen={() => setHubPreviewId(deck.id)} />
+                </div>
+              ))}
+            </DeckShelfRow>
+          ) : (
+            <p className="text-xs italic text-muted-foreground">
+              No published decks for {formatName ?? "this format"}.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="mt-5 border-t border-border/50 pt-4">
         <button
           type="button"
@@ -226,6 +291,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         onFromScratch={buildFromScratch}
       />
       <ImportDeckTextDialog open={importOpen} onOpenChange={setImportOpen} onImport={importDeck} />
+      <HubDeckPreviewDialog deckId={hubPreviewId} onClose={() => setHubPreviewId(null)} />
     </section>
   );
 }

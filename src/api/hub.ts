@@ -30,10 +30,17 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     if (response.status === 429) {
-      throw new Error("Too many publishes from your connection — try again later.");
+      throw new Error("Too many Deck Hub requests from your connection. Try again later.");
     }
     if (response.status === 401) {
-      throw new Error("Sign in to publish decks to the hub.");
+      if (token && useAuthStore.getState().token === token) {
+        useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
+      }
+      throw new Error(
+        token
+          ? "Your Deck Hub session expired. Sign in again."
+          : "Sign in to publish decks to the Deck Hub.",
+      );
     }
     throw new Error(message || `Hub request failed (${response.status})`);
   }
@@ -69,10 +76,11 @@ export function publishDeck(request: PublishDeckRequest): Promise<PublishDeckRes
   });
 }
 
-export async function unpublishDeck(id: string, managementToken: string): Promise<void> {
+export async function unpublishDeck(id: string, managementToken?: string): Promise<void> {
+  const headers = managementToken ? { [MANAGEMENT_TOKEN_HEADER]: managementToken } : undefined;
   await hubRequest(`/api/hub/decks/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { [MANAGEMENT_TOKEN_HEADER]: managementToken },
+    headers,
   });
 }
 

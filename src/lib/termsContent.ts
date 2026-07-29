@@ -12,11 +12,11 @@ export interface TermsContent {
 }
 
 export const TERMS_AND_CONDITIONS: TermsContent = {
-  version: "1.1.0",
+  version: "1.2.0",
   title: "Terms & Conditions",
-  lastUpdated: "2026-05-11",
+  lastUpdated: "2026-07-26",
   intro:
-    "Welcome to Manabrew. Please read and accept these terms before using the app. Manabrew is free, open-source software licensed under GPL-3.0-or-later; the full licence and third-party notices ship with the source at github.com/fedepoi/bardidinaXmageUI.",
+    "Welcome to Manabrew. Please read and accept these terms before using the app. Manabrew is free, open-source software licensed under GPL-3.0-or-later; the full licence and third-party notices ship with the source at github.com/witchesofthehill/manabrew.",
   sections: [
     {
       heading: "1. Acceptance",
@@ -44,7 +44,7 @@ export const TERMS_AND_CONDITIONS: TermsContent = {
     },
     {
       heading: "7. Local data and privacy",
-      body: "Your decks, preferences, and this acknowledgement are stored locally on your device — in your browser's local storage on the web build, and in the operating system's application data directory on desktop. Manabrew does not send telemetry or analytics to the maintainers. Multiplayer games are relayed through a WebSocket lobby server operated by the maintainers; that server processes the connection metadata (including your IP address) and the game messages needed to relay them between players. The players you choose to play against will see the game state and metadata you share with them.",
+      body: "Your local decks, preferences, and this acknowledgement are stored on your device — in your browser's local storage on the web build, and in the operating system's application data directory on desktop. Accounts are optional and store your handle, linked sign-in identities, sessions, and any decks you choose to publish. Games played through the official public relay may be recorded for reliability, debugging, aggregate statistics, and the public Top Decks board; those records can include relay usernames, deck names, commanders, game events, and connection metadata such as IP addresses. Top Decks publicly shows aggregate deck names, commanders, play counts, and recent-play timing, but not usernames. Self-hosted relays control their own recording. See docs.manabrew.app/privacy for current details.",
     },
     {
       heading: "8. Your rights under GPL-3.0-or-later",

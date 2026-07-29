@@ -338,6 +338,7 @@ impl Client {
                 deck_name: "Reg Player".to_string(),
                 deck: serde_json::from_value(basic_deck("Reg Player", "Mountain", "Hill Giant"))
                     .map_err(|e| e.to_string())?,
+                published_deck_id: None,
                 commander_name: None,
                 avatar: None,
             },

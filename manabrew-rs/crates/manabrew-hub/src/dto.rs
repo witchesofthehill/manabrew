@@ -75,6 +75,9 @@ pub struct TopDeckStat {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub commander: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub published_deck_id: Option<String>,
     pub plays: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

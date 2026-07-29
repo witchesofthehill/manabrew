@@ -5,6 +5,7 @@ import { exchangeCode } from "@/api/auth";
 import { ROUTES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { takeAuthReturnIntent } from "@/lib/authReturn";
 
 const ERROR_MESSAGES: Record<string, string> = {
   state_expired: "The sign-in attempt expired. Try again.",
@@ -32,10 +33,19 @@ export default function AuthCallback() {
     const linked = params.get("linked");
     const code = params.get("code");
     const email = params.get("email");
+    const returnIntent = takeAuthReturnIntent();
+    const returnState =
+      returnIntent.publishDeck || returnIntent.resumeCurrentPublish
+        ? {
+            resumePublishDeckId: returnIntent.publishDeckId,
+            resumePublishDeck: returnIntent.publishDeck,
+            resumeCurrentPublish: returnIntent.resumeCurrentPublish,
+          }
+        : undefined;
 
     if (error) {
       toast.error(ERROR_MESSAGES[error] ?? "Sign-in failed. Try again.");
-      navigate(ROUTES.PLAY, { replace: true });
+      navigate(returnIntent.returnTo, { replace: true });
       return;
     }
     if (linked) {
@@ -45,8 +55,15 @@ export default function AuthCallback() {
       return;
     }
     if (email && code) {
-      useSignInDialog.getState().show({ email, code });
-      navigate(ROUTES.PLAY, { replace: true });
+      useSignInDialog.getState().show({
+        email,
+        code,
+        returnTo: returnIntent.returnTo,
+        publishDeckId: returnIntent.publishDeckId,
+        publishDeck: returnIntent.publishDeck,
+        resumeCurrentPublish: returnIntent.resumeCurrentPublish,
+      });
+      navigate(returnIntent.returnTo, { replace: true, state: returnState });
       return;
     }
     if (code) {
@@ -58,16 +75,15 @@ export default function AuthCallback() {
           } else {
             toast.success(`Signed in as @${session.account.handle}`);
           }
+          navigate(returnIntent.returnTo, { replace: true, state: returnState });
         })
         .catch(() => {
           toast.error("Sign-in failed. Try again.");
-        })
-        .finally(() => {
-          navigate(ROUTES.PLAY, { replace: true });
+          navigate(returnIntent.returnTo, { replace: true });
         });
       return;
     }
-    navigate(ROUTES.PLAY, { replace: true });
+    navigate(returnIntent.returnTo, { replace: true });
   }, [navigate]);
 
   return (

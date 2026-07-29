@@ -1565,18 +1565,6 @@
     "@tailwindcss/oxide" "4.2.0"
     tailwindcss "4.2.0"
 
-"@tanstack/query-core@5.100.5":
-  version "5.100.5"
-  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.100.5.tgz#90808dd097896ab62cfdfb5cf997564f602cf3ad"
-  integrity sha512-t20KrhKkf0HXzqQkPbJ5erhFesup68BAbwFgYmTrS7bxMF7O5MdmL8jUkik4thsG7Hg00fblz30h6yF1d5TxGg==
-
-"@tanstack/react-query@^5.100.5":
-  version "5.100.5"
-  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.100.5.tgz#3381992ff863827278ac97c432fa1f08893b78cd"
-  integrity sha512-aNwj1mi2v2bQ9IxkyR1grLOUkv3BYWoykHy9KDyLNbjC3tsahbOHJibK+Wjtr1wRhG59/AvJhiJG5OlthaCgJA==
-  dependencies:
-    "@tanstack/query-core" "5.100.5"
-
 "@tauri-apps/api@^2.10.1", "@tauri-apps/api@^2.8.0":
   version "2.11.1"
   resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.11.1.tgz#cd6b13fc26403ca095a02e39ecdbec8048d2872d"

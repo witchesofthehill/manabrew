@@ -66,24 +66,39 @@ export function CreateGameDialog({
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id, open);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
   const restoredHubDeckRef = useRef<string | null>(null);
+  const hubSelectionRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!forcedFormatId) return;
     const forced = GAME_FORMATS.find((f) => f.id === forcedFormatId);
-    if (forced) setSelectedFormat(forced);
+    if (forced) {
+      hubSelectionRequestIdRef.current += 1;
+      setLoadingHubDeckId(null);
+      setSelectedFormat(forced);
+    }
   }, [forcedFormatId]);
 
   useEffect(() => {
-    if (preSelectedDeckId) setSelectedDeck(preSelectedDeckId);
+    if (preSelectedDeckId) {
+      hubSelectionRequestIdRef.current += 1;
+      setLoadingHubDeckId(null);
+      setSelectedDeck(preSelectedDeckId);
+    }
   }, [preSelectedDeckId]);
 
   useEffect(() => {
-    if (!open || !preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId)
+    if (!open) {
+      hubSelectionRequestIdRef.current += 1;
+      setLoadingHubDeckId(null);
       return;
+    }
+    if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
     restoredHubDeckRef.current = preSelectedHubDeckId;
+    const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(preSelectedHubDeckId);
     void loadHubDeck(preSelectedHubDeckId)
       .then((detail) => {
+        if (hubSelectionRequestIdRef.current !== requestId) return;
         const formatId = detail.deck.format ?? detail.format ?? "standard";
         if (formatId !== selectedFormat.id) {
           restoredHubDeckRef.current = null;
@@ -92,13 +107,15 @@ export function CreateGameDialog({
         }
         setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
         setSelectedDeck(`hub:${detail.id}`);
-        setDeckSearch(detail.name);
       })
       .catch((err) => {
+        if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
         toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
       })
-      .finally(() => setLoadingHubDeckId(null));
+      .finally(() => {
+        if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
+      });
   }, [loadHubDeck, open, preSelectedHubDeckId, selectedFormat.id, selectedFormat.name]);
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
@@ -244,11 +261,27 @@ export function CreateGameDialog({
     : { legal: false, errors: [] as string[] };
   const isReady = selectedDeckIsVisible && selectedDeckValidation.legal && commanderValid;
 
+  function invalidateHubSelection() {
+    hubSelectionRequestIdRef.current += 1;
+    setLoadingHubDeckId(null);
+  }
+
+  function selectDeck(deckId: string) {
+    invalidateHubSelection();
+    setSelectedDeck(deckId);
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) invalidateHubSelection();
+    onOpenChange(nextOpen);
+  }
+
   async function selectHubDeck(summary: HubDeckSummary, activate = false) {
-    if (loadingHubDeckId) return;
+    const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
     try {
       const detail = await loadHubDeck(summary.id);
+      if (hubSelectionRequestIdRef.current !== requestId) return;
       setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
       const entry = {
         id: `hub:${detail.id}`,
@@ -271,9 +304,10 @@ export function CreateGameDialog({
       setSelectedDeck(entry.id);
       if (activate) handleCreate(entry, entry.commanderName);
     } catch (err) {
+      if (hubSelectionRequestIdRef.current !== requestId) return;
       toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
     } finally {
-      setLoadingHubDeckId(null);
+      if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
   }
 
@@ -311,7 +345,7 @@ export function CreateGameDialog({
       toast.error("Please select a commander");
       return;
     }
-    onOpenChange(false);
+    handleOpenChange(false);
     onStart(
       entry.sourceDeck,
       selectedFormat.id,
@@ -321,7 +355,7 @@ export function CreateGameDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="w-[min(96vw,84rem)] max-w-6xl p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]"
         onKeyDown={(e) => {
@@ -360,7 +394,10 @@ export function CreateGameDialog({
                     <button
                       key={format.id}
                       type="button"
-                      onClick={() => setSelectedFormat(format)}
+                      onClick={() => {
+                        invalidateHubSelection();
+                        setSelectedFormat(format);
+                      }}
                       className={cn(
                         "w-full rounded-lg border p-2.5 text-left transition-colors",
                         selectedFormat.id === format.id
@@ -548,7 +585,7 @@ export function CreateGameDialog({
                           validationError={validation.errors[0]}
                           dense={denseDecks}
                           isTouch={isTouch}
-                          onSelect={() => setSelectedDeck(d.id)}
+                          onSelect={() => selectDeck(d.id)}
                           onActivate={() => handleCreate(d, d.commanderName)}
                         />
                       );
@@ -622,7 +659,6 @@ export function CreateGameDialog({
                             validationError={validation.errors[0]}
                             dense={denseDecks}
                             isTouch={isTouch}
-                            disabled={loadingHubDeckId !== null}
                             loading={loadingHubDeckId === deck.id}
                             onSelect={() => void selectHubDeck(deck)}
                             onActivate={() => void selectHubDeck(deck, true)}
@@ -667,7 +703,7 @@ export function CreateGameDialog({
                         isLegal={true}
                         dense={denseDecks}
                         isTouch={isTouch}
-                        onSelect={() => setSelectedDeck(deck.id)}
+                        onSelect={() => selectDeck(deck.id)}
                         onActivate={() => handleCreate(deck, deck.commanderName)}
                       />
                     ))}
@@ -708,7 +744,7 @@ export function CreateGameDialog({
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button

@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -255,6 +255,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   const [manaValueFilter, setManaValueFilter] = useState<BrowserManaValueFilter>("all");
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [loadingCardName, setLoadingCardName] = useState<string | null>(null);
+  const cardDetailRequestIdRef = useRef(0);
   const preview = useCardPreview([deck.id, search, zone, groupBy, viewMode]);
   const getCard = useScryfallStore((state) => state.getCard);
   const cardsByName = useMemo(
@@ -418,6 +419,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   }
 
   async function openCard(card: DeckCard) {
+    const requestId = ++cardDetailRequestIdRef.current;
     setLoadingCardName(card.identity.name);
     try {
       const entry = await getCard({
@@ -425,11 +427,13 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
         setCode: card.identity.setCode,
         collectorNumber: card.identity.cardNumber,
       });
+      if (cardDetailRequestIdRef.current !== requestId) return;
       setDetailCard(entry.info);
     } catch (error) {
+      if (cardDetailRequestIdRef.current !== requestId) return;
       toast.error(error instanceof Error ? error.message : "Card details are unavailable");
     } finally {
-      setLoadingCardName(null);
+      if (cardDetailRequestIdRef.current === requestId) setLoadingCardName(null);
     }
   }
 

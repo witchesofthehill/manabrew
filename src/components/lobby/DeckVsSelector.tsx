@@ -115,14 +115,17 @@ export function DeckVsSelector({
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
   const loadHubDeck = useHubStore((state) => state.loadDeck);
   const restoredHubDeckRef = useRef<string | null>(null);
+  const hubSelectionRequestIdRef = useRef(0);
   const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);
 
   useEffect(() => {
     if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
     restoredHubDeckRef.current = preSelectedHubDeckId;
+    const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(preSelectedHubDeckId);
     void loadHubDeck(preSelectedHubDeckId)
       .then((detail) => {
+        if (hubSelectionRequestIdRef.current !== requestId) return;
         const formatId = detail.deck.format ?? detail.format ?? "standard";
         setPlayerDeck({
           id: `hub:${detail.id}`,
@@ -133,11 +136,11 @@ export function DeckVsSelector({
           formatId,
           commanderName: detail.deck.commanders?.[0]?.identity.name,
         });
-        setDeckSearch(detail.name);
         setSelectedFormat(formatId);
         setPickingSide("opponent");
       })
       .catch((err) => {
+        if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
         toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck", {
           action: {
@@ -146,7 +149,9 @@ export function DeckVsSelector({
           },
         });
       })
-      .finally(() => setLoadingHubDeckId(null));
+      .finally(() => {
+        if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
+      });
   }, [hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
 
   const searchLower = deckSearch.toLowerCase();
@@ -237,8 +242,14 @@ export function DeckVsSelector({
     });
   }, [selectedFormat, opponentDeck, presetDecks, savedDecks, lastAiOpponent]);
 
+  function invalidateHubSelection() {
+    hubSelectionRequestIdRef.current += 1;
+    setLoadingHubDeckId(null);
+  }
+
   function changeFormat(formatId: PlayFormatId | null) {
     if (formatId === selectedFormat) return;
+    invalidateHubSelection();
     opponentTouchedRef.current = false;
     setPlayerDeck(null);
     setOpponentDeck(null);
@@ -247,7 +258,12 @@ export function DeckVsSelector({
     setSelectedFormat(formatId);
   }
 
-  function assignDeck(selected: SelectedDeck) {
+  function assignDeck(selected: SelectedDeck, hubRequestId?: number) {
+    if (hubRequestId === undefined) {
+      invalidateHubSelection();
+    } else if (hubSelectionRequestIdRef.current !== hubRequestId) {
+      return;
+    }
     if (pickingSide === "player" || pickingSide === null) {
       setPlayerDeck(selected);
       setPickingSide("opponent");
@@ -280,10 +296,11 @@ export function DeckVsSelector({
   }
 
   async function selectHubDeck(summary: HubDeckSummary) {
-    if (loadingHubDeckId) return;
+    const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
     try {
       const detail = await loadHubDeck(summary.id);
+      if (hubSelectionRequestIdRef.current !== requestId) return;
       const deck = detail.deck;
       const formatId = deck.format ?? summary.format ?? "standard";
       const currentFormat = selectedFormatRef.current;
@@ -294,19 +311,23 @@ export function DeckVsSelector({
         return;
       }
       if (!currentFormat) setSelectedFormat(formatId);
-      assignDeck({
-        id: `hub:${summary.id}`,
-        sourceId: summary.id,
-        name: deck.name,
-        sourceDeck: deck,
-        source: "hub",
-        formatId,
-        commanderName: deck.commanders?.[0]?.identity.name,
-      });
+      assignDeck(
+        {
+          id: `hub:${summary.id}`,
+          sourceId: summary.id,
+          name: deck.name,
+          sourceDeck: deck,
+          source: "hub",
+          formatId,
+          commanderName: deck.commanders?.[0]?.identity.name,
+        },
+        requestId,
+      );
     } catch (err) {
+      if (hubSelectionRequestIdRef.current !== requestId) return;
       toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
     } finally {
-      setLoadingHubDeckId(null);
+      if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
   }
 
@@ -319,6 +340,7 @@ export function DeckVsSelector({
     if (!selectedFormat) return;
     const random = pickRandom(formatFilteredPresets);
     if (!random) return;
+    invalidateHubSelection();
     const sourceId = random.id ?? random.name;
     opponentTouchedRef.current = true;
     setOpponentDeck({
@@ -580,7 +602,6 @@ export function DeckVsSelector({
                       formatId={deck.format ?? "standard"}
                       dense={denseDecks}
                       isTouch={isTouch}
-                      disabled={loadingHubDeckId !== null}
                       loading={loadingHubDeckId === deck.id}
                       onSelect={() => void selectHubDeck(deck)}
                     />
@@ -641,8 +662,12 @@ export function DeckVsSelector({
             sideColor="var(--player-colors-self)"
             isActive={pickingSide === "player"}
             isConfirmed={!!playerDeck && pickingSide !== "player"}
-            onClick={() => setPickingSide("player")}
+            onClick={() => {
+              invalidateHubSelection();
+              setPickingSide("player");
+            }}
             onClear={() => {
+              invalidateHubSelection();
               setPlayerDeck(null);
               setPickingSide("player");
             }}
@@ -656,10 +681,12 @@ export function DeckVsSelector({
             isActive={pickingSide === "opponent"}
             isConfirmed={!!opponentDeck && opponentConfirmed && pickingSide !== "opponent"}
             onClick={() => {
+              invalidateHubSelection();
               setOpponentConfirmed(false);
               setPickingSide("opponent");
             }}
             onClear={() => {
+              invalidateHubSelection();
               opponentTouchedRef.current = true;
               setOpponentDeck(null);
               setOpponentConfirmed(false);

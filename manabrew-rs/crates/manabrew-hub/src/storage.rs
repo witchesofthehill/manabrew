@@ -78,6 +78,8 @@ pub enum LoginCodeOutcome {
     Invalid,
 }
 
+include!(concat!(env!("OUT_DIR"), "/migrations.rs"));
+
 pub struct Storage {
     conn: Connection,
 }
@@ -88,7 +90,7 @@ impl Storage {
         conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))?;
         conn.execute_batch("PRAGMA foreign_keys=ON")?;
         let storage = Self { conn };
-        storage.init_schema()?;
+        storage.migrate()?;
         Ok(storage)
     }
 
@@ -97,103 +99,19 @@ impl Storage {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA foreign_keys=ON")?;
         let storage = Self { conn };
-        storage.init_schema()?;
+        storage.migrate()?;
         Ok(storage)
     }
 
-    fn init_schema(&self) -> SqlResult<()> {
-        self.conn.execute_batch(
-            "
-            CREATE TABLE IF NOT EXISTS hub_decks (
-                id                    TEXT PRIMARY KEY,
-                name                  TEXT NOT NULL,
-                author                TEXT NOT NULL,
-                description           TEXT,
-                format                TEXT,
-                commanders            TEXT NOT NULL DEFAULT '[]',
-                colors                TEXT NOT NULL DEFAULT '',
-                card_count            INTEGER NOT NULL,
-                cover_card_name       TEXT,
-                cover_image_url       TEXT,
-                deck_json             TEXT NOT NULL,
-                management_token_hash TEXT NOT NULL,
-                publish_ip            TEXT NOT NULL,
-                created_at            TEXT NOT NULL,
-                unlisted              INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE INDEX IF NOT EXISTS idx_hub_decks_browse ON hub_decks(unlisted, created_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_hub_decks_format ON hub_decks(format);
-            CREATE INDEX IF NOT EXISTS idx_hub_decks_ip_day ON hub_decks(publish_ip, created_at);
-            CREATE TABLE IF NOT EXISTS accounts (
-                id         TEXT PRIMARY KEY,
-                handle     TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                handle_set INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS identities (
-                id               TEXT PRIMARY KEY,
-                account_id       TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-                provider         TEXT NOT NULL,
-                provider_user_id TEXT NOT NULL,
-                email            TEXT,
-                email_verified   INTEGER NOT NULL DEFAULT 0,
-                created_at       TEXT NOT NULL,
-                UNIQUE(provider, provider_user_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_identities_account ON identities(account_id);
-            CREATE INDEX IF NOT EXISTS idx_identities_email
-                ON identities(email COLLATE NOCASE) WHERE email_verified = 1;
-            CREATE TABLE IF NOT EXISTS sessions (
-                token_hash TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-                created_at TEXT NOT NULL,
-                expires_at TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_sessions_account ON sessions(account_id);
-            CREATE TABLE IF NOT EXISTS login_tokens (
-                code_hash  TEXT PRIMARY KEY,
-                email      TEXT NOT NULL,
-                attempts   INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL,
-                expires_at TEXT NOT NULL,
-                request_ip TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_login_tokens_email
-                ON login_tokens(email COLLATE NOCASE, created_at);
-            CREATE TABLE IF NOT EXISTS oauth_states (
-                state_hash      TEXT PRIMARY KEY,
-                provider        TEXT NOT NULL,
-                mode            TEXT NOT NULL,
-                client          TEXT NOT NULL,
-                link_account_id TEXT,
-                return_to       TEXT NOT NULL,
-                created_at      TEXT NOT NULL,
-                expires_at      TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS auth_codes (
-                code_hash  TEXT PRIMARY KEY,
-                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-                created_at TEXT NOT NULL,
-                expires_at TEXT NOT NULL
-            );
-            ",
-        )?;
-        self.ensure_column(
-            "hub_decks",
-            "account_id",
-            "ALTER TABLE hub_decks ADD COLUMN account_id TEXT;
-             CREATE INDEX idx_hub_decks_account ON hub_decks(account_id);",
-        )
-    }
-
-    fn ensure_column(&self, table: &str, column: &str, ddl: &str) -> SqlResult<()> {
-        let exists: u32 = self.conn.query_row(
-            "SELECT count(*) FROM pragma_table_info(?1) WHERE name = ?2",
-            params![table, column],
-            |row| row.get(0),
-        )?;
-        if exists == 0 {
-            self.conn.execute_batch(ddl)?;
+    fn migrate(&self) -> SqlResult<()> {
+        for (name, sql) in MIGRATIONS {
+            let tx = self.conn.unchecked_transaction()?;
+            tx.execute_batch(sql)?;
+            tx.commit()?;
+            let version: i64 =
+                self.conn
+                    .query_row("SELECT version FROM schema_version", [], |row| row.get(0))?;
+            tracing::info!(migration = name, version, "migration ran");
         }
         Ok(())
     }

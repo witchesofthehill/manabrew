@@ -1,0 +1,101 @@
+services:
+  web:
+    build:
+      context: docker/dev
+      dockerfile: web.Dockerfile
+    init: true
+    command: sh -c "yarn install --frozen-lockfile && exec yarn vite --host 0.0.0.0"
+    environment:
+      VITE_HUB_API_URL: "http://hub:9500"
+    ports:
+      - "1420:1420"
+    volumes:
+      - .:/app
+      - web-node-modules:/app/node_modules
+
+  relay:
+    build:
+      context: docker/dev
+      dockerfile: rust.Dockerfile
+    init: true
+    command:
+      - watchexec
+      - --restart
+      - --stop-signal=SIGKILL
+      - --watch
+      - manabrew-rs/crates/manabrew-server
+      - --watch
+      - manabrew-rs/crates/manabrew-protocol
+      - --
+      - cargo
+      - run
+      - -p
+      - manabrew-server
+    environment:
+      CARGO_TARGET_DIR: /target
+      FORGE_HOST: "0.0.0.0"
+      FORGE_PORT: "9443"
+      FORGE_HEALTH_PORT: "9444"
+      RUST_LOG: "manabrew_server=info"
+    ports:
+      - "9443:9443"
+      - "9444:9444"
+    volumes:
+      - .:/app
+      - relay-target:/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 600s
+
+  hub:
+    build:
+      context: docker/dev
+      dockerfile: rust.Dockerfile
+    init: true
+    command:
+      - watchexec
+      - --restart
+      - --watch
+      - manabrew-rs/crates/manabrew-hub
+      - --watch
+      - manabrew-rs/crates/manabrew-protocol
+      - --
+      - cargo
+      - run
+      - -p
+      - manabrew-hub
+    environment:
+      CARGO_TARGET_DIR: /target
+      HUB_HOST: "0.0.0.0"
+      HUB_PORT: "9500"
+      HUB_DB_PATH: "/data/hub.db"
+      HUB_PUBLIC_URL: "http://localhost:9500"
+      WEB_APP_URL: "http://localhost:1420"
+      RUST_LOG: "manabrew_hub=info"
+    ports:
+      - "9500:9500"
+    volumes:
+      - .:/app
+      - hub-data:/data
+      - hub-target:/target
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9500/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 600s
+
+volumes:
+  web-node-modules:
+  cargo-registry:
+  cargo-git:
+  relay-target:
+  hub-target:
+  hub-data:

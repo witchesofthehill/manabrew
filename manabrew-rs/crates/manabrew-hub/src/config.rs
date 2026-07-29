@@ -2,6 +2,7 @@ pub struct HubConfig {
     pub host: String,
     pub port: u16,
     pub db_path: String,
+    pub jwt_key_path: String,
     pub events_db_path: Option<String>,
     pub publish_per_hour: u32,
     pub publish_per_day: u32,
@@ -28,13 +29,23 @@ pub struct OAuthClient {
 
 impl HubConfig {
     pub fn from_env() -> Self {
+        let db_path = std::env::var("HUB_DB_PATH").unwrap_or_else(|_| "hub.db".into());
         HubConfig {
             host: std::env::var("HUB_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: std::env::var("HUB_PORT")
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(9500),
-            db_path: std::env::var("HUB_DB_PATH").unwrap_or_else(|_| "hub.db".into()),
+            jwt_key_path: std::env::var("HUB_JWT_KEY_PATH")
+                .ok()
+                .filter(|path| !path.is_empty())
+                .unwrap_or_else(|| {
+                    std::path::Path::new(&db_path)
+                        .with_file_name("jwt-ed25519.pkcs8")
+                        .to_string_lossy()
+                        .into_owned()
+                }),
+            db_path,
             events_db_path: std::env::var("EVENTS_DB_PATH")
                 .ok()
                 .filter(|path| !path.is_empty()),

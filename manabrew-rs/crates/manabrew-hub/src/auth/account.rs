@@ -9,7 +9,7 @@ use manabrew_hub::dto::{
     AuthAccount, AuthIdentity, ExchangeCodeRequest, MeResponse, UpdateHandleRequest,
 };
 
-use super::{account_dto, bearer_account, bearer_token, create_session, now_str};
+use super::{account_dto, bearer_token, create_session, now_str, SessionAccount};
 use crate::routes::{client_ip, hash_token, internal_error, AppState};
 use crate::storage::HandleOutcome;
 use crate::validate;
@@ -47,12 +47,10 @@ pub async fn exchange_handler(
     }
 }
 
-pub async fn me_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
-    let account = match bearer_account(&state, &headers) {
-        Ok(Some(account)) => account,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(error) => return internal_error(error),
-    };
+pub async fn me_handler(
+    State(state): State<Arc<AppState>>,
+    SessionAccount(account): SessionAccount,
+) -> Response {
     let identities = match state.storage.lock().unwrap().list_identities(&account.id) {
         Ok(identities) => identities,
         Err(error) => return internal_error(error),
@@ -72,14 +70,9 @@ pub async fn me_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) 
 
 pub async fn update_handle_handler(
     State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
+    SessionAccount(account): SessionAccount,
     Json(request): Json<UpdateHandleRequest>,
 ) -> Response {
-    let account = match bearer_account(&state, &headers) {
-        Ok(Some(account)) => account,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(error) => return internal_error(error),
-    };
     let handle = request.handle.trim();
     if let Err(message) = validate::validate_handle(handle) {
         return (StatusCode::UNPROCESSABLE_ENTITY, message).into_response();
@@ -120,13 +113,8 @@ pub async fn logout_handler(State(state): State<Arc<AppState>>, headers: HeaderM
 pub async fn unlink_identity_handler(
     State(state): State<Arc<AppState>>,
     Path(provider): Path<String>,
-    headers: HeaderMap,
+    SessionAccount(account): SessionAccount,
 ) -> Response {
-    let account = match bearer_account(&state, &headers) {
-        Ok(Some(account)) => account,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(error) => return internal_error(error),
-    };
     let storage = state.storage.lock().unwrap();
     let identities = match storage.list_identities(&account.id) {
         Ok(identities) => identities,

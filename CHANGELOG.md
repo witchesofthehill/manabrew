@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/witchesofthehill/manabrew/compare/v3.0.0...v3.0.1) (2026-07-29)
+
+### Fixes
+
+* mutate behaviour  ([#558](https://github.com/witchesofthehill/manabrew/issues/558)) ([8dff28e](https://github.com/witchesofthehill/manabrew/commit/8dff28e57c003e3a7cba4859cfc48835b4aba777))
+* **lint:** skip generated native resources during clippy ([#563](https://github.com/witchesofthehill/manabrew/issues/563)) ([cf42185](https://github.com/witchesofthehill/manabrew/commit/cf4218545753ba12b7a565eb22d583ce00a7cdfd))
+
 ## [3.0.0](https://github.com/witchesofthehill/manabrew/compare/v2.1.2...v3.0.0) (2026-07-27)
 
 ### Features

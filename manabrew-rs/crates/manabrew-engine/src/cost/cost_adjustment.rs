@@ -906,11 +906,8 @@ fn apply_offering_reduction(
     else {
         return true;
     };
-    if sa.sacrificed_as_offering.is_some() {
-        let reduce = game
-            .card(sa.sacrificed_as_offering.expect("checked above"))
-            .mana_cost
-            .cmc();
+    if let Some(sacrificed) = sa.sacrificed_as_offering {
+        let reduce = game.card(sacrificed).mana_cost.cmc();
         cost.decrease_generic_mana(reduce);
         return true;
     }
@@ -957,11 +954,8 @@ fn apply_emerge_reduction(
     if sa.alt_cost != Some(crate::spellability::AlternativeCost::Emerge) {
         return true;
     }
-    if sa.sacrificed_as_emerge.is_some() {
-        let reduce = game
-            .card(sa.sacrificed_as_emerge.expect("checked above"))
-            .mana_cost
-            .cmc();
+    if let Some(sacrificed) = sa.sacrificed_as_emerge {
+        let reduce = game.card(sacrificed).mana_cost.cmc();
         cost.decrease_generic_mana(reduce);
         return true;
     }

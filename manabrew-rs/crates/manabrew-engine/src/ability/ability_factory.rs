@@ -21,11 +21,12 @@ use serde::{Deserialize, Serialize};
 
 /// The record type prefix for an ability definition.
 /// Mirrors Java's `AbilityFactory.AbilityRecordType`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AbilityRecordType {
     /// AB$ — activated ability
     Ability,
     /// SP$ — spell ability
+    #[default]
     Spell,
     /// ST$ — static ability
     StaticAbility,
@@ -105,12 +106,6 @@ impl AbilityRecordType {
     pub fn get_api_type_of(&self, params: &Params) -> Option<crate::ability::api_type::ApiType> {
         self.api_type_of(params)
             .and_then(crate::ability::api_type::ApiType::smart_value_of)
-    }
-}
-
-impl Default for AbilityRecordType {
-    fn default() -> Self {
-        Self::Spell
     }
 }
 

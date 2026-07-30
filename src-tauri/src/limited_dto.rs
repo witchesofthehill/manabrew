@@ -177,17 +177,6 @@ pub struct EditionSlotDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CubeMetadataDto {
-    pub id: String,
-    pub name: String,
-    pub num_packs: u32,
-    pub singleton: bool,
-    pub land_set_code: Option<String>,
-    pub card_count: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BoosterDraftSetupDto {
     pub pod_size: u32,
     pub rounds: u32,
@@ -302,14 +291,6 @@ pub struct ChaosThemeDto {
     pub tag: String,
     pub label: String,
     pub order_number: i32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GauntletSetupDto {
-    pub session_id: String,
-    pub kind: String,
-    pub rounds: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -174,7 +174,7 @@ impl GameLoop {
                 if crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
                     &game.cards,
                     &cast_sa,
-                    card,
+                    &crate::staticability::static_ability_cant_be_cast::restriction_host(card),
                     player,
                     Some(game),
                 ) {
@@ -942,7 +942,7 @@ impl GameLoop {
                 if crate::staticability::static_ability_cant_be_cast::cant_be_cast_ability_in_context(
                     &game.cards,
                     &cast_sa,
-                    card,
+                    &crate::staticability::static_ability_cant_be_cast::restriction_host(card),
                     player,
                     Some(game),
                 ) {

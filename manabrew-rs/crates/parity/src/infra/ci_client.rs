@@ -284,7 +284,7 @@ fn cmd_poll(host: &str, port: u16, batch_id: &str, pr: Option<&str>, repo: Optio
                 let done = v["done"].as_bool().unwrap_or(false);
 
                 // Print progress when it changes or every 10 polls
-                if completed != last_completed || poll_count % 10 == 0 {
+                if completed != last_completed || poll_count.is_multiple_of(10) {
                     eprintln!(
                         "[poll {poll_count}] Progress: {completed}/{total} (pass={passed} fail={failed} error={errors})"
                     );

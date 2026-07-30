@@ -10,6 +10,7 @@ import forge.game.GameEntity;
 import forge.game.GameObject;
 import forge.game.card.Card;
 import forge.game.card.CardCollectionView;
+import forge.game.card.CardCopyService;
 import forge.game.card.CardLists;
 import forge.game.card.CardPredicates;
 import forge.game.mana.ManaCostBeingPaid;
@@ -142,13 +143,27 @@ public final class ActionSpace {
                 if (!validTargets) {
                     continue;
                 }
-                if (!sa.checkRestrictions(player)) {
+                if (!sa.checkRestrictions(restrictionHost(sa, game), player)) {
                     continue;
                 }
                 actions.add(sa);
             }
         }
         return actions;
+    }
+
+    private static Card restrictionHost(final SpellAbility sa, final Game game) {
+        final Card card = sa.getHostCard();
+        if (!sa.isSpell()) {
+            return card;
+        }
+        // Mirrors AiController.canPlaySa: CantBeCast statics are normally evaluated after
+        // moveToStack, so a pre-cast probe has to supply the stack zone and origin itself.
+        final Card spellHost = CardCopyService.getLKICopy(card);
+        spellHost.setLKICMC(-1);
+        spellHost.setLastKnownZone(game.getStackZone());
+        spellHost.setCastFrom(card.getZone());
+        return spellHost;
     }
 
     public static List<Pair<GameEntity, GameObject>> getStackTargetCandidates(final SpellAbility sa) {

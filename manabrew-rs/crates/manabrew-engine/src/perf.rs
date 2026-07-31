@@ -274,7 +274,7 @@ pub fn increment(metric: Metric, amount: u64) {
     }
     if matches!(metric, Metric::ContinuousEffectsCalls) {
         if let Some(every) = report_every() {
-            if total % every == 0 {
+            if total.is_multiple_of(every) {
                 print_summary();
             }
         }

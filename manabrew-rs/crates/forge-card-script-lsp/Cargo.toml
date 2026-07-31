@@ -1,6 +1,6 @@
 [package]
 name = "forge-card-script-lsp"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Language Server Protocol implementation for the Forge card-script DSL"
 license.workspace = true
@@ -14,7 +14,7 @@ name = "forge-card-script-lsp"
 path = "src/main.rs"
 
 [dependencies]
-forge-card-script = { path = "../forge-card-script", version = "0.1.0" }
+forge-card-script = { path = "../forge-card-script", version = "0.1.1" }
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
 ropey = "1"

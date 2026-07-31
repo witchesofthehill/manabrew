@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   fetchDeckHubEntries,
   fetchDeckHubEntry,
+  fetchDeckHubFacets,
   fetchDeckHubTags,
   fetchHubDeck,
   fetchHubCapabilities,
@@ -9,20 +10,19 @@ import {
   fetchMyDecks as fetchAccountDecks,
   fetchTopDeckBuckets,
   fetchTopDeckSnapshot,
-  fetchTopDecks,
   setDeckHubFavorite,
 } from "@/api/hub";
-import type { DeckHubEntryListParams, HubListParams, TopDecksWindow } from "@/api/hub";
+import type { DeckHubEntryListParams, HubListParams } from "@/api/hub";
 import type {
   DeckHubEntryDetail,
   DeckHubEntryList,
+  DeckHubFacets,
   DeckHubTag,
   HubCapabilities,
   HubDeckDetail,
   HubDeckList,
   TopDeckBucket,
   TopDeckSnapshot,
-  TopDeckStat,
 } from "@/api/hubTypes";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -30,8 +30,6 @@ interface HubState {
   list: HubDeckList | null;
   listLoading: boolean;
   listError: string | null;
-  topDecks: TopDeckStat[] | null;
-  topError: string | null;
   myDecks: HubDeckList | null;
   myDecksLoading: boolean;
   myDecksError: string | null;
@@ -45,11 +43,11 @@ interface HubState {
   entriesError: string | null;
   entryDetails: Record<string, DeckHubEntryDetail>;
   tags: DeckHubTag[];
+  facets: DeckHubFacets | null;
   topBuckets: TopDeckBucket[];
   topSnapshot: TopDeckSnapshot | null;
   topSnapshotError: string | null;
   fetchDecks: (params: HubListParams) => Promise<void>;
-  fetchTop: (window: TopDecksWindow) => Promise<void>;
   fetchMyDecks: (accountId: string, force?: boolean) => Promise<void>;
   clearMyDecks: () => void;
   loadDeck: (id: string) => Promise<HubDeckDetail>;
@@ -58,13 +56,13 @@ interface HubState {
   fetchEntries: (params: DeckHubEntryListParams) => Promise<void>;
   loadEntry: (entryRef: string) => Promise<DeckHubEntryDetail>;
   fetchTags: () => Promise<void>;
+  fetchFacets: () => Promise<void>;
   fetchTopBuckets: () => Promise<void>;
   fetchTopSnapshot: (bucket: string) => Promise<void>;
   setFavorite: (id: string, favorite: boolean) => Promise<void>;
 }
 
 let listRequestId = 0;
-let topRequestId = 0;
 let myDecksRequestId = 0;
 let entryListRequestId = 0;
 let topSnapshotRequestId = 0;
@@ -76,8 +74,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   list: null,
   listLoading: false,
   listError: null,
-  topDecks: null,
-  topError: null,
   myDecks: null,
   myDecksLoading: false,
   myDecksError: null,
@@ -91,6 +87,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   entriesError: null,
   entryDetails: {},
   tags: [],
+  facets: null,
   topBuckets: [],
   topSnapshot: null,
   topSnapshotError: null,
@@ -105,20 +102,6 @@ export const useHubStore = create<HubState>((set, get) => ({
         set({
           listLoading: false,
           listError: err instanceof Error ? err.message : "Failed to load the Deck Hub",
-        });
-      }
-    }
-  },
-  fetchTop: async (window) => {
-    const requestId = ++topRequestId;
-    set({ topDecks: null, topError: null });
-    try {
-      const topDecks = await fetchTopDecks(window);
-      if (requestId === topRequestId) set({ topDecks });
-    } catch (err) {
-      if (requestId === topRequestId) {
-        set({
-          topError: err instanceof Error ? err.message : "Failed to load top decks",
         });
       }
     }
@@ -266,6 +249,13 @@ export const useHubStore = create<HubState>((set, get) => ({
       set({ tags: await fetchDeckHubTags() });
     } catch {
       set({ tags: [] });
+    }
+  },
+  fetchFacets: async () => {
+    try {
+      set({ facets: await fetchDeckHubFacets() });
+    } catch {
+      set({ facets: null });
     }
   },
   fetchTopBuckets: async () => {

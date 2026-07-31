@@ -111,15 +111,17 @@ export function HubDeckPreviewDialog({
     entryDetail?.ownedByViewer === true ||
     myDecks.some((deck) => deck.id === deckId) ||
     legacyPublication !== undefined;
-  const mainCardCount = detail
+  const visibleCardCount = detail
     ? detail.deck.cards.length +
+      detail.deck.sideboard.length +
       (detail.deck.commanders?.length ?? 0) +
+      (detail.deck.companion ? 1 : 0) +
+      (detail.deck.maybeboard?.length ?? 0) +
       (detail.deck.attractions?.length ?? 0) +
       (detail.deck.contraptions?.length ?? 0) +
       (detail.deck.schemes?.length ?? 0) +
       (detail.deck.planes?.length ?? 0)
     : 0;
-  const sideboardCount = detail?.deck.sideboard.length ?? 0;
   const colorCost = detail?.colors
     .split("")
     .map((color) => `{${color}}`)
@@ -145,7 +147,8 @@ export function HubDeckPreviewDialog({
 
   async function handleCopyLink() {
     if (!deckId) return;
-    const url = `${window.location.origin}/hub?deck=${encodeURIComponent(deckId)}`;
+    const entryRef = entryDetail?.slug ?? deckId;
+    const url = `${window.location.origin}/hub?deck=${encodeURIComponent(entryRef)}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Share link copied — anyone can open and play this deck");
@@ -206,10 +209,18 @@ export function HubDeckPreviewDialog({
               <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
                 <FormatBadge formatId={detail.format ?? detail.deck.format ?? "commander"} />
                 {colorCost && <ManaSymbols cost={colorCost} size="sm" className="m-0" />}
-                <span>{mainCardCount} main</span>
-                {sideboardCount > 0 && <span>{sideboardCount} sideboard</span>}
+                <span>{visibleCardCount} cards</span>
                 <span aria-hidden="true">·</span>
-                <span>Public snapshot</span>
+                <span>
+                  {entryDetail
+                    ? `Published version ${entryDetail.publishedVersionNo}`
+                    : "Public snapshot"}
+                </span>
+                {entryDetail?.tags.map((tag) => (
+                  <span key={tag.id} className="rounded-full border px-2 py-0.5">
+                    {tag.name}
+                  </span>
+                ))}
               </div>
             )}
           </DialogHeader>

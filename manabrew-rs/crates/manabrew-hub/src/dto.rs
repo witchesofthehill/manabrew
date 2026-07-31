@@ -217,6 +217,7 @@ pub struct DeckHubEntrySummary {
     pub id: String,
     pub deck_id: String,
     pub published_version_id: String,
+    pub published_version_no: u32,
     pub slug: String,
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -257,6 +258,25 @@ pub struct DeckHubEntryList {
     pub total: u32,
     pub page: u32,
     pub page_size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckHubFacet {
+    pub key: String,
+    pub label: String,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckHubFacets {
+    pub total: u32,
+    pub formats: Vec<DeckHubFacet>,
+    pub colors: Vec<DeckHubFacet>,
+    pub tags: Vec<DeckHubFacet>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

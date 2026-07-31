@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
@@ -24,8 +25,9 @@ use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
 use crate::stats::StatsCache;
 use crate::storage::{
-    DeckHubEntryUpdate, DeckHubListParams, DeckHubSortOrder, DeleteOutcome, ListParams,
-    NewDeckHubEntry, NewHubDeck, SaveVersionOutcome, SortOrder, Storage,
+    DeckHubColorMatch, DeckHubEntryUpdate, DeckHubListParams, DeckHubSortOrder, DeckHubTagMatch,
+    DeleteOutcome, ListParams, NewDeckHubEntry, NewHubDeck, ReplaceSnapshotOutcome,
+    SaveVersionOutcome, SortOrder, Storage,
 };
 use crate::validate;
 
@@ -116,6 +118,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             put(favorite_deckhub_entry_handler).delete(unfavorite_deckhub_entry_handler),
         )
         .route("/api/deckhub/tags", get(deckhub_tags_handler))
+        .route("/api/deckhub/facets", get(deckhub_facets_handler))
         .route("/api/deckhub/top/buckets", get(top_deck_buckets_handler))
         .route("/api/deckhub/top/:bucket", get(top_deck_snapshot_handler))
         .route(
@@ -315,7 +318,15 @@ async fn deck_version_handler(
 struct DeckHubListQuery {
     search: Option<String>,
     format: Option<String>,
+    formats: Option<String>,
     tag: Option<String>,
+    tags: Option<String>,
+    colors: Option<String>,
+    color_match: Option<String>,
+    tag_match: Option<String>,
+    commander: Option<String>,
+    card: Option<String>,
+    favorites: Option<bool>,
     sort: Option<String>,
     page: Option<u32>,
     page_size: Option<u32>,
@@ -336,8 +347,20 @@ async fn deckhub_entries_handler(
         .clamp(1, MAX_PAGE_SIZE);
     let params = DeckHubListParams {
         search: query.search,
-        format: query.format,
-        tag: query.tag,
+        formats: csv_values(query.formats.or(query.format)),
+        colors: query.colors.as_deref().and_then(normalize_colors),
+        color_match: match query.color_match.as_deref() {
+            Some("includes") => DeckHubColorMatch::Includes,
+            _ => DeckHubColorMatch::Exact,
+        },
+        tags: csv_values(query.tags.or(query.tag)),
+        tag_match: match query.tag_match.as_deref() {
+            Some("all") => DeckHubTagMatch::All,
+            _ => DeckHubTagMatch::Any,
+        },
+        commander: query.commander,
+        card: query.card,
+        favorites_only: query.favorites.unwrap_or(false),
         sort: match query.sort.as_deref() {
             Some("name") => DeckHubSortOrder::Name,
             Some("favorites") => DeckHubSortOrder::Favorites,
@@ -528,6 +551,13 @@ async fn deckhub_tags_handler(State(state): State<Arc<AppState>>) -> Response {
     }
 }
 
+async fn deckhub_facets_handler(State(state): State<Arc<AppState>>) -> Response {
+    match state.storage.lock().unwrap().deckhub_facets() {
+        Ok(facets) => Json(facets).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
 async fn top_deck_buckets_handler(State(state): State<Arc<AppState>>) -> Response {
     match state.storage.lock().unwrap().list_top_deck_buckets() {
         Ok(buckets) => Json(buckets).into_response(),
@@ -566,8 +596,20 @@ async fn replace_top_deck_snapshot_handler(
     Path(bucket): Path<String>,
     Json(request): Json<AdminTopDeckSnapshotRequest>,
 ) -> Response {
+    let unique_ranks = request
+        .entries
+        .iter()
+        .map(|entry| entry.rank)
+        .collect::<BTreeSet<_>>();
+    let unique_entries = request
+        .entries
+        .iter()
+        .map(|entry| entry.deckhub_entry_id.as_str())
+        .collect::<BTreeSet<_>>();
     if !valid_snapshot_date(&request.snapshot_date)
         || request.entries.iter().any(|entry| entry.rank == 0)
+        || unique_ranks.len() != request.entries.len()
+        || unique_entries.len() != request.entries.len()
     {
         return StatusCode::UNPROCESSABLE_ENTITY.into_response();
     }
@@ -577,10 +619,40 @@ async fn replace_top_deck_snapshot_handler(
         &request.entries,
         &now_string(),
     ) {
-        Ok(true) => StatusCode::NO_CONTENT.into_response(),
-        Ok(false) => StatusCode::NOT_FOUND.into_response(),
+        Ok(ReplaceSnapshotOutcome::Replaced) => StatusCode::NO_CONTENT.into_response(),
+        Ok(ReplaceSnapshotOutcome::BucketNotFound) => StatusCode::NOT_FOUND.into_response(),
+        Ok(ReplaceSnapshotOutcome::EntryUnavailable) => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "top decks require published DeckHub entries",
+        )
+            .into_response(),
         Err(error) => internal_error(error),
     }
+}
+
+fn csv_values(value: Option<String>) -> Vec<String> {
+    let mut values = Vec::new();
+    for item in value
+        .iter()
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let normalized = item.to_lowercase();
+        if !values.contains(&normalized) {
+            values.push(normalized);
+        }
+    }
+    values
+}
+
+fn normalize_colors(value: &str) -> Option<String> {
+    let value = value.to_ascii_uppercase();
+    let normalized = "WUBRGC"
+        .chars()
+        .filter(|color| value.contains(*color))
+        .collect::<String>();
+    (!normalized.is_empty()).then_some(normalized)
 }
 
 fn validate_entry_metadata(
@@ -955,7 +1027,7 @@ mod tests {
     use axum::http::Request;
     use manabrew_hub::dto::{
         AccountDeckDetail, AuthAccount, AuthSessionResponse, DeckHubEntryDetail, DeckHubEntryList,
-        FavoriteResponse, HubDeckDetail, MeResponse, TopDeckSnapshot,
+        DeckHubFacets, FavoriteResponse, HubDeckDetail, MeResponse, TopDeckSnapshot,
     };
     use tower::ServiceExt;
 
@@ -1243,6 +1315,74 @@ mod tests {
         let entries: DeckHubEntryList = body_json(response).await;
         assert_eq!(entries.total, 1);
         assert!(entries.entries[0].favorited);
+        assert_eq!(entries.entries[0].published_version_no, 2);
+
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::get(
+                    "/api/deckhub/entries?colors=C&colorMatch=exact&tags=control,budget&tagMatch=all&card=Card%2012&favorites=true",
+                )
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let filtered: DeckHubEntryList = body_json(response).await;
+        assert_eq!(filtered.total, 1);
+        assert_eq!(filtered.entries[0].id, published.entry.id);
+
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::get("/api/deckhub/facets")
+                    .body(Body::empty())
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let facets: DeckHubFacets = body_json(response).await;
+        assert_eq!(facets.total, 2);
+        assert_eq!(
+            facets
+                .colors
+                .iter()
+                .find(|facet| facet.key == "C")
+                .map(|facet| facet.count),
+            Some(2)
+        );
+
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::delete(format!("/api/deckhub/entries/{}", alternate.entry.id))
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/admin/deckhub/top/trending",
+                None,
+                serde_json::json!({
+                    "snapshotDate": "2026-07-30",
+                    "entries": [{
+                        "deckhubEntryId": alternate.entry.id,
+                        "rank": 1
+                    }]
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
         let response = router
             .clone()

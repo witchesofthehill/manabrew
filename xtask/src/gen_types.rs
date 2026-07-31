@@ -10,9 +10,9 @@ use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckList, AccountDeckSummary, AdminTopDeckSnapshotRequest,
     AuthProviders, AuthSessionResponse, CreateAccountDeckRequest, DeckHubEntryDetail,
-    DeckHubEntryList, DeckHubEntrySummary, DeckHubTag, DeckVersionDetail, DeckVersionSummary,
-    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, HubCapabilities, HubDeckDetail,
-    HubDeckList, HubDeckSummary, MagicLinkRequest, MeResponse, OAuthStartRequest,
+    DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag, DeckVersionDetail,
+    DeckVersionSummary, EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, HubCapabilities,
+    HubDeckDetail, HubDeckList, HubDeckSummary, MagicLinkRequest, MeResponse, OAuthStartRequest,
     OAuthStartResponse, PublishDeckHubEntryRequest, PublishDeckRequest, PublishDeckResponse,
     SaveDeckVersionRequest, TopDeckBucket, TopDeckSnapshot, TopDeckStat, UpdateDeckHubEntryRequest,
     UpdateHandleRequest,
@@ -63,6 +63,7 @@ pub fn generate(root: &Path) -> Result<()> {
     DeckHubEntrySummary::export_all_to(&out).context("export DeckHubEntrySummary")?;
     DeckHubEntryList::export_all_to(&out).context("export DeckHubEntryList")?;
     DeckHubEntryDetail::export_all_to(&out).context("export DeckHubEntryDetail")?;
+    DeckHubFacets::export_all_to(&out).context("export DeckHubFacets")?;
     FavoriteResponse::export_all_to(&out).context("export FavoriteResponse")?;
     TopDeckBucket::export_all_to(&out).context("export TopDeckBucket")?;
     TopDeckSnapshot::export_all_to(&out).context("export TopDeckSnapshot")?;

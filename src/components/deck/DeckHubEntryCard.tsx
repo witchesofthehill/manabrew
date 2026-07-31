@@ -10,9 +10,15 @@ interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
   onOpen: () => void;
   onFavorite: () => void;
+  variant?: "grid" | "list";
 }
 
-export function DeckHubEntryCard({ entry, onOpen, onFavorite }: DeckHubEntryCardProps) {
+export function DeckHubEntryCard({
+  entry,
+  onOpen,
+  onFavorite,
+  variant = "grid",
+}: DeckHubEntryCardProps) {
   const colorCost = entry.colors
     .split("")
     .map((color) => `{${color}}`)
@@ -21,7 +27,8 @@ export function DeckHubEntryCard({ entry, onOpen, onFavorite }: DeckHubEntryCard
   return (
     <div
       className={cn(
-        "group relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted",
+        "group relative overflow-hidden rounded-lg border bg-muted",
+        variant === "grid" ? "aspect-[4/3]" : "h-32 sm:h-36",
         "transition-all hover:border-primary hover:ring-2 hover:ring-primary",
       )}
     >
@@ -36,19 +43,37 @@ export function DeckHubEntryCard({ entry, onOpen, onFavorite }: DeckHubEntryCard
             src={entry.coverImageUrl}
             alt=""
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
+            className={cn(
+              "absolute h-full object-cover",
+              variant === "grid" ? "inset-0 w-full" : "inset-y-0 left-0 w-32 sm:w-48",
+            )}
           />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center">
             <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
           </span>
         )}
-        <span className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
-        <span className="absolute bottom-0 left-0 right-0 z-10 block px-2 pb-2 pt-8">
+        <span
+          className={cn(
+            "absolute inset-0",
+            variant === "grid"
+              ? "bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10"
+              : "bg-gradient-to-r from-overlay/30 via-background/95 to-background",
+          )}
+        />
+        <span
+          className={cn(
+            "absolute z-10 block",
+            variant === "grid"
+              ? "bottom-0 left-0 right-0 px-2 pb-2 pt-8"
+              : "inset-y-0 left-32 right-0 flex flex-col justify-center px-3 pr-14 sm:left-48 sm:px-4",
+          )}
+        >
           <span
             className={cn(
               "block truncate text-sm font-semibold leading-tight text-text-on-tinted",
-              DECK_NAME_SHADOW_CLASS,
+              variant === "list" && "text-base text-foreground",
+              variant === "grid" && DECK_NAME_SHADOW_CLASS,
             )}
           >
             {entry.title}
@@ -56,7 +81,8 @@ export function DeckHubEntryCard({ entry, onOpen, onFavorite }: DeckHubEntryCard
           <span
             className={cn(
               "block truncate text-[11px] text-text-on-tinted/85",
-              DECK_NAME_SHADOW_CLASS,
+              variant === "list" && "mt-1 text-xs text-muted-foreground",
+              variant === "grid" && DECK_NAME_SHADOW_CLASS,
             )}
           >
             by {entry.author}
@@ -65,9 +91,14 @@ export function DeckHubEntryCard({ entry, onOpen, onFavorite }: DeckHubEntryCard
             <FormatBadge formatId={entry.format ?? "commander"} />
             {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">
-              {entry.cardCount} cards
+              <span className={cn(variant === "list" && "text-muted-foreground")}>
+                {entry.cardCount} cards · v{entry.publishedVersionNo}
+              </span>
             </span>
           </span>
+          {variant === "list" && entry.summary && (
+            <span className="mt-2 line-clamp-1 text-xs text-muted-foreground">{entry.summary}</span>
+          )}
         </span>
       </button>
 
@@ -84,7 +115,7 @@ export function DeckHubEntryCard({ entry, onOpen, onFavorite }: DeckHubEntryCard
         <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
       </Button>
 
-      {entry.tags.length > 0 && (
+      {variant === "grid" && entry.tags.length > 0 && (
         <div className="pointer-events-none absolute left-1.5 top-1.5 z-20 flex max-w-[65%] gap-1 overflow-hidden">
           {entry.tags.slice(0, 2).map((tag) => (
             <span

@@ -7,6 +7,7 @@ import type {
   CreateAccountDeckRequest,
   DeckHubEntryDetail,
   DeckHubEntryList,
+  DeckHubFacets,
   DeckHubTag,
   DeckVersionDetail,
   DeckVersionSummary,
@@ -20,13 +21,13 @@ import type {
   SaveDeckVersionRequest,
   TopDeckBucket,
   TopDeckSnapshot,
-  TopDeckStat,
   UpdateDeckHubEntryRequest,
 } from "@/api/hubTypes";
 
 export type HubSort = "newest" | "name";
-export type TopDecksWindow = "7d" | "30d" | "all";
 export type DeckHubSort = "newest" | "name" | "favorites";
+export type DeckHubColorMatch = "exact" | "includes";
+export type DeckHubTagMatch = "any" | "all";
 
 export interface HubListParams {
   search?: string;
@@ -38,8 +39,14 @@ export interface HubListParams {
 
 export interface DeckHubEntryListParams {
   search?: string;
-  format?: string;
-  tag?: string;
+  formats?: string[];
+  colors?: string;
+  colorMatch?: DeckHubColorMatch;
+  tags?: string[];
+  tagMatch?: DeckHubTagMatch;
+  commander?: string;
+  card?: string;
+  favorites?: boolean;
   sort?: DeckHubSort;
   page?: number;
   pageSize?: number;
@@ -112,10 +119,6 @@ export async function unpublishDeck(id: string, managementToken?: string): Promi
   });
 }
 
-export function fetchTopDecks(window: TopDecksWindow, limit = 25): Promise<TopDeckStat[]> {
-  return hubJson<TopDeckStat[]>(`/api/stats/top-decks?window=${window}&limit=${limit}`);
-}
-
 export function fetchMyDecks(): Promise<HubDeckList> {
   return hubJson<HubDeckList>("/api/hub/my-decks");
 }
@@ -168,14 +171,24 @@ export function fetchDeckVersion(id: string, versionNo: number): Promise<DeckVer
 export function fetchDeckHubEntries(params: DeckHubEntryListParams): Promise<DeckHubEntryList> {
   const query = new URLSearchParams();
   if (params.search) query.set("search", params.search);
-  if (params.format) query.set("format", params.format);
-  if (params.tag) query.set("tag", params.tag);
+  if (params.formats?.length) query.set("formats", params.formats.join(","));
+  if (params.colors) query.set("colors", params.colors);
+  if (params.colorMatch) query.set("colorMatch", params.colorMatch);
+  if (params.tags?.length) query.set("tags", params.tags.join(","));
+  if (params.tagMatch) query.set("tagMatch", params.tagMatch);
+  if (params.commander) query.set("commander", params.commander);
+  if (params.card) query.set("card", params.card);
+  if (params.favorites) query.set("favorites", "true");
   if (params.sort) query.set("sort", params.sort);
   if (params.page) query.set("page", String(params.page));
   if (params.pageSize) query.set("pageSize", String(params.pageSize));
   const queryString = query.toString();
   const suffix = queryString ? `?${queryString}` : "";
   return hubJson<DeckHubEntryList>(`/api/deckhub/entries${suffix}`);
+}
+
+export function fetchDeckHubFacets(): Promise<DeckHubFacets> {
+  return hubJson<DeckHubFacets>("/api/deckhub/facets");
 }
 
 export function fetchDeckHubEntry(entryRef: string): Promise<DeckHubEntryDetail> {

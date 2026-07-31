@@ -24,14 +24,16 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const fetchSnapshot = useHubStore((state) => state.fetchTopSnapshot);
   const setFavorite = useHubStore((state) => state.setFavorite);
   const [bucket, setBucket] = useState("trending");
+  const activeBucket =
+    buckets.length > 0 && !buckets.some((item) => item.key === bucket) ? buckets[0].key : bucket;
 
   useEffect(() => {
     void fetchBuckets();
   }, [fetchBuckets]);
 
   useEffect(() => {
-    void fetchSnapshot(bucket);
-  }, [bucket, fetchSnapshot, viewerAccountId]);
+    void fetchSnapshot(activeBucket);
+  }, [activeBucket, fetchSnapshot, viewerAccountId]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -44,7 +46,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             </h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Ranked publication snapshots curated for each DeckHub collection.
+            Curated publications with a complete, playable card snapshot behind every rank.
           </p>
         </div>
         <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1">
@@ -55,10 +57,10 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             <Button
               key={item.key}
               type="button"
-              variant={bucket === item.key ? "secondary" : "ghost"}
+              variant={activeBucket === item.key ? "secondary" : "ghost"}
               size="sm"
               className="shrink-0"
-              aria-pressed={bucket === item.key}
+              aria-pressed={activeBucket === item.key}
               onClick={() => setBucket(item.key)}
             >
               {item.label}
@@ -76,7 +78,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => void fetchSnapshot(bucket)}
+              onClick={() => void fetchSnapshot(activeBucket)}
             >
               Retry
             </Button>
@@ -105,11 +107,6 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                   </span>
                   {ranked.reason && (
                     <span className="truncate text-xs text-muted-foreground">{ranked.reason}</span>
-                  )}
-                  {ranked.score != null && (
-                    <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-                      {ranked.score.toLocaleString()}
-                    </span>
                   )}
                 </div>
                 <DeckHubEntryCard

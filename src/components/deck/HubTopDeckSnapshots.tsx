@@ -23,7 +23,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const fetchBuckets = useHubStore((state) => state.fetchTopBuckets);
   const fetchSnapshot = useHubStore((state) => state.fetchTopSnapshot);
   const setFavorite = useHubStore((state) => state.setFavorite);
-  const [bucket, setBucket] = useState("trending");
+  const [bucket, setBucket] = useState("official-presets");
   const activeBucket =
     buckets.length > 0 && !buckets.some((item) => item.key === bucket) ? buckets[0].key : bucket;
 
@@ -49,7 +49,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             Curated publications with a complete, playable card snapshot behind every rank.
           </p>
         </div>
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1">
+        <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1">
           {(buckets.length > 0
             ? buckets
             : [{ key: "trending", label: "Trending", scope: "all" }]

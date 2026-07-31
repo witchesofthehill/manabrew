@@ -11,7 +11,6 @@ interface HubDeckCardProps {
 }
 
 export function HubDeckCard({ deck, onOpen }: HubDeckCardProps) {
-  const cardCount = deck.cardCount + deck.commanders.length;
   const colorCost = deck.colors
     .split("")
     .map((color) => `{${color}}`)
@@ -65,7 +64,9 @@ export function HubDeckCard({ deck, onOpen }: HubDeckCardProps) {
           <span className="mt-1 flex flex-wrap items-center gap-1">
             <FormatBadge formatId={deck.format ?? "commander"} />
             {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
-            <span className="ml-auto text-[10px] text-text-on-tinted/85">{cardCount} cards</span>
+            <span className="ml-auto text-[10px] text-text-on-tinted/85">
+              {deck.cardCount} cards
+            </span>
           </span>
         </span>
       </button>

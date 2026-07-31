@@ -5,6 +5,7 @@ import {
   fetchAccountDeck,
   fetchAccountDecks,
   fetchDeckVersions,
+  forkPresetDeck,
   saveAccountDeck,
 } from "@/api/hub";
 import type { AccountDeckDetail, AccountDeckSummary, DeckVersionSummary } from "@/api/hubTypes";
@@ -19,6 +20,7 @@ interface AccountDecksState {
   refresh: () => Promise<void>;
   load: (id: string) => Promise<AccountDeckDetail>;
   create: (deck: EditorDeck, notes?: string) => Promise<AccountDeckDetail>;
+  forkPreset: (presetKey: string) => Promise<AccountDeckDetail>;
   save: (
     id: string,
     versionNo: number,
@@ -82,6 +84,16 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     refreshRequestId += 1;
     set({ loading: false });
     const detail = await createAccountDeck({ deck, notes });
+    set((state) => ({
+      decks: upsertSummary(state.decks, detail),
+      details: { ...state.details, [detail.id]: detail },
+    }));
+    return detail;
+  },
+  forkPreset: async (presetKey) => {
+    refreshRequestId += 1;
+    set({ loading: false });
+    const detail = await forkPresetDeck(presetKey);
     set((state) => ({
       decks: upsertSummary(state.decks, detail),
       details: { ...state.details, [detail.id]: detail },

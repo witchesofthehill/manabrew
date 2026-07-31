@@ -201,6 +201,7 @@ export function TopBar({ override }: TopBarProps) {
             variant={signedInAccount ? "ghost" : "outline"}
             className="h-8 gap-1.5 px-2.5"
             disabled={navigationDisabled}
+            aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : "Sign in"}
             title={signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
             onClick={() =>
               signedInAccount

@@ -17,6 +17,7 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { cn } from "@/lib/utils";
 import { Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
@@ -352,6 +353,7 @@ export function CreateGameDialog({
       return;
     }
     handleOpenChange(false);
+    if (entry.isPreset) savePresetToAccountOnUse(entry.sourceDeck.id);
     onStart(
       entry.sourceDeck,
       selectedFormat.id,

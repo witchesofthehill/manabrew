@@ -10,6 +10,8 @@ use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row, Transaction};
 use sha2::{Digest, Sha256};
 
+use crate::preset_decks::PresetDeck;
+
 pub struct ListParams {
     pub search: Option<String>,
     pub format: Option<String>,
@@ -20,6 +22,7 @@ pub struct ListParams {
 
 pub struct DeckHubListParams {
     pub search: Option<String>,
+    pub source_kind: Option<String>,
     pub formats: Vec<String>,
     pub colors: Option<String>,
     pub color_match: DeckHubColorMatch,
@@ -28,6 +31,7 @@ pub struct DeckHubListParams {
     pub commander: Option<String>,
     pub card: Option<String>,
     pub favorites_only: bool,
+    pub owned_only: bool,
     pub sort: DeckHubSortOrder,
     pub page: u32,
     pub page_size: u32,
@@ -202,21 +206,39 @@ impl Storage {
             if *version <= current {
                 continue;
             }
-            let tx = self.conn.unchecked_transaction()?;
-            tx.execute_batch(sql)?;
-            if *version == 2 {
-                migrate_legacy_hub_decks(&tx)?;
+            let rebuilds_decks = *version == 4;
+            if rebuilds_decks {
+                self.conn.execute_batch("PRAGMA foreign_keys=OFF")?;
             }
-            if *version == 3 {
-                backfill_version_discovery(&tx)?;
+            let result = (|| {
+                let tx = self.conn.unchecked_transaction()?;
+                tx.execute_batch(sql)?;
+                if *version == 2 {
+                    migrate_legacy_hub_decks(&tx)?;
+                }
+                if *version == 3 {
+                    backfill_version_discovery(&tx)?;
+                }
+                tx.execute(
+                    "UPDATE schema_version SET version = ?1 WHERE id = 1",
+                    params![version],
+                )?;
+                tx.commit()
+            })();
+            if rebuilds_decks {
+                self.conn.execute_batch("PRAGMA foreign_keys=ON")?;
             }
-            tx.execute(
-                "UPDATE schema_version SET version = ?1 WHERE id = 1",
-                params![version],
-            )?;
-            tx.commit()?;
+            result?;
             current = *version;
             tracing::info!(migration = name, version, "migration ran");
+        }
+        let mismatch: u32 =
+            self.conn
+                .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+                    row.get(0)
+                })?;
+        if mismatch > 0 {
+            return Err(rusqlite::Error::InvalidQuery);
         }
         Ok(())
     }
@@ -334,7 +356,10 @@ impl Storage {
             rusqlite::params_from_iter(args.iter().map(|a| a.as_ref())),
             |row| row.get(0),
         )?;
-        let offset = params.page.saturating_sub(1) * params.page_size;
+        let offset = params
+            .page
+            .saturating_sub(1)
+            .saturating_mul(params.page_size);
         let sql = format!(
             "SELECT id, name, author, description, format, commanders, colors, card_count,
                     cover_card_name, cover_image_url, created_at
@@ -547,14 +572,270 @@ impl Storage {
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
 
+    pub fn sync_preset_decks(&self, presets: &[PresetDeck], now: &str) -> SqlResult<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        let mut current_entries = Vec::with_capacity(presets.len());
+        tx.execute_batch(
+            "CREATE TEMP TABLE syncing_preset_keys (preset_key TEXT PRIMARY KEY) WITHOUT ROWID;",
+        )?;
+        for preset in presets {
+            tx.execute(
+                "INSERT INTO syncing_preset_keys (preset_key) VALUES (?1)",
+                params![preset.key],
+            )?;
+            let deck_id = format!("preset-deck:{}", preset.key);
+            let snapshot_json = serde_json::to_string(&preset.deck)
+                .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+            let content_hash = sha256_hex(snapshot_json.as_bytes());
+            tx.execute(
+                "INSERT INTO decks
+                    (id, account_id, kind, preset_key, name, format, description, visibility,
+                     created_at, updated_at)
+                 VALUES (?1, NULL, 'preset', ?2, ?3, ?4, ?5, 'public', ?6, ?6)
+                 ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    format = excluded.format,
+                    description = excluded.description,
+                    visibility = 'public',
+                    updated_at = excluded.updated_at,
+                    deleted_at = NULL",
+                params![
+                    deck_id,
+                    preset.key,
+                    preset.deck.name,
+                    format_to_str(preset.deck.format),
+                    preset.deck.description,
+                    now,
+                ],
+            )?;
+            let current = tx
+                .query_row(
+                    "SELECT id, version_no, content_hash FROM deck_versions
+                     WHERE deck_id = ?1 ORDER BY version_no DESC LIMIT 1",
+                    params![deck_id],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, u32>(1)?,
+                            row.get::<_, String>(2)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let (version_id, version_no) = match current {
+                Some((version_id, version_no, current_hash)) if current_hash == content_hash => {
+                    (version_id, version_no)
+                }
+                current => {
+                    let version_no = current.map_or(1, |(_, version_no, _)| version_no + 1);
+                    let version_id = format!("preset-version:{}:{version_no}", preset.key);
+                    tx.execute(
+                        "INSERT INTO deck_versions
+                            (id, deck_id, version_no, notes, format, color_identity, card_count,
+                             commander_names, snapshot_json, content_hash, created_at)
+                         VALUES (?1, ?2, ?3, 'Official preset snapshot', ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                        params![
+                            version_id,
+                            deck_id,
+                            version_no,
+                            format_to_str(preset.deck.format),
+                            deck_colors(&preset.deck),
+                            display_cards(&preset.deck).count() as u32,
+                            commander_names_json(&preset.deck),
+                            snapshot_json,
+                            content_hash,
+                            now,
+                        ],
+                    )?;
+                    insert_deck_cards(&tx, &version_id, &preset.deck)?;
+                    (version_id, version_no)
+                }
+            };
+            let entry_id = format!("preset-entry:{}:{version_no}", preset.key);
+            current_entries.push(entry_id.clone());
+            let slug = format!(
+                "{}-v{version_no}",
+                legacy_slug(&preset.deck.name, &preset.key)
+            );
+            tx.execute(
+                "UPDATE deckhub_entries
+                 SET status = 'archived', updated_at = ?2
+                 WHERE deck_id = ?1 AND id != ?3 AND status = 'published'",
+                params![deck_id, now, entry_id],
+            )?;
+            tx.execute(
+                "INSERT INTO deckhub_entries
+                    (id, deck_id, published_version_id, slug, title, summary, cover_card_name,
+                     status, published_at, created_at, updated_at, legacy_author)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'published', ?8, ?8, ?8, 'ManaBrew')
+                 ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    summary = excluded.summary,
+                    cover_card_name = excluded.cover_card_name,
+                    status = 'published',
+                    updated_at = excluded.updated_at",
+                params![
+                    entry_id,
+                    deck_id,
+                    version_id,
+                    slug,
+                    preset.deck.name,
+                    preset.deck.description,
+                    preset.deck.cover_card_name,
+                    now,
+                ],
+            )?;
+            replace_entry_tags(&tx, &entry_id, &["Official".into(), "Preset".into()])?;
+        }
+        tx.execute(
+            "UPDATE deckhub_entries
+             SET status = 'archived', updated_at = ?1
+             WHERE status = 'published' AND deck_id IN (
+                SELECT id FROM decks WHERE kind = 'preset' AND preset_key NOT IN (
+                    SELECT preset_key FROM syncing_preset_keys
+                )
+             )",
+            params![now],
+        )?;
+        tx.execute(
+            "UPDATE decks
+             SET visibility = 'unlisted', deleted_at = ?1, updated_at = ?1
+             WHERE kind = 'preset' AND preset_key NOT IN (
+                SELECT preset_key FROM syncing_preset_keys
+             )",
+            params![now],
+        )?;
+        tx.execute(
+            "INSERT OR IGNORE INTO top_deck_buckets (id, key, label, scope, created_at)
+             VALUES ('top-decks-official-presets', 'official-presets', 'Official Presets',
+                     'preset', ?1)",
+            params![now],
+        )?;
+        let snapshot_date = now.split('T').next().unwrap_or(now);
+        tx.execute(
+            "DELETE FROM top_deck_snapshots
+             WHERE bucket_id = 'top-decks-official-presets' AND snapshot_date = ?1",
+            params![snapshot_date],
+        )?;
+        for (index, entry_id) in current_entries.iter().enumerate() {
+            tx.execute(
+                "INSERT INTO top_deck_snapshots
+                    (id, bucket_id, deckhub_entry_id, rank, reason, snapshot_date, created_at)
+                 VALUES (?1, 'top-decks-official-presets', ?2, ?3,
+                         'Official ManaBrew preset', ?4, ?5)",
+                params![
+                    format!("preset-snapshot:{snapshot_date}:{}", index + 1),
+                    entry_id,
+                    index + 1,
+                    snapshot_date,
+                    now,
+                ],
+            )?;
+        }
+        tx.execute_batch("DROP TABLE syncing_preset_keys")?;
+        tx.commit()
+    }
+
+    pub fn fork_preset_deck(
+        &self,
+        account_id: &str,
+        preset_key: &str,
+        now: &str,
+    ) -> SqlResult<Option<AccountDeckDetail>> {
+        let existing = self
+            .conn
+            .query_row(
+                "SELECT fork.id
+                 FROM decks fork
+                 JOIN decks preset ON preset.id = fork.derived_from_deck_id
+                 WHERE fork.account_id = ?1 AND fork.kind = 'user'
+                   AND preset.preset_key = ?2 COLLATE NOCASE
+                   AND fork.deleted_at IS NULL",
+                params![account_id, preset_key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(deck_id) = existing {
+            return self.get_account_deck(account_id, &deck_id);
+        }
+        let source = self
+            .conn
+            .query_row(
+                "SELECT d.id, v.snapshot_json
+                 FROM decks d
+                 JOIN deck_versions v ON v.deck_id = d.id
+                    AND v.version_no = (
+                        SELECT max(latest.version_no) FROM deck_versions latest
+                        WHERE latest.deck_id = d.id
+                    )
+                 WHERE d.kind = 'preset' AND d.preset_key = ?1 COLLATE NOCASE
+                   AND d.deleted_at IS NULL",
+                params![preset_key],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?;
+        let Some((source_deck_id, snapshot_json)) = source else {
+            return Ok(None);
+        };
+        let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                1,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?;
+        let deck_id = uuid::Uuid::new_v4().to_string();
+        let version_id = uuid::Uuid::new_v4().to_string();
+        deck.id = Some(deck_id.clone());
+        let fork_snapshot = serde_json::to_string(&deck)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO decks
+                (id, account_id, kind, derived_from_deck_id, name, format, description,
+                 visibility, created_at, updated_at)
+             VALUES (?1, ?2, 'user', ?3, ?4, ?5, ?6, 'private', ?7, ?7)",
+            params![
+                deck_id,
+                account_id,
+                source_deck_id,
+                deck.name,
+                format_to_str(deck.format),
+                deck.description,
+                now,
+            ],
+        )?;
+        tx.execute(
+            "INSERT INTO deck_versions
+                (id, deck_id, version_no, notes, format, color_identity, card_count,
+                 commander_names, snapshot_json, content_hash, created_at)
+             VALUES (?1, ?2, 1, 'Created from an official preset', ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                version_id,
+                deck_id,
+                format_to_str(deck.format),
+                deck_colors(&deck),
+                display_cards(&deck).count() as u32,
+                commander_names_json(&deck),
+                fork_snapshot,
+                sha256_hex(fork_snapshot.as_bytes()),
+                now,
+            ],
+        )?;
+        insert_deck_cards(&tx, &version_id, &deck)?;
+        tx.commit()?;
+        self.get_account_deck(account_id, &deck_id)
+    }
+
     pub fn list_owned_decks(&self, account_id: &str) -> SqlResult<Vec<AccountDeckSummary>> {
         let mut stmt = self.conn.prepare(
             "SELECT d.id, d.name, d.format, d.description, d.visibility,
                     v.id, v.version_no,
                     (SELECT count(*) FROM deckhub_entries e
                      WHERE e.deck_id = d.id AND e.status != 'archived'),
-                    d.created_at, d.updated_at
+                    source.preset_key, d.created_at, d.updated_at
              FROM decks d
+             LEFT JOIN decks source ON source.id = d.derived_from_deck_id
              JOIN deck_versions v ON v.deck_id = d.id
                 AND v.version_no = (
                     SELECT max(latest.version_no) FROM deck_versions latest
@@ -578,8 +859,9 @@ impl Storage {
                         v.id, v.version_no,
                         (SELECT count(*) FROM deckhub_entries e
                          WHERE e.deck_id = d.id AND e.status != 'archived'),
-                        d.created_at, d.updated_at, v.snapshot_json
+                        source.preset_key, d.created_at, d.updated_at, v.snapshot_json
                  FROM decks d
+                 LEFT JOIN decks source ON source.id = d.derived_from_deck_id
                  JOIN deck_versions v ON v.deck_id = d.id
                     AND v.version_no = (
                         SELECT max(latest.version_no) FROM deck_versions latest
@@ -589,10 +871,10 @@ impl Storage {
                 params![deck_id, account_id],
                 |row| {
                     let summary = map_account_deck_summary(row)?;
-                    let snapshot_json: String = row.get(10)?;
+                    let snapshot_json: String = row.get(11)?;
                     let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
-                            10,
+                            11,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
@@ -622,7 +904,7 @@ impl Storage {
                         SELECT max(latest.version_no) FROM deck_versions latest
                         WHERE latest.deck_id = d.id
                     )
-                 WHERE d.id = ?1 AND d.deleted_at IS NULL",
+                 WHERE d.id = ?1 AND d.kind = 'user' AND d.deleted_at IS NULL",
                 params![deck_id],
                 |row| {
                     Ok((
@@ -701,7 +983,8 @@ impl Storage {
         let owner = self
             .conn
             .query_row(
-                "SELECT account_id FROM decks WHERE id = ?1 AND deleted_at IS NULL",
+                "SELECT account_id FROM decks
+                 WHERE id = ?1 AND kind = 'user' AND deleted_at IS NULL",
                 params![deck_id],
                 |row| row.get::<_, String>(0),
             )
@@ -791,7 +1074,8 @@ impl Storage {
     fn owns_deck(&self, account_id: &str, deck_id: &str) -> SqlResult<bool> {
         self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM decks
-                           WHERE id = ?1 AND account_id = ?2 AND deleted_at IS NULL)",
+                           WHERE id = ?1 AND kind = 'user'
+                             AND account_id = ?2 AND deleted_at IS NULL)",
             params![deck_id, account_id],
             |row| row.get(0),
         )
@@ -809,7 +1093,7 @@ impl Storage {
             where_clause.push_str(&format!(
                 " AND (e.title LIKE ?{index} ESCAPE '\\'
                        OR COALESCE(e.summary, '') LIKE ?{index} ESCAPE '\\'
-                       OR COALESCE(e.legacy_author, a.username, a.handle) LIKE ?{index} ESCAPE '\\'
+                       OR COALESCE(e.legacy_author, a.username, a.handle, 'ManaBrew') LIKE ?{index} ESCAPE '\\'
                        OR EXISTS(
                            SELECT 1 FROM deck_cards search_card
                            WHERE search_card.deck_version_id = v.id
@@ -817,6 +1101,11 @@ impl Storage {
                        ))"
             ));
             args.push(Box::new(pattern));
+        }
+        if let Some(source_kind) = params.source_kind.as_deref() {
+            let index = args.len() + 1;
+            where_clause.push_str(&format!(" AND d.kind = ?{index}"));
+            args.push(Box::new(source_kind.to_string()));
         }
         if !params.formats.is_empty() {
             let placeholders = push_string_args(&mut args, &params.formats);
@@ -905,11 +1194,20 @@ impl Storage {
                 where_clause.push_str(" AND 0 = 1");
             }
         }
+        if params.owned_only {
+            if let Some(account_id) = params.viewer_account_id.as_deref() {
+                let index = args.len() + 1;
+                where_clause.push_str(&format!(" AND d.account_id = ?{index}"));
+                args.push(Box::new(account_id.to_string()));
+            } else {
+                where_clause.push_str(" AND 0 = 1");
+            }
+        }
         let total: u32 = self.conn.query_row(
             &format!(
                 "SELECT count(*) FROM deckhub_entries e
                  JOIN decks d ON d.id = e.deck_id
-                 JOIN accounts a ON a.id = d.account_id
+                 LEFT JOIN accounts a ON a.id = d.account_id
                  JOIN deck_versions v ON v.id = e.published_version_id
                  WHERE {where_clause}"
             ),
@@ -922,10 +1220,14 @@ impl Storage {
             DeckHubSortOrder::Name => "e.title COLLATE NOCASE ASC, e.id ASC",
             DeckHubSortOrder::Favorites => "favorite_count DESC, e.published_at DESC, e.id ASC",
         };
-        let offset = params.page.saturating_sub(1) * params.page_size;
+        let offset = params
+            .page
+            .saturating_sub(1)
+            .saturating_mul(params.page_size);
         let sql = format!(
             "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
-                    e.summary, COALESCE(e.legacy_author, a.username, a.handle), v.format,
+                    e.summary, COALESCE(e.legacy_author, a.username, a.handle, 'ManaBrew'),
+                    d.kind, d.preset_key, v.format,
                     v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                     e.cover_card_id, e.cover_card_name, e.status, e.published_at,
                     (SELECT count(*) FROM deckhub_favorites f WHERE f.deckhub_entry_id = e.id)
@@ -935,7 +1237,7 @@ impl Storage {
                     COALESCE(d.account_id = ?{viewer_index}, 0)
              FROM deckhub_entries e
              JOIN decks d ON d.id = e.deck_id
-             JOIN accounts a ON a.id = d.account_id
+             LEFT JOIN accounts a ON a.id = d.account_id
              JOIN deck_versions v ON v.id = e.published_version_id
              WHERE {where_clause}
              ORDER BY {order} LIMIT {} OFFSET {}",
@@ -962,7 +1264,8 @@ impl Storage {
             .conn
             .query_row(
                 "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
-                        e.summary, COALESCE(e.legacy_author, a.username, a.handle), v.format,
+                        e.summary, COALESCE(e.legacy_author, a.username, a.handle, 'ManaBrew'),
+                        d.kind, d.preset_key, v.format,
                         v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                         e.cover_card_id, e.cover_card_name, e.status, e.published_at,
                         (SELECT count(*) FROM deckhub_favorites f
@@ -972,17 +1275,21 @@ impl Storage {
                         COALESCE(d.account_id = ?2, 0)
                  FROM deckhub_entries e
                  JOIN decks d ON d.id = e.deck_id
-                 JOIN accounts a ON a.id = d.account_id
+                 LEFT JOIN accounts a ON a.id = d.account_id
                  JOIN deck_versions v ON v.id = e.published_version_id
-                 WHERE (e.id = ?1 OR e.slug = ?1 COLLATE NOCASE)
-                   AND (e.status = 'published' OR d.account_id = ?2)",
+                 WHERE (e.id = ?1 OR e.slug = ?1 COLLATE NOCASE
+                        OR (d.kind = 'preset' AND d.preset_key = ?1 COLLATE NOCASE
+                            AND e.status = 'published'))
+                   AND (e.status = 'published'
+                        OR (e.status = 'archived' AND d.kind = 'preset')
+                        OR d.account_id = ?2)",
                 params![entry_ref, viewer_account_id],
                 |row| {
                     let entry = map_deckhub_entry_summary(row)?;
-                    let snapshot_json: String = row.get(12)?;
+                    let snapshot_json: String = row.get(14)?;
                     let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
-                            12,
+                            14,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
@@ -1152,7 +1459,7 @@ impl Storage {
             .query_row(
                 "SELECT d.account_id
                  FROM deckhub_entries e JOIN decks d ON d.id = e.deck_id
-                 WHERE e.id = ?1",
+                 WHERE e.id = ?1 AND d.account_id IS NOT NULL",
                 params![entry_id],
                 |row| row.get(0),
             )
@@ -2046,14 +2353,14 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 fn map_deckhub_entry_summary(row: &Row) -> SqlResult<DeckHubEntrySummary> {
-    let format: Option<String> = row.get(8)?;
-    let commanders: String = row.get(9)?;
-    let snapshot_json: String = row.get(12)?;
+    let format: Option<String> = row.get(10)?;
+    let commanders: String = row.get(11)?;
+    let snapshot_json: String = row.get(14)?;
     let deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
-        rusqlite::Error::FromSqlConversionFailure(12, rusqlite::types::Type::Text, Box::new(error))
+        rusqlite::Error::FromSqlConversionFailure(14, rusqlite::types::Type::Text, Box::new(error))
     })?;
     let cover_card_name: Option<String> = row
-        .get::<_, Option<String>>(14)?
+        .get::<_, Option<String>>(16)?
         .or_else(|| deck.cover_card_name.clone());
     let cover_image_url = cover_image(&deck, cover_card_name.as_deref());
     Ok(DeckHubEntrySummary {
@@ -2065,19 +2372,21 @@ fn map_deckhub_entry_summary(row: &Row) -> SqlResult<DeckHubEntrySummary> {
         title: row.get(5)?,
         summary: row.get(6)?,
         author: row.get(7)?,
+        source_kind: row.get(8)?,
+        preset_key: row.get(9)?,
         format: format.as_deref().and_then(format_from_str),
         commanders: serde_json::from_str(&commanders).unwrap_or_default(),
-        colors: row.get(10)?,
-        card_count: row.get(11)?,
-        cover_card_id: row.get(13)?,
+        colors: row.get(12)?,
+        card_count: row.get(13)?,
+        cover_card_id: row.get(15)?,
         cover_card_name,
         cover_image_url,
-        status: row.get(15)?,
-        published_at: row.get(16)?,
+        status: row.get(17)?,
+        published_at: row.get(18)?,
         tags: Vec::new(),
-        favorite_count: row.get(17)?,
-        favorited: row.get(18)?,
-        owned_by_viewer: row.get(19)?,
+        favorite_count: row.get(19)?,
+        favorited: row.get(20)?,
+        owned_by_viewer: row.get(21)?,
     })
 }
 
@@ -2297,8 +2606,9 @@ fn map_account_deck_summary(row: &Row) -> SqlResult<AccountDeckSummary> {
         current_version_id: row.get(5)?,
         current_version_no: row.get(6)?,
         publication_count: row.get(7)?,
-        created_at: row.get(8)?,
-        updated_at: row.get(9)?,
+        derived_from_preset_key: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }
 
@@ -2586,9 +2896,18 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 3);
+        let kind: String = storage
+            .conn
+            .query_row(
+                "SELECT kind FROM decks WHERE id = 'legacy-deck-legacy-entry'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(version, 4);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
+        assert_eq!(kind, "user");
         let detail = storage
             .get_deckhub_entry("legacy-entry", Some("acct-1"))
             .unwrap()

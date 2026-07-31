@@ -72,6 +72,29 @@ export function DeckHubFilterSheet({
         </SheetHeader>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
           <div className="space-y-2">
+            <span className="text-sm font-medium">Source</span>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  ["all", "All"],
+                  ["community", "Community"],
+                  ["presets", "Presets"],
+                ] as const
+              ).map(([source, label]) => (
+                <Button
+                  key={source}
+                  type="button"
+                  variant={filters.source === source ? "secondary" : "outline"}
+                  size="sm"
+                  aria-pressed={filters.source === source}
+                  onClick={() => onChange({ source })}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
             <label htmlFor="deckhub-commander" className="text-sm font-medium">
               Commander
             </label>

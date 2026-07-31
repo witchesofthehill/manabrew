@@ -117,6 +117,9 @@ pub struct AccountDeckSummary {
     pub current_version_id: String,
     pub current_version_no: u32,
     pub publication_count: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub derived_from_preset_key: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -224,6 +227,10 @@ pub struct DeckHubEntrySummary {
     #[ts(optional)]
     pub summary: Option<String>,
     pub author: String,
+    pub source_kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub preset_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "DeckFormat")]
     pub format: Option<DeckFormat>,

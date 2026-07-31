@@ -4,6 +4,7 @@ pub struct HubConfig {
     pub db_path: String,
     pub jwt_key_path: String,
     pub events_db_path: Option<String>,
+    pub preset_decks_dir: String,
     pub publish_per_hour: u32,
     pub publish_per_day: u32,
     pub auth: AuthConfig,
@@ -49,6 +50,8 @@ impl HubConfig {
             events_db_path: std::env::var("EVENTS_DB_PATH")
                 .ok()
                 .filter(|path| !path.is_empty()),
+            preset_decks_dir: std::env::var("HUB_PRESET_DECKS_DIR")
+                .unwrap_or_else(|_| "public/preset_decks".into()),
             publish_per_hour: std::env::var("HUB_PUBLISH_PER_HOUR")
                 .ok()
                 .and_then(|n| n.parse().ok())

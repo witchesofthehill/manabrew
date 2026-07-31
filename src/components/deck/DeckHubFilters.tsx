@@ -150,6 +150,7 @@ export function DeckHubFilters({
             }
           >
             <option value="none">No grouping</option>
+            <option value="source">Group by source</option>
             <option value="format">Group by format</option>
             <option value="color">Group by color</option>
             <option value="tag">Group by tag</option>

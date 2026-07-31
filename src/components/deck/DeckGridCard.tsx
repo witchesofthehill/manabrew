@@ -11,7 +11,16 @@ import {
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { CloudUpload, Loader2, Pencil, Play, Share2, Swords, Trash2 } from "lucide-react";
+import {
+  CloudUpload,
+  LibraryBig,
+  Loader2,
+  Pencil,
+  Play,
+  Share2,
+  Swords,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -30,7 +39,9 @@ interface DeckGridCardProps {
   onRename?: () => void;
   onPublish?: () => void;
   onSaveToAccount?: () => void;
+  onViewInHub?: () => void;
   onPlay?: () => void;
+  badge?: string;
   playing?: boolean;
   playDisabled?: boolean;
   readOnly?: boolean;
@@ -44,7 +55,9 @@ export function DeckGridCard({
   onRename,
   onPublish,
   onSaveToAccount,
+  onViewInHub,
   onPlay,
+  badge,
   playing = false,
   playDisabled = false,
   readOnly = false,
@@ -99,12 +112,13 @@ export function DeckGridCard({
         )}
 
         {/* Action buttons — visible on hover */}
-        {(onPlaytest || !readOnly) && (
+        {(onPlaytest || onViewInHub || !readOnly) && (
           <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity z-10">
             {onPlaytest && (
               <Button
                 size="icon"
                 className="h-6 w-6"
+                aria-label="Playtest vs AI"
                 title="Playtest vs AI"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -114,11 +128,27 @@ export function DeckGridCard({
                 <Swords className="h-3 w-3" />
               </Button>
             )}
+            {onViewInHub && (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                aria-label="View in Deck Hub"
+                title="View in Deck Hub"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewInHub();
+                }}
+              >
+                <LibraryBig className="h-3 w-3" />
+              </Button>
+            )}
             {!readOnly && onPublish && (
               <Button
                 size="icon"
                 variant="secondary"
                 className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                aria-label="Publish to Deck Hub"
                 title="Publish to Deck Hub"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -133,6 +163,7 @@ export function DeckGridCard({
                 size="icon"
                 variant="secondary"
                 className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                aria-label="Save to account"
                 title="Save to account"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -147,6 +178,7 @@ export function DeckGridCard({
                 size="icon"
                 variant="secondary"
                 className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                aria-label="Rename"
                 title="Rename"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -161,6 +193,7 @@ export function DeckGridCard({
                 size="icon"
                 variant="secondary"
                 className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background text-destructive hover:text-destructive"
+                aria-label="Delete"
                 title="Delete"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -190,6 +223,11 @@ export function DeckGridCard({
             {deck.deck.labels?.map((label) => (
               <DeckLabelBadge key={label.name} label={label} size="sm" />
             ))}
+            {badge && (
+              <span className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm">
+                {badge}
+              </span>
+            )}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">
               {displayCards.length} cards
             </span>

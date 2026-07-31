@@ -1,10 +1,11 @@
-import type { DeckHubColorMatch, DeckHubSort, DeckHubTagMatch } from "@/api/hub";
+import type { DeckHubColorMatch, DeckHubSort, DeckHubSource, DeckHubTagMatch } from "@/api/hub";
 
 export type DeckHubView = "grid" | "list";
-export type DeckHubGroup = "none" | "format" | "color" | "tag";
+export type DeckHubGroup = "none" | "source" | "format" | "color" | "tag";
 
 export interface DeckHubDiscoveryFilters {
   search: string;
+  source: DeckHubSource;
   formats: string[];
   colors: string;
   colorMatch: DeckHubColorMatch;

@@ -18,16 +18,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeckCardBrowser } from "@/components/deck/DeckCardBrowser";
+import { EditDeckHubEntryDialog } from "@/components/deck/EditDeckHubEntryDialog";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { removeDeckHubEntry, unpublishDeck } from "@/api/hub";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
 import type { DeckHubEntryDetail, HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
@@ -51,6 +55,7 @@ export function HubDeckPreviewDialog({
     refresh,
   } = useMyHubDecks();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
+  const loadAccountDeck = useDeckStore((s) => s.loadAccountDeck);
   const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
   const loadDeck = useHubStore((s) => s.loadDeck);
   const loadEntry = useHubStore((s) => s.loadEntry);
@@ -64,12 +69,15 @@ export function HubDeckPreviewDialog({
   const [busy, setBusy] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
+  const [editingPublication, setEditingPublication] = useState(false);
+  const { details: accountDeckDetails } = useAccountDecks();
 
   useEffect(() => {
     setDetail(null);
     setEntryDetail(null);
     setError(null);
     setConfirmingUnpublish(false);
+    setEditingPublication(false);
     if (!deckId) return;
     let cancelled = false;
     const request = domainV2
@@ -111,6 +119,14 @@ export function HubDeckPreviewDialog({
     entryDetail?.ownedByViewer === true ||
     myDecks.some((deck) => deck.id === deckId) ||
     legacyPublication !== undefined;
+  const linkedAccountDeck = entryDetail
+    ? (accountDeckDetails[entryDetail.deckId] ??
+      (entryDetail.presetKey
+        ? Object.values(accountDeckDetails).find(
+            (deck) => deck.derivedFromPresetKey === entryDetail.presetKey,
+          )
+        : undefined))
+    : undefined;
   const visibleCardCount = detail
     ? detail.deck.cards.length +
       detail.deck.sideboard.length +
@@ -127,8 +143,21 @@ export function HubDeckPreviewDialog({
     .map((color) => `{${color}}`)
     .join("");
 
-  function handleSave() {
+  async function handleSave() {
     if (!detail) return;
+    if (entryDetail?.presetKey && signedIn) {
+      setBusy(true);
+      try {
+        await useAccountDecksStore.getState().forkPreset(entryDetail.presetKey);
+        toast.success(`"${detail.name}" added to your account decks`);
+        onClose();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to save preset");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     addSavedDeck(detail.deck as EditorDeck);
     toast.success(`"${detail.name}" saved to My Decks`);
     onClose();
@@ -145,6 +174,23 @@ export function HubDeckPreviewDialog({
     }
   }
 
+  function handleOpenAccountDeck() {
+    if (!linkedAccountDeck) {
+      handleOpen();
+      return;
+    }
+    const id = loadAccountDeck(
+      linkedAccountDeck.id,
+      linkedAccountDeck.currentVersionNo,
+      linkedAccountDeck.deck as EditorDeck,
+    );
+    onClose();
+    navigate(
+      { pathname: ROUTES.DECK_EDITOR, search: `?deck=${encodeURIComponent(id)}` },
+      { state: { deckEditorFromList: true } },
+    );
+  }
+
   async function handleCopyLink() {
     if (!deckId) return;
     const entryRef = entryDetail?.slug ?? deckId;
@@ -159,12 +205,14 @@ export function HubDeckPreviewDialog({
 
   function handlePlayOffline() {
     if (!deckId) return;
+    savePresetToAccountOnUse(entryDetail?.presetKey);
     onClose();
     navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
   }
 
   function handleMultiplayer() {
     if (!deckId) return;
+    savePresetToAccountOnUse(entryDetail?.presetKey);
     onClose();
     navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
   }
@@ -303,8 +351,21 @@ export function HubDeckPreviewDialog({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-                  Save editable copy
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!detail || busy}
+                  onClick={
+                    mine || linkedAccountDeck ? handleOpenAccountDeck : () => void handleSave()
+                  }
+                >
+                  {linkedAccountDeck && !mine
+                    ? "Open My Copy"
+                    : mine
+                      ? "Open in Deck Editor"
+                      : entryDetail?.presetKey && signedIn
+                        ? "Add to My Decks"
+                        : "Save editable copy"}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -314,14 +375,21 @@ export function HubDeckPreviewDialog({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem disabled={!detail} onSelect={handleOpen}>
-                      Open in Deck Editor
-                    </DropdownMenuItem>
+                    {!mine && (
+                      <DropdownMenuItem disabled={!detail} onSelect={handleOpen}>
+                        Open in Deck Editor
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem disabled={!deckId} onSelect={() => void handleCopyLink()}>
                       Copy share link
                     </DropdownMenuItem>
                     {mine && !ownershipLoading && (
                       <>
+                        {entryDetail && (
+                          <DropdownMenuItem onSelect={() => setEditingPublication(true)}>
+                            Edit publication
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           disabled={busy || !detail}
@@ -339,6 +407,27 @@ export function HubDeckPreviewDialog({
           </div>
         </DialogContent>
       </Dialog>
+      {entryDetail && (
+        <EditDeckHubEntryDialog
+          entry={entryDetail}
+          open={editingPublication}
+          onOpenChange={setEditingPublication}
+          onSaved={(updated) => {
+            setEntryDetail(updated);
+            setDetail((current) =>
+              current
+                ? {
+                    ...current,
+                    name: updated.title,
+                    description: updated.summary,
+                    coverCardName: updated.coverCardName,
+                    coverImageUrl: updated.coverImageUrl,
+                  }
+                : current,
+            );
+          }}
+        />
+      )}
     </>
   );
 }

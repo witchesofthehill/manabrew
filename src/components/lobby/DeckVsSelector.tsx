@@ -20,6 +20,7 @@ import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
@@ -391,6 +392,9 @@ export function DeckVsSelector({
     if (!started) {
       setStarting(false);
       return;
+    }
+    if (playerDeck.source === "preset") {
+      savePresetToAccountOnUse(playerDeck.sourceId);
     }
     const prefs = usePreferencesStore.getState();
     if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);

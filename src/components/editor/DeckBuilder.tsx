@@ -1,4 +1,5 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useNavigate } from "react-router-dom";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
@@ -35,6 +36,7 @@ import {
   ArrowDownToLine,
   EllipsisVertical,
   History,
+  LibraryBig,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -47,7 +49,7 @@ import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
 import { frontFaceName, needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
-import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
+import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
@@ -273,7 +275,9 @@ export function DeckBuilder({
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
 } = {}) {
-  const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
+  const navigate = useNavigate();
+  const hubEnabled = isFeatureEnabled("deckHub");
+  const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
   const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
@@ -901,14 +905,32 @@ export function DeckBuilder({
           <span className="hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block">
             Browse the cards below. Editing is locked.
           </span>
-          <Button
-            size="sm"
-            className="ml-auto h-7 shrink-0 pointer-coarse:h-10"
-            onClick={handleImportReadOnlyDeck}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Copy and edit
-          </Button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {hubEnabled && readOnlySource === "preset" && currentDeck.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 pointer-coarse:h-10"
+                onClick={() => {
+                  if (!currentDeck.id) return;
+                  navigate(
+                    `${ROUTES.HUB}?deck=${encodeURIComponent(currentDeck.id)}&source=presets`,
+                  );
+                }}
+              >
+                <LibraryBig className="mr-1 h-3.5 w-3.5" />
+                View in Deck Hub
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="h-7 pointer-coarse:h-10"
+              onClick={handleImportReadOnlyDeck}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Copy and edit
+            </Button>
+          </div>
         </div>
       )}
       <div className="flex flex-1 min-h-0">
@@ -1087,6 +1109,7 @@ export function DeckBuilder({
                   variant="ghost"
                   className="h-7 w-7 shrink-0"
                   disabled={isReadOnly}
+                  aria-label="Deck actions"
                 >
                   <EllipsisVertical className="h-4 w-4" />
                 </Button>

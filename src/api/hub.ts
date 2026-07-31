@@ -28,6 +28,7 @@ export type HubSort = "newest" | "name";
 export type DeckHubSort = "newest" | "name" | "favorites";
 export type DeckHubColorMatch = "exact" | "includes";
 export type DeckHubTagMatch = "any" | "all";
+export type DeckHubSource = "all" | "community" | "presets";
 
 export interface HubListParams {
   search?: string;
@@ -39,6 +40,7 @@ export interface HubListParams {
 
 export interface DeckHubEntryListParams {
   search?: string;
+  source?: DeckHubSource;
   formats?: string[];
   colors?: string;
   colorMatch?: DeckHubColorMatch;
@@ -47,6 +49,7 @@ export interface DeckHubEntryListParams {
   commander?: string;
   card?: string;
   favorites?: boolean;
+  owned?: boolean;
   sort?: DeckHubSort;
   page?: number;
   pageSize?: number;
@@ -145,6 +148,12 @@ export function fetchAccountDeck(id: string): Promise<AccountDeckDetail> {
   return hubJson<AccountDeckDetail>(`/api/decks/${encodeURIComponent(id)}`);
 }
 
+export function forkPresetDeck(presetKey: string): Promise<AccountDeckDetail> {
+  return hubJson<AccountDeckDetail>(`/api/presets/${encodeURIComponent(presetKey)}/fork`, {
+    method: "POST",
+  });
+}
+
 export function saveAccountDeck(
   id: string,
   request: SaveDeckVersionRequest,
@@ -171,6 +180,7 @@ export function fetchDeckVersion(id: string, versionNo: number): Promise<DeckVer
 export function fetchDeckHubEntries(params: DeckHubEntryListParams): Promise<DeckHubEntryList> {
   const query = new URLSearchParams();
   if (params.search) query.set("search", params.search);
+  if (params.source && params.source !== "all") query.set("source", params.source);
   if (params.formats?.length) query.set("formats", params.formats.join(","));
   if (params.colors) query.set("colors", params.colors);
   if (params.colorMatch) query.set("colorMatch", params.colorMatch);
@@ -179,6 +189,7 @@ export function fetchDeckHubEntries(params: DeckHubEntryListParams): Promise<Dec
   if (params.commander) query.set("commander", params.commander);
   if (params.card) query.set("card", params.card);
   if (params.favorites) query.set("favorites", "true");
+  if (params.owned) query.set("owned", "true");
   if (params.sort) query.set("sort", params.sort);
   if (params.page) query.set("page", String(params.page));
   if (params.pageSize) query.set("pageSize", String(params.pageSize));

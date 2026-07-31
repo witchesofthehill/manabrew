@@ -5,6 +5,7 @@ import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { ROUTES } from "@/lib/constants";
 import { getFormat } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -121,6 +122,7 @@ export function useQuickPlay() {
           resolveOfflineEngine(),
         );
       if (!started) return;
+      savePresetToAccountOnUse(presetId);
       const prefs = usePreferencesStore.getState();
       prefs.setLastOfflineFormatId(formatId);
       prefs.setLastAiOpponent(

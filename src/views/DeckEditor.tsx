@@ -290,6 +290,10 @@ export default function DeckEditor() {
     setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
   }
 
+  function viewPresetInHub(presetKey: string) {
+    navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`);
+  }
+
   async function handleDeleteAccountDeck(saved: SavedDeck) {
     if (!saved.accountDeckId) return;
     try {
@@ -527,26 +531,33 @@ export default function DeckEditor() {
                     <p className="text-sm text-muted-foreground">Loading account decks…</p>
                   ) : filteredAccountDecks.length + filteredAccountDrafts.length > 0 ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                      {[...filteredAccountDecks, ...filteredAccountDrafts].map((saved) => (
-                        <DeckGridCard
-                          key={saved.id}
-                          deck={saved}
-                          onOpen={() => handleSelectAccountDeck(saved)}
-                          onPlaytest={() => quickPlaytest(saved.deck)}
-                          onDelete={() => void handleDeleteAccountDeck(saved)}
-                          onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
-                          onPlay={() => {
-                            const id = saved.accountDeckId
-                              ? loadAccountDeck(
-                                  saved.accountDeckId,
-                                  saved.accountVersionNo ?? 1,
-                                  saved.deck,
-                                )
-                              : saved.id;
-                            navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
-                          }}
-                        />
-                      ))}
+                      {[...filteredAccountDecks, ...filteredAccountDrafts].map((saved) => {
+                        const presetKey = saved.accountDeckId
+                          ? accountDeckDetails[saved.accountDeckId]?.derivedFromPresetKey
+                          : undefined;
+                        return (
+                          <DeckGridCard
+                            key={saved.id}
+                            deck={saved}
+                            onOpen={() => handleSelectAccountDeck(saved)}
+                            onPlaytest={() => quickPlaytest(saved.deck)}
+                            onDelete={() => void handleDeleteAccountDeck(saved)}
+                            onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
+                            onViewInHub={presetKey ? () => viewPresetInHub(presetKey) : undefined}
+                            onPlay={() => {
+                              const id = saved.accountDeckId
+                                ? loadAccountDeck(
+                                    saved.accountDeckId,
+                                    saved.accountVersionNo ?? 1,
+                                    saved.deck,
+                                  )
+                                : saved.id;
+                              navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
+                            }}
+                            badge={presetKey ? "Preset copy" : undefined}
+                          />
+                        );
+                      })}
                     </div>
                   ) : accountSavedDecks.length > 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -703,6 +714,12 @@ export default function DeckEditor() {
                         readOnly
                         onOpen={() => handleOpenPreset(s.deck)}
                         onPlaytest={() => quickPlaytest(s.deck)}
+                        onViewInHub={() =>
+                          navigate(
+                            `${ROUTES.HUB}?deck=${encodeURIComponent(s.deck.id ?? s.deck.name)}&source=presets`,
+                          )
+                        }
+                        badge="Official preset"
                       />
                     ))}
                   </div>

@@ -23,6 +23,9 @@ export function DeckHubEntryCard({
     .split("")
     .map((color) => `{${color}}`)
     .join("");
+  const discoveryTags = entry.tags.filter(
+    (tag) => tag.slug !== "official" && tag.slug !== "preset",
+  );
 
   return (
     <div
@@ -115,9 +118,14 @@ export function DeckHubEntryCard({
         <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
       </Button>
 
-      {variant === "grid" && entry.tags.length > 0 && (
-        <div className="pointer-events-none absolute left-1.5 top-1.5 z-20 flex max-w-[65%] gap-1 overflow-hidden">
-          {entry.tags.slice(0, 2).map((tag) => (
+      {variant === "grid" && discoveryTags.length > 0 && (
+        <div
+          className={cn(
+            "pointer-events-none absolute left-1.5 z-20 flex max-w-[65%] gap-1 overflow-hidden",
+            entry.sourceKind === "preset" ? "top-10" : "top-1.5",
+          )}
+        >
+          {discoveryTags.slice(0, 2).map((tag) => (
             <span
               key={tag.id}
               className="truncate rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm"
@@ -126,6 +134,11 @@ export function DeckHubEntryCard({
             </span>
           ))}
         </div>
+      )}
+      {entry.sourceKind === "preset" && (
+        <span className="pointer-events-none absolute left-1.5 top-1.5 z-20 rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
+          Official preset
+        </span>
       )}
     </div>
   );

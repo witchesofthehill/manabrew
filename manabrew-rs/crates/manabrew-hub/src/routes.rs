@@ -103,6 +103,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/api/decks/:id/versions/:version_no",
             get(deck_version_handler),
         )
+        .route("/api/presets/:preset_key/fork", post(fork_preset_handler))
         .route(
             "/api/deckhub/entries",
             get(deckhub_entries_handler).post(create_deckhub_entry_handler),
@@ -182,6 +183,23 @@ async fn account_decks_handler(
 ) -> Response {
     match state.storage.lock().unwrap().list_owned_decks(&account.id) {
         Ok(decks) => Json(AccountDeckList { decks }).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn fork_preset_handler(
+    State(state): State<Arc<AppState>>,
+    Path(preset_key): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .fork_preset_deck(&account.id, &preset_key, &now_string())
+    {
+        Ok(Some(deck)) => Json(deck).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(error) => internal_error(error),
     }
 }
@@ -317,6 +335,7 @@ async fn deck_version_handler(
 #[serde(rename_all = "camelCase")]
 struct DeckHubListQuery {
     search: Option<String>,
+    source: Option<String>,
     format: Option<String>,
     formats: Option<String>,
     tag: Option<String>,
@@ -327,6 +346,7 @@ struct DeckHubListQuery {
     commander: Option<String>,
     card: Option<String>,
     favorites: Option<bool>,
+    owned: Option<bool>,
     sort: Option<String>,
     page: Option<u32>,
     page_size: Option<u32>,
@@ -347,6 +367,11 @@ async fn deckhub_entries_handler(
         .clamp(1, MAX_PAGE_SIZE);
     let params = DeckHubListParams {
         search: query.search,
+        source_kind: match query.source.as_deref() {
+            Some("community") => Some("user".into()),
+            Some("presets") => Some("preset".into()),
+            _ => None,
+        },
         formats: csv_values(query.formats.or(query.format)),
         colors: query.colors.as_deref().and_then(normalize_colors),
         color_match: match query.color_match.as_deref() {
@@ -361,6 +386,7 @@ async fn deckhub_entries_handler(
         commander: query.commander,
         card: query.card,
         favorites_only: query.favorites.unwrap_or(false),
+        owned_only: query.owned.unwrap_or(false),
         sort: match query.sort.as_deref() {
             Some("name") => DeckHubSortOrder::Name,
             Some("favorites") => DeckHubSortOrder::Favorites,

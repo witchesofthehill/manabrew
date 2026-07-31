@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { History, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,8 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { fetchDeckVersion } from "@/api/hub";
+import type { DeckVersionSummary } from "@/api/hubTypes";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import type { EditorDeck } from "@/types/manabrew";
+
+const EMPTY_VERSIONS: DeckVersionSummary[] = [];
 
 interface DeckVersionHistoryDialogProps {
   open: boolean;
@@ -27,7 +31,7 @@ export function DeckVersionHistoryDialog({
   currentVersionNo,
   onRestore,
 }: DeckVersionHistoryDialogProps) {
-  const versions = useAccountDecksStore((state) => state.versions[deckId] ?? []);
+  const versions = useAccountDecksStore((state) => state.versions[deckId] ?? EMPTY_VERSIONS);
   const loadVersions = useAccountDecksStore((state) => state.loadVersions);
   const [loadingVersion, setLoadingVersion] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,6 +50,8 @@ export function DeckVersionHistoryDialog({
       const version = await fetchDeckVersion(deckId, versionNo);
       onRestore(version.deck as EditorDeck, versionNo);
       onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load this deck version");
     } finally {
       setLoadingVersion(null);
     }

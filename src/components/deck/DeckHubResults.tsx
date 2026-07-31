@@ -29,6 +29,7 @@ interface DeckHubResultsProps {
 }
 
 function groupLabel(entry: DeckHubEntrySummary, group: DeckHubGroup) {
+  if (group === "source") return entry.sourceKind === "preset" ? "Official presets" : "Community";
   if (group === "format") return FORMAT_DISPLAY[entry.format ?? ""] ?? entry.format ?? "Other";
   if (group === "color") return entry.colors === "C" ? "Colorless" : entry.colors || "Unknown";
   if (group === "tag") return entry.tags[0]?.name ?? "Untagged";

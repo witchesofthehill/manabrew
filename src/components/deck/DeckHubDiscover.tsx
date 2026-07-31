@@ -39,6 +39,10 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   const page = positivePage(searchParams.get("page"));
   const filters: DeckHubDiscoveryFilters = {
     search,
+    source:
+      searchParams.get("source") === "community" || searchParams.get("source") === "presets"
+        ? (searchParams.get("source") as DeckHubDiscoveryFilters["source"])
+        : "all",
     formats,
     colors: searchParams.get("colors") ?? "",
     colorMatch: searchParams.get("colorMatch") === "includes" ? "includes" : "exact",
@@ -55,6 +59,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
           : "newest",
     view: searchParams.get("view") === "list" ? "list" : "grid",
     group:
+      searchParams.get("group") === "source" ||
       searchParams.get("group") === "format" ||
       searchParams.get("group") === "color" ||
       searchParams.get("group") === "tag"
@@ -105,6 +110,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
     if (domainV2) {
       void fetchEntries({
         search: debouncedSearch || undefined,
+        source: filters.source,
         formats,
         colors: filters.colors || undefined,
         colorMatch: filters.colorMatch,
@@ -136,6 +142,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
     filters.colors,
     filters.commander,
     filters.favorites,
+    filters.source,
     filters.sort,
     filters.tagMatch,
     formats,
@@ -157,6 +164,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
     const next = new URLSearchParams(searchParams);
     const values: [keyof DeckHubDiscoveryFilters, string, unknown][] = [
       ["formats", "formats", patch.formats],
+      ["source", "source", patch.source],
       ["colors", "colors", patch.colors],
       ["colorMatch", "colorMatch", patch.colorMatch],
       ["tags", "tags", patch.tags],
@@ -172,6 +180,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
       if (value === undefined) continue;
       const defaults =
         (filterKey === "colorMatch" && value === "exact") ||
+        (filterKey === "source" && value === "all") ||
         (filterKey === "tagMatch" && value === "any") ||
         (filterKey === "sort" && value === "newest") ||
         (filterKey === "view" && value === "grid") ||
@@ -193,6 +202,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   function clearFilters() {
     changeFilters({
       search: "",
+      source: "all",
       formats: [],
       colors: "",
       colorMatch: "exact",
@@ -228,6 +238,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   const activeList = domainV2 ? entries : list;
   const activeFilterCount =
     Number(Boolean(search)) +
+    Number(filters.source !== "all") +
     Number(formats.length > 0) +
     Number(Boolean(filters.colors)) +
     Number(tags.length > 0) +

@@ -17,7 +17,9 @@ import type { Deck } from "@/protocol/deck";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { isFeatureEnabled } from "@/featureFlags";
+import type { SavedDeck } from "@/stores/useDeckStore";
 
 const SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
 
@@ -30,6 +32,7 @@ interface PlayDeckShelfProps {
 export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckShelfProps) {
   const navigate = useNavigate();
   const savedDecks = useDeckStore((state) => state.savedDecks);
+  const loadAccountDeck = useDeckStore((state) => state.loadAccountDeck);
   const lastPlayedDeckId = usePreferencesStore((state) => state.lastPlayedDeckId);
   const lastPlayedAtByDeck = usePreferencesStore((state) => state.lastPlayedAtByDeck);
   const presetDecks = usePresetDecks();
@@ -48,8 +51,29 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
   const hubEnabled = isFeatureEnabled("deckHub");
   const hubAccountsEnabled = hubEnabled && isFeatureEnabled("accounts");
+  const {
+    details: accountDeckDetails,
+    error: accountDecksError,
+    available: accountDecksAvailable,
+    signedIn: accountDecksSignedIn,
+    refresh: refreshAccountDecks,
+  } = useAccountDecks();
 
-  const ownedDecks = savedDecks.filter((savedDeck) => !savedDeck.deck.draft);
+  const accountSavedDecks: SavedDeck[] = Object.values(accountDeckDetails).map((detail) => ({
+    id: `account:${detail.id}`,
+    deck: detail.deck as SavedDeck["deck"],
+    savedAt: new Date(detail.updatedAt).getTime(),
+    accountDeckId: detail.id,
+    accountVersionNo: detail.currentVersionNo,
+  }));
+  const ownedDecks = [
+    ...savedDecks.filter(
+      (savedDeck) =>
+        !savedDeck.deck.draft &&
+        (!savedDeck.accountDeckId || accountDeckDetails[savedDeck.accountDeckId] === undefined),
+    ),
+    ...accountSavedDecks.filter((savedDeck) => !savedDeck.deck.draft),
+  ];
   const matchesFormat = (format?: string) =>
     formatFilter === "all" || (format ?? "standard") === formatFilter;
   const filteredDecks = ownedDecks
@@ -64,7 +88,14 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const formatName =
     formatFilter === "all" ? null : (getFormat(formatFilter)?.name ?? formatFilter);
 
-  function openDeck(id: string) {
+  function materializeDeck(saved: SavedDeck) {
+    return saved.accountDeckId
+      ? loadAccountDeck(saved.accountDeckId, saved.accountVersionNo ?? 1, saved.deck)
+      : saved.id;
+  }
+
+  function openDeck(saved: SavedDeck) {
+    const id = materializeDeck(saved);
     navigate(
       {
         pathname: ROUTES.DECK_EDITOR,
@@ -143,26 +174,49 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         ))}
       </div>
 
+      {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          <span className="min-w-0 flex-1">{accountDecksError}</span>
+          <Button variant="outline" size="sm" onClick={() => void refreshAccountDecks()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
       {ownedDecks.length > 0 ? (
         filteredDecks.length > 0 ? (
           <DeckShelfRow label="Your decks">
-            {filteredDecks.map((deck) => (
-              <div key={deck.id} className={cn(SHELF_CARD_CLASS, "relative")}>
-                {deck.id === lastPlayedDeckId && (
-                  <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
-                    Last played
-                  </span>
-                )}
-                <DeckGridCard
-                  deck={deck}
-                  onOpen={() => openDeck(deck.id)}
-                  onPlay={() => onPlay(deck.id)}
-                  playing={pendingDeckId === deck.id}
-                  playDisabled={pendingDeckId !== null}
-                  readOnly
-                />
-              </div>
-            ))}
+            {filteredDecks.map((deck) => {
+              const presetKey = deck.accountDeckId
+                ? accountDeckDetails[deck.accountDeckId]?.derivedFromPresetKey
+                : undefined;
+              return (
+                <div key={deck.id} className={cn(SHELF_CARD_CLASS, "relative")}>
+                  {deck.id === lastPlayedDeckId && (
+                    <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
+                      Last played
+                    </span>
+                  )}
+                  <DeckGridCard
+                    deck={deck}
+                    onOpen={() => openDeck(deck)}
+                    onPlay={() => onPlay(materializeDeck(deck))}
+                    onViewInHub={
+                      presetKey
+                        ? () =>
+                            navigate(
+                              `${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`,
+                            )
+                        : undefined
+                    }
+                    badge={presetKey ? "Preset copy" : undefined}
+                    playing={pendingDeckId === deck.id}
+                    playDisabled={pendingDeckId !== null}
+                    readOnly
+                  />
+                </div>
+              );
+            })}
           </DeckShelfRow>
         ) : (
           <p className="py-4 text-center text-xs italic text-muted-foreground">
@@ -263,6 +317,12 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
                           if (pendingDeckId === null) onPlayPreset(preset);
                         }}
                         onPlay={() => onPlayPreset(preset)}
+                        onViewInHub={() =>
+                          navigate(
+                            `${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`,
+                          )
+                        }
+                        badge="Official preset"
                         playing={pendingDeckId === presetId}
                         playDisabled={pendingDeckId !== null}
                         readOnly

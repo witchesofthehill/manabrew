@@ -11,11 +11,13 @@ import {
   fetchTopDeckBuckets,
   fetchTopDeckSnapshot,
   setDeckHubFavorite,
+  updateDeckHubEntry,
 } from "@/api/hub";
 import type { DeckHubEntryListParams, HubListParams } from "@/api/hub";
 import type {
   DeckHubEntryDetail,
   DeckHubEntryList,
+  DeckHubEntrySummary,
   DeckHubFacets,
   DeckHubTag,
   HubCapabilities,
@@ -23,6 +25,7 @@ import type {
   HubDeckList,
   TopDeckBucket,
   TopDeckSnapshot,
+  UpdateDeckHubEntryRequest,
 } from "@/api/hubTypes";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -35,6 +38,11 @@ interface HubState {
   myDecksError: string | null;
   myDecksAccountId: string | null;
   myDecksFetchedAt: number | null;
+  myEntries: DeckHubEntryList | null;
+  myEntriesLoading: boolean;
+  myEntriesError: string | null;
+  myEntriesAccountId: string | null;
+  myEntriesFetchedAt: number | null;
   details: Record<string, HubDeckDetail>;
   capabilities: HubCapabilities | null;
   capabilitiesLoaded: boolean;
@@ -50,6 +58,8 @@ interface HubState {
   fetchDecks: (params: HubListParams) => Promise<void>;
   fetchMyDecks: (accountId: string, force?: boolean) => Promise<void>;
   clearMyDecks: () => void;
+  fetchMyEntries: (accountId: string, force?: boolean) => Promise<void>;
+  clearMyEntries: () => void;
   loadDeck: (id: string) => Promise<HubDeckDetail>;
   removeDeck: (id: string) => void;
   loadCapabilities: () => Promise<HubCapabilities | null>;
@@ -60,10 +70,12 @@ interface HubState {
   fetchTopBuckets: () => Promise<void>;
   fetchTopSnapshot: (bucket: string) => Promise<void>;
   setFavorite: (id: string, favorite: boolean) => Promise<void>;
+  updateEntry: (id: string, request: UpdateDeckHubEntryRequest) => Promise<DeckHubEntryDetail>;
 }
 
 let listRequestId = 0;
 let myDecksRequestId = 0;
+let myEntriesRequestId = 0;
 let entryListRequestId = 0;
 let topSnapshotRequestId = 0;
 const detailRequests = new Map<string, Promise<HubDeckDetail>>();
@@ -79,6 +91,11 @@ export const useHubStore = create<HubState>((set, get) => ({
   myDecksError: null,
   myDecksAccountId: null,
   myDecksFetchedAt: null,
+  myEntries: null,
+  myEntriesLoading: false,
+  myEntriesError: null,
+  myEntriesAccountId: null,
+  myEntriesFetchedAt: null,
   details: {},
   capabilities: null,
   capabilitiesLoaded: false,
@@ -148,6 +165,67 @@ export const useHubStore = create<HubState>((set, get) => ({
       myDecksFetchedAt: null,
     });
   },
+  fetchMyEntries: async (accountId, force = false) => {
+    const state = get();
+    if (state.myEntriesAccountId === accountId && state.myEntriesLoading) return;
+    if (
+      !force &&
+      state.myEntriesAccountId === accountId &&
+      state.myEntries !== null &&
+      state.myEntriesFetchedAt !== null &&
+      Date.now() - state.myEntriesFetchedAt < MY_DECKS_MAX_AGE_MS
+    )
+      return;
+    const requestId = ++myEntriesRequestId;
+    set({
+      myEntriesLoading: true,
+      myEntriesError: null,
+      myEntriesAccountId: accountId,
+      ...(state.myEntriesAccountId === accountId ? {} : { myEntries: null }),
+    });
+    try {
+      const entries: DeckHubEntrySummary[] = [];
+      let page = 1;
+      let result: DeckHubEntryList;
+      do {
+        result = await fetchDeckHubEntries({ owned: true, page, pageSize: 50 });
+        if (result.entries.length === 0) break;
+        entries.push(...result.entries);
+        page += 1;
+      } while (entries.length < result.total);
+      if (requestId === myEntriesRequestId && get().myEntriesAccountId === accountId) {
+        set({
+          myEntries: {
+            ...result,
+            entries,
+            total: entries.length,
+            page: 1,
+            pageSize: result.pageSize,
+          },
+          myEntriesLoading: false,
+          myEntriesFetchedAt: Date.now(),
+        });
+      }
+    } catch (error) {
+      if (requestId === myEntriesRequestId && get().myEntriesAccountId === accountId) {
+        set({
+          myEntriesLoading: false,
+          myEntriesError:
+            error instanceof Error ? error.message : "Failed to load your publications",
+        });
+      }
+    }
+  },
+  clearMyEntries: () => {
+    myEntriesRequestId += 1;
+    set({
+      myEntries: null,
+      myEntriesLoading: false,
+      myEntriesError: null,
+      myEntriesAccountId: null,
+      myEntriesFetchedAt: null,
+    });
+  },
   loadDeck: async (id) => {
     const cached = get().details[id];
     if (cached) return cached;
@@ -190,6 +268,17 @@ export const useHubStore = create<HubState>((set, get) => ({
                 0,
                 state.entries.total -
                   Number(state.entries.entries.some((entry) => entry.id === id)),
+              ),
+            }
+          : null,
+        myEntries: state.myEntries
+          ? {
+              ...state.myEntries,
+              entries: state.myEntries.entries.filter((entry) => entry.id !== id),
+              total: Math.max(
+                0,
+                state.myEntries.total -
+                  Number(state.myEntries.entries.some((entry) => entry.id === id)),
               ),
             }
           : null,
@@ -299,6 +388,20 @@ export const useHubStore = create<HubState>((set, get) => ({
             ),
           }
         : null,
+      myEntries: state.myEntries
+        ? {
+            ...state.myEntries,
+            entries: state.myEntries.entries.map((entry) =>
+              entry.id === id
+                ? {
+                    ...entry,
+                    favoriteCount: response.favoriteCount,
+                    favorited: viewerMatches ? response.favorited : entry.favorited,
+                  }
+                : entry,
+            ),
+          }
+        : null,
       entryDetails: Object.fromEntries(
         Object.entries(state.entryDetails).map(([key, entry]) => [
           key,
@@ -329,5 +432,37 @@ export const useHubStore = create<HubState>((set, get) => ({
           }
         : null,
     }));
+  },
+  updateEntry: async (id, request) => {
+    const updated = await updateDeckHubEntry(id, request);
+    set((state) => ({
+      entries: state.entries
+        ? {
+            ...state.entries,
+            entries: state.entries.entries.map((entry) => (entry.id === id ? updated : entry)),
+          }
+        : null,
+      myEntries: state.myEntries
+        ? {
+            ...state.myEntries,
+            entries: state.myEntries.entries.map((entry) => (entry.id === id ? updated : entry)),
+          }
+        : null,
+      entryDetails: Object.fromEntries(
+        Object.entries(state.entryDetails).map(([key, entry]) => [
+          key,
+          entry.id === id ? updated : entry,
+        ]),
+      ),
+      topSnapshot: state.topSnapshot
+        ? {
+            ...state.topSnapshot,
+            entries: state.topSnapshot.entries.map((ranked) =>
+              ranked.entry.id === id ? { ...ranked, entry: updated } : ranked,
+            ),
+          }
+        : null,
+    }));
+    return updated;
   },
 }));

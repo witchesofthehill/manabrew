@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod preset_decks;
 mod rate_limit;
 mod routes;
 mod stats;
@@ -30,6 +31,11 @@ async fn main() {
         std::fs::create_dir_all(parent).expect("create hub db directory");
     }
     let storage = Storage::open(&config.db_path).expect("open hub db");
+    let presets = preset_decks::load_preset_decks(std::path::Path::new(&config.preset_decks_dir))
+        .expect("load preset decks");
+    storage
+        .sync_preset_decks(&presets, &chrono::Utc::now().to_rfc3339())
+        .expect("sync preset decks");
     let state = Arc::new(AppState {
         storage: Mutex::new(storage),
         stats: StatsCache::new(config.events_db_path.clone()),

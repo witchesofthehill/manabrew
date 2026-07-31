@@ -11,8 +11,9 @@ pub enum FaceSelectionMethod {
 
 /// The type of split/transform/modal card.
 /// Mirrors Java `CardSplitType`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CardSplitType {
+    #[default]
     None,
     Transform,
     Meld,
@@ -73,16 +74,11 @@ impl CardSplitType {
     }
 }
 
-impl Default for CardSplitType {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 /// Which face/state a card is currently showing.
 /// Mirrors Java `CardStateName`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum CardStateName {
+    #[default]
     Original,
     FaceDown,
     Flipped,
@@ -142,12 +138,6 @@ impl CardStateName {
                 }
             }
         }
-    }
-}
-
-impl Default for CardStateName {
-    fn default() -> Self {
-        Self::Original
     }
 }
 

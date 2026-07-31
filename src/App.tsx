@@ -1,7 +1,5 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { queryClient } from "@/api/queryClient";
 import { router } from "@/router";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -74,20 +72,18 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <ThemeApplicator>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider delayDuration={120} skipDelayDuration={300}>
-            <PlatformRuntimeChecks />
-            <AppInitGate>
-              <RouterProvider router={router} />
-            </AppInitGate>
-            <Toaster />
-            {import.meta.env.DEV && devToolsEnabled && (
-              <Suspense>
-                <DevToolsPanel />
-              </Suspense>
-            )}
-          </TooltipProvider>
-        </QueryClientProvider>
+        <TooltipProvider delayDuration={120} skipDelayDuration={300}>
+          <PlatformRuntimeChecks />
+          <AppInitGate>
+            <RouterProvider router={router} />
+          </AppInitGate>
+          <Toaster />
+          {import.meta.env.DEV && devToolsEnabled && (
+            <Suspense>
+              <DevToolsPanel />
+            </Suspense>
+          )}
+        </TooltipProvider>
       </ThemeApplicator>
     </ThemeProvider>
   );

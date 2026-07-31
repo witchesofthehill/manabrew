@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.0.2](https://github.com/witchesofthehill/manabrew/compare/v3.0.1...v3.0.2) (2026-07-31)
+
+### Fixes
+
+* **release:** remove tanstack remnants and retry tauri builds ([#564](https://github.com/witchesofthehill/manabrew/issues/564)) ([7a78403](https://github.com/witchesofthehill/manabrew/commit/7a784037f9900b1762e920bdc07c6d6c38092528))
+* actionspace restrictions ignoring zone ([#572](https://github.com/witchesofthehill/manabrew/issues/572)) ([f2e0dee](https://github.com/witchesofthehill/manabrew/commit/f2e0deecb25a66221681a4303f6a847fb97a24d7))
+
+## [3.0.1](https://github.com/witchesofthehill/manabrew/compare/v3.0.0...v3.0.1) (2026-07-29)
+
+### Fixes
+
+* mutate behaviour  ([#558](https://github.com/witchesofthehill/manabrew/issues/558)) ([8dff28e](https://github.com/witchesofthehill/manabrew/commit/8dff28e57c003e3a7cba4859cfc48835b4aba777))
+* **lint:** skip generated native resources during clippy ([#563](https://github.com/witchesofthehill/manabrew/issues/563)) ([cf42185](https://github.com/witchesofthehill/manabrew/commit/cf4218545753ba12b7a565eb22d583ce00a7cdfd))
+
 ## [3.0.0](https://github.com/witchesofthehill/manabrew/compare/v2.1.2...v3.0.0) (2026-07-27)
 
 ### Features

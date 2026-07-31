@@ -30,7 +30,7 @@ export interface AbilityPickerState {
 interface PlayModePickerState {
   cardId: string;
   card: DeckCard;
-  options: { actionId: string; cardId: string; mode: string; modeLabel: string }[];
+  options: HandActionOption[];
 }
 
 interface ViewingZoneState {

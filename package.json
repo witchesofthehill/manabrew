@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.0.2",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -31,7 +31,7 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "pretest": "yarn gen:types",
     "lint": "eslint . && prettier --check src && yarn typecheck",
-    "lint:rust": "cargo fmt --all -- --check && cargo clippy --workspace --lib --bins -- -D warnings",
+    "lint:rust": "cargo fmt --all -- --check && node scripts/clippy.mjs",
     "lint:all": "yarn lint && yarn lint:rust",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
@@ -92,7 +92,6 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.2.0",
-    "@tanstack/react-query": "^5.100.5",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-http": "^2.5.9",
     "@tauri-apps/plugin-process": "^2.3.1",

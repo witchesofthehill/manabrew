@@ -101,6 +101,22 @@ public final class InteractiveSnapshotExtractor {
                 battlefieldByController
                         .computeIfAbsent(controllerId, key -> new ArrayList<>())
                         .add(visibleCard(dto));
+                if (card.hasMergedCard()) {
+                    // Mutate pile members ride the battlefield zone as attachments of the
+                    // top card; `mergedCardIds` is what tells them apart from real auras.
+                    for (final Card merged : card.getMergedCards()) {
+                        if (merged == card) {
+                            continue;
+                        }
+                        final CardDto component = toCard(
+                                game, merged, SnapshotExtractor.playerIndex(game, merged.getOwner()), false);
+                        component.attachedTo = dto.id;
+                        dto.attachmentIds.add(component.id);
+                        battlefieldByController
+                                .computeIfAbsent(controllerId, key -> new ArrayList<>())
+                                .add(visibleCard(component));
+                    }
+                }
             }
         }
         for (final Player player : game.getRegisteredPlayers()) {

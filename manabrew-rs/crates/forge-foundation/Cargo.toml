@@ -1,6 +1,6 @@
 [package]
 name = "forge-foundation"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license.workspace = true
 description = "Core Magic types for the manabrew engine: colors, mana, card types, zones, phases"

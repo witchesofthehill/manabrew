@@ -19,6 +19,15 @@ pub fn cant_be_cast_ability(
     cant_be_cast_ability_in_context(cards, spell, card, activator, None)
 }
 
+/// Mirrors Java `AiController.canPlaySa`: `CantBeCast` statics are normally
+/// evaluated after `moveToStack`, so a pre-cast probe has to supply the origin
+/// zone itself or every `Origin$` / `wasCastFrom*` restriction misreads.
+pub fn restriction_host(card: &Card) -> Card {
+    let mut host = card.clone();
+    host.cast_from = Some(card.zone);
+    host
+}
+
 /// Context-aware variant used by playability/casting code where full game
 /// timing checks (e.g. OnlySorcerySpeed) are available.
 pub fn cant_be_cast_ability_in_context(
@@ -103,11 +112,9 @@ pub fn apply_cant_be_cast_ability(
 
     // Origin — the zone the card is being cast from must be in the listed zones.
     if !st_ab.ir.origin_zones.is_empty() {
-        // Java uses card.getCastFrom().getZoneType().
-        // Rust currently uses the card's current pre-stack zone as cast-from.
-        let cast_from = card.zone;
-        if !st_ab.ir.origin_zones.contains(&cast_from) {
-            return false;
+        match card.cast_from {
+            Some(cast_from) if st_ab.ir.origin_zones.contains(&cast_from) => {}
+            _ => return false,
         }
     }
 

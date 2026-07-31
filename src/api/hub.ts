@@ -57,6 +57,15 @@ export interface DeckHubEntryListParams {
 
 const MANAGEMENT_TOKEN_HEADER = "X-Management-Token";
 
+class HubRequestError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   const token = useAuthStore.getState().token;
   const headers = new Headers(init?.headers);
@@ -65,22 +74,32 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     if (response.status === 429) {
-      throw new Error("Too many Deck Hub requests from your connection. Try again later.");
+      throw new HubRequestError(
+        response.status,
+        "Too many Deck Hub requests from your connection. Try again later.",
+      );
     }
     if (response.status === 401) {
       if (token && useAuthStore.getState().token === token) {
         useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
       }
-      throw new Error(
+      throw new HubRequestError(
+        response.status,
         token
           ? "Your Deck Hub session expired. Sign in again."
           : "Sign in to publish decks to the Deck Hub.",
       );
     }
     if (response.status === 409) {
-      throw new Error(message || "This deck changed on another device. Reload it and try again.");
+      throw new HubRequestError(
+        response.status,
+        message || "This deck changed on another device. Reload it and try again.",
+      );
     }
-    throw new Error(message || `Hub request failed (${response.status})`);
+    throw new HubRequestError(
+      response.status,
+      message || `Hub request failed (${response.status})`,
+    );
   }
   return response;
 }
@@ -126,10 +145,14 @@ export function fetchMyDecks(): Promise<HubDeckList> {
   return hubJson<HubDeckList>("/api/hub/my-decks");
 }
 
-export function fetchHubCapabilities(): Promise<HubCapabilities | null> {
-  return hubRequest("/api/hub/capabilities")
-    .then((response) => response.json() as Promise<HubCapabilities>)
-    .catch(() => null);
+export async function fetchHubCapabilities(): Promise<HubCapabilities | null> {
+  try {
+    const response = await hubRequest("/api/hub/capabilities");
+    return (await response.json()) as HubCapabilities;
+  } catch (error) {
+    if (error instanceof HubRequestError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 export function fetchAccountDecks(): Promise<AccountDeckList> {

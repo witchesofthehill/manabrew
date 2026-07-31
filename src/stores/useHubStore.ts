@@ -7,7 +7,7 @@ import {
   fetchHubDeck,
   fetchHubCapabilities,
   fetchHubDecks,
-  fetchMyDecks as fetchAccountDecks,
+  fetchMyDecks as fetchLegacyMyDecks,
   fetchTopDeckBuckets,
   fetchTopDeckSnapshot,
   setDeckHubFavorite,
@@ -46,6 +46,7 @@ interface HubState {
   details: Record<string, HubDeckDetail>;
   capabilities: HubCapabilities | null;
   capabilitiesLoaded: boolean;
+  capabilitiesError: string | null;
   entries: DeckHubEntryList | null;
   entriesLoading: boolean;
   entriesError: string | null;
@@ -80,7 +81,47 @@ let entryListRequestId = 0;
 let topSnapshotRequestId = 0;
 const detailRequests = new Map<string, Promise<HubDeckDetail>>();
 const entryRequests = new Map<string, Promise<DeckHubEntryDetail>>();
+let capabilitiesRequest: Promise<HubCapabilities | null> | null = null;
 const MY_DECKS_MAX_AGE_MS = 30_000;
+
+function mapEntryList(
+  list: DeckHubEntryList | null,
+  id: string,
+  update: (entry: DeckHubEntrySummary) => DeckHubEntrySummary,
+): DeckHubEntryList | null {
+  if (!list) return null;
+  return {
+    ...list,
+    entries: list.entries.map((entry) => (entry.id === id ? update(entry) : entry)),
+  };
+}
+
+function mapTopSnapshot(
+  snapshot: TopDeckSnapshot | null,
+  id: string,
+  update: (entry: DeckHubEntrySummary) => DeckHubEntrySummary,
+): TopDeckSnapshot | null {
+  if (!snapshot) return null;
+  return {
+    ...snapshot,
+    entries: snapshot.entries.map((ranked) =>
+      ranked.entry.id === id ? { ...ranked, entry: update(ranked.entry) } : ranked,
+    ),
+  };
+}
+
+function mapEntryDetails(
+  details: Record<string, DeckHubEntryDetail>,
+  id: string,
+  update: (key: string, entry: DeckHubEntryDetail) => DeckHubEntryDetail,
+): Record<string, DeckHubEntryDetail> {
+  return Object.fromEntries(
+    Object.entries(details).map(([key, entry]) => [
+      key,
+      entry.id === id ? update(key, entry) : entry,
+    ]),
+  );
+}
 
 export const useHubStore = create<HubState>((set, get) => ({
   list: null,
@@ -99,6 +140,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   details: {},
   capabilities: null,
   capabilitiesLoaded: false,
+  capabilitiesError: null,
   entries: null,
   entriesLoading: false,
   entriesError: null,
@@ -142,7 +184,7 @@ export const useHubStore = create<HubState>((set, get) => ({
       ...(state.myDecksAccountId === accountId ? {} : { myDecks: null }),
     });
     try {
-      const myDecks = await fetchAccountDecks();
+      const myDecks = await fetchLegacyMyDecks();
       if (requestId === myDecksRequestId && get().myDecksAccountId === accountId) {
         set({ myDecks, myDecksLoading: false, myDecksFetchedAt: Date.now() });
       }
@@ -293,9 +335,25 @@ export const useHubStore = create<HubState>((set, get) => ({
   loadCapabilities: async () => {
     const state = get();
     if (state.capabilitiesLoaded) return state.capabilities;
-    const capabilities = await fetchHubCapabilities();
-    set({ capabilities, capabilitiesLoaded: true });
-    return capabilities;
+    if (capabilitiesRequest) return capabilitiesRequest;
+    set({ capabilitiesError: null });
+    const request: Promise<HubCapabilities | null> = fetchHubCapabilities()
+      .then((capabilities) => {
+        set({ capabilities, capabilitiesLoaded: true, capabilitiesError: null });
+        return capabilities;
+      })
+      .catch((error) => {
+        set({
+          capabilitiesError:
+            error instanceof Error ? error.message : "Could not reach the Deck Hub",
+        });
+        return null;
+      })
+      .finally(() => {
+        if (capabilitiesRequest === request) capabilitiesRequest = null;
+      });
+    capabilitiesRequest = request;
+    return request;
   },
   fetchEntries: async (params) => {
     const requestId = ++entryListRequestId;
@@ -373,95 +431,30 @@ export const useHubStore = create<HubState>((set, get) => ({
     const viewerPrefix = `${viewerAccountId ?? "anonymous"}:`;
     const response = await setDeckHubFavorite(id, favorite);
     const viewerMatches = (useAuthStore.getState().account?.id ?? null) === viewerAccountId;
+    const update = (entry: DeckHubEntrySummary) => ({
+      ...entry,
+      favoriteCount: response.favoriteCount,
+      favorited: viewerMatches ? response.favorited : entry.favorited,
+    });
     set((state) => ({
-      entries: state.entries
-        ? {
-            ...state.entries,
-            entries: state.entries.entries.map((entry) =>
-              entry.id === id
-                ? {
-                    ...entry,
-                    favoriteCount: response.favoriteCount,
-                    favorited: viewerMatches ? response.favorited : entry.favorited,
-                  }
-                : entry,
-            ),
-          }
-        : null,
-      myEntries: state.myEntries
-        ? {
-            ...state.myEntries,
-            entries: state.myEntries.entries.map((entry) =>
-              entry.id === id
-                ? {
-                    ...entry,
-                    favoriteCount: response.favoriteCount,
-                    favorited: viewerMatches ? response.favorited : entry.favorited,
-                  }
-                : entry,
-            ),
-          }
-        : null,
-      entryDetails: Object.fromEntries(
-        Object.entries(state.entryDetails).map(([key, entry]) => [
-          key,
-          entry.id === id
-            ? {
-                ...entry,
-                favoriteCount: response.favoriteCount,
-                favorited: key.startsWith(viewerPrefix) ? response.favorited : entry.favorited,
-              }
-            : entry,
-        ]),
-      ),
-      topSnapshot: state.topSnapshot
-        ? {
-            ...state.topSnapshot,
-            entries: state.topSnapshot.entries.map((ranked) =>
-              ranked.entry.id === id
-                ? {
-                    ...ranked,
-                    entry: {
-                      ...ranked.entry,
-                      favoriteCount: response.favoriteCount,
-                      favorited: viewerMatches ? response.favorited : ranked.entry.favorited,
-                    },
-                  }
-                : ranked,
-            ),
-          }
-        : null,
+      entries: mapEntryList(state.entries, id, update),
+      myEntries: mapEntryList(state.myEntries, id, update),
+      entryDetails: mapEntryDetails(state.entryDetails, id, (key, entry) => ({
+        ...entry,
+        favoriteCount: response.favoriteCount,
+        favorited: key.startsWith(viewerPrefix) ? response.favorited : entry.favorited,
+      })),
+      topSnapshot: mapTopSnapshot(state.topSnapshot, id, update),
     }));
   },
   updateEntry: async (id, request) => {
     const updated = await updateDeckHubEntry(id, request);
+    const { deck: _deck, ...summary } = updated;
     set((state) => ({
-      entries: state.entries
-        ? {
-            ...state.entries,
-            entries: state.entries.entries.map((entry) => (entry.id === id ? updated : entry)),
-          }
-        : null,
-      myEntries: state.myEntries
-        ? {
-            ...state.myEntries,
-            entries: state.myEntries.entries.map((entry) => (entry.id === id ? updated : entry)),
-          }
-        : null,
-      entryDetails: Object.fromEntries(
-        Object.entries(state.entryDetails).map(([key, entry]) => [
-          key,
-          entry.id === id ? updated : entry,
-        ]),
-      ),
-      topSnapshot: state.topSnapshot
-        ? {
-            ...state.topSnapshot,
-            entries: state.topSnapshot.entries.map((ranked) =>
-              ranked.entry.id === id ? { ...ranked, entry: updated } : ranked,
-            ),
-          }
-        : null,
+      entries: mapEntryList(state.entries, id, () => summary),
+      myEntries: mapEntryList(state.myEntries, id, () => summary),
+      entryDetails: mapEntryDetails(state.entryDetails, id, () => updated),
+      topSnapshot: mapTopSnapshot(state.topSnapshot, id, () => summary),
     }));
     return updated;
   },

@@ -433,6 +433,7 @@ impl Storage {
                      WHERE id = ?1",
                     params![id],
                 )?;
+                update_deck_visibility(&tx, id)?;
                 tx.commit()?;
                 Ok(DeleteOutcome::Deleted)
             }
@@ -442,14 +443,15 @@ impl Storage {
     pub fn admin_delete(&self, id: &str) -> SqlResult<bool> {
         let tx = self.conn.unchecked_transaction()?;
         let changed = tx.execute("DELETE FROM hub_decks WHERE id = ?1", params![id])?;
-        tx.execute(
+        let entry_changed = tx.execute(
             "UPDATE deckhub_entries
              SET status = 'archived', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
              WHERE id = ?1",
             params![id],
         )?;
+        update_deck_visibility(&tx, id)?;
         tx.commit()?;
-        Ok(changed > 0)
+        Ok(changed > 0 || entry_changed > 0)
     }
 
     pub fn admin_unlist(&self, id: &str) -> SqlResult<bool> {
@@ -458,14 +460,15 @@ impl Storage {
             "UPDATE hub_decks SET unlisted = 1 WHERE id = ?1",
             params![id],
         )?;
-        tx.execute(
+        let entry_changed = tx.execute(
             "UPDATE deckhub_entries
              SET status = 'unlisted', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
              WHERE id = ?1",
             params![id],
         )?;
+        update_deck_visibility(&tx, id)?;
         tx.commit()?;
-        Ok(changed > 0)
+        Ok(changed > 0 || entry_changed > 0)
     }
 
     pub fn publishes_since(&self, ip: &str, since: &str) -> SqlResult<u32> {
@@ -499,6 +502,7 @@ impl Storage {
                      WHERE id = ?1",
                     params![id],
                 )?;
+                update_deck_visibility(&tx, id)?;
                 tx.commit()?;
                 Ok(DeleteOutcome::Deleted)
             }
@@ -1448,6 +1452,7 @@ impl Storage {
                     "UPDATE hub_decks SET unlisted = 1 WHERE id = ?1",
                     params![entry_id],
                 )?;
+                update_deck_visibility(&tx, entry_id)?;
                 tx.commit()?;
                 Ok(DeleteOutcome::Deleted)
             }
@@ -1900,10 +1905,29 @@ impl Storage {
     }
 
     pub fn delete_identity(&self, account_id: &str, provider: &str) -> SqlResult<bool> {
-        let changed = self.conn.execute(
+        let tx = self.conn.unchecked_transaction()?;
+        let changed = tx.execute(
             "DELETE FROM identities WHERE account_id = ?1 AND provider = ?2",
             params![account_id, provider],
         )?;
+        if changed > 0 {
+            tx.execute(
+                "UPDATE accounts
+                 SET email = (
+                        SELECT i.email FROM identities i
+                        WHERE i.account_id = ?1 AND i.email_verified = 1 AND i.email IS NOT NULL
+                          AND NOT EXISTS (
+                              SELECT 1 FROM accounts other
+                              WHERE other.id != ?1 AND other.email = i.email COLLATE NOCASE
+                          )
+                        ORDER BY i.created_at ASC LIMIT 1
+                     ),
+                     updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+                 WHERE id = ?1",
+                params![account_id],
+            )?;
+        }
+        tx.commit()?;
         Ok(changed > 0)
     }
 
@@ -1986,6 +2010,14 @@ impl Storage {
             params![email, since],
             |row| row.get(0),
         )
+    }
+
+    pub fn delete_login_token(&self, code_hash: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM login_tokens WHERE code_hash = ?1",
+            params![code_hash],
+        )?;
+        Ok(())
     }
 
     pub fn take_login_code(
@@ -2459,6 +2491,23 @@ fn replace_entry_tags(tx: &Transaction<'_>, entry_id: &str, tags: &[String]) -> 
             params![entry_id, tag_id],
         )?;
     }
+    Ok(())
+}
+
+fn update_deck_visibility(tx: &Transaction<'_>, entry_id: &str) -> SqlResult<()> {
+    tx.execute(
+        "UPDATE decks
+         SET visibility = CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM deckhub_entries e
+                    WHERE e.deck_id = decks.id AND e.status = 'published'
+                ) THEN 'public'
+                ELSE 'private'
+             END,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = (SELECT deck_id FROM deckhub_entries WHERE id = ?1)",
+        params![entry_id],
+    )?;
     Ok(())
 }
 

@@ -114,7 +114,9 @@ export function HubDeckPreviewDialog({
     };
   }, [deckId, domainV2, loadAttempt, loadDeck, loadEntry]);
 
-  const legacyPublication = published.find((record) => record.hubId === deckId);
+  const legacyPublication = domainV2
+    ? undefined
+    : published.find((record) => record.hubId === deckId);
   const mine =
     entryDetail?.ownedByViewer === true ||
     myDecks.some((deck) => deck.id === deckId) ||

@@ -58,6 +58,8 @@ export function PublishDeckDialog({
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
   const { refresh } = useMyHubDecks();
   const capabilities = useHubStore((s) => s.capabilities);
+  const capabilitiesLoaded = useHubStore((s) => s.capabilitiesLoaded);
+  const capabilitiesError = useHubStore((s) => s.capabilitiesError);
   const loadCapabilities = useHubStore((s) => s.loadCapabilities);
   const savedDecks = useDeckStore((s) => s.savedDecks);
   const linkSavedDeckToAccount = useDeckStore((s) => s.linkSavedDeckToAccount);
@@ -70,7 +72,7 @@ export function PublishDeckDialog({
   }, [loadCapabilities, open]);
 
   const existing =
-    capabilities?.domainVersion === 2
+    !capabilitiesLoaded || capabilities?.domainVersion === 2
       ? undefined
       : findPublishedByLocalDeckId(published, localDeckId);
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
@@ -80,31 +82,33 @@ export function PublishDeckDialog({
     if (!account) return;
     setBusy(true);
     try {
+      const detectedCapabilities = capabilitiesLoaded ? capabilities : await loadCapabilities();
+      if (!useHubStore.getState().capabilitiesLoaded) {
+        throw new Error(
+          useHubStore.getState().capabilitiesError ?? "Could not determine Deck Hub capabilities",
+        );
+      }
       const publishableDeck = toPublishableDeck(deck);
       const localSaved = savedDecks.find((saved) => saved.id === localDeckId);
-      let publishedLocalDeckId = localDeckId;
-      let response: { id: string; managementToken: string };
-      if (capabilities?.domainVersion === 2) {
-        const accountDeck = localSaved?.accountDeckId
-          ? await useAccountDecksStore
-              .getState()
-              .save(
-                localSaved.accountDeckId,
-                localSaved.accountVersionNo ?? 1,
-                publishableDeck,
-                "Published update",
-              )
-          : await useAccountDecksStore.getState().create(publishableDeck, "Initial version");
-        if (localDeckId) {
-          linkSavedDeckToAccount(
-            localDeckId,
-            accountDeck.id,
-            accountDeck.currentVersionNo,
-            accountDeck.deck as EditorDeck,
-          );
-          publishedLocalDeckId = `account:${accountDeck.id}`;
+      if (detectedCapabilities?.domainVersion === 2) {
+        let accountDeck;
+        if (localSaved?.accountDeckId) {
+          if (!localSaved.accountVersionNo) {
+            throw new Error("Reload this account deck before publishing it.");
+          }
+          accountDeck = await useAccountDecksStore
+            .getState()
+            .save(localSaved.accountDeckId, localSaved.accountVersionNo, deck, "Published update");
+        } else {
+          accountDeck = await useAccountDecksStore.getState().create(deck, "Initial version");
         }
-        const entry = await createDeckHubEntry({
+        linkSavedDeckToAccount(
+          localDeckId,
+          accountDeck.id,
+          accountDeck.currentVersionNo,
+          accountDeck.deck as EditorDeck,
+        );
+        await createDeckHubEntry({
           deckId: accountDeck.id,
           publishedVersionId: accountDeck.currentVersionId,
           title: deck.name,
@@ -118,20 +122,19 @@ export function PublishDeckDialog({
           )?.identity.oracleId,
           coverCardName: deck.coverCardName,
         });
-        response = { id: entry.id, managementToken: "" };
       } else {
-        response = await publishDeck({
+        const response = await publishDeck({
           author: account.handle,
           deck: publishableDeck,
         });
+        addPublished({
+          hubId: response.id,
+          localDeckId,
+          name: deck.name,
+          managementToken: response.managementToken,
+          publishedAt: Date.now(),
+        });
       }
-      addPublished({
-        hubId: response.id,
-        localDeckId: publishedLocalDeckId,
-        name: deck.name,
-        managementToken: response.managementToken,
-        publishedAt: Date.now(),
-      });
       void refresh();
       toast.success(`"${deck.name}" published to the Deck Hub`);
       handleOpenChange(false);
@@ -187,9 +190,11 @@ export function PublishDeckDialog({
               ? confirmingUnpublish
                 ? `Remove the public snapshot of "${existing.name}"? Your local deck will stay in My Decks.`
                 : `"${existing.name}" is live on the hub. You can remove it at any time.`
-              : capabilities?.domainVersion === 2
-                ? `Publish the current version of "${deck.name}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`
-                : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}
+              : !capabilitiesLoaded
+                ? `Checking Deck Hub support before publishing "${deck.name}".`
+                : capabilities?.domainVersion === 2
+                  ? `Publish the current version of "${deck.name}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`
+                  : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}
           </DialogDescription>
         </DialogHeader>
         {!existing &&
@@ -217,6 +222,9 @@ export function PublishDeckDialog({
             />
             <p className="text-xs text-muted-foreground">Up to 10 tags, separated by commas.</p>
           </div>
+        )}
+        {!capabilitiesLoaded && capabilitiesError && (
+          <p className="text-sm text-destructive">{capabilitiesError}</p>
         )}
         <DialogFooter className="gap-2">
           <Button

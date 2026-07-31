@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Trophy } from "lucide-react";
+import { RefreshCw, Search, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckHubDiscover } from "@/components/deck/DeckHubDiscover";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
@@ -15,6 +15,7 @@ export default function DeckHub() {
   const openedPreviewId = useRef<string | null>(null);
   const capabilities = useHubStore((state) => state.capabilities);
   const capabilitiesLoaded = useHubStore((state) => state.capabilitiesLoaded);
+  const capabilitiesError = useHubStore((state) => state.capabilitiesError);
   const loadCapabilities = useHubStore((state) => state.loadCapabilities);
   const tab: HubTab = searchParams.get("tab") === "top" ? "top" : "discover";
   const deckId = searchParams.get("deck");
@@ -82,7 +83,23 @@ export default function DeckHub() {
         </div>
       </div>
 
-      {!capabilitiesLoaded ? (
+      {!capabilitiesLoaded && capabilitiesError ? (
+        <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
+          <div className="max-w-md">
+            <p className="font-medium">Deck Hub could not be reached</p>
+            <p className="mt-1 text-sm text-muted-foreground">{capabilitiesError}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => void loadCapabilities()}
+            >
+              <RefreshCw className="mr-1 h-4 w-4" />
+              Try again
+            </Button>
+          </div>
+        </div>
+      ) : !capabilitiesLoaded ? (
         <div className="grid min-h-0 flex-1 place-items-center text-sm text-muted-foreground">
           Loading DeckHub…
         </div>

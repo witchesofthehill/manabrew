@@ -496,18 +496,10 @@ async fn update_deckhub_entry_handler(
         cover_card_name: request.cover_card_name,
         updated_at: now_string(),
     };
-    let outcome =
-        state
-            .storage
-            .lock()
-            .unwrap()
-            .update_deckhub_entry(&account.id, &entry_id, &update);
+    let storage = state.storage.lock().unwrap();
+    let outcome = storage.update_deckhub_entry(&account.id, &entry_id, &update);
     match outcome {
-        Ok(DeleteOutcome::Deleted) => match state
-            .storage
-            .lock()
-            .unwrap()
-            .get_deckhub_entry(&entry_id, Some(&account.id))
+        Ok(DeleteOutcome::Deleted) => match storage.get_deckhub_entry(&entry_id, Some(&account.id))
         {
             Ok(Some(detail)) => Json(detail).into_response(),
             Ok(None) => StatusCode::NOT_FOUND.into_response(),

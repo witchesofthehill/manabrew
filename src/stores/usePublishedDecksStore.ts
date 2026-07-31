@@ -28,6 +28,14 @@ export const usePublishedDecksStore = create<PublishedDecksState>()(
       {
         name: STORAGE_KEYS.PUBLISHED_DECKS,
         storage: createJSONStorage(() => localStorage),
+        version: 1,
+        migrate: (persistedState: unknown) => {
+          const state = persistedState as Partial<PublishedDecksState> | undefined;
+          return {
+            ...state,
+            published: (state?.published ?? []).filter((record) => record.managementToken),
+          } as PublishedDecksState;
+        },
       },
     ),
     { name: "PublishedDecksStore" },

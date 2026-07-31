@@ -9,9 +9,11 @@ import {
   saveAccountDeck,
 } from "@/api/hub";
 import type { AccountDeckDetail, AccountDeckSummary, DeckVersionSummary } from "@/api/hubTypes";
+import { useAuthStore } from "@/stores/useAuthStore";
 import type { EditorDeck } from "@/types/manabrew";
 
 interface AccountDecksState {
+  accountId: string | null;
   decks: AccountDeckSummary[];
   details: Record<string, AccountDeckDetail>;
   versions: Record<string, DeckVersionSummary[]>;
@@ -33,6 +35,18 @@ interface AccountDecksState {
 }
 
 let refreshRequestId = 0;
+let refreshRequest: Promise<void> | null = null;
+const detailRequests = new Map<string, Promise<AccountDeckDetail>>();
+const versionRequests = new Map<string, Promise<DeckVersionSummary[]>>();
+const presetForkRequests = new Map<string, Promise<AccountDeckDetail>>();
+
+function currentAccountId(): string | null {
+  return useAuthStore.getState().account?.id ?? null;
+}
+
+function isCurrentAccount(accountId: string | null): boolean {
+  return accountId === currentAccountId();
+}
 
 function upsertSummary(
   summaries: AccountDeckSummary[],
@@ -44,77 +58,147 @@ function upsertSummary(
   );
 }
 
+function cacheDetail(
+  state: AccountDecksState,
+  accountId: string | null,
+  detail: AccountDeckDetail,
+  invalidateVersions = false,
+): Partial<AccountDecksState> {
+  const sameAccount = state.accountId === accountId;
+  return {
+    accountId,
+    decks: upsertSummary(sameAccount ? state.decks : [], detail),
+    details: { ...(sameAccount ? state.details : {}), [detail.id]: detail },
+    versions: {
+      ...(sameAccount ? state.versions : {}),
+      ...(invalidateVersions ? { [detail.id]: [] } : {}),
+    },
+  };
+}
+
 export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
+  accountId: null,
   decks: [],
   details: {},
   versions: {},
   loading: false,
   error: null,
   refresh: async () => {
+    const accountId = currentAccountId();
+    if (!accountId) {
+      get().clear();
+      return;
+    }
+    if (get().accountId !== accountId) {
+      refreshRequestId += 1;
+      refreshRequest = null;
+      detailRequests.clear();
+      versionRequests.clear();
+      presetForkRequests.clear();
+      set({ accountId, decks: [], details: {}, versions: {}, loading: false, error: null });
+    }
+    if (refreshRequest) return refreshRequest;
     const requestId = ++refreshRequestId;
     set({ loading: true, error: null });
-    try {
-      const result = await fetchAccountDecks();
-      const details = await Promise.all(result.decks.map((deck) => fetchAccountDeck(deck.id)));
-      if (requestId !== refreshRequestId) return;
-      set({
-        decks: result.decks,
-        details: Object.fromEntries(details.map((detail) => [detail.id, detail])),
-        loading: false,
-      });
-    } catch (error) {
-      if (requestId !== refreshRequestId) return;
-      set({
-        loading: false,
-        error: error instanceof Error ? error.message : "Failed to load account decks",
-      });
-    }
+    const request = (async () => {
+      try {
+        const result = await fetchAccountDecks();
+        const details = await Promise.all(result.decks.map((deck) => fetchAccountDeck(deck.id)));
+        if (requestId !== refreshRequestId || !isCurrentAccount(accountId)) return;
+        set({
+          accountId,
+          decks: result.decks,
+          details: Object.fromEntries(details.map((detail) => [detail.id, detail])),
+          loading: false,
+        });
+      } catch (error) {
+        if (requestId !== refreshRequestId || !isCurrentAccount(accountId)) return;
+        set({
+          loading: false,
+          error: error instanceof Error ? error.message : "Failed to load account decks",
+        });
+      }
+    })();
+    refreshRequest = request;
+    await request;
+    if (refreshRequest === request) refreshRequest = null;
   },
   load: async (id) => {
     const cached = get().details[id];
     if (cached) return cached;
-    const detail = await fetchAccountDeck(id);
-    set((state) => ({
-      decks: upsertSummary(state.decks, detail),
-      details: { ...state.details, [id]: detail },
-    }));
-    return detail;
+    const pending = detailRequests.get(id);
+    if (pending) return pending;
+    const requestId = refreshRequestId;
+    const accountId = currentAccountId();
+    const request = fetchAccountDeck(id)
+      .then((detail) => {
+        if (requestId === refreshRequestId && isCurrentAccount(accountId)) {
+          set((state) => cacheDetail(state, accountId, detail));
+        }
+        return detail;
+      })
+      .finally(() => {
+        if (detailRequests.get(id) === request) detailRequests.delete(id);
+      });
+    detailRequests.set(id, request);
+    return request;
   },
   create: async (deck, notes) => {
     refreshRequestId += 1;
+    refreshRequest = null;
+    const accountId = currentAccountId();
     set({ loading: false });
     const detail = await createAccountDeck({ deck, notes });
-    set((state) => ({
-      decks: upsertSummary(state.decks, detail),
-      details: { ...state.details, [detail.id]: detail },
-    }));
+    if (isCurrentAccount(accountId)) {
+      set((state) => cacheDetail(state, accountId, detail));
+    }
     return detail;
   },
   forkPreset: async (presetKey) => {
+    const accountId = currentAccountId();
+    const requestKey = `${accountId ?? "anonymous"}:${presetKey.toLowerCase()}`;
+    const pending = presetForkRequests.get(requestKey);
+    if (pending) return pending;
     refreshRequestId += 1;
+    refreshRequest = null;
     set({ loading: false });
-    const detail = await forkPresetDeck(presetKey);
-    set((state) => ({
-      decks: upsertSummary(state.decks, detail),
-      details: { ...state.details, [detail.id]: detail },
-    }));
-    return detail;
+    const request = forkPresetDeck(presetKey)
+      .then((detail) => {
+        if (isCurrentAccount(accountId)) {
+          set((state) => cacheDetail(state, accountId, detail));
+        }
+        return detail;
+      })
+      .finally(() => {
+        if (presetForkRequests.get(requestKey) === request) {
+          presetForkRequests.delete(requestKey);
+        }
+      });
+    presetForkRequests.set(requestKey, request);
+    return request;
   },
   save: async (id, versionNo, deck, notes) => {
     refreshRequestId += 1;
+    refreshRequest = null;
+    const accountId = currentAccountId();
+    detailRequests.delete(id);
+    versionRequests.delete(id);
     set({ loading: false });
     const detail = await saveAccountDeck(id, { deck, expectedVersionNo: versionNo, notes });
-    set((state) => ({
-      decks: upsertSummary(state.decks, detail),
-      details: { ...state.details, [detail.id]: detail },
-      versions: { ...state.versions, [id]: [] },
-    }));
+    if (isCurrentAccount(accountId)) {
+      set((state) => cacheDetail(state, accountId, detail, true));
+    }
     return detail;
   },
   remove: async (id) => {
     refreshRequestId += 1;
+    refreshRequest = null;
+    const accountId = currentAccountId();
+    detailRequests.delete(id);
+    versionRequests.delete(id);
     set({ loading: false });
     await deleteAccountDeck(id);
+    if (!isCurrentAccount(accountId)) return;
     set((state) => {
       const details = { ...state.details };
       const versions = { ...state.versions };
@@ -130,12 +214,29 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
   loadVersions: async (id) => {
     const cached = get().versions[id];
     if (cached?.length) return cached;
-    const versions = await fetchDeckVersions(id);
-    set((state) => ({ versions: { ...state.versions, [id]: versions } }));
-    return versions;
+    const pending = versionRequests.get(id);
+    if (pending) return pending;
+    const requestId = refreshRequestId;
+    const accountId = currentAccountId();
+    const request = fetchDeckVersions(id)
+      .then((versions) => {
+        if (requestId === refreshRequestId && isCurrentAccount(accountId)) {
+          set((state) => ({ versions: { ...state.versions, [id]: versions } }));
+        }
+        return versions;
+      })
+      .finally(() => {
+        if (versionRequests.get(id) === request) versionRequests.delete(id);
+      });
+    versionRequests.set(id, request);
+    return request;
   },
   clear: () => {
     refreshRequestId += 1;
-    set({ decks: [], details: {}, versions: {}, loading: false, error: null });
+    refreshRequest = null;
+    detailRequests.clear();
+    versionRequests.clear();
+    presetForkRequests.clear();
+    set({ accountId: null, decks: [], details: {}, versions: {}, loading: false, error: null });
   },
 }));

@@ -11,7 +11,7 @@ import {
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { Loader2, Pencil, Play, Share2, Swords, Trash2 } from "lucide-react";
+import { CloudUpload, Loader2, Pencil, Play, Share2, Swords, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckCoverImage } from "@/components/deck/deckCover";
@@ -29,6 +29,7 @@ interface DeckGridCardProps {
   onDelete?: () => void;
   onRename?: () => void;
   onPublish?: () => void;
+  onSaveToAccount?: () => void;
   onPlay?: () => void;
   playing?: boolean;
   playDisabled?: boolean;
@@ -42,6 +43,7 @@ export function DeckGridCard({
   onDelete,
   onRename,
   onPublish,
+  onSaveToAccount,
   onPlay,
   playing = false,
   playDisabled = false,
@@ -124,6 +126,20 @@ export function DeckGridCard({
                 }}
               >
                 <Share2 className="h-3 w-3" />
+              </Button>
+            )}
+            {!readOnly && onSaveToAccount && (
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
+                title="Save to account"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSaveToAccount();
+                }}
+              >
+                <CloudUpload className="h-3 w-3" />
               </Button>
             )}
             {!readOnly && onRename && (

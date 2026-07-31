@@ -140,6 +140,7 @@ export function refToDeckCard(
       name: frontFaceName(ref.name),
       setCode: ref.setCode,
       cardNumber: ref.cardNumber,
+      oracleId: info?.oracle_id,
       foil: ref.foil,
     },
     color: (info?.colors ?? []).join(""),

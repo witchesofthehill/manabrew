@@ -161,6 +161,8 @@ export interface SavedDeck {
   id: string;
   deck: EditorDeck;
   savedAt: number;
+  accountDeckId?: string;
+  accountVersionNo?: number;
 }
 
 // False until hydration succeeds, so a failed migration can't persist over the
@@ -199,6 +201,14 @@ interface DeckState {
   saveCurrentDeck: () => void;
   saveDraft: () => void;
   loadSavedDeck: (id: string) => void;
+  loadAccountDeck: (accountDeckId: string, versionNo: number, deck: EditorDeck) => string;
+  linkSavedDeckToAccount: (
+    localDeckId: string,
+    accountDeckId: string,
+    versionNo: number,
+    deck: EditorDeck,
+  ) => void;
+  updateAccountDeckVersion: (accountDeckId: string, versionNo: number, deck: EditorDeck) => void;
   deleteSavedDeck: (id: string) => void;
   setCommander: (card: DeckCard) => void;
   removeCommander: (card?: DeckCard) => void;
@@ -533,7 +543,11 @@ export const useDeckStore = create<DeckState>()(
             if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
             const updates = new Map<string, CardPatch>();
             updates.set(cardName.toLowerCase(), {
-              identity: { setCode: scryfallCard.set, cardNumber: scryfallCard.collector_number },
+              identity: {
+                setCode: scryfallCard.set,
+                cardNumber: scryfallCard.collector_number,
+                oracleId: scryfallCard.oracle_id,
+              },
               uris,
             });
             return {
@@ -641,6 +655,71 @@ export const useDeckStore = create<DeckState>()(
               currentDeckId: id,
               isReadOnly: false,
               readOnlySource: null,
+            };
+          }),
+        loadAccountDeck: (accountDeckId, versionNo, deck) => {
+          const id = `account:${accountDeckId}`;
+          const normalized = normalizeDeck(migrateDeck(deck));
+          set((state) => ({
+            currentDeck: normalized,
+            currentDeckId: id,
+            isReadOnly: false,
+            readOnlySource: null,
+            savedDecks: [
+              ...state.savedDecks.filter(
+                (saved) => saved.id !== id && saved.accountDeckId !== accountDeckId,
+              ),
+              {
+                id,
+                deck: normalized,
+                savedAt: Date.now(),
+                accountDeckId,
+                accountVersionNo: versionNo,
+              },
+            ],
+          }));
+          return id;
+        },
+        linkSavedDeckToAccount: (localDeckId, accountDeckId, versionNo, deck) =>
+          set((state) => {
+            const id = `account:${accountDeckId}`;
+            const normalized = normalizeDeck(migrateDeck(deck));
+            return {
+              currentDeck: state.currentDeckId === localDeckId ? normalized : state.currentDeck,
+              currentDeckId: state.currentDeckId === localDeckId ? id : state.currentDeckId,
+              savedDecks: [
+                ...state.savedDecks.filter(
+                  (saved) =>
+                    saved.id !== localDeckId &&
+                    saved.id !== id &&
+                    saved.accountDeckId !== accountDeckId,
+                ),
+                {
+                  id,
+                  deck: normalized,
+                  savedAt: Date.now(),
+                  accountDeckId,
+                  accountVersionNo: versionNo,
+                },
+              ],
+            };
+          }),
+        updateAccountDeckVersion: (accountDeckId, versionNo, deck) =>
+          set((state) => {
+            const id = `account:${accountDeckId}`;
+            const normalized = normalizeDeck(migrateDeck(deck));
+            return {
+              currentDeck: state.currentDeckId === id ? normalized : state.currentDeck,
+              savedDecks: state.savedDecks.map((saved) =>
+                saved.id === id
+                  ? {
+                      ...saved,
+                      deck: normalized,
+                      savedAt: Date.now(),
+                      accountVersionNo: versionNo,
+                    }
+                  : saved,
+              ),
             };
           }),
         deleteSavedDeck: (id) =>

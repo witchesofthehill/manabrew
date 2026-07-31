@@ -49,6 +49,8 @@ import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
@@ -71,6 +73,8 @@ export default function DeckEditor() {
     setDeckName,
     deleteSavedDeck,
     currentDeckId: _currentDeckId,
+    loadAccountDeck,
+    linkSavedDeckToAccount,
   } = useDeckStore();
   const importDeckText = useDeckTextImport();
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -84,6 +88,14 @@ export default function DeckEditor() {
     signedIn,
     refresh: refreshPublishedDecks,
   } = useMyHubDecks();
+  const {
+    details: accountDeckDetails,
+    loading: accountDecksLoading,
+    error: accountDecksError,
+    available: accountDecksAvailable,
+    signedIn: accountDecksSignedIn,
+    refresh: refreshAccountDecks,
+  } = useAccountDecks();
   const navigate = useNavigate();
   const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
   const location = useLocation();
@@ -237,12 +249,24 @@ export default function DeckEditor() {
 
   const deckFilterArgs = { search, formatFilter, colorFilter, sortBy };
   const { valid: presetSavedDecks } = applyDeckFilters(presetSavedDecksUnfiltered, deckFilterArgs);
-  const { valid: filteredValid, drafts: filteredDrafts } = applyDeckFilters(savedDecks, {
+  const localSavedDecks = savedDecks.filter((saved) => !saved.accountDeckId);
+  const { valid: filteredValid, drafts: filteredDrafts } = applyDeckFilters(localSavedDecks, {
     search,
     formatFilter,
     colorFilter,
     sortBy,
   });
+  const accountSavedDecks: SavedDeck[] = Object.values(accountDeckDetails).map((detail) => ({
+    id: `account:${detail.id}`,
+    deck: detail.deck as SavedDeck["deck"],
+    savedAt: new Date(detail.updatedAt).getTime(),
+    accountDeckId: detail.id,
+    accountVersionNo: detail.currentVersionNo,
+  }));
+  const { valid: filteredAccountDecks, drafts: filteredAccountDrafts } = applyDeckFilters(
+    accountSavedDecks,
+    deckFilterArgs,
+  );
   const filteredPublishedDecks = publishedDecks
     .filter((deck) => {
       if (search && !deck.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -258,6 +282,38 @@ export default function DeckEditor() {
 
   function handleSelectDeck(id: string) {
     setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
+  }
+
+  function handleSelectAccountDeck(saved: SavedDeck) {
+    if (!saved.accountDeckId || !saved.accountVersionNo) return;
+    const id = loadAccountDeck(saved.accountDeckId, saved.accountVersionNo, saved.deck);
+    setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
+  }
+
+  async function handleDeleteAccountDeck(saved: SavedDeck) {
+    if (!saved.accountDeckId) return;
+    try {
+      await useAccountDecksStore.getState().remove(saved.accountDeckId);
+      deleteSavedDeck(saved.id);
+      toast.success(`"${saved.deck.name}" removed from your account`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove account deck");
+    }
+  }
+
+  async function handleSaveToAccount(saved: SavedDeck) {
+    try {
+      const detail = await useAccountDecksStore.getState().create(saved.deck, "Initial version");
+      linkSavedDeckToAccount(
+        saved.id,
+        detail.id,
+        detail.currentVersionNo,
+        detail.deck as SavedDeck["deck"],
+      );
+      toast.success(`"${saved.deck.name}" saved to your account`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save deck to your account");
+    }
   }
 
   function handleNewDeck() {
@@ -444,6 +500,74 @@ export default function DeckEditor() {
 
           <ScrollArea className="flex-1">
             <div className="p-4 sm:px-6 lg:px-8">
+              {accountDecksAvailable && accountDecksSignedIn && (
+                <section className="mb-4 border-b pb-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Account decks
+                    </span>
+                    {!accountDecksLoading && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({filteredAccountDecks.length + filteredAccountDrafts.length})
+                      </span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto"
+                      disabled={accountDecksLoading}
+                      onClick={() => void refreshAccountDecks()}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
+                  {accountDecksError ? (
+                    <p className="text-sm text-destructive">{accountDecksError}</p>
+                  ) : accountDecksLoading && accountSavedDecks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Loading account decks…</p>
+                  ) : filteredAccountDecks.length + filteredAccountDrafts.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      {[...filteredAccountDecks, ...filteredAccountDrafts].map((saved) => (
+                        <DeckGridCard
+                          key={saved.id}
+                          deck={saved}
+                          onOpen={() => handleSelectAccountDeck(saved)}
+                          onPlaytest={() => quickPlaytest(saved.deck)}
+                          onDelete={() => void handleDeleteAccountDeck(saved)}
+                          onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
+                          onPlay={() => {
+                            const id = saved.accountDeckId
+                              ? loadAccountDeck(
+                                  saved.accountDeckId,
+                                  saved.accountVersionNo ?? 1,
+                                  saved.deck,
+                                )
+                              : saved.id;
+                            navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : accountSavedDecks.length > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No account decks match your filters.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Save or publish a local deck to add it to your account.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Local decks
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  ({localSavedDecks.length})
+                </span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 <div className="group relative">
                   <button
@@ -470,6 +594,11 @@ export default function DeckEditor() {
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
                     onPublish={publishEnabled ? () => setPublishingDeck(s) : undefined}
+                    onSaveToAccount={
+                      accountDecksAvailable && accountDecksSignedIn
+                        ? () => void handleSaveToAccount(s)
+                        : undefined
+                    }
                     onPlay={() => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)}
                   />
                 ))}

@@ -70,6 +70,273 @@ pub struct HubDeckDetail {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]
+pub struct HubCapabilities {
+    pub domain_version: u32,
+    pub account_decks: bool,
+    pub tags: bool,
+    pub favorites: bool,
+    pub top_deck_snapshots: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct CreateAccountDeckRequest {
+    #[ts(type = "Deck")]
+    pub deck: Deck,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct SaveDeckVersionRequest {
+    #[ts(type = "Deck")]
+    pub deck: Deck,
+    pub expected_version_no: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountDeckSummary {
+    pub id: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "DeckFormat")]
+    pub format: Option<DeckFormat>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub description: Option<String>,
+    pub visibility: String,
+    pub current_version_id: String,
+    pub current_version_no: u32,
+    pub publication_count: u32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountDeckList {
+    pub decks: Vec<AccountDeckSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountDeckDetail {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub summary: AccountDeckSummary,
+    #[ts(type = "Deck")]
+    pub deck: Deck,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckVersionSummary {
+    pub id: String,
+    pub version_no: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub notes: Option<String>,
+    pub published: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckVersionDetail {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub summary: DeckVersionSummary,
+    #[ts(type = "Deck")]
+    pub deck: Deck,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckHubTag {
+    pub id: String,
+    pub name: String,
+    pub slug: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct PublishDeckHubEntryRequest {
+    pub deck_id: String,
+    pub published_version_id: String,
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_card_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_card_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct UpdateDeckHubEntryRequest {
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_card_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_card_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckHubEntrySummary {
+    pub id: String,
+    pub deck_id: String,
+    pub published_version_id: String,
+    pub slug: String,
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub summary: Option<String>,
+    pub author: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "DeckFormat")]
+    pub format: Option<DeckFormat>,
+    #[serde(default)]
+    pub commanders: Vec<String>,
+    #[serde(default)]
+    pub colors: String,
+    pub card_count: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_card_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_card_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cover_image_url: Option<String>,
+    pub status: String,
+    pub published_at: String,
+    #[serde(default)]
+    pub tags: Vec<DeckHubTag>,
+    pub favorite_count: u32,
+    pub favorited: bool,
+    pub owned_by_viewer: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckHubEntryList {
+    pub entries: Vec<DeckHubEntrySummary>,
+    pub total: u32,
+    pub page: u32,
+    pub page_size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct DeckHubEntryDetail {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub entry: DeckHubEntrySummary,
+    #[ts(type = "Deck")]
+    pub deck: Deck,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct FavoriteResponse {
+    pub favorite_count: u32,
+    pub favorited: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct TopDeckBucket {
+    pub key: String,
+    pub label: String,
+    pub scope: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct TopDeckSnapshotEntry {
+    pub rank: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reason: Option<String>,
+    pub entry: DeckHubEntrySummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct TopDeckSnapshot {
+    pub bucket: TopDeckBucket,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub snapshot_date: Option<String>,
+    pub entries: Vec<TopDeckSnapshotEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AdminTopDeckSnapshotEntry {
+    pub deckhub_entry_id: String,
+    pub rank: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AdminTopDeckSnapshotRequest {
+    pub snapshot_date: String,
+    pub entries: Vec<AdminTopDeckSnapshotEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct TopDeckStat {
     pub deck_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

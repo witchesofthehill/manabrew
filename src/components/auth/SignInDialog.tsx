@@ -171,7 +171,7 @@ export function SignInDialog() {
           <DialogDescription>
             {step === "handle"
               ? "Your handle is your public name on the Deck Hub. You can change it later in Preferences."
-              : "Your account keeps your published decks yours, on any device."}
+              : "Your account syncs your decks and keeps publications yours on any device."}
           </DialogDescription>
         </DialogHeader>
 

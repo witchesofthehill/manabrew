@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -9,10 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { publishDeck, unpublishDeck } from "@/api/hub";
+import { createDeckHubEntry, publishDeck, unpublishDeck } from "@/api/hub";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
+import { useHubStore } from "@/stores/useHubStore";
+import { useDeckStore } from "@/stores/useDeckStore";
 import {
   findPublishedByLocalDeckId,
   usePublishedDecksStore,
@@ -53,10 +57,22 @@ export function PublishDeckDialog({
   const addPublished = usePublishedDecksStore((s) => s.addPublished);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
   const { refresh } = useMyHubDecks();
+  const capabilities = useHubStore((s) => s.capabilities);
+  const loadCapabilities = useHubStore((s) => s.loadCapabilities);
+  const savedDecks = useDeckStore((s) => s.savedDecks);
+  const linkSavedDeckToAccount = useDeckStore((s) => s.linkSavedDeckToAccount);
   const [busy, setBusy] = useState(false);
   const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
+  const [tagInput, setTagInput] = useState("");
 
-  const existing = findPublishedByLocalDeckId(published, localDeckId);
+  useEffect(() => {
+    if (open) void loadCapabilities();
+  }, [loadCapabilities, open]);
+
+  const existing =
+    capabilities?.domainVersion === 2
+      ? undefined
+      : findPublishedByLocalDeckId(published, localDeckId);
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
   const signedIn = authStatus === "signedIn" && account !== null;
 
@@ -64,13 +80,54 @@ export function PublishDeckDialog({
     if (!account) return;
     setBusy(true);
     try {
-      const response = await publishDeck({
-        author: account.handle,
-        deck: toPublishableDeck(deck),
-      });
+      const publishableDeck = toPublishableDeck(deck);
+      const localSaved = savedDecks.find((saved) => saved.id === localDeckId);
+      let publishedLocalDeckId = localDeckId;
+      let response: { id: string; managementToken: string };
+      if (capabilities?.domainVersion === 2) {
+        const accountDeck = localSaved?.accountDeckId
+          ? await useAccountDecksStore
+              .getState()
+              .save(
+                localSaved.accountDeckId,
+                localSaved.accountVersionNo ?? 1,
+                publishableDeck,
+                "Published update",
+              )
+          : await useAccountDecksStore.getState().create(publishableDeck, "Initial version");
+        if (localDeckId) {
+          linkSavedDeckToAccount(
+            localDeckId,
+            accountDeck.id,
+            accountDeck.currentVersionNo,
+            accountDeck.deck as EditorDeck,
+          );
+          publishedLocalDeckId = `account:${accountDeck.id}`;
+        }
+        const entry = await createDeckHubEntry({
+          deckId: accountDeck.id,
+          publishedVersionId: accountDeck.currentVersionId,
+          title: deck.name,
+          summary: deck.description,
+          tags: tagInput
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          coverCardId: [...deck.cards, ...(deck.commanders ?? []), ...deck.sideboard].find(
+            (card) => card.identity.name === deck.coverCardName,
+          )?.identity.oracleId,
+          coverCardName: deck.coverCardName,
+        });
+        response = { id: entry.id, managementToken: "" };
+      } else {
+        response = await publishDeck({
+          author: account.handle,
+          deck: publishableDeck,
+        });
+      }
       addPublished({
         hubId: response.id,
-        localDeckId,
+        localDeckId: publishedLocalDeckId,
         name: deck.name,
         managementToken: response.managementToken,
         publishedAt: Date.now(),
@@ -130,7 +187,9 @@ export function PublishDeckDialog({
               ? confirmingUnpublish
                 ? `Remove the public snapshot of "${existing.name}"? Your local deck will stay in My Decks.`
                 : `"${existing.name}" is live on the hub. You can remove it at any time.`
-              : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}
+              : capabilities?.domainVersion === 2
+                ? `Publish the current version of "${deck.name}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`
+                : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}
           </DialogDescription>
         </DialogHeader>
         {!existing &&
@@ -144,6 +203,21 @@ export function PublishDeckDialog({
               from any device.
             </p>
           ))}
+        {!existing && capabilities?.tags && signedIn && (
+          <div className="space-y-1.5">
+            <label htmlFor="deckhub-tags" className="text-sm font-medium">
+              Discovery tags
+            </label>
+            <Input
+              id="deckhub-tags"
+              value={tagInput}
+              onChange={(event) => setTagInput(event.target.value)}
+              placeholder="control, budget, tokens"
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground">Up to 10 tags, separated by commas.</p>
+          </div>
+        )}
         <DialogFooter className="gap-2">
           <Button
             variant="outline"

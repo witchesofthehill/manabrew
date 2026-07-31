@@ -1,5 +1,7 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
+import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { Button } from "@/components/ui/button";
 import { PrintPickerModal } from "./PrintPickerModal";
@@ -32,6 +34,7 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   EllipsisVertical,
+  History,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -276,12 +279,14 @@ export function DeckBuilder({
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
   const {
     currentDeck,
+    savedDecks,
     removeFromMain,
     removeFromSide,
     addToMain,
@@ -304,6 +309,7 @@ export function DeckBuilder({
     updatePrint,
     toggleFoil,
     removeToken,
+    updateAccountDeckVersion,
   } = useDeckStore();
 
   const derivedTokens = useDerivedTokens(currentDeck);
@@ -334,7 +340,7 @@ export function DeckBuilder({
       filterInputRef.current?.select();
     },
     "deck-editor-toggle-search": () => onToggleSearch?.(),
-    "deck-editor-save": () => handleSave(),
+    "deck-editor-save": () => void handleSave(),
     "deck-editor-export": () => handleExport(),
   });
 
@@ -359,6 +365,7 @@ export function DeckBuilder({
     ],
   );
   const currentSnapshot = buildDeckSnapshot(currentDeck);
+  const accountSavedDeck = savedDecks.find((saved) => saved.id === currentDeckId);
   // Read-only presets can't be edited; background Scryfall enrichment mutates the
   // deck after the baseline snapshot, so never treat a preset as dirty.
   const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
@@ -811,12 +818,29 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
     saveCurrentDeck();
-    showAccountSaveNudge();
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
+    if (saved?.accountDeckId && saved.accountVersionNo) {
+      try {
+        const detail = await useAccountDecksStore
+          .getState()
+          .save(saved.accountDeckId, saved.accountVersionNo, currentDeck);
+        updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
+        toast.success(`Saved version ${detail.currentVersionNo} to your account`);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? `${error.message} Your local copy is still saved.`
+            : "Account save failed. Your local copy is still saved.",
+        );
+      }
+    } else {
+      showAccountSaveNudge();
+    }
     if (hasUnsupportedCards) {
       toast.warning(
         `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
@@ -1049,7 +1073,7 @@ export function DeckBuilder({
                           ? "Save draft as a full deck"
                           : "Deck saved"
                 }
-                onClick={handleSave}
+                onClick={() => void handleSave()}
               >
                 <Save className="h-3.5 w-3.5" />
                 Save
@@ -1080,6 +1104,11 @@ export function DeckBuilder({
                     disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                   >
                     <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
+                  </DropdownMenuItem>
+                )}
+                {accountSavedDeck?.accountDeckId && accountSavedDeck.accountVersionNo && (
+                  <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
+                    <History className="mr-2 h-3.5 w-3.5" /> Version history
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onSelect={handleSaveDraft}>
@@ -1404,6 +1433,18 @@ export function DeckBuilder({
             resumeInEditor
           />
         ) : null}
+        {accountSavedDeck?.accountDeckId && accountSavedDeck.accountVersionNo && (
+          <DeckVersionHistoryDialog
+            open={historyOpen}
+            onOpenChange={setHistoryOpen}
+            deckId={accountSavedDeck.accountDeckId}
+            currentVersionNo={accountSavedDeck.accountVersionNo}
+            onRestore={(deck, versionNo) => {
+              useDeckStore.getState().loadDeck(deck);
+              toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
+            }}
+          />
+        )}
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

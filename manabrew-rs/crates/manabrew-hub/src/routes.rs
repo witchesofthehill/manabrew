@@ -5,10 +5,14 @@ use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State};
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
-use manabrew_hub::dto::{HubDeckList, HubDeckSummary, PublishDeckRequest, PublishDeckResponse};
+use manabrew_hub::dto::{
+    AccountDeckList, AdminTopDeckSnapshotRequest, CreateAccountDeckRequest, DeckHubEntryList,
+    HubCapabilities, HubDeckList, HubDeckSummary, PublishDeckHubEntryRequest, PublishDeckRequest,
+    PublishDeckResponse, SaveDeckVersionRequest, UpdateDeckHubEntryRequest,
+};
 use manabrew_protocol::deck_dto::{Deck, DeckCard};
 use rand::RngCore;
 use serde::Deserialize;
@@ -19,7 +23,10 @@ use crate::auth;
 use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
 use crate::stats::StatsCache;
-use crate::storage::{DeleteOutcome, ListParams, NewHubDeck, SortOrder, Storage};
+use crate::storage::{
+    DeckHubEntryUpdate, DeckHubListParams, DeckHubSortOrder, DeleteOutcome, ListParams,
+    NewDeckHubEntry, NewHubDeck, SaveVersionOutcome, SortOrder, Storage,
+};
 use crate::validate;
 
 const MAX_BODY_BYTES: usize = 1024 * 1024;
@@ -64,7 +71,13 @@ fn cors_origins(web_app_url: &str) -> AllowOrigin {
 pub fn build_router(state: Arc<AppState>) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(cors_origins(&state.auth.web_app_url))
-        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::PATCH])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::PATCH,
+        ])
         .allow_headers([
             CONTENT_TYPE,
             AUTHORIZATION,
@@ -72,6 +85,43 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         ]);
     Router::new()
         .route("/health", get(health_handler))
+        .route("/api/hub/capabilities", get(capabilities_handler))
+        .route(
+            "/api/decks",
+            get(account_decks_handler).post(create_account_deck_handler),
+        )
+        .route(
+            "/api/decks/:id",
+            get(account_deck_handler)
+                .patch(save_account_deck_handler)
+                .delete(delete_account_deck_handler),
+        )
+        .route("/api/decks/:id/versions", get(deck_versions_handler))
+        .route(
+            "/api/decks/:id/versions/:version_no",
+            get(deck_version_handler),
+        )
+        .route(
+            "/api/deckhub/entries",
+            get(deckhub_entries_handler).post(create_deckhub_entry_handler),
+        )
+        .route(
+            "/api/deckhub/entries/:entry_ref",
+            get(deckhub_entry_handler)
+                .patch(update_deckhub_entry_handler)
+                .delete(unpublish_deckhub_entry_handler),
+        )
+        .route(
+            "/api/deckhub/entries/:id/favorite",
+            put(favorite_deckhub_entry_handler).delete(unfavorite_deckhub_entry_handler),
+        )
+        .route("/api/deckhub/tags", get(deckhub_tags_handler))
+        .route("/api/deckhub/top/buckets", get(top_deck_buckets_handler))
+        .route("/api/deckhub/top/:bucket", get(top_deck_snapshot_handler))
+        .route(
+            "/admin/deckhub/top/:bucket",
+            post(replace_top_deck_snapshot_handler),
+        )
         .route("/api/hub/decks", get(list_handler).post(publish_handler))
         .route(
             "/api/hub/decks/:id",
@@ -111,6 +161,458 @@ pub fn build_router(state: Arc<AppState>) -> Router {
 
 async fn health_handler() -> &'static str {
     "ok"
+}
+
+async fn capabilities_handler() -> Json<HubCapabilities> {
+    Json(HubCapabilities {
+        domain_version: 2,
+        account_decks: true,
+        tags: true,
+        favorites: true,
+        top_deck_snapshots: true,
+    })
+}
+
+async fn account_decks_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state.storage.lock().unwrap().list_owned_decks(&account.id) {
+        Ok(decks) => Json(AccountDeckList { decks }).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn create_account_deck_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(request): Json<CreateAccountDeckRequest>,
+) -> Response {
+    let validation = PublishDeckRequest {
+        author: account.handle,
+        deck: request.deck.clone(),
+    };
+    if let Err(message) = validate::validate(&validation) {
+        return (StatusCode::UNPROCESSABLE_ENTITY, message).into_response();
+    }
+    let mut deck = request.deck;
+    validate::sanitize(&mut deck);
+    match state.storage.lock().unwrap().create_account_deck(
+        &account.id,
+        &deck,
+        request.notes.as_deref(),
+        &now_string(),
+    ) {
+        Ok(detail) => (StatusCode::CREATED, Json(detail)).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn account_deck_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .get_account_deck(&account.id, &id)
+    {
+        Ok(Some(detail)) => Json(detail).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn save_account_deck_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(request): Json<SaveDeckVersionRequest>,
+) -> Response {
+    let validation = PublishDeckRequest {
+        author: account.handle,
+        deck: request.deck.clone(),
+    };
+    if let Err(message) = validate::validate(&validation) {
+        return (StatusCode::UNPROCESSABLE_ENTITY, message).into_response();
+    }
+    let mut deck = request.deck;
+    validate::sanitize(&mut deck);
+    match state.storage.lock().unwrap().save_account_deck(
+        &account.id,
+        &id,
+        request.expected_version_no,
+        &deck,
+        request.notes.as_deref(),
+        &now_string(),
+    ) {
+        Ok(SaveVersionOutcome::Saved(detail) | SaveVersionOutcome::Unchanged(detail)) => {
+            Json(detail).into_response()
+        }
+        Ok(SaveVersionOutcome::Conflict) => StatusCode::CONFLICT.into_response(),
+        Ok(SaveVersionOutcome::Forbidden) => StatusCode::FORBIDDEN.into_response(),
+        Ok(SaveVersionOutcome::NotFound) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn delete_account_deck_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .delete_account_deck(&account.id, &id, &now_string())
+    {
+        Ok(DeleteOutcome::Deleted) => StatusCode::NO_CONTENT.into_response(),
+        Ok(DeleteOutcome::Forbidden) => StatusCode::FORBIDDEN.into_response(),
+        Ok(DeleteOutcome::NotFound) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn deck_versions_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .list_deck_versions(&account.id, &id)
+    {
+        Ok(Some(versions)) => Json(versions).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn deck_version_handler(
+    State(state): State<Arc<AppState>>,
+    Path((id, version_no)): Path<(String, u32)>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .get_deck_version(&account.id, &id, version_no)
+    {
+        Ok(Some(version)) => Json(version).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeckHubListQuery {
+    search: Option<String>,
+    format: Option<String>,
+    tag: Option<String>,
+    sort: Option<String>,
+    page: Option<u32>,
+    page_size: Option<u32>,
+}
+
+async fn deckhub_entries_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Query(query): Query<DeckHubListQuery>,
+) -> Response {
+    let viewer_account_id = match auth::bearer_account(&state, &headers) {
+        Ok(account) => account.map(|account| account.id),
+        Err(error) => return internal_error(error),
+    };
+    let page_size = query
+        .page_size
+        .unwrap_or(DEFAULT_PAGE_SIZE)
+        .clamp(1, MAX_PAGE_SIZE);
+    let params = DeckHubListParams {
+        search: query.search,
+        format: query.format,
+        tag: query.tag,
+        sort: match query.sort.as_deref() {
+            Some("name") => DeckHubSortOrder::Name,
+            Some("favorites") => DeckHubSortOrder::Favorites,
+            _ => DeckHubSortOrder::Newest,
+        },
+        page: query.page.unwrap_or(1).max(1),
+        page_size,
+        viewer_account_id,
+    };
+    match state.storage.lock().unwrap().list_deckhub_entries(&params) {
+        Ok((entries, total)) => Json(DeckHubEntryList {
+            entries,
+            total,
+            page: params.page,
+            page_size,
+        })
+        .into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn deckhub_entry_handler(
+    State(state): State<Arc<AppState>>,
+    Path(entry_ref): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let viewer_account_id = match auth::bearer_account(&state, &headers) {
+        Ok(account) => account.map(|account| account.id),
+        Err(error) => return internal_error(error),
+    };
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .get_deckhub_entry(&entry_ref, viewer_account_id.as_deref())
+    {
+        Ok(Some(entry)) => Json(entry).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn create_deckhub_entry_handler(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(request): Json<PublishDeckHubEntryRequest>,
+) -> Response {
+    if let Err(message) =
+        validate_entry_metadata(&request.title, request.summary.as_deref(), &request.tags)
+    {
+        return (StatusCode::UNPROCESSABLE_ENTITY, message).into_response();
+    }
+    let ip = client_ip(&headers, addr);
+    if !state.limiter.allow(&ip) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    let day_ago =
+        (Utc::now() - chrono::Duration::hours(24)).to_rfc3339_opts(SecondsFormat::Secs, true);
+    match state.storage.lock().unwrap().publishes_since(&ip, &day_ago) {
+        Ok(count) if count >= state.publish_per_day => {
+            return StatusCode::TOO_MANY_REQUESTS.into_response();
+        }
+        Ok(_) => {}
+        Err(error) => return internal_error(error),
+    }
+    let entry = NewDeckHubEntry {
+        deck_id: request.deck_id,
+        published_version_id: request.published_version_id,
+        title: request.title.trim().to_string(),
+        summary: request.summary.map(|summary| summary.trim().to_string()),
+        tags: request.tags,
+        cover_card_id: request.cover_card_id,
+        cover_card_name: request.cover_card_name,
+        publish_ip: ip,
+        created_at: now_string(),
+    };
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .create_deckhub_entry(&account.id, &entry)
+    {
+        Ok(Some(detail)) => (StatusCode::CREATED, Json(detail)).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn update_deckhub_entry_handler(
+    State(state): State<Arc<AppState>>,
+    Path(entry_id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(request): Json<UpdateDeckHubEntryRequest>,
+) -> Response {
+    if let Err(message) =
+        validate_entry_metadata(&request.title, request.summary.as_deref(), &request.tags)
+    {
+        return (StatusCode::UNPROCESSABLE_ENTITY, message).into_response();
+    }
+    let update = DeckHubEntryUpdate {
+        title: request.title.trim().to_string(),
+        summary: request.summary.map(|summary| summary.trim().to_string()),
+        tags: request.tags,
+        cover_card_id: request.cover_card_id,
+        cover_card_name: request.cover_card_name,
+        updated_at: now_string(),
+    };
+    let outcome =
+        state
+            .storage
+            .lock()
+            .unwrap()
+            .update_deckhub_entry(&account.id, &entry_id, &update);
+    match outcome {
+        Ok(DeleteOutcome::Deleted) => match state
+            .storage
+            .lock()
+            .unwrap()
+            .get_deckhub_entry(&entry_id, Some(&account.id))
+        {
+            Ok(Some(detail)) => Json(detail).into_response(),
+            Ok(None) => StatusCode::NOT_FOUND.into_response(),
+            Err(error) => internal_error(error),
+        },
+        Ok(DeleteOutcome::Forbidden) => StatusCode::FORBIDDEN.into_response(),
+        Ok(DeleteOutcome::NotFound) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn unpublish_deckhub_entry_handler(
+    State(state): State<Arc<AppState>>,
+    Path(entry_id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state.storage.lock().unwrap().unpublish_deckhub_entry(
+        &account.id,
+        &entry_id,
+        &now_string(),
+    ) {
+        Ok(DeleteOutcome::Deleted) => StatusCode::NO_CONTENT.into_response(),
+        Ok(DeleteOutcome::Forbidden) => StatusCode::FORBIDDEN.into_response(),
+        Ok(DeleteOutcome::NotFound) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn favorite_deckhub_entry_handler(
+    State(state): State<Arc<AppState>>,
+    Path(entry_id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    set_favorite_response(&state, &account.id, &entry_id, true)
+}
+
+async fn unfavorite_deckhub_entry_handler(
+    State(state): State<Arc<AppState>>,
+    Path(entry_id): Path<String>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    set_favorite_response(&state, &account.id, &entry_id, false)
+}
+
+fn set_favorite_response(
+    state: &AppState,
+    account_id: &str,
+    entry_id: &str,
+    favorite: bool,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .set_favorite(account_id, entry_id, favorite, &now_string())
+    {
+        Ok(Some(response)) => Json(response).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn deckhub_tags_handler(State(state): State<Arc<AppState>>) -> Response {
+    match state.storage.lock().unwrap().list_tags() {
+        Ok(tags) => Json(tags).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn top_deck_buckets_handler(State(state): State<Arc<AppState>>) -> Response {
+    match state.storage.lock().unwrap().list_top_deck_buckets() {
+        Ok(buckets) => Json(buckets).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+#[derive(Deserialize)]
+struct SnapshotQuery {
+    date: Option<String>,
+}
+
+async fn top_deck_snapshot_handler(
+    State(state): State<Arc<AppState>>,
+    Path(bucket): Path<String>,
+    headers: HeaderMap,
+    Query(query): Query<SnapshotQuery>,
+) -> Response {
+    let viewer_account_id = match auth::bearer_account(&state, &headers) {
+        Ok(account) => account.map(|account| account.id),
+        Err(error) => return internal_error(error),
+    };
+    match state.storage.lock().unwrap().get_top_deck_snapshot(
+        &bucket,
+        query.date.as_deref(),
+        viewer_account_id.as_deref(),
+    ) {
+        Ok(Some(snapshot)) => Json(snapshot).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn replace_top_deck_snapshot_handler(
+    State(state): State<Arc<AppState>>,
+    Path(bucket): Path<String>,
+    Json(request): Json<AdminTopDeckSnapshotRequest>,
+) -> Response {
+    if !valid_snapshot_date(&request.snapshot_date)
+        || request.entries.iter().any(|entry| entry.rank == 0)
+    {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    match state.storage.lock().unwrap().replace_top_deck_snapshot(
+        &bucket,
+        &request.snapshot_date,
+        &request.entries,
+        &now_string(),
+    ) {
+        Ok(true) => StatusCode::NO_CONTENT.into_response(),
+        Ok(false) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+fn validate_entry_metadata(
+    title: &str,
+    summary: Option<&str>,
+    tags: &[String],
+) -> Result<(), String> {
+    let title_len = title.trim().chars().count();
+    if !(1..=100).contains(&title_len) {
+        return Err("title must be 1-100 characters".into());
+    }
+    if summary.is_some_and(|summary| summary.chars().count() > 500) {
+        return Err("summary exceeds 500 characters".into());
+    }
+    if tags.len() > 10 {
+        return Err("more than 10 tags".into());
+    }
+    if tags.iter().any(|tag| {
+        let len = tag.trim().chars().count();
+        !(1..=32).contains(&len) || tag.chars().any(char::is_control)
+    }) {
+        return Err("tags must be 1-32 characters".into());
+    }
+    Ok(())
+}
+
+fn valid_snapshot_date(value: &str) -> bool {
+    chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").is_ok()
+}
+
+fn now_string() -> String {
+    Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
 #[derive(Deserialize)]
@@ -451,7 +953,10 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::Request;
-    use manabrew_hub::dto::{AuthAccount, AuthSessionResponse, HubDeckDetail, MeResponse};
+    use manabrew_hub::dto::{
+        AccountDeckDetail, AuthAccount, AuthSessionResponse, DeckHubEntryDetail, DeckHubEntryList,
+        FavoriteResponse, HubDeckDetail, MeResponse, TopDeckSnapshot,
+    };
     use tower::ServiceExt;
 
     fn test_state(per_hour: u32, per_day: u32) -> Arc<AppState> {
@@ -617,6 +1122,159 @@ mod tests {
             .unwrap();
         let list: HubDeckList = body_json(response).await;
         assert_eq!(list.total, 0);
+    }
+
+    #[tokio::test]
+    async fn account_deck_versions_publication_favorites_and_snapshot_roundtrip() {
+        let state = test_state(100, 100);
+        let token = sign_up(&state, "tester", "tester@example.com");
+        let router = build_router(state);
+        let deck = crate::validate::tests::request("ignored", 60).deck;
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/api/decks",
+                Some(&token),
+                serde_json::json!({"deck": deck, "notes": "Initial version"}),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let created: AccountDeckDetail = body_json(response).await;
+        assert_eq!(created.summary.current_version_no, 1);
+
+        let mut changed = created.deck.clone();
+        changed.name = "Updated Deck".into();
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::patch(format!("/api/decks/{}", created.summary.id))
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::from(
+                        serde_json::json!({
+                            "deck": changed,
+                            "expectedVersionNo": 1,
+                            "notes": "Second version"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let updated: AccountDeckDetail = body_json(response).await;
+        assert_eq!(updated.summary.current_version_no, 2);
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/api/deckhub/entries",
+                Some(&token),
+                serde_json::json!({
+                    "deckId": updated.summary.id,
+                    "publishedVersionId": updated.summary.current_version_id,
+                    "title": "Public Updated Deck",
+                    "summary": "A stable publication",
+                    "tags": ["Control", "Budget"]
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let published: DeckHubEntryDetail = body_json(response).await;
+        assert_eq!(published.entry.tags.len(), 2);
+        assert_eq!(published.deck.name, "Updated Deck");
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/api/deckhub/entries",
+                Some(&token),
+                serde_json::json!({
+                    "deckId": updated.summary.id,
+                    "publishedVersionId": updated.summary.current_version_id,
+                    "title": "Alternate Public Listing",
+                    "tags": ["Featured"]
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let alternate: DeckHubEntryDetail = body_json(response).await;
+        assert_ne!(alternate.entry.id, published.entry.id);
+        assert_eq!(alternate.entry.deck_id, published.entry.deck_id);
+        assert_eq!(
+            alternate.entry.published_version_id,
+            published.entry.published_version_id
+        );
+
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::put(format!(
+                    "/api/deckhub/entries/{}/favorite",
+                    published.entry.id
+                ))
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let favorite: FavoriteResponse = body_json(response).await;
+        assert_eq!(favorite.favorite_count, 1);
+        assert!(favorite.favorited);
+
+        let response = router
+            .clone()
+            .oneshot(with_ip(
+                Request::get("/api/deckhub/entries?tag=control&sort=favorites")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let entries: DeckHubEntryList = body_json(response).await;
+        assert_eq!(entries.total, 1);
+        assert!(entries.entries[0].favorited);
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/admin/deckhub/top/trending",
+                None,
+                serde_json::json!({
+                    "snapshotDate": "2026-07-31",
+                    "entries": [{
+                        "deckhubEntryId": published.entry.id,
+                        "rank": 1,
+                        "score": 42.0,
+                        "reason": "Featured"
+                    }]
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+        let response = router
+            .oneshot(with_ip(
+                Request::get("/api/deckhub/top/trending")
+                    .body(Body::empty())
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let snapshot: TopDeckSnapshot = body_json(response).await;
+        assert_eq!(snapshot.snapshot_date.as_deref(), Some("2026-07-31"));
+        assert_eq!(snapshot.entries[0].rank, 1);
     }
 
     #[tokio::test]

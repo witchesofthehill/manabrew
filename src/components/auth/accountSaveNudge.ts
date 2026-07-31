@@ -11,7 +11,8 @@ export function showAccountSaveNudge() {
   toast("Saved in this browser only", {
     id: "account-save-nudge",
     duration: 15_000,
-    description: "Sign in to publish a cross-device snapshot. Playing never requires an account.",
+    description:
+      "Sign in to save decks across devices or publish them. Playing stays account-free.",
     action: {
       label: "Sign in",
       onClick: () => useSignInDialog.getState().show(),

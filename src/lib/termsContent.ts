@@ -12,9 +12,9 @@ export interface TermsContent {
 }
 
 export const TERMS_AND_CONDITIONS: TermsContent = {
-  version: "1.2.0",
+  version: "1.3.0",
   title: "Terms & Conditions",
-  lastUpdated: "2026-07-26",
+  lastUpdated: "2026-07-31",
   intro:
     "Welcome to Manabrew. Please read and accept these terms before using the app. Manabrew is free, open-source software licensed under GPL-3.0-or-later; the full licence and third-party notices ship with the source at github.com/witchesofthehill/manabrew.",
   sections: [
@@ -44,7 +44,7 @@ export const TERMS_AND_CONDITIONS: TermsContent = {
     },
     {
       heading: "7. Local data and privacy",
-      body: "Your local decks, preferences, and this acknowledgement are stored on your device — in your browser's local storage on the web build, and in the operating system's application data directory on desktop. Accounts are optional and store your handle, linked sign-in identities, sessions, and any decks you choose to publish. Games played through the official public relay may be recorded for reliability, debugging, aggregate statistics, and the public Top Decks board; those records can include relay usernames, deck names, commanders, game events, and connection metadata such as IP addresses. Top Decks publicly shows aggregate deck names, commanders, play counts, and recent-play timing, but not usernames. Self-hosted relays control their own recording. See docs.manabrew.app/privacy for current details.",
+      body: "Your local decks, preferences, and this acknowledgement are stored on your device — in your browser's local storage on the web build, and in the operating system's application data directory on desktop. Accounts are optional and store your handle, linked sign-in identities, sessions, decks you explicitly save to your account, their version history, public DeckHub publications, and favorites. Public DeckHub entries and curated Top Deck snapshots show the publishing account's handle, publication metadata, deck cards, tags, and aggregate favorite counts; favorites do not expose which accounts selected them. Games played through the official public relay may be recorded for reliability, debugging, and aggregate statistics; those records can include relay usernames, deck names, commanders, game events, and connection metadata such as IP addresses. Self-hosted relays control their own recording. See docs.manabrew.app/privacy for current details.",
     },
     {
       heading: "8. Your rights under GPL-3.0-or-later",

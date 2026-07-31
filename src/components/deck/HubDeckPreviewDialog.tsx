@@ -20,12 +20,12 @@ import {
 import { DeckCardBrowser } from "@/components/deck/DeckCardBrowser";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { unpublishDeck } from "@/api/hub";
+import { removeDeckHubEntry, unpublishDeck } from "@/api/hub";
 import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
-import type { HubDeckDetail } from "@/api/hubTypes";
+import type { DeckHubEntryDetail, HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
 
@@ -53,10 +53,13 @@ export function HubDeckPreviewDialog({
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
   const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
   const loadDeck = useHubStore((s) => s.loadDeck);
+  const loadEntry = useHubStore((s) => s.loadEntry);
   const removeDeck = useHubStore((s) => s.removeDeck);
+  const domainV2 = useHubStore((s) => s.capabilities?.domainVersion === 2);
   const published = usePublishedDecksStore((s) => s.published);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
   const [detail, setDetail] = useState<HubDeckDetail | null>(null);
+  const [entryDetail, setEntryDetail] = useState<DeckHubEntryDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -64,13 +67,36 @@ export function HubDeckPreviewDialog({
 
   useEffect(() => {
     setDetail(null);
+    setEntryDetail(null);
     setError(null);
     setConfirmingUnpublish(false);
     if (!deckId) return;
     let cancelled = false;
-    loadDeck(deckId)
-      .then((d) => {
-        if (!cancelled) setDetail(d);
+    const request = domainV2
+      ? loadEntry(deckId).then((entry) => ({
+          entry,
+          detail: {
+            id: entry.id,
+            name: entry.title,
+            author: entry.author,
+            description: entry.summary,
+            format: entry.format,
+            commanders: entry.commanders,
+            colors: entry.colors,
+            cardCount: entry.cardCount,
+            coverCardName: entry.coverCardName,
+            coverImageUrl: entry.coverImageUrl,
+            createdAt: entry.publishedAt,
+            deck: entry.deck,
+          } satisfies HubDeckDetail,
+        }))
+      : loadDeck(deckId).then((detail) => ({ entry: null, detail }));
+    request
+      .then(({ entry, detail: loadedDetail }) => {
+        if (!cancelled) {
+          setEntryDetail(entry);
+          setDetail(loadedDetail);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load deck");
@@ -78,10 +104,13 @@ export function HubDeckPreviewDialog({
     return () => {
       cancelled = true;
     };
-  }, [deckId, loadAttempt, loadDeck]);
+  }, [deckId, domainV2, loadAttempt, loadDeck, loadEntry]);
 
   const legacyPublication = published.find((record) => record.hubId === deckId);
-  const mine = myDecks.some((deck) => deck.id === deckId) || legacyPublication !== undefined;
+  const mine =
+    entryDetail?.ownedByViewer === true ||
+    myDecks.some((deck) => deck.id === deckId) ||
+    legacyPublication !== undefined;
   const mainCardCount = detail
     ? detail.deck.cards.length +
       (detail.deck.commanders?.length ?? 0) +
@@ -141,7 +170,11 @@ export function HubDeckPreviewDialog({
     if (!deckId || !mine) return;
     setBusy(true);
     try {
-      await unpublishDeck(deckId, legacyPublication?.managementToken);
+      if (domainV2) {
+        await removeDeckHubEntry(deckId);
+      } else {
+        await unpublishDeck(deckId, legacyPublication?.managementToken);
+      }
       setConfirmingUnpublish(false);
       removePublished(deckId);
       removeDeck(deckId);

@@ -8,9 +8,14 @@ use std::process::Command;
 
 use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
-    AuthProviders, AuthSessionResponse, EmailVerifyRequest, ExchangeCodeRequest, HubDeckDetail,
+    AccountDeckDetail, AccountDeckList, AccountDeckSummary, AdminTopDeckSnapshotRequest,
+    AuthProviders, AuthSessionResponse, CreateAccountDeckRequest, DeckHubEntryDetail,
+    DeckHubEntryList, DeckHubEntrySummary, DeckHubTag, DeckVersionDetail, DeckVersionSummary,
+    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, HubCapabilities, HubDeckDetail,
     HubDeckList, HubDeckSummary, MagicLinkRequest, MeResponse, OAuthStartRequest,
-    OAuthStartResponse, PublishDeckRequest, PublishDeckResponse, TopDeckStat, UpdateHandleRequest,
+    OAuthStartResponse, PublishDeckHubEntryRequest, PublishDeckRequest, PublishDeckResponse,
+    SaveDeckVersionRequest, TopDeckBucket, TopDeckSnapshot, TopDeckStat, UpdateDeckHubEntryRequest,
+    UpdateHandleRequest,
 };
 use ts_rs::TS;
 
@@ -44,6 +49,25 @@ pub fn generate(root: &Path) -> Result<()> {
     HubDeckList::export_all_to(&out).context("export HubDeckList")?;
     HubDeckDetail::export_all_to(&out).context("export HubDeckDetail")?;
     TopDeckStat::export_all_to(&out).context("export TopDeckStat")?;
+    HubCapabilities::export_all_to(&out).context("export HubCapabilities")?;
+    CreateAccountDeckRequest::export_all_to(&out).context("export CreateAccountDeckRequest")?;
+    SaveDeckVersionRequest::export_all_to(&out).context("export SaveDeckVersionRequest")?;
+    AccountDeckSummary::export_all_to(&out).context("export AccountDeckSummary")?;
+    AccountDeckList::export_all_to(&out).context("export AccountDeckList")?;
+    AccountDeckDetail::export_all_to(&out).context("export AccountDeckDetail")?;
+    DeckVersionSummary::export_all_to(&out).context("export DeckVersionSummary")?;
+    DeckVersionDetail::export_all_to(&out).context("export DeckVersionDetail")?;
+    DeckHubTag::export_all_to(&out).context("export DeckHubTag")?;
+    PublishDeckHubEntryRequest::export_all_to(&out).context("export PublishDeckHubEntryRequest")?;
+    UpdateDeckHubEntryRequest::export_all_to(&out).context("export UpdateDeckHubEntryRequest")?;
+    DeckHubEntrySummary::export_all_to(&out).context("export DeckHubEntrySummary")?;
+    DeckHubEntryList::export_all_to(&out).context("export DeckHubEntryList")?;
+    DeckHubEntryDetail::export_all_to(&out).context("export DeckHubEntryDetail")?;
+    FavoriteResponse::export_all_to(&out).context("export FavoriteResponse")?;
+    TopDeckBucket::export_all_to(&out).context("export TopDeckBucket")?;
+    TopDeckSnapshot::export_all_to(&out).context("export TopDeckSnapshot")?;
+    AdminTopDeckSnapshotRequest::export_all_to(&out)
+        .context("export AdminTopDeckSnapshotRequest")?;
 
     AuthProviders::export_all_to(&out).context("export AuthProviders")?;
     OAuthStartRequest::export_all_to(&out).context("export OAuthStartRequest")?;

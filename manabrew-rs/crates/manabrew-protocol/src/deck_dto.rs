@@ -16,6 +16,9 @@ pub struct DeckCardIdentity {
     pub card_number: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub oracle_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub foil: Option<bool>,
 }
 

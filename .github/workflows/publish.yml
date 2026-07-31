@@ -101,10 +101,15 @@ jobs:
         run: ./forge-harness/build-native.sh
 
       - name: Tauri build (macOS)
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-        run: yarn tauri -- build --features forge-room --config src-tauri/updater.conf.json
+          TAURI_BUNDLER_DMG_IGNORE_CI: "false"
+        with:
+          tauriScript: yarn tauri
+          args: --features forge-room --config src-tauri/updater.conf.json --verbose
+          retryAttempts: 2
 
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
@@ -145,8 +150,8 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
 
   # ── Windows .exe ───────────────────────────────────────────────────
-  # windows-latest is x86_64. NSIS + WiX (.msi) ship preinstalled on the
-  # runner image. MSVC env is loaded per-step via ilammy/msvc-dev-cmd.
+  # windows-latest is x86_64. Tauri downloads its pinned NSIS + WiX toolsets
+  # during bundling. MSVC env is loaded per-step via ilammy/msvc-dev-cmd.
   windows-exe:
     name: Build Windows .exe
     runs-on: windows-latest
@@ -204,10 +209,14 @@ jobs:
         shell: pwsh
 
       - name: Tauri build (Windows)
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-        run: yarn tauri -- build --features forge-room --config src-tauri/updater.conf.json
+        with:
+          tauriScript: yarn tauri
+          args: --features forge-room --config src-tauri/updater.conf.json --verbose
+          retryAttempts: 2
 
       - name: Upload .exe
         uses: actions/upload-artifact@v4

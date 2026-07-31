@@ -27,7 +27,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 | `pixi/`                 | PIXI.js scene. Reads theme directly via `getTheme().gameTheme.*` — never literal hex.                                                                                   |
 | `platform/`             | Web vs Tauri detection / IPC. New platform calls route through this — never `window.__TAURI__` directly.                                                                |
 | `lib/`                  | Pure utilities (no React). Scryfall helpers, mana parsing, deck import.                                                                                                 |
-| `api/`                  | External I/O: Scryfall HTTP client, Deck Hub client (`hub.ts` → api.manabrew.app), and Tauri IPC. (`queryClient.ts` is a legacy TanStack remnant — do not build on it.) |
+| `api/`                  | External I/O: Scryfall HTTP client, Deck Hub client (`hub.ts` → api.manabrew.app), and Tauri IPC. TanStack Query is intentionally absent; use dedicated Zustand stores. |
 | `workers/`              | Web worker hosting the WASM engine — used by both browser and desktop (Tauri) builds.                                                                                   |
 | `wasm/`                 | wasm-bindgen output. Don't hand-edit; regenerate via `scripts/build-wasm.mjs`.                                                                                          |
 

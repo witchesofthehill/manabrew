@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/witchesofthehill/manabrew/compare/v3.0.1...v3.0.2) (2026-07-31)
+
+### Fixes
+
+* **release:** remove tanstack remnants and retry tauri builds ([#564](https://github.com/witchesofthehill/manabrew/issues/564)) ([7a78403](https://github.com/witchesofthehill/manabrew/commit/7a784037f9900b1762e920bdc07c6d6c38092528))
+* actionspace restrictions ignoring zone ([#572](https://github.com/witchesofthehill/manabrew/issues/572)) ([f2e0dee](https://github.com/witchesofthehill/manabrew/commit/f2e0deecb25a66221681a4303f6a847fb97a24d7))
+
 ## [3.0.1](https://github.com/witchesofthehill/manabrew/compare/v3.0.0...v3.0.1) (2026-07-29)
 
 ### Fixes

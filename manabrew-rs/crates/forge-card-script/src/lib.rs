@@ -748,7 +748,7 @@ fn classify_script_field<'a>(
             field
                 .value_span
                 .clone()
-                .unwrap_or_else(|| field.key_span.end..field.key_span.end),
+                .unwrap_or(field.key_span.end..field.key_span.end),
             diagnostics,
         )),
         "T" => ScriptLineKind::Trigger(parse_script_param_record(
@@ -757,7 +757,7 @@ fn classify_script_field<'a>(
             field
                 .value_span
                 .clone()
-                .unwrap_or_else(|| field.key_span.end..field.key_span.end),
+                .unwrap_or(field.key_span.end..field.key_span.end),
             diagnostics,
         )),
         "S" => ScriptLineKind::StaticAbility(parse_script_param_record(
@@ -766,7 +766,7 @@ fn classify_script_field<'a>(
             field
                 .value_span
                 .clone()
-                .unwrap_or_else(|| field.key_span.end..field.key_span.end),
+                .unwrap_or(field.key_span.end..field.key_span.end),
             diagnostics,
         )),
         "R" => ScriptLineKind::Replacement(parse_script_param_record(
@@ -775,7 +775,7 @@ fn classify_script_field<'a>(
             field
                 .value_span
                 .clone()
-                .unwrap_or_else(|| field.key_span.end..field.key_span.end),
+                .unwrap_or(field.key_span.end..field.key_span.end),
             diagnostics,
         )),
         "SVar" => ScriptLineKind::SVar(parse_script_svar(field, line_no, diagnostics)),
@@ -869,7 +869,7 @@ fn parse_script_svar<'a>(
     let value_span = field
         .value_span
         .clone()
-        .unwrap_or_else(|| field.key_span.end..field.key_span.end);
+        .unwrap_or(field.key_span.end..field.key_span.end);
     let (name, value, name_span, nested_value_span) = if let Some(colon) = raw.find(':') {
         let name_raw = &raw[..colon];
         let value_raw = &raw[colon + 1..];

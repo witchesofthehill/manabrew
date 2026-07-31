@@ -962,7 +962,7 @@ impl Card {
         out.activated_abilities.clear();
         out.triggers.clear();
         for static_ability in &mut out.static_abilities {
-            static_ability.base = Box::new(crate::card_trait_base::CardTraitBase::default());
+            *static_ability.base = crate::card_trait_base::CardTraitBase::default();
         }
         out.replacement_effects.clear();
         out.cast_sa = None;

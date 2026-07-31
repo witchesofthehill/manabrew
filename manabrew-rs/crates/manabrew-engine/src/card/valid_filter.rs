@@ -1668,7 +1668,9 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         }
         "wascast" => card.was_cast(),
         "wascastbyyou" => card.was_cast() && card.controller == context.source_controller,
-        was_cast_from if was_cast_from.starts_with("wascastfrom") => false,
+        was_cast_from if was_cast_from.starts_with("wascastfrom") => {
+            matches_was_cast_from(&value[11..], card, context)
+        }
         named if named.starts_with("named") => {
             card.card_name.eq_ignore_ascii_case(value[5..].trim())
         }
@@ -1820,6 +1822,33 @@ fn raw_card_selector_type(value: &str) -> Option<CardSelectorType> {
         }
         _ => None,
     }
+}
+
+/// Mirrors Java `CardProperty`'s `wasCastFrom` branch. Java reads the owner off
+/// `Card.castFrom` (a `Zone`); Rust stores only the zone type, so `Your`/`Their`
+/// resolve the origin zone's owner as the card's owner.
+fn matches_was_cast_from(suffix: &str, card: &Card, context: MatchContext<'_>) -> bool {
+    let Some(cast_from) = card.cast_from else {
+        return false;
+    };
+    let (zone_owner, rest) = if let Some(rest) = suffix.strip_prefix("Your") {
+        (Some(context.source_controller), rest)
+    } else if let Some(rest) = suffix.strip_prefix("Their") {
+        (Some(card.controller), rest)
+    } else {
+        (None, suffix)
+    };
+    let (by_you, zone_name) = match rest.strip_suffix("ByYou") {
+        Some(zone_name) => (true, zone_name),
+        None => (false, rest),
+    };
+    if zone_owner.is_some_and(|owner| owner != card.owner) {
+        return false;
+    }
+    if by_you && card.controller != context.source_controller {
+        return false;
+    }
+    ZoneType::from_str_compat(zone_name) == Some(cast_from)
 }
 
 fn raw_attached_to_relation(value: &str) -> Option<RelationPredicate> {

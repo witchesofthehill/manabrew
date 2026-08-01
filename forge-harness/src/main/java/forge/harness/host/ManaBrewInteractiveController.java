@@ -40,6 +40,7 @@ import forge.game.cost.*;
 import forge.game.keyword.Keyword;
 import forge.game.keyword.KeywordInterface;
 import forge.game.mana.*;
+import forge.game.phase.PhaseType;
 import forge.game.player.*;
 import forge.game.replacement.ReplacementEffect;
 import forge.game.spellability.*;
@@ -67,6 +68,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 
@@ -79,6 +81,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private String passUntilPlayer;
     private String passUntilPhase;
     private int passUntilDeclaredTurn;
+    private int passUntilObservedTurn;
+    private PhaseType passUntilMaxPhase;
+    private Set<Integer> exhaustStackIds;
     private boolean probingPayability;
     private boolean autoConfirmPayment;
 
@@ -144,14 +149,33 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
+        if (exhaustStackIds != null) {
+            if (PriorityFastForward.exhaustEnded(game, exhaustStackIds)) {
+                exhaustStackIds = null;
+            } else {
+                return null;
+            }
+        }
         if (passUntilPhase != null) {
+            final PhaseType currentPhase = game.getPhaseHandler().getPhase();
+            if (game.getPhaseHandler().getTurn() != passUntilObservedTurn) {
+                passUntilObservedTurn = game.getPhaseHandler().getTurn();
+                passUntilMaxPhase = currentPhase;
+            }
             if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)
                     || PriorityFastForward.invalidatedByExtraTurn(
-                            game, player, passUntilPlayer, passUntilDeclaredTurn)) {
+                            game, player, passUntilPlayer, passUntilDeclaredTurn)
+                    || PriorityFastForward.invalidatedByExtraPhase(currentPhase, passUntilMaxPhase)) {
                 passUntilPlayer = null;
                 passUntilPhase = null;
-            } else if (PriorityFastForward.canSkip(game)) {
-                return null;
+            } else {
+                if (currentPhase != null
+                        && (passUntilMaxPhase == null || passUntilMaxPhase.isBefore(currentPhase))) {
+                    passUntilMaxPhase = currentPhase;
+                }
+                if (PriorityFastForward.canSkip(game)) {
+                    return null;
+                }
             }
         }
         while (true) {
@@ -173,6 +197,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             passUntilPlayer = choice.untilPlayer();
             passUntilPhase = choice.untilPhase();
             passUntilDeclaredTurn = game.getPhaseHandler().getTurn();
+            passUntilObservedTurn = passUntilDeclaredTurn;
+            passUntilMaxPhase = game.getPhaseHandler().getPhase();
+            exhaustStackIds = choice.exhaustStack() ? PriorityFastForward.stackIds(game) : null;
             final SpellAbility selected = choice.action();
             if (selected != null && selected.isManaAbility() && selected.getManaPart() != null) {
                 if (choice.color() == null) {

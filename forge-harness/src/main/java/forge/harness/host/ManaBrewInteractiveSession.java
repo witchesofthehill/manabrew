@@ -162,6 +162,7 @@ public final class ManaBrewInteractiveSession {
         private final SpellAbility action;
         private final String untilPlayer;
         private final String untilPhase;
+        private final boolean exhaustStack;
         private final Card untapCard;
         private final String color;
 
@@ -170,7 +171,7 @@ public final class ManaBrewInteractiveSession {
                 final SpellAbility action,
                 final String untilPlayer,
                 final String untilPhase) {
-            this(kind, action, untilPlayer, untilPhase, null, null);
+            this(kind, action, untilPlayer, untilPhase, false, null, null);
         }
 
         private PriorityChoice(
@@ -178,12 +179,14 @@ public final class ManaBrewInteractiveSession {
                 final SpellAbility action,
                 final String untilPlayer,
                 final String untilPhase,
+                final boolean exhaustStack,
                 final Card untapCard,
                 final String color) {
             this.kind = kind;
             this.action = action;
             this.untilPlayer = untilPlayer;
             this.untilPhase = untilPhase;
+            this.exhaustStack = exhaustStack;
             this.untapCard = untapCard;
             this.color = color;
         }
@@ -202,6 +205,10 @@ public final class ManaBrewInteractiveSession {
 
         String untilPhase() {
             return untilPhase;
+        }
+
+        boolean exhaustStack() {
+            return exhaustStack;
         }
 
         Card untapCard() {
@@ -260,11 +267,13 @@ public final class ManaBrewInteractiveSession {
                         && !until.get("playerId").isJsonNull() ? until.get("playerId").getAsString() : null;
                 final String untilPhase = until != null && until.has("phase")
                         && !until.get("phase").isJsonNull() ? until.get("phase").getAsString() : null;
-                return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase);
+                final boolean exhaustStack = action.has("exhaustStack")
+                        && !action.get("exhaustStack").isJsonNull() && action.get("exhaustStack").getAsBoolean();
+                return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase, exhaustStack, null, null);
             }
             if ("untap_land".equals(kind)) {
                 final Card untapCard = resolveUntapCard(action, untappableCards);
-                return new PriorityChoice(PriorityActionKind.UNDO, null, null, null, untapCard, null);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null, null, false, untapCard, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
@@ -284,7 +293,7 @@ public final class ManaBrewInteractiveSession {
                 final String color = action.has("color") && !action.get("color").isJsonNull()
                         ? action.get("color").getAsString()
                         : null;
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, null, color);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, false, null, color);
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }

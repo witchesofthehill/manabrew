@@ -4,7 +4,11 @@ import forge.game.Game;
 import forge.game.combat.Combat;
 import forge.game.phase.PhaseType;
 import forge.game.player.Player;
+import forge.game.spellability.SpellAbilityStackInstance;
 import forge.harness.common.SnapshotExtractor;
+
+import java.util.HashSet;
+import java.util.Set;
 
 final class PriorityFastForward {
     private PriorityFastForward() {}
@@ -41,11 +45,48 @@ final class PriorityFastForward {
         return !("player-" + SnapshotExtractor.playerIndex(game, holder)).equals(untilPlayer);
     }
 
+    /**
+     * The client computes the pass-until target from a linear phase model —
+     * each phase at most once per turn. An inserted extra phase (Moraug,
+     * Aggravated Assault) is the only thing that steps the phase sequence
+     * backward within a turn, and it means the held target was computed
+     * against the wrong model: without this, the hold would silently
+     * fast-forward through the repeated combat.
+     */
+    static boolean invalidatedByExtraPhase(final PhaseType current, final PhaseType maxSeen) {
+        return current != null && maxSeen != null && current.isBefore(maxSeen);
+    }
+
     /** A held target on a player who has left the game would never be reached. */
     private static boolean targetPlayerHasLost(final Game game, final String untilPlayer) {
         for (final Player p : game.getRegisteredPlayers()) {
             if (("player-" + SnapshotExtractor.playerIndex(game, p)).equals(untilPlayer)) {
                 return p.hasLost();
+            }
+        }
+        return false;
+    }
+
+    static Set<Integer> stackIds(final Game game) {
+        final Set<Integer> ids = new HashSet<>();
+        for (final SpellAbilityStackInstance si : game.getStack()) {
+            ids.add(si.getId());
+        }
+        return ids;
+    }
+
+    /**
+     * An exhaust-stack pass ends when the stack has emptied, or as soon as any
+     * new object appears on it — a response or a fresh trigger both deserve a
+     * priority window (the holder may want to counter it).
+     */
+    static boolean exhaustEnded(final Game game, final Set<Integer> declaredIds) {
+        if (game.getStack().isEmpty()) {
+            return true;
+        }
+        for (final SpellAbilityStackInstance si : game.getStack()) {
+            if (!declaredIds.contains(si.getId())) {
+                return true;
             }
         }
         return false;

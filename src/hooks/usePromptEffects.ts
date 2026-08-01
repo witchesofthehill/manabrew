@@ -20,8 +20,8 @@ export function usePromptEffects({
   myPlayerId,
 }: UsePromptEffectsOptions) {
   const pass = useCallback(
-    (until: PassUntil | null) => {
-      const out = passOutput(currentPrompt, until);
+    (until: PassUntil | null, exhaustStack = false) => {
+      const out = passOutput(currentPrompt, until, exhaustStack);
       if (out) respond(out);
     },
     [currentPrompt, respond],
@@ -50,7 +50,10 @@ export function usePromptEffects({
 
   const unifiedPassEndTurn = useCallback(() => {
     if (!currentPrompt || !gameView || isWaitingForResponse) return;
-    if ((gameView.stack?.length ?? 0) > 0) return;
+    if ((gameView.stack?.length ?? 0) > 0) {
+      pass(null, true);
+      return;
+    }
 
     const store = usePhaseStopStore.getState();
     const target = getEndTurnStop(

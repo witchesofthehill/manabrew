@@ -89,11 +89,14 @@ export function ChooseAction({
   const passCombo = resolveCombo("pass-priority", keyOverrides);
   const endTurnCombo = resolveCombo("pass-end-of-turn", keyOverrides);
 
-  const showEndTurn = stackEmpty;
-  const endTurnLabel = isMyTurn ? "END TURN" : "NEXT TURN";
-  const endTurnTitle = isMyTurn ? "Pass until end of turn" : "Pass until the next turn";
+  const endTurnLabel = stackEmpty ? (isMyTurn ? "END TURN" : "NEXT TURN") : "RESOLVE STACK";
+  const endTurnTitle = stackEmpty
+    ? isMyTurn
+      ? "Pass until end of turn"
+      : "Pass until the next turn"
+    : "Pass until the stack is empty";
   const endTurnHeld = useComboModifiersHeld(endTurnCombo);
-  const morphed = showEndTurn && endTurnHeld;
+  const morphed = endTurnHeld;
   const label = morphed ? endTurnLabel : counting ? "PASSING" : "PASS";
   const onClick = morphed ? onPassEndTurn : counting ? hold : onPassPriority;
   const title = morphed ? endTurnTitle : counting ? "Click to hold priority" : undefined;
@@ -114,17 +117,15 @@ export function ChooseAction({
           {counting && <AutopassFill onDone={onPassPriority} />}
           <span className="relative">{label}</span>
         </Button>
-        {showEndTurn && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-10 rounded-full px-3 text-[10px] font-black tracking-[0.12em]"
-            onClick={onPassEndTurn}
-            disabled={isWaitingForResponse}
-          >
-            {endTurnLabel}
-          </Button>
-        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          className="h-10 rounded-full px-3 text-[10px] font-black tracking-[0.12em]"
+          onClick={onPassEndTurn}
+          disabled={isWaitingForResponse}
+        >
+          {endTurnLabel}
+        </Button>
       </div>
     );
   }
@@ -154,7 +155,7 @@ export function ChooseAction({
             {chip && <KeyChip combo={chip} />}
           </span>
         </button>
-        {showEndTurn && !morphed && (
+        {!morphed && (
           <button
             type="button"
             className="flex h-full items-center justify-center border-l border-white/20 bg-black/15 px-3.5 text-[11px] font-bold tracking-[0.14em] text-white/75 transition-[color,background-color] hover:bg-black/30 hover:text-white focus-visible:bg-black/30 focus-visible:text-white focus-visible:outline-none"

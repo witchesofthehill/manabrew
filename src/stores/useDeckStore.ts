@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, devtools, createJSONStorage } from "zustand/middleware";
+import { toast } from "sonner";
 import type { DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
@@ -169,7 +170,15 @@ let deckPersistReady = false;
 const deckStorage = createJSONStorage(() => ({
   getItem: (name) => localStorage.getItem(name),
   setItem: (name, value) => {
-    if (deckPersistReady) localStorage.setItem(name, value);
+    if (!deckPersistReady) return;
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      toast.error(
+        "Seems like you reached the limit of your browser storage — contact us on Discord for more info.",
+        { id: "deck-storage-full" },
+      );
+    }
   },
   removeItem: (name) => localStorage.removeItem(name),
 }));

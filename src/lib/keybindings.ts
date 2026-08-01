@@ -101,7 +101,7 @@ export const KEYBINDINGS: KeybindingDef[] = [
   },
   {
     id: "pass-end-of-turn",
-    label: "Pass until end of turn",
+    label: "Pass until end of turn / resolve stack",
     category: "Battlefield",
     defaultCombo: { key: " ", shift: true },
   },

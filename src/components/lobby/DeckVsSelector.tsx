@@ -120,7 +120,12 @@ export function DeckVsSelector({
   const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);
 
   useEffect(() => {
-    if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
+    if (
+      !hubDecks.enabled ||
+      !preSelectedHubDeckId ||
+      restoredHubDeckRef.current === preSelectedHubDeckId
+    )
+      return;
     restoredHubDeckRef.current = preSelectedHubDeckId;
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(preSelectedHubDeckId);
@@ -153,7 +158,7 @@ export function DeckVsSelector({
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
       });
-  }, [hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
+  }, [hubDecks.enabled, hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(

@@ -86,9 +86,9 @@ export function useMyHubDecks() {
     decks: domainV2 ? versionedDecks : (myDecks?.decks ?? []),
     loading: domainV2 ? myEntriesLoading : loading,
     error: domainV2 ? myEntriesError : error,
-    signedIn: status === "signedIn" && accountId !== null,
+    signedIn: enabled && status === "signedIn" && accountId !== null,
     refresh: () =>
-      accountId
+      enabled && accountId
         ? domainV2
           ? fetchMyEntries(accountId, true)
           : fetchMyDecks(accountId, true)

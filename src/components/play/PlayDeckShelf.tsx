@@ -50,7 +50,8 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   } = useMyHubDecks();
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
   const hubEnabled = isFeatureEnabled("deckHub");
-  const hubAccountsEnabled = hubEnabled && isFeatureEnabled("accounts");
+  const accountsEnabled = isFeatureEnabled("accounts");
+  const hubAccountsEnabled = hubEnabled && accountsEnabled;
   const {
     details: accountDeckDetails,
     error: accountDecksError,
@@ -202,7 +203,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
                     onOpen={() => openDeck(deck)}
                     onPlay={() => onPlay(materializeDeck(deck))}
                     onViewInHub={
-                      presetKey
+                      hubEnabled && presetKey
                         ? () =>
                             navigate(
                               `${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`,
@@ -317,10 +318,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
                           if (pendingDeckId === null) onPlayPreset(preset);
                         }}
                         onPlay={() => onPlayPreset(preset)}
-                        onViewInHub={() =>
-                          navigate(
-                            `${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`,
-                          )
+                        onViewInHub={
+                          hubEnabled
+                            ? () =>
+                                navigate(
+                                  `${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`,
+                                )
+                            : undefined
                         }
                         badge="Official preset"
                         playing={pendingDeckId === presetId}
@@ -351,7 +355,9 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         onFromScratch={buildFromScratch}
       />
       <ImportDeckTextDialog open={importOpen} onOpenChange={setImportOpen} onImport={importDeck} />
-      <HubDeckPreviewDialog deckId={hubPreviewId} onClose={() => setHubPreviewId(null)} />
+      {hubEnabled && (
+        <HubDeckPreviewDialog deckId={hubPreviewId} onClose={() => setHubPreviewId(null)} />
+      )}
     </section>
   );
 }

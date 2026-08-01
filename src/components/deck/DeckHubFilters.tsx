@@ -13,6 +13,7 @@ interface DeckHubFiltersProps {
   facets: DeckHubFacets | null;
   domainV2: boolean;
   activeFilterCount: number;
+  favoritesEnabled: boolean;
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
   onClear: () => void;
 }
@@ -22,6 +23,7 @@ export function DeckHubFilters({
   facets,
   domainV2,
   activeFilterCount,
+  favoritesEnabled,
   onChange,
   onClear,
 }: DeckHubFiltersProps) {
@@ -80,6 +82,7 @@ export function DeckHubFilters({
               filters={filters}
               facets={facets}
               activeFilterCount={activeFilterCount}
+              favoritesEnabled={favoritesEnabled}
               onChange={onChange}
               onClear={onClear}
             />

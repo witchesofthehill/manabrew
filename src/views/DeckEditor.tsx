@@ -97,7 +97,8 @@ export default function DeckEditor() {
     refresh: refreshAccountDecks,
   } = useAccountDecks();
   const navigate = useNavigate();
-  const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
+  const hubEnabled = isFeatureEnabled("deckHub");
+  const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
   const location = useLocation();
   const routeState = location.state as {
     directToEditor?: boolean;
@@ -125,12 +126,13 @@ export default function DeckEditor() {
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
   const [selectedPublishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
-  const routePublishingDeck = routeState?.resumePublishDeck
-    ? {
-        deck: routeState.resumePublishDeck,
-        localDeckId: routeState.resumePublishDeckId ?? null,
-      }
-    : null;
+  const routePublishingDeck =
+    publishEnabled && routeState?.resumePublishDeck
+      ? {
+          deck: routeState.resumePublishDeck,
+          localDeckId: routeState.resumePublishDeckId ?? null,
+        }
+      : null;
   const publishingDeck = selectedPublishingDeck
     ? { deck: selectedPublishingDeck.deck, localDeckId: selectedPublishingDeck.id }
     : routePublishingDeck;
@@ -156,7 +158,9 @@ export default function DeckEditor() {
 
   const [stateView, setStateView] = useState<"list" | "editor">(() => {
     if (useDeckStore.getState().isReadOnly) return "editor";
-    return routeState?.directToEditor || routeState?.resumeCurrentPublish ? "editor" : "list";
+    return routeState?.directToEditor || (publishEnabled && routeState?.resumeCurrentPublish)
+      ? "editor"
+      : "list";
   });
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;
@@ -543,7 +547,9 @@ export default function DeckEditor() {
                             onPlaytest={() => quickPlaytest(saved.deck)}
                             onDelete={() => void handleDeleteAccountDeck(saved)}
                             onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
-                            onViewInHub={presetKey ? () => viewPresetInHub(presetKey) : undefined}
+                            onViewInHub={
+                              hubEnabled && presetKey ? () => viewPresetInHub(presetKey) : undefined
+                            }
                             onPlay={() => {
                               const id = saved.accountDeckId
                                 ? loadAccountDeck(
@@ -714,10 +720,13 @@ export default function DeckEditor() {
                         readOnly
                         onOpen={() => handleOpenPreset(s.deck)}
                         onPlaytest={() => quickPlaytest(s.deck)}
-                        onViewInHub={() =>
-                          navigate(
-                            `${ROUTES.HUB}?deck=${encodeURIComponent(s.deck.id ?? s.deck.name)}&source=presets`,
-                          )
+                        onViewInHub={
+                          hubEnabled
+                            ? () =>
+                                navigate(
+                                  `${ROUTES.HUB}?deck=${encodeURIComponent(s.deck.id ?? s.deck.name)}&source=presets`,
+                                )
+                            : undefined
                         }
                         badge="Official preset"
                       />
@@ -759,13 +768,15 @@ export default function DeckEditor() {
 
         {playtestDialog}
 
-        <HubDeckPreviewDialog
-          deckId={hubPreviewId}
-          onClose={() => setHubPreviewId(null)}
-          onViewSnapshot={() => setView("editor")}
-        />
+        {hubEnabled && (
+          <HubDeckPreviewDialog
+            deckId={hubPreviewId}
+            onClose={() => setHubPreviewId(null)}
+            onViewSnapshot={() => setView("editor")}
+          />
+        )}
 
-        {publishingDeck && (
+        {publishEnabled && publishingDeck && (
           <PublishDeckDialog
             open
             onOpenChange={(open) => {
@@ -830,7 +841,9 @@ export default function DeckEditor() {
               setPreviewSlot={setPreviewSlot}
               previewCollapsed={previewCollapsed}
               onTogglePreview={togglePreview}
-              resumedPublication={routeState?.resumeCurrentPublish ? routePublishingDeck : null}
+              resumedPublication={
+                publishEnabled && routeState?.resumeCurrentPublish ? routePublishingDeck : null
+              }
               onResumedPublicationClose={() =>
                 navigate(`${location.pathname}${location.search}`, {
                   replace: true,

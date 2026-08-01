@@ -32,6 +32,7 @@ import type { DeckHubEntryDetail, HubDeckDetail } from "@/api/hubTypes";
 import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
+import { isFeatureEnabled } from "@/featureFlags";
 
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
@@ -46,6 +47,7 @@ export function HubDeckPreviewDialog({
   onUnpublished,
   onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
+  const hubEnabled = isFeatureEnabled("deckHub");
   const navigate = useNavigate();
   const {
     decks: myDecks,
@@ -78,7 +80,7 @@ export function HubDeckPreviewDialog({
     setError(null);
     setConfirmingUnpublish(false);
     setEditingPublication(false);
-    if (!deckId) return;
+    if (!hubEnabled || !deckId) return;
     let cancelled = false;
     const request = domainV2
       ? loadEntry(deckId).then((entry) => ({
@@ -112,7 +114,7 @@ export function HubDeckPreviewDialog({
     return () => {
       cancelled = true;
     };
-  }, [deckId, domainV2, loadAttempt, loadDeck, loadEntry]);
+  }, [deckId, domainV2, hubEnabled, loadAttempt, loadDeck, loadEntry]);
 
   const legacyPublication = domainV2
     ? undefined
@@ -244,7 +246,7 @@ export function HubDeckPreviewDialog({
 
   return (
     <>
-      <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={hubEnabled && deckId !== null} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]">
           <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5">
             <DialogTitle className="truncate">
@@ -409,7 +411,7 @@ export function HubDeckPreviewDialog({
           </div>
         </DialogContent>
       </Dialog>
-      {entryDetail && (
+      {hubEnabled && entryDetail && (
         <EditDeckHubEntryDialog
           entry={entryDetail}
           open={editingPublication}

@@ -45,6 +45,7 @@ pub struct AppState {
     pub storage: Mutex<Storage>,
     pub stats: StatsCache,
     pub limiter: RateLimiter,
+    pub deck_hub_enabled: bool,
     pub publish_per_day: u32,
     pub auth: AuthConfig,
     pub auth_email_limiter: RateLimiter,
@@ -436,6 +437,9 @@ async fn create_deckhub_entry_handler(
     auth::SessionAccount(account): auth::SessionAccount,
     Json(request): Json<PublishDeckHubEntryRequest>,
 ) -> Response {
+    if !state.deck_hub_enabled {
+        return StatusCode::NOT_FOUND.into_response();
+    }
     if let Err(message) =
         validate_entry_metadata(&request.title, request.summary.as_deref(), &request.tags)
     {
@@ -483,6 +487,9 @@ async fn update_deckhub_entry_handler(
     auth::SessionAccount(account): auth::SessionAccount,
     Json(request): Json<UpdateDeckHubEntryRequest>,
 ) -> Response {
+    if !state.deck_hub_enabled {
+        return StatusCode::NOT_FOUND.into_response();
+    }
     if let Err(message) =
         validate_entry_metadata(&request.title, request.summary.as_deref(), &request.tags)
     {
@@ -533,6 +540,9 @@ async fn favorite_deckhub_entry_handler(
     Path(entry_id): Path<String>,
     auth::SessionAccount(account): auth::SessionAccount,
 ) -> Response {
+    if !state.deck_hub_enabled {
+        return StatusCode::NOT_FOUND.into_response();
+    }
     set_favorite_response(&state, &account.id, &entry_id, true)
 }
 
@@ -541,6 +551,9 @@ async fn unfavorite_deckhub_entry_handler(
     Path(entry_id): Path<String>,
     auth::SessionAccount(account): auth::SessionAccount,
 ) -> Response {
+    if !state.deck_hub_enabled {
+        return StatusCode::NOT_FOUND.into_response();
+    }
     set_favorite_response(&state, &account.id, &entry_id, false)
 }
 
@@ -760,6 +773,9 @@ async fn publish_handler(
     auth::SessionAccount(account): auth::SessionAccount,
     Json(request): Json<PublishDeckRequest>,
 ) -> Response {
+    if !state.deck_hub_enabled {
+        return StatusCode::NOT_FOUND.into_response();
+    }
     let ip = client_ip(&headers, addr);
     let request = PublishDeckRequest {
         author: account.handle.clone(),
@@ -1054,6 +1070,7 @@ mod tests {
             storage: Mutex::new(Storage::open_memory().unwrap()),
             stats: StatsCache::new(None),
             limiter: RateLimiter::new(per_hour),
+            deck_hub_enabled: true,
             publish_per_day: per_day,
             auth: AuthConfig {
                 public_url: "http://localhost:9500".into(),

@@ -21,6 +21,7 @@ interface DeckHubFilterSheetProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
   activeFilterCount: number;
+  favoritesEnabled: boolean;
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
   onClear: () => void;
 }
@@ -29,6 +30,7 @@ export function DeckHubFilterSheet({
   filters,
   facets,
   activeFilterCount,
+  favoritesEnabled,
   onChange,
   onClear,
 }: DeckHubFilterSheetProps) {
@@ -181,16 +183,18 @@ export function DeckHubFilterSheet({
               </div>
             </div>
           )}
-          <Button
-            type="button"
-            variant={filters.favorites ? "secondary" : "outline"}
-            className="w-full justify-start"
-            aria-pressed={filters.favorites}
-            onClick={() => onChange({ favorites: !filters.favorites })}
-          >
-            <Heart className={cn("h-4 w-4", filters.favorites && "fill-current")} />
-            My favorites
-          </Button>
+          {favoritesEnabled && (
+            <Button
+              type="button"
+              variant={filters.favorites ? "secondary" : "outline"}
+              className="w-full justify-start"
+              aria-pressed={filters.favorites}
+              onClick={() => onChange({ favorites: !filters.favorites })}
+            >
+              <Heart className={cn("h-4 w-4", filters.favorites && "fill-current")} />
+              My favorites
+            </Button>
+          )}
         </div>
         <SheetFooter className="gap-2">
           <Button variant="outline" onClick={onClear} disabled={activeFilterCount === 0}>

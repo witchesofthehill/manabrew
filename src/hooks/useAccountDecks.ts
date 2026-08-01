@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { isFeatureEnabled } from "@/featureFlags";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
@@ -8,6 +9,7 @@ const EMPTY_DECKS: AccountDeckSummary[] = [];
 const EMPTY_DETAILS: Record<string, AccountDeckDetail> = {};
 
 export function useAccountDecks() {
+  const enabled = isFeatureEnabled("accounts");
   const accountId = useAuthStore((state) => state.account?.id ?? null);
   const authStatus = useAuthStore((state) => state.status);
   const capabilities = useHubStore((state) => state.capabilities);
@@ -20,30 +22,34 @@ export function useAccountDecks() {
   const error = useAccountDecksStore((state) => state.error);
   const refresh = useAccountDecksStore((state) => state.refresh);
   const clear = useAccountDecksStore((state) => state.clear);
-  const currentAccountLoaded = accountId !== null && decksAccountId === accountId;
+  const currentAccountLoaded = enabled && accountId !== null && decksAccountId === accountId;
   const decks = currentAccountLoaded ? storedDecks : EMPTY_DECKS;
   const details = currentAccountLoaded ? storedDetails : EMPTY_DETAILS;
 
   useEffect(() => {
-    void loadCapabilities();
-  }, [loadCapabilities]);
+    if (enabled) void loadCapabilities();
+  }, [enabled, loadCapabilities]);
 
   useEffect(() => {
+    if (!enabled) {
+      clear();
+      return;
+    }
     if (!capabilitiesLoaded) return;
     if (authStatus !== "signedIn" || !accountId || !capabilities?.accountDecks) {
       clear();
       return;
     }
     void refresh();
-  }, [accountId, authStatus, capabilities, capabilitiesLoaded, clear, refresh]);
+  }, [accountId, authStatus, capabilities, capabilitiesLoaded, clear, enabled, refresh]);
 
   return {
     decks,
     details,
     loading,
     error,
-    available: capabilities?.accountDecks === true,
-    signedIn: authStatus === "signedIn" && accountId !== null,
+    available: enabled && capabilities?.accountDecks === true,
+    signedIn: enabled && authStatus === "signedIn" && accountId !== null,
     refresh,
   };
 }

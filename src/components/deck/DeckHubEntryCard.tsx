@@ -9,7 +9,7 @@ import type { DeckHubEntrySummary } from "@/api/hubTypes";
 interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
   onOpen: () => void;
-  onFavorite: () => void;
+  onFavorite?: () => void;
   variant?: "grid" | "list";
 }
 
@@ -105,18 +105,25 @@ export function DeckHubEntryCard({
         </span>
       </button>
 
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        className="absolute right-1.5 top-1.5 z-20 h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
-        aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
-        aria-pressed={entry.favorited}
-        onClick={onFavorite}
-      >
-        <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />
-        <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
-      </Button>
+      {onFavorite ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="absolute right-1.5 top-1.5 z-20 h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
+          aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={entry.favorited}
+          onClick={onFavorite}
+        >
+          <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />
+          <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
+        </Button>
+      ) : (
+        <span className="absolute right-1.5 top-1.5 z-20 flex h-8 items-center gap-1 rounded-md bg-background/90 px-2 text-xs shadow-sm backdrop-blur-sm">
+          <Heart className="h-3.5 w-3.5" />
+          <span className="tabular-nums">{entry.favoriteCount}</span>
+        </span>
+      )}
 
       {variant === "grid" && discoveryTags.length > 0 && (
         <div

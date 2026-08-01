@@ -277,7 +277,8 @@ export function DeckBuilder({
 } = {}) {
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
-  const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
+  const accountsEnabled = isFeatureEnabled("accounts");
+  const publishEnabled = hubEnabled && accountsEnabled;
   const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
@@ -828,7 +829,7 @@ export function DeckBuilder({
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
-    if (saved?.accountDeckId && saved.accountVersionNo) {
+    if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
       try {
         const detail = await useAccountDecksStore
           .getState()
@@ -1129,11 +1130,13 @@ export function DeckBuilder({
                     <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
                   </DropdownMenuItem>
                 )}
-                {accountSavedDeck?.accountDeckId && accountSavedDeck.accountVersionNo && (
-                  <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
-                    <History className="mr-2 h-3.5 w-3.5" /> Version history
-                  </DropdownMenuItem>
-                )}
+                {accountsEnabled &&
+                  accountSavedDeck?.accountDeckId &&
+                  accountSavedDeck.accountVersionNo && (
+                    <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
+                      <History className="mr-2 h-3.5 w-3.5" /> Version history
+                    </DropdownMenuItem>
+                  )}
                 <DropdownMenuItem onSelect={handleSaveDraft}>
                   <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
@@ -1456,18 +1459,20 @@ export function DeckBuilder({
             resumeInEditor
           />
         ) : null}
-        {accountSavedDeck?.accountDeckId && accountSavedDeck.accountVersionNo && (
-          <DeckVersionHistoryDialog
-            open={historyOpen}
-            onOpenChange={setHistoryOpen}
-            deckId={accountSavedDeck.accountDeckId}
-            currentVersionNo={accountSavedDeck.accountVersionNo}
-            onRestore={(deck, versionNo) => {
-              useDeckStore.getState().loadDeck(deck);
-              toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
-            }}
-          />
-        )}
+        {accountsEnabled &&
+          accountSavedDeck?.accountDeckId &&
+          accountSavedDeck.accountVersionNo && (
+            <DeckVersionHistoryDialog
+              open={historyOpen}
+              onOpenChange={setHistoryOpen}
+              deckId={accountSavedDeck.accountDeckId}
+              currentVersionNo={accountSavedDeck.accountVersionNo}
+              onRestore={(deck, versionNo) => {
+                useDeckStore.getState().loadDeck(deck);
+                toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
+              }}
+            />
+          )}
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

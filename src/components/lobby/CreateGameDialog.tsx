@@ -94,7 +94,7 @@ export function CreateGameDialog({
   }, [preSelectedDeckId]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !hubDecks.enabled) {
       hubSelectionRequestIdRef.current += 1;
       setLoadingHubDeckId(null);
       return;
@@ -123,7 +123,14 @@ export function CreateGameDialog({
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
       });
-  }, [loadHubDeck, open, preSelectedHubDeckId, selectedFormat.id, selectedFormat.name]);
+  }, [
+    hubDecks.enabled,
+    loadHubDeck,
+    open,
+    preSelectedHubDeckId,
+    selectedFormat.id,
+    selectedFormat.name,
+  ]);
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
   const distinctSavedDecks = savedDecks.filter(

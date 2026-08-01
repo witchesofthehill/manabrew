@@ -63,6 +63,7 @@ services:
       HUB_PORT: "9500"
       # Own throwaway DB inside the staging tree — never prod's hub.db.
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
+      DECK_HUB: "${DECK_HUB:-1}"
       RUST_LOG: "manabrew_hub=info"
       HUB_PUBLIC_URL: "https://staging.manabrew.app"
       WEB_APP_URL: "https://staging.manabrew.app"

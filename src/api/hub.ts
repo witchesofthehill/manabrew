@@ -1,6 +1,7 @@
 import { getHubApiUrl } from "@/config/webRuntimeConfig";
 import { platformFetch } from "@/lib/platformFetch";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { isFeatureEnabled } from "@/featureFlags";
 import type {
   AccountDeckDetail,
   AccountDeckList,
@@ -67,7 +68,7 @@ class HubRequestError extends Error {
 }
 
 async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
-  const token = useAuthStore.getState().token;
+  const token = isFeatureEnabled("accounts") ? useAuthStore.getState().token : null;
   const headers = new Headers(init?.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await platformFetch(`${getHubApiUrl()}${path}`, { ...init, headers });

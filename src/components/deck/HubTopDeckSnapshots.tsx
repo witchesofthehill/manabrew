@@ -6,14 +6,16 @@ import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { isFeatureEnabled } from "@/featureFlags";
 
 interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
 }
 
 export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
+  const accountsEnabled = isFeatureEnabled("accounts");
   const viewerAccountId = useAuthStore((state) =>
-    state.status === "signedIn" ? (state.account?.id ?? null) : null,
+    accountsEnabled && state.status === "signedIn" ? (state.account?.id ?? null) : null,
   );
   const signedIn = viewerAccountId !== null;
   const showSignIn = useSignInDialog((state) => state.show);
@@ -112,17 +114,24 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                 <DeckHubEntryCard
                   entry={ranked.entry}
                   onOpen={() => onOpenDeck(ranked.entry.id)}
-                  onFavorite={() => {
-                    if (!signedIn) {
-                      showSignIn();
-                      return;
-                    }
-                    void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch((error) =>
-                      toast.error(
-                        error instanceof Error ? error.message : "Failed to update favorite",
-                      ),
-                    );
-                  }}
+                  onFavorite={
+                    accountsEnabled
+                      ? () => {
+                          if (!signedIn) {
+                            showSignIn();
+                            return;
+                          }
+                          void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch(
+                            (error) =>
+                              toast.error(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Failed to update favorite",
+                              ),
+                          );
+                        }
+                      : undefined
+                  }
                 />
               </div>
             ))}

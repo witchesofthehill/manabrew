@@ -34,6 +34,8 @@ services:
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
+      ACCOUNTS: "${ACCOUNTS:-0}"
+      DECK_HUB: "${DECK_HUB:-0}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-0}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
@@ -83,6 +85,7 @@ services:
       # hub.db on the host filesystem so it rides the existing restic backups.
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       EVENTS_DB_PATH: "/var/manabrew/events/events.db"
+      DECK_HUB: "${DECK_HUB:-0}"
       RUST_LOG: "manabrew_hub=info"
       # Auth (/api/auth/*). Client ids/secrets live in ops/production.secrets;
       # an unset client id disables that provider. No RESEND_API_KEY →

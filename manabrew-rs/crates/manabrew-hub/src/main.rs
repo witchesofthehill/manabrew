@@ -40,6 +40,7 @@ async fn main() {
         storage: Mutex::new(storage),
         stats: StatsCache::new(config.events_db_path.clone()),
         limiter: RateLimiter::new(config.publish_per_hour),
+        deck_hub_enabled: config.deck_hub_enabled,
         publish_per_day: config.publish_per_day,
         auth_email_limiter: RateLimiter::new(config.auth.auth_emails_per_hour),
         auth_code_limiter: RateLimiter::new(config.auth.auth_attempts_per_hour),

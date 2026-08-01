@@ -23,6 +23,7 @@ import { ROUTES } from "@/lib/constants";
 const NAV_ROUTES = [ROUTES.PLAY, ROUTES.LOBBY, ROUTES.SEARCH, ROUTES.DECK_EDITOR, ROUTES.COMPANION];
 
 export function AppShell() {
+  const accountsEnabled = isFeatureEnabled("accounts");
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [topBarOverride, setTopBarOverride] = useState<TopBarOverride | null>(null);
   const setupListeners = useServerStore((s) => s.setupListeners);
@@ -60,8 +61,8 @@ export function AppShell() {
   }, [setupListeners]);
 
   useEffect(() => {
-    void useAuthStore.getState().hydrate();
-  }, []);
+    if (accountsEnabled) void useAuthStore.getState().hydrate();
+  }, [accountsEnabled]);
 
   useGameSessionResume();
   useStatusBanner();
@@ -91,7 +92,7 @@ export function AppShell() {
         <StatusBanner />
         <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <IronsmithUnsupportedDeckModal />
-        {isFeatureEnabled("accounts") && <SignInDialog />}
+        {accountsEnabled && <SignInDialog />}
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
         <main
           className={cn(

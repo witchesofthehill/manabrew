@@ -22,7 +22,7 @@ interface DeckHubResultsProps {
   view: DeckHubView;
   group: DeckHubGroup;
   onOpen: (id: string) => void;
-  onFavorite: (entry: DeckHubEntrySummary) => void;
+  onFavorite?: (entry: DeckHubEntrySummary) => void;
   onPage: (page: number) => void;
   onClear: () => void;
   onRetry: () => void;
@@ -131,7 +131,7 @@ export function DeckHubResults({
                         entry={entry}
                         variant={view}
                         onOpen={() => onOpen(entry.id)}
-                        onFavorite={() => onFavorite(entry)}
+                        onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
                       />
                     ))}
                   </div>

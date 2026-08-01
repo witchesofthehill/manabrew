@@ -9,6 +9,7 @@ import {
   saveAccountDeck,
 } from "@/api/hub";
 import type { AccountDeckDetail, AccountDeckSummary, DeckVersionSummary } from "@/api/hubTypes";
+import { isFeatureEnabled } from "@/featureFlags";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type { EditorDeck } from "@/types/manabrew";
 
@@ -41,7 +42,14 @@ const versionRequests = new Map<string, Promise<DeckVersionSummary[]>>();
 const presetForkRequests = new Map<string, Promise<AccountDeckDetail>>();
 
 function currentAccountId(): string | null {
+  if (!isFeatureEnabled("accounts")) return null;
   return useAuthStore.getState().account?.id ?? null;
+}
+
+function requireAccountId(): string {
+  const accountId = currentAccountId();
+  if (!accountId) throw new Error("Sign in to use account decks.");
+  return accountId;
 }
 
 function isCurrentAccount(accountId: string | null): boolean {
@@ -124,12 +132,12 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     if (refreshRequest === request) refreshRequest = null;
   },
   load: async (id) => {
+    const accountId = requireAccountId();
     const cached = get().details[id];
     if (cached) return cached;
     const pending = detailRequests.get(id);
     if (pending) return pending;
     const requestId = refreshRequestId;
-    const accountId = currentAccountId();
     const request = fetchAccountDeck(id)
       .then((detail) => {
         if (requestId === refreshRequestId && isCurrentAccount(accountId)) {
@@ -144,9 +152,9 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     return request;
   },
   create: async (deck, notes) => {
+    const accountId = requireAccountId();
     refreshRequestId += 1;
     refreshRequest = null;
-    const accountId = currentAccountId();
     set({ loading: false });
     const detail = await createAccountDeck({ deck, notes });
     if (isCurrentAccount(accountId)) {
@@ -155,8 +163,8 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     return detail;
   },
   forkPreset: async (presetKey) => {
-    const accountId = currentAccountId();
-    const requestKey = `${accountId ?? "anonymous"}:${presetKey.toLowerCase()}`;
+    const accountId = requireAccountId();
+    const requestKey = `${accountId}:${presetKey.toLowerCase()}`;
     const pending = presetForkRequests.get(requestKey);
     if (pending) return pending;
     refreshRequestId += 1;
@@ -178,9 +186,9 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     return request;
   },
   save: async (id, versionNo, deck, notes) => {
+    const accountId = requireAccountId();
     refreshRequestId += 1;
     refreshRequest = null;
-    const accountId = currentAccountId();
     detailRequests.delete(id);
     versionRequests.delete(id);
     set({ loading: false });
@@ -191,9 +199,9 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     return detail;
   },
   remove: async (id) => {
+    const accountId = requireAccountId();
     refreshRequestId += 1;
     refreshRequest = null;
-    const accountId = currentAccountId();
     detailRequests.delete(id);
     versionRequests.delete(id);
     set({ loading: false });
@@ -212,12 +220,12 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     });
   },
   loadVersions: async (id) => {
+    const accountId = requireAccountId();
     const cached = get().versions[id];
     if (cached?.length) return cached;
     const pending = versionRequests.get(id);
     if (pending) return pending;
     const requestId = refreshRequestId;
-    const accountId = currentAccountId();
     const request = fetchDeckVersions(id)
       .then((versions) => {
         if (requestId === refreshRequestId && isCurrentAccount(accountId)) {

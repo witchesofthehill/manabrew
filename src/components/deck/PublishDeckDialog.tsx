@@ -22,6 +22,7 @@ import {
   usePublishedDecksStore,
 } from "@/stores/usePublishedDecksStore";
 import type { EditorDeck } from "@/types/manabrew";
+import { isFeatureEnabled } from "@/featureFlags";
 
 interface PublishDeckDialogProps {
   open: boolean;
@@ -50,6 +51,7 @@ export function PublishDeckDialog({
   localDeckId,
   resumeInEditor = false,
 }: PublishDeckDialogProps) {
+  const publishEnabled = isFeatureEnabled("accounts") && isFeatureEnabled("deckHub");
   const account = useAuthStore((s) => s.account);
   const authStatus = useAuthStore((s) => s.status);
   const showSignIn = useSignInDialog((s) => s.show);
@@ -68,8 +70,8 @@ export function PublishDeckDialog({
   const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
-    if (open) void loadCapabilities();
-  }, [loadCapabilities, open]);
+    if (publishEnabled && open) void loadCapabilities();
+  }, [loadCapabilities, open, publishEnabled]);
 
   const existing =
     !capabilitiesLoaded || capabilities?.domainVersion === 2
@@ -79,7 +81,7 @@ export function PublishDeckDialog({
   const signedIn = authStatus === "signedIn" && account !== null;
 
   async function handlePublish() {
-    if (!account) return;
+    if (!publishEnabled || !account) return;
     setBusy(true);
     try {
       const detectedCapabilities = capabilitiesLoaded ? capabilities : await loadCapabilities();
@@ -162,6 +164,7 @@ export function PublishDeckDialog({
   }
 
   function handleSignIn() {
+    if (!publishEnabled) return;
     showSignIn({
       publishDeckId: localDeckId ?? undefined,
       publishDeck: toPublishableDeck(deck),
@@ -175,7 +178,7 @@ export function PublishDeckDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={publishEnabled && open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>

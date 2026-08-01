@@ -8,6 +8,7 @@ import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { isFeatureEnabled } from "@/featureFlags";
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -27,6 +28,7 @@ function positivePage(value: string | null) {
 }
 
 export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
+  const accountsEnabled = isFeatureEnabled("accounts");
   const [searchParams, setSearchParams] = useSearchParams();
   const querySearch = searchParams.get("q") ?? "";
   const [search, setSearch] = useState(querySearch);
@@ -50,7 +52,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
     tagMatch: searchParams.get("tagMatch") === "all" ? "all" : "any",
     commander: searchParams.get("commander") ?? "",
     card: searchParams.get("card") ?? "",
-    favorites: searchParams.get("favorites") === "true",
+    favorites: accountsEnabled && searchParams.get("favorites") === "true",
     sort:
       searchParams.get("sort") === "name"
         ? "name"
@@ -78,8 +80,10 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   const facets = useHubStore((state) => state.facets);
   const fetchFacets = useHubStore((state) => state.fetchFacets);
   const setFavorite = useHubStore((state) => state.setFavorite);
-  const signedIn = useAuthStore((state) => state.status === "signedIn");
-  const viewerAccountId = useAuthStore((state) => state.account?.id ?? null);
+  const signedIn = useAuthStore((state) => accountsEnabled && state.status === "signedIn");
+  const viewerAccountId = useAuthStore((state) =>
+    accountsEnabled ? (state.account?.id ?? null) : null,
+  );
   const showSignIn = useSignInDialog((state) => state.show);
 
   useEffect(() => {
@@ -153,7 +157,8 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   ]);
 
   function changeFilters(patch: Partial<DeckHubDiscoveryFilters>) {
-    if (patch.favorites && !signedIn) {
+    if (patch.favorites && (!accountsEnabled || !signedIn)) {
+      if (!accountsEnabled) return;
       showSignIn();
       return;
     }
@@ -222,6 +227,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   }
 
   function favorite(entry: DeckHubEntrySummary) {
+    if (!accountsEnabled) return;
     if (!signedIn) {
       showSignIn();
       return;
@@ -254,6 +260,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
         facets={facets}
         domainV2={domainV2}
         activeFilterCount={activeFilterCount}
+        favoritesEnabled={accountsEnabled}
         onChange={changeFilters}
         onClear={clearFilters}
       />
@@ -271,7 +278,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
         view={filters.view}
         group={filters.group}
         onOpen={onOpen}
-        onFavorite={favorite}
+        onFavorite={accountsEnabled ? favorite : undefined}
         onPage={setPage}
         onClear={clearFilters}
         onRetry={() => setRefreshKey((value) => value + 1)}

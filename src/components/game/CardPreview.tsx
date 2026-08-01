@@ -491,7 +491,9 @@ export function CardPreview({
       }
     : null;
 
-  const horizontalCard = isDebugCard ? false : isHorizontalGameCard(card, deckCard.layout);
+  const horizontalCard = isDebugCard
+    ? false
+    : isHorizontalGameCard(card, deckCard.layout, showBackFace ? 1 : 0);
   const fallbackCounters =
     rail?.kind === "saga" && card.counters
       ? Object.fromEntries(

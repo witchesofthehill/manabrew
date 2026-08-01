@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Application } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 
@@ -13,6 +13,7 @@ import { isCoarsePointer } from "@/lib/responsive";
 import { registerPixiApp } from "./visibility";
 import { PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
+import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface BoardOverlayCanvasProps {
   sceneRef: React.MutableRefObject<BoardScene | null>;
@@ -38,6 +39,7 @@ export function BoardOverlayCanvas({
   const arrowRef = useRef<ArrowLayer | null>(null);
   const stackRef = useRef<StackLayer | null>(null);
   const unregisterRef = useRef<(() => void) | null>(null);
+  const [hoveredStackObjectId, setHoveredStackObjectId] = useState<string | null>(null);
 
   const cbRef = useRef({ onOpenStack, onTargetSpell, onHoverStack, onToggleStack });
   useEffect(() => {
@@ -77,7 +79,10 @@ export function BoardOverlayCanvas({
         const stack = new StackLayer(getTheme(), {
           onOpen: () => cbRef.current.onOpenStack(),
           onTargetSpell: (id) => cbRef.current.onTargetSpell(id),
-          onHover: (id) => cbRef.current.onHoverStack(id),
+          onHover: (id) => {
+            setHoveredStackObjectId(id);
+            cbRef.current.onHoverStack(id);
+          },
           onToggleCollapsed: () => cbRef.current.onToggleStack(),
         });
         stackRef.current = stack;
@@ -209,6 +214,16 @@ export function BoardOverlayCanvas({
         stackRef.current?.setTheme(getTheme());
       }),
     [],
+  );
+
+  const hoveredStackCard = stackSpec.cards.find((card) => card.id === hoveredStackObjectId);
+
+  useKeybindings(
+    hoveredStackObjectId && hoveredStackCard?.card.isDoubleFaced
+      ? {
+          "flip-card": () => stackRef.current?.toggleFace(hoveredStackObjectId),
+        }
+      : {},
   );
 
   return (

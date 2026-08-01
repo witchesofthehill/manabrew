@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import forge.card.ColorSet;
+import forge.card.CardStateName;
 import forge.card.MagicColor;
 import forge.game.Game;
 import forge.game.GameEntity;
@@ -732,6 +733,9 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("controllerId", sa != null && sa.getActivatingPlayer() != null
                     ? "player-" + SnapshotExtractor.playerIndex(game, sa.getActivatingPlayer())
                     : activePlayerId);
+            stackItem.put("ownerId", source != null && source.getOwner() != null
+                    ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
+                    : "");
             final String name = source == null
                     ? item.getStackDescription()
                     : normalizeCardName(source.getName());
@@ -739,6 +743,9 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("text", item.getStackDescription());
             stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
+            stackItem.put("isDoubleFaced", source != null
+                    && (source.isDoubleFaced() || source.isModal()));
+            stackItem.put("faceIndex", stackFaceIndex(source, sa));
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
             index++;
@@ -776,12 +783,32 @@ public final class InteractiveSnapshotExtractor {
         stackItem.put("controllerId", castingAbility.getActivatingPlayer() != null
                 ? "player-" + SnapshotExtractor.playerIndex(game, castingAbility.getActivatingPlayer())
                 : activePlayerId);
+        stackItem.put("ownerId", source.getOwner() != null
+                ? "player-" + SnapshotExtractor.playerIndex(game, source.getOwner())
+                : "");
         stackItem.put("identity", stackIdentity(normalizeCardName(source.getName()), source));
         stackItem.put("text", castingAbility.getStackDescription());
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
+        stackItem.put("isDoubleFaced", source.isDoubleFaced() || source.isModal());
+        stackItem.put("faceIndex", stackFaceIndex(source, castingAbility));
         stackItem.put("targets", stackTargets(game, castingAbility));
         return stackItem;
+    }
+
+    private static int stackFaceIndex(final Card source, final SpellAbility ability) {
+        if (source == null) {
+            return 0;
+        }
+        final CardStateName abilityState = ability != null && ability.getCardState() != null
+                ? ability.getCardStateName()
+                : null;
+        return stackFaceIndex(abilityState, source.getCurrentStateName());
+    }
+
+    static int stackFaceIndex(final CardStateName abilityState, final CardStateName sourceState) {
+        final CardStateName state = abilityState != null ? abilityState : sourceState;
+        return state == CardStateName.Backside ? 1 : 0;
     }
 
     private static List<Map<String, Object>> stackTargets(final Game game, final SpellAbility ability) {

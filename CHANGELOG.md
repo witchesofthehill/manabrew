@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.3](https://github.com/witchesofthehill/manabrew/compare/v3.0.2...v3.0.3) (2026-08-01)
+
+### Fixes
+
+* **ui:** render active card faces on the stack ([#562](https://github.com/witchesofthehill/manabrew/issues/562)) ([f07a025](https://github.com/witchesofthehill/manabrew/commit/f07a02537f3c9008f06161da7fd14bcafed6afa0))
+
 ## [3.0.2](https://github.com/witchesofthehill/manabrew/compare/v3.0.1...v3.0.2) (2026-07-31)
 
 ### Fixes

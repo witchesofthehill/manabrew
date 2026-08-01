@@ -612,79 +612,84 @@ export function CreateGameDialog({
 
               <div className="mx-4 border-t" />
 
-              {hubDecks.enabled && (
-                <div className="p-4">
-                  <SectionLabel>Deck Hub</SectionLabel>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                    Community decks are downloaded when selected.
-                  </p>
-                  {hubDecks.error ? (
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-destructive">
-                      <span className="min-w-0 break-words">{hubDecks.error}</span>
-                      <Button variant="outline" size="sm" onClick={hubDecks.retry}>
-                        Retry
-                      </Button>
-                    </div>
-                  ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">Loading Deck Hub decks…</p>
-                  ) : hubDecks.decks.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">
-                      No Deck Hub decks match your search.
+              {hubDecks.enabled &&
+                (deckSearch.trim() !== "" ||
+                  hubDecks.error !== null ||
+                  hubDecks.decks.length > 0) && (
+                  <div className="p-4">
+                    <SectionLabel>Deck Hub</SectionLabel>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                      Community decks are downloaded when selected.
                     </p>
-                  ) : (
-                    <div
-                      className={cn(
-                        "grid gap-3",
-                        denseDecks
-                          ? "grid-cols-2 md:grid-cols-3"
-                          : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
-                      )}
-                    >
-                      {hubDecks.decks.map((deck) => {
-                        const loaded = loadedHubDecks[deck.id];
-                        const format = loaded
-                          ? GAME_FORMATS.find((item) => item.id === selectedFormat.id)
-                          : null;
-                        const validation =
-                          loaded && format
-                            ? validateDeckSections(
-                                {
-                                  deck: loaded.deck,
-                                  commanderName: loaded.deck.commanders?.[0]?.identity.name,
-                                },
-                                format,
-                              )
-                            : { legal: true, errors: [] as string[] };
-                        return (
-                          <DeckSelectionCard
-                            key={deck.id}
-                            name={
-                              loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name
-                            }
-                            color={deck.colors}
-                            author={deck.author}
-                            cardCount={deck.cardCount + deck.commanders.length}
-                            badge="Deck Hub"
-                            cards={[]}
-                            cover={undefined}
-                            coverImageUrl={deck.coverImageUrl}
-                            isPreset={false}
-                            isHub
-                            isSelected={selectedDeck === `hub:${deck.id}`}
-                            isLegal={validation.legal}
-                            validationError={validation.errors[0]}
-                            dense={denseDecks}
-                            isTouch={isTouch}
-                            loading={loadingHubDeckId === deck.id}
-                            onSelect={() => void selectHubDeck(deck)}
-                            onActivate={() => void selectHubDeck(deck, true)}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                    {hubDecks.error ? (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-destructive">
+                        <span className="min-w-0 break-words">{hubDecks.error}</span>
+                        <Button variant="outline" size="sm" onClick={hubDecks.retry}>
+                          Retry
+                        </Button>
+                      </div>
+                    ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        Loading Deck Hub decks…
+                      </p>
+                    ) : hubDecks.decks.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        No Deck Hub decks match your search.
+                      </p>
+                    ) : (
+                      <div
+                        className={cn(
+                          "grid gap-3",
+                          denseDecks
+                            ? "grid-cols-2 md:grid-cols-3"
+                            : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+                        )}
+                      >
+                        {hubDecks.decks.map((deck) => {
+                          const loaded = loadedHubDecks[deck.id];
+                          const format = loaded
+                            ? GAME_FORMATS.find((item) => item.id === selectedFormat.id)
+                            : null;
+                          const validation =
+                            loaded && format
+                              ? validateDeckSections(
+                                  {
+                                    deck: loaded.deck,
+                                    commanderName: loaded.deck.commanders?.[0]?.identity.name,
+                                  },
+                                  format,
+                                )
+                              : { legal: true, errors: [] as string[] };
+                          return (
+                            <DeckSelectionCard
+                              key={deck.id}
+                              name={
+                                loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name
+                              }
+                              color={deck.colors}
+                              author={deck.author}
+                              cardCount={deck.cardCount + deck.commanders.length}
+                              badge="Deck Hub"
+                              cards={[]}
+                              cover={undefined}
+                              coverImageUrl={deck.coverImageUrl}
+                              isPreset={false}
+                              isHub
+                              isSelected={selectedDeck === `hub:${deck.id}`}
+                              isLegal={validation.legal}
+                              validationError={validation.errors[0]}
+                              dense={denseDecks}
+                              isTouch={isTouch}
+                              loading={loadingHubDeckId === deck.id}
+                              onSelect={() => void selectHubDeck(deck)}
+                              onActivate={() => void selectHubDeck(deck, true)}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               <div className="mx-4 border-t" />
 

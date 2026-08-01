@@ -312,6 +312,7 @@ pub struct TopDeckBucket {
     pub key: String,
     pub label: String,
     pub scope: String,
+    pub entry_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

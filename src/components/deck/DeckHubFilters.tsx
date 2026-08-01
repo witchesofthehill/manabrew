@@ -1,10 +1,11 @@
-import { LayoutGrid, List, Search, X } from "lucide-react";
+import { Heart, LayoutGrid, List, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DeckHubFilterSheet } from "@/components/deck/DeckHubFilterSheet";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubFacets } from "@/api/hubTypes";
 import { FORMAT_DISPLAY } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_FORMATS = ["commander", "standard", "pioneer", "modern", "pauper", "brawl"];
 
@@ -14,6 +15,7 @@ interface DeckHubFiltersProps {
   domainV2: boolean;
   activeFilterCount: number;
   favoritesEnabled: boolean;
+  signedIn: boolean;
   onChange: (patch: Partial<DeckHubDiscoveryFilters>) => void;
   onClear: () => void;
 }
@@ -24,6 +26,7 @@ export function DeckHubFilters({
   domainV2,
   activeFilterCount,
   favoritesEnabled,
+  signedIn,
   onChange,
   onClear,
 }: DeckHubFiltersProps) {
@@ -64,6 +67,18 @@ export function DeckHubFilters({
         </div>
 
         <div className="flex items-center gap-2 lg:ml-auto">
+          {domainV2 && signedIn && (
+            <Button
+              type="button"
+              variant={filters.favorites ? "secondary" : "outline"}
+              className="h-10 gap-2"
+              aria-pressed={filters.favorites}
+              onClick={() => onChange({ favorites: !filters.favorites })}
+            >
+              <Heart className={cn("h-4 w-4", filters.favorites && "fill-current")} />
+              Favorites
+            </Button>
+          )}
           <select
             value={filters.sort}
             aria-label="Sort Deck Hub"
@@ -76,6 +91,23 @@ export function DeckHubFilters({
             <option value="name">Name</option>
             {domainV2 && <option value="favorites">Most favorited</option>}
           </select>
+
+          {domainV2 && (
+            <select
+              value={filters.group}
+              aria-label="Group Deck Hub results"
+              className="h-10 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
+              onChange={(event) =>
+                onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
+              }
+            >
+              <option value="none">No grouping</option>
+              <option value="source">Group by source</option>
+              <option value="format">Group by format</option>
+              <option value="color">Group by color</option>
+              <option value="tag">Group by tag</option>
+            </select>
+          )}
 
           {domainV2 && (
             <DeckHubFilterSheet
@@ -143,22 +175,6 @@ export function DeckHubFilters({
             </Button>
           ))}
         </div>
-        {domainV2 && (
-          <select
-            value={filters.group}
-            aria-label="Group Deck Hub results"
-            className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
-            onChange={(event) =>
-              onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
-            }
-          >
-            <option value="none">No grouping</option>
-            <option value="source">Group by source</option>
-            <option value="format">Group by format</option>
-            <option value="color">Group by color</option>
-            <option value="tag">Group by tag</option>
-          </select>
-        )}
         {activeFilterCount > 0 && (
           <Button variant="ghost" size="sm" className="hidden shrink-0 sm:flex" onClick={onClear}>
             Clear

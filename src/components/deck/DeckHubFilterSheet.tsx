@@ -60,6 +60,7 @@ export function DeckHubFilterSheet({
     return () => clearTimeout(timer);
   }, [commander, card, filters.commander, filters.card]);
 
+  const userTags = facets?.tags.filter((tag) => tag.key !== "official" && tag.key !== "preset");
   const toggleTag = (tag: string) =>
     onChange({
       tags: filters.tags.includes(tag)
@@ -174,7 +175,7 @@ export function DeckHubFilterSheet({
               <option value="includes">Includes these colors</option>
             </select>
           </div>
-          {facets && facets.tags.length > 0 && (
+          {userTags && userTags.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium">Tags</span>
@@ -193,7 +194,7 @@ export function DeckHubFilterSheet({
                 </select>
               </div>
               <div className="flex flex-wrap gap-2">
-                {facets.tags.map((tag) => (
+                {userTags.map((tag) => (
                   <Button
                     key={tag.key}
                     type="button"

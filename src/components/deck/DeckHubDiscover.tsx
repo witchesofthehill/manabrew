@@ -261,6 +261,7 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
         domainV2={domainV2}
         activeFilterCount={activeFilterCount}
         favoritesEnabled={accountsEnabled}
+        signedIn={signedIn}
         onChange={changeFilters}
         onClear={clearFilters}
       />

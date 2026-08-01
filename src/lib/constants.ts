@@ -62,6 +62,7 @@ export const FORMAT_DISPLAY: Record<string, string> = {
   pauper: "Pauper",
   historic: "Historic",
   brawl: "Brawl",
+  oathbreaker: "Oathbreaker",
 };
 
 export const LEGALITY_STYLES: Record<string, string> = {

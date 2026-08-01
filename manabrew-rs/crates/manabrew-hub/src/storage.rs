@@ -1642,7 +1642,12 @@ impl Storage {
 
     pub fn list_top_deck_buckets(&self) -> SqlResult<Vec<TopDeckBucket>> {
         let mut stmt = self.conn.prepare(
-            "SELECT key, label, scope FROM top_deck_buckets
+            "SELECT key, label, scope,
+                    (SELECT count(*) FROM top_deck_snapshots s
+                      WHERE s.bucket_id = b.id AND s.snapshot_date = (
+                          SELECT max(snapshot_date) FROM top_deck_snapshots
+                           WHERE bucket_id = b.id))
+             FROM top_deck_buckets b
              ORDER BY CASE key
                  WHEN 'trending' THEN 0
                  WHEN 'commander' THEN 1
@@ -1655,6 +1660,7 @@ impl Storage {
                 key: row.get(0)?,
                 label: row.get(1)?,
                 scope: row.get(2)?,
+                entry_count: row.get(3)?,
             })
         })?;
         rows.collect::<SqlResult<Vec<_>>>()
@@ -1669,7 +1675,12 @@ impl Storage {
         let bucket = self
             .conn
             .query_row(
-                "SELECT id, key, label, scope FROM top_deck_buckets WHERE key = ?1 COLLATE NOCASE",
+                "SELECT id, key, label, scope,
+                        (SELECT count(*) FROM top_deck_snapshots s
+                          WHERE s.bucket_id = b.id AND s.snapshot_date = (
+                              SELECT max(snapshot_date) FROM top_deck_snapshots
+                               WHERE bucket_id = b.id))
+                 FROM top_deck_buckets b WHERE key = ?1 COLLATE NOCASE",
                 params![bucket_key],
                 |row| {
                     Ok((
@@ -1678,6 +1689,7 @@ impl Storage {
                             key: row.get(1)?,
                             label: row.get(2)?,
                             scope: row.get(3)?,
+                            entry_count: row.get(4)?,
                         },
                     ))
                 },

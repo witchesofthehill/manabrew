@@ -102,7 +102,7 @@ export function DeckHubEntryCard({
             {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">
               <span className={cn(variant === "list" && "text-muted-foreground")}>
-                {entry.cardCount} cards · v{entry.publishedVersionNo}
+                {entry.cardCount} cards
               </span>
             </span>
           </span>
@@ -125,14 +125,16 @@ export function DeckHubEntryCard({
           onClick={onFavorite}
         >
           <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />
-          <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
+          {entry.favoriteCount > 0 && (
+            <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
+          )}
         </Button>
-      ) : (
+      ) : entry.favoriteCount > 0 ? (
         <span className="absolute right-1.5 top-1.5 z-20 flex h-8 items-center gap-1 rounded-md bg-background/90 px-2 text-xs shadow-sm backdrop-blur-sm">
           <Heart className="h-3.5 w-3.5" />
           <span className="tabular-nums">{entry.favoriteCount}</span>
         </span>
-      )}
+      ) : null}
 
       {variant === "grid" && discoveryTags.length > 0 && (
         <div

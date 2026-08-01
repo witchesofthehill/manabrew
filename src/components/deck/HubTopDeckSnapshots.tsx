@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +11,8 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_BUCKET = "official-presets";
+const PRESET_BOILERPLATE_REASON = "Official ManaBrew preset";
+const INITIAL_RANK_COUNT = 10;
 
 interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
@@ -32,9 +34,14 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const setFavorite = useHubStore((state) => state.setFavorite);
   const favoritePending = useHubStore((state) => state.favoritePending);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [showAllBucket, setShowAllBucket] = useState<string | null>(null);
+  const visibleBuckets = buckets.filter((item) => item.entryCount > 0);
   const bucket = searchParams.get("bucket") ?? DEFAULT_BUCKET;
   const activeBucket =
-    buckets.length > 0 && !buckets.some((item) => item.key === bucket) ? buckets[0].key : bucket;
+    visibleBuckets.length > 0 && !visibleBuckets.some((item) => item.key === bucket)
+      ? visibleBuckets[0].key
+      : bucket;
+  const showAll = showAllBucket === activeBucket;
 
   useEffect(() => {
     void fetchBuckets();
@@ -51,28 +58,23 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
   }
 
+  const displayedEntries = snapshot
+    ? showAll
+      ? snapshot.entries
+      : snapshot.entries.slice(0, INITIAL_RANK_COUNT)
+    : [];
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <div>
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" />
-            <h2 className="font-serif text-xl font-semibold tracking-tight sm:text-2xl">
-              Top Decks
-            </h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Curated publications with a complete, playable card snapshot behind every rank.
-          </p>
-        </div>
+      <div className="flex shrink-0 items-center border-b px-4 py-2 sm:px-6 lg:px-8">
         <div
           className={cn(
             "no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1",
-            bucketsLoaded && buckets.length === 0 && "hidden",
+            bucketsLoaded && visibleBuckets.length === 0 && "hidden",
           )}
         >
           {bucketsLoaded
-            ? buckets.map((item) => (
+            ? visibleBuckets.map((item) => (
                 <Button
                   key={item.key}
                   type="button"
@@ -120,52 +122,64 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {snapshot.entries.map((ranked) => (
-              <div key={ranked.entry.id} className="space-y-2">
-                <div className="flex items-center gap-2 px-1">
-                  <span className="font-serif text-lg font-semibold text-primary">
-                    #{ranked.rank}
-                  </span>
-                  {ranked.reason && (
-                    <span className="truncate text-xs text-muted-foreground" title={ranked.reason}>
-                      {ranked.reason}
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {displayedEntries.map((ranked) => (
+                <div key={ranked.entry.id} className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="font-serif text-lg font-semibold text-primary">
+                      #{ranked.rank}
                     </span>
-                  )}
-                </div>
-                <DeckHubEntryCard
-                  entry={ranked.entry}
-                  onOpen={() => onOpenDeck(ranked.entry.id)}
-                  favoritePending={Boolean(favoritePending[ranked.entry.id])}
-                  onFavorite={
-                    accountsEnabled
-                      ? () => {
-                          if (!signedIn) {
-                            showSignIn();
-                            return;
+                    {ranked.reason && ranked.reason !== PRESET_BOILERPLATE_REASON && (
+                      <span
+                        className="truncate text-xs text-muted-foreground"
+                        title={ranked.reason}
+                      >
+                        {ranked.reason}
+                      </span>
+                    )}
+                  </div>
+                  <DeckHubEntryCard
+                    entry={ranked.entry}
+                    onOpen={() => onOpenDeck(ranked.entry.id)}
+                    favoritePending={Boolean(favoritePending[ranked.entry.id])}
+                    onFavorite={
+                      accountsEnabled
+                        ? () => {
+                            if (!signedIn) {
+                              showSignIn();
+                              return;
+                            }
+                            void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch(
+                              (error) =>
+                                toast.error(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Failed to update favorite",
+                                ),
+                            );
                           }
-                          void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch(
-                            (error) =>
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : "Failed to update favorite",
-                              ),
-                          );
-                        }
-                      : undefined
-                  }
-                />
+                        : undefined
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            {!showAll && snapshot.entries.length > INITIAL_RANK_COUNT && (
+              <div className="mt-4 flex justify-center">
+                <Button variant="outline" size="sm" onClick={() => setShowAllBucket(activeBucket)}>
+                  Show all {snapshot.entries.length} ranked decks
+                </Button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
         {snapshot?.snapshotDate
           ? `Snapshot dated ${snapshot.snapshotDate}. Rankings do not mutate the underlying decks.`
-          : " "}
+          : " "}
       </p>
     </div>
   );

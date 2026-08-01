@@ -265,14 +265,16 @@ export function HubDeckPreviewDialog({
                 <span aria-hidden="true">·</span>
                 <span>
                   {entryDetail
-                    ? `Published version ${entryDetail.publishedVersionNo}`
+                    ? `${entryDetail.presetKey ? "Official preset · " : ""}Published version ${entryDetail.publishedVersionNo}`
                     : "Public snapshot"}
                 </span>
-                {entryDetail?.tags.map((tag) => (
-                  <span key={tag.id} className="rounded-full border px-2 py-0.5">
-                    {tag.name}
-                  </span>
-                ))}
+                {entryDetail?.tags
+                  .filter((tag) => tag.slug !== "official" && tag.slug !== "preset")
+                  .map((tag) => (
+                    <span key={tag.id} className="rounded-full border px-2 py-0.5">
+                      {tag.name}
+                    </span>
+                  ))}
               </div>
             )}
           </DialogHeader>
@@ -339,7 +341,7 @@ export function HubDeckPreviewDialog({
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" disabled={!detail} className="col-span-2">
+                    <Button size="sm" disabled={!detail} className="col-span-2">
                       Play
                       <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
@@ -367,9 +369,7 @@ export function HubDeckPreviewDialog({
                     ? "Open My Copy"
                     : mine
                       ? "Open in Deck Editor"
-                      : entryDetail?.presetKey && signedIn
-                        ? "Add to My Decks"
-                        : "Save editable copy"}
+                      : "Save to My Decks"}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

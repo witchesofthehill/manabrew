@@ -173,6 +173,7 @@ export function PublishDeckDialog({
   }
 
   function handleOpenChange(open: boolean) {
+    if (busy) return;
     if (!open) setConfirmingUnpublish(false);
     onOpenChange(open);
   }

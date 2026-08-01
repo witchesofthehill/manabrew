@@ -21,6 +21,7 @@ interface DeckVersionHistoryDialogProps {
   onOpenChange: (open: boolean) => void;
   deckId: string;
   currentVersionNo: number;
+  hasUnsavedChanges?: boolean;
   onRestore: (deck: EditorDeck, versionNo: number) => void;
 }
 
@@ -29,16 +30,19 @@ export function DeckVersionHistoryDialog({
   onOpenChange,
   deckId,
   currentVersionNo,
+  hasUnsavedChanges = false,
   onRestore,
 }: DeckVersionHistoryDialogProps) {
   const versions = useAccountDecksStore((state) => state.versions[deckId] ?? EMPTY_VERSIONS);
   const loadVersions = useAccountDecksStore((state) => state.loadVersions);
   const [loadingVersion, setLoadingVersion] = useState<number | null>(null);
+  const [confirmingVersion, setConfirmingVersion] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoadError(null);
+    setConfirmingVersion(null);
     void loadVersions(deckId).catch((error) => {
       setLoadError(error instanceof Error ? error.message : "Failed to load version history");
     });
@@ -54,7 +58,16 @@ export function DeckVersionHistoryDialog({
       toast.error(error instanceof Error ? error.message : "Failed to load this deck version");
     } finally {
       setLoadingVersion(null);
+      setConfirmingVersion(null);
     }
+  }
+
+  function requestRestore(versionNo: number) {
+    if (hasUnsavedChanges && confirmingVersion !== versionNo) {
+      setConfirmingVersion(versionNo);
+      return;
+    }
+    void restore(versionNo);
   }
 
   return (
@@ -109,16 +122,37 @@ export function DeckVersionHistoryDialog({
                     {version.published ? " · Published" : ""}
                   </p>
                 </div>
-                {version.versionNo !== currentVersionNo && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={loadingVersion !== null}
-                    onClick={() => void restore(version.versionNo)}
-                  >
-                    {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
-                  </Button>
-                )}
+                {version.versionNo !== currentVersionNo &&
+                  (confirmingVersion === version.versionNo ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      <span className="text-xs text-destructive">Replace unsaved changes?</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={loadingVersion !== null}
+                        onClick={() => setConfirmingVersion(null)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={loadingVersion !== null}
+                        onClick={() => void restore(version.versionNo)}
+                      >
+                        {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingVersion !== null}
+                      onClick={() => requestRestore(version.versionNo)}
+                    >
+                      {loadingVersion === version.versionNo ? "Loading…" : "Restore"}
+                    </Button>
+                  ))}
               </div>
             ))
           )}

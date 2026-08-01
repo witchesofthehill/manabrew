@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,9 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
+import { cn } from "@/lib/utils";
+
+const DEFAULT_BUCKET = "official-presets";
 
 interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
@@ -20,12 +24,15 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const signedIn = viewerAccountId !== null;
   const showSignIn = useSignInDialog((state) => state.show);
   const buckets = useHubStore((state) => state.topBuckets);
+  const bucketsLoaded = useHubStore((state) => state.topBucketsLoaded);
   const snapshot = useHubStore((state) => state.topSnapshot);
   const error = useHubStore((state) => state.topSnapshotError);
   const fetchBuckets = useHubStore((state) => state.fetchTopBuckets);
   const fetchSnapshot = useHubStore((state) => state.fetchTopSnapshot);
   const setFavorite = useHubStore((state) => state.setFavorite);
-  const [bucket, setBucket] = useState("official-presets");
+  const favoritePending = useHubStore((state) => state.favoritePending);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const bucket = searchParams.get("bucket") ?? DEFAULT_BUCKET;
   const activeBucket =
     buckets.length > 0 && !buckets.some((item) => item.key === bucket) ? buckets[0].key : bucket;
 
@@ -34,8 +41,15 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   }, [fetchBuckets]);
 
   useEffect(() => {
-    void fetchSnapshot(activeBucket);
-  }, [activeBucket, fetchSnapshot, viewerAccountId]);
+    if (bucketsLoaded) void fetchSnapshot(activeBucket);
+  }, [bucketsLoaded, activeBucket, fetchSnapshot, viewerAccountId]);
+
+  function selectBucket(key: string) {
+    const next = new URLSearchParams(searchParams);
+    if (key === DEFAULT_BUCKET) next.delete("bucket");
+    else next.set("bucket", key);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -51,23 +65,29 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             Curated publications with a complete, playable card snapshot behind every rank.
           </p>
         </div>
-        <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1">
-          {(buckets.length > 0
-            ? buckets
-            : [{ key: "trending", label: "Trending", scope: "all" }]
-          ).map((item) => (
-            <Button
-              key={item.key}
-              type="button"
-              variant={activeBucket === item.key ? "secondary" : "ghost"}
-              size="sm"
-              className="shrink-0"
-              aria-pressed={activeBucket === item.key}
-              onClick={() => setBucket(item.key)}
-            >
-              {item.label}
-            </Button>
-          ))}
+        <div
+          className={cn(
+            "no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-1",
+            bucketsLoaded && buckets.length === 0 && "hidden",
+          )}
+        >
+          {bucketsLoaded
+            ? buckets.map((item) => (
+                <Button
+                  key={item.key}
+                  type="button"
+                  variant={activeBucket === item.key ? "secondary" : "ghost"}
+                  size="sm"
+                  className="shrink-0"
+                  aria-pressed={activeBucket === item.key}
+                  onClick={() => selectBucket(item.key)}
+                >
+                  {item.label}
+                </Button>
+              ))
+            : Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="h-8 w-24 shrink-0 animate-pulse rounded-md bg-muted" />
+              ))}
         </div>
       </div>
 
@@ -108,12 +128,15 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                     #{ranked.rank}
                   </span>
                   {ranked.reason && (
-                    <span className="truncate text-xs text-muted-foreground">{ranked.reason}</span>
+                    <span className="truncate text-xs text-muted-foreground" title={ranked.reason}>
+                      {ranked.reason}
+                    </span>
                   )}
                 </div>
                 <DeckHubEntryCard
                   entry={ranked.entry}
                   onOpen={() => onOpenDeck(ranked.entry.id)}
+                  favoritePending={Boolean(favoritePending[ranked.entry.id])}
                   onFavorite={
                     accountsEnabled
                       ? () => {
@@ -139,11 +162,11 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         )}
       </div>
 
-      {snapshot?.snapshotDate && (
-        <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
-          Snapshot dated {snapshot.snapshotDate}. Rankings do not mutate the underlying decks.
-        </p>
-      )}
+      <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
+        {snapshot?.snapshotDate
+          ? `Snapshot dated ${snapshot.snapshotDate}. Rankings do not mutate the underlying decks.`
+          : " "}
+      </p>
     </div>
   );
 }

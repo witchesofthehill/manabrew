@@ -54,14 +54,17 @@ interface HubState {
   tags: DeckHubTag[];
   facets: DeckHubFacets | null;
   topBuckets: TopDeckBucket[];
+  topBucketsLoaded: boolean;
   topSnapshot: TopDeckSnapshot | null;
   topSnapshotError: string | null;
+  favoritePending: Record<string, true>;
   fetchDecks: (params: HubListParams) => Promise<void>;
   fetchMyDecks: (accountId: string, force?: boolean) => Promise<void>;
   clearMyDecks: () => void;
   fetchMyEntries: (accountId: string, force?: boolean) => Promise<void>;
   clearMyEntries: () => void;
   loadDeck: (id: string) => Promise<HubDeckDetail>;
+  loadPlayableDeck: (ref: string) => Promise<HubDeckDetail>;
   removeDeck: (id: string) => void;
   loadCapabilities: () => Promise<HubCapabilities | null>;
   fetchEntries: (params: DeckHubEntryListParams) => Promise<void>;
@@ -148,8 +151,10 @@ export const useHubStore = create<HubState>((set, get) => ({
   tags: [],
   facets: null,
   topBuckets: [],
+  topBucketsLoaded: false,
   topSnapshot: null,
   topSnapshotError: null,
+  favoritePending: {},
   fetchDecks: async (params) => {
     const requestId = ++listRequestId;
     set({ list: null, listLoading: true, listError: null });
@@ -282,6 +287,27 @@ export const useHubStore = create<HubState>((set, get) => ({
     detailRequests.set(id, request);
     return request;
   },
+  loadPlayableDeck: async (ref) => {
+    const capabilities = get().capabilitiesLoaded
+      ? get().capabilities
+      : await get().loadCapabilities();
+    if (capabilities?.domainVersion !== 2) return get().loadDeck(ref);
+    const entry = await get().loadEntry(ref);
+    return {
+      id: entry.id,
+      name: entry.title,
+      author: entry.author,
+      description: entry.summary,
+      format: entry.format,
+      commanders: entry.commanders,
+      colors: entry.colors,
+      cardCount: entry.cardCount,
+      coverCardName: entry.coverCardName,
+      coverImageUrl: entry.coverImageUrl,
+      createdAt: entry.publishedAt,
+      deck: entry.deck,
+    };
+  },
   removeDeck: (id) =>
     set((state) => {
       const details = { ...state.details };
@@ -407,9 +433,9 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
   fetchTopBuckets: async () => {
     try {
-      set({ topBuckets: await fetchTopDeckBuckets() });
+      set({ topBuckets: await fetchTopDeckBuckets(), topBucketsLoaded: true });
     } catch {
-      set({ topBuckets: [] });
+      set({ topBuckets: [], topBucketsLoaded: true });
     }
   },
   fetchTopSnapshot: async (bucket) => {
@@ -427,25 +453,35 @@ export const useHubStore = create<HubState>((set, get) => ({
     }
   },
   setFavorite: async (id, favorite) => {
-    const viewerAccountId = useAuthStore.getState().account?.id ?? null;
-    const viewerPrefix = `${viewerAccountId ?? "anonymous"}:`;
-    const response = await setDeckHubFavorite(id, favorite);
-    const viewerMatches = (useAuthStore.getState().account?.id ?? null) === viewerAccountId;
-    const update = (entry: DeckHubEntrySummary) => ({
-      ...entry,
-      favoriteCount: response.favoriteCount,
-      favorited: viewerMatches ? response.favorited : entry.favorited,
-    });
-    set((state) => ({
-      entries: mapEntryList(state.entries, id, update),
-      myEntries: mapEntryList(state.myEntries, id, update),
-      entryDetails: mapEntryDetails(state.entryDetails, id, (key, entry) => ({
+    if (get().favoritePending[id]) return;
+    set((state) => ({ favoritePending: { ...state.favoritePending, [id]: true } }));
+    try {
+      const viewerAccountId = useAuthStore.getState().account?.id ?? null;
+      const viewerPrefix = `${viewerAccountId ?? "anonymous"}:`;
+      const response = await setDeckHubFavorite(id, favorite);
+      const viewerMatches = (useAuthStore.getState().account?.id ?? null) === viewerAccountId;
+      const update = (entry: DeckHubEntrySummary) => ({
         ...entry,
         favoriteCount: response.favoriteCount,
-        favorited: key.startsWith(viewerPrefix) ? response.favorited : entry.favorited,
-      })),
-      topSnapshot: mapTopSnapshot(state.topSnapshot, id, update),
-    }));
+        favorited: viewerMatches ? response.favorited : entry.favorited,
+      });
+      set((state) => ({
+        entries: mapEntryList(state.entries, id, update),
+        myEntries: mapEntryList(state.myEntries, id, update),
+        entryDetails: mapEntryDetails(state.entryDetails, id, (key, entry) => ({
+          ...entry,
+          favoriteCount: response.favoriteCount,
+          favorited: key.startsWith(viewerPrefix) ? response.favorited : entry.favorited,
+        })),
+        topSnapshot: mapTopSnapshot(state.topSnapshot, id, update),
+      }));
+    } finally {
+      set((state) => {
+        const favoritePending = { ...state.favoritePending };
+        delete favoritePending[id];
+        return { favoritePending };
+      });
+    }
   },
   updateEntry: async (id, request) => {
     const updated = await updateDeckHubEntry(id, request);

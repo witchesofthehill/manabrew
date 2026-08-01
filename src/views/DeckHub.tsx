@@ -101,7 +101,7 @@ export default function DeckHub() {
         </div>
       ) : !capabilitiesLoaded ? (
         <div className="grid min-h-0 flex-1 place-items-center text-sm text-muted-foreground">
-          Loading DeckHub…
+          Loading the Deck Hub…
         </div>
       ) : tab === "discover" ? (
         <DeckHubDiscover domainV2={domainV2} onOpen={openPreview} />
@@ -113,7 +113,7 @@ export default function DeckHub() {
             <Trophy className="mx-auto h-9 w-9 text-muted-foreground/50" />
             <p className="mt-3 font-medium">Top Decks are temporarily unavailable</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Rankings only appear when they contain published DeckHub entries with viewable card
+              Rankings only appear when they contain published Deck Hub entries with viewable card
               snapshots.
             </p>
             <Button

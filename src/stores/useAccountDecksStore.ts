@@ -37,6 +37,8 @@ interface AccountDecksState {
 
 let refreshRequestId = 0;
 let refreshRequest: Promise<void> | null = null;
+let refreshDirty = false;
+let deckRemovalId = 0;
 const detailRequests = new Map<string, Promise<AccountDeckDetail>>();
 const versionRequests = new Map<string, Promise<DeckVersionSummary[]>>();
 const presetForkRequests = new Map<string, Promise<AccountDeckDetail>>();
@@ -130,6 +132,10 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     refreshRequest = request;
     await request;
     if (refreshRequest === request) refreshRequest = null;
+    if (refreshDirty) {
+      refreshDirty = false;
+      return get().refresh();
+    }
   },
   load: async (id) => {
     const accountId = requireAccountId();
@@ -153,6 +159,7 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
   },
   create: async (deck, notes) => {
     const accountId = requireAccountId();
+    if (refreshRequest) refreshDirty = true;
     refreshRequestId += 1;
     refreshRequest = null;
     set({ loading: false });
@@ -167,12 +174,14 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     const requestKey = `${accountId}:${presetKey.toLowerCase()}`;
     const pending = presetForkRequests.get(requestKey);
     if (pending) return pending;
+    if (refreshRequest) refreshDirty = true;
     refreshRequestId += 1;
     refreshRequest = null;
     set({ loading: false });
+    const removalId = deckRemovalId;
     const request = forkPresetDeck(presetKey)
       .then((detail) => {
-        if (isCurrentAccount(accountId)) {
+        if (removalId === deckRemovalId && isCurrentAccount(accountId)) {
           set((state) => cacheDetail(state, accountId, detail));
         }
         return detail;
@@ -187,6 +196,7 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
   },
   save: async (id, versionNo, deck, notes) => {
     const accountId = requireAccountId();
+    if (refreshRequest) refreshDirty = true;
     refreshRequestId += 1;
     refreshRequest = null;
     detailRequests.delete(id);
@@ -200,8 +210,10 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
   },
   remove: async (id) => {
     const accountId = requireAccountId();
+    if (refreshRequest) refreshDirty = true;
     refreshRequestId += 1;
     refreshRequest = null;
+    deckRemovalId += 1;
     detailRequests.delete(id);
     versionRequests.delete(id);
     set({ loading: false });

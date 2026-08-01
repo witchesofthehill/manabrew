@@ -147,7 +147,7 @@ export function DeckHubFilters({
           <select
             value={filters.group}
             aria-label="Group Deck Hub results"
-            className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-9 shrink-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
             onChange={(event) =>
               onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
             }

@@ -701,13 +701,14 @@ export const useDeckStore = create<DeckState>()(
         linkSavedDeckToAccount: (localDeckId, accountDeckId, versionNo, deck) =>
           set((state) => {
             const id = `account:${accountDeckId}`;
+            const editingLinkedDeck = localDeckId !== null && state.currentDeckId === localDeckId;
             const localDeck =
               state.savedDecks.find((saved) => saved.id === localDeckId)?.deck ??
-              (state.currentDeckId === localDeckId ? state.currentDeck : undefined);
+              (editingLinkedDeck ? state.currentDeck : undefined);
             const normalized = mergeLocalEditorState(normalizeDeck(migrateDeck(deck)), localDeck);
             return {
-              currentDeck: state.currentDeckId === localDeckId ? normalized : state.currentDeck,
-              currentDeckId: state.currentDeckId === localDeckId ? id : state.currentDeckId,
+              currentDeck: editingLinkedDeck ? normalized : state.currentDeck,
+              currentDeckId: editingLinkedDeck ? id : state.currentDeckId,
               savedDecks: [
                 ...state.savedDecks.filter(
                   (saved) =>

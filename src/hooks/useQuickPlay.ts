@@ -122,7 +122,7 @@ export function useQuickPlay() {
           resolveOfflineEngine(),
         );
       if (!started) return;
-      savePresetToAccountOnUse(presetId);
+      savePresetToAccountOnUse(preset.id);
       const prefs = usePreferencesStore.getState();
       prefs.setLastOfflineFormatId(formatId);
       prefs.setLastAiOpponent(

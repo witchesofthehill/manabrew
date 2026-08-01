@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import type { DeckHubGroup, DeckHubView } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary, HubDeckSummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
+import { useHubStore } from "@/stores/useHubStore";
 import { cn } from "@/lib/utils";
 
 interface DeckHubResultsProps {
@@ -61,9 +63,15 @@ export function DeckHubResults({
     groups.set(label, [...(groups.get(label) ?? []), entry]);
   }
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const favoritePending = useHubStore((state) => state.favoritePending);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [page]);
+
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="p-4 sm:px-6 lg:px-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
@@ -75,7 +83,7 @@ export function DeckHubResults({
           </div>
           {error ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm font-medium">DeckHub could not be loaded</p>
+              <p className="text-sm font-medium">The Deck Hub could not be loaded</p>
               <p className="mt-1 text-xs text-muted-foreground">{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
                 Retry
@@ -86,6 +94,18 @@ export function DeckHubResults({
               {Array.from({ length: 10 }, (_, index) => (
                 <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
               ))}
+            </div>
+          ) : entries.length === 0 && legacyDecks.length === 0 && total > 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Layers className="h-9 w-9 text-muted-foreground/50" />
+              <p className="mt-3 text-lg font-semibold">This page is out of range</p>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Page {page} is beyond the {totalPages} available{" "}
+                {totalPages === 1 ? "page" : "pages"}.
+              </p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => onPage(1)}>
+                Back to page 1
+              </Button>
             </div>
           ) : entries.length === 0 && legacyDecks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -132,6 +152,7 @@ export function DeckHubResults({
                         variant={view}
                         onOpen={() => onOpen(entry.id)}
                         onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
+                        favoritePending={Boolean(favoritePending[entry.id])}
                       />
                     ))}
                   </div>

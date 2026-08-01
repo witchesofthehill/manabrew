@@ -122,7 +122,7 @@ export function EditDeckHubEntryDialog({
               value={summary}
               maxLength={500}
               rows={4}
-              className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:text-base"
               onChange={(event) => setSummary(event.target.value)}
             />
             <p className="text-right text-xs text-muted-foreground">{summary.length}/500</p>
@@ -149,7 +149,7 @@ export function EditDeckHubEntryDialog({
             <select
               id="deckhub-entry-cover"
               value={coverCardName}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm pointer-coarse:text-base"
               onChange={(event) => setCoverCardName(event.target.value)}
             >
               <option value="">Automatic cover</option>

@@ -10,6 +10,7 @@ interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
   onOpen: () => void;
   onFavorite?: () => void;
+  favoritePending?: boolean;
   variant?: "grid" | "list";
 }
 
@@ -17,6 +18,7 @@ export function DeckHubEntryCard({
   entry,
   onOpen,
   onFavorite,
+  favoritePending = false,
   variant = "grid",
 }: DeckHubEntryCardProps) {
   const colorCost = entry.colors
@@ -52,7 +54,12 @@ export function DeckHubEntryCard({
             )}
           />
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center">
+          <span
+            className={cn(
+              "absolute inset-y-0 left-0 flex items-center justify-center",
+              variant === "grid" ? "inset-x-0" : "w-32 sm:w-48",
+            )}
+          >
             <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
           </span>
         )}
@@ -113,6 +120,8 @@ export function DeckHubEntryCard({
           className="absolute right-1.5 top-1.5 z-20 h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
           aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
           aria-pressed={entry.favorited}
+          aria-busy={favoritePending}
+          disabled={favoritePending}
           onClick={onFavorite}
         >
           <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />

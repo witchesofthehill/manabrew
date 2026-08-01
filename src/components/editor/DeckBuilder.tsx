@@ -283,6 +283,7 @@ export function DeckBuilder({
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -824,12 +825,14 @@ export function DeckBuilder({
   }
 
   async function handleSave() {
+    if (saveInFlightRef.current) return;
     const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
     saveCurrentDeck();
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
     if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
+      saveInFlightRef.current = true;
       try {
         const detail = await useAccountDecksStore
           .getState()
@@ -842,6 +845,8 @@ export function DeckBuilder({
             ? `${error.message} Your local copy is still saved.`
             : "Account save failed. Your local copy is still saved.",
         );
+      } finally {
+        saveInFlightRef.current = false;
       }
     } else {
       showAccountSaveNudge();
@@ -1467,6 +1472,7 @@ export function DeckBuilder({
               onOpenChange={setHistoryOpen}
               deckId={accountSavedDeck.accountDeckId}
               currentVersionNo={accountSavedDeck.accountVersionNo}
+              hasUnsavedChanges={hasUnsavedChanges}
               onRestore={(deck, versionNo) => {
                 useDeckStore.getState().loadDeck(deck);
                 toast.info(`Version ${versionNo} loaded. Save to create a new version.`);

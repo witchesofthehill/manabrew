@@ -114,7 +114,7 @@ export function DeckVsSelector({
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
-  const loadHubDeck = useHubStore((state) => state.loadDeck);
+  const loadHubDeck = useHubStore((state) => state.loadPlayableDeck);
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
   const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);

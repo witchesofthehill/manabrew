@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Heart, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +14,10 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubFacets } from "@/api/hubTypes";
+import { MANA_LETTERS } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 
-const COLORS = ["W", "U", "B", "R", "G", "C"];
+const FILTER_DEBOUNCE_MS = 300;
 
 interface DeckHubFilterSheetProps {
   filters: DeckHubDiscoveryFilters;
@@ -34,6 +36,30 @@ export function DeckHubFilterSheet({
   onChange,
   onClear,
 }: DeckHubFilterSheetProps) {
+  const [commander, setCommander] = useState(filters.commander);
+  const [card, setCard] = useState(filters.card);
+  const [synced, setSynced] = useState({ commander: filters.commander, card: filters.card });
+  const onChangeRef = useRef(onChange);
+
+  if (synced.commander !== filters.commander || synced.card !== filters.card) {
+    setSynced({ commander: filters.commander, card: filters.card });
+    setCommander(filters.commander);
+    setCard(filters.card);
+  }
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    const patch: Partial<DeckHubDiscoveryFilters> = {};
+    if (commander !== filters.commander) patch.commander = commander;
+    if (card !== filters.card) patch.card = card;
+    if (Object.keys(patch).length === 0) return;
+    const timer = setTimeout(() => onChangeRef.current(patch), FILTER_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [commander, card, filters.commander, filters.card]);
+
   const toggleTag = (tag: string) =>
     onChange({
       tags: filters.tags.includes(tag)
@@ -48,7 +74,7 @@ export function DeckHubFilterSheet({
     const selected = filters.colors.replace("C", "").split("").filter(Boolean);
     const next = selected.includes(color)
       ? selected.filter((item) => item !== color)
-      : COLORS.filter((item) => item !== "C" && [...selected, color].includes(item));
+      : MANA_LETTERS.filter((item) => item !== "C" && [...selected, color].includes(item));
     onChange({ colors: next.join("") });
   };
 
@@ -67,7 +93,7 @@ export function DeckHubFilterSheet({
       </SheetTrigger>
       <SheetContent className="flex w-full flex-col sm:max-w-md">
         <SheetHeader className="pr-8">
-          <SheetTitle>Refine DeckHub</SheetTitle>
+          <SheetTitle>Refine the Deck Hub</SheetTitle>
           <SheetDescription>
             Combine filters to find a published deck and inspect its exact card snapshot.
           </SheetDescription>
@@ -102,9 +128,9 @@ export function DeckHubFilterSheet({
             </label>
             <Input
               id="deckhub-commander"
-              value={filters.commander}
+              value={commander}
               placeholder="Atraxa, Muldrotha…"
-              onChange={(event) => onChange({ commander: event.target.value })}
+              onChange={(event) => setCommander(event.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -113,15 +139,15 @@ export function DeckHubFilterSheet({
             </label>
             <Input
               id="deckhub-card"
-              value={filters.card}
+              value={card}
               placeholder="Sol Ring, Lightning Bolt…"
-              onChange={(event) => onChange({ card: event.target.value })}
+              onChange={(event) => setCard(event.target.value)}
             />
           </div>
           <div className="space-y-2">
             <span className="text-sm font-medium">Color identity</span>
             <div className="flex flex-wrap gap-2">
-              {COLORS.map((color) => (
+              {MANA_LETTERS.map((color) => (
                 <Button
                   key={color}
                   type="button"
@@ -137,7 +163,7 @@ export function DeckHubFilterSheet({
             <select
               value={filters.colorMatch}
               aria-label="Color identity match"
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
               onChange={(event) =>
                 onChange({
                   colorMatch: event.target.value as DeckHubDiscoveryFilters["colorMatch"],
@@ -155,7 +181,7 @@ export function DeckHubFilterSheet({
                 <select
                   value={filters.tagMatch}
                   aria-label="Tag match"
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs pointer-coarse:text-base"
                   onChange={(event) =>
                     onChange({
                       tagMatch: event.target.value as DeckHubDiscoveryFilters["tagMatch"],

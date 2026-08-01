@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -165,6 +166,8 @@ export default function DeckEditor() {
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;
   const [showBackConfirm, setShowBackConfirm] = useState(false);
+  const [deletingAccountDeck, setDeletingAccountDeck] = useState<SavedDeck | null>(null);
+  const [deletingAccountBusy, setDeletingAccountBusy] = useState(false);
 
   const [search, setSearch] = useState("");
   const [formatFilter, setFormatFilter] = useState("");
@@ -188,7 +191,7 @@ export default function DeckEditor() {
   }, []);
 
   const restoredParamRef = useRef<string | null>(null);
-  /* eslint-disable react-hooks/set-state-in-effect */
+
   useEffect(() => {
     const deckParam = searchParams.get("deck");
     if (!deckParam) {
@@ -243,7 +246,6 @@ export default function DeckEditor() {
     setSearchParams,
     routeState,
   ]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function toggleColor(color: string) {
     setColorFilter((prev) =>
@@ -298,14 +300,19 @@ export default function DeckEditor() {
     navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`);
   }
 
-  async function handleDeleteAccountDeck(saved: SavedDeck) {
-    if (!saved.accountDeckId) return;
+  async function confirmDeleteAccountDeck() {
+    const saved = deletingAccountDeck;
+    if (!saved?.accountDeckId || deletingAccountBusy) return;
+    setDeletingAccountBusy(true);
     try {
       await useAccountDecksStore.getState().remove(saved.accountDeckId);
       deleteSavedDeck(saved.id);
       toast.success(`"${saved.deck.name}" removed from your account`);
+      setDeletingAccountDeck(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to remove account deck");
+    } finally {
+      setDeletingAccountBusy(false);
     }
   }
 
@@ -545,7 +552,7 @@ export default function DeckEditor() {
                             deck={saved}
                             onOpen={() => handleSelectAccountDeck(saved)}
                             onPlaytest={() => quickPlaytest(saved.deck)}
-                            onDelete={() => void handleDeleteAccountDeck(saved)}
+                            onDelete={() => setDeletingAccountDeck(saved)}
                             onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
                             onViewInHub={
                               hubEnabled && presetKey ? () => viewPresetInHub(presetKey) : undefined
@@ -817,6 +824,41 @@ export default function DeckEditor() {
               </Button>
               <Button size="sm" onClick={confirmRename} disabled={!renameInput.trim()}>
                 Rename
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={deletingAccountDeck !== null}
+          onOpenChange={(open) => {
+            if (!open && !deletingAccountBusy) setDeletingAccountDeck(null);
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Remove account deck</DialogTitle>
+              <DialogDescription>
+                “{deletingAccountDeck?.deck.name}” and all its versions will be permanently removed
+                from your account on every device. Publications of it on the Deck Hub stay online.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={deletingAccountBusy}
+                onClick={() => setDeletingAccountDeck(null)}
+              >
+                Keep deck
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deletingAccountBusy}
+                onClick={() => void confirmDeleteAccountDeck()}
+              >
+                {deletingAccountBusy ? "Removing…" : "Remove deck"}
               </Button>
             </DialogFooter>
           </DialogContent>

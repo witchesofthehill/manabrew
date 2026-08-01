@@ -1291,13 +1291,16 @@ impl Storage {
                 |row| {
                     let entry = map_deckhub_entry_summary(row)?;
                     let snapshot_json: String = row.get(14)?;
-                    let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+                    let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
                             14,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
                     })?;
+                    deck.playmat = None;
+                    deck.playmat_settings = None;
+                    deck.stack_positions = None;
                     Ok(DeckHubEntryDetail { entry, deck })
                 },
             )
@@ -1332,6 +1335,12 @@ impl Storage {
             return Ok(None);
         };
         let deck: Deck = serde_json::from_str(&snapshot_json)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+        let mut public_deck = deck.clone();
+        public_deck.playmat = None;
+        public_deck.playmat_settings = None;
+        public_deck.stack_positions = None;
+        let public_snapshot_json = serde_json::to_string(&public_deck)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
         let id = uuid::Uuid::new_v4().to_string();
         let tx = self.conn.unchecked_transaction()?;
@@ -1377,7 +1386,7 @@ impl Storage {
                 legacy.card_count,
                 legacy.cover_card_name,
                 legacy.cover_image_url,
-                snapshot_json,
+                public_snapshot_json,
                 sha256_hex(uuid::Uuid::new_v4().as_bytes()),
                 entry.publish_ip,
                 entry.created_at,

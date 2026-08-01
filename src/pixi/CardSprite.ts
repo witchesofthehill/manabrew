@@ -609,7 +609,8 @@ export class CardSprite extends Container {
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
   // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
-    return isHorizontalGameCard(this.card, this.deckCard().layout);
+    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
+    return isHorizontalGameCard(this.card, this.deckCard().layout, faceIndex);
   }
 
   get horizontalFrame(): boolean {

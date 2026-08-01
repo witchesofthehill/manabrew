@@ -9,7 +9,6 @@ import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
-import { isHorizontalCard } from "@/lib/cardLayout";
 import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
@@ -17,6 +16,8 @@ import { useGameStore } from "@/stores/useGameStore";
 import { deriveCardRailState } from "@/components/game/cardRailState";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { useCardFaces } from "@/hooks/useCardFaces";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 
 const TOKEN_LABELS: Record<string, string> = {
   "Blood Token": "BLOOD",
@@ -60,15 +61,23 @@ function CardComponent({
   style,
   isTapped,
   onClick,
+  showBackFace = card.isTransformed,
   bare,
   resolution = "border_crop",
 }: CardProps) {
   const [hasError, setHasError] = useState(false);
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const deckCard = asDeckCard(deck, card);
+  const cardFaces = useCardFaces({
+    name: card.identity.name,
+    setCode: card.identity.setCode || undefined,
+    cardNumber: card.identity.cardNumber || undefined,
+  });
+  const faceIndex = showBackFace ? 1 : 0;
+  const faceImageUrl = cardFaces.faces[faceIndex]?.imageUris?.[resolution];
 
   const faceless = isFacelessCard(card);
-  const imageUrl = faceless ? CARD_BACK_IMAGE_URL : deckCard.uris[resolution];
+  const imageUrl = faceless ? CARD_BACK_IMAGE_URL : (faceImageUrl ?? deckCard.uris[resolution]);
   const displayName = faceless ? "Face-down card" : card.identity.name;
   const themeColors = useTheme().gameTheme;
 
@@ -106,10 +115,7 @@ function CardComponent({
     };
   }, [lethal, card.basePower, card.power, card.toughness, card.baseToughness, themeColors]);
 
-  const horizontal = isHorizontalCard({
-    layout: deckCard.layout,
-    types: card.types,
-  });
+  const horizontal = isHorizontalGameCard(card, deckCard.layout, faceIndex);
 
   return (
     <div

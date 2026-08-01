@@ -308,6 +308,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public void declareAttackers(final Player attacker, final Combat combat) {
         combat.clearAttackers();
+        if (passUntilPhase != null
+                && !PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)
+                && CombatUtil.validateAttackers(combat)) {
+            return;
+        }
         final List<Card> legalAttackers = ChoiceSpace.sortNative(
                 CombatChoiceSpace.legalAttackers(attacker, combat), ParityOrder.cardComparator());
         final List<Pair<Card, GameEntity>> assignments = session.awaitAttackAssignments(

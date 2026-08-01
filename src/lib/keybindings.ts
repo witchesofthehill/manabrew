@@ -100,22 +100,34 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: " " },
   },
   {
+    id: "pass-end-of-turn",
+    label: "Pass until end of turn",
+    category: "Battlefield",
+    defaultCombo: { key: " ", shift: true },
+  },
+  {
     id: "toggle-stack",
     label: "Collapse / expand the stack",
     category: "Battlefield",
     defaultCombo: { key: "s", mod: true },
   },
   {
+    id: "toggle-priority-mode",
+    label: "Toggle autopass / full control",
+    category: "Battlefield",
+    defaultCombo: { key: "tab" },
+  },
+  {
     id: "focus-next-field",
     label: "Focus next opponent field",
     category: "Battlefield",
-    defaultCombo: { key: "tab" },
+    defaultCombo: { key: "]" },
   },
   {
     id: "focus-prev-field",
     label: "Focus previous opponent field",
     category: "Battlefield",
-    defaultCombo: { key: "tab", shift: true },
+    defaultCombo: { key: "[" },
   },
   {
     id: "open-dev-panel",
@@ -180,6 +192,24 @@ function keyLabel(key: string): string {
   if (KEY_LABELS[key]) return KEY_LABELS[key];
   if (key.length === 1) return key.toUpperCase();
   return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+const KEY_SYMBOLS: Record<string, string> = {
+  " ": "␣",
+  enter: "↵",
+  tab: "⇥",
+  escape: "⎋",
+};
+
+export function comboSymbols(combo: KeyCombo): string {
+  const c = normalizeCombo(combo);
+  const parts: string[] = [];
+  if (c.ctrl) parts.push("⌃");
+  if (c.alt) parts.push("⌥");
+  if (c.shift) parts.push("⇧");
+  if (c.meta) parts.push("⌘");
+  parts.push(KEY_SYMBOLS[c.key] ?? (c.key.length === 1 ? c.key.toUpperCase() : c.key));
+  return parts.join("");
 }
 
 export function formatCombo(combo: KeyCombo): string {

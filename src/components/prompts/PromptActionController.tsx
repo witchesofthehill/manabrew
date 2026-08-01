@@ -52,6 +52,7 @@ interface PromptActionControllerProps {
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;
+  onPassEndTurn: () => void;
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
   attackAssignmentCount: number;
@@ -105,11 +106,12 @@ export function PromptActionController({
   promptType,
   isWaitingForResponse,
   isWaitingForOthers,
-  isMyTurn: _isMyTurn,
+  isMyTurn,
   passToPhaseShort: _passToPhaseShort,
   availableAttackerIds,
   pendingAttackers,
   onPassPriority,
+  onPassEndTurn,
   selectedAttackDefenderId,
   multipleAttackDefenders,
   attackAssignmentCount,
@@ -154,7 +156,12 @@ export function PromptActionController({
 
   const renderers: Record<PromptActionViewKey, () => ReactElement> = {
     chooseAction: () => (
-      <ChooseAction isWaitingForResponse={isWaitingForResponse} onPassPriority={onPassPriority} />
+      <ChooseAction
+        isWaitingForResponse={isWaitingForResponse}
+        onPassPriority={onPassPriority}
+        onPassEndTurn={onPassEndTurn}
+        isMyTurn={isMyTurn}
+      />
     ),
     chooseAttackers: () => (
       <ChooseAttackers

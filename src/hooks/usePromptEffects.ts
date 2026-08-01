@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { usePhaseStopStore, getNextStop } from "@/stores/usePhaseStopStore";
+import { usePhaseStopStore, getNextStop, getEndTurnStop } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput, PassUntil } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
 import type { GameViewDto } from "@/protocol/game";
@@ -48,10 +48,27 @@ export function usePromptEffects({
     pass(nextStop);
   }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
 
+  const unifiedPassEndTurn = useCallback(() => {
+    if (!currentPrompt || !gameView || isWaitingForResponse) return;
+    if ((gameView.stack?.length ?? 0) > 0) return;
+
+    const store = usePhaseStopStore.getState();
+    const target = getEndTurnStop(
+      gameView.players.filter((p) => p.status === "playing").map((p) => p.id),
+      gameView.activePlayerId,
+      myPlayerId,
+      store.selfStops,
+      store.getOpponentStops,
+    );
+
+    pass(target);
+  }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
+
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
   return {
     unifiedPass,
+    unifiedPassEndTurn,
     spellStackModalOpen,
     setSpellStackModalOpen,
   };

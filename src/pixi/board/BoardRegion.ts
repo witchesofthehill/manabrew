@@ -673,17 +673,24 @@ export class BoardRegion {
       const fx = s.fxScale;
       s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
 
-      if (entry.overlay?.visible) {
-        entry.overlay.x = s.x;
-        entry.overlay.y = s.y;
-        entry.overlay.scale.set(entry.scaleBase);
-        entry.overlay.zIndex = entry.targetZIndex + Z_OVERLAY_OFFSET;
-        entry.overlay.alpha = lerp(
-          entry.overlay.alpha,
-          isHovered ? 1 : 0,
-          OVERLAY_FADE_LERP,
-          SNAP_ALPHA,
-        );
+      if (entry.overlay) {
+        const overlayActive = entry.overlayActive ?? false;
+        if (overlayActive && !entry.overlay.visible) entry.overlay.visible = true;
+        if (entry.overlay.visible) {
+          entry.overlay.x = s.x;
+          entry.overlay.y = s.y;
+          entry.overlay.scale.set(entry.scaleBase);
+          entry.overlay.zIndex = entry.targetZIndex + Z_OVERLAY_OFFSET;
+          entry.overlay.alpha = lerp(
+            entry.overlay.alpha,
+            isHovered && overlayActive ? 1 : 0,
+            OVERLAY_FADE_LERP,
+            SNAP_ALPHA,
+          );
+          if (!overlayActive && entry.overlay.alpha <= SNAP_ALPHA) {
+            entry.overlay.visible = false;
+          }
+        }
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
@@ -1387,6 +1394,7 @@ export class BoardRegion {
         scaleX: entry.sprite.scale.x,
         scaleY: entry.sprite.scale.y,
       });
+      entry.overlayActive = false;
       if (entry.overlay) entry.overlay.visible = false;
       this.userPlacedCards.delete(id);
     }

@@ -33,8 +33,8 @@ import { prewarmManaSymbols } from "../manaSymbolCache";
 import { CARD_H } from "@/components/game/game.constants";
 import { isCoarsePointer } from "@/lib/responsive";
 import { LongPressGesture } from "../LongPressGesture";
+import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import {
-  BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
@@ -1567,7 +1567,15 @@ export class BoardScene {
     sprite.on("pointerenter", () => {
       if (region) this.setBattlefieldCardHovered(region, sprite);
     });
+    sprite.on("pointermove", () => {
+      if (region && this.hoveredCardId === sprite.card.id) {
+        this.setBattlefieldCardHovered(region, sprite, true);
+      }
+    });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
+    // A sprite removed while hovered never fires pointerleave, which would
+    // leave the hover preview up until an unrelated dismiss.
+    sprite.on("destroyed", () => this.scheduleHoverClear(sprite.card.id));
   }
 
   private isCollapsedOpponentBand(playerId: string): boolean {
@@ -1655,7 +1663,7 @@ export class BoardScene {
       this.hoveredRegionRef = null;
       this.hoveredCardId = null;
       this.callbacks.onHoverCard?.(null);
-    }, BATTLEFIELD_HOVER_HOLD_MS);
+    }, PREVIEW_TIMING.battlefieldHoverOutHoldMs);
   }
 
   private cancelHoverClear(): void {

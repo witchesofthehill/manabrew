@@ -12,15 +12,10 @@ import {
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
-import { CARD_W, CARD_H, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
-import {
-  FRAME_TINT_COLORLESS_MAX_LUMINANCE,
-  frameTint,
-  readableTextColor,
-  withAlpha,
-} from "@/themes/gameTheme";
+import { cardFrameTintHex, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
@@ -150,7 +145,6 @@ const FOIL_STAR_STYLE = new TextStyle({
  *  across every preset; the surrounding card art carries the theme. */
 const FOIL_RING_COLOR = 0xffd87a;
 
-const CARD_RADIUS = 6;
 const RING_RADIUS = 8;
 const RING_INSET = 2;
 const CHIP_RADIUS = 3;
@@ -191,14 +185,6 @@ const RAIL_LABEL_STYLE = registerTintedTextStyle(
 const BADGE_TITLE_BAND_FRAC = 0.1;
 
 const MAX_VISIBLE_COUNTERS = 4;
-
-const WUBRG = new Set(["W", "U", "B", "R", "G"]);
-
-function cardTintHex(colorIdentity: string[] | undefined): string {
-  const mana = activeTheme.gameTheme.mana;
-  const first = (colorIdentity ?? []).find((c) => WUBRG.has(c));
-  return first ? mana[first as keyof typeof mana] : mana.C;
-}
 
 function frameTypeLine(card: CardDto): string {
   const left = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
@@ -751,12 +737,7 @@ export class CardSprite extends Container {
       return;
     }
     this.frameContainer.visible = true;
-    const colorIdentity = this.deckCard().colorIdentity;
-    const colorless = !(colorIdentity ?? []).some((c) => WUBRG.has(c));
-    const tintHex = frameTint(
-      cardTintHex(colorIdentity),
-      colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined,
-    );
+    const tintHex = cardFrameTintHex(this.deckCard().colorIdentity, activeTheme.gameTheme.mana);
     const tintNum = hexToNum(tintHex);
     const shadowHex = activeTheme.gameTheme.canvas.shadow;
     const lightText = activeTheme.gameTheme.textOnTinted;

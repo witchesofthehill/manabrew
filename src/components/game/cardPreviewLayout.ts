@@ -6,8 +6,6 @@ const ACTIONS_PANEL_W = 220;
 const ANCHOR_GAP = 12;
 const EDGE_PAD = 8;
 
-export type PreviewSide = "left" | "right" | "above" | "below" | "center";
-
 export interface PreviewLayoutInput {
   placement: "auto" | "top-center" | "pinned";
   anchorRect: DOMRect | null;
@@ -28,7 +26,6 @@ export interface PreviewLayout {
   panelSide: "left" | "right";
   panelScale: number;
   slotMarginLeft: number;
-  side: PreviewSide;
 }
 
 export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
@@ -62,18 +59,15 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
 
   let cardLeft: number;
   let top: number;
-  let side: PreviewSide;
   let panelSide: "left" | "right";
 
   if (placement === "pinned") {
     cardLeft = viewRight - cardWidth - 16;
     top = viewTop + 80;
-    side = "center";
     panelSide = "left";
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = Math.max(viewTop + EDGE_PAD, anchorRect.top - cardHeight - ANCHOR_GAP);
-    side = "above";
     panelSide = panelFitsRightOf(cardLeft) ? "right" : "left";
   } else {
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
@@ -87,7 +81,6 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
 
     if (fitsRight) {
       cardLeft = anchorRight + ANCHOR_GAP;
-      side = "right";
       panelSide = "right";
       top = Math.min(
         Math.max(anchorMidY - cardHeight / 2, viewTop + EDGE_PAD),
@@ -95,7 +88,6 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
       );
     } else if (fitsLeft) {
       cardLeft = anchorLeft - ANCHOR_GAP - cardWidth;
-      side = "left";
       panelSide = "left";
       top = Math.min(
         Math.max(anchorMidY - cardHeight / 2, viewTop + EDGE_PAD),
@@ -109,7 +101,6 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
       top = below
         ? Math.min(anchorBottom + ANCHOR_GAP, viewBottom - cardHeight - EDGE_PAD)
         : Math.max(viewTop + EDGE_PAD, anchorTop - cardHeight - ANCHOR_GAP);
-      side = below ? "below" : "above";
       panelSide = panelFitsRightOf(cardLeft) ? "right" : "left";
     }
   }
@@ -136,6 +127,5 @@ export function computePreviewLayout(input: PreviewLayoutInput): PreviewLayout {
     panelSide,
     panelScale,
     slotMarginLeft,
-    side,
   };
 }

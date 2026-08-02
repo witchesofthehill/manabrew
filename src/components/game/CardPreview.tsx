@@ -10,15 +10,15 @@ import { CardPreviewOverlay } from "./CardPreviewOverlay";
 import { CardPreviewActions, type IndexedPreviewAction } from "./CardPreviewActions";
 import { computePreviewLayout } from "./cardPreviewLayout";
 import { getPreviewActionShortcut } from "./game.utils";
+import { CARD_W, CARD_RADIUS } from "./game.constants";
 import { CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
-import { withAlpha } from "@/themes/gameTheme";
+import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
 import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
 import { PREVIEW_TIMING } from "@/lib/cardPreview";
-import type { PreviewSide } from "./cardPreviewLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -49,22 +49,6 @@ interface CardPreviewProps {
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
 }
-
-const SHIFT_BY_SIDE: Record<PreviewSide, { x: string; y: string }> = {
-  right: { x: "-14px", y: "0px" },
-  left: { x: "14px", y: "0px" },
-  below: { x: "0px", y: "-14px" },
-  above: { x: "0px", y: "14px" },
-  center: { x: "0px", y: "0px" },
-};
-
-const ORIGIN_BY_SIDE: Record<PreviewSide, string> = {
-  right: "left center",
-  left: "right center",
-  below: "center top",
-  above: "center bottom",
-  center: "center center",
-};
 
 const IMG_VERTICAL = "absolute inset-0 w-full h-full object-cover";
 const IMG_HORIZONTAL =
@@ -212,6 +196,16 @@ export function CardPreview({
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelHeight, setPanelHeight] = useState(0);
   const [, setLayoutVersion] = useState(0);
+  // The hero zoom travels across the hovered card; an interactive preview
+  // passing under the cursor steals pointer events from the canvas and kills
+  // the sprite's hover state. Stay pointer-transparent until the enter lands.
+  const [entered, setEntered] = useState(false);
+  const interactive = entered && phase === "open" && !suppressed;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setEntered(true), PREVIEW_TIMING.enterMs + 80);
+    return () => clearTimeout(timer);
+  }, []);
 
   useLayoutEffect(() => {
     const update = () => setLayoutVersion((version) => version + 1);
@@ -336,6 +330,18 @@ export function CardPreview({
     slot: slot ?? null,
   });
   const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
+  const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
+  const frameBorderTint = cardFrameTintHex(deckCard.colorIdentity, themeColors.mana);
+
+  const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
+  const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
+  const heroShiftX = slot ? 0 : anchorCenterX - (cardLeft + cardWidth / 2);
+  const heroShiftY = slot ? 0 : anchorCenterY - (top + cardHeight / 2);
+  const heroScaleFrom = slot
+    ? 0.95
+    : anchorRect
+      ? Math.max(0.25, Math.min(0.85, anchorRect.width / Math.max(1, cardWidth)))
+      : 0.5;
 
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
@@ -368,7 +374,7 @@ export function CardPreview({
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
                 "fixed z-[9999]",
-                showSidePanel && placement !== "pinned" && !suppressed
+                showSidePanel && placement !== "pinned" && interactive
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
@@ -385,9 +391,9 @@ export function CardPreview({
           style={
             {
               ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
-              ["--preview-shift-x" as string]: SHIFT_BY_SIDE[layout.side].x,
-              ["--preview-shift-y" as string]: SHIFT_BY_SIDE[layout.side].y,
-              transformOrigin: ORIGIN_BY_SIDE[layout.side],
+              ["--preview-shift-x" as string]: `${heroShiftX}px`,
+              ["--preview-shift-y" as string]: `${heroShiftY}px`,
+              ["--preview-scale-from" as string]: `${heroScaleFrom}`,
               animationDuration: `${phase === "closing" ? PREVIEW_TIMING.exitMs : PREVIEW_TIMING.enterMs}ms`,
               width: cardWidth,
               height: cardHeight,
@@ -397,17 +403,17 @@ export function CardPreview({
         >
           <div
             className={cn(
-              "w-full h-full rounded-xl shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
-              hasActions ? "ring-2" : "ring-1 ring-black/20",
+              "w-full h-full shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
+              hasActions && "ring-2",
               card.foil && "draft-tile-foil",
             )}
             style={
-              hasActions
-                ? ({
-                    "--tw-ring-color": ringColor,
-                    boxShadow: `0 0 20px ${ringColor}`,
-                  } as CSSProperties)
-                : undefined
+              {
+                borderRadius: cardCornerRadius,
+                ...(hasActions
+                  ? { "--tw-ring-color": ringColor, boxShadow: `0 0 20px ${ringColor}` }
+                  : {}),
+              } as CSSProperties
             }
           >
             {currentImageUrl ? (
@@ -437,7 +443,10 @@ export function CardPreview({
                       e.stopPropagation();
                       onFlip();
                     }}
-                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
+                    className={cn(
+                      "absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
+                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    )}
                     title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
                   >
                     <RotateCw className="h-3 w-3" />
@@ -451,7 +460,10 @@ export function CardPreview({
                       e.stopPropagation();
                       setOrientationFlipped((prev) => !prev);
                     }}
-                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
+                    className={cn(
+                      "absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
+                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    )}
                     title="Rotate the card to read it (F)"
                   >
                     <RotateCw className="h-3 w-3" />
@@ -505,6 +517,10 @@ export function CardPreview({
                 </div>
               </div>
             )}
+            <div
+              className="pointer-events-none absolute inset-0 z-20 rounded-[inherit]"
+              style={{ boxShadow: `inset 0 0 0 2px ${withAlpha(frameBorderTint, 0.9)}` }}
+            />
           </div>
 
           {showSidePanel && (

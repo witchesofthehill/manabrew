@@ -1567,6 +1567,11 @@ export class BoardScene {
     sprite.on("pointerenter", () => {
       if (region) this.setBattlefieldCardHovered(region, sprite);
     });
+    sprite.on("pointermove", () => {
+      if (region && this.hoveredCardId === sprite.card.id) {
+        this.setBattlefieldCardHovered(region, sprite, true);
+      }
+    });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
     // A sprite removed while hovered never fires pointerleave, which would
     // leave the hover preview up until an unrelated dismiss.

@@ -12,8 +12,8 @@ export const PREVIEW_TIMING = {
   warmShowDelayMs: 100,
   warmWindowMs: 1000,
   leaveGraceMs: 120,
-  enterMs: 180,
-  exitMs: 100,
+  enterMs: 220,
+  exitMs: 130,
   battlefieldHoverOutHoldMs: 60,
 } as const;
 
@@ -64,6 +64,12 @@ export class CardPreviewMachine {
     this.clearShowTimer();
     this.clearGraceTimer();
     if (this.snapshot.sticky) return;
+    this.pointerOnPreview = false;
+    // Hover sources re-assert on every pointermove (so a spurious hoverEnd —
+    // e.g. the preview jumping positions during an instant switch — can't
+    // close a preview the cursor is still justifying). Same card object while
+    // open means nothing to update: timers are cleared, skip the emit.
+    if (this.snapshot.phase === "open" && this.snapshot.card === card) return;
     // Instant switching is only allowed while already open: a dismissed preview
     // must always re-enter through the delay, or a pointermove racing a dismiss
     // re-shows it for a single frame (the show/hide/show flash).

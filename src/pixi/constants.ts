@@ -1,12 +1,13 @@
 import { CARD_GAP } from "@/components/game/game.constants";
 
+export { CARD_RADIUS } from "@/components/game/game.constants";
+
 export const GAP = CARD_GAP;
 export const ATTACH_OFFSET_Y = 16;
 // Cards in a stack that fan out in the staircase before the rest collapse onto
 // one another; caps the visual height of huge token piles (the ×N badge carries
 // the count).
 export const STACK_MAX_SLIDE_CARDS = 2;
-export const CARD_RADIUS = 6;
 export const TABLE_RADIUS = 8;
 export const MAX_LAND_SLOTS = 100;
 export const MAX_GRID_SLOTS = 200;

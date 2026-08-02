@@ -49,7 +49,6 @@ export const HAND_MAX_ZONE_HEIGHT_FRACTION = 0.6;
 // Defers the hand-hover clear so an HTML overlay (action menu) can cancel it when
 // the cursor leaves the sprite but re-enters the menu.
 export const HAND_HOVER_HOLD_MS = 150;
-export const BATTLEFIELD_HOVER_HOLD_MS = 60;
 export const HAND_ACTIONS_CLEAR_DELAY_MS = 180;
 // Window during which a just-resolved spell's last-known stack position seeds its
 // battlefield sprite's entering animation.

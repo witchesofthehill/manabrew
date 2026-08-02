@@ -75,3 +75,14 @@ export function stackObjectToCardStub(obj: StackObjectDto): ClientCardDto {
     isTransformed: obj.faceIndex === 1,
   };
 }
+
+export function getPreviewActionShortcut(
+  index: number,
+  classLevelUpIndex: number | null,
+  classLevel: number | null,
+): number {
+  if (classLevel !== null && index === classLevelUpIndex) return classLevel;
+  const actionPosition =
+    index - (classLevelUpIndex !== null && classLevelUpIndex < index ? 1 : 0) + 1;
+  return classLevel !== null && actionPosition >= classLevel ? actionPosition + 1 : actionPosition;
+}

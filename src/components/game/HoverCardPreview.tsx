@@ -8,19 +8,18 @@ interface HoverCardPreviewProps {
   actions?: HandActionOption[];
   /** Optional handler for selected actions (game only). */
   onSelectAction?: (action: HandActionOption) => void;
+  /** Fade the preview out without dismissing it (transient UI churn, e.g. prompts). */
+  suppressed?: boolean;
   pinned?: boolean;
   slot?: HTMLElement | null;
   imageSize?: "normal" | "large";
 }
 
-/**
- * Reusable wrapper that renders the CardPreview portal based on the state
- * from the useCardPreview hook. Consolidates duplicated rendering logic.
- */
 export function HoverCardPreview({
   preview,
   actions,
   onSelectAction,
+  suppressed,
   pinned,
   slot,
   imageSize,
@@ -35,6 +34,8 @@ export function HoverCardPreview({
       mouseY={preview.mousePos.y}
       anchorRect={preview.anchorRect}
       placement={pinned ? "pinned" : preview.placement}
+      phase={preview.phase === "closing" ? "closing" : "open"}
+      suppressed={suppressed}
       showBackFace={preview.showBackFace}
       isSticky={preview.isSticky}
       actions={actions}

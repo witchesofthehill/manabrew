@@ -108,6 +108,27 @@ A card's look is produced by **three independent renderers**. They share no draw
 - **Attacking + summoning-sickness now match the DOM in Pixi too:** both draw an inset **edge glow** (`CardSprite.updateEdgeGlow`) — red for attacking, frosty + pulsing for summoning-sick (pulse driven per-frame by `BoardRegion.animate` → `tickEffects`); summoning-sick also keeps the grey desaturate/dim filter. Pixi's `setRing` is now reserved for **interaction/combat** states only (lethal, pending, tappable/untappable land, selectable/targeting).
 - **Known intentional divergences — do not "fix" without being asked:** some effects are **Pixi-only** (doomed wash, foil ring, ring-bearer, status badges `MORPH`/`EXERTED`/…, damage-order badge, stack count). The DOM face also currently lacks the _debuffed_ P/T color that Pixi has.
 
+## Card preview (hover / sticky)
+
+One preview system serves the whole app (game, deck editor, limited, modals), in three layers:
+
+| Layer    | File                                                                                                                      | Role                                                                                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Machine  | `lib/cardPreview.ts` (`CardPreviewMachine`)                                                                               | Sole owner of preview state + every timer. **All timing knobs are `PREVIEW_TIMING` in that file** (warm/cold show delay, leave grace, enter/exit animation, battlefield hover-out hold); the cold show delay is the user's "Card Preview Delay" preference. |
+| Hook     | `hooks/useCardPreview.ts`                                                                                                 | Thin React binding (`useSyncExternalStore`, stable callbacks). Applies the modifier-mode / hover-delay preferences as input filtering.                                                                                                                      |
+| Renderer | `components/game/HoverCardPreview` → `CardPreview` (+ `CardPreviewOverlay`, `CardPreviewActions`, `cardPreviewLayout.ts`) | Dumb presentation. Placement math is the pure `computePreviewLayout`.                                                                                                                                                                                       |
+
+Rules — these encode fixed bugs, keep them:
+
+- **Never unmount the preview on transient state.** Engine prompt churn (a prompt answered and replaced within a frame) must not blink the DOM: pass `suppressed` to `HoverCardPreview` (opacity fade; hover state survives) instead of adding conditions to the mount gate. Unmount-gating on `promptType` is exactly what caused the show/hide/show flash.
+- **Explicit UI takeovers dismiss.** Zone viewer, spell stack modal, ability picker, hand drag: dismiss via the hook's `dismissDeps` argument or `dismiss()` (synchronous — never `setTimeout(dismiss)`).
+- **Instant card-switching is only allowed while `open`.** A dismissed preview re-enters through the hover delay; the machine enforces this so a pointermove racing a dismiss can't re-show it for a frame.
+- **`phase === "closing"`** keeps the card rendered for the exit animation (`PREVIEW_TIMING.exitMs`); `hoveredCard` is non-null during it.
+- **The machine is warm for `warmWindowMs` after a preview was visible**: hovers during that window show at `warmShowDelayMs` instead of the preference delay, so browsing a board feels fluid without making the first popup twitchy.
+- **Enter/exit animate toward the hovered card** (`computePreviewLayout` returns `side`; `CardPreview` maps it to transform-origin + slide classes). Keep the animation anchored — an in-place zoom reads as a blink.
+- **Images are monotonic** (`PreviewImageStack` in `CardPreview`): pixels already shown are never removed until the replacement loads. Swapping an `<img>` src blanks it instantly — a naive URL swap (Scryfall faces resolving, low→high res, card switch) is the image flash.
+- **Battlefield hover-out is `BoardScene`'s** (`scheduleHoverClear`, also fired on sprite `destroyed` — a removed sprite emits no `pointerleave`).
+
 ## Prompt routing
 
 The engine sends a `Prompt` (from `@/protocol`) → `PromptModalHost` (in `prompts/promptComponents.tsx`) looks up `prompt.input.type` in the `PROMPT_MODALS` registry and renders that entry inside `PromptModalController`. Each registry entry receives `{ prompt, respond, ctx }` — it reads the typed `prompt.input`, renders a leaf modal from `modals/`, and answers by calling `respond(<PromptOutput>)` directly (no per-prompt store callback). `ctx` carries the misc UI extras the engine prompt doesn't (`sourceDeckCard`); non-prompt overlays (zone viewer, spell stack, ability picker) live in `GameOverlays`, not the registry.

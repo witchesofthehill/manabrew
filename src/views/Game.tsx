@@ -1438,25 +1438,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => observer.disconnect();
   }, []);
 
+  const { dismiss: dismissPreview, hoveredCard: previewedCard } = preview;
+
   useEffect(() => {
     if (draggingHandCard) {
-      preview.dismiss();
+      dismissPreview();
     }
-  }, [draggingHandCard, preview]);
+  }, [draggingHandCard, dismissPreview]);
 
   const hoverableCardIds = useMemo(() => {
     return new Set(visibleCardsById.keys());
   }, [visibleCardsById]);
 
   useEffect(() => {
-    if (!preview.hoveredCard) return;
-    if (
-      !hoverableCardIds.has(preview.hoveredCard.id) &&
-      !stackCardsBySourceId.has(preview.hoveredCard.id)
-    ) {
-      preview.dismiss();
+    if (!previewedCard) return;
+    if (!hoverableCardIds.has(previewedCard.id) && !stackCardsBySourceId.has(previewedCard.id)) {
+      dismissPreview();
     }
-  }, [preview, hoverableCardIds, stackCardsBySourceId]);
+  }, [previewedCard, dismissPreview, hoverableCardIds, stackCardsBySourceId]);
 
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
@@ -2055,12 +2054,12 @@ export default function Game({ exitTo }: GameProps = {}) {
         !draggingHandCard &&
         !viewingZone &&
         !spellStackModalOpen &&
-        !abilityPickerState &&
-        (!promptType || HOVER_ALLOWED_PROMPTS.has(promptType)) && (
+        !abilityPickerState && (
           <HoverCardPreview
             preview={preview}
             actions={hoveredCardActions}
             onSelectAction={handlePreviewAction}
+            suppressed={!!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType)}
           />
         )}
 

@@ -35,6 +35,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 
 - **Colors are theme-driven.** No hex / rgb / rgba / hsl / `0xRRGGBB` literals. No semantic palette tailwind (`ring-red-500`). See `docs/agents/UI_THEME_RULES.md` — read it before any color work.
 - **Always `cn()` for conditional classes**, never template literals. Tailwind's JIT cannot detect dynamic class names.
+- **No Tailwind animation plugin.** Neither `tailwindcss-animate` nor `tw-animate-css` is installed, so `animate-in` / `fade-in` / `zoom-in-*` / `slide-in-from-*` classes are silent no-ops — including the ones baked into the shadcn `components/ui/*` files. Real animations are custom `--animate-*` keyframes in `index.css` (`@theme`); add one there and use the generated `animate-<name>` utility.
 - **Always `import type` for type-only imports.**
 - **Path aliases (`@/`) only.** Never `../../` that escapes the current directory.
 - **State lives close to where it's used.** Hoist to a Zustand store only when state needs to persist across unmounts or be read from non-React code.

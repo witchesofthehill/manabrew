@@ -147,6 +147,9 @@
   --animate-password-caret: password-caret 1.05s steps(1) infinite;
   --animate-update-glow: update-glow 2.2s ease-in-out infinite;
   --animate-hourglass-flip: hourglass-flip 2.4s ease-in-out infinite;
+  --animate-preview-in: preview-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-preview-out: preview-out 130ms ease-in both;
+  --animate-preview-fade-in: preview-fade-in 150ms ease-out both;
 
   @keyframes hourglass-flip {
     0%,
@@ -159,6 +162,45 @@
     }
     100% {
       transform: rotate(360deg);
+    }
+  }
+
+  @keyframes preview-in {
+    from {
+      opacity: 0;
+      transform: translate(var(--preview-shift-x, 0px), var(--preview-shift-y, 0px))
+        scale(var(--preview-scale-from, 0.95));
+    }
+    40% {
+      opacity: 1;
+    }
+    to {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+  }
+
+  @keyframes preview-out {
+    from {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+    60% {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+      transform: translate(var(--preview-shift-x, 0px), var(--preview-shift-y, 0px))
+        scale(var(--preview-scale-from, 0.95));
+    }
+  }
+
+  @keyframes preview-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 
@@ -345,7 +387,9 @@
   .animate-card-flash,
   .animate-card-flash-backdrop,
   .animate-dice-roll,
-  .animate-password-pip {
+  .animate-password-pip,
+  .animate-preview-in,
+  .animate-preview-out {
     animation: none !important;
   }
 }

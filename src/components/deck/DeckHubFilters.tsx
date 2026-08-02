@@ -12,7 +12,6 @@ const DEFAULT_FORMATS = ["commander", "standard", "pioneer", "modern", "pauper",
 interface DeckHubFiltersProps {
   filters: DeckHubDiscoveryFilters;
   facets: DeckHubFacets | null;
-  domainV2: boolean;
   activeFilterCount: number;
   favoritesEnabled: boolean;
   signedIn: boolean;
@@ -23,7 +22,6 @@ interface DeckHubFiltersProps {
 export function DeckHubFilters({
   filters,
   facets,
-  domainV2,
   activeFilterCount,
   favoritesEnabled,
   signedIn,
@@ -33,13 +31,9 @@ export function DeckHubFilters({
   const formats = facets?.formats.length ? facets.formats.map((item) => item.key) : DEFAULT_FORMATS;
   const toggleFormat = (format: string) =>
     onChange({
-      formats: !domainV2
-        ? filters.formats.includes(format)
-          ? []
-          : [format]
-        : filters.formats.includes(format)
-          ? filters.formats.filter((item) => item !== format)
-          : [...filters.formats, format],
+      formats: filters.formats.includes(format)
+        ? filters.formats.filter((item) => item !== format)
+        : [...filters.formats, format],
     });
 
   return (
@@ -67,7 +61,7 @@ export function DeckHubFilters({
         </div>
 
         <div className="flex items-center gap-2 lg:ml-auto">
-          {domainV2 && signedIn && (
+          {signedIn && (
             <Button
               type="button"
               variant={filters.favorites ? "secondary" : "outline"}
@@ -89,61 +83,55 @@ export function DeckHubFilters({
           >
             <option value="newest">Newest</option>
             <option value="name">Name</option>
-            {domainV2 && <option value="favorites">Most favorited</option>}
+            <option value="favorites">Most favorited</option>
           </select>
 
-          {domainV2 && (
-            <select
-              value={filters.group}
-              aria-label="Group Community results"
-              className="h-10 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
-              onChange={(event) =>
-                onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
-              }
+          <select
+            value={filters.group}
+            aria-label="Group Community results"
+            className="h-10 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
+            onChange={(event) =>
+              onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })
+            }
+          >
+            <option value="none">No grouping</option>
+            <option value="source">Group by source</option>
+            <option value="format">Group by format</option>
+            <option value="color">Group by color</option>
+            <option value="tag">Group by tag</option>
+          </select>
+
+          <DeckHubFilterSheet
+            filters={filters}
+            facets={facets}
+            activeFilterCount={activeFilterCount}
+            favoritesEnabled={favoritesEnabled}
+            onChange={onChange}
+            onClear={onClear}
+          />
+
+          <div className="flex rounded-md border p-0.5">
+            <Button
+              variant={filters.view === "grid" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Grid view"
+              aria-pressed={filters.view === "grid"}
+              onClick={() => onChange({ view: "grid" })}
             >
-              <option value="none">No grouping</option>
-              <option value="source">Group by source</option>
-              <option value="format">Group by format</option>
-              <option value="color">Group by color</option>
-              <option value="tag">Group by tag</option>
-            </select>
-          )}
-
-          {domainV2 && (
-            <DeckHubFilterSheet
-              filters={filters}
-              facets={facets}
-              activeFilterCount={activeFilterCount}
-              favoritesEnabled={favoritesEnabled}
-              onChange={onChange}
-              onClear={onClear}
-            />
-          )}
-
-          {domainV2 && (
-            <div className="flex rounded-md border p-0.5">
-              <Button
-                variant={filters.view === "grid" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                aria-label="Grid view"
-                aria-pressed={filters.view === "grid"}
-                onClick={() => onChange({ view: "grid" })}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={filters.view === "list" ? "secondary" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                aria-label="List view"
-                aria-pressed={filters.view === "list"}
-                onClick={() => onChange({ view: "list" })}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={filters.view === "list" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8"
+              aria-label="List view"
+              aria-pressed={filters.view === "list"}
+              onClick={() => onChange({ view: "list" })}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

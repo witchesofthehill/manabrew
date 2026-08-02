@@ -49,12 +49,12 @@ import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/vi
 import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
-import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
-import { HubDeckCard } from "@/components/deck/HubDeckCard";
+import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 
 export default function DeckEditor() {
@@ -83,12 +83,12 @@ export default function DeckEditor() {
   const presetDecks = usePresetDecks();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const {
-    decks: publishedDecks,
+    entries: publishedDecks,
     loading: publishedDecksLoading,
     error: publishedDecksError,
     signedIn,
     refresh: refreshPublishedDecks,
-  } = useMyHubDecks();
+  } = useMyDeckHubEntries();
   const {
     details: accountDeckDetails,
     loading: accountDecksLoading,
@@ -275,15 +275,15 @@ export default function DeckEditor() {
   );
   const filteredPublishedDecks = publishedDecks
     .filter((deck) => {
-      if (search && !deck.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !deck.title.toLowerCase().includes(search.toLowerCase())) return false;
       if (formatFilter && (deck.format ?? "standard") !== formatFilter) return false;
       return colorFilter.every((color) => deck.colors.includes(color));
     })
     .slice()
     .sort((left, right) => {
-      if (sortBy === "name") return left.name.localeCompare(right.name);
+      if (sortBy === "name") return left.title.localeCompare(right.title);
       if (sortBy === "color") return left.colors.localeCompare(right.colors);
-      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+      return new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime();
     });
 
   function handleSelectDeck(id: string) {
@@ -689,9 +689,9 @@ export default function DeckEditor() {
                   ) : filteredPublishedDecks.length > 0 ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                       {filteredPublishedDecks.map((deck) => (
-                        <HubDeckCard
+                        <DeckHubEntryCard
                           key={deck.id}
-                          deck={deck}
+                          entry={deck}
                           onOpen={() => setHubPreviewId(deck.id)}
                         />
                       ))}

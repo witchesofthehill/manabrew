@@ -5,7 +5,7 @@ COMPOSE="compose.dev.yaml"
 
 case "${1:-}" in
   start)
-    mkdir -p ops/hub-data/dev
+    mkdir -p ops/hub-data/dev/events
     docker compose -f "$COMPOSE" up -d --build --remove-orphans
     echo "==> waiting for hub health (a cold start compiles first)"
     i=0
@@ -24,6 +24,7 @@ case "${1:-}" in
       echo "==> hub schema already current"
     fi
     echo "==> hub database: $PWD/ops/hub-data/dev/hub.db"
+    echo "==> relay analytics database: $PWD/ops/hub-data/dev/events/events.db"
     ;;
   logs) docker compose -f "$COMPOSE" logs -f ;;
   stop) docker compose -f "$COMPOSE" down ;;

@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { fetchHubDecks } from "@/api/hub";
+import { fetchDeckHubEntries } from "@/api/hub";
 import { isFeatureEnabled } from "@/featureFlags";
-import type { HubDeckSummary } from "@/api/hubTypes";
+import type { DeckHubEntrySummary } from "@/api/hubTypes";
 
 const SEARCH_DELAY_MS = 300;
 
 export function useHubDeckSearch(search: string, format?: string, active = true) {
   const [result, setResult] = useState<{
     key: string;
-    decks: HubDeckSummary[];
+    decks: DeckHubEntrySummary[];
     error: string | null;
   }>({ key: "", decks: [], error: null });
   const [attempt, setAttempt] = useState(0);
@@ -19,15 +19,15 @@ export function useHubDeckSearch(search: string, format?: string, active = true)
     if (!enabled) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void fetchHubDecks({
+      void fetchDeckHubEntries({
         search: search.trim() || undefined,
-        format: format || undefined,
+        formats: format ? [format] : undefined,
         sort: "newest",
         page: 1,
         pageSize: 10,
       })
         .then((result) => {
-          if (!cancelled) setResult({ key, decks: result.decks, error: null });
+          if (!cancelled) setResult({ key, decks: result.entries, error: null });
         })
         .catch((err) => {
           if (!cancelled) {

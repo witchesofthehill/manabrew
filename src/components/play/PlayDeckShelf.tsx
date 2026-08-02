@@ -14,9 +14,9 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
-import { HubDeckCard } from "@/components/deck/HubDeckCard";
+import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
-import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { SavedDeck } from "@/stores/useDeckStore";
@@ -42,12 +42,12 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const [importOpen, setImportOpen] = useState(false);
   const importDeckText = useDeckTextImport();
   const {
-    decks: publishedDecks,
+    entries: publishedDecks,
     loading: publishedDecksLoading,
     error: publishedDecksError,
     signedIn,
     refresh: refreshPublishedDecks,
-  } = useMyHubDecks();
+  } = useMyDeckHubEntries();
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
   const hubEnabled = isFeatureEnabled("deckHub");
   const accountsEnabled = isFeatureEnabled("accounts");
@@ -264,7 +264,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             <DeckShelfRow label="Published Community decks">
               {filteredPublishedDecks.map((deck) => (
                 <div key={deck.id} className={SHELF_CARD_CLASS}>
-                  <HubDeckCard deck={deck} onOpen={() => setHubPreviewId(deck.id)} />
+                  <DeckHubEntryCard entry={deck} onOpen={() => setHubPreviewId(deck.id)} />
                 </div>
               ))}
             </DeckShelfRow>

@@ -4,17 +4,21 @@ description: What Manabrew stores, what it sends, and what it never collects.
 ---
 
 The short version: **no ads, no third-party tracking, and accounts are
-optional.** Three things can leave your machine: games played on the public
-relay are recorded, you can explicitly save decks to an account, and you can
-publish deck versions to Community. All three are described below.
+optional.** Games played on the public relay are recorded, offline use of an
+exact Community publication is reported for aggregate rankings, and you can
+explicitly save or publish decks. These are described below.
 
 ## What stays on your machine
 
 Decks you keep local, your preferences, theme choice, and the marker that lets
 you reconnect to an in-progress game live in local storage on your device.
-Nothing is uploaded unless you explicitly save a deck to your account or
-publish it (see below). Clearing site/app data deletes local-only decks, so
-export the ones you care about.
+The app does not upload local deck contents. When you start an offline game
+with an exact published Community deck, it queues the publication reference, a
+deck fingerprint, the format, and an opaque report ID locally, then sends them
+for aggregate Top Deck rankings when the Hub is reachable. The server records
+when it receives the report. It does not include a username or card list.
+Clearing site/app data deletes local-only decks and queued play reports, so
+export the decks you care about.
 
 ## What the relay sees
 
@@ -61,11 +65,11 @@ between your account and an entry, but we do not publish who favorited it. You
 can remove each public entry from any device you are signed in on. Removing a
 deck from My Decks does not automatically remove its existing public entries.
 
-Top Deck collections are dated ranking snapshots of public Community entries, so
-they show the same publication and account-handle information as the entry
-itself. Legacy clients may still show the older aggregate public-relay board,
-which contains deck names, commanders, play counts, and recent-play timing but
-no usernames.
+Top Deck collections are dated ranking snapshots of public Community entries,
+so they show the same publication and account-handle information as the entry
+itself. Rankings combine human deck use on the managed public relay with the
+limited offline reports described above. Reports are accepted only when the
+fingerprint still matches the exact published version.
 
 ## What leaves your machine
 

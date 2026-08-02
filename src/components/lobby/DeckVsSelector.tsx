@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
+import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
@@ -28,7 +29,7 @@ import { Check, ChevronDown, Loader2, Search, Shuffle, Swords, User, Bot, X } fr
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
-import type { HubDeckSummary } from "@/api/hubTypes";
+import type { DeckHubEntrySummary } from "@/api/hubTypes";
 
 interface SelectedDeck {
   id: string;
@@ -114,7 +115,7 @@ export function DeckVsSelector({
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
-  const loadHubDeck = useHubStore((state) => state.loadPlayableDeck);
+  const loadHubDeck = useHubStore((state) => state.loadEntry);
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
   const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);
@@ -136,7 +137,7 @@ export function DeckVsSelector({
         setPlayerDeck({
           id: `hub:${detail.id}`,
           sourceId: detail.id,
-          name: detail.name,
+          name: detail.title,
           sourceDeck: detail.deck,
           source: "hub",
           formatId,
@@ -301,7 +302,7 @@ export function DeckVsSelector({
     });
   }
 
-  async function selectHubDeck(summary: HubDeckSummary) {
+  async function selectHubDeck(summary: DeckHubEntrySummary) {
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
     try {
@@ -312,7 +313,7 @@ export function DeckVsSelector({
       const currentFormat = selectedFormatRef.current;
       if (currentFormat && formatId !== currentFormat) {
         toast.error(
-          `"${detail.name}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
+          `"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
         );
         return;
       }
@@ -397,6 +398,9 @@ export function DeckVsSelector({
     if (!started) {
       setStarting(false);
       return;
+    }
+    if (playerDeck.source === "hub" || playerDeck.source === "preset") {
+      void reportPublishedDeckPlay(playerDeck.sourceId, playerDeck.sourceDeck);
     }
     if (playerDeck.source === "preset") {
       savePresetToAccountOnUse(playerDeck.sourceId);
@@ -596,7 +600,7 @@ export function DeckVsSelector({
                     return (
                       <DeckSelectionCard
                         key={deck.id}
-                        name={loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name}
+                        name={loadingHubDeckId === deck.id ? `Loading ${deck.title}…` : deck.title}
                         color={deck.colors}
                         author={deck.author}
                         cardCount={deck.cardCount + deck.commanders.length}

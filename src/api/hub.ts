@@ -10,34 +10,22 @@ import type {
   DeckHubEntryList,
   DeckHubFacets,
   DeckHubTag,
+  DeckPlayReportRequest,
   DeckVersionDetail,
   DeckVersionSummary,
   FavoriteResponse,
   HubCapabilities,
-  HubDeckDetail,
-  HubDeckList,
   PublishDeckHubEntryRequest,
-  PublishDeckRequest,
-  PublishDeckResponse,
   SaveDeckVersionRequest,
   TopDeckBucket,
   TopDeckSnapshot,
   UpdateDeckHubEntryRequest,
 } from "@/api/hubTypes";
 
-export type HubSort = "newest" | "name";
 export type DeckHubSort = "newest" | "name" | "favorites";
 export type DeckHubColorMatch = "exact" | "includes";
 export type DeckHubTagMatch = "any" | "all";
 export type DeckHubSource = "all" | "community" | "presets";
-
-export interface HubListParams {
-  search?: string;
-  format?: string;
-  sort?: HubSort;
-  page?: number;
-  pageSize?: number;
-}
 
 export interface DeckHubEntryListParams {
   search?: string;
@@ -56,9 +44,7 @@ export interface DeckHubEntryListParams {
   pageSize?: number;
 }
 
-const MANAGEMENT_TOKEN_HEADER = "X-Management-Token";
-
-class HubRequestError extends Error {
+export class HubRequestError extends Error {
   status: number;
 
   constructor(status: number, message: string) {
@@ -108,50 +94,8 @@ async function hubJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function fetchHubDecks(params: HubListParams): Promise<HubDeckList> {
-  const query = new URLSearchParams();
-  if (params.search) query.set("search", params.search);
-  if (params.format) query.set("format", params.format);
-  if (params.sort) query.set("sort", params.sort);
-  if (params.page) query.set("page", String(params.page));
-  if (params.pageSize) query.set("pageSize", String(params.pageSize));
-  const queryString = query.toString();
-  const suffix = queryString ? `?${queryString}` : "";
-  return hubJson<HubDeckList>(`/api/hub/decks${suffix}`);
-}
-
-export function fetchHubDeck(id: string): Promise<HubDeckDetail> {
-  return hubJson<HubDeckDetail>(`/api/hub/decks/${encodeURIComponent(id)}`);
-}
-
-export function publishDeck(request: PublishDeckRequest): Promise<PublishDeckResponse> {
-  return hubJson<PublishDeckResponse>("/api/hub/decks", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-}
-
-export async function unpublishDeck(id: string, managementToken?: string): Promise<void> {
-  const headers = managementToken ? { [MANAGEMENT_TOKEN_HEADER]: managementToken } : undefined;
-  await hubRequest(`/api/hub/decks/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    headers,
-  });
-}
-
-export function fetchMyDecks(): Promise<HubDeckList> {
-  return hubJson<HubDeckList>("/api/hub/my-decks");
-}
-
-export async function fetchHubCapabilities(): Promise<HubCapabilities | null> {
-  try {
-    const response = await hubRequest("/api/hub/capabilities");
-    return (await response.json()) as HubCapabilities;
-  } catch (error) {
-    if (error instanceof HubRequestError && error.status === 404) return null;
-    throw error;
-  }
+export function fetchHubCapabilities(): Promise<HubCapabilities> {
+  return hubJson<HubCapabilities>("/api/hub/capabilities");
 }
 
 export function fetchAccountDecks(): Promise<AccountDeckList> {
@@ -270,4 +214,12 @@ export function fetchTopDeckBuckets(): Promise<TopDeckBucket[]> {
 export function fetchTopDeckSnapshot(bucket: string, date?: string): Promise<TopDeckSnapshot> {
   const query = date ? `?date=${encodeURIComponent(date)}` : "";
   return hubJson<TopDeckSnapshot>(`/api/deckhub/top/${encodeURIComponent(bucket)}${query}`);
+}
+
+export async function recordDeckPlay(request: DeckPlayReportRequest): Promise<void> {
+  await hubRequest("/api/deckhub/plays", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }

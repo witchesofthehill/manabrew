@@ -13,13 +13,11 @@ export default function DeckHub() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const openedPreviewId = useRef<string | null>(null);
-  const capabilities = useHubStore((state) => state.capabilities);
   const capabilitiesLoaded = useHubStore((state) => state.capabilitiesLoaded);
   const capabilitiesError = useHubStore((state) => state.capabilitiesError);
   const loadCapabilities = useHubStore((state) => state.loadCapabilities);
   const tab: HubTab = searchParams.get("tab") === "top" ? "top" : "discover";
   const deckId = searchParams.get("deck");
-  const domainV2 = capabilities?.domainVersion === 2;
 
   useEffect(() => {
     void loadCapabilities();
@@ -104,28 +102,9 @@ export default function DeckHub() {
           Loading Community…
         </div>
       ) : tab === "discover" ? (
-        <DeckHubDiscover domainV2={domainV2} onOpen={openPreview} />
-      ) : domainV2 ? (
-        <HubTopDeckSnapshots onOpenDeck={openPreview} />
+        <DeckHubDiscover onOpen={openPreview} />
       ) : (
-        <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
-          <div className="max-w-md">
-            <Trophy className="mx-auto h-9 w-9 text-muted-foreground/50" />
-            <p className="mt-3 font-medium">Top Decks are temporarily unavailable</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Rankings only appear when they contain published Community entries with viewable card
-              snapshots.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => selectTab("discover")}
-            >
-              Browse publications
-            </Button>
-          </div>
-        </div>
+        <HubTopDeckSnapshots onOpenDeck={openPreview} />
       )}
 
       <HubDeckPreviewDialog deckId={deckId} onClose={closePreview} />

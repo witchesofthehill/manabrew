@@ -8,6 +8,8 @@ pub struct HubConfig {
     pub deck_hub_enabled: bool,
     pub publish_per_hour: u32,
     pub publish_per_day: u32,
+    pub play_reports_per_hour: u32,
+    pub ranking_refresh_seconds: u64,
     pub auth: AuthConfig,
 }
 
@@ -67,6 +69,14 @@ impl HubConfig {
                 .ok()
                 .and_then(|n| n.parse().ok())
                 .unwrap_or(20),
+            play_reports_per_hour: std::env::var("HUB_PLAY_REPORTS_PER_HOUR")
+                .ok()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(120),
+            ranking_refresh_seconds: std::env::var("HUB_RANKING_REFRESH_SECONDS")
+                .ok()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(15 * 60),
             auth: AuthConfig::from_env(),
         }
     }

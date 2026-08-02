@@ -10,12 +10,11 @@ use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckList, AccountDeckSummary, AdminTopDeckSnapshotRequest,
     AuthProviders, AuthSessionResponse, CreateAccountDeckRequest, DeckHubEntryDetail,
-    DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag, DeckVersionDetail,
-    DeckVersionSummary, EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, HubCapabilities,
-    HubDeckDetail, HubDeckList, HubDeckSummary, MagicLinkRequest, MeResponse, OAuthStartRequest,
-    OAuthStartResponse, PublishDeckHubEntryRequest, PublishDeckRequest, PublishDeckResponse,
-    SaveDeckVersionRequest, TopDeckBucket, TopDeckSnapshot, TopDeckStat, UpdateDeckHubEntryRequest,
-    UpdateHandleRequest,
+    DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag, DeckPlayReportRequest,
+    DeckVersionDetail, DeckVersionSummary, EmailVerifyRequest, ExchangeCodeRequest,
+    FavoriteResponse, HubCapabilities, MagicLinkRequest, MeResponse, OAuthStartRequest,
+    OAuthStartResponse, PublishDeckHubEntryRequest, SaveDeckVersionRequest, TopDeckBucket,
+    TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
 };
 use ts_rs::TS;
 
@@ -43,13 +42,8 @@ pub fn generate(root: &Path) -> Result<()> {
     ensure!(status.success(), "gen-protocol failed");
 
     let out = root.join(HUB_OUT);
-    PublishDeckRequest::export_all_to(&out).context("export PublishDeckRequest")?;
-    PublishDeckResponse::export_all_to(&out).context("export PublishDeckResponse")?;
-    HubDeckSummary::export_all_to(&out).context("export HubDeckSummary")?;
-    HubDeckList::export_all_to(&out).context("export HubDeckList")?;
-    HubDeckDetail::export_all_to(&out).context("export HubDeckDetail")?;
-    TopDeckStat::export_all_to(&out).context("export TopDeckStat")?;
     HubCapabilities::export_all_to(&out).context("export HubCapabilities")?;
+    DeckPlayReportRequest::export_all_to(&out).context("export DeckPlayReportRequest")?;
     CreateAccountDeckRequest::export_all_to(&out).context("export CreateAccountDeckRequest")?;
     SaveDeckVersionRequest::export_all_to(&out).context("export SaveDeckVersionRequest")?;
     AccountDeckSummary::export_all_to(&out).context("export AccountDeckSummary")?;

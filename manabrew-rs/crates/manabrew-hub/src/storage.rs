@@ -3,22 +3,13 @@ use std::collections::BTreeMap;
 use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckSummary, AdminTopDeckSnapshotEntry, DeckHubEntryDetail,
     DeckHubEntrySummary, DeckHubFacet, DeckHubFacets, DeckHubTag, DeckVersionDetail,
-    DeckVersionSummary, FavoriteResponse, HubDeckDetail, HubDeckSummary, TopDeckBucket,
-    TopDeckSnapshot, TopDeckSnapshotEntry,
+    DeckVersionSummary, FavoriteResponse, TopDeckBucket, TopDeckSnapshot, TopDeckSnapshotEntry,
 };
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row, Transaction};
 use sha2::{Digest, Sha256};
 
 use crate::preset_decks::PresetDeck;
-
-pub struct ListParams {
-    pub search: Option<String>,
-    pub format: Option<String>,
-    pub sort: SortOrder,
-    pub page: u32,
-    pub page_size: u32,
-}
 
 pub struct DeckHubListParams {
     pub search: Option<String>,
@@ -36,12 +27,6 @@ pub struct DeckHubListParams {
     pub page: u32,
     pub page_size: u32,
     pub viewer_account_id: Option<String>,
-}
-
-#[derive(Clone, Copy)]
-pub enum SortOrder {
-    Newest,
-    Name,
 }
 
 #[derive(Clone, Copy)]
@@ -70,6 +55,20 @@ pub enum ReplaceSnapshotOutcome {
     EntryUnavailable,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum RecordDeckPlayOutcome {
+    Recorded,
+    Duplicate,
+    EntryUnavailable,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReportedPublication {
+    pub published_deck_id: String,
+    pub deck_fingerprint: String,
+    pub plays: u32,
+}
+
 #[derive(Debug)]
 pub enum SaveVersionOutcome {
     Saved(AccountDeckDetail),
@@ -77,14 +76,6 @@ pub enum SaveVersionOutcome {
     Conflict,
     Forbidden,
     NotFound,
-}
-
-pub struct NewHubDeck {
-    pub summary: HubDeckSummary,
-    pub deck_json: String,
-    pub management_token_hash: String,
-    pub publish_ip: String,
-    pub account_id: String,
 }
 
 pub struct NewDeckHubEntry {
@@ -243,176 +234,7 @@ impl Storage {
         Ok(())
     }
 
-    pub fn insert_deck(&self, deck: &NewHubDeck) -> SqlResult<()> {
-        let s = &deck.summary;
-        let snapshot: Deck = serde_json::from_str(&deck.deck_json)
-            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
-        let tx = self.conn.unchecked_transaction()?;
-        let deck_id = uuid::Uuid::new_v4().to_string();
-        let version_id = uuid::Uuid::new_v4().to_string();
-        tx.execute(
-            "INSERT INTO decks
-                (id, account_id, name, format, description, visibility, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'public', ?6, ?6)",
-            params![
-                deck_id,
-                deck.account_id,
-                s.name,
-                format_to_str(s.format),
-                s.description,
-                s.created_at,
-            ],
-        )?;
-        tx.execute(
-            "INSERT INTO deck_versions
-                (id, deck_id, version_no, format, color_identity, card_count,
-                 commander_names, snapshot_json, content_hash, created_at)
-             VALUES (?1, ?2, 1, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                version_id,
-                deck_id,
-                format_to_str(snapshot.format),
-                deck_colors(&snapshot),
-                display_cards(&snapshot).count() as u32,
-                commander_names_json(&snapshot),
-                deck.deck_json,
-                sha256_hex(deck.deck_json.as_bytes()),
-                s.created_at,
-            ],
-        )?;
-        insert_deck_cards(&tx, &version_id, &snapshot)?;
-        tx.execute(
-            "INSERT INTO deckhub_entries
-                (id, deck_id, published_version_id, slug, title, summary, cover_card_name,
-                 status, published_at, created_at, updated_at, legacy_management_token_hash,
-                 publish_ip)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'published', ?8, ?8, ?8, ?9, ?10)",
-            params![
-                s.id,
-                deck_id,
-                version_id,
-                legacy_slug(&s.name, &s.id),
-                s.name,
-                s.description,
-                s.cover_card_name,
-                s.created_at,
-                deck.management_token_hash,
-                deck.publish_ip,
-            ],
-        )?;
-        tx.execute(
-            "INSERT INTO hub_decks (id, name, author, description, format, commanders, colors,
-                card_count, cover_card_name, cover_image_url, deck_json, management_token_hash,
-                publish_ip, created_at, account_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-            params![
-                s.id,
-                s.name,
-                s.author,
-                s.description,
-                format_to_str(s.format),
-                serde_json::to_string(&s.commanders).unwrap_or_else(|_| "[]".into()),
-                s.colors,
-                s.card_count,
-                s.cover_card_name,
-                s.cover_image_url,
-                deck.deck_json,
-                deck.management_token_hash,
-                deck.publish_ip,
-                s.created_at,
-                deck.account_id,
-            ],
-        )?;
-        tx.commit()?;
-        Ok(())
-    }
-
-    pub fn list_decks(&self, params: &ListParams) -> SqlResult<(Vec<HubDeckSummary>, u32)> {
-        let mut where_clause = String::from("unlisted = 0");
-        let mut args: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-        if let Some(search) = params.search.as_deref().filter(|s| !s.is_empty()) {
-            let pattern = format!(
-                "%{}%",
-                search
-                    .replace('\\', "\\\\")
-                    .replace('%', "\\%")
-                    .replace('_', "\\_")
-            );
-            where_clause.push_str(
-                " AND (name LIKE ?1 ESCAPE '\\' OR author LIKE ?1 ESCAPE '\\' OR commanders LIKE ?1 ESCAPE '\\')",
-            );
-            args.push(Box::new(pattern));
-        }
-        if let Some(format) = params.format.as_deref().filter(|f| !f.is_empty()) {
-            where_clause.push_str(&format!(" AND format = ?{}", args.len() + 1));
-            args.push(Box::new(format.to_string()));
-        }
-        let order = match params.sort {
-            SortOrder::Newest => "created_at DESC",
-            SortOrder::Name => "name COLLATE NOCASE ASC",
-        };
-        let total: u32 = self.conn.query_row(
-            &format!("SELECT count(*) FROM hub_decks WHERE {where_clause}"),
-            rusqlite::params_from_iter(args.iter().map(|a| a.as_ref())),
-            |row| row.get(0),
-        )?;
-        let offset = params
-            .page
-            .saturating_sub(1)
-            .saturating_mul(params.page_size);
-        let sql = format!(
-            "SELECT id, name, author, description, format, commanders, colors, card_count,
-                    cover_card_name, cover_image_url, created_at
-             FROM hub_decks WHERE {where_clause} ORDER BY {order} LIMIT {} OFFSET {}",
-            params.page_size, offset
-        );
-        let mut stmt = self.conn.prepare(&sql)?;
-        let decks = stmt
-            .query_map(
-                rusqlite::params_from_iter(args.iter().map(|a| a.as_ref())),
-                map_summary,
-            )?
-            .collect::<SqlResult<Vec<_>>>()?;
-        Ok((decks, total))
-    }
-
-    pub fn get_deck(&self, id: &str) -> SqlResult<Option<HubDeckDetail>> {
-        let row = self
-            .conn
-            .query_row(
-                "SELECT id, name, author, description, format, commanders, colors, card_count,
-                        cover_card_name, cover_image_url, created_at, deck_json
-                 FROM hub_decks WHERE id = ?1 AND unlisted = 0",
-                params![id],
-                |row| {
-                    let summary = map_summary(row)?;
-                    let deck_json: String = row.get(11)?;
-                    Ok((summary, deck_json))
-                },
-            )
-            .optional()?;
-        Ok(row.and_then(|(summary, deck_json)| {
-            serde_json::from_str::<Deck>(&deck_json)
-                .ok()
-                .map(|deck| HubDeckDetail { summary, deck })
-        }))
-    }
-
     pub fn published_deck_matches(&self, id: &str, fingerprint: &str) -> SqlResult<bool> {
-        let legacy_deck_json = self
-            .conn
-            .query_row(
-                "SELECT deck_json FROM hub_decks WHERE id = ?1 AND unlisted = 0",
-                params![id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        if legacy_deck_json
-            .and_then(|json| serde_json::from_str::<Deck>(&json).ok())
-            .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint)
-        {
-            return Ok(true);
-        }
         let snapshot_json = self
             .conn
             .query_row(
@@ -429,119 +251,69 @@ impl Storage {
             .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint))
     }
 
-    pub fn delete_deck(&self, id: &str, token_hash: &str) -> SqlResult<DeleteOutcome> {
-        let stored: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT management_token_hash FROM hub_decks WHERE id = ?1",
-                params![id],
-                |row| row.get(0),
-            )
-            .optional()?;
-        match stored {
-            None => Ok(DeleteOutcome::NotFound),
-            Some(stored) if stored != token_hash => Ok(DeleteOutcome::Forbidden),
-            Some(_) => {
-                let tx = self.conn.unchecked_transaction()?;
-                tx.execute("DELETE FROM hub_decks WHERE id = ?1", params![id])?;
-                tx.execute(
-                    "UPDATE deckhub_entries
-                     SET status = 'unlisted', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-                     WHERE id = ?1",
-                    params![id],
-                )?;
-                update_deck_visibility(&tx, id)?;
-                tx.commit()?;
-                Ok(DeleteOutcome::Deleted)
-            }
+    pub fn record_deck_play(
+        &self,
+        report_id: &str,
+        deckhub_entry_id: &str,
+        fingerprint: &str,
+        format: Option<DeckFormat>,
+        played_at: &str,
+    ) -> SqlResult<RecordDeckPlayOutcome> {
+        if !self.published_deck_matches(deckhub_entry_id, fingerprint)? {
+            return Ok(RecordDeckPlayOutcome::EntryUnavailable);
         }
+        let inserted = self.conn.execute(
+            "INSERT OR IGNORE INTO deck_play_reports
+                (id, deckhub_entry_id, deck_fingerprint, format, played_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                report_id,
+                deckhub_entry_id,
+                fingerprint,
+                format_to_str(format),
+                played_at
+            ],
+        )?;
+        Ok(if inserted == 0 {
+            RecordDeckPlayOutcome::Duplicate
+        } else {
+            RecordDeckPlayOutcome::Recorded
+        })
     }
 
-    pub fn admin_delete(&self, id: &str) -> SqlResult<bool> {
-        let tx = self.conn.unchecked_transaction()?;
-        let changed = tx.execute("DELETE FROM hub_decks WHERE id = ?1", params![id])?;
-        let entry_changed = tx.execute(
-            "UPDATE deckhub_entries
-             SET status = 'archived', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-             WHERE id = ?1",
-            params![id],
+    pub fn reported_publications(
+        &self,
+        since: &str,
+        format: Option<&str>,
+        limit: u32,
+    ) -> SqlResult<Vec<ReportedPublication>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT deckhub_entry_id, deck_fingerprint, count(*) AS plays
+             FROM deck_play_reports
+             WHERE played_at >= ?1
+               AND (?2 IS NULL OR lower(format) = lower(?2))
+             GROUP BY deckhub_entry_id, deck_fingerprint
+             ORDER BY plays DESC, deckhub_entry_id ASC
+             LIMIT ?3",
         )?;
-        update_deck_visibility(&tx, id)?;
-        tx.commit()?;
-        Ok(changed > 0 || entry_changed > 0)
-    }
-
-    pub fn admin_unlist(&self, id: &str) -> SqlResult<bool> {
-        let tx = self.conn.unchecked_transaction()?;
-        let changed = tx.execute(
-            "UPDATE hub_decks SET unlisted = 1 WHERE id = ?1",
-            params![id],
-        )?;
-        let entry_changed = tx.execute(
-            "UPDATE deckhub_entries
-             SET status = 'unlisted', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-             WHERE id = ?1",
-            params![id],
-        )?;
-        update_deck_visibility(&tx, id)?;
-        tx.commit()?;
-        Ok(changed > 0 || entry_changed > 0)
+        let publications = stmt
+            .query_map(params![since, format, limit], |row| {
+                Ok(ReportedPublication {
+                    published_deck_id: row.get(0)?,
+                    deck_fingerprint: row.get(1)?,
+                    plays: row.get(2)?,
+                })
+            })?
+            .collect();
+        publications
     }
 
     pub fn publishes_since(&self, ip: &str, since: &str) -> SqlResult<u32> {
         self.conn.query_row(
-            "SELECT count(*) FROM hub_decks WHERE publish_ip = ?1 AND created_at >= ?2",
+            "SELECT count(*) FROM deckhub_entries WHERE publish_ip = ?1 AND created_at >= ?2",
             params![ip, since],
             |row| row.get(0),
         )
-    }
-
-    pub fn deck_owner(&self, id: &str) -> SqlResult<Option<Option<String>>> {
-        self.conn
-            .query_row(
-                "SELECT account_id FROM hub_decks WHERE id = ?1",
-                params![id],
-                |row| row.get(0),
-            )
-            .optional()
-    }
-
-    pub fn delete_deck_owned(&self, id: &str, account_id: &str) -> SqlResult<DeleteOutcome> {
-        match self.deck_owner(id)? {
-            None => Ok(DeleteOutcome::NotFound),
-            Some(owner) if owner.as_deref() != Some(account_id) => Ok(DeleteOutcome::Forbidden),
-            Some(_) => {
-                let tx = self.conn.unchecked_transaction()?;
-                tx.execute("DELETE FROM hub_decks WHERE id = ?1", params![id])?;
-                tx.execute(
-                    "UPDATE deckhub_entries
-                     SET status = 'unlisted', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-                     WHERE id = ?1",
-                    params![id],
-                )?;
-                update_deck_visibility(&tx, id)?;
-                tx.commit()?;
-                Ok(DeleteOutcome::Deleted)
-            }
-        }
-    }
-
-    pub fn list_account_decks(
-        &self,
-        account_id: &str,
-        limit: u32,
-    ) -> SqlResult<Vec<HubDeckSummary>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, author, description, format, commanders, colors, card_count,
-                    cover_card_name, cover_image_url, created_at
-             FROM hub_decks
-             WHERE account_id = ?1 AND unlisted = 0
-             ORDER BY created_at DESC LIMIT ?2",
-        )?;
-        let decks = stmt
-            .query_map(params![account_id, limit], map_summary)?
-            .collect::<SqlResult<Vec<_>>>()?;
-        Ok(decks)
     }
 
     pub fn create_account_deck(
@@ -674,7 +446,7 @@ impl Storage {
             let entry_id = format!("preset-entry:{}:{version_no}", preset.key);
             let slug = format!(
                 "{}-v{version_no}",
-                legacy_slug(&preset.deck.name, &preset.key)
+                publication_slug(&preset.deck.name, &preset.key)
             );
             tx.execute(
                 "UPDATE deckhub_entries
@@ -685,8 +457,8 @@ impl Storage {
             tx.execute(
                 "INSERT INTO deckhub_entries
                     (id, deck_id, published_version_id, slug, title, summary, cover_card_name,
-                     status, published_at, created_at, updated_at, legacy_author)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'published', ?8, ?8, ?8, 'ManaBrew')
+                     status, published_at, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'published', ?8, ?8, ?8)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     summary = excluded.summary,
@@ -1085,7 +857,7 @@ impl Storage {
             where_clause.push_str(&format!(
                 " AND (e.title LIKE ?{index} ESCAPE '\\'
                        OR COALESCE(e.summary, '') LIKE ?{index} ESCAPE '\\'
-                       OR COALESCE(e.legacy_author, a.username, a.handle, 'ManaBrew') LIKE ?{index} ESCAPE '\\'
+                       OR COALESCE(a.username, a.handle, 'ManaBrew') LIKE ?{index} ESCAPE '\\'
                        OR EXISTS(
                            SELECT 1 FROM deck_cards search_card
                            WHERE search_card.deck_version_id = v.id
@@ -1218,7 +990,7 @@ impl Storage {
             .saturating_mul(params.page_size);
         let sql = format!(
             "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
-                    e.summary, COALESCE(e.legacy_author, a.username, a.handle, 'ManaBrew'),
+                    e.summary, COALESCE(a.username, a.handle, 'ManaBrew'),
                     d.kind, d.preset_key, v.format,
                     v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                     e.cover_card_id, e.cover_card_name, e.status, e.published_at,
@@ -1256,7 +1028,7 @@ impl Storage {
             .conn
             .query_row(
                 "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
-                        e.summary, COALESCE(e.legacy_author, a.username, a.handle, 'ManaBrew'),
+                        e.summary, COALESCE(a.username, a.handle, 'ManaBrew'),
                         d.kind, d.preset_key, v.format,
                         v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                         e.cover_card_id, e.cover_card_name, e.status, e.published_at,
@@ -1307,29 +1079,19 @@ impl Storage {
         account_id: &str,
         entry: &NewDeckHubEntry,
     ) -> SqlResult<Option<DeckHubEntryDetail>> {
-        let source = self
-            .conn
-            .query_row(
-                "SELECT v.snapshot_json, a.handle
+        let source_exists = self.conn.query_row(
+            "SELECT EXISTS(
+                    SELECT 1
                  FROM decks d
                  JOIN deck_versions v ON v.deck_id = d.id
-                 JOIN accounts a ON a.id = d.account_id
-                 WHERE d.id = ?1 AND v.id = ?2 AND d.account_id = ?3 AND d.deleted_at IS NULL",
-                params![entry.deck_id, entry.published_version_id, account_id],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-            )
-            .optional()?;
-        let Some((snapshot_json, author)) = source else {
+                 WHERE d.id = ?1 AND v.id = ?2 AND d.account_id = ?3 AND d.deleted_at IS NULL
+                 )",
+            params![entry.deck_id, entry.published_version_id, account_id],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if !source_exists {
             return Ok(None);
-        };
-        let deck: Deck = serde_json::from_str(&snapshot_json)
-            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
-        let mut public_deck = deck.clone();
-        public_deck.playmat = None;
-        public_deck.playmat_settings = None;
-        public_deck.stack_positions = None;
-        let public_snapshot_json = serde_json::to_string(&public_deck)
-            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+        }
         let id = uuid::Uuid::new_v4().to_string();
         let tx = self.conn.unchecked_transaction()?;
         let slug = unique_slug(&tx, &entry.title, &id)?;
@@ -1355,31 +1117,6 @@ impl Storage {
         tx.execute(
             "UPDATE decks SET visibility = 'public', updated_at = ?2 WHERE id = ?1",
             params![entry.deck_id, entry.created_at],
-        )?;
-        let legacy = legacy_summary(&id, &author, &deck, &entry.created_at);
-        tx.execute(
-            "INSERT INTO hub_decks
-                (id, name, author, description, format, commanders, colors, card_count,
-                 cover_card_name, cover_image_url, deck_json, management_token_hash,
-                 publish_ip, created_at, account_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-            params![
-                legacy.id,
-                entry.title,
-                legacy.author,
-                entry.summary,
-                format_to_str(legacy.format),
-                serde_json::to_string(&legacy.commanders).unwrap_or_else(|_| "[]".into()),
-                legacy.colors,
-                legacy.card_count,
-                legacy.cover_card_name,
-                legacy.cover_image_url,
-                public_snapshot_json,
-                sha256_hex(uuid::Uuid::new_v4().as_bytes()),
-                entry.publish_ip,
-                entry.created_at,
-                account_id,
-            ],
         )?;
         tx.commit()?;
         self.get_deckhub_entry(&id, Some(account_id))
@@ -1412,17 +1149,6 @@ impl Storage {
                     ],
                 )?;
                 replace_entry_tags(&tx, entry_id, &update.tags)?;
-                tx.execute(
-                    "UPDATE hub_decks
-                     SET name = ?2, description = ?3, cover_card_name = ?4
-                     WHERE id = ?1",
-                    params![
-                        entry_id,
-                        update.title,
-                        update.summary,
-                        update.cover_card_name,
-                    ],
-                )?;
                 tx.commit()?;
                 Ok(DeleteOutcome::Deleted)
             }
@@ -1444,10 +1170,6 @@ impl Storage {
                 tx.execute(
                     "UPDATE deckhub_entries SET status = 'unlisted', updated_at = ?2 WHERE id = ?1",
                     params![entry_id, now],
-                )?;
-                tx.execute(
-                    "UPDATE hub_decks SET unlisted = 1 WHERE id = ?1",
-                    params![entry_id],
                 )?;
                 update_deck_visibility(&tx, entry_id)?;
                 tx.commit()?;
@@ -2248,7 +1970,7 @@ fn migrate_legacy_hub_decks(tx: &Transaction<'_>) -> SqlResult<()> {
                 row.id,
                 deck_id,
                 version_id,
-                legacy_slug(&row.name, &row.id),
+                publication_slug(&row.name, &row.id),
                 row.name,
                 row.description,
                 row.cover_card_name,
@@ -2364,7 +2086,7 @@ fn add_card_rows(
     }
 }
 
-fn legacy_slug(name: &str, id: &str) -> String {
+fn publication_slug(name: &str, id: &str) -> String {
     let mut slug = name
         .chars()
         .map(|character| {
@@ -2558,32 +2280,6 @@ fn slug_base(value: &str) -> String {
     slug.trim_matches('-').to_string()
 }
 
-fn legacy_summary(id: &str, author: &str, deck: &Deck, created_at: &str) -> HubDeckSummary {
-    let cover_card_name = deck.cover_card_name.clone().or_else(|| {
-        display_cards(deck)
-            .next()
-            .map(|card| card.identity.name.clone())
-    });
-    HubDeckSummary {
-        id: id.to_string(),
-        name: deck.name.clone(),
-        author: author.to_string(),
-        description: deck.description.clone(),
-        format: deck.format,
-        commanders: deck
-            .commanders
-            .iter()
-            .flatten()
-            .map(|card| card.identity.name.clone())
-            .collect(),
-        colors: deck_colors(deck),
-        card_count: display_cards(deck).count() as u32,
-        cover_card_name: cover_card_name.clone(),
-        cover_image_url: cover_image(deck, cover_card_name.as_deref()),
-        created_at: created_at.to_string(),
-    }
-}
-
 fn display_cards(deck: &Deck) -> impl Iterator<Item = &DeckCard> {
     deck.cards
         .iter()
@@ -2686,24 +2382,6 @@ pub fn is_unique_violation(error: &rusqlite::Error) -> bool {
     )
 }
 
-fn map_summary(row: &Row) -> SqlResult<HubDeckSummary> {
-    let format: Option<String> = row.get(4)?;
-    let commanders: String = row.get(5)?;
-    Ok(HubDeckSummary {
-        id: row.get(0)?,
-        name: row.get(1)?,
-        author: row.get(2)?,
-        description: row.get(3)?,
-        format: format.as_deref().and_then(format_from_str),
-        commanders: serde_json::from_str(&commanders).unwrap_or_default(),
-        colors: row.get(6)?,
-        card_count: row.get(7)?,
-        cover_card_name: row.get(8)?,
-        cover_image_url: row.get(9)?,
-        created_at: row.get(10)?,
-    })
-}
-
 fn format_to_str(format: Option<DeckFormat>) -> Option<String> {
     format.and_then(|f| {
         serde_json::to_value(f).ok().and_then(|v| match v {
@@ -2720,179 +2398,6 @@ fn format_from_str(s: &str) -> Option<DeckFormat> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn storage_with_account() -> Storage {
-        let storage = Storage::open_memory().unwrap();
-        storage
-            .create_account(&AccountRow {
-                id: "acct-1".into(),
-                handle: "tester".into(),
-                handle_set: true,
-                created_at: "2026-07-01T00:00:00Z".into(),
-            })
-            .unwrap();
-        storage
-    }
-
-    fn sample(id: &str, name: &str, ip: &str, created_at: &str) -> NewHubDeck {
-        NewHubDeck {
-            summary: HubDeckSummary {
-                id: id.into(),
-                name: name.into(),
-                author: "tester".into(),
-                description: None,
-                format: Some(DeckFormat::Commander),
-                commanders: vec!["Neheb, the Worthy".into()],
-                colors: "BR".into(),
-                card_count: 100,
-                cover_card_name: None,
-                cover_image_url: None,
-                created_at: created_at.into(),
-            },
-            deck_json: r#"{"name":"x","cards":[],"sideboard":[]}"#.into(),
-            management_token_hash: "hash".into(),
-            publish_ip: ip.into(),
-            account_id: "acct-1".into(),
-        }
-    }
-
-    fn default_params() -> ListParams {
-        ListParams {
-            search: None,
-            format: None,
-            sort: SortOrder::Newest,
-            page: 1,
-            page_size: 20,
-        }
-    }
-
-    #[test]
-    fn insert_list_get_roundtrip() {
-        let storage = storage_with_account();
-        storage
-            .insert_deck(&sample(
-                "a",
-                "Neheb Burn",
-                "1.1.1.1",
-                "2026-07-01T00:00:00Z",
-            ))
-            .unwrap();
-        storage
-            .insert_deck(&sample(
-                "b",
-                "Atraxa Toolbox",
-                "1.1.1.1",
-                "2026-07-02T00:00:00Z",
-            ))
-            .unwrap();
-        let (decks, total) = storage.list_decks(&default_params()).unwrap();
-        assert_eq!(total, 2);
-        assert_eq!(decks[0].id, "b");
-        assert_eq!(decks[0].format, Some(DeckFormat::Commander));
-        assert_eq!(decks[0].commanders, vec!["Neheb, the Worthy".to_string()]);
-        let detail = storage.get_deck("a").unwrap().unwrap();
-        assert_eq!(detail.summary.name, "Neheb Burn");
-        assert_eq!(detail.deck.name, "x");
-    }
-
-    #[test]
-    fn search_filters_by_name_author_commander() {
-        let storage = storage_with_account();
-        storage
-            .insert_deck(&sample(
-                "a",
-                "Neheb Burn",
-                "1.1.1.1",
-                "2026-07-01T00:00:00Z",
-            ))
-            .unwrap();
-        storage
-            .insert_deck(&sample(
-                "b",
-                "Atraxa Toolbox",
-                "1.1.1.1",
-                "2026-07-02T00:00:00Z",
-            ))
-            .unwrap();
-        let mut params = default_params();
-        params.search = Some("atraxa".into());
-        let (decks, total) = storage.list_decks(&params).unwrap();
-        assert_eq!(total, 1);
-        assert_eq!(decks[0].id, "b");
-        params.search = Some("neheb, the".into());
-        let (_, total) = storage.list_decks(&params).unwrap();
-        assert_eq!(total, 2);
-    }
-
-    #[test]
-    fn delete_requires_matching_token() {
-        let storage = storage_with_account();
-        storage
-            .insert_deck(&sample(
-                "a",
-                "Neheb Burn",
-                "1.1.1.1",
-                "2026-07-01T00:00:00Z",
-            ))
-            .unwrap();
-        assert_eq!(
-            storage.delete_deck("a", "wrong").unwrap(),
-            DeleteOutcome::Forbidden
-        );
-        assert_eq!(
-            storage.delete_deck("missing", "hash").unwrap(),
-            DeleteOutcome::NotFound
-        );
-        assert_eq!(
-            storage.delete_deck("a", "hash").unwrap(),
-            DeleteOutcome::Deleted
-        );
-        assert!(storage.get_deck("a").unwrap().is_none());
-    }
-
-    #[test]
-    fn unlisted_decks_hidden_from_list_and_get() {
-        let storage = storage_with_account();
-        storage
-            .insert_deck(&sample(
-                "a",
-                "Neheb Burn",
-                "1.1.1.1",
-                "2026-07-01T00:00:00Z",
-            ))
-            .unwrap();
-        assert!(storage.admin_unlist("a").unwrap());
-        let (decks, total) = storage.list_decks(&default_params()).unwrap();
-        assert_eq!(total, 0);
-        assert!(decks.is_empty());
-        assert!(storage.get_deck("a").unwrap().is_none());
-    }
-
-    #[test]
-    fn publishes_since_counts_per_ip() {
-        let storage = storage_with_account();
-        storage
-            .insert_deck(&sample("a", "One", "1.1.1.1", "2026-07-01T00:00:00Z"))
-            .unwrap();
-        storage
-            .insert_deck(&sample("b", "Two", "1.1.1.1", "2026-07-02T00:00:00Z"))
-            .unwrap();
-        storage
-            .insert_deck(&sample("c", "Three", "2.2.2.2", "2026-07-02T00:00:00Z"))
-            .unwrap();
-        assert_eq!(
-            storage
-                .publishes_since("1.1.1.1", "2026-07-01T12:00:00Z")
-                .unwrap(),
-            1
-        );
-        assert_eq!(
-            storage
-                .publishes_since("1.1.1.1", "2026-01-01T00:00:00Z")
-                .unwrap(),
-            2
-        );
-    }
 
     #[test]
     fn legacy_publication_migrates_to_normalized_domain() {
@@ -2954,6 +2459,16 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
+        let obsolete_table_exists: bool = storage
+            .conn
+            .query_row(
+                "SELECT EXISTS(
+                    SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'hub_decks'
+                 )",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         let kind: String = storage
             .conn
             .query_row(
@@ -2962,9 +2477,10 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 7);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
+        assert!(!obsolete_table_exists);
         assert_eq!(kind, "user");
         let detail = storage
             .get_deckhub_entry("legacy-entry", Some("acct-1"))

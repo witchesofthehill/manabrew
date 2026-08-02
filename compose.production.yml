@@ -99,7 +99,7 @@ services:
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
-      - ./ops/observability/data/events:/var/manabrew/events:ro
+      - ./ops/observability/data/events:/var/manabrew/events
     expose:
       - "9500"
     restart: unless-stopped

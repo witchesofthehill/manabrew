@@ -3,18 +3,15 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
-import { HubDeckCard } from "@/components/deck/HubDeckCard";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import type { DeckHubGroup, DeckHubView } from "@/components/deck/deckHub.types";
-import type { DeckHubEntrySummary, HubDeckSummary } from "@/api/hubTypes";
+import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
 import { cn } from "@/lib/utils";
 
 interface DeckHubResultsProps {
   entries: DeckHubEntrySummary[];
-  legacyDecks: HubDeckSummary[];
-  domainV2: boolean;
   loading: boolean;
   loaded: boolean;
   error: string | null;
@@ -41,8 +38,6 @@ function groupLabel(entry: DeckHubEntrySummary, group: DeckHubGroup) {
 
 export function DeckHubResults({
   entries,
-  legacyDecks,
-  domainV2,
   loading,
   loaded,
   error,
@@ -96,7 +91,7 @@ export function DeckHubResults({
                 <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
               ))}
             </div>
-          ) : entries.length === 0 && legacyDecks.length === 0 && total > 0 ? (
+          ) : entries.length === 0 && total > 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Layers className="h-9 w-9 text-muted-foreground/50" />
               <p className="mt-3 text-lg font-semibold">This page is out of range</p>
@@ -108,7 +103,7 @@ export function DeckHubResults({
                 Back to page 1
               </Button>
             </div>
-          ) : entries.length === 0 && legacyDecks.length === 0 ? (
+          ) : entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Layers className="h-9 w-9 text-muted-foreground/50" />
               <p className="mt-3 text-lg font-semibold">
@@ -129,7 +124,7 @@ export function DeckHubResults({
                 </Button>
               )}
             </div>
-          ) : domainV2 ? (
+          ) : (
             <div className="space-y-6">
               {[...groups.entries()].map(([label, groupedEntries]) => (
                 <section key={label}>
@@ -178,12 +173,6 @@ export function DeckHubResults({
                     ))}
                   </div>
                 </section>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {legacyDecks.map((deck) => (
-                <HubDeckCard key={deck.id} deck={deck} onOpen={() => onOpen(deck.id)} />
               ))}
             </div>
           )}

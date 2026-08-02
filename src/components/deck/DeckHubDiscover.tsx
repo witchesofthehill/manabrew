@@ -14,7 +14,6 @@ const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface DeckHubDiscoverProps {
-  domainV2: boolean;
   onOpen: (id: string) => void;
 }
 
@@ -27,7 +26,7 @@ function positivePage(value: string | null) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
-export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
+export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const accountsEnabled = isFeatureEnabled("accounts");
   const [searchParams, setSearchParams] = useSearchParams();
   const querySearch = searchParams.get("q") ?? "";
@@ -69,10 +68,6 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
         : "none",
   };
 
-  const list = useHubStore((state) => state.list);
-  const listLoading = useHubStore((state) => state.listLoading);
-  const listError = useHubStore((state) => state.listError);
-  const fetchDecks = useHubStore((state) => state.fetchDecks);
   const entries = useHubStore((state) => state.entries);
   const entriesLoading = useHubStore((state) => state.entriesLoading);
   const entriesError = useHubStore((state) => state.entriesError);
@@ -107,39 +102,27 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
   }, [debouncedSearch, querySearch, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (domainV2) void fetchFacets();
-  }, [domainV2, fetchFacets]);
+    void fetchFacets();
+  }, [fetchFacets]);
 
   useEffect(() => {
-    if (domainV2) {
-      void fetchEntries({
-        search: debouncedSearch || undefined,
-        source: filters.source,
-        formats,
-        colors: filters.colors || undefined,
-        colorMatch: filters.colorMatch,
-        tags,
-        tagMatch: filters.tagMatch,
-        commander: filters.commander || undefined,
-        card: filters.card || undefined,
-        favorites: filters.favorites,
-        sort: filters.sort,
-        page,
-        pageSize: PAGE_SIZE,
-      });
-      return;
-    }
-    void fetchDecks({
+    void fetchEntries({
       search: debouncedSearch || undefined,
-      format: formats[0],
-      sort: filters.sort === "name" ? "name" : "newest",
+      source: filters.source,
+      formats,
+      colors: filters.colors || undefined,
+      colorMatch: filters.colorMatch,
+      tags,
+      tagMatch: filters.tagMatch,
+      commander: filters.commander || undefined,
+      card: filters.card || undefined,
+      favorites: filters.favorites,
+      sort: filters.sort,
       page,
       pageSize: PAGE_SIZE,
     });
   }, [
     debouncedSearch,
-    domainV2,
-    fetchDecks,
     fetchEntries,
     filters.card,
     filters.colorMatch,
@@ -241,7 +224,6 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
       );
   }
 
-  const activeList = domainV2 ? entries : list;
   const activeFilterCount =
     Number(Boolean(search)) +
     Number(filters.source !== "all") +
@@ -251,14 +233,13 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
     Number(Boolean(filters.commander)) +
     Number(Boolean(filters.card)) +
     Number(filters.favorites);
-  const total = activeList?.total ?? 0;
+  const total = entries?.total ?? 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DeckHubFilters
         filters={filters}
         facets={facets}
-        domainV2={domainV2}
         activeFilterCount={activeFilterCount}
         favoritesEnabled={accountsEnabled}
         signedIn={signedIn}
@@ -267,11 +248,9 @@ export function DeckHubDiscover({ domainV2, onOpen }: DeckHubDiscoverProps) {
       />
       <DeckHubResults
         entries={entries?.entries ?? []}
-        legacyDecks={list?.decks ?? []}
-        domainV2={domainV2}
-        loading={domainV2 ? entriesLoading : listLoading}
-        loaded={activeList !== null}
-        error={domainV2 ? entriesError : listError}
+        loading={entriesLoading}
+        loaded={entries !== null}
+        error={entriesError}
         total={total}
         page={page}
         totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}

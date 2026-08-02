@@ -24,7 +24,7 @@ import { Loader2, Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
-import type { HubDeckDetail, HubDeckSummary } from "@/api/hubTypes";
+import type { DeckHubEntryDetail, DeckHubEntrySummary } from "@/api/hubTypes";
 
 interface CreateGameDialogProps {
   open: boolean;
@@ -68,13 +68,13 @@ export function CreateGameDialog({
   const presetDecks = usePresetDecks();
   const [playerCount, setPlayerCount] = useState(2);
   const [deckSearch, setDeckSearch] = useState("");
-  const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, HubDeckDetail>>({});
+  const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, DeckHubEntryDetail>>({});
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id, open);
-  const loadHubDeck = useHubStore((state) => state.loadPlayableDeck);
+  const loadHubDeck = useHubStore((state) => state.loadEntry);
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
 
@@ -112,7 +112,7 @@ export function CreateGameDialog({
         const formatId = detail.deck.format ?? detail.format ?? "standard";
         if (formatId !== selectedFormat.id) {
           restoredHubDeckRef.current = null;
-          toast.error(`"${detail.name}" is not a ${selectedFormat.name} deck`);
+          toast.error(`"${detail.title}" is not a ${selectedFormat.name} deck`);
           return;
         }
         setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
@@ -199,8 +199,8 @@ export function CreateGameDialog({
   }));
   const hubDeckEntries = Object.values(loadedHubDecks).map((detail) => ({
     id: `hub:${detail.id}`,
-    name: detail.name,
-    desc: detail.description,
+    name: detail.title,
+    desc: detail.summary,
     color: detail.colors,
     badge: "Community",
     sourceDeck: detail.deck,
@@ -293,7 +293,7 @@ export function CreateGameDialog({
     onOpenChange(nextOpen);
   }
 
-  async function selectHubDeck(summary: HubDeckSummary, activate = false) {
+  async function selectHubDeck(summary: DeckHubEntrySummary, activate = false) {
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
     try {
@@ -302,8 +302,8 @@ export function CreateGameDialog({
       setLoadedHubDecks((current) => ({ ...current, [detail.id]: detail }));
       const entry = {
         id: `hub:${detail.id}`,
-        name: detail.name,
-        desc: detail.description,
+        name: detail.title,
+        desc: detail.summary,
         color: detail.colors,
         badge: "Community",
         sourceDeck: detail.deck,
@@ -315,7 +315,7 @@ export function CreateGameDialog({
       };
       const currentFormat = selectedFormatRef.current;
       if (entry.formatId !== currentFormat.id) {
-        toast.error(`"${detail.name}" is not a ${currentFormat.name} deck`);
+        toast.error(`"${detail.title}" is not a ${currentFormat.name} deck`);
         return;
       }
       setSelectedDeck(entry.id);
@@ -687,7 +687,7 @@ export function CreateGameDialog({
                             <DeckSelectionCard
                               key={deck.id}
                               name={
-                                loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name
+                                loadingHubDeckId === deck.id ? `Loading ${deck.title}…` : deck.title
                               }
                               color={deck.colors}
                               author={deck.author}

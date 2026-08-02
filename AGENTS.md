@@ -11,7 +11,7 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 ## Local full stack
 
-`./dev start` builds and starts the web app, relay, and Hub API through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; `./dev stop` preserves it and `./dev clean` deletes it together with the development cache volumes. Use `./dev logs` to follow all services.
+`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services.
 
 ## Prime directive: root-cause, not symptom
 

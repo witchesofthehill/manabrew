@@ -176,7 +176,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         {snapshot?.snapshotDate
           ? snapshot.bucket.scope === "editorial"
             ? `Curated snapshot dated ${snapshot.snapshotDate}.`
-            : `Based on official public matches from the 30 days ending ${snapshot.snapshotDate}.`
+            : `Based on online and offline play from the 30 days ending ${snapshot.snapshotDate}.`
           : " "}
       </p>
     </div>

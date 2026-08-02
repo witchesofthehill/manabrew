@@ -7,6 +7,9 @@ services:
     command: sh -c "yarn install --frozen-lockfile && exec yarn vite --host 0.0.0.0"
     environment:
       VITE_HUB_API_URL: "http://hub:9500"
+      VITE_RELAY_HOST: "localhost"
+      VITE_RELAY_PORT: "9443"
+      VITE_RELAY_PASSWORD: "forge"
     ports:
       - "1420:1420"
     volumes:
@@ -40,6 +43,8 @@ services:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_HEALTH_PORT: "9444"
+      MANABREW_SERVER_KEY: "forge"
+      MANABREW_EVENTS_DIR: "/events"
       RUST_LOG: "manabrew_server=info"
     ports:
       - "9443:9443"
@@ -49,6 +54,7 @@ services:
       - relay-target:/target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
+      - ./ops/hub-data/dev/events:/events
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
       interval: 15s
@@ -82,15 +88,21 @@ services:
       HUB_HOST: "0.0.0.0"
       HUB_PORT: "9500"
       HUB_DB_PATH: "/data/hub.db"
+      EVENTS_DB_PATH: "/events/events.db"
+      HUB_RANKING_REFRESH_SECONDS: "5"
       HUB_PUBLIC_URL: "http://localhost:9500"
       WEB_APP_URL: "http://localhost:1420"
       DECK_HUB: "1"
       RUST_LOG: "manabrew_hub=info"
     ports:
       - "9500:9500"
+    depends_on:
+      events-ingester:
+        condition: service_healthy
     volumes:
       - .:/app
       - ./ops/hub-data/dev:/data
+      - ./ops/hub-data/dev/events:/events
       - hub-target:/target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
@@ -100,6 +112,29 @@ services:
       timeout: 3s
       retries: 3
       start_period: 600s
+
+  events-ingester:
+    image: python:3.12-alpine
+    init: true
+    command:
+      - python
+      - /app/ingest-events.py
+      - --dir
+      - /events
+      - --watch
+      - "1"
+    volumes:
+      - ./scripts/ingest-events.py:/app/ingest-events.py:ro
+      - ./ops/hub-data/dev/events:/events
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sqlite3; sqlite3.connect('/events/events.db').execute('SELECT 1 FROM games LIMIT 1')"
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
 volumes:
   web-node-modules:

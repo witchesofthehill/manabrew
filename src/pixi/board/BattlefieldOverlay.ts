@@ -370,6 +370,10 @@ export class BattlefieldOverlay {
       if (entry) this.host.setCardHovered(entry.sprite);
       onHoverChange?.(true);
     });
+    btn.on("pointermove", () => {
+      const entry = this.host.getEntries().get(cardId);
+      if (entry) this.host.setCardHovered(entry.sprite, true);
+    });
     btn.on("pointerout", () => {
       onHoverChange?.(false);
       this.host.scheduleHoverClear(cardId);

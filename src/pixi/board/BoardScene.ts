@@ -1505,7 +1505,8 @@ export class BoardScene {
       isJustDragged: (id) => this.dragHandler.justDraggedCardIds.has(id),
       startCardDrag: (sprite, e) => this.onBattlefieldCardDown(sprite, e),
       cancelHoverClear: () => this.cancelHoverClear(),
-      setCardHovered: (sprite) => this.setBattlefieldCardHovered(region, sprite),
+      setCardHovered: (sprite, force = false) =>
+        this.setBattlefieldCardHovered(region, sprite, force),
       scheduleHoverClear: (id) => this.scheduleHoverClear(id),
       getCardScale: () => region.getCardScale(),
       isCompact: () => this.compactMode,
@@ -1570,9 +1571,7 @@ export class BoardScene {
       if (region) this.setBattlefieldCardHovered(region, sprite);
     });
     sprite.on("pointermove", () => {
-      if (region && this.hoveredCardId === sprite.card.id) {
-        this.setBattlefieldCardHovered(region, sprite, true);
-      }
+      if (region) this.setBattlefieldCardHovered(region, sprite, true);
     });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
     // A sprite removed while hovered never fires pointerleave, which would

@@ -101,7 +101,7 @@ export interface OverlayHost {
   isJustDragged(cardId: string): boolean;
   startCardDrag(sprite: CardSprite, e: FederatedPointerEvent): void;
   cancelHoverClear(): void;
-  setCardHovered(sprite: CardSprite): void;
+  setCardHovered(sprite: CardSprite, force?: boolean): void;
   scheduleHoverClear(cardId: string): void;
   getCardScale(): number;
   isCompact(): boolean;

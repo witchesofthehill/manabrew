@@ -72,6 +72,27 @@ pub struct RankedPublication {
     pub wins: u32,
 }
 
+#[derive(Debug, Clone)]
+pub struct RisingPublication {
+    pub published_deck_id: String,
+    pub deck_fingerprint: String,
+    pub recent_plays: u32,
+    pub previous_plays: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct FavoritedPublication {
+    pub published_deck_id: String,
+    pub favorites: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct NewNotablePublication {
+    pub published_deck_id: String,
+    pub plays: u32,
+    pub favorites: u32,
+}
+
 pub struct RelayDeckPlay<'a> {
     pub username: &'a str,
     pub deckhub_entry_id: &'a str,
@@ -348,7 +369,7 @@ impl Storage {
             "SELECT deckhub_entry_id, deck_fingerprint, count(*) AS plays,
                     sum(completed_game), sum(won)
              FROM deck_play_reports
-             WHERE played_at >= ?1
+             WHERE datetime(played_at) >= datetime(?1)
                AND (?2 IS NULL OR lower(format) = lower(?2))
              GROUP BY deckhub_entry_id, deck_fingerprint
              ORDER BY plays DESC, sum(completed_game) DESC, deckhub_entry_id ASC
@@ -364,6 +385,139 @@ impl Storage {
                     wins: row.get(4)?,
                 })
             })?
+            .collect();
+        publications
+    }
+
+    pub fn rising_publications(
+        &self,
+        recent_since: &str,
+        previous_since: &str,
+        minimum_recent_plays: u32,
+    ) -> SqlResult<Vec<RisingPublication>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT deckhub_entry_id, deck_fingerprint,
+                    sum(CASE WHEN datetime(played_at) >= datetime(?1) THEN 1 ELSE 0 END)
+                        AS recent_plays,
+                    sum(CASE WHEN datetime(played_at) < datetime(?1) THEN 1 ELSE 0 END)
+                        AS previous_plays
+             FROM deck_play_reports
+             WHERE datetime(played_at) >= datetime(?2)
+             GROUP BY deckhub_entry_id, deck_fingerprint
+             HAVING recent_plays >= ?3",
+        )?;
+        let publications = stmt
+            .query_map(
+                params![recent_since, previous_since, minimum_recent_plays],
+                |row| {
+                    Ok(RisingPublication {
+                        published_deck_id: row.get(0)?,
+                        deck_fingerprint: row.get(1)?,
+                        recent_plays: row.get(2)?,
+                        previous_plays: row.get(3)?,
+                    })
+                },
+            )?
+            .collect();
+        publications
+    }
+
+    pub fn win_rate_publications(
+        &self,
+        since: &str,
+        minimum_games: u32,
+    ) -> SqlResult<Vec<RankedPublication>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT deckhub_entry_id, deck_fingerprint, count(*) AS plays,
+                    count(*) AS completed_games, sum(won)
+             FROM deck_play_reports
+             WHERE datetime(played_at) >= datetime(?1)
+               AND source = 'relay' AND completed_game = 1
+             GROUP BY deckhub_entry_id, deck_fingerprint
+             HAVING completed_games >= ?2",
+        )?;
+        let publications = stmt
+            .query_map(params![since, minimum_games], |row| {
+                Ok(RankedPublication {
+                    published_deck_id: row.get(0)?,
+                    deck_fingerprint: row.get(1)?,
+                    plays: row.get(2)?,
+                    completed_games: row.get(3)?,
+                    wins: row.get(4)?,
+                })
+            })?
+            .collect();
+        publications
+    }
+
+    pub fn most_favorited_publications(&self, limit: u32) -> SqlResult<Vec<FavoritedPublication>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT e.id, count(f.account_id) AS favorites
+             FROM deckhub_entries e
+             JOIN deckhub_favorites f ON f.deckhub_entry_id = e.id
+             WHERE e.status = 'published'
+             GROUP BY e.id
+             ORDER BY favorites DESC, e.published_at DESC, e.id ASC
+             LIMIT ?1",
+        )?;
+        let publications = stmt
+            .query_map(params![limit], |row| {
+                Ok(FavoritedPublication {
+                    published_deck_id: row.get(0)?,
+                    favorites: row.get(1)?,
+                })
+            })?
+            .collect();
+        publications
+    }
+
+    pub fn new_notable_publications(
+        &self,
+        published_since: &str,
+        played_since: &str,
+        minimum_plays: u32,
+        favorite_weight: u32,
+        limit: u32,
+    ) -> SqlResult<Vec<NewNotablePublication>> {
+        let mut stmt = self.conn.prepare(
+            "WITH play_counts AS (
+                 SELECT deckhub_entry_id, count(*) AS plays
+                 FROM deck_play_reports
+                 WHERE datetime(played_at) >= datetime(?2)
+                 GROUP BY deckhub_entry_id
+             ), favorite_counts AS (
+                 SELECT deckhub_entry_id, count(*) AS favorites
+                 FROM deckhub_favorites
+                 GROUP BY deckhub_entry_id
+             )
+             SELECT e.id, coalesce(p.plays, 0), coalesce(f.favorites, 0)
+             FROM deckhub_entries e
+             LEFT JOIN play_counts p ON p.deckhub_entry_id = e.id
+             LEFT JOIN favorite_counts f ON f.deckhub_entry_id = e.id
+             WHERE e.status = 'published'
+               AND datetime(e.published_at) >= datetime(?1)
+               AND (coalesce(p.plays, 0) >= ?3 OR coalesce(f.favorites, 0) > 0)
+             ORDER BY coalesce(p.plays, 0) + coalesce(f.favorites, 0) * ?4 DESC,
+                      e.published_at DESC, e.id ASC
+             LIMIT ?5",
+        )?;
+        let publications = stmt
+            .query_map(
+                params![
+                    published_since,
+                    played_since,
+                    minimum_plays,
+                    favorite_weight,
+                    limit
+                ],
+                |row| {
+                    Ok(NewNotablePublication {
+                        published_deck_id: row.get(0)?,
+                        plays: row.get(1)?,
+                        favorites: row.get(2)?,
+                    })
+                },
+            )?
             .collect();
         publications
     }
@@ -1503,15 +1657,18 @@ impl Storage {
         let mut stmt = self.conn.prepare(
             "SELECT key, label, scope,
                     (SELECT count(*) FROM top_deck_snapshots s
-                      WHERE s.bucket_id = b.id AND s.snapshot_date = (
-                          SELECT max(snapshot_date) FROM top_deck_snapshots
-                           WHERE bucket_id = b.id))
+                      WHERE s.bucket_id = b.id
+                        AND s.snapshot_date = b.latest_snapshot_date)
              FROM top_deck_buckets b
              ORDER BY CASE key
                  WHEN 'trending' THEN 0
-                 WHEN 'commander' THEN 1
-                 WHEN 'staff-picks' THEN 2
-                 ELSE 3
+                 WHEN 'rising' THEN 1
+                 WHEN 'win-rate' THEN 2
+                 WHEN 'commander' THEN 3
+                 WHEN 'favorites' THEN 4
+                 WHEN 'new-notable' THEN 5
+                 WHEN 'staff-picks' THEN 6
+                 ELSE 7
              END, label COLLATE NOCASE ASC",
         )?;
         let rows = stmt.query_map([], |row| {
@@ -1534,36 +1691,32 @@ impl Storage {
         let bucket = self
             .conn
             .query_row(
-                "SELECT id, key, label, scope,
+                "SELECT id, latest_snapshot_date, key, label, scope,
                         (SELECT count(*) FROM top_deck_snapshots s
-                          WHERE s.bucket_id = b.id AND s.snapshot_date = (
-                              SELECT max(snapshot_date) FROM top_deck_snapshots
-                               WHERE bucket_id = b.id))
+                          WHERE s.bucket_id = b.id
+                            AND s.snapshot_date = b.latest_snapshot_date)
                  FROM top_deck_buckets b WHERE key = ?1 COLLATE NOCASE",
                 params![bucket_key],
                 |row| {
                     Ok((
                         row.get::<_, String>(0)?,
+                        row.get::<_, Option<String>>(1)?,
                         TopDeckBucket {
-                            key: row.get(1)?,
-                            label: row.get(2)?,
-                            scope: row.get(3)?,
-                            entry_count: row.get(4)?,
+                            key: row.get(2)?,
+                            label: row.get(3)?,
+                            scope: row.get(4)?,
+                            entry_count: row.get(5)?,
                         },
                     ))
                 },
             )
             .optional()?;
-        let Some((bucket_id, bucket)) = bucket else {
+        let Some((bucket_id, latest_snapshot_date, bucket)) = bucket else {
             return Ok(None);
         };
         let snapshot_date = match requested_date {
             Some(date) => Some(date.to_string()),
-            None => self.conn.query_row(
-                "SELECT max(snapshot_date) FROM top_deck_snapshots WHERE bucket_id = ?1",
-                params![bucket_id],
-                |row| row.get(0),
-            )?,
+            None => latest_snapshot_date,
         };
         let Some(snapshot_date) = snapshot_date else {
             return Ok(Some(TopDeckSnapshot {
@@ -1659,6 +1812,10 @@ impl Storage {
                 ],
             )?;
         }
+        tx.execute(
+            "UPDATE top_deck_buckets SET latest_snapshot_date = ?2 WHERE id = ?1",
+            params![bucket_id, snapshot_date],
+        )?;
         tx.commit()?;
         Ok(ReplaceSnapshotOutcome::Replaced)
     }
@@ -2668,7 +2825,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 8);
+        assert_eq!(version, 10);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

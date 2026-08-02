@@ -1,5 +1,6 @@
 import type { CardDto } from "@/protocol/game";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
+import { resolveCardFaces } from "@/lib/cardFaces";
 import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
 
 function peekScryfall(card: CardDto) {
@@ -22,11 +23,18 @@ export function scryfallLayoutOf(card: CardDto): string | undefined {
  *  to the Scryfall-resolved layout and type line, which the hand has already
  *  prefetched. The type line catches type-based horizontals (Battle / Plane /
  *  Phenomenon / Scheme) whose `types` array the source DTO may not carry. */
-export function isHorizontalGameCard(card: CardDto, deckLayout?: string): boolean {
+export function isHorizontalGameCard(
+  card: CardDto,
+  deckLayout?: string,
+  faceIndex: 0 | 1 = card.isTransformed ? 1 : 0,
+): boolean {
   const scry = peekScryfall(card);
+  const layout = deckLayout ?? scry?.layout ?? undefined;
+  const faces = resolveCardFaces(scry ?? undefined).faces;
+  const face = faces[faceIndex];
   return isHorizontalCard({
-    layout: deckLayout ?? scry?.layout ?? undefined,
-    types: card.types,
-    typeLine: scry?.type_line,
+    layout: isTwoHalfLayout(layout) ? layout : undefined,
+    types: face ? undefined : card.types,
+    typeLine: face?.typeLine ?? scry?.type_line,
   });
 }

@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.4](https://github.com/witchesofthehill/manabrew/compare/v3.0.3...v3.0.4) (2026-08-02)
+
+### Fixes
+
+* hopefully fix big leaks out of self-hosted-nodes ([#583](https://github.com/witchesofthehill/manabrew/issues/583)) ([39b6e4d](https://github.com/witchesofthehill/manabrew/commit/39b6e4d15f068c467c0524c4ba08aaa41038d939))
+* **ui:** better card preview and bug fixes ([#582](https://github.com/witchesofthehill/manabrew/issues/582)) ([a04c42f](https://github.com/witchesofthehill/manabrew/commit/a04c42f4795103d965e699f8827fd92d68af13d8))
+
+## [3.0.3](https://github.com/witchesofthehill/manabrew/compare/v3.0.2...v3.0.3) (2026-08-01)
+
+### Fixes
+
+* **ui:** render active card faces on the stack ([#562](https://github.com/witchesofthehill/manabrew/issues/562)) ([f07a025](https://github.com/witchesofthehill/manabrew/commit/f07a02537f3c9008f06161da7fd14bcafed6afa0))
+
 ## [3.0.2](https://github.com/witchesofthehill/manabrew/compare/v3.0.1...v3.0.2) (2026-07-31)
 
 ### Fixes

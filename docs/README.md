@@ -435,7 +435,8 @@ CREATE TABLE top_deck_buckets (
     key        TEXT NOT NULL UNIQUE COLLATE NOCASE,
     label      TEXT NOT NULL,
     scope      TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    latest_snapshot_date TEXT
 );
 
 CREATE TABLE top_deck_snapshots (
@@ -459,7 +460,15 @@ CREATE INDEX idx_top_deck_snapshots_latest
 INSERT INTO top_deck_buckets (id, key, label, scope, created_at) VALUES
     ('top-decks-trending', 'trending', 'Most Played', 'all',
      '1970-01-01T00:00:00Z'),
-    ('top-decks-commander', 'commander', 'Popular Commander', 'commander',
+    ('top-decks-rising', 'rising', 'Rising', 'all',
+     '1970-01-01T00:00:00Z'),
+    ('top-decks-win-rate', 'win-rate', 'Highest Win Rate', 'online',
+     '1970-01-01T00:00:00Z'),
+    ('top-decks-commander', 'commander', 'Commander Most Played', 'commander',
+     '1970-01-01T00:00:00Z'),
+    ('top-decks-favorites', 'favorites', 'Most Favorited', 'community',
+     '1970-01-01T00:00:00Z'),
+    ('top-decks-new-notable', 'new-notable', 'New & Notable', 'community',
      '1970-01-01T00:00:00Z'),
     ('top-decks-staff-picks', 'staff-picks', 'Staff Picks', 'editorial',
      '1970-01-01T00:00:00Z');
@@ -516,19 +525,32 @@ Top Decks ranks Community publications, never anonymous statistics or mutable de
 - an optional numeric score;
 - the user-facing reason explaining the ranking.
 
-The measured `Most Played` and `Popular Commander` buckets are refreshed from the previous 30 days of `deck_play_reports`. Only human play with both a publication ID and matching deck fingerprint is accepted. Offline and hosted-AI clients write through `/api/deckhub/plays`; the managed relay writes authenticated game starts and outcomes through `/internal/deckhub/relay-games`. Hosted Relay rooms are excluded from the dedicated channel so the client report is not counted twice, and bot seats never contribute. This Deck Play evidence channel is separate from relay analytics. The Hub verifies every fingerprint against the immutable published version before storing it. Relay game and player identifiers are hashed before persistence, and no username or card list is stored. The reason includes the total play count and adds relay win rate after at least 20 completed matches.
+Only human play with both a publication ID and matching deck fingerprint is accepted. Offline and hosted-AI clients write through `/api/deckhub/plays`; the managed relay writes authenticated game starts and outcomes through `/internal/deckhub/relay-games`. Hosted Relay rooms are excluded from the dedicated channel so the client report is not counted twice, and bot seats never contribute. This Deck Play evidence channel is separate from relay analytics. The Hub verifies every fingerprint against the immutable published version before storing it. Relay game and player identifiers are hashed before persistence, and no username or card list is stored.
 
-Migration 7 creates the evidence table, and migration 8 completes the authoritative schema with relay-source and outcome fields plus data-migration tracking. On the first Hub startup after migration 8, the `analytics-deck-plays-v1` data migration imports every eligible historical publication-linked play from `events.db`, records completion in `data_migrations`, and never opens analytics for rankings again. Subsequent ranking refreshes read `deck_play_reports` and write `top_deck_snapshots` within `hub.db`.
+The automated buckets are:
+
+- `Most Played`: all accepted plays from the previous 30 days, with online win rate included in the reason after 20 completed matches.
+- `Rising`: publications with at least three plays in the last seven days and more plays than in the preceding seven days, ordered by the smoothed growth ratio `(recent + 2) / (previous + 2)`.
+- `Highest Win Rate`: completed managed-relay matches from the previous 30 days, requiring at least 20 matches and ranked by the 95% Wilson lower confidence bound instead of raw win percentage.
+- `Commander Most Played`: the 30-day play ranking restricted to Commander-format publications.
+- `Most Favorited`: currently published entries ordered by distinct Community favorites.
+- `New & Notable`: entries published in the previous 30 days with at least three plays or one favorite, scored as `plays + 2 × favorites`.
+
+`Staff Picks` remains editorial. Buckets without entries are returned by the API but hidden from the category bar until they receive a snapshot entry.
+
+`top_deck_buckets.latest_snapshot_date` records successful refreshes even when a bucket has no entries. This prevents an empty current ranking from falling back to an older, stale snapshot.
+
+Migration 7 creates the evidence table, migration 8 completes the authoritative schema with relay-source and outcome fields plus data-migration tracking, migration 9 adds the expanded ranking categories, and migration 10 records empty refreshes without resurrecting stale snapshots. On the first Hub startup after migration 8, the `analytics-deck-plays-v1` data migration imports every eligible historical publication-linked play from `events.db`, records completion in `data_migrations`, and never opens analytics for rankings again. Subsequent ranking refreshes read `deck_play_reports`, Community favorites, and publication dates, then write `top_deck_snapshots` within `hub.db`.
 
 The staging deployment runs `ops/staging-migrations/001_top_deck_filler.sql` once after Hub initialization. It adds current-dated synthetic evidence for five preset publications, records its own key in `data_migrations`, and is neither mounted nor executed by production Compose.
 
-`Staff Picks` uses the same snapshot structure but has an editorial scope. New snapshot writes require a non-empty reason, so every Top Deck card can explain why it appears and can open the exact ranked card list.
+New snapshot writes require a non-empty reason, so every Top Deck card can explain why it appears and can open the exact ranked card list.
 
 The relay analytics database remains separate and is used by observability after the one-time import. Its event tables and ingestion path are documented in [OBSERVABILITY.md](OBSERVABILITY.md#sqlite-analytics-db).
 
 ## Migration path
 
-Existing installations are upgraded transactionally. Migration 2 imports publications from the original denormalized layout into decks, versions, cards, and Community entries; migration 6 then removes that obsolete table and its compatibility columns. Migrations 7 and 8 add play evidence without rewriting an already-applied migration. Fresh databases run through the same ordered sequence and expose only the normalized schema shown above.
+Existing installations are upgraded transactionally. Migration 2 imports publications from the original denormalized layout into decks, versions, cards, and Community entries; migration 6 then removes that obsolete table and its compatibility columns. Migrations 7 and 8 add play evidence, migration 9 adds ranking categories, and migration 10 adds explicit refresh dates without rewriting an already-applied migration. Fresh databases run through the same ordered sequence and expose only the normalized schema shown above.
 
 ## SQLite conventions and invariants
 

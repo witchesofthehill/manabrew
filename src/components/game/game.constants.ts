@@ -86,6 +86,10 @@ export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
 export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;
+/** Corner radius at CARD_W scale — renderers drawing at other sizes must scale
+ *  it proportionally (radius = size * CARD_RADIUS / CARD_W) to match the
+ *  printed card corner. */
+export const CARD_RADIUS = 6;
 
 export const COMBAT_STAGE_OPPONENT_SHIFT = 100;
 

@@ -5,21 +5,22 @@ import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { CardRailPreview } from "@/components/game/CardRailPreview";
-import { PtBadge } from "@/components/game/PtBadge";
-import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { DynamicTextRender } from "@/components/game/DynamicTextRender";
-import { FLASH_CARD_SIZE } from "./game.styles";
-import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
+import { CardPreviewOverlay } from "./CardPreviewOverlay";
+import { CardPreviewActions, type IndexedPreviewAction } from "./CardPreviewActions";
+import { computePreviewLayout } from "./cardPreviewLayout";
+import { getPreviewActionShortcut } from "./game.utils";
+import { CARD_W, CARD_RADIUS } from "./game.constants";
+import { CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
-import { withAlpha } from "@/themes/gameTheme";
+import { cardFrameTintHex, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import { isCreature, isLethalDamage } from "./game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
-import { getSafeAreaInsets } from "@/lib/safeArea";
+import { GHOST_CLICK_ARM_MS } from "@/lib/responsive";
+import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
@@ -27,7 +28,6 @@ import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import type { CardRailState } from "@/components/game/cardRailState";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 
 interface CardPreviewProps {
@@ -36,6 +36,8 @@ interface CardPreviewProps {
   mouseY: number;
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
+  phase?: "open" | "closing";
+  suppressed?: boolean;
   showBackFace?: boolean;
   actions?: HandActionOption[];
   onSelectAction?: (action: HandActionOption) => void;
@@ -48,315 +50,64 @@ interface CardPreviewProps {
   imageSize?: "normal" | "large";
 }
 
-const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
-const ACTIONS_PANEL_W = 220;
-const MAX_PREVIEW_KEYWORDS = 8;
+const IMG_VERTICAL = "absolute inset-0 w-full h-full object-cover";
+const IMG_HORIZONTAL =
+  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] object-cover";
 
-interface IndexedPreviewAction {
-  action: HandActionOption;
-  index: number;
-  shortcut: number;
-}
-
-function getPreviewActionShortcut(
-  index: number,
-  classLevelUpIndex: number | null,
-  classLevel: number | null,
-): number {
-  if (classLevel !== null && index === classLevelUpIndex) return classLevel;
-  const actionPosition =
-    index - (classLevelUpIndex !== null && classLevelUpIndex < index ? 1 : 0) + 1;
-  return classLevel !== null && actionPosition >= classLevel ? actionPosition + 1 : actionPosition;
-}
-
-function PreviewActions({
-  actions,
-  onSelect,
-  ringColor,
-  showHelp,
-  hasFlippableFaces,
-}: {
-  actions: IndexedPreviewAction[];
-  onSelect: (action: HandActionOption) => void;
-  ringColor: string;
-  showHelp: boolean;
-  hasFlippableFaces: boolean;
-}) {
-  return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        {actions.map(({ action, index, shortcut }) => (
-          <button
-            key={index}
-            onClick={() => onSelect(action)}
-            className={cn(
-              "group flex w-full flex-col rounded-lg border border-border bg-popover px-3 py-2 text-left text-xs font-medium text-popover-foreground shadow-lg backdrop-blur-md",
-              "transition-all duration-150 ease-out",
-              "hover:scale-[1.02] hover:-translate-y-px hover:shadow-xl",
-            )}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.borderColor = ringColor;
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.backgroundColor = "";
-              event.currentTarget.style.borderColor = "";
-            }}
-          >
-            <span className="mb-0.5 flex w-full items-center justify-between">
-              <span className="flex h-5 min-w-[22px] items-center justify-center rounded border border-border bg-muted text-xs font-bold shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-                {shortcut}
-              </span>
-              {action.cost && (
-                <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                  <DynamicTextRender text={action.cost} />
-                </span>
-              )}
-            </span>
-            <span className="text-[13px] font-semibold leading-snug">
-              <DynamicTextRender text={action.label} />
-            </span>
-          </button>
-        ))}
-      </div>
-      {showHelp && (
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
-          <span>
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">1</kbd>
-            -
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">9</kbd>{" "}
-            select
-          </span>
-          <span>
-            <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-              Esc
-            </kbd>{" "}
-            close
-          </span>
-          {hasFlippableFaces && (
-            <span>
-              <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
-                F
-              </kbd>{" "}
-              flip
-            </span>
-          )}
-        </div>
-      )}
-    </>
-  );
-}
-
-function CardDetailOverlay({
-  card,
+/**
+ * Monotonic image display: pixels already on screen are never removed until
+ * the replacement has finished loading. Swapping an `<img>` src blanks it
+ * immediately, so a naive swap (face URLs resolving, low→high res, card
+ * switch) flashes the preview empty for the load duration.
+ */
+function PreviewImageStack({
+  targetUrl,
+  lowResUrl,
   horizontal,
-  rail,
-  compactRail,
+  cardName,
 }: {
-  card: CardDto;
+  targetUrl: string;
+  lowResUrl: string | null;
   horizontal: boolean;
-  rail: CardRailState | null;
-  compactRail: boolean;
+  cardName: string;
 }) {
-  const themeColors = useTheme().gameTheme;
-  const creature = isCreature(card);
-  const lethal = isLethalDamage(card);
-
-  const statusBadges = useMemo(() => {
-    const out: { key: string; label: string; style: string }[] = [];
-    if (card.exerted) out.push({ key: "exerted", ...CARD_BADGES.exerted });
-    if (card.isFaceDown) out.push({ key: "morph", ...CARD_BADGES.morph });
-    if (card.isBestowed) out.push({ key: "bestow", ...CARD_BADGES.bestow });
-    if (card.isTransformed) out.push({ key: "transformed", ...CARD_BADGES.transformed });
-    if (card.isPlotted) out.push({ key: "plotted", ...CARD_BADGES.plotted });
-    if (card.isMadnessExiled) out.push({ key: "madness", ...CARD_BADGES.madnessExiled });
-    if (card.isWarpExiled) out.push({ key: "warped", ...CARD_BADGES.warpExiled });
-    if (card.isCopy) out.push({ key: "copy", ...CARD_BADGES.copy });
-    if (card.identity.isToken) out.push({ key: "token", ...CARD_BADGES.token });
-    return out;
-  }, [
-    card.exerted,
-    card.isFaceDown,
-    card.isBestowed,
-    card.isTransformed,
-    card.isPlotted,
-    card.isMadnessExiled,
-    card.isWarpExiled,
-    card.isCopy,
-    card.identity.isToken,
-  ]);
-
-  const keywords = card.keywords ?? [];
-  const visibleKeywords = keywords.slice(0, MAX_PREVIEW_KEYWORDS);
-  const hiddenKeywordCount = keywords.length - visibleKeywords.length;
-
-  const damage = card.damage ?? 0;
-
-  const ptState = useMemo(() => {
-    if (lethal) return "lethal" as const;
-    if (card.basePower == null || card.power == null) return "unknown" as const;
-    const curP = parseInt(card.power, 10);
-    const curT = parseInt(card.toughness ?? "0", 10);
-    if (curP > card.basePower || curT > (card.baseToughness ?? 0)) return "buffed" as const;
-    if (curP < card.basePower || curT < (card.baseToughness ?? 0)) return "debuffed" as const;
-    return "neutral" as const;
-  }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness]);
-
-  const ptStyle: CSSProperties = {
-    color: themeColors.textOnTinted,
-    backgroundColor:
-      ptState === "lethal"
-        ? themeColors.pt.lethal
-        : ptState === "buffed"
-          ? themeColors.pt.buffed
-          : ptState === "debuffed"
-            ? themeColors.pt.debuffed
-            : themeColors.pt.neutral,
-  };
-  const ptToughness = parseInt(card.toughness ?? "0", 10);
-  if (ptState !== "lethal" && damage > 0 && ptToughness > 0) {
-    const tint = withAlpha(themeColors.pt.lethal, Math.min(0.85, damage / ptToughness));
-    ptStyle.backgroundImage = `linear-gradient(${tint}, ${tint})`;
-  }
-
-  const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
-  const loyalty = card.counters?.Loyalty;
-  const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
-  const railRightClass = compactRail
-    ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]"
-    : undefined;
-  const railRightStyle = compactRail ? "calc(5.5% + var(--card-rail-width) + 0.35rem)" : "5.5%";
-  const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
-  const showPT = creature && !horizontal && !!card.power && !!card.toughness;
-
-  const overlayCounters = useMemo(() => {
-    if (!card.counters) return null;
-    const entries = Object.entries(card.counters).filter(
-      ([type, n]) =>
-        n > 0 &&
-        !(showLoyalty && type === "Loyalty") &&
-        !(rail?.kind === "saga" && type === "Lore"),
-    );
-    return entries.length ? Object.fromEntries(entries) : null;
-  }, [card.counters, showLoyalty, rail]);
-
+  const [displayed, setDisplayed] = useState<{ src: string; horizontal: boolean } | null>(null);
+  const targetShown = displayed?.src === targetUrl;
+  const showLowRes = !!lowResUrl && !targetShown && displayed?.src !== lowResUrl;
   return (
     <>
-      {damage > 0 && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: withAlpha(
-              themeColors.pt.lethal,
-              Math.min(0.5, (ptToughness > 0 ? damage / ptToughness : 1) * 0.5),
-            ),
-          }}
+      {!displayed && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="text-xs text-muted-foreground text-center">{cardName}</span>
+        </div>
+      )}
+      {displayed && !targetShown && (
+        <ScryfallImg
+          src={displayed.src}
+          alt=""
+          title=""
+          aria-hidden
+          className={displayed.horizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
         />
       )}
-      {showTopStrip && (
-        <div className="absolute top-2 left-2 right-2 z-10 flex flex-col items-center gap-1 pointer-events-none">
-          {statusBadges.length > 0 && (
-            <div className="flex flex-wrap gap-1 justify-center">
-              {statusBadges.map((b) => (
-                <span
-                  key={b.key}
-                  className={cn(
-                    "text-[11px] font-bold px-2 py-0.5 rounded shadow-md uppercase tracking-wide",
-                    b.style,
-                  )}
-                >
-                  {b.label}
-                </span>
-              ))}
-            </div>
-          )}
-          {keywords.length > 0 && (
-            <div className="flex flex-wrap gap-1 justify-center">
-              {visibleKeywords.map((kw, i) => {
-                const colonIdx = kw.indexOf(":");
-                const label = colonIdx === -1 ? kw : kw.slice(0, colonIdx);
-                const cost = colonIdx === -1 ? null : kw.slice(colonIdx + 1);
-                return (
-                  <span
-                    key={`${kw}-${i}`}
-                    className="inline-flex items-center gap-0.5 text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md"
-                  >
-                    {label}
-                    {cost && <ManaSymbols cost={cost} size="sm" />}
-                  </span>
-                );
-              })}
-              {hiddenKeywordCount > 0 && (
-                <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
-                  +{hiddenKeywordCount}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {showPT && (
-        <PtBadge
-          value={`${card.power}/${card.toughness}`}
-          style={ptStyle}
-          className={railRightClass}
-          baseValue={
-            (ptState === "buffed" || ptState === "debuffed") &&
-            card.basePower != null &&
-            card.baseToughness != null
-              ? `${card.basePower}/${card.baseToughness}`
-              : null
-          }
+      {showLowRes && (
+        <ScryfallImg
+          src={lowResUrl}
+          alt=""
+          title=""
+          aria-hidden
+          onLoad={() => setDisplayed({ src: lowResUrl, horizontal })}
+          className={horizontal ? IMG_HORIZONTAL : IMG_VERTICAL}
         />
       )}
-
-      {showLoyalty && (
-        <div
-          className="absolute bottom-[5.5%] z-10 pointer-events-none"
-          style={{ right: railRightStyle }}
-        >
-          <span
-            className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
-            style={{
-              backgroundColor: themeColors.counter.loyalty,
-              color: themeColors.textOnTinted,
-            }}
-          >
-            {loyalty}
-          </span>
-        </div>
-      )}
-
-      {overlayCounters && (
-        <div
-          className={cn(
-            "absolute bottom-1 left-1 z-10 max-w-[70%]",
-            "flex flex-wrap gap-0.5 pointer-events-none",
-            compactRail
-              ? "pr-[calc(3rem+var(--card-rail-width)+0.35rem)]"
-              : showPT || showLoyalty
-                ? "pr-12"
-                : "right-1",
-          )}
-        >
-          <CounterDisplay counters={overlayCounters} size="md" />
-        </div>
-      )}
-
-      {card.isRingBearer && (
-        <div
-          className="absolute top-2 left-2 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-2 pointer-events-none"
-          style={{
-            backgroundColor: themeColors.badges.ring,
-            color: themeColors.textOnTinted,
-            // @ts-expect-error CSS var
-            "--tw-ring-color": themeColors.badges.ring,
-          }}
-          title="Ring-bearer"
-        >
-          <GameIcon name="ring" className="h-6 w-6" />
-        </div>
-      )}
+      <ScryfallImg
+        src={targetUrl}
+        alt={cardName}
+        title=""
+        onLoad={() => setDisplayed({ src: targetUrl, horizontal })}
+        className={cn(horizontal ? IMG_HORIZONTAL : IMG_VERTICAL, !targetShown && "opacity-0")}
+      />
     </>
   );
 }
@@ -367,6 +118,8 @@ export function CardPreview({
   mouseY,
   anchorRect,
   placement = "auto",
+  phase = "open",
+  suppressed = false,
   showBackFace = false,
   actions,
   onSelectAction,
@@ -390,7 +143,7 @@ export function CardPreview({
     ? availableActions.findIndex((action) => action.isClassLevelUp)
     : -1;
   const integratedClassLevelUpIndex = classLevelUpIndex >= 0 ? classLevelUpIndex : null;
-  const indexedActions = availableActions.map((action, index) => ({
+  const indexedActions: IndexedPreviewAction[] = availableActions.map((action, index) => ({
     action,
     index,
     shortcut: getPreviewActionShortcut(
@@ -402,10 +155,10 @@ export function CardPreview({
   const classLevelUpActions = indexedActions.filter(({ action }) => action.isClassLevelUp);
   const railClassLevelUpAction =
     integratedClassLevelUpIndex === null ? undefined : indexedActions[integratedClassLevelUpIndex];
-  const rightActions = railClassLevelUpAction
+  const extraClassActions = railClassLevelUpAction
     ? classLevelUpActions.filter(({ index }) => index !== railClassLevelUpAction.index)
     : classLevelUpActions;
-  const leftActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
+  const mainActions = indexedActions.filter(({ action }) => !action.isClassLevelUp);
   const railInteractions =
     nextClassLevel && railClassLevelUpAction
       ? [
@@ -417,9 +170,8 @@ export function CardPreview({
           },
         ]
       : [];
-  const hasRightPanel = Boolean(rail || rightActions.length);
-  const hasLeftPanel = leftActions.length > 0;
-  const showSidePanel = hasLeftPanel || hasRightPanel;
+  const hasMainActions = mainActions.length > 0;
+  const showSidePanel = hasMainActions || Boolean(rail || extraClassActions.length);
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
   const deckCard: DeckCard = isDebugCard
@@ -428,7 +180,6 @@ export function CardPreview({
         uris: {},
       } as DeckCard)
     : asDeckCard(deck, card);
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const { setCode, cardNumber } = deckCard.identity;
   const cardFaces = useCardFaces(
     isDebugCard
@@ -442,11 +193,19 @@ export function CardPreview({
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-  const rightPanelRef = useRef<HTMLDivElement>(null);
-  const [leftPanelHeight, setLeftPanelHeight] = useState(0);
-  const [rightPanelHeight, setRightPanelHeight] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelHeight, setPanelHeight] = useState(0);
   const [, setLayoutVersion] = useState(0);
+  // The hero zoom travels across the hovered card; an interactive preview
+  // passing under the cursor steals pointer events from the canvas and kills
+  // the sprite's hover state. Stay pointer-transparent until the enter lands.
+  const [entered, setEntered] = useState(false);
+  const interactive = entered && phase === "open" && !suppressed;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setEntered(true), PREVIEW_TIMING.enterMs + 80);
+    return () => clearTimeout(timer);
+  }, []);
 
   useLayoutEffect(() => {
     const update = () => setLayoutVersion((version) => version + 1);
@@ -460,19 +219,15 @@ export function CardPreview({
   }, [slot]);
 
   useLayoutEffect(() => {
-    const measure = () => {
-      setLeftPanelHeight(leftPanelRef.current?.offsetHeight ?? 0);
-      setRightPanelHeight(rightPanelRef.current?.offsetHeight ?? 0);
-    };
+    const measure = () => setPanelHeight(panelRef.current?.offsetHeight ?? 0);
     const observer = new ResizeObserver(measure);
-    if (leftPanelRef.current) observer.observe(leftPanelRef.current);
-    if (rightPanelRef.current) observer.observe(rightPanelRef.current);
+    if (panelRef.current) observer.observe(panelRef.current);
     const frame = requestAnimationFrame(measure);
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [hasLeftPanel, hasRightPanel, card.id]);
+  }, [showSidePanel, card.id]);
 
   const faceless = isFacelessCard(card);
   const imageUrl = faceless
@@ -491,7 +246,9 @@ export function CardPreview({
       }
     : null;
 
-  const horizontalCard = isDebugCard ? false : isHorizontalGameCard(card, deckCard.layout);
+  const horizontalCard = isDebugCard
+    ? false
+    : isHorizontalGameCard(card, deckCard.layout, showBackFace ? 1 : 0);
   const fallbackCounters =
     rail?.kind === "saga" && card.counters
       ? Object.fromEntries(
@@ -545,7 +302,7 @@ export function CardPreview({
       if (isSticky) {
         window.addEventListener("pointerdown", handleClick);
       }
-    }, 100);
+    }, GHOST_CLICK_ARM_MS);
     return () => {
       window.removeEventListener("keydown", handleKey);
       clearTimeout(timer);
@@ -562,102 +319,29 @@ export function CardPreview({
   ]);
 
   const horizontal = horizontalCard && !orientationFlipped;
-  const safe = getSafeAreaInsets();
-  const viewLeft = safe.left;
-  const viewRight = window.innerWidth - safe.right;
-  const viewTop = safe.top;
-  const viewBottom = window.innerHeight - safe.bottom;
-  const naturalCardWidth = horizontal ? CARD_H : CARD_W;
-  const naturalCardHeight = horizontal ? CARD_W : CARD_H;
-  const usableWidth = slot ? slot.clientWidth : viewRight - viewLeft;
-  const panelCount = Number(hasLeftPanel) + Number(hasRightPanel);
-  const maxPanelWidth =
-    panelCount > 0 ? (usableWidth - naturalCardWidth * 0.1 - panelCount * 10 - 16) / panelCount : 0;
-  const sidePanelWidth = showSidePanel
-    ? Math.max(48, Math.min(ACTIONS_PANEL_W, usableWidth * 0.4, maxPanelWidth))
-    : 0;
-  const leftPanelSpace = hasLeftPanel ? sidePanelWidth + 10 : 0;
-  const rightPanelSpace = hasRightPanel ? sidePanelWidth + 10 : 0;
-  const horizontalScale = Math.max(
-    0.1,
-    (usableWidth - leftPanelSpace - rightPanelSpace - 16) / naturalCardWidth,
-  );
-  const availableHeight = Math.max(1, slot ? slot.clientHeight - 8 : viewBottom - viewTop - 16);
-  const verticalScale = availableHeight / naturalCardHeight;
-  const previewScale = Math.min(1, horizontalScale, verticalScale);
-  const cardWidth = naturalCardWidth * previewScale;
-  const cardHeight = naturalCardHeight * previewScale;
-  const effectiveLeftPanelHeight = hasLeftPanel ? leftPanelHeight : 0;
-  const effectiveRightPanelHeight = hasRightPanel ? rightPanelHeight : 0;
-  const leftPanelScale =
-    effectiveLeftPanelHeight > 0 ? Math.min(1, availableHeight / effectiveLeftPanelHeight) : 1;
-  const rightPanelScale =
-    effectiveRightPanelHeight > 0 ? Math.min(1, availableHeight / effectiveRightPanelHeight) : 1;
-  const previewHeight = Math.max(
-    cardHeight,
-    effectiveLeftPanelHeight * leftPanelScale,
-    effectiveRightPanelHeight * rightPanelScale,
-  );
-  const totalWidth = leftPanelSpace + cardWidth + rightPanelSpace;
+  const layout = computePreviewLayout({
+    placement,
+    anchorRect: anchorRect ?? null,
+    mouseX,
+    mouseY,
+    horizontal,
+    hasPanel: showSidePanel,
+    panelHeight,
+    slot: slot ?? null,
+  });
+  const { cardLeft, top, cardWidth, cardHeight, sidePanelWidth, panelSide } = layout;
+  const cardCornerRadius = (Math.min(cardWidth, cardHeight) * CARD_RADIUS) / CARD_W;
+  const frameBorderTint = cardFrameTintHex(deckCard.colorIdentity, themeColors.mana);
 
-  let cardLeft: number;
-  let top: number;
-
-  if (placement === "pinned") {
-    cardLeft = viewRight - cardWidth - rightPanelSpace - 16;
-    top = viewTop + 80;
-  } else if (placement === "top-center" && anchorRect) {
-    cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
-    top = anchorRect.top - cardHeight - 12;
-    cardLeft = Math.max(
-      viewLeft + leftPanelSpace + 8,
-      Math.min(cardLeft, viewRight - cardWidth - rightPanelSpace - 8),
-    );
-    top = Math.max(viewTop + 8, top);
-  } else {
-    const anchorLeft = anchorRect ? anchorRect.left : mouseX;
-    const anchorRight = anchorRect ? anchorRect.right : mouseX;
-    const anchorTop = anchorRect ? anchorRect.top : mouseY;
-    const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
-    const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
-
-    const fitsRight = anchorRight + 16 + totalWidth <= viewRight - 8;
-    const fitsLeft = anchorLeft - 16 - totalWidth >= viewLeft + 8;
-
-    if (fitsRight) {
-      cardLeft = anchorRight + 16 + leftPanelSpace;
-    } else if (fitsLeft) {
-      cardLeft = anchorLeft - cardWidth - rightPanelSpace - 16;
-    } else {
-      cardLeft = Math.max(
-        viewLeft + leftPanelSpace + 8,
-        Math.min(
-          (anchorLeft + anchorRight) / 2 - totalWidth / 2 + leftPanelSpace,
-          viewRight - cardWidth - rightPanelSpace - 8,
-        ),
-      );
-    }
-
-    if (fitsRight || fitsLeft) {
-      top = Math.min(
-        Math.max(anchorMidY - cardHeight / 2, viewTop + 8),
-        viewBottom - cardHeight - 8,
-      );
-    } else {
-      const spaceAbove = anchorTop - 16;
-      const spaceBelow = viewBottom - anchorBottom - 16;
-      top =
-        spaceBelow >= spaceAbove
-          ? Math.min(anchorBottom + 12, viewBottom - cardHeight - 8)
-          : Math.max(viewTop + 8, anchorTop - cardHeight - 12);
-    }
-  }
-
-  cardLeft = Math.max(
-    viewLeft + leftPanelSpace + 8,
-    Math.min(cardLeft, viewRight - cardWidth - rightPanelSpace - 8),
-  );
-  top = Math.max(viewTop + 8, Math.min(top, viewBottom - previewHeight - 8));
+  const anchorCenterX = anchorRect ? anchorRect.left + anchorRect.width / 2 : mouseX;
+  const anchorCenterY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
+  const heroShiftX = slot ? 0 : anchorCenterX - (cardLeft + cardWidth / 2);
+  const heroShiftY = slot ? 0 : anchorCenterY - (top + cardHeight / 2);
+  const heroScaleFrom = slot
+    ? 0.95
+    : anchorRect
+      ? Math.max(0.25, Math.min(0.85, anchorRect.width / Math.max(1, cardWidth)))
+      : 0.5;
 
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
@@ -671,25 +355,26 @@ export function CardPreview({
           ? doubleFacedData.backImageUrlLow
           : doubleFacedData.frontImageUrlLow
         : deckCard.uris.normal;
-  const imgLoaded = loadedSrc === currentImageUrl;
+  const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
 
   return createPortal(
     <>
-      {hasActions && isSticky && (
+      {hasActions && isSticky && !suppressed && (
         <div
-          className="fixed inset-0 z-[9998] bg-black/30 animate-in fade-in duration-150"
+          className="fixed inset-0 z-[9998] bg-black/30 animate-preview-fade-in"
           onClick={onDismiss}
         />
       )}
       <div
         data-card-preview
         className={cn(
-          "select-none transition-opacity",
+          "select-none transition-opacity duration-150",
+          suppressed && "opacity-0",
           slot
             ? "relative w-full h-full flex items-start justify-start pointer-events-none"
             : cn(
                 "fixed z-[9999]",
-                showSidePanel && placement !== "pinned"
+                showSidePanel && placement !== "pinned" && interactive
                   ? "pointer-events-auto"
                   : "pointer-events-none",
               ),
@@ -699,86 +384,47 @@ export function CardPreview({
         onMouseLeave={onMouseLeave}
       >
         <div
-          className="relative @container"
+          className={cn(
+            "relative @container",
+            phase === "closing" ? "animate-preview-out" : "animate-preview-in",
+          )}
           style={
             {
               ["--card-rail-width" as string]: CARD_RAIL_WIDTH,
+              ["--preview-shift-x" as string]: `${heroShiftX}px`,
+              ["--preview-shift-y" as string]: `${heroShiftY}px`,
+              ["--preview-scale-from" as string]: `${heroScaleFrom}`,
+              animationDuration: `${phase === "closing" ? PREVIEW_TIMING.exitMs : PREVIEW_TIMING.enterMs}ms`,
               width: cardWidth,
               height: cardHeight,
-              marginLeft: slot
-                ? Math.max(leftPanelSpace, (slot.clientWidth - totalWidth) / 2 + leftPanelSpace)
-                : undefined,
+              marginLeft: slot ? layout.slotMarginLeft : undefined,
             } as CSSProperties
           }
         >
           <div
             className={cn(
-              "w-full h-full rounded-xl shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
-              hasActions ? "ring-2" : "ring-1 ring-black/20",
+              "w-full h-full shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
+              hasActions && "ring-2",
               card.foil && "draft-tile-foil",
             )}
             style={
-              hasActions
-                ? ({
-                    "--tw-ring-color": ringColor,
-                    boxShadow: `0 0 20px ${ringColor}`,
-                  } as CSSProperties)
-                : undefined
+              {
+                borderRadius: cardCornerRadius,
+                ...(hasActions
+                  ? { "--tw-ring-color": ringColor, boxShadow: `0 0 20px ${ringColor}` }
+                  : {}),
+              } as CSSProperties
             }
           >
             {currentImageUrl ? (
               <>
-                {currentLowResUrl &&
-                  !imgLoaded &&
-                  (horizontal ? (
-                    <ScryfallImg
-                      src={currentLowResUrl}
-                      alt=""
-                      title=""
-                      aria-hidden
-                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
-                    />
-                  ) : (
-                    <ScryfallImg
-                      src={currentLowResUrl}
-                      alt=""
-                      title=""
-                      aria-hidden
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                  ))}
-                {horizontal ? (
-                  <ScryfallImg
-                    src={currentImageUrl}
-                    alt={currentCardName}
-                    title=""
-                    onLoad={() => setLoadedSrc(currentImageUrl)}
-                    className={cn(
-                      "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] transition-opacity duration-200",
-                      imgLoaded ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                ) : (
-                  <ScryfallImg
-                    src={currentImageUrl}
-                    alt={currentCardName}
-                    title=""
-                    onLoad={() => setLoadedSrc(currentImageUrl)}
-                    className={cn(
-                      "w-full h-full object-cover transition-opacity duration-200",
-                      imgLoaded ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                )}
-                {!imgLoaded && !currentLowResUrl && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground text-center">
-                      {currentCardName}
-                    </span>
-                  </div>
-                )}
-                <CardDetailOverlay
+                <PreviewImageStack
+                  targetUrl={currentImageUrl}
+                  lowResUrl={currentLowResUrl ?? null}
+                  horizontal={horizontal}
+                  cardName={currentCardName}
+                />
+                <CardPreviewOverlay
                   card={card}
                   horizontal={horizontal}
                   rail={rail}
@@ -797,7 +443,10 @@ export function CardPreview({
                       e.stopPropagation();
                       onFlip();
                     }}
-                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
+                    className={cn(
+                      "absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
+                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    )}
                     title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
                   >
                     <RotateCw className="h-3 w-3" />
@@ -811,7 +460,10 @@ export function CardPreview({
                       e.stopPropagation();
                       setOrientationFlipped((prev) => !prev);
                     }}
-                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
+                    className={cn(
+                      "absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow",
+                      interactive ? "pointer-events-auto" : "pointer-events-none",
+                    )}
                     title="Rotate the card to read it (F)"
                   >
                     <RotateCw className="h-3 w-3" />
@@ -819,6 +471,11 @@ export function CardPreview({
                   </button>
                 )}
               </>
+            ) : cardLookupPending ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground text-center">{currentCardName}</span>
+              </div>
             ) : (
               <div className="w-full h-full p-4 bg-card">
                 <div className="flex h-full min-w-0 flex-col gap-2">
@@ -860,70 +517,47 @@ export function CardPreview({
                 </div>
               </div>
             )}
+            <div
+              className="pointer-events-none absolute inset-0 z-20 rounded-[inherit]"
+              style={{ boxShadow: `inset 0 0 0 2px ${withAlpha(frameBorderTint, 0.9)}` }}
+            />
           </div>
 
-          {hasLeftPanel && (
+          {showSidePanel && (
             <div
-              ref={leftPanelRef}
+              ref={panelRef}
               className="absolute top-0 flex flex-col gap-1.5"
               style={{
-                right: cardWidth + 10,
+                ...(panelSide === "right" ? { left: cardWidth + 10 } : { right: cardWidth + 10 }),
                 width: sidePanelWidth,
-                transform: `scale(${leftPanelScale})`,
-                transformOrigin: "top right",
+                transform: `scale(${layout.panelScale})`,
+                transformOrigin: panelSide === "right" ? "top left" : "top right",
               }}
             >
               <div
                 style={{
                   position: "absolute",
                   top: 0,
-                  right: -10 - cardWidth,
+                  ...(panelSide === "right"
+                    ? { left: -10 - cardWidth, borderBottomRightRadius: "100%" }
+                    : { right: -10 - cardWidth, borderBottomLeftRadius: "100%" }),
                   width: cardWidth + 10 + sidePanelWidth,
                   height: cardHeight,
                   backgroundColor: showHoverAreas
                     ? withAlpha(themeColors.success, 0.28)
                     : "transparent",
-                  borderBottomRightRadius: "0",
-                  borderBottomLeftRadius: "100%",
                   zIndex: -1,
                 }}
               />
-              <PreviewActions
-                actions={leftActions}
-                onSelect={onSelectAction!}
-                ringColor={ringColor}
-                showHelp
-                hasFlippableFaces={hasFlippableFaces}
-              />
-            </div>
-          )}
-
-          {hasRightPanel && (
-            <div
-              ref={rightPanelRef}
-              className="absolute top-0 flex flex-col gap-1.5"
-              style={{
-                left: cardWidth + 10,
-                width: sidePanelWidth,
-                transform: `scale(${rightPanelScale})`,
-                transformOrigin: "top left",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: -10 - cardWidth,
-                  width: cardWidth + 10 + sidePanelWidth,
-                  height: cardHeight,
-                  backgroundColor: showHoverAreas
-                    ? withAlpha(themeColors.success, 0.28)
-                    : "transparent",
-                  borderBottomRightRadius: "100%",
-                  borderBottomLeftRadius: "0",
-                  zIndex: -1,
-                }}
-              />
+              {hasMainActions && (
+                <CardPreviewActions
+                  actions={mainActions}
+                  onSelect={onSelectAction!}
+                  ringColor={ringColor}
+                  showHelp
+                  hasFlippableFaces={hasFlippableFaces}
+                />
+              )}
               {rail && (
                 <CardRailPreview
                   state={rail}
@@ -931,12 +565,12 @@ export function CardPreview({
                   interactions={railInteractions}
                 />
               )}
-              {rightActions.length > 0 && (
-                <PreviewActions
-                  actions={rightActions}
+              {extraClassActions.length > 0 && (
+                <CardPreviewActions
+                  actions={extraClassActions}
                   onSelect={onSelectAction!}
                   ringColor={ringColor}
-                  showHelp={!hasLeftPanel}
+                  showHelp={!hasMainActions}
                   hasFlippableFaces={hasFlippableFaces}
                 />
               )}

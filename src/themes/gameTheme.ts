@@ -309,3 +309,16 @@ export function frameTint(hex: string, maxLuminance = FRAME_TINT_MAX_LUMINANCE):
   const lum = relativeLuminance(base);
   return lum <= maxLuminance ? base : darken(base, 1 - maxLuminance / lum);
 }
+
+const WUBRG = new Set(["W", "U", "B", "R", "G"]);
+
+export function cardFrameTintHex(
+  colorIdentity: string[] | undefined,
+  mana: GameThemeColors["mana"],
+): string {
+  const first = (colorIdentity ?? []).find((c) => WUBRG.has(c));
+  return frameTint(
+    first ? mana[first as keyof typeof mana] : mana.C,
+    first ? undefined : FRAME_TINT_COLORLESS_MAX_LUMINANCE,
+  );
+}

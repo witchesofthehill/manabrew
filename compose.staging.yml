@@ -83,6 +83,7 @@ services:
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      HUB_RANKING_REFRESH_SECONDS: "5"
       DECK_HUB: "${DECK_HUB:-1}"
       RUST_LOG: "manabrew_hub=info"
       HUB_PUBLIC_URL: "https://staging.manabrew.app"

@@ -1,12 +1,13 @@
 import { CARD_GAP } from "@/components/game/game.constants";
 
+export { CARD_RADIUS } from "@/components/game/game.constants";
+
 export const GAP = CARD_GAP;
 export const ATTACH_OFFSET_Y = 16;
 // Cards in a stack that fan out in the staircase before the rest collapse onto
 // one another; caps the visual height of huge token piles (the ×N badge carries
 // the count).
 export const STACK_MAX_SLIDE_CARDS = 2;
-export const CARD_RADIUS = 6;
 export const TABLE_RADIUS = 8;
 export const MAX_LAND_SLOTS = 100;
 export const MAX_GRID_SLOTS = 200;
@@ -49,7 +50,6 @@ export const HAND_MAX_ZONE_HEIGHT_FRACTION = 0.6;
 // Defers the hand-hover clear so an HTML overlay (action menu) can cancel it when
 // the cursor leaves the sprite but re-enters the menu.
 export const HAND_HOVER_HOLD_MS = 150;
-export const BATTLEFIELD_HOVER_HOLD_MS = 60;
 export const HAND_ACTIONS_CLEAR_DELAY_MS = 180;
 // Window during which a just-resolved spell's last-known stack position seeds its
 // battlefield sprite's entering animation.

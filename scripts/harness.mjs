@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "fs";
 import { fileURLToPath } from "url";
-import { join, relative } from "path";
+import { delimiter, join, relative } from "path";
 
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const root = join(scriptsDir, "..");
@@ -241,6 +241,22 @@ function rebuild() {
   if (result.status !== 0) {
     console.error(`harness: rebuild FAILED (exit code ${result.status ?? 1})`);
     process.exit(result.status ?? 1);
+  }
+
+  const regressionClasspath = [join(harnessRoot, "target", "test-classes"), jarPath].join(
+    delimiter,
+  );
+  console.log("harness: running regression tests...");
+  const regression = spawnSync(
+    "java",
+    ["-cp", regressionClasspath, "forge.harness.host.InteractiveSnapshotExtractorTest"],
+    { cwd: root, stdio: "inherit" },
+  );
+  if (regression.status !== 0) {
+    console.error(
+      `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
+    );
+    process.exit(regression.status ?? 1);
   }
 
   updateChecksum();

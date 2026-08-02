@@ -17,6 +17,20 @@ interface HubTopDeckSnapshotsProps {
   onOpenDeck: (id: string) => void;
 }
 
+function snapshotCaption(key: string, scope: string, snapshotDate: string): string {
+  if (scope === "editorial") return `Curated snapshot dated ${snapshotDate}.`;
+  if (key === "rising") {
+    return `Compared with the previous week using online and offline play through ${snapshotDate}.`;
+  }
+  if (scope === "online") {
+    return `Based on completed online matches from the 30 days ending ${snapshotDate}.`;
+  }
+  if (scope === "community") {
+    return `Based on recent Community activity through ${snapshotDate}.`;
+  }
+  return `Based on online and offline play from the 30 days ending ${snapshotDate}.`;
+}
+
 export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   const accountsEnabled = isFeatureEnabled("accounts");
   const viewerAccountId = useAuthStore((state) =>
@@ -174,9 +188,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
 
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
         {snapshot?.snapshotDate
-          ? snapshot.bucket.scope === "editorial"
-            ? `Curated snapshot dated ${snapshot.snapshotDate}.`
-            : `Based on online and offline play from the 30 days ending ${snapshot.snapshotDate}.`
+          ? snapshotCaption(snapshot.bucket.key, snapshot.bucket.scope, snapshot.snapshotDate)
           : " "}
       </p>
     </div>

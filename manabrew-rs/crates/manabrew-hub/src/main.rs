@@ -6,6 +6,7 @@ mod routes;
 mod storage;
 mod validate;
 
+use std::cmp::Ordering;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -21,6 +22,16 @@ use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 const RANKING_QUERY_LIMIT: u32 = 100;
 const RANKING_RESULT_LIMIT: usize = 25;
 const MIN_WIN_RATE_GAMES: u32 = 20;
+const RISING_MINIMUM_PLAYS: u32 = 3;
+const NEW_NOTABLE_MINIMUM_PLAYS: u32 = 3;
+const NEW_NOTABLE_FAVORITE_WEIGHT: u32 = 2;
+
+struct SnapshotCandidate {
+    deckhub_entry_id: String,
+    deck_fingerprint: Option<String>,
+    score: f64,
+    reason: String,
+}
 
 #[tokio::main]
 async fn main() {
@@ -93,57 +104,243 @@ async fn main() {
 }
 
 fn refresh_top_deck_snapshots(state: &AppState) {
-    for (bucket, format) in [("trending", None), ("commander", Some("commander"))] {
-        let storage = state.storage.lock().unwrap();
-        let cutoff = (chrono::Utc::now() - chrono::Duration::days(30))
-            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        let candidates = match storage.ranked_publications(&cutoff, format, RANKING_QUERY_LIMIT) {
-            Ok(candidates) => candidates,
-            Err(error) => {
-                tracing::warn!(%error, bucket, "could not query deck plays");
-                continue;
+    let now = chrono::Utc::now();
+    let thirty_days_ago =
+        (now - chrono::Duration::days(30)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let seven_days_ago =
+        (now - chrono::Duration::days(7)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let fourteen_days_ago =
+        (now - chrono::Duration::days(14)).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let snapshot_date = now.format("%Y-%m-%d").to_string();
+    let created_at = now.to_rfc3339();
+    let storage = state.storage.lock().unwrap();
+
+    refresh_snapshot(
+        &storage,
+        "trending",
+        &snapshot_date,
+        &created_at,
+        storage
+            .ranked_publications(&thirty_days_ago, None, RANKING_QUERY_LIMIT)
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|row| SnapshotCandidate {
+                        deckhub_entry_id: row.published_deck_id,
+                        deck_fingerprint: Some(row.deck_fingerprint),
+                        score: f64::from(row.plays),
+                        reason: play_count_reason(
+                            row.plays,
+                            row.completed_games,
+                            row.wins,
+                            "in the last 30 days",
+                        ),
+                    })
+                    .collect()
+            }),
+    );
+    refresh_snapshot(
+        &storage,
+        "commander",
+        &snapshot_date,
+        &created_at,
+        storage
+            .ranked_publications(&thirty_days_ago, Some("commander"), RANKING_QUERY_LIMIT)
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|row| SnapshotCandidate {
+                        deckhub_entry_id: row.published_deck_id,
+                        deck_fingerprint: Some(row.deck_fingerprint),
+                        score: f64::from(row.plays),
+                        reason: play_count_reason(
+                            row.plays,
+                            row.completed_games,
+                            row.wins,
+                            "in the last 30 days",
+                        ),
+                    })
+                    .collect()
+            }),
+    );
+    refresh_snapshot(
+        &storage,
+        "rising",
+        &snapshot_date,
+        &created_at,
+        storage
+            .rising_publications(&seven_days_ago, &fourteen_days_ago, RISING_MINIMUM_PLAYS)
+            .map(rising_candidates),
+    );
+    refresh_snapshot(
+        &storage,
+        "win-rate",
+        &snapshot_date,
+        &created_at,
+        storage
+            .win_rate_publications(&thirty_days_ago, MIN_WIN_RATE_GAMES)
+            .map(win_rate_candidates),
+    );
+    refresh_snapshot(
+        &storage,
+        "favorites",
+        &snapshot_date,
+        &created_at,
+        storage
+            .most_favorited_publications(RANKING_QUERY_LIMIT)
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|row| SnapshotCandidate {
+                        deckhub_entry_id: row.published_deck_id,
+                        deck_fingerprint: None,
+                        score: f64::from(row.favorites),
+                        reason: favorite_reason(row.favorites),
+                    })
+                    .collect()
+            }),
+    );
+    refresh_snapshot(
+        &storage,
+        "new-notable",
+        &snapshot_date,
+        &created_at,
+        storage
+            .new_notable_publications(
+                &thirty_days_ago,
+                &thirty_days_ago,
+                NEW_NOTABLE_MINIMUM_PLAYS,
+                NEW_NOTABLE_FAVORITE_WEIGHT,
+                RANKING_QUERY_LIMIT,
+            )
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|row| SnapshotCandidate {
+                        deckhub_entry_id: row.published_deck_id,
+                        deck_fingerprint: None,
+                        score: f64::from(row.plays)
+                            + f64::from(row.favorites) * f64::from(NEW_NOTABLE_FAVORITE_WEIGHT),
+                        reason: new_notable_reason(row.plays, row.favorites),
+                    })
+                    .collect()
+            }),
+    );
+}
+
+fn refresh_snapshot(
+    storage: &Storage,
+    bucket: &str,
+    snapshot_date: &str,
+    created_at: &str,
+    candidates: rusqlite::Result<Vec<SnapshotCandidate>>,
+) {
+    let candidates = match candidates {
+        Ok(candidates) => candidates,
+        Err(error) => {
+            tracing::warn!(%error, bucket, "could not query top decks");
+            return;
+        }
+    };
+    let mut entries = Vec::new();
+    for candidate in candidates {
+        let available = match candidate.deck_fingerprint.as_deref() {
+            Some(fingerprint) => {
+                storage.published_deck_matches(&candidate.deckhub_entry_id, fingerprint)
             }
+            None => Ok(true),
         };
-        let mut entries = Vec::new();
-        for candidate in candidates {
-            match storage
-                .published_deck_matches(&candidate.published_deck_id, &candidate.deck_fingerprint)
-            {
-                Ok(true) => entries.push(AdminTopDeckSnapshotEntry {
-                    deckhub_entry_id: candidate.published_deck_id,
-                    rank: entries.len() as u32 + 1,
-                    score: Some(f64::from(candidate.plays)),
-                    reason: Some(ranking_reason(
-                        candidate.plays,
-                        candidate.completed_games,
-                        candidate.wins,
-                    )),
-                }),
-                Ok(false) => {}
-                Err(error) => {
-                    tracing::warn!(%error, bucket, "could not validate ranked publication");
-                }
-            }
-            if entries.len() == RANKING_RESULT_LIMIT {
-                break;
+        match available {
+            Ok(true) => entries.push(AdminTopDeckSnapshotEntry {
+                deckhub_entry_id: candidate.deckhub_entry_id,
+                rank: entries.len() as u32 + 1,
+                score: Some(candidate.score),
+                reason: Some(candidate.reason),
+            }),
+            Ok(false) => {}
+            Err(error) => {
+                tracing::warn!(%error, bucket, "could not validate ranked publication");
             }
         }
-        let now = chrono::Utc::now();
-        let snapshot_date = now.format("%Y-%m-%d").to_string();
-        match storage.replace_top_deck_snapshot(bucket, &snapshot_date, &entries, &now.to_rfc3339())
-        {
-            Ok(ReplaceSnapshotOutcome::Replaced) => {}
-            Ok(outcome) => tracing::warn!(?outcome, bucket, "could not refresh top decks"),
-            Err(error) => tracing::warn!(%error, bucket, "could not refresh top decks"),
+        if entries.len() == RANKING_RESULT_LIMIT {
+            break;
         }
+    }
+    match storage.replace_top_deck_snapshot(bucket, snapshot_date, &entries, created_at) {
+        Ok(ReplaceSnapshotOutcome::Replaced) => {}
+        Ok(outcome) => tracing::warn!(?outcome, bucket, "could not refresh top decks"),
+        Err(error) => tracing::warn!(%error, bucket, "could not refresh top decks"),
     }
 }
 
-fn ranking_reason(plays: u32, completed_games: u32, wins: u32) -> String {
+fn rising_candidates(rows: Vec<crate::storage::RisingPublication>) -> Vec<SnapshotCandidate> {
+    let mut candidates = rows
+        .into_iter()
+        .filter(|row| row.recent_plays > row.previous_plays)
+        .map(|row| {
+            let score = (f64::from(row.recent_plays) + 2.0) / (f64::from(row.previous_plays) + 2.0);
+            let reason = if row.previous_plays == 0 {
+                format!(
+                    "Played {} times this week after no plays the week before",
+                    format_count(row.recent_plays)
+                )
+            } else {
+                let growth = ((f64::from(row.recent_plays) / f64::from(row.previous_plays) - 1.0)
+                    * 100.0)
+                    .round() as u32;
+                format!(
+                    "Played {} times this week · up {}% from the week before",
+                    format_count(row.recent_plays),
+                    format_count(growth)
+                )
+            };
+            SnapshotCandidate {
+                deckhub_entry_id: row.published_deck_id,
+                deck_fingerprint: Some(row.deck_fingerprint),
+                score,
+                reason,
+            }
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| left.deckhub_entry_id.cmp(&right.deckhub_entry_id))
+    });
+    candidates.truncate(RANKING_QUERY_LIMIT as usize);
+    candidates
+}
+
+fn win_rate_candidates(rows: Vec<crate::storage::RankedPublication>) -> Vec<SnapshotCandidate> {
+    let mut candidates = rows
+        .into_iter()
+        .map(|row| {
+            let win_rate = f64::from(row.wins) * 100.0 / f64::from(row.completed_games);
+            SnapshotCandidate {
+                deckhub_entry_id: row.published_deck_id,
+                deck_fingerprint: Some(row.deck_fingerprint),
+                score: wilson_lower_bound(row.wins, row.completed_games) * 100.0,
+                reason: format!(
+                    "{win_rate:.0}% win rate across {} completed online matches",
+                    format_count(row.completed_games)
+                ),
+            }
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        right
+            .score
+            .partial_cmp(&left.score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| left.deckhub_entry_id.cmp(&right.deckhub_entry_id))
+    });
+    candidates.truncate(RANKING_QUERY_LIMIT as usize);
+    candidates
+}
+
+fn play_count_reason(plays: u32, completed_games: u32, wins: u32, period: &str) -> String {
     let mut reason = if plays == 1 {
-        "Played once in the last 30 days".to_string()
+        format!("Played once {period}")
     } else {
-        format!("Played {} times in the last 30 days", format_count(plays))
+        format!("Played {} times {period}", format_count(plays))
     };
     if completed_games >= MIN_WIN_RATE_GAMES {
         let win_rate = f64::from(wins) * 100.0 / f64::from(completed_games);
@@ -153,6 +350,36 @@ fn ranking_reason(plays: u32, completed_games: u32, wins: u32) -> String {
         ));
     }
     reason
+}
+
+fn favorite_reason(favorites: u32) -> String {
+    if favorites == 1 {
+        "One Community favorite".to_string()
+    } else {
+        format!("{} Community favorites", format_count(favorites))
+    }
+}
+
+fn new_notable_reason(plays: u32, favorites: u32) -> String {
+    match (plays, favorites) {
+        (0, favorites) => favorite_reason(favorites),
+        (plays, 0) => play_count_reason(plays, 0, 0, "since publication"),
+        (plays, favorites) => format!(
+            "Played {} times · {}",
+            format_count(plays),
+            favorite_reason(favorites)
+        ),
+    }
+}
+
+fn wilson_lower_bound(wins: u32, games: u32) -> f64 {
+    let games = f64::from(games);
+    let win_rate = f64::from(wins) / games;
+    let z = 1.96;
+    let z_squared = z * z;
+    (win_rate + z_squared / (2.0 * games)
+        - z * ((win_rate * (1.0 - win_rate) + z_squared / (4.0 * games)) / games).sqrt())
+        / (1.0 + z_squared / games)
 }
 
 fn format_count(mut value: u32) -> String {

@@ -41,7 +41,10 @@ services:
       FORGE_MAX_ROOMS: "100"
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
+      MANABREW_EVENTS_DIR: "/var/manabrew/events"
       RUST_LOG: "manabrew_server=info"
+    volumes:
+      - ./ops/events:/var/manabrew/events
     expose:
       - "9443"
       - "9444"
@@ -63,6 +66,7 @@ services:
       HUB_PORT: "9500"
       # Own throwaway DB inside the staging tree — never prod's hub.db.
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
+      EVENTS_DB_PATH: "/var/manabrew/events/events.db"
       DECK_HUB: "${DECK_HUB:-1}"
       RUST_LOG: "manabrew_hub=info"
       HUB_PUBLIC_URL: "https://staging.manabrew.app"
@@ -74,6 +78,7 @@ services:
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
+      - ./ops/events:/var/manabrew/events:ro
     expose:
       - "9500"
     restart: unless-stopped
@@ -84,6 +89,21 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  events-ingester-staging:
+    image: python:3.12-alpine
+    command:
+      - python
+      - /app/ingest-events.py
+      - --dir
+      - /var/manabrew/events
+      - --watch
+      - "300"
+    volumes:
+      - ./scripts/ingest-events.py:/app/ingest-events.py:ro
+      - ./ops/events:/var/manabrew/events
+    restart: unless-stopped
+    mem_limit: 64m
 
   self-hosted-node-staging:
     profiles:

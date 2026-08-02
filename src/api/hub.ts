@@ -77,7 +77,7 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
     if (response.status === 429) {
       throw new HubRequestError(
         response.status,
-        "Too many Deck Hub requests from your connection. Try again later.",
+        "Too many Community requests from your connection. Try again later.",
       );
     }
     if (response.status === 401) {
@@ -86,9 +86,7 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
       }
       throw new HubRequestError(
         response.status,
-        token
-          ? "Your Deck Hub session expired. Sign in again."
-          : "Sign in to publish decks to the Deck Hub.",
+        token ? "Your session expired. Sign in again." : "Sign in to publish decks to Community.",
       );
     }
     if (response.status === 409) {

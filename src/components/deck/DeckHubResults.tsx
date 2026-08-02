@@ -83,7 +83,7 @@ export function DeckHubResults({
           </div>
           {error ? (
             <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm font-medium">The Deck Hub could not be loaded</p>
+              <p className="text-sm font-medium">Community could not be loaded</p>
               <p className="mt-1 text-xs text-muted-foreground">{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
                 Retry

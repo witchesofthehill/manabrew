@@ -136,12 +136,6 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-serif text-2xl font-light tracking-tight sm:text-3xl">My Decks</h2>
         <div className="flex flex-wrap items-center gap-2">
-          {hubEnabled && (
-            <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-              <LibraryBig className="h-4 w-4" />
-              Deck Hub
-            </Button>
-          )}
           <Button size="sm" onClick={addDeck}>
             <Plus className="h-4 w-4" />
             Build / Import
@@ -242,7 +236,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         <div className="mt-5 border-t border-border/50 pt-4">
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Published on Deck Hub
+              Published in Community
             </span>
             {!publishedDecksLoading && (
               <span className="text-[11px] text-muted-foreground">
@@ -267,7 +261,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
               </Button>
             </div>
           ) : filteredPublishedDecks.length > 0 ? (
-            <DeckShelfRow label="Published Deck Hub decks">
+            <DeckShelfRow label="Published Community decks">
               {filteredPublishedDecks.map((deck) => (
                 <div key={deck.id} className={SHELF_CARD_CLASS}>
                   <HubDeckCard deck={deck} onOpen={() => setHubPreviewId(deck.id)} />

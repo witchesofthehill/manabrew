@@ -165,7 +165,7 @@ export const useHubStore = create<HubState>((set, get) => ({
       if (requestId === listRequestId) {
         set({
           listLoading: false,
-          listError: err instanceof Error ? err.message : "Failed to load the Deck Hub",
+          listError: err instanceof Error ? err.message : "Failed to load Community",
         });
       }
     }
@@ -370,8 +370,7 @@ export const useHubStore = create<HubState>((set, get) => ({
       })
       .catch((error) => {
         set({
-          capabilitiesError:
-            error instanceof Error ? error.message : "Could not reach the Deck Hub",
+          capabilitiesError: error instanceof Error ? error.message : "Could not reach Community",
         });
         return null;
       })
@@ -391,7 +390,7 @@ export const useHubStore = create<HubState>((set, get) => ({
       if (requestId === entryListRequestId) {
         set({
           entriesLoading: false,
-          entriesError: error instanceof Error ? error.message : "Failed to load the Deck Hub",
+          entriesError: error instanceof Error ? error.message : "Failed to load Community",
         });
       }
     }

@@ -639,6 +639,14 @@ async fn replace_top_deck_snapshot_handler(
         .collect::<BTreeSet<_>>();
     if !valid_snapshot_date(&request.snapshot_date)
         || request.entries.iter().any(|entry| entry.rank == 0)
+        || request.entries.iter().any(|entry| {
+            entry
+                .reason
+                .as_deref()
+                .map(str::trim)
+                .filter(|reason| !reason.is_empty())
+                .is_none()
+        })
         || unique_ranks.len() != request.entries.len()
         || unique_entries.len() != request.entries.len()
     {
@@ -654,7 +662,7 @@ async fn replace_top_deck_snapshot_handler(
         Ok(ReplaceSnapshotOutcome::BucketNotFound) => StatusCode::NOT_FOUND.into_response(),
         Ok(ReplaceSnapshotOutcome::EntryUnavailable) => (
             StatusCode::UNPROCESSABLE_ENTITY,
-            "top decks require published DeckHub entries",
+            "top decks require published Community entries",
         )
             .into_response(),
         Err(error) => internal_error(error),

@@ -656,7 +656,7 @@ export default function DeckEditor() {
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Published on Deck Hub
+                      Published in Community
                     </span>
                     {!publishedDecksLoading && (
                       <span className="text-[10px] text-muted-foreground">
@@ -683,7 +683,7 @@ export default function DeckEditor() {
                         You haven’t published a deck yet. Use the share action on any local deck.
                       </span>
                       <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-                        Browse Deck Hub
+                        Browse Community
                       </Button>
                     </div>
                   ) : filteredPublishedDecks.length > 0 ? (
@@ -840,7 +840,7 @@ export default function DeckEditor() {
               <DialogTitle>Remove account deck</DialogTitle>
               <DialogDescription>
                 “{deletingAccountDeck?.deck.name}” and all its versions will be permanently removed
-                from your account on every device. Publications of it on the Deck Hub stay online.
+                from your account on every device. Publications of it in Community stay online.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">

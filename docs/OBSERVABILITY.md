@@ -94,6 +94,8 @@ Defined in `manabrew-rs/crates/self-hosted-node/src/metrics.rs`; pushed to the p
 
 Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`.
 
+The Hub refreshes its `Most Played` and `Popular Commander` snapshots from the previous 30 days of official-relay human seats. It groups by `published_deck_id` plus `deck_fingerprint`, verifies that fingerprint against the immutable Community publication, ranks by picks, and adds win rate only after 20 completed matches. Self-hosted and offline games do not contribute.
+
 Known gap: `game_players.commander` and `decks.commander` hold a single name, so the second partner commander never reaches "Top commanders".
 
 ### Loki

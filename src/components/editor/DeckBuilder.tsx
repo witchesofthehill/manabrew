@@ -925,7 +925,7 @@ export function DeckBuilder({
                 }}
               >
                 <LibraryBig className="mr-1 h-3.5 w-3.5" />
-                View in Deck Hub
+                View in Community
               </Button>
             )}
             <Button
@@ -1132,7 +1132,7 @@ export function DeckBuilder({
                     onSelect={() => setPublishOpen(true)}
                     disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                   >
-                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
+                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
                   </DropdownMenuItem>
                 )}
                 {accountsEnabled &&

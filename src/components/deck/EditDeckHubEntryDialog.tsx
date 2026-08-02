@@ -97,7 +97,7 @@ export function EditDeckHubEntryDialog({
         <DialogHeader>
           <DialogTitle>Edit publication</DialogTitle>
           <DialogDescription>
-            Update how this exact deck version appears in Deck Hub discovery and Top Decks.
+            Update how this exact deck version appears in Community discovery and Top Decks.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

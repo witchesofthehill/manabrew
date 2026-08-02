@@ -60,6 +60,8 @@ Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a bo
 
 Feature flags cover routes, navigation, dialogs, background requests, persisted-account reuse, and API authorization headers, not only the visible button that starts a flow. `deckHub` alone enables public browse, play, and copy flows. `accounts` alone enables authentication and private account decks. Publishing and favorites require both flags; a disabled `accounts` flag must not attach a persisted bearer token to Hub reads. The Hub service independently reads `DECK_HUB` and fails closed for publication creation, publication updates, and favorites; keep that env value aligned between the web and Hub containers. Public reads and authenticated removal of existing publications remain available while Deck Hub is dark.
 
+`DeckHub` remains the internal domain and API name, but user-facing copy calls the discovery surface **Community**. Keep My Decks and Community as direct top-level destinations; the play home introduces Community with a full-width exploration tile below the player's deck shelf. Top Deck cards must display their snapshot reason, and measured rankings come only from exact published-version fingerprints used by humans on the official public relay. Presets are Community entries but are never ranked merely for appearing in the preset catalog.
+
 ## Card data — Scryfall store
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.

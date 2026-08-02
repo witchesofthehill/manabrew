@@ -10,8 +10,7 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_BUCKET = "official-presets";
-const PRESET_BOILERPLATE_REASON = "Official ManaBrew preset";
+const DEFAULT_BUCKET = "trending";
 const INITIAL_RANK_COUNT = 10;
 
 interface HubTopDeckSnapshotsProps {
@@ -118,7 +117,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
             <Trophy className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-3 text-sm font-medium">No snapshot published yet</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              This bucket will appear here after its first ranked snapshot is curated.
+              This ranking appears after its first evidence-backed snapshot is available.
             </p>
           </div>
         ) : (
@@ -130,11 +129,8 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                     <span className="font-serif text-lg font-semibold text-primary">
                       #{ranked.rank}
                     </span>
-                    {ranked.reason && ranked.reason !== PRESET_BOILERPLATE_REASON && (
-                      <span
-                        className="truncate text-xs text-muted-foreground"
-                        title={ranked.reason}
-                      >
+                    {ranked.reason && (
+                      <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">
                         {ranked.reason}
                       </span>
                     )}
@@ -178,7 +174,9 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
 
       <p className="shrink-0 border-t px-4 py-2 text-[11px] text-muted-foreground sm:px-6 lg:px-8">
         {snapshot?.snapshotDate
-          ? `Snapshot dated ${snapshot.snapshotDate}. Rankings do not mutate the underlying decks.`
+          ? snapshot.bucket.scope === "editorial"
+            ? `Curated snapshot dated ${snapshot.snapshotDate}.`
+            : `Based on official public matches from the 30 days ending ${snapshot.snapshotDate}.`
           : " "}
       </p>
     </div>

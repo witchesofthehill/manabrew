@@ -234,7 +234,7 @@ export function HubDeckPreviewDialog({
       removePublished(deckId);
       removeDeck(deckId);
       void refresh();
-      toast.success(`"${detail?.name ?? "Deck"}" removed from the Deck Hub`);
+      toast.success(`"${detail?.name ?? "Deck"}" removed from Community`);
       onClose();
       onUnpublished?.();
     } catch (err) {

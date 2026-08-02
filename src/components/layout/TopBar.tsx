@@ -43,7 +43,7 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
       fallback: ROUTES.PLAY,
     };
   }
-  if (pathname === ROUTES.HUB) return { title: "Deck Hub", fallback: ROUTES.PLAY };
+  if (pathname === ROUTES.HUB) return { title: "Community", fallback: ROUTES.PLAY };
   if (pathname === `${ROUTES.DRAFT}/multiplayer`) {
     return { title: "Multiplayer Draft", fallback: ROUTES.LOBBY };
   }

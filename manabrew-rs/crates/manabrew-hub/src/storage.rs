@@ -399,7 +399,7 @@ impl Storage {
     }
 
     pub fn published_deck_matches(&self, id: &str, fingerprint: &str) -> SqlResult<bool> {
-        let deck_json = self
+        let legacy_deck_json = self
             .conn
             .query_row(
                 "SELECT deck_json FROM hub_decks WHERE id = ?1 AND unlisted = 0",
@@ -407,7 +407,24 @@ impl Storage {
                 |row| row.get::<_, String>(0),
             )
             .optional()?;
-        Ok(deck_json
+        if legacy_deck_json
+            .and_then(|json| serde_json::from_str::<Deck>(&json).ok())
+            .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint)
+        {
+            return Ok(true);
+        }
+        let snapshot_json = self
+            .conn
+            .query_row(
+                "SELECT v.snapshot_json
+                 FROM deckhub_entries e
+                 JOIN deck_versions v ON v.id = e.published_version_id
+                 WHERE e.id = ?1 AND e.status = 'published'",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        Ok(snapshot_json
             .and_then(|json| serde_json::from_str::<Deck>(&json).ok())
             .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint))
     }
@@ -578,7 +595,6 @@ impl Storage {
 
     pub fn sync_preset_decks(&self, presets: &[PresetDeck], now: &str) -> SqlResult<()> {
         let tx = self.conn.unchecked_transaction()?;
-        let mut current_entries = Vec::with_capacity(presets.len());
         tx.execute_batch(
             "CREATE TEMP TABLE syncing_preset_keys (preset_key TEXT PRIMARY KEY) WITHOUT ROWID;",
         )?;
@@ -656,7 +672,6 @@ impl Storage {
                 }
             };
             let entry_id = format!("preset-entry:{}:{version_no}", preset.key);
-            current_entries.push(entry_id.clone());
             let slug = format!(
                 "{}-v{version_no}",
                 legacy_slug(&preset.deck.name, &preset.key)
@@ -709,33 +724,6 @@ impl Storage {
              )",
             params![now],
         )?;
-        tx.execute(
-            "INSERT OR IGNORE INTO top_deck_buckets (id, key, label, scope, created_at)
-             VALUES ('top-decks-official-presets', 'official-presets', 'Official Presets',
-                     'preset', ?1)",
-            params![now],
-        )?;
-        let snapshot_date = now.split('T').next().unwrap_or(now);
-        tx.execute(
-            "DELETE FROM top_deck_snapshots
-             WHERE bucket_id = 'top-decks-official-presets' AND snapshot_date = ?1",
-            params![snapshot_date],
-        )?;
-        for (index, entry_id) in current_entries.iter().enumerate() {
-            tx.execute(
-                "INSERT INTO top_deck_snapshots
-                    (id, bucket_id, deckhub_entry_id, rank, reason, snapshot_date, created_at)
-                 VALUES (?1, 'top-decks-official-presets', ?2, ?3,
-                         'Official ManaBrew preset', ?4, ?5)",
-                params![
-                    format!("preset-snapshot:{snapshot_date}:{}", index + 1),
-                    entry_id,
-                    index + 1,
-                    snapshot_date,
-                    now,
-                ],
-            )?;
-        }
         tx.execute_batch("DROP TABLE syncing_preset_keys")?;
         tx.commit()
     }
@@ -2974,7 +2962,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert_eq!(kind, "user");

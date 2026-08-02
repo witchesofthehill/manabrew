@@ -34,7 +34,7 @@ export function useHubDeckSearch(search: string, format?: string, active = true)
             setResult({
               key,
               decks: [],
-              error: err instanceof Error ? err.message : "Failed to load Deck Hub decks",
+              error: err instanceof Error ? err.message : "Failed to load Community decks",
             });
           }
         });

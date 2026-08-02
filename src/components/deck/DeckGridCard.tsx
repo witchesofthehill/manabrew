@@ -133,8 +133,8 @@ export function DeckGridCard({
                 size="icon"
                 variant="secondary"
                 className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                aria-label="View in Deck Hub"
-                title="View in Deck Hub"
+                aria-label="View in Community"
+                title="View in Community"
                 onClick={(e) => {
                   e.stopPropagation();
                   onViewInHub();
@@ -148,8 +148,8 @@ export function DeckGridCard({
                 size="icon"
                 variant="secondary"
                 className="h-6 w-6 bg-background/80 backdrop-blur-sm hover:bg-background"
-                aria-label="Publish to Deck Hub"
-                title="Publish to Deck Hub"
+                aria-label="Publish to Community"
+                title="Publish to Community"
                 onClick={(e) => {
                   e.stopPropagation();
                   onPublish();

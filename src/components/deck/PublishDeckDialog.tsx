@@ -87,7 +87,8 @@ export function PublishDeckDialog({
       const detectedCapabilities = capabilitiesLoaded ? capabilities : await loadCapabilities();
       if (!useHubStore.getState().capabilitiesLoaded) {
         throw new Error(
-          useHubStore.getState().capabilitiesError ?? "Could not determine Deck Hub capabilities",
+          useHubStore.getState().capabilitiesError ??
+            "Could not determine whether Community publishing is available",
         );
       }
       const publishableDeck = toPublishableDeck(deck);
@@ -138,7 +139,7 @@ export function PublishDeckDialog({
         });
       }
       void refresh();
-      toast.success(`"${deck.name}" published to the Deck Hub`);
+      toast.success(`"${deck.name}" published to Community`);
       handleOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publishing failed");
@@ -154,7 +155,7 @@ export function PublishDeckDialog({
       await unpublishDeck(existing.hubId, existing.managementToken);
       removePublished(existing.hubId);
       void refresh();
-      toast.success(`"${existing.name}" removed from the Deck Hub`);
+      toast.success(`"${existing.name}" removed from Community`);
       handleOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Removing failed");
@@ -186,8 +187,8 @@ export function PublishDeckDialog({
             {existing
               ? confirmingUnpublish
                 ? "Unpublish this deck?"
-                : "Published to Deck Hub"
-              : "Publish to Deck Hub"}
+                : "Published to Community"
+              : "Publish to Community"}
           </DialogTitle>
           <DialogDescription>
             {existing
@@ -195,7 +196,7 @@ export function PublishDeckDialog({
                 ? `Remove the public snapshot of "${existing.name}"? Your local deck will stay in My Decks.`
                 : `"${existing.name}" is live on the hub. You can remove it at any time.`
               : !capabilitiesLoaded
-                ? `Checking Deck Hub support before publishing "${deck.name}".`
+                ? `Checking Community support before publishing "${deck.name}".`
                 : capabilities?.domainVersion === 2
                   ? `Publish the current version of "${deck.name}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`
                   : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}

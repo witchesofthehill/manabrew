@@ -33,6 +33,10 @@ services:
       - manabrew-server
     environment:
       CARGO_TARGET_DIR: /target
+      CARGO_HTTP_TIMEOUT: "600"
+      CARGO_HTTP_LOW_SPEED_LIMIT: "1"
+      CARGO_HTTP_MULTIPLEXING: "false"
+      CARGO_NET_RETRY: "10"
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_HEALTH_PORT: "9444"
@@ -71,17 +75,22 @@ services:
       - manabrew-hub
     environment:
       CARGO_TARGET_DIR: /target
+      CARGO_HTTP_TIMEOUT: "600"
+      CARGO_HTTP_LOW_SPEED_LIMIT: "1"
+      CARGO_HTTP_MULTIPLEXING: "false"
+      CARGO_NET_RETRY: "10"
       HUB_HOST: "0.0.0.0"
       HUB_PORT: "9500"
       HUB_DB_PATH: "/data/hub.db"
       HUB_PUBLIC_URL: "http://localhost:9500"
       WEB_APP_URL: "http://localhost:1420"
+      DECK_HUB: "1"
       RUST_LOG: "manabrew_hub=info"
     ports:
       - "9500:9500"
     volumes:
       - .:/app
-      - hub-data:/data
+      - ./ops/hub-data/dev:/data
       - hub-target:/target
       - cargo-registry:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
@@ -98,4 +107,3 @@ volumes:
   cargo-git:
   relay-target:
   hub-target:
-  hub-data:

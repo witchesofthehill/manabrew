@@ -50,7 +50,7 @@ export function DeckHubFilters({
           <Input
             value={filters.search}
             onChange={(event) => onChange({ search: event.target.value })}
-            aria-label="Search Deck Hub"
+            aria-label="Search Community"
             placeholder="Search decks, authors, commanders, or cards"
             className="h-10 pl-9 pr-9 pointer-coarse:text-base"
           />
@@ -81,7 +81,7 @@ export function DeckHubFilters({
           )}
           <select
             value={filters.sort}
-            aria-label="Sort Deck Hub"
+            aria-label="Sort Community decks"
             className="h-10 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
             onChange={(event) =>
               onChange({ sort: event.target.value as DeckHubDiscoveryFilters["sort"] })
@@ -95,7 +95,7 @@ export function DeckHubFilters({
           {domainV2 && (
             <select
               value={filters.group}
-              aria-label="Group Deck Hub results"
+              aria-label="Group Community results"
               className="h-10 min-w-0 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
               onChange={(event) =>
                 onChange({ group: event.target.value as DeckHubDiscoveryFilters["group"] })

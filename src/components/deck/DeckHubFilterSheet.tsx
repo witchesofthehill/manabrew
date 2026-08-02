@@ -94,7 +94,7 @@ export function DeckHubFilterSheet({
       </SheetTrigger>
       <SheetContent className="flex w-full flex-col sm:max-w-md">
         <SheetHeader className="pr-8">
-          <SheetTitle>Refine the Deck Hub</SheetTitle>
+          <SheetTitle>Refine Community results</SheetTitle>
           <SheetDescription>
             Combine filters to find a published deck and inspect its exact card snapshot.
           </SheetDescription>

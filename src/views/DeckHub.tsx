@@ -86,7 +86,7 @@ export default function DeckHub() {
       {!capabilitiesLoaded && capabilitiesError ? (
         <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
           <div className="max-w-md">
-            <p className="font-medium">Deck Hub could not be reached</p>
+            <p className="font-medium">Community could not be reached</p>
             <p className="mt-1 text-sm text-muted-foreground">{capabilitiesError}</p>
             <Button
               variant="outline"
@@ -101,7 +101,7 @@ export default function DeckHub() {
         </div>
       ) : !capabilitiesLoaded ? (
         <div className="grid min-h-0 flex-1 place-items-center text-sm text-muted-foreground">
-          Loading the Deck Hub…
+          Loading Community…
         </div>
       ) : tab === "discover" ? (
         <DeckHubDiscover domainV2={domainV2} onOpen={openPreview} />
@@ -113,7 +113,7 @@ export default function DeckHub() {
             <Trophy className="mx-auto h-9 w-9 text-muted-foreground/50" />
             <p className="mt-3 font-medium">Top Decks are temporarily unavailable</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Rankings only appear when they contain published Deck Hub entries with viewable card
+              Rankings only appear when they contain published Community entries with viewable card
               snapshots.
             </p>
             <Button

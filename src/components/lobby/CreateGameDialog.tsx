@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import {
   GAME_FORMATS,
@@ -19,7 +20,7 @@ import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { cn } from "@/lib/utils";
-import { Search, Shuffle, Swords } from "lucide-react";
+import { Loader2, Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
@@ -53,6 +54,7 @@ export function CreateGameDialog({
   onStart,
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
+  const accountDeckDetails = useAccountDecksStore((state) => state.details);
   const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
@@ -68,6 +70,7 @@ export function CreateGameDialog({
   const [deckSearch, setDeckSearch] = useState("");
   const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, HubDeckDetail>>({});
   const [loadingHubDeckId, setLoadingHubDeckId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id, open);
@@ -118,7 +121,7 @@ export function CreateGameDialog({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
+        toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
       })
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
@@ -199,7 +202,7 @@ export function CreateGameDialog({
     name: detail.name,
     desc: detail.description,
     color: detail.colors,
-    badge: "Deck Hub",
+    badge: "Community",
     sourceDeck: detail.deck,
     isPreset: false as const,
     cover: resolveCoverCard(detail.deck),
@@ -302,7 +305,7 @@ export function CreateGameDialog({
         name: detail.name,
         desc: detail.description,
         color: detail.colors,
-        badge: "Deck Hub",
+        badge: "Community",
         sourceDeck: detail.deck,
         isPreset: false as const,
         cover: resolveCoverCard(detail.deck),
@@ -319,18 +322,19 @@ export function CreateGameDialog({
       if (activate) handleCreate(entry, entry.commanderName);
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
+      toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
   }
 
-  function handleCreate(
+  async function handleCreate(
     entry: (typeof allDecks)[number] | undefined = selectedDeckIsVisible
       ? selectedDeckEntry
       : undefined,
     commanderOverride?: string,
   ) {
+    if (starting) return;
     if (!entry) {
       toast.error("Please select a deck");
       return;
@@ -359,6 +363,24 @@ export function CreateGameDialog({
       toast.error("Please select a commander");
       return;
     }
+    setStarting(true);
+    let publishedDeckId = entry.id.startsWith("hub:") ? entry.id.slice(4) : undefined;
+    const savedEntry = savedDecks.find((saved) => saved.id === entry.id);
+    const rankingPresetKey = entry.isPreset
+      ? entry.sourceDeck.id
+      : savedEntry?.accountDeckId
+        ? accountDeckDetails[savedEntry.accountDeckId]?.derivedFromPresetKey
+        : undefined;
+    if (isLobbyMode && target !== "bot" && rankingPresetKey && hubDecks.enabled) {
+      try {
+        const published = await loadHubDeck(rankingPresetKey);
+        if (getDeckFingerprint(published.deck) === getDeckFingerprint(entry.sourceDeck)) {
+          publishedDeckId = published.id;
+        }
+      } catch {
+        publishedDeckId = undefined;
+      }
+    }
     handleOpenChange(false);
     if (entry.isPreset) savePresetToAccountOnUse(entry.sourceDeck.id);
     onStart(
@@ -366,8 +388,9 @@ export function CreateGameDialog({
       selectedFormat.id,
       selectedFormat.deckRules.requiresCommander ? commander || entry.commanderName : undefined,
       playerCount,
-      entry.id.startsWith("hub:") ? entry.id.slice(4) : undefined,
+      publishedDeckId,
     );
+    setStarting(false);
   }
 
   return (
@@ -617,7 +640,7 @@ export function CreateGameDialog({
                   hubDecks.error !== null ||
                   hubDecks.decks.length > 0) && (
                   <div className="p-4">
-                    <SectionLabel>Deck Hub</SectionLabel>
+                    <SectionLabel>Community</SectionLabel>
                     <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
                       Community decks are downloaded when selected.
                     </p>
@@ -630,11 +653,11 @@ export function CreateGameDialog({
                       </div>
                     ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
-                        Loading Deck Hub decks…
+                        Loading Community decks…
                       </p>
                     ) : hubDecks.decks.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
-                        No Deck Hub decks match your search.
+                        No Community decks match your search.
                       </p>
                     ) : (
                       <div
@@ -669,7 +692,7 @@ export function CreateGameDialog({
                               color={deck.colors}
                               author={deck.author}
                               cardCount={deck.cardCount + deck.commanders.length}
-                              badge="Deck Hub"
+                              badge="Community"
                               cards={[]}
                               cover={undefined}
                               coverImageUrl={deck.coverImageUrl}
@@ -771,11 +794,21 @@ export function CreateGameDialog({
             <Button
               size="sm"
               onClick={() => handleCreate()}
-              disabled={!isReady}
+              disabled={!isReady || starting}
               className="gap-1.5"
             >
-              {!isLobbyMode && <Swords className="h-3.5 w-3.5" />}
-              {target === "bot" ? "Add Bot" : isLobbyMode ? "Select Deck" : "Play"}
+              {starting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                !isLobbyMode && <Swords className="h-3.5 w-3.5" />
+              )}
+              {starting
+                ? "Selecting…"
+                : target === "bot"
+                  ? "Add Bot"
+                  : isLobbyMode
+                    ? "Select Deck"
+                    : "Play"}
             </Button>
           </div>
         </div>

@@ -9,6 +9,10 @@ Manabrew is a Tauri desktop/web client for Magic: The Gathering, powered by a Ru
 
 The engine is incomplete. Most day-to-day work is **finding parity bugs** with `yarn parity` and fixing them.
 
+## Local full stack
+
+`./dev start` builds and starts the web app, relay, and Hub API through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; `./dev stop` preserves it and `./dev clean` deletes it together with the development cache volumes. Use `./dev logs` to follow all services.
+
 ## Prime directive: root-cause, not symptom
 
 Every engine fix must restore long-term correctness of the underlying mechanic — not patch the one card that triggered the bug report. If a single card seems to need a special case, that is almost always wrong: the general rule lives somewhere in Forge — find it, port it, mirror it.

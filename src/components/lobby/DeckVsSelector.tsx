@@ -148,7 +148,7 @@ export function DeckVsSelector({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck", {
+        toast.error(err instanceof Error ? err.message : "Failed to load Community deck", {
           action: {
             label: "Retry",
             onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
@@ -331,7 +331,7 @@ export function DeckVsSelector({
       );
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
+      toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
@@ -555,7 +555,7 @@ export function DeckVsSelector({
           (deckSearch.trim() !== "" || hubDecks.error !== null || hubDecks.decks.length > 0) && (
             <div>
               <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Deck Hub
+                Community
               </p>
               {hubDecks.error ? (
                 <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
@@ -565,10 +565,12 @@ export function DeckVsSelector({
                   </Button>
                 </div>
               ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
-                <p className="py-2 text-xs italic text-muted-foreground">Loading Deck Hub decks…</p>
+                <p className="py-2 text-xs italic text-muted-foreground">
+                  Loading Community decks…
+                </p>
               ) : hubDecks.decks.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
-                  No Deck Hub decks match this format and search.
+                  No Community decks match this format and search.
                 </p>
               ) : (
                 <div
@@ -598,7 +600,7 @@ export function DeckVsSelector({
                         color={deck.colors}
                         author={deck.author}
                         cardCount={deck.cardCount + deck.commanders.length}
-                        badge="Deck Hub"
+                        badge="Community"
                         cards={[]}
                         cover={undefined}
                         coverImageUrl={deck.coverImageUrl}

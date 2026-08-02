@@ -6,7 +6,7 @@ description: What Manabrew stores, what it sends, and what it never collects.
 The short version: **no ads, no third-party tracking, and accounts are
 optional.** Three things can leave your machine: games played on the public
 relay are recorded, you can explicitly save decks to an account, and you can
-publish deck versions to the Deck Hub. All three are described below.
+publish deck versions to Community. All three are described below.
 
 ## What stays on your machine
 
@@ -40,8 +40,8 @@ operator turns it on.
 
 Accounts are optional. You never need one to play, build local decks, or join
 multiplayer games. An account lets you save selected decks across devices,
-keeps immutable version history when you save changes, owns your DeckHub
-publications, and stores your DeckHub favorites.
+keeps immutable version history when you save changes, owns your Community
+publications, and stores your Community favorites.
 
 You can sign in with GitHub, Discord, or an email code. We store your handle,
 the provider you signed in with and its user id, and your email address when
@@ -50,9 +50,9 @@ Sign-in codes are delivered through
 [Resend](https://resend.com/legal/privacy-policy), which processes your email
 address for that purpose.
 
-## Deck Hub
+## Community
 
-Publishing to the Deck Hub is opt-in and needs an account so each public entry
+Publishing to Community is opt-in and needs an account so each public entry
 stays yours. A publication points to one immutable version of an account deck;
 the same deck or version can be published more than once. We publicly show the
 publishing account's handle, publication title and summary, card list, tags,
@@ -61,7 +61,7 @@ between your account and an entry, but we do not publish who favorited it. You
 can remove each public entry from any device you are signed in on. Removing a
 deck from My Decks does not automatically remove its existing public entries.
 
-Top Deck collections are dated ranking snapshots of public DeckHub entries, so
+Top Deck collections are dated ranking snapshots of public Community entries, so
 they show the same publication and account-handle information as the entry
 itself. Legacy clients may still show the older aggregate public-relay board,
 which contains deck names, commanders, play counts, and recent-play timing but

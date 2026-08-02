@@ -112,6 +112,7 @@
   --color-legality-legal: var(--legality-legal);
   --color-legality-banned: var(--legality-banned);
   --color-legality-restricted: var(--legality-restricted);
+  --color-community-accent: var(--community-accent);
   --color-format-badge-blue: var(--format-badge-blue);
   --color-format-badge-amber: var(--format-badge-amber);
   --color-format-badge-emerald: var(--format-badge-emerald);

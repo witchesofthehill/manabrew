@@ -149,7 +149,7 @@ export function PlayHome() {
                 label="Explore community decks"
                 desc="Browse complete decklists, discover popular builds, and save a version to your collection."
                 icon={LibraryBig}
-                tone="blue"
+                tone="community"
                 size="sm"
               />
             </div>

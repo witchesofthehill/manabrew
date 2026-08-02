@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckCard } from "@/components/deck/HubDeckCard";
+import { ManaSymbols } from "@/components/game/ManaSymbols";
 import type { DeckHubGroup, DeckHubView } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary, HubDeckSummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
@@ -33,7 +34,7 @@ interface DeckHubResultsProps {
 function groupLabel(entry: DeckHubEntrySummary, group: DeckHubGroup) {
   if (group === "source") return entry.sourceKind === "preset" ? "Official presets" : "Community";
   if (group === "format") return FORMAT_DISPLAY[entry.format ?? ""] ?? entry.format ?? "Other";
-  if (group === "color") return entry.colors === "C" ? "Colorless" : entry.colors || "Unknown";
+  if (group === "color") return entry.colors || "Unknown";
   if (group === "tag") return entry.tags[0]?.name ?? "Untagged";
   return "Published decks";
 }
@@ -134,7 +135,27 @@ export function DeckHubResults({
                 <section key={label}>
                   {group !== "none" && (
                     <div className="mb-2 flex items-baseline gap-2">
-                      <h2 className="font-serif text-lg font-semibold">{label}</h2>
+                      <h2 className="font-serif text-lg font-semibold">
+                        {group === "color" && label !== "Unknown" ? (
+                          <>
+                            <span className="sr-only">
+                              {label === "C" ? "Colorless" : `${label} color identity`}
+                            </span>
+                            <span aria-hidden="true">
+                              <ManaSymbols
+                                cost={label
+                                  .split("")
+                                  .map((color) => `{${color}}`)
+                                  .join("")}
+                                size="lg"
+                                className="m-0"
+                              />
+                            </span>
+                          </>
+                        ) : (
+                          label
+                        )}
+                      </h2>
                       <span className="text-xs text-muted-foreground">{groupedEntries.length}</span>
                     </div>
                   )}

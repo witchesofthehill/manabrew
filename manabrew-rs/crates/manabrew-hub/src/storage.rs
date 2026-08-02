@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckSummary, AdminTopDeckSnapshotEntry, DeckHubEntryDetail,
@@ -63,10 +64,25 @@ pub enum RecordDeckPlayOutcome {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReportedPublication {
+pub struct RankedPublication {
     pub published_deck_id: String,
     pub deck_fingerprint: String,
     pub plays: u32,
+    pub completed_games: u32,
+    pub wins: u32,
+}
+
+pub struct RelayDeckPlay<'a> {
+    pub username: &'a str,
+    pub deckhub_entry_id: &'a str,
+    pub deck_fingerprint: &'a str,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AnalyticsImportOutcome {
+    AlreadyCompleted,
+    SourceUnavailable,
+    Imported { imported: u32, skipped: u32 },
 }
 
 #[derive(Debug)]
@@ -235,20 +251,7 @@ impl Storage {
     }
 
     pub fn published_deck_matches(&self, id: &str, fingerprint: &str) -> SqlResult<bool> {
-        let snapshot_json = self
-            .conn
-            .query_row(
-                "SELECT v.snapshot_json
-                 FROM deckhub_entries e
-                 JOIN deck_versions v ON v.id = e.published_version_id
-                 WHERE e.id = ?1 AND e.status = 'published'",
-                params![id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        Ok(snapshot_json
-            .and_then(|json| serde_json::from_str::<Deck>(&json).ok())
-            .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint))
+        published_deck_matches(&self.conn, id, fingerprint)
     }
 
     pub fn record_deck_play(
@@ -264,8 +267,8 @@ impl Storage {
         }
         let inserted = self.conn.execute(
             "INSERT OR IGNORE INTO deck_play_reports
-                (id, deckhub_entry_id, deck_fingerprint, format, played_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+                (id, deckhub_entry_id, deck_fingerprint, format, source, played_at)
+             VALUES (?1, ?2, ?3, ?4, 'offline', ?5)",
             params![
                 report_id,
                 deckhub_entry_id,
@@ -281,31 +284,177 @@ impl Storage {
         })
     }
 
-    pub fn reported_publications(
+    pub fn record_relay_game_started(
+        &self,
+        game_id: &str,
+        format: &str,
+        played_at: &str,
+        plays: &[RelayDeckPlay<'_>],
+    ) -> SqlResult<u32> {
+        let game_key = sha256_hex(game_id.as_bytes());
+        let tx = self.conn.unchecked_transaction()?;
+        let mut inserted = 0;
+        for play in plays {
+            if !published_deck_matches(&tx, play.deckhub_entry_id, play.deck_fingerprint)? {
+                continue;
+            }
+            let player_key = relay_player_key(game_id, play.username);
+            inserted += tx.execute(
+                "INSERT OR IGNORE INTO deck_play_reports
+                    (id, deckhub_entry_id, deck_fingerprint, format, source,
+                     game_key, player_key, played_at)
+                 VALUES (?1, ?2, ?3, ?4, 'relay', ?5, ?6, ?7)",
+                params![
+                    format!("relay:{}", uuid::Uuid::new_v4()),
+                    play.deckhub_entry_id,
+                    play.deck_fingerprint,
+                    format.to_ascii_lowercase(),
+                    game_key,
+                    player_key,
+                    played_at,
+                ],
+            )?;
+        }
+        tx.commit()?;
+        Ok(inserted as u32)
+    }
+
+    pub fn record_relay_game_ended(
+        &self,
+        game_id: &str,
+        game_over: bool,
+        winner: Option<&str>,
+    ) -> SqlResult<u32> {
+        let game_key = sha256_hex(game_id.as_bytes());
+        let winner_key = winner.map(|username| relay_player_key(game_id, username));
+        self.conn
+            .execute(
+                "UPDATE deck_play_reports
+                 SET completed_game = ?2,
+                     won = CASE WHEN ?2 = 1 AND player_key = ?3 THEN 1 ELSE 0 END
+                 WHERE source = 'relay' AND game_key = ?1",
+                params![game_key, game_over as i64, winner_key],
+            )
+            .map(|changed| changed as u32)
+    }
+
+    pub fn ranked_publications(
         &self,
         since: &str,
         format: Option<&str>,
         limit: u32,
-    ) -> SqlResult<Vec<ReportedPublication>> {
+    ) -> SqlResult<Vec<RankedPublication>> {
         let mut stmt = self.conn.prepare(
-            "SELECT deckhub_entry_id, deck_fingerprint, count(*) AS plays
+            "SELECT deckhub_entry_id, deck_fingerprint, count(*) AS plays,
+                    sum(completed_game), sum(won)
              FROM deck_play_reports
              WHERE played_at >= ?1
                AND (?2 IS NULL OR lower(format) = lower(?2))
              GROUP BY deckhub_entry_id, deck_fingerprint
-             ORDER BY plays DESC, deckhub_entry_id ASC
+             ORDER BY plays DESC, sum(completed_game) DESC, deckhub_entry_id ASC
              LIMIT ?3",
         )?;
         let publications = stmt
             .query_map(params![since, format, limit], |row| {
-                Ok(ReportedPublication {
+                Ok(RankedPublication {
                     published_deck_id: row.get(0)?,
                     deck_fingerprint: row.get(1)?,
                     plays: row.get(2)?,
+                    completed_games: row.get(3)?,
+                    wins: row.get(4)?,
                 })
             })?
             .collect();
         publications
+    }
+
+    pub fn import_analytics_deck_plays(
+        &self,
+        path: &str,
+        completed_at: &str,
+    ) -> SqlResult<AnalyticsImportOutcome> {
+        const MIGRATION_KEY: &str = "analytics-deck-plays-v1";
+        let completed = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM data_migrations WHERE key = ?1)",
+            params![MIGRATION_KEY],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if completed {
+            return Ok(AnalyticsImportOutcome::AlreadyCompleted);
+        }
+        if !std::path::Path::new(path).exists() {
+            return Ok(AnalyticsImportOutcome::SourceUnavailable);
+        }
+        let analytics =
+            Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        analytics.busy_timeout(Duration::from_secs(5))?;
+        if !table_has_column(&analytics, "game_players", "published_deck_id")?
+            || !table_has_column(&analytics, "game_players", "deck_fingerprint")?
+        {
+            return Ok(AnalyticsImportOutcome::SourceUnavailable);
+        }
+        let tx = self.conn.unchecked_transaction()?;
+        let mut imported = 0;
+        let mut skipped = 0;
+        let mut stmt = analytics.prepare(
+            "SELECT gp.game_id, gp.username, gp.published_deck_id, gp.deck_fingerprint,
+                    g.format, g.started_at, COALESCE(g.game_over, 0), g.winner
+             FROM game_players gp
+             JOIN games g ON g.game_id = gp.game_id
+             WHERE gp.is_bot = 0 AND g.hosted = 0
+               AND gp.published_deck_id IS NOT NULL
+               AND gp.deck_fingerprint IS NOT NULL
+               AND g.started_at IS NOT NULL
+             ORDER BY g.started_at ASC, gp.game_id ASC, gp.username ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(AnalyticsDeckPlay {
+                game_id: row.get(0)?,
+                username: row.get(1)?,
+                deckhub_entry_id: row.get(2)?,
+                deck_fingerprint: row.get(3)?,
+                format: row.get(4)?,
+                played_at: row.get(5)?,
+                completed_game: row.get::<_, i64>(6)? != 0,
+                winner: row.get(7)?,
+            })
+        })?;
+        for row in rows {
+            let row = row?;
+            if !published_deck_matches(&tx, &row.deckhub_entry_id, &row.deck_fingerprint)? {
+                skipped += 1;
+                continue;
+            }
+            let game_key = sha256_hex(row.game_id.as_bytes());
+            let player_key = relay_player_key(&row.game_id, &row.username);
+            imported += tx.execute(
+                "INSERT OR IGNORE INTO deck_play_reports
+                    (id, deckhub_entry_id, deck_fingerprint, format, source, game_key,
+                     player_key, completed_game, won, played_at)
+                 VALUES (?1, ?2, ?3, ?4, 'relay', ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    format!("relay:{}", uuid::Uuid::new_v4()),
+                    row.deckhub_entry_id,
+                    row.deck_fingerprint,
+                    row.format.map(|format| format.to_ascii_lowercase()),
+                    game_key,
+                    player_key,
+                    row.completed_game as i64,
+                    (row.completed_game && row.winner.as_deref() == Some(row.username.as_str()))
+                        as i64,
+                    row.played_at,
+                ],
+            )?;
+        }
+        tx.execute(
+            "INSERT INTO data_migrations (key, completed_at) VALUES (?1, ?2)",
+            params![MIGRATION_KEY, completed_at],
+        )?;
+        tx.commit()?;
+        Ok(AnalyticsImportOutcome::Imported {
+            imported: imported as u32,
+            skipped,
+        })
     }
 
     pub fn publishes_since(&self, ip: &str, since: &str) -> SqlResult<u32> {
@@ -1865,6 +2014,48 @@ impl Storage {
     }
 }
 
+struct AnalyticsDeckPlay {
+    game_id: String,
+    username: String,
+    deckhub_entry_id: String,
+    deck_fingerprint: String,
+    format: Option<String>,
+    played_at: String,
+    completed_game: bool,
+    winner: Option<String>,
+}
+
+fn published_deck_matches(conn: &Connection, id: &str, fingerprint: &str) -> SqlResult<bool> {
+    let snapshot_json = conn
+        .query_row(
+            "SELECT v.snapshot_json
+             FROM deckhub_entries e
+             JOIN deck_versions v ON v.id = e.published_version_id
+             WHERE e.id = ?1 AND e.status = 'published'",
+            params![id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    Ok(snapshot_json
+        .and_then(|json| serde_json::from_str::<Deck>(&json).ok())
+        .is_some_and(|deck| deck_fingerprint(&deck) == fingerprint))
+}
+
+fn relay_player_key(game_id: &str, username: &str) -> String {
+    sha256_hex(format!("{game_id}\0{username}").as_bytes())
+}
+
+fn table_has_column(conn: &Connection, table: &str, column: &str) -> SqlResult<bool> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    for name in columns {
+        if name? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 struct LegacyHubDeck {
     id: String,
     name: String,
@@ -2477,7 +2668,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 7);
+        assert_eq!(version, 8);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

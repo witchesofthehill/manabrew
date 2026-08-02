@@ -417,6 +417,7 @@ pub fn remove_room_and_clear_sessions(
 ) {
     if let Some((_, room)) = state.rooms.remove(room_id) {
         if let Some(replay) = room.replay.as_ref() {
+            state.deck_play_events.game_ended(replay);
             analytics::emit_game_ended(&state.analytics, &room, replay, reason);
         }
     }

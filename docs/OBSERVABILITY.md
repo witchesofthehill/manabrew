@@ -56,15 +56,16 @@ Datasource: SQLite (`events-sqlite`, `frser-sqlite-datasource`) over the analyti
 
 Defined in `manabrew-rs/crates/manabrew-server/src/metrics.rs`, served on the health port at `/metrics`, scraped per `ops/observability/prometheus/prometheus.yml` (job `relay`).
 
-| Metric                                   | Kind    | Labels                          |
-| ---------------------------------------- | ------- | ------------------------------- |
-| `manabrew_relay_connections`             | gauge   | `kind`                          |
-| `manabrew_relay_rooms`                   | gauge   | `status`, `hosted`              |
-| `manabrew_relay_games_started_total`     | counter | `engine`                        |
-| `manabrew_relay_games_ended_total`       | counter | `reason`                        |
-| `manabrew_relay_client_rejections_total` | counter | `reason` (e.g. `outdated_wire`) |
-| `manabrew_relay_reconnect_resyncs_total` | counter | —                               |
-| `manabrew_relay_analytics_dropped_total` | counter | —                               |
+| Metric                                          | Kind    | Labels                          |
+| ----------------------------------------------- | ------- | ------------------------------- |
+| `manabrew_relay_connections`                    | gauge   | `kind`                          |
+| `manabrew_relay_rooms`                          | gauge   | `status`, `hosted`              |
+| `manabrew_relay_games_started_total`            | counter | `engine`                        |
+| `manabrew_relay_games_ended_total`              | counter | `reason`                        |
+| `manabrew_relay_client_rejections_total`        | counter | `reason` (e.g. `outdated_wire`) |
+| `manabrew_relay_reconnect_resyncs_total`        | counter | —                               |
+| `manabrew_relay_analytics_dropped_total`        | counter | —                               |
+| `manabrew_relay_deck_play_events_dropped_total` | counter | —                               |
 
 ### Prometheus — self-hosted-node metrics
 
@@ -94,7 +95,9 @@ Defined in `manabrew-rs/crates/self-hosted-node/src/metrics.rs`; pushed to the p
 
 Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`.
 
-The Hub refreshes its `Most Played` and `Popular Commander` snapshots from the previous 30 days of managed-relay human seats and client-reported offline plays. It groups by `published_deck_id` plus `deck_fingerprint`, verifies that fingerprint against the immutable Community publication, ranks by plays, and adds online win rate only after 20 completed online matches. Hosted AI rooms and bot seats do not contribute. Offline reports live in `hub.db.deck_play_reports`; they contain an opaque report ID, publication ID, fingerprint, format, and server receipt time, with no username or card list.
+Migrations 7 and 8 establish the Hub evidence schema. The first Hub startup after migration 8 performs a one-time import of eligible publication-linked analytics rows into `hub.db.deck_play_reports`. Top Decks has no live analytics-database dependency after that import. New managed-relay starts and outcomes use a dedicated Deck Play evidence channel and write directly to the Hub through `/internal/deckhub/relay-games`; offline and hosted-AI clients use the public play-report endpoint. Hosted Relay rooms are excluded from the dedicated channel to avoid counting the same human play twice, and bot seats never contribute. Ranking refreshes read only Hub evidence and snapshot tables. Stored relay game/player keys are hashed, and no username or card list is retained in the Hub.
+
+Staging additionally applies `ops/staging-migrations/001_top_deck_filler.sql` after Hub is healthy. That environment-only data migration inserts current-dated evidence for five preset publications and records `staging-top-deck-filler-v1` in `data_migrations`; production Compose never mounts or executes it.
 
 Known gap: `game_players.commander` and `decks.commander` hold a single name, so the second partner commander never reaches "Top commanders".
 

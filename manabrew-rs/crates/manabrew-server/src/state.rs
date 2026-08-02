@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::analytics::AnalyticsHandle;
+use crate::deck_play_events::DeckPlayEventHandle;
 use crate::room::Room;
 
 pub struct ConnectedPlayer {
@@ -25,6 +26,7 @@ pub struct ServerState {
     pub max_rooms: usize,
     pub official_key: Option<String>,
     pub analytics: AnalyticsHandle,
+    pub deck_play_events: DeckPlayEventHandle,
 }
 
 impl ServerState {
@@ -33,6 +35,7 @@ impl ServerState {
         max_rooms: usize,
         official_key: Option<String>,
         analytics: AnalyticsHandle,
+        deck_play_events: DeckPlayEventHandle,
     ) -> Self {
         ServerState {
             players: DashMap::new(),
@@ -41,6 +44,7 @@ impl ServerState {
             max_rooms,
             official_key,
             analytics,
+            deck_play_events,
         }
     }
 

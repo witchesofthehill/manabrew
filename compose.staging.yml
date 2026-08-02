@@ -30,7 +30,16 @@ services:
       - ./ops/staging.Caddyfile:/etc/caddy/Caddyfile:ro
     mem_limit: 128m
     depends_on:
-      - manabrew-server-staging
+      manabrew-server-staging:
+        condition: service_healthy
+      staging-data-migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/api/hub/capabilities"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   manabrew-server-staging:
     image: ghcr.io/witchesofthehill/manabrew-server:${MANABREW_IMAGE_TAG:-staging}
@@ -40,6 +49,9 @@ services:
       FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      DECK_HUB: "${DECK_HUB:-1}"
+      MANABREW_HUB_DECK_PLAYS_URL: "http://manabrew-hub-staging:9500"
+      MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
       RUST_LOG: "manabrew_server=info"
@@ -58,6 +70,9 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+    depends_on:
+      manabrew-hub-staging:
+        condition: service_healthy
 
   manabrew-hub-staging:
     image: ghcr.io/witchesofthehill/manabrew-hub:${MANABREW_IMAGE_TAG:-staging}
@@ -66,7 +81,8 @@ services:
       HUB_PORT: "9500"
       # Own throwaway DB inside the staging tree — never prod's hub.db.
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
-      EVENTS_DB_PATH: "/var/manabrew/events/events.db"
+      HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
+      HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       DECK_HUB: "${DECK_HUB:-1}"
       RUST_LOG: "manabrew_hub=info"
       HUB_PUBLIC_URL: "https://staging.manabrew.app"
@@ -83,6 +99,9 @@ services:
       - "9500"
     restart: unless-stopped
     mem_limit: 256m
+    depends_on:
+      events-ingester-staging:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9500/health"]
       interval: 15s
@@ -103,6 +122,35 @@ services:
       - ./scripts/ingest-events.py:/app/ingest-events.py:ro
       - ./ops/events:/var/manabrew/events
     restart: unless-stopped
+    mem_limit: 64m
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sqlite3; sqlite3.connect('/var/manabrew/events/events.db').execute('SELECT 1 FROM games LIMIT 1')"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  staging-data-migrations:
+    image: python:3.12-alpine
+    command:
+      - python
+      - -c
+      - |
+        import pathlib
+        import sqlite3
+        connection = sqlite3.connect("/var/manabrew/hub/hub.db", timeout=30)
+        connection.executescript(pathlib.Path("/migrations/001_top_deck_filler.sql").read_text())
+        connection.close()
+    volumes:
+      - ./ops/hub-data:/var/manabrew/hub
+      - ./ops/staging-migrations:/migrations:ro
+    depends_on:
+      manabrew-hub-staging:
+        condition: service_healthy
+    restart: "no"
     mem_limit: 64m
 
   self-hosted-node-staging:

@@ -13,6 +13,8 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 `./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services.
 
+Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
+
 ## Prime directive: root-cause, not symptom
 
 Every engine fix must restore long-term correctness of the underlying mechanic — not patch the one card that triggered the bug report. If a single card seems to need a special case, that is almost always wrong: the general rule lives somewhere in Forge — find it, port it, mirror it.

@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use manabrew_server::{analytics, config, metrics, server, state};
+use manabrew_server::{analytics, config, deck_play_events, metrics, server, state};
 
 #[tokio::main]
 async fn main() {
@@ -22,11 +22,13 @@ async fn main() {
         .expect("Invalid health address");
 
     let analytics = analytics::AnalyticsHandle::from_config(&config);
+    let deck_play_events = deck_play_events::DeckPlayEventHandle::from_config(&config);
     let state = Arc::new(state::ServerState::new(
         config.server_key.clone(),
         config.max_rooms,
         config.official_key.clone(),
         analytics,
+        deck_play_events,
     ));
 
     server::run_server(state, addr, health_addr, metrics_handle).await;

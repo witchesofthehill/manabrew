@@ -693,6 +693,7 @@ pub fn reset_room_to_lobby(
     let (info, cleared) = {
         let mut room = state.rooms.get_mut(room_id)?;
         if let Some(replay) = room.replay.take() {
+            state.deck_play_events.game_ended(&replay);
             analytics::emit_game_ended(&state.analytics, &room, &replay, reason);
         }
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();

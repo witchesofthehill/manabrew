@@ -3,7 +3,7 @@ name = "manabrew-hub"
 version = "0.3.4"
 edition = "2021"
 license.workspace = true
-description = "Deck hub and analytics stats API for manabrew"
+description = "Accounts, decks, and Community API for manabrew"
 
 [features]
 default = ["server"]

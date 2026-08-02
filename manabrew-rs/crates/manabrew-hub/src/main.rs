@@ -3,11 +3,9 @@ mod config;
 mod preset_decks;
 mod rate_limit;
 mod routes;
-mod stats;
 mod storage;
 mod validate;
 
-use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -18,8 +16,7 @@ use tracing_subscriber::EnvFilter;
 use crate::config::HubConfig;
 use crate::rate_limit::RateLimiter;
 use crate::routes::{build_router, AppState};
-use crate::stats::StatsCache;
-use crate::storage::{ReplaceSnapshotOutcome, Storage};
+use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
 const RANKING_QUERY_LIMIT: u32 = 100;
 const RANKING_RESULT_LIMIT: usize = 25;
@@ -44,13 +41,25 @@ async fn main() {
     storage
         .sync_preset_decks(&presets, &chrono::Utc::now().to_rfc3339())
         .expect("sync preset decks");
+    if let Some(path) = config.analytics_import_db_path.as_deref() {
+        match storage.import_analytics_deck_plays(path, &chrono::Utc::now().to_rfc3339()) {
+            Ok(AnalyticsImportOutcome::AlreadyCompleted) => {}
+            Ok(AnalyticsImportOutcome::SourceUnavailable) => {
+                tracing::warn!(%path, "analytics deck-play import source unavailable");
+            }
+            Ok(AnalyticsImportOutcome::Imported { imported, skipped }) => {
+                tracing::info!(imported, skipped, "analytics deck-play import completed");
+            }
+            Err(error) => tracing::warn!(%error, %path, "analytics deck-play import failed"),
+        }
+    }
     let state = Arc::new(AppState {
         storage: Mutex::new(storage),
-        stats: StatsCache::new(config.events_db_path.clone()),
         limiter: RateLimiter::new(config.publish_per_hour),
         play_limiter: RateLimiter::new(config.play_reports_per_hour),
         deck_hub_enabled: config.deck_hub_enabled,
         publish_per_day: config.publish_per_day,
+        relay_deck_plays_token: config.relay_deck_plays_token,
         auth_email_limiter: RateLimiter::new(config.auth.auth_emails_per_hour),
         auth_code_limiter: RateLimiter::new(config.auth.auth_attempts_per_hour),
         auth: config.auth.clone(),
@@ -85,54 +94,30 @@ async fn main() {
 
 fn refresh_top_deck_snapshots(state: &AppState) {
     for (bucket, format) in [("trending", None), ("commander", Some("commander"))] {
-        let online_candidates = state
-            .stats
-            .top_publications("30d", format, RANKING_QUERY_LIMIT);
         let storage = state.storage.lock().unwrap();
         let cutoff = (chrono::Utc::now() - chrono::Duration::days(30))
             .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        let offline_candidates =
-            match storage.reported_publications(&cutoff, format, RANKING_QUERY_LIMIT) {
-                Ok(candidates) => candidates,
-                Err(error) => {
-                    tracing::warn!(%error, bucket, "could not query offline deck plays");
-                    Vec::new()
-                }
-            };
-        if online_candidates.is_none() && offline_candidates.is_empty() {
-            continue;
-        }
-        let mut candidates = BTreeMap::<(String, String), (u32, u32, u32)>::new();
-        for candidate in online_candidates.unwrap_or_default() {
-            candidates.insert(
-                (candidate.published_deck_id, candidate.deck_fingerprint),
-                (candidate.plays, candidate.completed_games, candidate.wins),
-            );
-        }
-        for candidate in offline_candidates {
-            let totals = candidates
-                .entry((candidate.published_deck_id, candidate.deck_fingerprint))
-                .or_default();
-            totals.0 = totals.0.saturating_add(candidate.plays);
-        }
-        let mut candidates = candidates.into_iter().collect::<Vec<_>>();
-        candidates.sort_by(
-            |((left_id, _), left_totals), ((right_id, _), right_totals)| {
-                right_totals
-                    .0
-                    .cmp(&left_totals.0)
-                    .then_with(|| right_totals.1.cmp(&left_totals.1))
-                    .then_with(|| left_id.cmp(right_id))
-            },
-        );
+        let candidates = match storage.ranked_publications(&cutoff, format, RANKING_QUERY_LIMIT) {
+            Ok(candidates) => candidates,
+            Err(error) => {
+                tracing::warn!(%error, bucket, "could not query deck plays");
+                continue;
+            }
+        };
         let mut entries = Vec::new();
-        for ((published_deck_id, deck_fingerprint), (plays, completed_games, wins)) in candidates {
-            match storage.published_deck_matches(&published_deck_id, &deck_fingerprint) {
+        for candidate in candidates {
+            match storage
+                .published_deck_matches(&candidate.published_deck_id, &candidate.deck_fingerprint)
+            {
                 Ok(true) => entries.push(AdminTopDeckSnapshotEntry {
-                    deckhub_entry_id: published_deck_id,
+                    deckhub_entry_id: candidate.published_deck_id,
                     rank: entries.len() as u32 + 1,
-                    score: Some(f64::from(plays)),
-                    reason: Some(ranking_reason(plays, completed_games, wins)),
+                    score: Some(f64::from(candidate.plays)),
+                    reason: Some(ranking_reason(
+                        candidate.plays,
+                        candidate.completed_games,
+                        candidate.wins,
+                    )),
                 }),
                 Ok(false) => {}
                 Err(error) => {

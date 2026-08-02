@@ -22,10 +22,9 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use crate::auth;
 use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
-use crate::stats::StatsCache;
 use crate::storage::{
     DeckHubColorMatch, DeckHubEntryUpdate, DeckHubListParams, DeckHubSortOrder, DeckHubTagMatch,
-    DeleteOutcome, NewDeckHubEntry, RecordDeckPlayOutcome, ReplaceSnapshotOutcome,
+    DeleteOutcome, NewDeckHubEntry, RecordDeckPlayOutcome, RelayDeckPlay, ReplaceSnapshotOutcome,
     SaveVersionOutcome, Storage,
 };
 use crate::validate;
@@ -38,11 +37,11 @@ const MANAGEMENT_TOKEN_BYTES: usize = 32;
 
 pub struct AppState {
     pub storage: Mutex<Storage>,
-    pub stats: StatsCache,
     pub limiter: RateLimiter,
     pub play_limiter: RateLimiter,
     pub deck_hub_enabled: bool,
     pub publish_per_day: u32,
+    pub relay_deck_plays_token: Option<String>,
     pub auth: AuthConfig,
     pub auth_email_limiter: RateLimiter,
     pub auth_code_limiter: RateLimiter,
@@ -116,6 +115,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/deckhub/top/buckets", get(top_deck_buckets_handler))
         .route("/api/deckhub/top/:bucket", get(top_deck_snapshot_handler))
         .route("/api/deckhub/plays", post(record_deck_play_handler))
+        .route(
+            "/internal/deckhub/relay-games",
+            post(relay_deck_game_handler),
+        )
         .route(
             "/admin/deckhub/top/:bucket",
             post(replace_top_deck_snapshot_handler),
@@ -612,6 +615,101 @@ async fn record_deck_play_handler(
 }
 
 #[derive(Deserialize)]
+#[serde(tag = "event", rename_all = "snake_case")]
+enum RelayDeckGame {
+    GameStarted {
+        ts: String,
+        game_id: String,
+        format: String,
+        hosted: bool,
+        players: Vec<RelayDeckGamePlayer>,
+    },
+    GameEnded {
+        game_id: String,
+        game_over: bool,
+        winner: Option<String>,
+    },
+}
+
+#[derive(Deserialize)]
+struct RelayDeckGamePlayer {
+    username: String,
+    is_bot: bool,
+    published_deck_id: Option<String>,
+    deck_fingerprint: Option<String>,
+}
+
+async fn relay_deck_game_handler(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(event): Json<RelayDeckGame>,
+) -> Response {
+    if !state.deck_hub_enabled {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let authorized = state
+        .relay_deck_plays_token
+        .as_deref()
+        .is_some_and(|expected| {
+            headers
+                .get(AUTHORIZATION)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.strip_prefix("Bearer "))
+                == Some(expected)
+        });
+    if !authorized {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    match event {
+        RelayDeckGame::GameStarted {
+            ts,
+            game_id,
+            format,
+            hosted,
+            players,
+        } => {
+            if hosted {
+                return StatusCode::NO_CONTENT.into_response();
+            }
+            let plays = players
+                .iter()
+                .filter_map(|player| {
+                    if player.is_bot {
+                        return None;
+                    }
+                    Some(RelayDeckPlay {
+                        username: &player.username,
+                        deckhub_entry_id: player.published_deck_id.as_deref()?,
+                        deck_fingerprint: player.deck_fingerprint.as_deref()?,
+                    })
+                })
+                .collect::<Vec<_>>();
+            match state
+                .storage
+                .lock()
+                .unwrap()
+                .record_relay_game_started(&game_id, &format, &ts, &plays)
+            {
+                Ok(_) => StatusCode::NO_CONTENT.into_response(),
+                Err(error) => internal_error(error),
+            }
+        }
+        RelayDeckGame::GameEnded {
+            game_id,
+            game_over,
+            winner,
+        } => match state.storage.lock().unwrap().record_relay_game_ended(
+            &game_id,
+            game_over,
+            winner.as_deref(),
+        ) {
+            Ok(_) => StatusCode::NO_CONTENT.into_response(),
+            Err(error) => internal_error(error),
+        },
+    }
+}
+
+#[derive(Deserialize)]
 struct SnapshotQuery {
     date: Option<String>,
 }
@@ -786,11 +884,11 @@ mod tests {
     fn test_state(per_hour: u32, per_day: u32) -> Arc<AppState> {
         Arc::new(AppState {
             storage: Mutex::new(Storage::open_memory().unwrap()),
-            stats: StatsCache::new(None),
             limiter: RateLimiter::new(per_hour),
             play_limiter: RateLimiter::new(100),
             deck_hub_enabled: true,
             publish_per_day: per_day,
+            relay_deck_plays_token: Some("relay-deck-plays-token".into()),
             auth: AuthConfig {
                 public_url: "http://localhost:9500".into(),
                 web_app_url: "http://localhost:5173".into(),

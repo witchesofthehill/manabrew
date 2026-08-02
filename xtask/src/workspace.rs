@@ -21,6 +21,8 @@ pub const APP_EXTRA_FILES: &[&str] = &[
     "yarn.lock",
 ];
 pub const APP_MIRROR_FILES: &[&str] = &["package.json", "src-tauri/tauri.conf.json"];
+pub const JAVA_ENGINE_PACKAGES: &[&str] = &["self-hosted-node", APP_PACKAGE];
+pub const JAVA_ENGINE_GLOBS: &[&str] = &["forge-harness/**", "forge", "forge/**"];
 /// Internal-tooling crates that never version, tag, or appear in the manifest.
 pub const IGNORED_PACKAGES: &[&str] = &["xtask", "networking-tests"];
 
@@ -139,6 +141,9 @@ impl Workspace {
         if pkg.name == APP_PACKAGE {
             globs.extend(APP_EXTRA_DIRS.iter().map(|d| format!("{d}/**")));
             globs.extend(APP_EXTRA_FILES.iter().map(|f| f.to_string()));
+        }
+        if JAVA_ENGINE_PACKAGES.contains(&pkg.name.as_str()) {
+            globs.extend(JAVA_ENGINE_GLOBS.iter().map(|g| g.to_string()));
         }
         globs
     }

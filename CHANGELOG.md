@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.2.0](https://github.com/witchesofthehill/manabrew/compare/v3.1.0...v3.2.0) (2026-08-03)
+
+### Features
+
+* **hub:** accounts, oauth and magic-link auth, deck ownership ([#517](https://github.com/witchesofthehill/manabrew/issues/517)) ([404e4bb](https://github.com/witchesofthehill/manabrew/commit/404e4bb5229d989f42ff7b183044f3789a232436))
+
 ## [3.1.0](https://github.com/witchesofthehill/manabrew/compare/v3.0.4...v3.1.0) (2026-08-03)
 
 ### Features

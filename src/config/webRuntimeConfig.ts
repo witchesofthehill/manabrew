@@ -12,6 +12,11 @@ export function getStatusBannerUrl(): string {
 }
 
 export function getHubApiUrl(): string {
+  const runtime =
+    typeof window !== "undefined" ? window.__MANABREW_RUNTIME__?.hubApiUrl : undefined;
+  if (runtime) return runtime.replace(/\/$/, "");
+  if (import.meta.env.DEV && typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window))
+    return "/hub-api";
   return import.meta.env.VITE_HUB_API_URL || "https://api.manabrew.app";
 }
 

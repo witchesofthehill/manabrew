@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-protocol"
-version = "3.0.1"
+version = "3.1.0"
 edition = "2021"
 license.workspace = true
 repository.workspace = true
@@ -15,5 +15,6 @@ path = "src/bin/gen_protocol.rs"
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = "0.10"
 ts-rs = { workspace = true }
 strum_macros = "0.28.0"

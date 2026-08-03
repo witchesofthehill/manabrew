@@ -159,22 +159,3 @@ export function SetSelect({
     </div>
   );
 }
-
-/** Display a set name from its code, with icon. */
-export function SetName({ code, className }: { code: string; className?: string }) {
-  const sets = useScryfallStore((s) => s.sets);
-  const set = sets?.find((s) => s.code === code.toLowerCase());
-
-  if (!set) return <span className={className}>{code.toUpperCase()}</span>;
-
-  return (
-    <span className={cn("inline-flex items-center gap-1", className)}>
-      <ScryfallImg
-        src={set.icon_svg_uri}
-        alt=""
-        className={cn("h-3.5 w-3.5 shrink-0", SET_ICON_CLASS)}
-      />
-      <span>{set.name}</span>
-    </span>
-  );
-}

@@ -1,5 +1,7 @@
 import { getHubApiUrl } from "@/config/webRuntimeConfig";
+import { isFeatureEnabled } from "@/featureFlags";
 import { platformFetch } from "@/lib/platformFetch";
+import { useAuthStore } from "@/stores/useAuthStore";
 import type {
   HubDeckDetail,
   HubDeckList,
@@ -22,11 +24,24 @@ export interface HubListParams {
 const MANAGEMENT_TOKEN_HEADER = "X-Management-Token";
 
 async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
-  const response = await platformFetch(`${getHubApiUrl()}${path}`, init);
+  const token = isFeatureEnabled("accounts") ? useAuthStore.getState().token : null;
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await platformFetch(`${getHubApiUrl()}${path}`, { ...init, headers });
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     if (response.status === 429) {
-      throw new Error("Too many publishes from your connection — try again later.");
+      throw new Error("Too many Deck Hub requests from your connection. Try again later.");
+    }
+    if (response.status === 401) {
+      if (token && useAuthStore.getState().token === token) {
+        useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
+      }
+      throw new Error(
+        token
+          ? "Your Deck Hub session expired. Sign in again."
+          : "Sign in to publish decks to the Deck Hub.",
+      );
     }
     throw new Error(message || `Hub request failed (${response.status})`);
   }
@@ -62,13 +77,18 @@ export function publishDeck(request: PublishDeckRequest): Promise<PublishDeckRes
   });
 }
 
-export async function unpublishDeck(id: string, managementToken: string): Promise<void> {
+export async function unpublishDeck(id: string, managementToken?: string): Promise<void> {
+  const headers = managementToken ? { [MANAGEMENT_TOKEN_HEADER]: managementToken } : undefined;
   await hubRequest(`/api/hub/decks/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    headers: { [MANAGEMENT_TOKEN_HEADER]: managementToken },
+    headers,
   });
 }
 
 export function fetchTopDecks(window: TopDecksWindow, limit = 25): Promise<TopDeckStat[]> {
   return hubJson<TopDeckStat[]>(`/api/stats/top-decks?window=${window}&limit=${limit}`);
+}
+
+export function fetchMyDecks(): Promise<HubDeckList> {
+  return hubJson<HubDeckList>("/api/hub/my-decks");
 }

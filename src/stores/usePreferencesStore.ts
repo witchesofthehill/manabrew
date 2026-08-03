@@ -95,6 +95,9 @@ interface PreferencesState {
   askEngineOnAiPlay: boolean;
   setAskEngineOnAiPlay: (value: boolean) => void;
 
+  hideAccountSaveNudge: boolean;
+  setHideAccountSaveNudge: (value: boolean) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
@@ -145,6 +148,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "ironsmithRuntimeEnabled",
   "askEngineOnAiPlay",
+  "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -254,6 +258,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           askEngineOnAiPlay: false,
           setAskEngineOnAiPlay: (askEngineOnAiPlay) => set({ askEngineOnAiPlay }),
+
+          hideAccountSaveNudge: false,
+          setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

@@ -23,6 +23,7 @@ import Settings from "@/views/Settings";
 import About from "@/views/About";
 import Search from "@/views/Search";
 import DeckHub from "@/views/DeckHub";
+import AuthCallback from "@/views/AuthCallback";
 
 export const router = createBrowserRouter([
   {
@@ -156,6 +157,18 @@ export const router = createBrowserRouter([
           </ErrorBoundary>
         ),
       },
+      ...(isFeatureEnabled("accounts")
+        ? [
+            {
+              path: "auth/callback",
+              element: (
+                <ErrorBoundary context="Auth">
+                  <AuthCallback />
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
       {
         path: "settings",
         element: (

@@ -85,7 +85,12 @@ interface ServerState {
   resumeRoomAfterRestart(): Promise<void>;
   leaveRoom(requireServerLeave?: boolean): Promise<void>;
   setReady(ready: boolean): Promise<void>;
-  setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
+  setDeckSelection(
+    deckName: string,
+    deck: Deck,
+    commanderName?: string,
+    publishedDeckId?: string,
+  ): Promise<void>;
   setFormat(format: GameFormat): Promise<void>;
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
@@ -344,7 +349,7 @@ export const useServerStore = create<ServerState>()(
         await platform.server.setReady({ ready });
       },
 
-      async setDeckSelection(deckName, deck, commanderName) {
+      async setDeckSelection(deckName, deck, commanderName, publishedDeckId) {
         const platform = getPlatform();
         if (!platform.server) return;
         const prefs = usePreferencesStore.getState();
@@ -358,6 +363,7 @@ export const useServerStore = create<ServerState>()(
                 playmat: prefs.defaultPlaymat,
                 playmatSettings: prefs.defaultPlaymatSettings,
               },
+          publishedDeckId,
           commanderName: commanderName ?? null,
           avatar: prefs.customAvatar,
         });

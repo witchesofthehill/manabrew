@@ -220,6 +220,7 @@ pub fn resume_room_sync(
                 is_bot,
                 selected_deck_name: deck.map(|d| d.deck_name.clone()),
                 selected_deck: deck.map(|d| d.deck.clone()),
+                published_deck_id: deck.and_then(|d| d.published_deck_id.clone()),
                 selected_commander_name: deck.and_then(|d| d.commander_name.clone()),
                 avatar: deck.and_then(|d| d.avatar.clone()),
             }
@@ -426,6 +427,7 @@ pub fn set_deck_selection_sync(
     player_id: &str,
     deck_name: String,
     mut deck: Deck,
+    published_deck_id: Option<String>,
     commander_name: Option<String>,
     avatar: Option<String>,
 ) -> Result<String, ServerError> {
@@ -442,6 +444,7 @@ pub fn set_deck_selection_sync(
         sanitize_playmat_settings(settings);
     }
     let avatar = sanitize_cosmetic(avatar);
+    let published_deck_id = published_deck_id.filter(|id| uuid::Uuid::parse_str(id).is_ok());
 
     {
         let mut room = state
@@ -453,8 +456,15 @@ pub fn set_deck_selection_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        room.set_deck_selection(player_id, deck_name, deck, commander_name, avatar)
-            .map_err(|_| ServerError::NotInRoom)?;
+        room.set_deck_selection(
+            player_id,
+            deck_name,
+            deck,
+            published_deck_id,
+            commander_name,
+            avatar,
+        )
+        .map_err(|_| ServerError::NotInRoom)?;
     }
 
     Ok(room_id)

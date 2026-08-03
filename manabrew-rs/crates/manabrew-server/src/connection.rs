@@ -930,6 +930,7 @@ fn handle_client_message(
         ClientMessage::SetDeckSelection {
             deck_name,
             deck,
+            published_deck_id,
             commander_name,
             avatar,
         } => {
@@ -948,6 +949,7 @@ fn handle_client_message(
                 player_id,
                 deck_name.clone(),
                 deck,
+                published_deck_id,
                 commander_name.clone(),
                 avatar,
             ) {

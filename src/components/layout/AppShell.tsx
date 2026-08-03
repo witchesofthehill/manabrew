@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { isFeatureEnabled } from "@/featureFlags";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,8 @@ import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
+import { SignInDialog } from "@/components/auth/SignInDialog";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { StatusBanner } from "./StatusBanner";
 import { TopBar } from "./TopBar";
@@ -56,6 +59,10 @@ export function AppShell() {
     return cleanup;
   }, [setupListeners]);
 
+  useEffect(() => {
+    void useAuthStore.getState().hydrate();
+  }, []);
+
   useGameSessionResume();
   useStatusBanner();
   useDesktopUpdater();
@@ -84,6 +91,7 @@ export function AppShell() {
         <StatusBanner />
         <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <IronsmithUnsupportedDeckModal />
+        {isFeatureEnabled("accounts") && <SignInDialog />}
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
         <main
           className={cn(

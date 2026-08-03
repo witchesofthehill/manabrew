@@ -129,6 +129,9 @@ pub fn game_started_event(started: &StartedGame) -> AnalyticsEvent {
                 is_bot,
                 deck_name: deck.map(|deck| deck.deck_name.clone()),
                 commander: deck.and_then(|deck| deck.commander_name.clone()),
+                published_deck_id: deck.and_then(|deck| deck.published_deck_id.clone()),
+                deck_fingerprint: deck
+                    .map(|deck| manabrew_protocol::deck_dto::deck_fingerprint(&deck.deck)),
             }
         })
         .collect();

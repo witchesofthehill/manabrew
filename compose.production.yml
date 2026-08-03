@@ -52,6 +52,11 @@ services:
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
+      EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-0}"
+    # No depends_on for manabrew-hub: the site must deploy/restart even if the
+    # hub image is broken; caddy just 502s api. until the hub comes up.
+    depends_on:
+      - manabrew-server
 
   manabrew-server:
     # Pre-built in CI (docker-images.yml) and pulled. `cargo xtask deploy`

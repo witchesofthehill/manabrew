@@ -1,34 +1,12 @@
-import type { Deck, DeckCard } from "@/protocol/deck";
+import type { Deck } from "@/protocol/deck";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { getDeckColors } from "@/components/deck/deckDisplay.utils";
-export { type CardGroup, groupCards } from "@/components/editor/deckBuilder.utils";
+export { groupCards } from "@/components/editor/deckBuilder.utils";
 
 export const PRESET_DECK_ID_PREFIX = "preset:";
 
 export function presetDeckParamId(deck: Deck): string {
   return `${PRESET_DECK_ID_PREFIX}${deck.id ?? deck.name}`;
-}
-
-//
-export function categorize(
-  groups: { card: DeckCard; count: number }[],
-): { label: string; items: { card: DeckCard; count: number }[] }[] {
-  const lands: typeof groups = [];
-  const creatures: typeof groups = [];
-  const other: typeof groups = [];
-
-  for (const group of groups) {
-    const types = group.card.types ?? [];
-    if (types.includes("Land")) lands.push(group);
-    else if (types.includes("Creature")) creatures.push(group);
-    else other.push(group);
-  }
-
-  return [
-    { label: "Creatures", items: creatures },
-    { label: "Spells & Other", items: other },
-    { label: "Lands", items: lands },
-  ].filter((category) => category.items.length > 0);
 }
 
 export type SortBy = "name" | "color" | "updated";

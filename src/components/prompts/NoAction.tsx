@@ -1,5 +1,4 @@
 import { Hourglass } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 
 export function NoAction() {
@@ -7,20 +6,20 @@ export function NoAction() {
 
   if (minimal) {
     return (
-      <div className="flex h-8 items-center justify-center px-2 text-muted-foreground">
-        <Hourglass className="h-3.5 w-3.5" />
+      <div className="flex h-10 items-center justify-center px-2 text-muted-foreground">
+        <Hourglass className="h-3.5 w-3.5 animate-hourglass-flip" />
       </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "flex min-h-9 w-full items-center justify-center gap-1.5 text-xs text-muted-foreground",
-      )}
-    >
-      <Hourglass className="h-3.5 w-3.5" />
-      <span>Waiting for others</span>
+    <div className="flex w-full flex-col py-1">
+      <div className="flex h-10 w-full items-center justify-center gap-2 text-muted-foreground">
+        <Hourglass className="h-3.5 w-3.5 animate-hourglass-flip" />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em]">
+          Waiting for others
+        </span>
+      </div>
     </div>
   );
 }

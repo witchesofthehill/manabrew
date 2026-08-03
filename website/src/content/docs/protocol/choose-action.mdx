@@ -58,6 +58,11 @@ like any other entry. `actionId` MUST be an `id` advertised in this prompt's
 `actions`; anything else is [rejected](/protocol/#errors).
 Send `pass` to pass priority; the optional `until` asks the engine to keep
 auto-passing until `playerId` reaches `phase` (a [`StepKind`](/protocol/game-view/)).
+`exhaustStack: true` asks the engine to keep auto-passing until every object
+currently on the stack has resolved; the fast-forward ends early — priority
+comes back with a fresh prompt — as soon as any new object (a spell, an
+activated ability, or a trigger) is put on the stack, so the passing player
+can respond to it.
 Conceding is **not** a response — it is the out-of-band `directive` message
 (see [Transport](/protocol/transport/)), legal at any time.
 

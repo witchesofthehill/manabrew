@@ -254,6 +254,26 @@ export class StackLayer implements StackAnchorProvider {
     return this.bounds;
   }
 
+  hitTest(x: number, y: number): boolean {
+    if (!this.bounds) return false;
+    if (
+      x < this.bounds.x ||
+      x > this.bounds.x + this.bounds.width ||
+      y < this.bounds.y ||
+      y > this.bounds.y + this.bounds.height
+    ) {
+      return false;
+    }
+    const over = (b: { x: number; y: number; width: number; height: number }): boolean =>
+      x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+    if (this.btn.visible && over(this.btn.getBounds())) return true;
+    if (this.flashSprite && over(this.flashSprite.getBounds())) return true;
+    for (const sprite of this.sprites.values()) {
+      if (over(sprite.container.getBounds())) return true;
+    }
+    return false;
+  }
+
   toggleFace(stackObjectId: string): void {
     const card = this.spec.cards.find((candidate) => candidate.id === stackObjectId);
     if (!card?.card.isDoubleFaced) return;

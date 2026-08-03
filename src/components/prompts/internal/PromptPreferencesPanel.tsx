@@ -24,6 +24,8 @@ export function PromptPreferencesPanel() {
   const showOverrides = usePromptPreferencesStore((s) => s.show);
   const setShow = usePromptPreferencesStore((s) => s.setShow);
   const clearShow = usePromptPreferencesStore((s) => s.clearShow);
+  const fullControl = usePromptPreferencesStore((s) => s.fullControl);
+  const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
 
   const [logPrompts, setLogPrompts] = useState(isPromptLoggingEnabled);
 
@@ -42,6 +44,27 @@ export function PromptPreferencesPanel() {
           list below covers optional costs you may prefer to never be asked about.
         </p>
       </header>
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Priority</h3>
+        <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
+          <input
+            id="prompt-full-control"
+            type="checkbox"
+            checked={fullControl}
+            onChange={(e) => setFullControl(e.target.checked)}
+            className="mt-1 accent-primary h-4 w-4"
+          />
+          <div className="space-y-1">
+            <Label htmlFor="prompt-full-control">Full control</Label>
+            <p className="text-xs text-muted-foreground">
+              Stop at every priority window, even when you have no possible response. When off,
+              windows where you can only tap for mana pass automatically after a short delay — click
+              the sweeping Pass button to hold priority.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-3">
         <h3 className="text-sm font-semibold">Auto-skip optional costs</h3>

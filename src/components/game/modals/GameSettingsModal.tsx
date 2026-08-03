@@ -12,6 +12,7 @@ import {
   HOVER_DELAY_MIN,
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
+import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 
 const CARD_STYLES: { value: BattlefieldCardStyle; label: string }[] = [
   { value: "realistic", label: "Realistic" },
@@ -45,10 +46,12 @@ function SettingRow({
 }
 
 /** In-game board settings, opened from the board menu (gear → Board settings).
- *  Every control writes usePreferencesStore directly, so changes apply to the
+ *  Every control writes its preference store directly, so changes apply to the
  *  live board immediately and persist like the Settings page equivalents. */
 export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
+  const fullControl = usePromptPreferencesStore((s) => s.fullControl);
+  const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-md">
@@ -56,6 +59,28 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         <h2 className="text-base font-semibold">Board settings</h2>
       </Modal.Header>
       <Modal.Body className="space-y-5">
+        <SettingRow
+          label="Priority windows"
+          hint="Autopass skips windows where you can only tap for mana, after a short delay — click the sweeping Pass button to hold. Full control stops at every window."
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant={!fullControl ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFullControl(false)}
+            >
+              Autopass
+            </Button>
+            <Button
+              variant={fullControl ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFullControl(true)}
+            >
+              Full control
+            </Button>
+          </div>
+        </SettingRow>
+
         <SettingRow
           label={`Card size (${Math.round(prefs.cardSizeMultiplier * 100)}%)`}
           hint="Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill, the hand keeps growing past them."

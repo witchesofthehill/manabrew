@@ -5,6 +5,7 @@ import type { Prompt, PromptOutput, PassUntil } from "@/protocol";
 export function passOutput(
   prompt: Prompt | null,
   until: PassUntil | null,
+  exhaustStack = false,
 ): PromptOutput["output"] | null {
   if (!prompt) return null;
   switch (prompt.input.type) {
@@ -13,7 +14,7 @@ export function passOutput(
     case "chooseBlockers":
       return { type: "declareBlockers", assignments: [] };
     case "chooseAction":
-      return { type: "pass", until: until ?? undefined, exhaustStack: false };
+      return { type: "pass", until: until ?? undefined, exhaustStack };
     default:
       return { type: "pass", until: undefined, exhaustStack: false };
   }

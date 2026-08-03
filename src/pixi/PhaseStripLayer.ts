@@ -61,6 +61,10 @@ const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const FLASH_DURATION_MS = 800;
 const FLASH_MAX_EXPAND = 8;
 
+const SWEEP_STEP_ORDER: string[] = STEP_DEFS.map((p) => p.id).filter((id) => id !== "untap");
+const SWEEP_DWELL_MS = 10;
+const SWEEP_TOTAL_MAX_MS = 150;
+
 function easeOut(t: number): number {
   const t1 = 1 - t;
   return 1 - t1 * t1 * t1;
@@ -198,6 +202,10 @@ export class PhaseStripLayer {
   private pillRect: { x: number; y: number; w: number; c: number } | null = null;
   private forceShowIndicators = false;
   private expandedBounds: { x: number; y: number; w: number; h: number } | null = null;
+  private realState: PhaseStripState | null = null;
+  private sweepQueue: { step: string; activePlayerId: string }[] = [];
+  private sweepNextAt = 0;
+  private sweepDwellMs = SWEEP_DWELL_MS;
   onExpandedChange?: () => void;
 
   constructor(theme: Theme) {
@@ -348,7 +356,7 @@ export class PhaseStripLayer {
     if (this.compact === compact) return;
     this.compact = compact;
     this.expanded = false;
-    if (this.lastState) this.update(this.lastState);
+    if (this.lastState) this.render(this.lastState);
     this.onExpandedChange?.();
   }
 
@@ -360,14 +368,14 @@ export class PhaseStripLayer {
     if (!this.compact || this.expanded) return;
     this.expanded = true;
     this.expandedAt = performance.now();
-    if (this.lastState) this.update(this.lastState);
+    if (this.lastState) this.render(this.lastState);
     this.onExpandedChange?.();
   }
 
   private collapse(): void {
     if (!this.expanded) return;
     this.expanded = false;
-    if (this.lastState) this.update(this.lastState);
+    if (this.lastState) this.render(this.lastState);
     this.onExpandedChange?.();
   }
 
@@ -399,13 +407,53 @@ export class PhaseStripLayer {
   resize(width: number, height: number): void {
     this.canvasWidth = width;
     this.canvasHeight = height;
-    // Cells + divider line are laid out around `canvasWidth / 2` in `update`,
+    // Cells + divider line are laid out around `canvasWidth / 2` in `render`,
     // which only runs on a phase-state change — so re-run it here or the strip
     // stays positioned for the old width (off-center) until the next phase.
-    if (this.lastState) this.update(this.lastState);
+    if (this.lastState) this.render(this.lastState);
   }
 
   update(state: PhaseStripState): void {
+    const displayed = this.lastState;
+    this.realState = state;
+    if (!displayed) {
+      this.render(state);
+      return;
+    }
+    const from = SWEEP_STEP_ORDER.indexOf(displayed.currentStep);
+    const to = SWEEP_STEP_ORDER.indexOf(state.currentStep);
+    const turnChanged = displayed.activePlayerId !== state.activePlayerId;
+    // Backward jumps within the same player's turn are snapshot restores or
+    // extra-phase oddities, not elapsed time — never sweep through a turn
+    // boundary for them.
+    if (from < 0 || to < 0 || (to <= from && !turnChanged)) {
+      this.sweepQueue = [];
+      this.render(state);
+      return;
+    }
+    const len = SWEEP_STEP_ORDER.length;
+    let travel = (to - from + len) % len;
+    // Landing on the same phase of the next player's turn is a full ring loop.
+    if (travel === 0 && turnChanged) travel = len;
+    if (travel <= 1) {
+      this.sweepQueue = [];
+      this.render(state);
+      return;
+    }
+    const queue: { step: string; activePlayerId: string }[] = [];
+    for (let k = 1; k <= travel; k++) {
+      const inOldTurn = turnChanged && from + k < len;
+      queue.push({
+        step: SWEEP_STEP_ORDER[(from + k) % len]!,
+        activePlayerId: inOldTurn ? displayed.activePlayerId : state.activePlayerId,
+      });
+    }
+    this.sweepQueue = queue;
+    this.sweepDwellMs = Math.min(SWEEP_DWELL_MS, SWEEP_TOTAL_MAX_MS / travel);
+    this.sweepNextAt = 0;
+  }
+
+  private render(state: PhaseStripState): void {
     this.lastState = state;
     const t = this.theme.gameTheme;
     const appTheme = this.theme.appTheme;
@@ -721,6 +769,20 @@ export class PhaseStripLayer {
   }
 
   tick(): void {
+    if (this.sweepQueue.length > 0 && this.realState) {
+      const sweepNow = performance.now();
+      if (sweepNow >= this.sweepNextAt) {
+        const entry = this.sweepQueue.shift()!;
+        this.sweepNextAt = sweepNow + this.sweepDwellMs;
+        this.render({
+          ...this.realState,
+          currentStep: entry.step,
+          activePlayerId: entry.activePlayerId,
+          isActiveTurn: entry.activePlayerId === this.realState.myPlayerId,
+        });
+      }
+    }
+
     if (
       this.compact &&
       this.expanded &&

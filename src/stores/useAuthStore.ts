@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { fetchMe, signOutSession, AuthRequestError } from "@/api/auth";
+import { isFeatureEnabled } from "@/featureFlags";
 import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
 
 export type AuthStatus = "unknown" | "signedOut" | "signedIn";
@@ -39,7 +40,7 @@ export const useAuthStore = create<AuthState>()(
         },
         hydrate: async () => {
           const token = get().token;
-          if (!token) {
+          if (!token || !isFeatureEnabled("accounts")) {
             set({ status: "signedOut" });
             return;
           }

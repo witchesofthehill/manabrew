@@ -144,17 +144,10 @@ export function BoardOverlayCanvas({
   useEffect(() => {
     const insideStack = (clientX: number, clientY: number): boolean => {
       const canvas = canvasRef.current;
-      const bounds = stackRef.current?.getBounds();
-      if (!canvas || !bounds) return false;
+      const stack = stackRef.current;
+      if (!canvas || !stack) return false;
       const rect = canvas.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      return (
-        x >= bounds.x &&
-        x <= bounds.x + bounds.width &&
-        y >= bounds.y &&
-        y <= bounds.y + bounds.height
-      );
+      return stack.hitTest(clientX - rect.left, clientY - rect.top);
     };
     const onMove = (e: PointerEvent) => {
       const canvas = canvasRef.current;

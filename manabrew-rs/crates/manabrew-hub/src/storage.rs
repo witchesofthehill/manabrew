@@ -2040,6 +2040,14 @@ impl Storage {
         Ok(())
     }
 
+    pub fn delete_login_token(&self, code_hash: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM login_tokens WHERE code_hash = ?1",
+            params![code_hash],
+        )?;
+        Ok(())
+    }
+
     pub fn login_tokens_since(&self, email: &str, since: &str) -> SqlResult<u32> {
         self.conn.query_row(
             "SELECT count(*) FROM login_tokens

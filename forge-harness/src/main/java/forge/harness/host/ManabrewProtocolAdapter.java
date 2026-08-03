@@ -179,6 +179,10 @@ final class ManabrewProtocolAdapter {
                 if (output.has("until") && output.get("until").isJsonObject()) {
                     flat.add("until", output.getAsJsonObject("until"));
                 }
+                if (output.has("exhaustStack") && !output.get("exhaustStack").isJsonNull()
+                        && output.get("exhaustStack").getAsBoolean()) {
+                    flat.addProperty("exhaustStack", true);
+                }
                 return flat;
             case "restoreSnapshot":
                 throw new UnsupportedOperationException("unsupported canonical action type: restoreSnapshot");

@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.3.8"
+version = "0.4.0"
 dependencies = [
  "futures-util",
  "manabrew-agent-interface",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.0.4"
+version = "3.1.0"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -3846,7 +3846,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-engine"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "dyn-clone",
  "forge-card-script",
@@ -3934,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -4947,7 +4947,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "chrono",
@@ -4974,7 +4974,7 @@ dependencies = [
 
 [[package]]
 name = "parity-debugger"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "eframe",
  "egui",
@@ -6353,7 +6353,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.8.5"
+version = "0.9.0"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -8447,7 +8447,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

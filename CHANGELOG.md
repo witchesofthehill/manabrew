@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.2.1](https://github.com/witchesofthehill/manabrew/compare/v3.2.0...v3.2.1) (2026-08-03)
+
+### Fixes
+
+* **ui:** stop duplicate-username and forfeited-seat retry loops ([#600](https://github.com/witchesofthehill/manabrew/issues/600)) ([be12206](https://github.com/witchesofthehill/manabrew/commit/be12206beca621143b0696aa7cb30efc9106f93a))
+
 ## [3.2.0](https://github.com/witchesofthehill/manabrew/compare/v3.1.0...v3.2.0) (2026-08-03)
 
 ### Features

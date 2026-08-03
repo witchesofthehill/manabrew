@@ -216,6 +216,7 @@ impl Storage {
     }
 
     fn migrate(&self) -> SqlResult<()> {
+        self.upgrade_legacy_schema()?;
         let has_schema_version: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_version')",
             [],
@@ -267,6 +268,26 @@ impl Storage {
                 })?;
         if mismatch > 0 {
             return Err(rusqlite::Error::InvalidQuery);
+        }
+        Ok(())
+    }
+
+    // Databases created before schema_version existed have hub_decks without
+    // account_id; SQLite cannot guard DDL in SQL, so the column is added here
+    // before 1_schema.sql indexes it.
+    fn upgrade_legacy_schema(&self) -> SqlResult<()> {
+        let legacy_hub_decks: bool = self.conn.query_row(
+            "SELECT EXISTS (SELECT 1 FROM pragma_table_info('hub_decks'))
+                AND NOT EXISTS (
+                    SELECT 1 FROM pragma_table_info('hub_decks') WHERE name = 'account_id'
+                )",
+            [],
+            |row| row.get(0),
+        )?;
+        if legacy_hub_decks {
+            self.conn
+                .execute_batch("ALTER TABLE hub_decks ADD COLUMN account_id TEXT")?;
+            tracing::info!("legacy hub_decks upgraded: account_id added");
         }
         Ok(())
     }

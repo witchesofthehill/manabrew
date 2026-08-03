@@ -1,0 +1,173 @@
+# In-stack config for the `manabrew` web container behind the `ingress`
+# service (compose.production.yml). Plain http:// vhosts — ingress terminates
+# TLS and proxies here by service name with the Host header intact.
+# manabrew.app        → landing page  (/srv/landing, built from website/ src-landing)
+# play.manabrew.app   → wasm app      (/srv/manabrew, built by the Vite stage)
+# docs.manabrew.app   → docs site     (/srv/docs, built from website/ src)
+http://manabrew.app {
+    root * /srv/landing
+
+    encode zstd gzip
+
+    @static path /_astro/*
+    handle @static {
+        header Cache-Control "public, immutable, max-age=31536000"
+        file_server
+    }
+
+    # Pre-split URLs: the app lived at /, the landing at /home, docs at /docs.
+    handle /home* {
+        redir * / permanent
+    }
+
+    handle_path /docs* {
+        redir * https://docs.manabrew.app{uri} permanent
+    }
+
+    handle {
+        try_files {path} {path}/
+        file_server
+    }
+}
+
+http://play.manabrew.app {
+    root * /srv/manabrew
+
+    encode zstd gzip
+
+    @worker path_regexp \.worker[.-][^/]+\.js$
+    handle @worker {
+        header {
+            Cache-Control "public, immutable, max-age=31536000"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "require-corp"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        file_server
+    }
+
+    @static path /assets/* /wasm/*
+    handle @static {
+        header {
+            Cache-Control "public, immutable, max-age=31536000"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        file_server
+    }
+
+    @scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
+    handle @scryfall {
+        rewrite * /card-symbols/{re.scryfall.1}
+        reverse_proxy https://svgs.scryfall.io {
+            header_up Host svgs.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # Card image proxy: cards.scryfall.io intermittently serves cached objects
+    # without CORS headers, which breaks the app's cors-mode fetches (WebGL
+    # textures need cors-clean pixels). Served same-origin here, CORS never
+    # applies. Mirrors the symbols proxy above.
+    @scryimg path_regexp scryimg ^/scryfall-img/(.*)$
+    handle @scryimg {
+        rewrite * /{re.scryimg.1}
+        reverse_proxy https://cards.scryfall.io {
+            header_up Host cards.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
+    handle @spellbook {
+        rewrite * /{re.spellbook.1}
+        reverse_proxy https://backend.commanderspellbook.com {
+            header_up Host backend.commanderspellbook.com
+            # Django rejects the request (DisallowedHost 400) if the
+            # forwarded host leaks through.
+            header_up -X-Forwarded-Host
+            header_down -Access-Control-Allow-Origin
+        }
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # Status banner (ops/status.json, bind-mounted). Open CORS so desktop and
+    # off-origin web builds read this one canonical file.
+    handle /status.json {
+        header {
+            Access-Control-Allow-Origin "*"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
+    # Per-package version manifest. Self-hosted nodes poll this to detect they
+    # are behind the release. Served straight from the latest GitHub Release's
+    # assets (publish.yml attaches ops/manifest.json there), so it can only
+    # ever advertise a release whose installers actually exist — `latest` skips
+    # drafts and prereleases, and advances the moment a Release publishes.
+    # This replaced a bind-mounted file plus a deploy-time "hold": the mount
+    # made the file's inode load-bearing and the hold logic re-implemented
+    # "don't get ahead of the installers" in bash.
+    handle /manifest.json {
+        redir * https://github.com/witchesofthehill/manabrew/releases/latest/download/manifest.json 302
+    }
+
+    # Tauri updater manifest. Generated per release by release-artifacts.yml
+    # (gen-updater-manifest.mjs) and attached as a release asset; redirecting
+    # keeps it live the moment a release publishes, with no deploy in between.
+    # `latest` skips drafts and prereleases. Drop or point this elsewhere to
+    # pause updates.
+    handle /tauri.json {
+        redir * https://github.com/witchesofthehill/manabrew/releases/latest/download/tauri.json 302
+    }
+
+    # SideStore source + iOS IPA (ops/sidestore, bind-mounted). Regenerated
+    # per release by publish.yml's deploy-sidestore job. apps.json is the
+    # source URL added in SideStore; the .ipa is served as a file download.
+    handle /sidestore/* {
+        @ipa path /sidestore/*.ipa
+        header @ipa Content-Type "application/octet-stream"
+        header {
+            Access-Control-Allow-Origin "*"
+            Cache-Control "no-store"
+        }
+        file_server
+    }
+
+    handle {
+        header {
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+http://docs.manabrew.app {
+    root * /srv/docs
+
+    encode zstd gzip
+
+    @static path /_astro/*
+    handle @static {
+        header Cache-Control "public, immutable, max-age=31536000"
+        file_server
+    }
+
+    handle {
+        try_files {path} {path}/ /404.html
+        file_server
+    }
+}

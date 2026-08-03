@@ -68,8 +68,9 @@ pub async fn email_request_handler(
         return StatusCode::OK.into_response();
     }
     let code = generate_code(LOGIN_CODE_LEN);
+    let code_hash = hash_token(&code);
     let inserted = state.storage.lock().unwrap().insert_login_token(
-        &hash_token(&code),
+        &code_hash,
         &email,
         &now_str(),
         &ts_in(Duration::minutes(LOGIN_CODE_TTL_MINUTES)),
@@ -85,12 +86,29 @@ pub async fn email_request_handler(
     .map(String::from)
     .unwrap_or_else(|_| state.auth.web_app_url.clone());
     if let Some(api_key) = state.auth.resend_api_key.as_deref() {
-        send_login_email(&state, api_key, &email, &code, &link).await;
+        if let Err(error) = send_login_email(&state, api_key, &email, &code, &link).await {
+            tracing::error!(%error, "failed to send magic link email");
+            if let Err(delete_error) = state.storage.lock().unwrap().delete_login_token(&code_hash)
+            {
+                tracing::error!(%delete_error, "failed to remove undelivered login code");
+            }
+            return (
+                StatusCode::BAD_GATEWAY,
+                "The sign-in email could not be sent. Try again shortly.",
+            )
+                .into_response();
+        }
     }
     StatusCode::OK.into_response()
 }
 
-async fn send_login_email(state: &AppState, api_key: &str, email: &str, code: &str, link: &str) {
+async fn send_login_email(
+    state: &AppState,
+    api_key: &str,
+    email: &str,
+    code: &str,
+    link: &str,
+) -> Result<(), reqwest::Error> {
     let text = format!(
         "Your Manabrew sign-in code: {code}\n\nOr click: {link}\n\nThe code expires in 15 minutes. If you didn't request this, ignore this email."
     );
@@ -101,7 +119,7 @@ async fn send_login_email(state: &AppState, api_key: &str, email: &str, code: &s
         p { "The code expires in 15 minutes. If you didn't request this, ignore this email." }
     }
     .into_string();
-    let result = state
+    state
         .http
         .post("https://api.resend.com/emails")
         .bearer_auth(api_key)
@@ -114,10 +132,8 @@ async fn send_login_email(state: &AppState, api_key: &str, email: &str, code: &s
         }))
         .send()
         .await
-        .and_then(|response| response.error_for_status());
-    if let Err(error) = result {
-        tracing::error!(%error, "failed to send magic link email");
-    }
+        .and_then(|response| response.error_for_status())?;
+    Ok(())
 }
 
 pub async fn email_verify_handler(

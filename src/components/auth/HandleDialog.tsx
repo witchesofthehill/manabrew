@@ -62,8 +62,8 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
         <DialogHeader>
           <DialogTitle>Change handle</DialogTitle>
           <DialogDescription>
-            Your handle is your public name on the Deck Hub. 3-24 characters: letters, digits, _ and
-            -.
+            Your handle is the public name other players see in Community. 3-24 characters: letters,
+            digits, _ and -.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

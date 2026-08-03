@@ -658,26 +658,37 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
 
 // compose can't see bind-mount content changes, so config-only edits to the
 // observability stack need an explicit force-recreate (never an image build).
-// "Changed" means the sync actually rewrote a file on the box.
+// "Changed" means the sync actually rewrote a file on the box. That signal is
+// lossy: a deploy that fails after sync_config never reaches this step, and
+// the next run syncs identical content and sees no change — so the ingester
+// also gets a direct staleness probe (a file-level bind mount keeps exposing
+// the replaced inode until a recreate, and the running process silently drops
+// any analytics fields its stale script doesn't know).
 fn recreate_observability_if_changed(root: &Path, opts: &Opts, itemized: &str) -> Result<String> {
-    if !changed_in_sync(
+    let changed = changed_in_sync(
         itemized,
         &["ops/observability/", "scripts/ingest-events.py"],
-    ) {
+    );
+    if !changed && !ingester_script_stale(root, opts)? {
         return Ok(String::new());
     }
+    let reason = if changed {
+        "config changed"
+    } else {
+        "ingester script stale (a previous deploy failed after the sync)"
+    };
     let probe = compose(
         &opts.path,
         &opts.tag,
         "--profile observability ps -q grafana",
     );
     if ssh(root, &opts.host, &probe)?.trim().is_empty() {
-        return Ok(
-            "📊 **Observability:** config changed but stack not running — skipped\n".to_string(),
-        );
+        return Ok(format!(
+            "📊 **Observability:** {reason} but stack not running — skipped\n"
+        ));
     }
     let list = OBS_SERVICES.join(" ");
-    println!("📊 observability config changed — recreating {list}");
+    println!("📊 observability {reason} — recreating {list}");
     ssh_streamed(
         root,
         &opts.host,
@@ -688,8 +699,30 @@ fn recreate_observability_if_changed(root: &Path, opts: &Opts, itemized: &str) -
         ),
     )?;
     Ok(format!(
-        "📊 **Observability:** config changed — recreated {list}\n"
+        "📊 **Observability:** {reason} — recreated {list}\n"
     ))
+}
+
+fn ingester_script_stale(root: &Path, opts: &Opts) -> Result<bool> {
+    let on_disk = ssh(
+        root,
+        &opts.host,
+        &format!(
+            "md5sum '{}/scripts/ingest-events.py' 2>/dev/null | cut -d' ' -f1",
+            opts.path
+        ),
+    )?;
+    let in_container = ssh(
+        root,
+        &opts.host,
+        &compose(
+            &opts.path,
+            &opts.tag,
+            "--profile observability exec -T events-ingester md5sum /app/ingest-events.py 2>/dev/null | cut -d' ' -f1",
+        ),
+    )?;
+    let (on_disk, in_container) = (on_disk.trim(), in_container.trim());
+    Ok(!on_disk.is_empty() && !in_container.is_empty() && on_disk != in_container)
 }
 
 fn deploy_only(root: &Path, opts: &Opts, services: &[String]) -> Result<()> {

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { PlaytestPlayersDialog } from "@/components/lobby/PlaytestPlayersDialog";
 import { getDefaultAiEngine } from "@/game/hostedAiPlay";
 import { pickRandomDistinct } from "@/lib/utils";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
@@ -29,7 +30,11 @@ export function useQuickPlaytest(): {
       deck.commanders?.[0]?.identity.name,
       opponents.length > 0 ? opponents : [deck],
       getDefaultAiEngine(),
-    );
+    ).then((started) => {
+      if (started && presetDecks.some((preset) => preset.id === deck.id)) {
+        savePresetToAccountOnUse(deck.id);
+      }
+    });
     navigate("/play");
   }
 

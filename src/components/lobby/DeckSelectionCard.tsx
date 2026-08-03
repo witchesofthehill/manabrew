@@ -279,7 +279,7 @@ export function DeckSelectionCard({
                   )}
                 >
                   {isHub
-                    ? `Deck Hub · ${cardCount ?? cards.length} cards`
+                    ? `Community · ${cardCount ?? cards.length} cards`
                     : isPreset
                       ? "Preset deck"
                       : `${cards.length} cards`}

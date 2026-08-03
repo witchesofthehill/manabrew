@@ -127,6 +127,18 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
   return normalized;
 }
 
+function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefined): EditorDeck {
+  if (!localDeck) return deck;
+  return {
+    ...deck,
+    customTags: localDeck.customTags,
+    cardTags: localDeck.cardTags,
+    playmat: localDeck.playmat,
+    playmatSettings: localDeck.playmatSettings,
+    stackPositions: localDeck.stackPositions,
+  };
+}
+
 function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): EditorDeck {
   const normalized = normalizeDeck(deck);
   return {
@@ -162,6 +174,8 @@ export interface SavedDeck {
   id: string;
   deck: EditorDeck;
   savedAt: number;
+  accountDeckId?: string;
+  accountVersionNo?: number;
 }
 
 // False until hydration succeeds, so a failed migration can't persist over the
@@ -208,6 +222,14 @@ interface DeckState {
   saveCurrentDeck: () => void;
   saveDraft: () => void;
   loadSavedDeck: (id: string) => void;
+  loadAccountDeck: (accountDeckId: string, versionNo: number, deck: EditorDeck) => string;
+  linkSavedDeckToAccount: (
+    localDeckId: string | null,
+    accountDeckId: string,
+    versionNo: number,
+    deck: EditorDeck,
+  ) => void;
+  updateAccountDeckVersion: (accountDeckId: string, versionNo: number, deck: EditorDeck) => void;
   deleteSavedDeck: (id: string) => void;
   setCommander: (card: DeckCard) => void;
   removeCommander: (card?: DeckCard) => void;
@@ -542,7 +564,11 @@ export const useDeckStore = create<DeckState>()(
             if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
             const updates = new Map<string, CardPatch>();
             updates.set(cardName.toLowerCase(), {
-              identity: { setCode: scryfallCard.set, cardNumber: scryfallCard.collector_number },
+              identity: {
+                setCode: scryfallCard.set,
+                cardNumber: scryfallCard.collector_number,
+                oracleId: scryfallCard.oracle_id,
+              },
               uris,
             });
             return {
@@ -650,6 +676,87 @@ export const useDeckStore = create<DeckState>()(
               currentDeckId: id,
               isReadOnly: false,
               readOnlySource: null,
+            };
+          }),
+        loadAccountDeck: (accountDeckId, versionNo, deck) => {
+          const id = `account:${accountDeckId}`;
+          const existing = get().savedDecks.find(
+            (saved) => saved.id === id || saved.accountDeckId === accountDeckId,
+          );
+          const normalized = mergeLocalEditorState(
+            normalizeDeck(migrateDeck(deck)),
+            existing?.deck,
+          );
+          set((state) => ({
+            currentDeck: normalized,
+            currentDeckId: id,
+            isReadOnly: false,
+            readOnlySource: null,
+            savedDecks: [
+              ...state.savedDecks.filter(
+                (saved) => saved.id !== id && saved.accountDeckId !== accountDeckId,
+              ),
+              {
+                id,
+                deck: normalized,
+                savedAt: Date.now(),
+                accountDeckId,
+                accountVersionNo: versionNo,
+              },
+            ],
+          }));
+          return id;
+        },
+        linkSavedDeckToAccount: (localDeckId, accountDeckId, versionNo, deck) =>
+          set((state) => {
+            const id = `account:${accountDeckId}`;
+            const editingLinkedDeck = localDeckId !== null && state.currentDeckId === localDeckId;
+            const localDeck =
+              state.savedDecks.find((saved) => saved.id === localDeckId)?.deck ??
+              (editingLinkedDeck ? state.currentDeck : undefined);
+            const normalized = mergeLocalEditorState(normalizeDeck(migrateDeck(deck)), localDeck);
+            return {
+              currentDeck: editingLinkedDeck ? normalized : state.currentDeck,
+              currentDeckId: editingLinkedDeck ? id : state.currentDeckId,
+              savedDecks: [
+                ...state.savedDecks.filter(
+                  (saved) =>
+                    saved.id !== localDeckId &&
+                    saved.id !== id &&
+                    saved.accountDeckId !== accountDeckId,
+                ),
+                {
+                  id,
+                  deck: normalized,
+                  savedAt: Date.now(),
+                  accountDeckId,
+                  accountVersionNo: versionNo,
+                },
+              ],
+            };
+          }),
+        updateAccountDeckVersion: (accountDeckId, versionNo, deck) =>
+          set((state) => {
+            const id = `account:${accountDeckId}`;
+            const existing = state.savedDecks.find(
+              (saved) => saved.id === id || saved.accountDeckId === accountDeckId,
+            );
+            const normalized = mergeLocalEditorState(
+              normalizeDeck(migrateDeck(deck)),
+              existing?.deck ?? (state.currentDeckId === id ? state.currentDeck : undefined),
+            );
+            return {
+              currentDeck: state.currentDeckId === id ? normalized : state.currentDeck,
+              savedDecks: state.savedDecks.map((saved) =>
+                saved.id === id
+                  ? {
+                      ...saved,
+                      deck: normalized,
+                      savedAt: Date.now(),
+                      accountVersionNo: versionNo,
+                    }
+                  : saved,
+              ),
             };
           }),
         deleteSavedDeck: (id) =>

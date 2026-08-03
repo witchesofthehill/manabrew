@@ -6,6 +6,7 @@ import { ROUTES } from "@/lib/constants";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { takeAuthReturnIntent } from "@/lib/authReturn";
+import { isFeatureEnabled } from "@/featureFlags";
 
 const ERROR_MESSAGES: Record<string, string> = {
   state_expired: "The sign-in attempt expired. Try again.",
@@ -34,8 +35,9 @@ export default function AuthCallback() {
     const code = params.get("code");
     const email = params.get("email");
     const returnIntent = takeAuthReturnIntent();
+    const publishEnabled = isFeatureEnabled("accounts") && isFeatureEnabled("deckHub");
     const returnState =
-      returnIntent.publishDeck || returnIntent.resumeCurrentPublish
+      publishEnabled && (returnIntent.publishDeck || returnIntent.resumeCurrentPublish)
         ? {
             resumePublishDeckId: returnIntent.publishDeckId,
             resumePublishDeck: returnIntent.publishDeck,
@@ -59,9 +61,9 @@ export default function AuthCallback() {
         email,
         code,
         returnTo: returnIntent.returnTo,
-        publishDeckId: returnIntent.publishDeckId,
-        publishDeck: returnIntent.publishDeck,
-        resumeCurrentPublish: returnIntent.resumeCurrentPublish,
+        publishDeckId: publishEnabled ? returnIntent.publishDeckId : undefined,
+        publishDeck: publishEnabled ? returnIntent.publishDeck : undefined,
+        resumeCurrentPublish: publishEnabled ? returnIntent.resumeCurrentPublish : undefined,
       });
       navigate(returnIntent.returnTo, { replace: true, state: returnState });
       return;

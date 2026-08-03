@@ -3,9 +3,14 @@ pub struct HubConfig {
     pub port: u16,
     pub db_path: String,
     pub jwt_key_path: String,
-    pub events_db_path: Option<String>,
+    pub analytics_import_db_path: Option<String>,
+    pub relay_deck_plays_token: Option<String>,
+    pub preset_decks_dir: String,
+    pub deck_hub_enabled: bool,
     pub publish_per_hour: u32,
     pub publish_per_day: u32,
+    pub play_reports_per_hour: u32,
+    pub ranking_refresh_seconds: u64,
     pub auth: AuthConfig,
 }
 
@@ -46,9 +51,20 @@ impl HubConfig {
                         .into_owned()
                 }),
             db_path,
-            events_db_path: std::env::var("EVENTS_DB_PATH")
+            analytics_import_db_path: std::env::var("HUB_ANALYTICS_IMPORT_DB_PATH")
                 .ok()
                 .filter(|path| !path.is_empty()),
+            relay_deck_plays_token: std::env::var("HUB_RELAY_DECK_PLAYS_TOKEN")
+                .ok()
+                .filter(|token| !token.is_empty()),
+            preset_decks_dir: std::env::var("HUB_PRESET_DECKS_DIR")
+                .unwrap_or_else(|_| "public/preset_decks".into()),
+            deck_hub_enabled: std::env::var("DECK_HUB").ok().is_some_and(|value| {
+                matches!(
+                    value.to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            }),
             publish_per_hour: std::env::var("HUB_PUBLISH_PER_HOUR")
                 .ok()
                 .and_then(|n| n.parse().ok())
@@ -57,6 +73,14 @@ impl HubConfig {
                 .ok()
                 .and_then(|n| n.parse().ok())
                 .unwrap_or(20),
+            play_reports_per_hour: std::env::var("HUB_PLAY_REPORTS_PER_HOUR")
+                .ok()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(120),
+            ranking_refresh_seconds: std::env::var("HUB_RANKING_REFRESH_SECONDS")
+                .ok()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(15 * 60),
             auth: AuthConfig::from_env(),
         }
     }

@@ -59,21 +59,12 @@ export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
   const direct: NavDestination[] = [
     { to: ROUTES.PLAY_OFFLINE_CONSTRUCTED, label: "Play Offline", icon: Swords },
     { to: ROUTES.LOBBY, label: "Multiplayer", icon: Users },
+    { to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers },
   ];
   const menus: NavMenu[] = [];
 
   if (isFeatureEnabled("deckHub")) {
-    menus.push({
-      id: "decks",
-      label: "Decks",
-      icon: Layers,
-      items: [
-        { to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers },
-        { to: ROUTES.HUB, label: "Deck Hub", icon: LibraryBig },
-      ],
-    });
-  } else {
-    direct.push({ to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers });
+    direct.push({ to: ROUTES.HUB, label: "Community", icon: LibraryBig });
   }
 
   direct.push(

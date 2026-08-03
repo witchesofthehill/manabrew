@@ -69,6 +69,7 @@ export function DeckListControls({
       <div className="relative flex-[2] min-w-0">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
+          aria-label="Search decks"
           placeholder="Search…"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
@@ -77,6 +78,7 @@ export function DeckListControls({
         {search && (
           <button
             type="button"
+            aria-label="Clear deck search"
             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={() => onSearchChange("")}
           >
@@ -91,6 +93,7 @@ export function DeckListControls({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label="Filter by format"
               title="Filter by format"
               className={cn(
                 SELECT_CLS,
@@ -123,6 +126,7 @@ export function DeckListControls({
         {/* Sort */}
         <select
           value={sortBy}
+          aria-label="Sort decks"
           onChange={(e) => onSortChange(e.target.value as SortBy)}
           title="Sort order"
           className={SELECT_CLS}
@@ -141,6 +145,7 @@ export function DeckListControls({
             <button
               key={color}
               type="button"
+              aria-label={`Filter by ${COLOR_LABEL[color]}`}
               title={`Filter by ${COLOR_LABEL[color]}`}
               onClick={() => onColorToggle(color)}
               className={cn(
@@ -159,6 +164,7 @@ export function DeckListControls({
         {hasActiveFilters && (
           <button
             type="button"
+            aria-label="Clear all filters"
             title="Clear all filters"
             onClick={clearAll}
             className="shrink-0 text-muted-foreground hover:text-foreground"

@@ -114,6 +114,9 @@ export interface GameThemeColors {
     banned: string;
     restricted: string;
   };
+  community: {
+    accent: string;
+  };
   formatBadge: {
     blue: string;
     amber: string;

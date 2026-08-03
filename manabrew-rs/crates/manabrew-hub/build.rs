@@ -29,11 +29,13 @@ fn main() {
     }
 
     let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
-    let mut generated = String::from("const MIGRATIONS: &[(&str, &str)] = &[\n");
-    for (_, name) in &migrations {
+    let mut generated = String::from("const MIGRATIONS: &[(u32, &str, &str)] = &[\n");
+    for (version, name) in &migrations {
         println!("cargo:rerun-if-changed=migrations/{name}");
         let path = format!("{manifest}/migrations/{name}");
-        generated.push_str(&format!("    ({name:?}, include_str!({path:?})),\n"));
+        generated.push_str(&format!(
+            "    ({version}, {name:?}, include_str!({path:?})),\n"
+        ));
     }
     generated.push_str("];\n");
 

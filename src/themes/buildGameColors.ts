@@ -203,6 +203,8 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "legality.banned": p.red,
     "legality.restricted": p.yellow,
 
+    "community.accent": p.purple,
+
     // ── Format badge colours ────────────────────────────────────────────
     // One token per format badge colour key. Each preset maps these to
     // its own palette so format badges feel cohesive with the theme.

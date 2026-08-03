@@ -16,10 +16,12 @@ import { toast } from "sonner";
 import { ROUTES } from "@/lib/constants";
 import { resolveAiOpponent } from "@/lib/aiOpponent";
 import { getDeckFingerprint } from "@/lib/decks";
+import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
@@ -27,7 +29,7 @@ import { Check, ChevronDown, Loader2, Search, Shuffle, Swords, User, Bot, X } fr
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { useHubStore } from "@/stores/useHubStore";
-import type { HubDeckSummary } from "@/api/hubTypes";
+import type { DeckHubEntrySummary } from "@/api/hubTypes";
 
 interface SelectedDeck {
   id: string;
@@ -113,13 +115,18 @@ export function DeckVsSelector({
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
-  const loadHubDeck = useHubStore((state) => state.loadDeck);
+  const loadHubDeck = useHubStore((state) => state.loadEntry);
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
   const [hubRestoreAttempt, setHubRestoreAttempt] = useState(0);
 
   useEffect(() => {
-    if (!preSelectedHubDeckId || restoredHubDeckRef.current === preSelectedHubDeckId) return;
+    if (
+      !hubDecks.enabled ||
+      !preSelectedHubDeckId ||
+      restoredHubDeckRef.current === preSelectedHubDeckId
+    )
+      return;
     restoredHubDeckRef.current = preSelectedHubDeckId;
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(preSelectedHubDeckId);
@@ -130,7 +137,7 @@ export function DeckVsSelector({
         setPlayerDeck({
           id: `hub:${detail.id}`,
           sourceId: detail.id,
-          name: detail.name,
+          name: detail.title,
           sourceDeck: detail.deck,
           source: "hub",
           formatId,
@@ -142,7 +149,7 @@ export function DeckVsSelector({
       .catch((err) => {
         if (hubSelectionRequestIdRef.current !== requestId) return;
         restoredHubDeckRef.current = null;
-        toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck", {
+        toast.error(err instanceof Error ? err.message : "Failed to load Community deck", {
           action: {
             label: "Retry",
             onClick: () => setHubRestoreAttempt((attempt) => attempt + 1),
@@ -152,7 +159,7 @@ export function DeckVsSelector({
       .finally(() => {
         if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
       });
-  }, [hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
+  }, [hubDecks.enabled, hubRestoreAttempt, loadHubDeck, preSelectedHubDeckId]);
 
   const searchLower = deckSearch.toLowerCase();
   const formatFilteredPresets = presetDecks.filter(
@@ -295,7 +302,7 @@ export function DeckVsSelector({
     });
   }
 
-  async function selectHubDeck(summary: HubDeckSummary) {
+  async function selectHubDeck(summary: DeckHubEntrySummary) {
     const requestId = ++hubSelectionRequestIdRef.current;
     setLoadingHubDeckId(summary.id);
     try {
@@ -306,7 +313,7 @@ export function DeckVsSelector({
       const currentFormat = selectedFormatRef.current;
       if (currentFormat && formatId !== currentFormat) {
         toast.error(
-          `"${detail.name}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
+          `"${detail.title}" is not a ${getFormat(currentFormat)?.name ?? currentFormat} deck`,
         );
         return;
       }
@@ -325,7 +332,7 @@ export function DeckVsSelector({
       );
     } catch (err) {
       if (hubSelectionRequestIdRef.current !== requestId) return;
-      toast.error(err instanceof Error ? err.message : "Failed to load Deck Hub deck");
+      toast.error(err instanceof Error ? err.message : "Failed to load Community deck");
     } finally {
       if (hubSelectionRequestIdRef.current === requestId) setLoadingHubDeckId(null);
     }
@@ -391,6 +398,12 @@ export function DeckVsSelector({
     if (!started) {
       setStarting(false);
       return;
+    }
+    if (playerDeck.source === "hub" || playerDeck.source === "preset") {
+      void reportPublishedDeckPlay(playerDeck.sourceId, playerDeck.sourceDeck);
+    }
+    if (playerDeck.source === "preset") {
+      savePresetToAccountOnUse(playerDeck.sourceId);
     }
     const prefs = usePreferencesStore.getState();
     if (playerDeck.formatId) prefs.setLastOfflineFormatId(playerDeck.formatId);
@@ -542,75 +555,78 @@ export function DeckVsSelector({
           )}
         </div>
 
-        {hubDecks.enabled && (
-          <div>
-            <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Deck Hub
-            </p>
-            {hubDecks.error ? (
-              <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
-                <span className="min-w-0 break-words">{hubDecks.error}</span>
-                <Button variant="outline" size="sm" onClick={hubDecks.retry}>
-                  Retry
-                </Button>
-              </div>
-            ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
-              <p className="py-2 text-xs italic text-muted-foreground">Loading Deck Hub decks…</p>
-            ) : hubDecks.decks.length === 0 ? (
-              <p className="py-2 text-xs italic text-muted-foreground">
-                No Deck Hub decks match this format and search.
+        {hubDecks.enabled &&
+          (deckSearch.trim() !== "" || hubDecks.error !== null || hubDecks.decks.length > 0) && (
+            <div>
+              <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Community
               </p>
-            ) : (
-              <div
-                className={cn(
-                  "grid gap-3 pt-1",
-                  denseDecks
-                    ? "grid-cols-2 md:grid-cols-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
-                )}
-              >
-                {hubDecks.decks.map((deck) => {
-                  const selected = [playerDeck, opponentDeck].find(
-                    (entry) => entry?.source === "hub" && entry.sourceId === deck.id,
-                  );
-                  const format = selected ? getFormat(selected.formatId ?? "standard") : null;
-                  const validation =
-                    selected && format
-                      ? validateDeckSections(
-                          { deck: selected.sourceDeck, commanderName: selected.commanderName },
-                          format,
-                        )
-                      : { legal: true, errors: [] as string[] };
-                  return (
-                    <DeckSelectionCard
-                      key={deck.id}
-                      name={loadingHubDeckId === deck.id ? `Loading ${deck.name}…` : deck.name}
-                      color={deck.colors}
-                      author={deck.author}
-                      cardCount={deck.cardCount + deck.commanders.length}
-                      badge="Deck Hub"
-                      cards={[]}
-                      cover={undefined}
-                      coverImageUrl={deck.coverImageUrl}
-                      isPreset={false}
-                      isHub
-                      isSelected={false}
-                      isLegal={validation.legal}
-                      validationError={validation.errors[0]}
-                      isPlayerDeck={playerDeck?.id === `hub:${deck.id}`}
-                      isOpponentDeck={opponentDeck?.id === `hub:${deck.id}`}
-                      formatId={deck.format ?? "standard"}
-                      dense={denseDecks}
-                      isTouch={isTouch}
-                      loading={loadingHubDeckId === deck.id}
-                      onSelect={() => void selectHubDeck(deck)}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+              {hubDecks.error ? (
+                <div className="flex flex-wrap items-center gap-2 py-2 text-xs text-destructive">
+                  <span className="min-w-0 break-words">{hubDecks.error}</span>
+                  <Button variant="outline" size="sm" onClick={hubDecks.retry}>
+                    Retry
+                  </Button>
+                </div>
+              ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
+                <p className="py-2 text-xs italic text-muted-foreground">
+                  Loading Community decks…
+                </p>
+              ) : hubDecks.decks.length === 0 ? (
+                <p className="py-2 text-xs italic text-muted-foreground">
+                  No Community decks match this format and search.
+                </p>
+              ) : (
+                <div
+                  className={cn(
+                    "grid gap-3 pt-1",
+                    denseDecks
+                      ? "grid-cols-2 md:grid-cols-3"
+                      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+                  )}
+                >
+                  {hubDecks.decks.map((deck) => {
+                    const selected = [playerDeck, opponentDeck].find(
+                      (entry) => entry?.source === "hub" && entry.sourceId === deck.id,
+                    );
+                    const format = selected ? getFormat(selected.formatId ?? "standard") : null;
+                    const validation =
+                      selected && format
+                        ? validateDeckSections(
+                            { deck: selected.sourceDeck, commanderName: selected.commanderName },
+                            format,
+                          )
+                        : { legal: true, errors: [] as string[] };
+                    return (
+                      <DeckSelectionCard
+                        key={deck.id}
+                        name={loadingHubDeckId === deck.id ? `Loading ${deck.title}…` : deck.title}
+                        color={deck.colors}
+                        author={deck.author}
+                        cardCount={deck.cardCount + deck.commanders.length}
+                        badge="Community"
+                        cards={[]}
+                        cover={undefined}
+                        coverImageUrl={deck.coverImageUrl}
+                        isPreset={false}
+                        isHub
+                        isSelected={false}
+                        isLegal={validation.legal}
+                        validationError={validation.errors[0]}
+                        isPlayerDeck={playerDeck?.id === `hub:${deck.id}`}
+                        isOpponentDeck={opponentDeck?.id === `hub:${deck.id}`}
+                        formatId={deck.format ?? "standard"}
+                        dense={denseDecks}
+                        isTouch={isTouch}
+                        loading={loadingHubDeckId === deck.id}
+                        onSelect={() => void selectHubDeck(deck)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pb-1">

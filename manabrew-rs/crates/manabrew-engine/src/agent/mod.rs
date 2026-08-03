@@ -38,6 +38,13 @@ pub trait PlayerAgent {
         None
     }
 
+    /// Drain any base-state edits the agent has queued (manual maintenance-mode
+    /// overrides, parity reconciliation). The loop applies them to the game
+    /// immediately after the decision point. Default: none.
+    fn drain_maintenance_edits(&mut self) -> Vec<crate::maintenance::MaintenanceEdit> {
+        Vec::new()
+    }
+
     fn reveal_cards(
         &mut self,
         _game: &GameState,

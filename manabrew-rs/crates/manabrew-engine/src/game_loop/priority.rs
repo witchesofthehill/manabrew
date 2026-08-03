@@ -154,6 +154,11 @@ impl GameLoop {
                 )
             };
 
+            for edit in agents[priority_player.index()].drain_maintenance_edits() {
+                game.apply_maintenance_edit(&edit);
+                action_space = None;
+            }
+
             if action == PlayerAction::Concede {
                 let _ = agents[priority_player.index()].take_restore_request();
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {

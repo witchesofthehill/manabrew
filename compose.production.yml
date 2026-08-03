@@ -52,7 +52,11 @@ services:
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
-      EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-0}"
+      # Runtime feature flags (config.js; enable-only). Accounts and email
+      # sign-in ship on; deckHub waits on the v2 domain (#605).
+      ACCOUNTS: "${ACCOUNTS:-1}"
+      DECK_HUB: "${DECK_HUB:-0}"
+      EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:
@@ -112,6 +116,9 @@ services:
       DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
       DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      # The Resend key is scoped to the verified mail.manabrew.app domain; the
+      # compiled default sender uses the bare domain and gets a 403.
+      AUTH_EMAIL_FROM: "${AUTH_EMAIL_FROM:-Manabrew <login@mail.manabrew.app>}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
       - ./ops/observability/data/events:/var/manabrew/events:ro

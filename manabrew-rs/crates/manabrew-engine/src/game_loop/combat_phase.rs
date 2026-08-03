@@ -55,10 +55,20 @@ impl GameLoop {
             combat::attack_requirement::must_attack_ids(&requirements)
         };
 
+        let pass_until_skip = must_attackers.is_empty()
+            && agents[active.index()]
+                .get_pass_until()
+                .is_some_and(|target| {
+                    let reached = (active == target.player
+                        && !game.turn.phase.is_before(target.phase))
+                        || !game.player(target.player).is_alive();
+                    !reached
+                });
+
         // Java's PhaseHandler uses a do-while loop: declare attackers, validate,
         // and re-prompt if invalid.  We mirror this so RNG consumption matches.
         let mut chosen_attackers: Vec<(CardId, combat::DefenderId)> = Vec::new();
-        if !available_attackers.is_empty() {
+        if !available_attackers.is_empty() && !pass_until_skip {
             // Java parity: attacker declaration retries until a legal attack
             // set is found. A low cap can prematurely accept an invalid/no-attack
             // outcome on crowded boards (e.g. Silent Arbiter + MustAttack).

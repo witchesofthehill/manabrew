@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Hand, Zap } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
@@ -10,6 +10,9 @@ import { ACTION_DRAWER_BUMP_EVENT, PHASES } from "../game.constants";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
+import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { useKeybindingsStore, resolveCombo } from "@/stores/useKeybindingsStore";
+import { formatCombo } from "@/lib/keybindings";
 import { useIsMobileGame, useIsShortScreen } from "@/hooks/useBreakpoints";
 import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { cn } from "@/lib/utils";
@@ -39,6 +42,36 @@ const BUMP_OPTIONS: KeyframeAnimationOptions = {
   easing: BUMP.easing,
 };
 
+function PriorityModePill() {
+  const fullControl = usePromptPreferencesStore((s) => s.fullControl);
+  const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
+  const keyOverrides = useKeybindingsStore((s) => s.overrides);
+  const toggleCombo = resolveCombo("toggle-priority-mode", keyOverrides);
+  const hint = toggleCombo ? ` (${formatCombo(toggleCombo)})` : "";
+  const Icon = fullControl ? Hand : Zap;
+  return (
+    <button
+      type="button"
+      onClick={() => setFullControl(!fullControl)}
+      aria-pressed={fullControl}
+      title={
+        fullControl
+          ? `Full control — you stop at every priority window${hint}`
+          : `Autopass: dead priority windows pass automatically${hint}`
+      }
+      className={cn(
+        "relative z-10 flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2 text-[9px] leading-none font-bold tracking-[0.12em] shadow-sm transition-[color,background-color,border-color,transform] active:translate-y-px",
+        fullControl
+          ? "border-white/30 bg-white/15 text-foreground hover:bg-white/20"
+          : "border-border/60 bg-white/5 text-muted-foreground hover:border-border hover:bg-white/10 hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3 w-3" strokeWidth={2.5} />
+      {fullControl ? "FULL CTRL" : "AUTOPASS"}
+    </button>
+  );
+}
+
 export function MainActionOverlay({
   promptType,
   isWaitingForResponse,
@@ -46,6 +79,7 @@ export function MainActionOverlay({
   availableAttackerIds,
   pendingAttackers,
   onPassPriority,
+  onPassEndTurn,
   selectedAttackDefenderId,
   multipleAttackDefenders,
   attackAssignmentCount,
@@ -124,6 +158,9 @@ export function MainActionOverlay({
   const isNoActionView = promptActionOverride
     ? NO_ACTION_VIEWS.includes(promptActionOverride)
     : !promptType || isWaitingForOthers;
+  const showPriorityMode = promptActionOverride
+    ? promptActionOverride === "chooseAction" || promptActionOverride === "noAction"
+    : isNoActionView || promptType === "chooseAction";
   const hasAction = !isNoActionView;
   const title = hasAction ? (PROMPT_TITLES[promptType ?? ""] ?? "Action Required") : "Waiting";
   const effectiveCollapsed = !minimal && hasAction && collapsed;
@@ -229,24 +266,27 @@ export function MainActionOverlay({
               <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90 truncate">
                 {title}
               </span>
-              <button
-                type="button"
-                onClick={() => setCollapsed((c) => !c)}
-                className={cn(
-                  "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
-                  !hasAction && "invisible",
-                )}
-                title={collapsed ? "Expand" : "Collapse"}
-                aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
-                aria-expanded={!collapsed}
-                tabIndex={hasAction ? 0 : -1}
-              >
-                {collapsed ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                )}
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                {showPriorityMode && <PriorityModePill />}
+                <button
+                  type="button"
+                  onClick={() => setCollapsed((c) => !c)}
+                  className={cn(
+                    "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
+                    !hasAction && "invisible",
+                  )}
+                  title={collapsed ? "Expand" : "Collapse"}
+                  aria-label={collapsed ? "Expand action panel" : "Collapse action panel"}
+                  aria-expanded={!collapsed}
+                  tabIndex={hasAction ? 0 : -1}
+                >
+                  {collapsed ? (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
           )}
           <section
@@ -283,6 +323,7 @@ export function MainActionOverlay({
                 availableAttackerIds={availableAttackerIds}
                 pendingAttackers={pendingAttackers}
                 onPassPriority={onPassPriority}
+                onPassEndTurn={onPassEndTurn}
                 selectedAttackDefenderId={selectedAttackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}
                 attackAssignmentCount={attackAssignmentCount}

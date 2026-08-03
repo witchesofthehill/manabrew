@@ -86,6 +86,10 @@ export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
 export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;
+/** Corner radius at CARD_W scale — renderers drawing at other sizes must scale
+ *  it proportionally (radius = size * CARD_RADIUS / CARD_W) to match the
+ *  printed card corner. */
+export const CARD_RADIUS = 6;
 
 export const COMBAT_STAGE_OPPONENT_SHIFT = 100;
 
@@ -101,3 +105,6 @@ export const RING_ABILITIES: readonly string[] = [
 export const HOVER_DELAY_MIN = 100;
 export const HOVER_DELAY_MAX = 1500;
 export const HOVER_DELAY_STEP = 50;
+
+export const AUTOPASS_DELAY_MIN_MS = 700;
+export const AUTOPASS_DELAY_MAX_MS = 1500;

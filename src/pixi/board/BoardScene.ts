@@ -32,9 +32,10 @@ import { cellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
 import { CARD_H } from "@/components/game/game.constants";
 import { isCoarsePointer } from "@/lib/responsive";
+import { lerp, setFrameRatio } from "./pixiHelpers";
 import { LongPressGesture } from "../LongPressGesture";
+import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import {
-  BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
@@ -570,11 +571,12 @@ export class BoardScene {
     if (this.delimTarget.length !== n - 1) this.recomputeDelimTarget();
     if (this.draggingDelim === null) {
       for (let i = 0; i < n - 1; i++) {
-        const d = this.delimTarget[i]! - this.delimCurrent[i]!;
-        this.delimCurrent[i] =
-          Math.abs(d) > DELIMITER_EASE.SNAP
-            ? this.delimCurrent[i]! + d * DELIMITER_EASE.FACTOR
-            : this.delimTarget[i]!;
+        this.delimCurrent[i] = lerp(
+          this.delimCurrent[i]!,
+          this.delimTarget[i]!,
+          DELIMITER_EASE.FACTOR,
+          DELIMITER_EASE.SNAP,
+        );
       }
     }
     this.applyDelimiters();
@@ -1371,12 +1373,12 @@ export class BoardScene {
     this.floaters.push({ text, age: 0 });
   }
 
-  private animateFloaters(): void {
+  private animateFloaters(frameRatio: number): void {
     if (this.floaters.length === 0) return;
     const survivors: { text: Text; age: number }[] = [];
     for (const f of this.floaters) {
-      f.age += 1;
-      f.text.y -= FLOATER_RISE_PER_FRAME;
+      f.age += frameRatio;
+      f.text.y -= FLOATER_RISE_PER_FRAME * frameRatio;
       const t = f.age / FLOATER_LIFETIME_FRAMES;
       f.text.alpha = t < 0.5 ? 1 : Math.max(0, 1 - (t - 0.5) / 0.5);
       if (f.age >= FLOATER_LIFETIME_FRAMES) {
@@ -1503,7 +1505,8 @@ export class BoardScene {
       isJustDragged: (id) => this.dragHandler.justDraggedCardIds.has(id),
       startCardDrag: (sprite, e) => this.onBattlefieldCardDown(sprite, e),
       cancelHoverClear: () => this.cancelHoverClear(),
-      setCardHovered: (sprite) => this.setBattlefieldCardHovered(region, sprite),
+      setCardHovered: (sprite, force = false) =>
+        this.setBattlefieldCardHovered(region, sprite, force),
       scheduleHoverClear: (id) => this.scheduleHoverClear(id),
       getCardScale: () => region.getCardScale(),
       isCompact: () => this.compactMode,
@@ -1567,7 +1570,13 @@ export class BoardScene {
     sprite.on("pointerenter", () => {
       if (region) this.setBattlefieldCardHovered(region, sprite);
     });
+    sprite.on("pointermove", () => {
+      if (region) this.setBattlefieldCardHovered(region, sprite, true);
+    });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
+    // A sprite removed while hovered never fires pointerleave, which would
+    // leave the hover preview up until an unrelated dismiss.
+    sprite.on("destroyed", () => this.scheduleHoverClear(sprite.card.id));
   }
 
   private isCollapsedOpponentBand(playerId: string): boolean {
@@ -1655,7 +1664,7 @@ export class BoardScene {
       this.hoveredRegionRef = null;
       this.hoveredCardId = null;
       this.callbacks.onHoverCard?.(null);
-    }, BATTLEFIELD_HOVER_HOLD_MS);
+    }, PREVIEW_TIMING.battlefieldHoverOutHoldMs);
   }
 
   private cancelHoverClear(): void {
@@ -1875,18 +1884,19 @@ export class BoardScene {
 
   private tick = (): void => {
     if (this.destroyed) return;
+    const frameRatio = setFrameRatio(this.app.ticker.deltaMS);
     if (import.meta.env.DEV) this.samplePerf();
     this.easeDelimiters();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
-    const stripA = this.phaseStrip.container.alpha;
-    if (Math.abs(stripA - this.phaseStripAlphaTarget) > 0.01) {
-      this.phaseStrip.container.alpha = stripA + (this.phaseStripAlphaTarget - stripA) * 0.2;
-    } else {
-      this.phaseStrip.container.alpha = this.phaseStripAlphaTarget;
-    }
-    this.animateFloaters();
+    this.phaseStrip.container.alpha = lerp(
+      this.phaseStrip.container.alpha,
+      this.phaseStripAlphaTarget,
+      0.2,
+      0.01,
+    );
+    this.animateFloaters(frameRatio);
     this.captureStackSeeds();
     const handReserve = this.handReserveBottom();
     if (this.handReserveCb && handReserve !== this.lastEmittedHandReserve) {

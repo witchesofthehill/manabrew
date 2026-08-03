@@ -103,16 +103,32 @@ export class BattlefieldOverlay {
     };
 
     if (!kind.isTappable && !kind.isUntappable && !kind.isSelectable) {
-      if (entry.overlay) entry.overlay.visible = false;
+      entry.overlayActive = false;
       return;
     }
-
-    const overlay = this.ensureContainer(entry);
-    overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
 
     const expandedMana = kind.isTappable
       ? this.manaAbilitiesForCard(card.id, state.manaAbilityOptions)
       : [];
+
+    entry.overlayActive = true;
+    const sig = JSON.stringify([
+      kind.isTappable,
+      kind.isUntappable,
+      kind.isSelectable,
+      this.host.isCompact(),
+      expandedMana.map((ab) => [
+        ab.actionId,
+        ab.description,
+        ab.displayManaLetters,
+        ab.colorChoice,
+      ]),
+    ]);
+    if (entry.overlay && entry.overlaySig === sig) return;
+    entry.overlaySig = sig;
+
+    const overlay = this.ensureContainer(entry);
+    overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
 
     if (kind.isTappable && expandedMana.length > 0 && !this.host.isCompact()) {
       this.drawManaGrid(overlay, card, state, expandedMana);
@@ -135,7 +151,8 @@ export class BattlefieldOverlay {
     const state = this.host.getLastState();
     if (!state) return;
     for (const entry of this.host.getEntries().values()) {
-      if (entry.overlay?.visible) {
+      if (entry.overlay) {
+        entry.overlaySig = undefined;
         this.rebuild(entry, state);
       }
     }
@@ -353,6 +370,10 @@ export class BattlefieldOverlay {
       if (entry) this.host.setCardHovered(entry.sprite);
       onHoverChange?.(true);
     });
+    btn.on("pointermove", () => {
+      const entry = this.host.getEntries().get(cardId);
+      if (entry) this.host.setCardHovered(entry.sprite, true);
+    });
     btn.on("pointerout", () => {
       onHoverChange?.(false);
       this.host.scheduleHoverClear(cardId);
@@ -411,12 +432,15 @@ export class BattlefieldOverlay {
   }
 
   private dispatchAction(card: CardDto, state: BattlefieldState, kind: ActionKind): void {
+    // Buttons can outlive the state they were built from (unchanged specs skip
+    // the rebuild), so batch eligibility reads the live state at tap time.
+    const live = this.host.getLastState() ?? state;
     if (kind.isTappable) {
-      const batch = this.selectedBatch(state.tappableLandIds, card.id);
+      const batch = this.selectedBatch(live.tappableLandIds, card.id);
       if (batch.length > 1) this.host.getCallbacks().onTapLands?.(batch);
       else this.host.getCallbacks().onTapLand?.(card);
     } else if (kind.isUntappable) {
-      const batch = this.selectedBatch(state.untappableLandIds, card.id);
+      const batch = this.selectedBatch(live.untappableLandIds, card.id);
       if (batch.length > 1) this.host.getCallbacks().onUntapLands?.(batch);
       else this.host.getCallbacks().onUntapLand?.(card);
     } else if (kind.isSelectable) {

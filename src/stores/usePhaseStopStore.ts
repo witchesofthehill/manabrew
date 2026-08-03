@@ -90,3 +90,28 @@ export function getNextStop(
   }
   return null;
 }
+
+/**
+ * End-turn variant of getNextStop: the first stop from the start of the next
+ * player's turn, skipping every remaining stop in the active player's turn.
+ * Falls back to the next player's upkeep so the engine always has a target.
+ */
+export function getEndTurnStop(
+  playerOrder: string[],
+  activePlayerId: string,
+  myId: string,
+  selfStops: Set<string>,
+  getOpponentStops: (opponentId: string) => Set<string>,
+): { playerId: string; phase: StepKind } | null {
+  const n = playerOrder.length;
+  const startIdx = playerOrder.indexOf(activePlayerId);
+  if (n === 0 || startIdx === -1) return null;
+  for (let slot = 1; slot <= n; slot++) {
+    const playerId = playerOrder[(startIdx + slot) % n]!;
+    const stops = playerId === myId ? selfStops : getOpponentStops(playerId);
+    for (const phase of PHASE_ORDER) {
+      if (stops.has(phase)) return { playerId, phase };
+    }
+  }
+  return { playerId: playerOrder[(startIdx + 1) % n]!, phase: "upkeep" };
+}

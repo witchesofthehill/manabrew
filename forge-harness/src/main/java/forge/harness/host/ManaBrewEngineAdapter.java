@@ -142,20 +142,15 @@ public final class ManaBrewEngineAdapter {
     }
 
     public String abortGameJson(final String sessionId) {
+        return endGameJson(sessionId);
+    }
+
+    public void endGame(final String sessionId) {
+        requireSessionId(sessionId);
         ManaBrewInteractiveSession session = sessions.remove(sessionId);
         if (session != null) {
             session.close();
         }
-        JsonObject response = new JsonObject();
-        response.addProperty("sessionId", sessionId);
-        response.addProperty("ended", true);
-        return response.toString();
-    }
-
-    public void endGame(final String sessionId) {
-        ManaBrewInteractiveSession session = getSession(sessionId);
-        session.close();
-        sessions.remove(sessionId);
     }
 
     private void requireInitialized() {

@@ -265,7 +265,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),
 
-          cardHoverDelayMs: 500,
+          cardHoverDelayMs: 350,
           setCardHoverDelayMs: (ms) => set({ cardHoverDelayMs: ms }),
 
           appThemeColorOverrides: {},

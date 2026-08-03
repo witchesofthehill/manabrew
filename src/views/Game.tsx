@@ -6,6 +6,7 @@ import { partitionBoardTargets, validCardIdsInCards } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -791,20 +792,27 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
-  const { unifiedPass, spellStackModalOpen, setSpellStackModalOpen } = usePromptEffects({
-    currentPrompt: activePrompt,
-    gameView,
-    isWaitingForResponse,
-    respond,
-    myPlayerId: _earlyMyPlayerId,
-  });
+  const { unifiedPass, unifiedPassEndTurn, spellStackModalOpen, setSpellStackModalOpen } =
+    usePromptEffects({
+      currentPrompt: activePrompt,
+      gameView,
+      isWaitingForResponse,
+      respond,
+      myPlayerId: _earlyMyPlayerId,
+    });
 
   const passPriority = useCallback(() => {
     window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
     unifiedPass();
   }, [unifiedPass]);
+  const passEndTurn = useCallback(() => {
+    window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
+    unifiedPassEndTurn();
+  }, [unifiedPassEndTurn]);
   const unifiedPassRef = useRef(passPriority);
   unifiedPassRef.current = passPriority;
+  const passEndTurnRef = useRef(passEndTurn);
+  passEndTurnRef.current = passEndTurn;
   const payManaPrimaryRef = useRef(() => {});
   payManaPrimaryRef.current = () => {
     if (promptType !== "payManaCost") return;
@@ -923,6 +931,17 @@ export default function Game({ exitTo }: GameProps = {}) {
       if (document.querySelector('[role="dialog"]')) return;
       if (confirmPromptRef.current()) return;
       if (promptType === "chooseAction") unifiedPassRef.current();
+    },
+    "pass-end-of-turn": () => {
+      if (manualApi) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (promptType === "chooseAction") passEndTurnRef.current();
+    },
+    "toggle-priority-mode": () => {
+      if (manualApi) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      const prefs = usePromptPreferencesStore.getState();
+      prefs.setFullControl(!prefs.fullControl);
     },
   });
 
@@ -1438,25 +1457,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => observer.disconnect();
   }, []);
 
+  const { dismiss: dismissPreview, hoveredCard: previewedCard } = preview;
+
   useEffect(() => {
     if (draggingHandCard) {
-      preview.dismiss();
+      dismissPreview();
     }
-  }, [draggingHandCard, preview]);
+  }, [draggingHandCard, dismissPreview]);
 
   const hoverableCardIds = useMemo(() => {
     return new Set(visibleCardsById.keys());
   }, [visibleCardsById]);
 
   useEffect(() => {
-    if (!preview.hoveredCard) return;
-    if (
-      !hoverableCardIds.has(preview.hoveredCard.id) &&
-      !stackCardsBySourceId.has(preview.hoveredCard.id)
-    ) {
-      preview.dismiss();
+    if (!previewedCard) return;
+    if (!hoverableCardIds.has(previewedCard.id) && !stackCardsBySourceId.has(previewedCard.id)) {
+      dismissPreview();
     }
-  }, [preview, hoverableCardIds, stackCardsBySourceId]);
+  }, [previewedCard, dismissPreview, hoverableCardIds, stackCardsBySourceId]);
 
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
@@ -1795,6 +1813,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 }
                 pendingAttackers={pendingAttackers}
                 onPassPriority={passPriority}
+                onPassEndTurn={passEndTurn}
                 selectedAttackDefenderId={attackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}
                 onDeclareAttackers={(attackerIds, defenderId) =>
@@ -2055,12 +2074,12 @@ export default function Game({ exitTo }: GameProps = {}) {
         !draggingHandCard &&
         !viewingZone &&
         !spellStackModalOpen &&
-        !abilityPickerState &&
-        (!promptType || HOVER_ALLOWED_PROMPTS.has(promptType)) && (
+        !abilityPickerState && (
           <HoverCardPreview
             preview={preview}
             actions={hoveredCardActions}
             onSelectAction={handlePreviewAction}
+            suppressed={!!promptType && !HOVER_ALLOWED_PROMPTS.has(promptType)}
           />
         )}
 

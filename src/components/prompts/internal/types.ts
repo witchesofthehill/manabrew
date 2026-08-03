@@ -7,6 +7,8 @@ export interface PromptActionLayoutProps {
 
 export interface ChooseActionProps extends PromptActionLayoutProps {
   onPassPriority: () => void;
+  onPassEndTurn: () => void;
+  isMyTurn: boolean;
 }
 
 export interface ChooseAttackersProps extends PromptActionLayoutProps {

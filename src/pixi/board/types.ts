@@ -79,6 +79,13 @@ export interface SpriteEntry {
    *  the sprite renders in the unclipped guest layer until it lands. */
   gliding?: boolean;
   overlay: Container | null;
+  /** False fades the overlay out instead of hiding it instantly — a state
+   *  update that transiently drops the card's actions (prompt round-trips)
+   *  must not blink the overlay. */
+  overlayActive?: boolean;
+  /** Spec signature of the current overlay children; unchanged specs skip the
+   *  rebuild so buttons aren't destroyed under the cursor on every state. */
+  overlaySig?: string;
 }
 
 /** Narrow seam the `BattlefieldOverlay` uses to read scene state and drive
@@ -94,7 +101,7 @@ export interface OverlayHost {
   isJustDragged(cardId: string): boolean;
   startCardDrag(sprite: CardSprite, e: FederatedPointerEvent): void;
   cancelHoverClear(): void;
-  setCardHovered(sprite: CardSprite): void;
+  setCardHovered(sprite: CardSprite, force?: boolean): void;
   scheduleHoverClear(cardId: string): void;
   getCardScale(): number;
   isCompact(): boolean;

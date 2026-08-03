@@ -108,6 +108,7 @@ fn main() {
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
+            cancellable: true,
         }),
         GameOver(game_over::GameOverInput {}),
         RevealCards(reveal::RevealCardsInput {

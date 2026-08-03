@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import {
   GAME_FORMATS,
@@ -52,6 +53,7 @@ export function CreateGameDialog({
   onStart,
 }: CreateGameDialogProps) {
   const { savedDecks, currentDeck } = useDeckStore();
+  const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const isLobbyMode = mode === "lobby";
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
@@ -265,7 +267,8 @@ export function CreateGameDialog({
           selectedFormat,
         )
     : { legal: false, errors: [] as string[] };
-  const isReady = selectedDeckIsVisible && selectedDeckValidation.legal && commanderValid;
+  const isReady =
+    selectedDeckIsVisible && (selectedDeckValidation.legal || allowIllegalDecks) && commanderValid;
 
   function invalidateHubSelection() {
     hubSelectionRequestIdRef.current += 1;
@@ -343,7 +346,7 @@ export function CreateGameDialog({
           { deck: entry.sourceDeck, commanderName: commander || entry.commanderName },
           selectedFormat,
         );
-    if (!validation.legal) {
+    if (!validation.legal && !allowIllegalDecks) {
       toast.warning(validation.errors[0] ?? "Deck is not legal in this format");
       return;
     }

@@ -1258,6 +1258,16 @@ fn run_hosted_engine_game_inner(
                                     );
                                     continue;
                                 }
+                                Err(ResponseViolation::CancelNotAllowed) => {
+                                    reject_response(
+                                        &remote_prompt_tx,
+                                        *player_index,
+                                        Some(prompt),
+                                        ProtocolErrorCode::CancelNotAllowed,
+                                        "this prompt is not cancellable".to_string(),
+                                    );
+                                    continue;
+                                }
                             }
                         }
                         let action_json = serde_json::to_string(&action).map_err(|err| {

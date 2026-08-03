@@ -570,6 +570,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             final boolean mustChoose = mandatory && (numTargets != null || !ability.isMinTargetChosen());
             final Pair<GameEntity, GameObject> chosen = session.awaitTargetChoice(me(), ability, valid, mustChoose);
+            if (chosen == ManaBrewInteractiveSession.CANCELLED_TARGETING) {
+                return false;
+            }
             if (chosen == null) {
                 break;
             }

@@ -192,6 +192,10 @@ export const SERVER_ERROR_CODE = {
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODE)[keyof typeof SERVER_ERROR_CODE];
 
+// Fragment of manabrew-server's duplicate-username AuthResult error text; the
+// AuthResult carries no code, so clients match on the message.
+export const DUPLICATE_USERNAME_ERROR_FRAGMENT = "already taken";
+
 export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.FormatNotChosen,
   SERVER_ERROR_CODE.DeckNotSelected,

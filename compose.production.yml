@@ -1,4 +1,30 @@
 services:
+  # Edge proxy: owns 80/443 + TLS for every host (ops/Caddyfile) and never
+  # runs app code, so app rollouts leave it up — recreating the container
+  # that holds 80/443 severs every live relay websocket. Deploys are listed
+  # `up`s that never recreate it (stock image, no tag interpolation); config
+  # changes land via `caddy reload`.
+  ingress:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    # Bcrypt hash for the push./loki. ingress (single-quote in secrets — contains `$`).
+    # Unset on the host stays unset here, so the Caddyfile's locked fallback applies.
+    environment:
+      PUSHGATEWAY_PASSWORD_HASH:
+      # Bcrypt hash for the api. /admin/* ingress (same single-quote caveat).
+      HUB_ADMIN_PASSWORD_HASH:
+    # Ordering only, and only for the migration deploy: the old web container
+    # must release 80/443 before ingress can bind them.
+    depends_on:
+      - manabrew
+
   manabrew:
     # Pre-built in CI (docker-images.yml) and pulled here — the web image is a
     # ~1h WASM+Vite build that does not fit the prod host's disk. The published
@@ -10,21 +36,13 @@ services:
     # make it runtime-configurable if the proxy is required.
     image: ghcr.io/witchesofthehill/manabrew-web:${MANABREW_IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    expose:
+      - "80"
     volumes:
-      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./ops/web.Caddyfile:/etc/caddy/Caddyfile:ro
       - ./ops/status.json:/srv/manabrew/status.json:ro
       - ./ops/sidestore:/srv/manabrew/sidestore:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    # Bcrypt hash for the push./loki. ingress (single-quote in secrets — contains `$`).
-    # Unset on the host stays unset here, so the Caddyfile's locked fallback applies.
     environment:
-      PUSHGATEWAY_PASSWORD_HASH:
-      # Bcrypt hash for the api. /admin/* ingress (same single-quote caveat).
-      HUB_ADMIN_PASSWORD_HASH:
       # Runtime relay config (entrypoint writes config.js from these).
       RELAY_HOST: relay.manabrew.app
       RELAY_PORT: "443"
@@ -34,10 +52,6 @@ services:
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
-    # No depends_on for manabrew-hub: the site must deploy/restart even if the
-    # hub image is broken; caddy just 502s api. until the hub comes up.
-    depends_on:
-      - manabrew-server
 
   manabrew-server:
     # Pre-built in CI (docker-images.yml) and pulled. `cargo xtask deploy`

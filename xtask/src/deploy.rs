@@ -41,7 +41,7 @@ const RELEASED_MANIFEST_URL: &str =
 
 // Bumped when a config ref starts needing newer deploy logic; compared
 // against `ops/deploy-tool-version` in the fetched config.
-const DEPLOY_TOOL_VERSION: u32 = 1;
+const DEPLOY_TOOL_VERSION: u32 = 2;
 
 // The deploy-config subset of the repo, taken from the fetched ref.
 const CONFIG_PATHS: [&str; 5] = [
@@ -568,7 +568,11 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
     }
     pull_images(root, opts, &images)?;
 
-    let mut services = vec!["manabrew"];
+    // ingress is created on first deploy and left alone after: its compose
+    // config never interpolates the tag, so a listed `up` without
+    // --force-recreate is a no-op — recreating it would sever every live
+    // relay websocket.
+    let mut services = vec!["ingress", "manabrew"];
     let mut relay_note = String::new();
     if !web_only {
         services.push("manabrew-hub");
@@ -629,15 +633,17 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
         }
     }
 
-    // Bind-mounted and not watched by caddy; a recreate picks it up, but the
-    // reload covers a Caddyfile-only change where the image was identical.
+    // ops/Caddyfile is bind-mounted into ingress and not watched by caddy;
+    // ingress is never recreated, so the reload is the only way its config
+    // changes ever apply. (The web container's ops/web.Caddyfile needs no
+    // reload — the web recreate above picks it up.)
     ssh_streamed(
         root,
         &opts.host,
         &compose(
             &opts.path,
             &opts.tag,
-            "exec -T manabrew caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile",
+            "exec -T ingress caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile",
         ),
     )?;
 

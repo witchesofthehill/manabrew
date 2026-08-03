@@ -1,6 +1,6 @@
 [package]
 name = "manabrew-engine"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 license.workspace = true
 description = "Magic: The Gathering rules engine — a Rust port of Forge"

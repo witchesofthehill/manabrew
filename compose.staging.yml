@@ -93,6 +93,9 @@ services:
       DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
       DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      # The Resend key is scoped to the verified mail.manabrew.app domain; the
+      # compiled default sender uses the bare domain and gets a 403.
+      AUTH_EMAIL_FROM: "${AUTH_EMAIL_FROM:-Manabrew <login@mail.manabrew.app>}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
       - ./ops/events:/var/manabrew/events

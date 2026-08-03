@@ -1,5 +1,5 @@
 {
-  "version": 61,
+  "version": 62,
   "packages": {
     "forge-card-script": "0.1.1",
     "forge-card-script-lsp": "0.1.1",
@@ -12,7 +12,7 @@
     "manabrew-agent-interface": "0.5.4",
     "manabrew-engine": "0.5.0",
     "manabrew-engine-macros": "0.2.0",
-    "manabrew-hub": "0.4.0",
+    "manabrew-hub": "0.4.1",
     "manabrew-protocol": "3.1.0",
     "manabrew-server": "0.8.0",
     "manabrew_game_runtime": "0.3.10",

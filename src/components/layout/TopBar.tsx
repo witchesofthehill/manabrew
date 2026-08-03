@@ -1,10 +1,14 @@
-import { ArrowDownToLine, ArrowLeft, Loader2, Settings } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, CircleUserRound, Loader2, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { isFeatureEnabled } from "@/featureFlags";
 import { installDesktopUpdate } from "@/hooks/useDesktopUpdater";
 import { ROUTES } from "@/lib/constants";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useDesktopUpdateStore } from "@/stores/useDesktopUpdateStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { cn } from "@/lib/utils";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 import { NavSheet } from "./NavSheet";
 import { TopBarNav } from "./TopBarNav";
@@ -79,6 +83,10 @@ export function TopBar({ override }: TopBarProps) {
   const version = useDesktopUpdateStore((s) => s.version);
   const progress = useDesktopUpdateStore((s) => s.progress);
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const account = useAuthStore((s) => s.account);
+  const authStatus = useAuthStore((s) => s.status);
+  const showSignIn = useSignInDialog((s) => s.show);
+  const signedInAccount = authStatus === "signedIn" ? account : null;
   const routeChrome = getRouteChrome(location.pathname, location.search);
   const title = override?.title ?? routeChrome.title;
   const isPlayHome = normalizePathname(location.pathname) === ROUTES.PLAY;
@@ -184,6 +192,25 @@ export function TopBar({ override }: TopBarProps) {
             <span className="hidden min-[400px]:inline">{updateLabel}</span>
             <span className="min-[400px]:hidden">
               {downloading && progress != null ? `${progress}%` : "Update"}
+            </span>
+          </Button>
+        )}
+        {isFeatureEnabled("accounts") && (
+          <Button
+            size="sm"
+            variant={signedInAccount ? "ghost" : "outline"}
+            className="h-8 gap-1.5 px-2.5"
+            disabled={navigationDisabled}
+            title={signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
+            onClick={() =>
+              signedInAccount
+                ? navigate(ROUTES.SETTINGS, { state: { settingsTab: "account" } })
+                : showSignIn()
+            }
+          >
+            <CircleUserRound className="h-4 w-4" />
+            <span className={cn("max-w-28 truncate", signedInAccount && "hidden sm:inline")}>
+              {signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
             </span>
           </Button>
         )}

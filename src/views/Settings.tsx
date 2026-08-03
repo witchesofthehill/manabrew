@@ -24,6 +24,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
+import { AccountSection } from "@/components/settings/AccountSection";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -39,7 +40,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTheme as useColorMode } from "next-themes";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { HelpCircle, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
@@ -364,9 +365,14 @@ export default function Settings() {
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<
-    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache"
-  >("preferences");
+    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account"
+  >(() =>
+    location.state?.settingsTab === "account" && isFeatureEnabled("accounts")
+      ? "account"
+      : "preferences",
+  );
   const [clearingCache, setClearingCache] = useState(false);
   const [presetOpen, setPresetOpen] = useState(false);
   const [editingThemeColorPath, setEditingThemeColorPath] = useState<string | null>(null);
@@ -569,8 +575,24 @@ export default function Settings() {
           >
             Cache
           </button>
+          {isFeatureEnabled("accounts") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("account")}
+              className={
+                "pb-2 text-sm font-medium transition-colors border-b-2 " +
+                (activeTab === "account"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              Account
+            </button>
+          )}
         </div>
       </section>
+
+      {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 

@@ -16,6 +16,7 @@ pub struct RoomSlot {
     pub is_bot: bool,
     pub selected_deck_name: Option<String>,
     pub selected_deck: Option<Deck>,
+    pub published_deck_id: Option<String>,
     pub selected_commander_name: Option<String>,
     pub avatar: Option<String>,
 }
@@ -79,6 +80,7 @@ impl Room {
                     is_bot: false,
                     selected_deck_name: None,
                     selected_deck: None,
+                    published_deck_id: None,
                     selected_commander_name: None,
                     avatar: None,
                 }],
@@ -173,6 +175,7 @@ impl Room {
             is_bot,
             selected_deck_name: None,
             selected_deck: None,
+            published_deck_id: None,
             selected_commander_name: None,
             avatar: None,
         });
@@ -257,12 +260,14 @@ impl Room {
         player_id: &str,
         deck_name: String,
         deck: Deck,
+        published_deck_id: Option<String>,
         commander_name: Option<String>,
         avatar: Option<String>,
     ) -> Result<(), String> {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.selected_deck_name = Some(deck_name);
             slot.selected_deck = Some(deck);
+            slot.published_deck_id = published_deck_id;
             slot.selected_commander_name = commander_name;
             slot.avatar = avatar;
             slot.ready = false;
@@ -291,6 +296,7 @@ impl Room {
                         .clone()
                         .unwrap_or_else(|| "Unknown Deck".to_string()),
                     deck,
+                    published_deck_id: p.published_deck_id.clone(),
                     commander_name: p.selected_commander_name.clone(),
                     avatar: p.avatar.clone(),
                 })

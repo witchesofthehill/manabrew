@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::fmt::Write;
 use ts_rs::TS;
 
 use crate::game::PlaymatSettings;
@@ -264,4 +266,68 @@ pub struct Deck {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub tokens: Option<Vec<DeckCard>>,
+}
+
+pub fn deck_fingerprint(deck: &Deck) -> String {
+    let mut hasher = Sha256::new();
+    update_fingerprint(&mut hasher, &deck.name);
+    update_fingerprint(
+        &mut hasher,
+        &serde_json::to_string(&deck.format).unwrap_or_default(),
+    );
+    let mut cards = Vec::new();
+    cards.extend(deck.cards.iter().map(|card| ("main", card)));
+    cards.extend(deck.sideboard.iter().map(|card| ("sideboard", card)));
+    cards.extend(
+        deck.attractions
+            .iter()
+            .flatten()
+            .map(|card| ("attraction", card)),
+    );
+    cards.extend(
+        deck.contraptions
+            .iter()
+            .flatten()
+            .map(|card| ("contraption", card)),
+    );
+    cards.extend(deck.schemes.iter().flatten().map(|card| ("scheme", card)));
+    cards.extend(deck.planes.iter().flatten().map(|card| ("plane", card)));
+    cards.extend(
+        deck.commanders
+            .iter()
+            .flatten()
+            .map(|card| ("commander", card)),
+    );
+    cards.extend(deck.companion.iter().map(|card| ("companion", card)));
+    cards.sort_by(|(left_section, left), (right_section, right)| {
+        (
+            left_section,
+            &left.identity.name,
+            &left.identity.set_code,
+            &left.identity.card_number,
+        )
+            .cmp(&(
+                right_section,
+                &right.identity.name,
+                &right.identity.set_code,
+                &right.identity.card_number,
+            ))
+    });
+    for (section, card) in cards {
+        update_fingerprint(&mut hasher, section);
+        update_fingerprint(&mut hasher, &card.identity.name);
+        update_fingerprint(&mut hasher, &card.identity.set_code);
+        update_fingerprint(&mut hasher, &card.identity.card_number);
+    }
+    let digest = hasher.finalize();
+    let mut fingerprint = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(fingerprint, "{byte:02x}");
+    }
+    fingerprint
+}
+
+fn update_fingerprint(hasher: &mut Sha256, value: &str) {
+    hasher.update((value.len() as u64).to_le_bytes());
+    hasher.update(value.as_bytes());
 }

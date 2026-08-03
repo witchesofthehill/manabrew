@@ -35,6 +35,8 @@ pub struct SeatInfo {
     pub is_bot: bool,
     pub deck_name: Option<String>,
     pub commander: Option<String>,
+    pub published_deck_id: Option<String>,
+    pub deck_fingerprint: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

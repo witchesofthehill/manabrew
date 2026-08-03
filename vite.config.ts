@@ -7,6 +7,7 @@ import tailwindcss from "@tailwindcss/vite";
 import Icons from "unplugin-icons/vite";
 
 const host = process.env.TAURI_DEV_HOST;
+const hubApiTarget = process.env.VITE_HUB_API_URL || "https://api.manabrew.app";
 
 // The release flow's authoritative version. `cargo xtask release` bumps this
 // manifest plus the mirrors (package.json, src-tauri/tauri.conf.json,
@@ -78,6 +79,11 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": COEP,
     },
     proxy: {
+      "/hub-api": {
+        target: hubApiTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/hub-api/, ""),
+      },
       "/spellbook-api": {
         target: "https://backend.commanderspellbook.com",
         changeOrigin: true,

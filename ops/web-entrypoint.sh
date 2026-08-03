@@ -9,6 +9,9 @@ set -e
 #     option, off in the published image.
 #   designSystem: from DESIGN_SYSTEM — exposes the dev-only /design-system
 #     reference route on a production build, off by default.
+#   featureFlags: runtime opt-in for flags shipped dark in src/featureFlags.ts;
+#     accounts from ACCOUNTS, deckHub from DECK_HUB, emailSignIn from
+#     EMAIL_SIGN_IN. Can only enable, never disable.
 #   hubApiUrl: from HUB_API_URL — deck hub + auth API origin; unset leaves the
 #     app on its compiled-in VITE_HUB_API_URL / api.manabrew.app default.
 {
@@ -22,6 +25,19 @@ set -e
 	case "$(printf '%s' "${DESIGN_SYSTEM:-}" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on) echo '  designSystem: true,' ;;
 	esac
+	flags=""
+	case "$(printf '%s' "${ACCOUNTS:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) flags="${flags} accounts: true," ;;
+	esac
+	case "$(printf '%s' "${DECK_HUB:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) flags="${flags} deckHub: true," ;;
+	esac
+	case "$(printf '%s' "${EMAIL_SIGN_IN:-}" | tr '[:upper:]' '[:lower:]')" in
+	1 | true | yes | on) flags="${flags} emailSignIn: true," ;;
+	esac
+	if [ -n "${flags}" ]; then
+		echo "  featureFlags: {${flags} },"
+	fi
 	if [ -n "${HUB_API_URL:-}" ]; then
 		echo "  hubApiUrl: \"${HUB_API_URL}\","
 	fi

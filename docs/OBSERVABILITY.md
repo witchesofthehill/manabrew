@@ -86,7 +86,7 @@ Defined in `manabrew-rs/crates/self-hosted-node/src/metrics.rs`; pushed to the p
 | Table          | Columns                                                                                                                                                                      |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `games`        | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner` |
-| `game_players` | `game_id`, `username`, `is_bot`, `deck_name`, `commander`                                                                                                                    |
+| `game_players` | `game_id`, `username`, `is_bot`, `deck_name`, `commander`, `published_deck_id`, `deck_fingerprint`                                                                           |
 | `decks`        | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                |
 | `deck_cards`   | `deck_id`, `name`, `set_code`, `count`                                                                                                                                       |
 | `events`       | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                         |

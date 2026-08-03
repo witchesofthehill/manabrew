@@ -8,8 +8,9 @@ use std::process::Command;
 
 use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
-    HubDeckDetail, HubDeckList, HubDeckSummary, PublishDeckRequest, PublishDeckResponse,
-    TopDeckStat,
+    AuthProviders, AuthSessionResponse, EmailVerifyRequest, ExchangeCodeRequest, HubDeckDetail,
+    HubDeckList, HubDeckSummary, MagicLinkRequest, MeResponse, OAuthStartRequest,
+    OAuthStartResponse, PublishDeckRequest, PublishDeckResponse, TopDeckStat, UpdateHandleRequest,
 };
 use ts_rs::TS;
 
@@ -44,9 +45,19 @@ pub fn generate(root: &Path) -> Result<()> {
     HubDeckDetail::export_all_to(&out).context("export HubDeckDetail")?;
     TopDeckStat::export_all_to(&out).context("export TopDeckStat")?;
 
+    AuthProviders::export_all_to(&out).context("export AuthProviders")?;
+    OAuthStartRequest::export_all_to(&out).context("export OAuthStartRequest")?;
+    OAuthStartResponse::export_all_to(&out).context("export OAuthStartResponse")?;
+    ExchangeCodeRequest::export_all_to(&out).context("export ExchangeCodeRequest")?;
+    AuthSessionResponse::export_all_to(&out).context("export AuthSessionResponse")?;
+    MeResponse::export_all_to(&out).context("export MeResponse")?;
+    MagicLinkRequest::export_all_to(&out).context("export MagicLinkRequest")?;
+    EmailVerifyRequest::export_all_to(&out).context("export EmailVerifyRequest")?;
+    UpdateHandleRequest::export_all_to(&out).context("export UpdateHandleRequest")?;
+
     let path = out.join("hubTypes.ts");
     let generated = fs::read_to_string(&path).context("read hubTypes.ts")?;
     fs::write(&path, format!("{DECK_IMPORT}{generated}")).context("write hubTypes.ts")?;
-    eprintln!("wrote {PROTOCOL_OUT}/ and {HUB_OUT}/hubTypes.ts");
+    eprintln!("wrote {PROTOCOL_OUT}/, {HUB_OUT}/hubTypes.ts and {HUB_OUT}/authTypes.ts");
     Ok(())
 }

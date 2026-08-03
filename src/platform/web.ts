@@ -1027,6 +1027,7 @@ class WebServerApi implements IServerApi {
       type: "SetDeckSelection",
       deck_name: params.deckName,
       deck: params.deck,
+      published_deck_id: params.publishedDeckId ?? null,
       commander_name: params.commanderName,
       avatar: params.avatar ?? null,
     });

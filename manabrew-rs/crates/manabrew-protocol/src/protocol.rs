@@ -23,6 +23,9 @@ pub struct PlayerDeckInfo {
     pub username: String,
     pub deck_name: String,
     pub deck: Deck,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub published_deck_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub commander_name: Option<String>,
@@ -91,6 +94,8 @@ pub enum ClientMessage {
     SetDeckSelection {
         deck_name: String,
         deck: Deck,
+        #[serde(default)]
+        published_deck_id: Option<String>,
         commander_name: Option<String>,
         #[serde(default)]
         avatar: Option<String>,

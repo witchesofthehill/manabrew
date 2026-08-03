@@ -65,6 +65,28 @@ pub fn validate(request: &PublishDeckRequest) -> Result<(), String> {
     Ok(())
 }
 
+const MIN_HANDLE_LEN: usize = 3;
+const MAX_HANDLE_LEN: usize = 24;
+
+pub fn validate_handle(handle: &str) -> Result<(), String> {
+    let len = handle.chars().count();
+    if !(MIN_HANDLE_LEN..=MAX_HANDLE_LEN).contains(&len) {
+        return Err(format!(
+            "handle must be {MIN_HANDLE_LEN}-{MAX_HANDLE_LEN} characters"
+        ));
+    }
+    if !handle
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err("handle may only contain letters, digits, _ and -".into());
+    }
+    if handle.starts_with('-') || handle.ends_with('-') {
+        return Err("handle may not start or end with -".into());
+    }
+    Ok(())
+}
+
 pub fn sanitize(deck: &mut Deck) {
     deck.version = None;
     deck.id = None;

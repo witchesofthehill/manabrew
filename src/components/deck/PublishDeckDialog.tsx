@@ -9,16 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { publishDeck, unpublishDeck } from "@/api/hub";
-import { stripUsernameTag } from "@/lib/username";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useSignInDialog } from "@/stores/useSignInDialogStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useMyHubDecks } from "@/hooks/useMyHubDecks";
 import {
   findPublishedByLocalDeckId,
   usePublishedDecksStore,
 } from "@/stores/usePublishedDecksStore";
-import type { Deck } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
 
 interface PublishDeckDialogProps {
@@ -26,11 +24,10 @@ interface PublishDeckDialogProps {
   onOpenChange: (open: boolean) => void;
   deck: EditorDeck;
   localDeckId: string | null;
+  resumeInEditor?: boolean;
 }
 
-const MAX_AUTHOR_LEN = 50;
-
-function toPublishableDeck(deck: EditorDeck): Deck {
+function toPublishableDeck(deck: EditorDeck): EditorDeck {
   const { customTags: _customTags, cardTags: _cardTags, ...wireDeck } = deck;
   return {
     ...wireDeck,
@@ -47,23 +44,28 @@ export function PublishDeckDialog({
   onOpenChange,
   deck,
   localDeckId,
+  resumeInEditor = false,
 }: PublishDeckDialogProps) {
-  const serverUsername = usePreferencesStore((s) => s.serverUsername);
+  const account = useAuthStore((s) => s.account);
+  const authStatus = useAuthStore((s) => s.status);
+  const showSignIn = useSignInDialog((s) => s.show);
   const published = usePublishedDecksStore((s) => s.published);
   const addPublished = usePublishedDecksStore((s) => s.addPublished);
   const removePublished = usePublishedDecksStore((s) => s.removePublished);
-  const [author, setAuthor] = useState(() => stripUsernameTag(serverUsername));
+  const { refresh } = useMyHubDecks();
   const [busy, setBusy] = useState(false);
+  const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
 
   const existing = findPublishedByLocalDeckId(published, localDeckId);
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
-  const trimmedAuthor = author.trim();
+  const signedIn = authStatus === "signedIn" && account !== null;
 
   async function handlePublish() {
+    if (!account) return;
     setBusy(true);
     try {
       const response = await publishDeck({
-        author: trimmedAuthor,
+        author: account.handle,
         deck: toPublishableDeck(deck),
       });
       addPublished({
@@ -73,8 +75,9 @@ export function PublishDeckDialog({
         managementToken: response.managementToken,
         publishedAt: Date.now(),
       });
+      void refresh();
       toast.success(`"${deck.name}" published to the Deck Hub`);
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publishing failed");
     } finally {
@@ -88,8 +91,9 @@ export function PublishDeckDialog({
     try {
       await unpublishDeck(existing.hubId, existing.managementToken);
       removePublished(existing.hubId);
+      void refresh();
       toast.success(`"${existing.name}" removed from the Deck Hub`);
-      onOpenChange(false);
+      handleOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Removing failed");
     } finally {
@@ -97,44 +101,76 @@ export function PublishDeckDialog({
     }
   }
 
+  function handleSignIn() {
+    showSignIn({
+      publishDeckId: localDeckId ?? undefined,
+      publishDeck: toPublishableDeck(deck),
+      resumeCurrentPublish: resumeInEditor,
+    });
+  }
+
+  function handleOpenChange(open: boolean) {
+    if (!open) setConfirmingUnpublish(false);
+    onOpenChange(open);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{existing ? "Published to Deck Hub" : "Publish to Deck Hub"}</DialogTitle>
+          <DialogTitle>
+            {existing
+              ? confirmingUnpublish
+                ? "Unpublish this deck?"
+                : "Published to Deck Hub"
+              : "Publish to Deck Hub"}
+          </DialogTitle>
           <DialogDescription>
             {existing
-              ? `"${existing.name}" is live on the hub. You can remove it at any time.`
+              ? confirmingUnpublish
+                ? `Remove the public snapshot of "${existing.name}"? Your local deck will stay in My Decks.`
+                : `"${existing.name}" is live on the hub. You can remove it at any time.`
               : `Share "${deck.name}" (${cardCount} cards) so other players can browse and try it. Custom playmats and editor tags are not published.`}
           </DialogDescription>
         </DialogHeader>
-        {!existing && (
-          <div className="space-y-2">
-            <Label htmlFor="hub-author">Author name</Label>
-            <Input
-              id="hub-author"
-              value={author}
-              maxLength={MAX_AUTHOR_LEN}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="How you want to be credited"
-            />
-          </div>
-        )}
+        {!existing &&
+          (signedIn ? (
+            <p className="text-sm text-muted-foreground">
+              Publishing as <span className="font-medium text-foreground">@{account.handle}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Publishing needs a Manabrew account, so the deck stays yours and you can remove it
+              from any device.
+            </p>
+          ))}
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
-            Cancel
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => handleOpenChange(false)}
+          >
+            {confirmingUnpublish ? "Keep published" : "Cancel"}
           </Button>
           {existing ? (
-            <Button variant="destructive" size="sm" disabled={busy} onClick={handleUnpublish}>
-              {busy ? "Removing…" : "Remove from hub"}
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={busy}
+              onClick={() =>
+                confirmingUnpublish ? void handleUnpublish() : setConfirmingUnpublish(true)
+              }
+            >
+              {busy ? "Unpublishing…" : confirmingUnpublish ? "Confirm unpublish" : "Unpublish"}
+            </Button>
+          ) : signedIn ? (
+            <Button size="sm" disabled={busy || deck.cards.length === 0} onClick={handlePublish}>
+              {busy ? "Publishing…" : "Publish"}
             </Button>
           ) : (
-            <Button
-              size="sm"
-              disabled={busy || trimmedAuthor.length === 0 || deck.cards.length === 0}
-              onClick={handlePublish}
-            >
-              {busy ? "Publishing…" : "Publish"}
+            <Button size="sm" onClick={handleSignIn}>
+              Sign in
             </Button>
           )}
         </DialogFooter>

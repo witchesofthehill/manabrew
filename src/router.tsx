@@ -82,7 +82,7 @@ export const router = createBrowserRouter([
             {
               path: "hub",
               element: (
-                <ErrorBoundary context="Deck Hub">
+                <ErrorBoundary context="Community">
                   <DeckHub />
                 </ErrorBoundary>
               ),

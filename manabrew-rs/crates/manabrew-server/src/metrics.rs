@@ -14,6 +14,7 @@ const GAMES_ENDED: &str = "manabrew_relay_games_ended_total";
 const CLIENT_REJECTIONS: &str = "manabrew_relay_client_rejections_total";
 const RECONNECT_RESYNCS: &str = "manabrew_relay_reconnect_resyncs_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
+const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
@@ -68,6 +69,10 @@ pub fn record_resync() {
 
 pub fn record_analytics_dropped() {
     counter!(ANALYTICS_DROPPED).increment(1);
+}
+
+pub fn record_deck_play_event_dropped() {
+    counter!(DECK_PLAY_EVENTS_DROPPED).increment(1);
 }
 
 pub fn refresh_gauges(state: &ServerState) {

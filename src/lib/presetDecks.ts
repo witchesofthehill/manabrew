@@ -34,7 +34,7 @@ export interface PresetDeckDefinition {
   label: string;
   desc: string;
   color: string;
-  format?: DeckFormat;
+  format?: DeckFormat | "historicBrawl";
   commander?: string;
   coverCardName?: string;
   cards: PresetDeckCardDefinition[];
@@ -91,7 +91,7 @@ export function expandPresetDeckDefinition(preset: PresetDeckDefinition): Deck {
     name: preset.label,
     description: preset.desc,
     color: preset.color,
-    format: preset.format ?? "standard",
+    format: preset.format === "historicBrawl" ? "brawl" : (preset.format ?? "standard"),
     coverCardName: preset.coverCardName ? frontFaceName(preset.coverCardName) : presetCommander,
     cards,
     sideboard: [],

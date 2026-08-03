@@ -1,4 +1,3 @@
-use manabrew_hub::dto::PublishDeckRequest;
 use manabrew_protocol::deck_dto::{Deck, DeckCard};
 
 const MAX_AUTHOR_LEN: usize = 50;
@@ -15,9 +14,8 @@ const MAX_LABELS: usize = 50;
 const MAX_LABEL_LEN: usize = 50;
 const ALLOWED_IMAGE_HOSTS: [&str; 2] = ["scryfall.io", "scryfall.com"];
 
-pub fn validate(request: &PublishDeckRequest) -> Result<(), String> {
-    validate_line(&request.author, 1, MAX_AUTHOR_LEN, "author")?;
-    let deck = &request.deck;
+pub fn validate(author: &str, deck: &Deck) -> Result<(), String> {
+    validate_line(author, 1, MAX_AUTHOR_LEN, "author")?;
     validate_line(&deck.name, 1, MAX_NAME_LEN, "deck name")?;
     if let Some(description) = deck.description.as_deref() {
         if description.chars().count() > MAX_DESCRIPTION_LEN {
@@ -189,55 +187,53 @@ pub mod tests {
         }
     }
 
-    pub fn request(author: &str, cards: usize) -> PublishDeckRequest {
-        PublishDeckRequest {
-            author: author.into(),
-            deck: Deck {
-                name: "Test Deck".into(),
-                cards: (0..cards).map(|i| card(&format!("Card {i}"))).collect(),
-                ..Default::default()
-            },
+    pub fn deck(cards: usize) -> Deck {
+        Deck {
+            name: "Test Deck".into(),
+            cards: (0..cards).map(|i| card(&format!("Card {i}"))).collect(),
+            ..Default::default()
         }
     }
 
     #[test]
     fn accepts_valid_request() {
-        assert_eq!(validate(&request("tester", 60)), Ok(()));
+        assert_eq!(validate("tester", &deck(60)), Ok(()));
     }
 
     #[test]
     fn rejects_bad_author() {
-        assert!(validate(&request("", 60)).is_err());
-        assert!(validate(&request("   ", 60)).is_err());
-        assert!(validate(&request(&"x".repeat(51), 60)).is_err());
-        assert!(validate(&request("a\u{7}b", 60)).is_err());
+        let deck = deck(60);
+        assert!(validate("", &deck).is_err());
+        assert!(validate("   ", &deck).is_err());
+        assert!(validate(&"x".repeat(51), &deck).is_err());
+        assert!(validate("a\u{7}b", &deck).is_err());
     }
 
     #[test]
     fn rejects_bad_deck_shape() {
-        assert!(validate(&request("tester", 0)).is_err());
-        assert!(validate(&request("tester", 601)).is_err());
-        let mut oversized_name = request("tester", 1);
-        oversized_name.deck.name = "x".repeat(101);
-        assert!(validate(&oversized_name).is_err());
+        assert!(validate("tester", &deck(0)).is_err());
+        assert!(validate("tester", &deck(601)).is_err());
+        let mut oversized_name = deck(1);
+        oversized_name.name = "x".repeat(101);
+        assert!(validate("tester", &oversized_name).is_err());
     }
 
     #[test]
     fn rejects_non_scryfall_image_urls() {
-        let mut req = request("tester", 1);
-        req.deck.cards[0].uris.normal = "https://evil.example/x.jpg".into();
-        assert!(validate(&req).is_err());
-        req.deck.cards[0].uris.normal = "data:image/png;base64,AAAA".into();
-        assert!(validate(&req).is_err());
-        req.deck.cards[0].uris.normal = "https://evil-scryfall.io/x.jpg".into();
-        assert!(validate(&req).is_err());
-        req.deck.cards[0].uris.normal = "https://cards.scryfall.io/x.jpg".into();
-        assert_eq!(validate(&req), Ok(()));
+        let mut deck = deck(1);
+        deck.cards[0].uris.normal = "https://evil.example/x.jpg".into();
+        assert!(validate("tester", &deck).is_err());
+        deck.cards[0].uris.normal = "data:image/png;base64,AAAA".into();
+        assert!(validate("tester", &deck).is_err());
+        deck.cards[0].uris.normal = "https://evil-scryfall.io/x.jpg".into();
+        assert!(validate("tester", &deck).is_err());
+        deck.cards[0].uris.normal = "https://cards.scryfall.io/x.jpg".into();
+        assert_eq!(validate("tester", &deck), Ok(()));
     }
 
     #[test]
     fn sanitize_strips_editor_payload() {
-        let mut deck = request("tester", 1).deck;
+        let mut deck = deck(1);
         deck.version = Some("1".into());
         deck.id = Some("local".into());
         deck.playmat = Some("data:image/png;base64,AAAA".into());

@@ -29,6 +29,7 @@ pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<DeckCardIdenti
         .iter()
         .map(|entry| DeckCardIdentity {
             id: String::new(),
+            oracle_id: None,
             name: entry.name.clone(),
             set_code: edition.code.clone(),
             card_number: entry.collector_number.clone(),
@@ -190,6 +191,7 @@ pub async fn limited_import_cube(
         for copy in 0..entry.count {
             pool.push(DeckCardIdentity {
                 id: String::new(),
+                oracle_id: None,
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
                 card_number: format!("cube-{copy}"),

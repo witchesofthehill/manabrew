@@ -1,5 +1,8 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useNavigate } from "react-router-dom";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
+import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { Button } from "@/components/ui/button";
 import { PrintPickerModal } from "./PrintPickerModal";
@@ -32,6 +35,8 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   EllipsisVertical,
+  History,
+  LibraryBig,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -44,7 +49,7 @@ import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
 import { frontFaceName, needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
-import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
+import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
@@ -270,18 +275,24 @@ export function DeckBuilder({
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
 } = {}) {
-  const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
+  const navigate = useNavigate();
+  const hubEnabled = isFeatureEnabled("deckHub");
+  const accountsEnabled = isFeatureEnabled("accounts");
+  const publishEnabled = hubEnabled && accountsEnabled;
   const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
   const {
     currentDeck,
+    savedDecks,
     removeFromMain,
     removeFromSide,
     addToMain,
@@ -304,6 +315,7 @@ export function DeckBuilder({
     updatePrint,
     toggleFoil,
     removeToken,
+    updateAccountDeckVersion,
   } = useDeckStore();
 
   const derivedTokens = useDerivedTokens(currentDeck);
@@ -334,7 +346,7 @@ export function DeckBuilder({
       filterInputRef.current?.select();
     },
     "deck-editor-toggle-search": () => onToggleSearch?.(),
-    "deck-editor-save": () => handleSave(),
+    "deck-editor-save": () => void handleSave(),
     "deck-editor-export": () => handleExport(),
   });
 
@@ -359,6 +371,7 @@ export function DeckBuilder({
     ],
   );
   const currentSnapshot = buildDeckSnapshot(currentDeck);
+  const accountSavedDeck = savedDecks.find((saved) => saved.id === currentDeckId);
   // Read-only presets can't be edited; background Scryfall enrichment mutates the
   // deck after the baseline snapshot, so never treat a preset as dirty.
   const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
@@ -811,12 +824,33 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (saveInFlightRef.current) return;
+    const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
     saveCurrentDeck();
-    showAccountSaveNudge();
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
+    if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
+      saveInFlightRef.current = true;
+      try {
+        const detail = await useAccountDecksStore
+          .getState()
+          .save(saved.accountDeckId, saved.accountVersionNo, currentDeck);
+        updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
+        toast.success(`Saved version ${detail.currentVersionNo} to your account`);
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? `${error.message} Your local copy is still saved.`
+            : "Account save failed. Your local copy is still saved.",
+        );
+      } finally {
+        saveInFlightRef.current = false;
+      }
+    } else {
+      showAccountSaveNudge();
+    }
     if (hasUnsupportedCards) {
       toast.warning(
         `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
@@ -877,14 +911,32 @@ export function DeckBuilder({
           <span className="hidden min-w-0 flex-1 truncate text-xs text-warning/70 sm:block">
             Browse the cards below. Editing is locked.
           </span>
-          <Button
-            size="sm"
-            className="ml-auto h-7 shrink-0 pointer-coarse:h-10"
-            onClick={handleImportReadOnlyDeck}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Copy and edit
-          </Button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {hubEnabled && readOnlySource === "preset" && currentDeck.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 pointer-coarse:h-10"
+                onClick={() => {
+                  if (!currentDeck.id) return;
+                  navigate(
+                    `${ROUTES.HUB}?deck=${encodeURIComponent(currentDeck.id)}&source=presets`,
+                  );
+                }}
+              >
+                <LibraryBig className="mr-1 h-3.5 w-3.5" />
+                View in Community
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="h-7 pointer-coarse:h-10"
+              onClick={handleImportReadOnlyDeck}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Copy and edit
+            </Button>
+          </div>
         </div>
       )}
       <div className="flex flex-1 min-h-0">
@@ -1049,7 +1101,7 @@ export function DeckBuilder({
                           ? "Save draft as a full deck"
                           : "Deck saved"
                 }
-                onClick={handleSave}
+                onClick={() => void handleSave()}
               >
                 <Save className="h-3.5 w-3.5" />
                 Save
@@ -1063,6 +1115,7 @@ export function DeckBuilder({
                   variant="ghost"
                   className="h-7 w-7 shrink-0"
                   disabled={isReadOnly}
+                  aria-label="Deck actions"
                 >
                   <EllipsisVertical className="h-4 w-4" />
                 </Button>
@@ -1079,9 +1132,16 @@ export function DeckBuilder({
                     onSelect={() => setPublishOpen(true)}
                     disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                   >
-                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Deck Hub
+                    <Share2 className="h-3.5 w-3.5 mr-2" /> Publish to Community
                   </DropdownMenuItem>
                 )}
+                {accountsEnabled &&
+                  accountSavedDeck?.accountDeckId &&
+                  accountSavedDeck.accountVersionNo && (
+                    <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
+                      <History className="mr-2 h-3.5 w-3.5" /> Version history
+                    </DropdownMenuItem>
+                  )}
                 <DropdownMenuItem onSelect={handleSaveDraft}>
                   <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
@@ -1404,6 +1464,21 @@ export function DeckBuilder({
             resumeInEditor
           />
         ) : null}
+        {accountsEnabled &&
+          accountSavedDeck?.accountDeckId &&
+          accountSavedDeck.accountVersionNo && (
+            <DeckVersionHistoryDialog
+              open={historyOpen}
+              onOpenChange={setHistoryOpen}
+              deckId={accountSavedDeck.accountDeckId}
+              currentVersionNo={accountSavedDeck.accountVersionNo}
+              hasUnsavedChanges={hasUnsavedChanges}
+              onRestore={(deck, versionNo) => {
+                useDeckStore.getState().loadDeck(deck);
+                toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
+              }}
+            />
+          )}
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

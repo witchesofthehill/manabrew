@@ -1456,6 +1456,8 @@ public final class ManaBrewInteractiveSession {
         return new LinkedHashMap<Card, Integer>();
     }
 
+    static final Pair<GameEntity, forge.game.GameObject> CANCELLED_TARGETING = Pair.of(null, null);
+
     Pair<GameEntity, forge.game.GameObject> awaitTargetChoice(
             final int playerId,
             final SpellAbility ability,
@@ -1470,6 +1472,12 @@ public final class ManaBrewInteractiveSession {
                 return null;
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("cancel".equals(actionKind)) {
+                if (castingAbility != null) {
+                    return CANCELLED_TARGETING;
+                }
+                continue;
+            }
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
                 if (mandatory) {
                     continue;
@@ -1581,7 +1589,7 @@ public final class ManaBrewInteractiveSession {
                 new ChooseBoardTargetsInput(
                         presentation("Sacrifice", null),
                         candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
-                        min, max, chosen));
+                        min, max, chosen, false));
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(
@@ -2260,7 +2268,8 @@ public final class ManaBrewInteractiveSession {
                         enumFromWire(intent, TargetingIntent.class),
                         ability != null ? ability.getMinTargets() : 0,
                         ability != null ? ability.getMaxTargets() : 0,
-                        ability != null ? ability.getTargets().size() : 0));
+                        ability != null ? ability.getTargets().size() : 0,
+                        castingAbility != null));
     }
 
     private static TargetRef targetRef(final String kind, final String id) {

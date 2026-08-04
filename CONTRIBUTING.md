@@ -141,7 +141,10 @@ PR, or manual bump step. On every merge to `main`, CI (`release.yml`) runs
    crates bump 0.x → 0.x+1, cargo's incompatibility boundary), `feat` →
    minor, `fix`/`perf`/`refactor`/`revert` and unconventional messages →
    patch, `docs`/`style`/`chore`/`test`/`build`/`ci` → no bump. Crates that
-   depend on a released crate get at least a patch.
+   depend on a released crate get at least a patch. The desktop app (the
+   plain `vX.Y.Z` tags) is the exception: commits bump it at most minor.
+   Nothing depends on the app's API, so an app major is a product decision.
+   To cut one, hand-set the version.
 2. Commits `chore(release): …` straight to `main` with the new versions
    (Cargo.tomls, `package.json`/`tauri.conf.json` mirrors, `Cargo.lock`,
    `CHANGELOG.md`, `ops/manifest.json`).
@@ -156,8 +159,9 @@ What this means for your PR:
 
 - **The squash-merge title is the commit that drives versioning** — write it
   as a proper conventional commit. A breaking change bumps major on _every_
-  crate the PR touches; if that's too broad, split the PR. For per-commit
-  granularity, use a merge commit instead of squashing.
+  crate the PR touches (the app caps at minor); if that's too broad, split
+  the PR. For per-commit granularity, use a merge commit instead of
+  squashing.
 - The **Release plan** check on the PR shows exactly what would be released
   on merge.
 - To force a specific version (e.g. cutting a milestone), hand-set it in the

@@ -74,6 +74,7 @@ interface PromptActionControllerProps {
   onDefaultDamageOrder: () => void;
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
+  targetCompletionKind?: "done" | "cancel" | null;
   onCompleteTargets?: (() => void) | null;
   // Pay mana cost
   payManaCostInfo?: {
@@ -133,6 +134,7 @@ export function PromptActionController({
   onDefaultDamageOrder,
   onOpenStack,
   targetCompletionLabel,
+  targetCompletionKind,
   onCompleteTargets,
   payManaCostInfo,
   onPayManaCost,
@@ -206,6 +208,7 @@ export function PromptActionController({
         isWaitingForResponse={isWaitingForResponse}
         onOpenStack={onOpenStack}
         completionLabel={targetCompletionLabel ?? undefined}
+        completionKind={targetCompletionKind ?? undefined}
         onCompleteTargets={onCompleteTargets ?? undefined}
       />
     ),
@@ -236,6 +239,7 @@ export function PromptActionController({
           label={boardTargetLabel || (promptType && labels[promptType]) || "Waiting..."}
           isWaitingForResponse={isWaitingForResponse}
           completionLabel={targetCompletionLabel ?? undefined}
+          completionKind={targetCompletionKind ?? undefined}
           onCompleteTargets={onCompleteTargets ?? undefined}
         />
       );

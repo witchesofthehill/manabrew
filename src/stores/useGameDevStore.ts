@@ -166,6 +166,8 @@ export const DEFAULT_DEV_CARD_OVERRIDES: DevCardOverrides = {
 };
 
 interface GameDevState {
+  allowIllegalDecks: boolean;
+  setAllowIllegalDecks: (value: boolean) => void;
   promptActionOverride: DevPromptActionOverride | null;
   devToolsEnabled: boolean;
   pixiPerfStats: PixiPerfStats | null;
@@ -213,6 +215,8 @@ interface GameDevState {
 export const useGameDevStore = create<GameDevState>()(
   devtools(
     (set) => ({
+      allowIllegalDecks: false,
+      setAllowIllegalDecks: (value) => set({ allowIllegalDecks: value }),
       promptActionOverride: null,
       devToolsEnabled: false,
       pixiPerfStats: null,

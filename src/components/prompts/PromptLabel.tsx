@@ -1,13 +1,15 @@
-import { Check, Crosshair } from "lucide-react";
+import { Ban, Check, Crosshair } from "lucide-react";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
 import { cn } from "@/lib/utils";
+import { usePromptActionColors } from "./internal/promptActionTheme";
 
 interface PromptLabelProps {
   label: string;
   isWaitingForResponse?: boolean;
   completionLabel?: string;
+  completionKind?: "done" | "cancel";
   onCompleteTargets?: () => void;
 }
 
@@ -15,13 +17,18 @@ export function PromptLabel({
   label,
   isWaitingForResponse,
   completionLabel,
+  completionKind,
   onCompleteTargets,
 }: PromptLabelProps) {
   const minimal = useIsMobileGame();
+  const promptActionColors = usePromptActionColors();
+  const isCancel = completionKind === "cancel";
   const completionButton = onCompleteTargets ? (
     <PromptActionButton
       label={completionLabel ?? "Done"}
-      icon={<Check className="h-3.5 w-3.5" />}
+      icon={isCancel ? <Ban className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+      variant={isCancel ? "outline" : "default"}
+      baseColor={isCancel ? promptActionColors.cancel : undefined}
       onClick={onCompleteTargets}
       disabled={isWaitingForResponse}
     />

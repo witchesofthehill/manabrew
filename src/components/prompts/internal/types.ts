@@ -52,6 +52,7 @@ export interface ChooseDamageOrderProps extends PromptActionLayoutProps {
 export interface ChooseTargetSpellProps extends PromptActionLayoutProps {
   onOpenStack: () => void;
   completionLabel?: string;
+  completionKind?: "done" | "cancel";
   onCompleteTargets?: () => void;
 }
 

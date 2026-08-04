@@ -16,6 +16,7 @@ pub struct ChooseBoardTargetsInput {
     pub min_targets: i32,
     pub max_targets: i32,
     pub chosen_targets: i32,
+    pub cancellable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -27,4 +28,5 @@ pub struct ChooseBoardTargetsInput {
 #[ts(export, export_to = "prompts/chooseBoardTargets.ts")]
 pub enum ChooseBoardTargetsOutput {
     BoardTargets { chosen: Vec<TargetRef> },
+    Cancel,
 }

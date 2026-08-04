@@ -82,6 +82,7 @@ export interface MainActionOverlayProps {
   onDefaultDamageOrder: () => void;
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
+  targetCompletionKind?: "done" | "cancel" | null;
   onCompleteTargets?: (() => void) | null;
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;

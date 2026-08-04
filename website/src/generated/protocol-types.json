@@ -159,8 +159,8 @@
       "refs": ["BlockableAttackerDto"]
     },
     "ChooseBoardTargetsInput": {
-      "ts": "interface ChooseBoardTargetsInput {\n  presentation: PromptPresentation;\n  candidates: Array<TargetRef>;\n  hostile: boolean;\n  intent: TargetingIntent;\n  minTargets: number;\n  maxTargets: number;\n  chosenTargets: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBoardTargetsInput {\n    pub presentation: PromptPresentation,\n    pub candidates: Vec<TargetRef>,\n    #[serde(default)]\n    pub hostile: bool,\n    pub intent: TargetingIntent,\n    pub min_targets: i32,\n    pub max_targets: i32,\n    pub chosen_targets: i32,\n}",
+      "ts": "interface ChooseBoardTargetsInput {\n  presentation: PromptPresentation;\n  candidates: Array<TargetRef>;\n  hostile: boolean;\n  intent: TargetingIntent;\n  minTargets: number;\n  maxTargets: number;\n  chosenTargets: number;\n  cancellable: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBoardTargetsInput {\n    pub presentation: PromptPresentation,\n    pub candidates: Vec<TargetRef>,\n    #[serde(default)]\n    pub hostile: bool,\n    pub intent: TargetingIntent,\n    pub min_targets: i32,\n    pub max_targets: i32,\n    pub chosen_targets: i32,\n    pub cancellable: bool,\n}",
       "refs": ["PromptPresentation", "TargetRef", "TargetingIntent"]
     },
     "ChooseBooleanInput": {

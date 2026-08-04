@@ -288,6 +288,8 @@ pub trait PlayerAgent {
         mana_pools: &[ManaPool],
     ) -> bool;
 
+    fn set_targeting_cancellable(&mut self, _cancellable: bool) {}
+
     /// Choose a target player (e.g. for Lightning Bolt targeting a player).
     /// `sa` is the active spell ability context (source card, API type, etc.) for UI display.
     fn choose_target_player(

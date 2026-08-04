@@ -53,6 +53,7 @@ pub enum ProtocolErrorCode {
     WrongPlayer,
     WrongPromptType,
     UnknownActionId,
+    CancelNotAllowed,
     InvalidShape,
 }
 

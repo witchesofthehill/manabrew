@@ -15,6 +15,7 @@ fn board_targets(
     hostile: bool,
     intent: TargetingIntent,
     label: String,
+    cancellable: bool,
 ) -> PromptInput {
     PromptInput::ChooseBoardTargets(
         manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
@@ -30,6 +31,7 @@ fn board_targets(
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
+            cancellable,
         },
     )
 }
@@ -64,11 +66,16 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
                     min_targets: 0,
                     max_targets: total,
                     chosen_targets: chosen.len() as i32,
+                    cancellable: agent.targeting_cancellable,
                 },
             ),
             source,
         );
         match agent.recv_action() {
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::Cancel) => {
+                agent.targeting_cancelled = true;
+                break;
+            }
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets {
                 chosen: picked,
             }) if !picked.is_empty() => {
@@ -116,7 +123,13 @@ pub(super) fn choose_target_player<T: Responder>(
         .map(target_ref_player)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, player_target_title(intent)),
+        board_targets(
+            candidates,
+            hostile,
+            intent,
+            player_target_title(intent),
+            agent.targeting_cancellable,
+        ),
         source,
     );
     agent.recv_player_choice_or_first(valid)
@@ -135,7 +148,13 @@ pub(super) fn choose_target_card<T: Responder>(
         .map(target_ref_card)
         .collect();
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string()),
+        board_targets(
+            candidates,
+            hostile,
+            intent,
+            intent.to_string(),
+            agent.targeting_cancellable,
+        ),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -160,6 +179,7 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
             intent_is_hostile(intent),
             intent,
             intent.to_string(),
+            agent.targeting_cancellable,
         ),
         source,
     );
@@ -185,10 +205,20 @@ pub(super) fn choose_target_any<T: Responder>(
             .map(target_ref_card),
     );
     agent.send_prompt(
-        board_targets(candidates, hostile, intent, intent.to_string()),
+        board_targets(
+            candidates,
+            hostile,
+            intent,
+            intent.to_string(),
+            agent.targeting_cancellable,
+        ),
         source,
     );
     match agent.recv_action() {
+        PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::Cancel) => {
+            agent.targeting_cancelled = true;
+            TargetChoice::None
+        }
         PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
             chosen
                 .into_iter()
@@ -228,6 +258,7 @@ pub(super) fn choose_target_spell<T: Responder>(
             intent_is_hostile(intent),
             intent,
             intent.to_string(),
+            agent.targeting_cancellable,
         ),
         source,
     );
@@ -250,6 +281,7 @@ pub(super) fn choose_sacrifice<T: Responder>(
             true,
             TargetingIntent::Sacrifice,
             TargetingIntent::Sacrifice.to_string(),
+            false,
         ),
         source,
     );

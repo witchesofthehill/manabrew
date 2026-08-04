@@ -1,4 +1,5 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { Button } from "@/components/ui/button";
@@ -305,6 +306,7 @@ export function DeckBuilder({
     toggleFoil,
     removeToken,
   } = useDeckStore();
+  const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
 
   const derivedTokens = useDerivedTokens(currentDeck);
   const mergedTokens = useMemo(
@@ -773,6 +775,7 @@ export function DeckBuilder({
   }
 
   function isAtCopyLimit(cardName: string): boolean {
+    if (allowIllegalDecks) return false;
     const format = getFormat(currentDeck.format ?? "standard");
     if (!format) return false;
     const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
@@ -1033,7 +1036,7 @@ export function DeckBuilder({
                       : "secondary"
                     : "outline"
                 }
-                disabled={!hasUnsavedChanges && !currentDeck.draft}
+                disabled={!allowIllegalDecks && !hasUnsavedChanges && !currentDeck.draft}
                 className={cn(
                   "h-7 shrink-0 gap-1 text-xs",
                   !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",

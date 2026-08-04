@@ -789,7 +789,10 @@ impl GameLoop {
         {
             return false;
         }
-        if !sa.setup_targets(game, agents, &self.mana_pools) {
+        agents[player.index()].set_targeting_cancellable(true);
+        let targets_ok = sa.setup_targets(game, agents, &self.mana_pools);
+        agents[player.index()].set_targeting_cancellable(false);
+        if !targets_ok {
             return false;
         }
         crate::ability::effects::emit_targeting_triggers_for_sa(
@@ -834,7 +837,10 @@ impl GameLoop {
         {
             return false;
         }
-        if !sa.setup_targets(game, agents, &self.mana_pools) {
+        agents[player.index()].set_targeting_cancellable(true);
+        let targets_ok = sa.setup_targets(game, agents, &self.mana_pools);
+        agents[player.index()].set_targeting_cancellable(false);
+        if !targets_ok {
             return false;
         }
         crate::ability::effects::emit_targeting_triggers_for_sa(

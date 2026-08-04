@@ -93,6 +93,10 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     respond({ type: "boardTargets", chosen: [] });
   }, [respond]);
 
+  const cancelTargeting = useCallback(() => {
+    respond({ type: "cancel" });
+  }, [respond]);
+
   return {
     /** The card ID being cast, or null. */
     castingCardId,
@@ -111,5 +115,6 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     wrappedTargetPlayer,
     wrappedTargetSpell,
     declineTargets,
+    cancelTargeting,
   };
 }

@@ -85,6 +85,10 @@ final class ManabrewProtocolAdapter {
                 return flat;
             }
             case "chooseBoardTargets": {
+                if ("cancel".equals(asString(output, "type"))) {
+                    flat.addProperty("kind", "cancel");
+                    return flat;
+                }
                 flat.addProperty("kind", "target_choice");
                 final JsonObject target = new JsonObject();
                 final com.google.gson.JsonArray chosen = arrayOrEmpty(output, "chosen");

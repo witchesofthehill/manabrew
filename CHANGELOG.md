@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.3.0](https://github.com/witchesofthehill/manabrew/compare/v3.2.1...v3.3.0) (2026-08-04)
+
+### Features
+
+* **ops:** enable accounts and email sign-in on production web ([#610](https://github.com/witchesofthehill/manabrew/issues/610)) ([5ec4f45](https://github.com/witchesofthehill/manabrew/commit/5ec4f45400aec5d1ecd9bc019f7d81032c0a7470))
+
 ## [3.2.1](https://github.com/witchesofthehill/manabrew/compare/v3.2.0...v3.2.1) (2026-08-03)
 
 ### Fixes

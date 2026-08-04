@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LibraryBig, Plus } from "lucide-react";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
+import { DeckShelfRow } from "@/components/play/DeckShelfRow";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
@@ -23,7 +24,7 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 
 type DeckSource = "all" | "yours" | "preset" | "community";
 
-const GRID_CLASS = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+const SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
 
 function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
@@ -235,18 +236,18 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         </div>
       )}
 
-      <div className="max-h-[60vh] space-y-6 overflow-y-auto overscroll-contain pr-1">
+      <div className="space-y-6">
         {showSection("yours") && (
           <div>
             <SectionHeader title="Your decks" count={filteredDecks.length} />
             {filteredDecks.length > 0 ? (
-              <div className={GRID_CLASS}>
+              <DeckShelfRow label="Your decks">
                 {filteredDecks.map((deck) => {
                   const presetKey = deck.accountDeckId
                     ? accountDeckDetails[deck.accountDeckId]?.derivedFromPresetKey
                     : undefined;
                   return (
-                    <div key={deck.id} className="relative">
+                    <div key={deck.id} className={cn(SHELF_CARD_CLASS, "relative")}>
                       {deck.id === lastPlayedDeckId && (
                         <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
                           Last played
@@ -272,7 +273,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
                     </div>
                   );
                 })}
-              </div>
+              </DeckShelfRow>
             ) : ownedDecks.length === 0 ? (
               <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-8 text-center">
                 <LibraryBig className="mb-3 h-7 w-7 text-primary" />
@@ -297,32 +298,33 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
           <div>
             <SectionHeader title="Preset decks" count={filteredPresets.length} />
             {filteredPresets.length > 0 ? (
-              <div className={GRID_CLASS}>
+              <DeckShelfRow label="Preset decks">
                 {filteredPresets.map((preset) => {
                   const presetId = preset.id ?? preset.name;
                   return (
-                    <DeckGridCard
-                      key={`preset:${presetId}`}
-                      deck={{ id: presetId, deck: preset, savedAt: 0 }}
-                      onOpen={() => {
-                        if (hubEnabled) {
-                          navigate(
-                            `${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`,
-                          );
-                        } else if (pendingDeckId === null) {
-                          onPlayPreset(preset);
-                        }
-                      }}
-                      onPlay={() => onPlayPreset(preset)}
-                      badge="Official preset"
-                      engines={preset.engines}
-                      playing={pendingDeckId === presetId}
-                      playDisabled={pendingDeckId !== null}
-                      readOnly
-                    />
+                    <div key={`preset:${presetId}`} className={SHELF_CARD_CLASS}>
+                      <DeckGridCard
+                        deck={{ id: presetId, deck: preset, savedAt: 0 }}
+                        onOpen={() => {
+                          if (hubEnabled) {
+                            navigate(
+                              `${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`,
+                            );
+                          } else if (pendingDeckId === null) {
+                            onPlayPreset(preset);
+                          }
+                        }}
+                        onPlay={() => onPlayPreset(preset)}
+                        badge="Official preset"
+                        engines={preset.engines}
+                        playing={pendingDeckId === presetId}
+                        playDisabled={pendingDeckId !== null}
+                        readOnly
+                      />
+                    </div>
                   );
                 })}
-              </div>
+              </DeckShelfRow>
             ) : (
               <p className="text-xs italic text-muted-foreground">
                 {presetDecks.length === 0
@@ -350,15 +352,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
               <p className="text-xs text-muted-foreground">Loading community decks…</p>
             ) : communityEntries.length > 0 ? (
               <>
-                <div className={GRID_CLASS}>
+                <DeckShelfRow label="Community decks">
                   {communityEntries.map((entry) => (
-                    <DeckHubEntryCard
-                      key={`hub:${entry.id}`}
-                      entry={entry}
-                      onOpen={() => setHubPreviewId(entry.id)}
-                    />
+                    <div key={`hub:${entry.id}`} className={SHELF_CARD_CLASS}>
+                      <DeckHubEntryCard entry={entry} onOpen={() => setHubPreviewId(entry.id)} />
+                    </div>
                   ))}
-                </div>
+                </DeckShelfRow>
                 <Button
                   variant="ghost"
                   size="sm"

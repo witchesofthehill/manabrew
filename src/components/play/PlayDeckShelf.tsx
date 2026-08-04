@@ -14,12 +14,11 @@ import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
+import { availableEngines, hubEntryEngines, supportsAvailableEngine } from "@/lib/engines";
 import { cn } from "@/lib/utils";
-import { isIronsmithRuntimeEnabled } from "@/game/runtimeRegistry";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
-import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
 
 type DeckSource = "all" | "yours" | "preset" | "community";
@@ -49,8 +48,8 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const loadAccountDeck = useDeckStore((state) => state.loadAccountDeck);
   const lastPlayedDeckId = usePreferencesStore((state) => state.lastPlayedDeckId);
   const lastPlayedAtByDeck = usePreferencesStore((state) => state.lastPlayedAtByDeck);
-  const ironsmithPref = usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
-  const ironsmithEnabled = ironsmithPref && isIronsmithRuntimeEnabled();
+  // Subscribed so engine availability re-renders when the Settings toggle flips.
+  usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
   const presetDecks = usePresetDecks();
   const [formatFilter, setFormatFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<DeckSource>("all");
@@ -64,7 +63,9 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     formatFilter === "all" ? undefined : formatFilter,
     hubEnabled && (sourceFilter === "all" || sourceFilter === "community"),
   );
-  const communityEntries = communityDecks.decks.filter((entry) => entry.sourceKind !== "preset");
+  const communityEntries = communityDecks.decks.filter(
+    (entry) => entry.sourceKind !== "preset" && supportsAvailableEngine(hubEntryEngines(entry)),
+  );
   const {
     details: accountDeckDetails,
     error: accountDecksError,
@@ -88,11 +89,8 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     ),
     ...accountSavedDecks.filter((savedDeck) => !savedDeck.deck.draft),
   ];
-  const availableEngines: EngineKind[] = ironsmithEnabled
-    ? ["Manabrew", "Forge", "Ironsmith"]
-    : ["Manabrew", "Forge"];
   const visiblePresets = presetDecks.filter((preset) =>
-    availableEngines.some((engine) => presetSupportsEngine(preset, engine)),
+    availableEngines().some((engine) => presetSupportsEngine(preset, engine)),
   );
 
   const matchesFormat = (format?: string) =>

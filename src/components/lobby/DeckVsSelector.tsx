@@ -21,6 +21,7 @@ import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
+import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -115,6 +116,9 @@ export function DeckVsSelector({
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
   const presetDecks = usePresetDecks(offlineEngine);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
+  const hubDeckEntries = hubDecks.decks.filter((entry) =>
+    supportsEngine(hubEntryEngines(entry), offlineEngine),
+  );
   const loadHubDeck = useHubStore((state) => state.loadEntry);
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
@@ -556,7 +560,7 @@ export function DeckVsSelector({
         </div>
 
         {hubDecks.enabled &&
-          (deckSearch.trim() !== "" || hubDecks.error !== null || hubDecks.decks.length > 0) && (
+          (deckSearch.trim() !== "" || hubDecks.error !== null || hubDeckEntries.length > 0) && (
             <div>
               <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Community
@@ -568,11 +572,11 @@ export function DeckVsSelector({
                     Retry
                   </Button>
                 </div>
-              ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
+              ) : hubDecks.loading && hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
                   Loading Community decks…
                 </p>
-              ) : hubDecks.decks.length === 0 ? (
+              ) : hubDeckEntries.length === 0 ? (
                 <p className="py-2 text-xs italic text-muted-foreground">
                   No Community decks match this format and search.
                 </p>
@@ -585,7 +589,7 @@ export function DeckVsSelector({
                       : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
                   )}
                 >
-                  {hubDecks.decks.map((deck) => {
+                  {hubDeckEntries.map((deck) => {
                     const selected = [playerDeck, opponentDeck].find(
                       (entry) => entry?.source === "hub" && entry.sourceId === deck.id,
                     );

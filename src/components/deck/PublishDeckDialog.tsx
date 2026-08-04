@@ -59,11 +59,15 @@ export function PublishDeckDialog({
   const savedDecks = useDeckStore((s) => s.savedDecks);
   const linkSavedDeckToAccount = useDeckStore((s) => s.linkSavedDeckToAccount);
   const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState(deck.name);
   const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
-    if (publishEnabled && open) void loadCapabilities();
-  }, [loadCapabilities, open, publishEnabled]);
+    if (publishEnabled && open) {
+      setTitle(deck.name);
+      void loadCapabilities();
+    }
+  }, [deck.name, loadCapabilities, open, publishEnabled]);
 
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
   const signedIn = authStatus === "signedIn" && account !== null;
@@ -100,7 +104,7 @@ export function PublishDeckDialog({
       await createDeckHubEntry({
         deckId: accountDeck.id,
         publishedVersionId: accountDeck.currentVersionId,
-        title: deck.name,
+        title: title.trim(),
         summary: deck.description,
         tags: tagInput
           .split(",")
@@ -112,7 +116,7 @@ export function PublishDeckDialog({
         coverCardName: deck.coverCardName,
       });
       void refresh();
-      toast.success(`"${deck.name}" published to Community`);
+      toast.success(`"${title.trim()}" published to Community`);
       handleOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Publishing failed");
@@ -156,6 +160,22 @@ export function PublishDeckDialog({
             any device.
           </p>
         )}
+        {signedIn && (
+          <div className="space-y-1.5">
+            <label htmlFor="deckhub-title" className="text-sm font-medium">
+              Title
+            </label>
+            <Input
+              id="deckhub-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              maxLength={100}
+            />
+            <p className="text-xs text-muted-foreground">
+              How the deck appears in Community. Defaults to the deck name.
+            </p>
+          </div>
+        )}
         {capabilities?.tags && signedIn && (
           <div className="space-y-1.5">
             <label htmlFor="deckhub-tags" className="text-sm font-medium">
@@ -184,7 +204,11 @@ export function PublishDeckDialog({
             Cancel
           </Button>
           {signedIn ? (
-            <Button size="sm" disabled={busy || deck.cards.length === 0} onClick={handlePublish}>
+            <Button
+              size="sm"
+              disabled={busy || deck.cards.length === 0 || title.trim().length === 0}
+              onClick={handlePublish}
+            >
               {busy ? "Publishing…" : "Publish"}
             </Button>
           ) : (

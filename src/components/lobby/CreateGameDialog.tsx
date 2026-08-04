@@ -21,6 +21,7 @@ import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
+import { hubEntryEngines, supportsAvailableEngine, supportsEngine } from "@/lib/engines";
 import { cn } from "@/lib/utils";
 import { Loader2, Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
@@ -79,6 +80,11 @@ export function CreateGameDialog({
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id, open);
+  const hubSearchResults = hubDecks.decks.filter((entry) =>
+    engineKind
+      ? supportsEngine(hubEntryEngines(entry), engineKind)
+      : supportsAvailableEngine(hubEntryEngines(entry)),
+  );
   const loadHubDeck = useHubStore((state) => state.loadEntry);
   const restoredHubDeckRef = useRef<string | null>(null);
   const hubSelectionRequestIdRef = useRef(0);
@@ -268,7 +274,7 @@ export function CreateGameDialog({
   const commanderValid = !needsCommander || selectedCommander !== "";
   const selectedDeckIsVisible =
     [...filteredUserDecks, ...filteredPresetEntries].some((entry) => entry.id === selectedDeck) ||
-    hubDecks.decks.some((entry) => `hub:${entry.id}` === selectedDeck) ||
+    hubSearchResults.some((entry) => `hub:${entry.id}` === selectedDeck) ||
     (selectedDeck.startsWith("hub:") && selectedDeckEntry !== undefined);
   const selectedDeckValidation = selectedDeckEntry
     ? selectedDeckEntry.isPreset
@@ -644,7 +650,7 @@ export function CreateGameDialog({
               {hubDecks.enabled &&
                 (deckSearch.trim() !== "" ||
                   hubDecks.error !== null ||
-                  hubDecks.decks.length > 0) && (
+                  hubSearchResults.length > 0) && (
                   <div className="p-4">
                     <SectionLabel>Community</SectionLabel>
                     <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
@@ -657,11 +663,11 @@ export function CreateGameDialog({
                           Retry
                         </Button>
                       </div>
-                    ) : hubDecks.loading && hubDecks.decks.length === 0 ? (
+                    ) : hubDecks.loading && hubSearchResults.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
                         Loading Community decks…
                       </p>
-                    ) : hubDecks.decks.length === 0 ? (
+                    ) : hubSearchResults.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">
                         No Community decks match your search.
                       </p>
@@ -674,7 +680,7 @@ export function CreateGameDialog({
                             : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
                         )}
                       >
-                        {hubDecks.decks.map((deck) => {
+                        {hubSearchResults.map((deck) => {
                           const loaded = loadedHubDecks[deck.id];
                           const format = loaded
                             ? GAME_FORMATS.find((item) => item.id === selectedFormat.id)

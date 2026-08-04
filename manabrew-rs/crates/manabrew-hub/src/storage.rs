@@ -28,6 +28,7 @@ pub struct DeckHubListParams {
     pub page: u32,
     pub page_size: u32,
     pub viewer_account_id: Option<String>,
+    pub engines: Option<Vec<String>>,
 }
 
 #[derive(Clone, Copy)]
@@ -1181,7 +1182,7 @@ impl Storage {
         &self,
         params: &DeckHubListParams,
     ) -> SqlResult<(Vec<DeckHubEntrySummary>, u32)> {
-        let mut where_clause = String::from("e.status = 'published'");
+        let mut where_clause = String::from("e.status = 'published' AND d.deleted_at IS NULL");
         let mut args: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
         if let Some(search) = params.search.as_deref().filter(|value| !value.is_empty()) {
             let pattern = like_pattern(search);
@@ -1290,6 +1291,22 @@ impl Storage {
                 where_clause.push_str(" AND 0 = 1");
             }
         }
+        if let Some(engines) = params.engines.as_ref().filter(|values| !values.is_empty()) {
+            let placeholders: Vec<String> = engines
+                .iter()
+                .map(|engine| {
+                    args.push(Box::new(engine.clone()));
+                    format!("?{}", args.len())
+                })
+                .collect();
+            where_clause.push_str(&format!(
+                " AND (d.engines IS NULL OR EXISTS(
+                    SELECT 1 FROM json_each(d.engines) deck_engine
+                    WHERE deck_engine.value IN ({})
+                ))",
+                placeholders.join(", ")
+            ));
+        }
         if params.owned_only {
             if let Some(account_id) = params.viewer_account_id.as_deref() {
                 let index = args.len() + 1;
@@ -1378,7 +1395,8 @@ impl Storage {
                             AND e.status = 'published'))
                    AND (e.status = 'published'
                         OR (e.status = 'archived' AND d.kind = 'preset')
-                        OR d.account_id = ?2)",
+                        OR d.account_id = ?2)
+                   AND (d.deleted_at IS NULL OR d.account_id = ?2)",
                 params![entry_ref, viewer_account_id],
                 |row| {
                     let entry = map_deckhub_entry_summary(row)?;

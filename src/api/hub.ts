@@ -21,6 +21,7 @@ import type {
   TopDeckSnapshot,
   UpdateDeckHubEntryRequest,
 } from "@/api/hubTypes";
+import type { EngineKind } from "@/protocol";
 
 export type DeckHubSort = "newest" | "name" | "favorites";
 export type DeckHubColorMatch = "exact" | "includes";
@@ -39,6 +40,7 @@ export interface DeckHubEntryListParams {
   card?: string;
   favorites?: boolean;
   owned?: boolean;
+  engines?: EngineKind[];
   sort?: DeckHubSort;
   page?: number;
   pageSize?: number;
@@ -156,6 +158,7 @@ export function fetchDeckHubEntries(params: DeckHubEntryListParams): Promise<Dec
   if (params.card) query.set("card", params.card);
   if (params.favorites) query.set("favorites", "true");
   if (params.owned) query.set("owned", "true");
+  if (params.engines?.length) query.set("engines", params.engines.join(","));
   if (params.sort) query.set("sort", params.sort);
   if (params.page) query.set("page", String(params.page));
   if (params.pageSize) query.set("pageSize", String(params.pageSize));

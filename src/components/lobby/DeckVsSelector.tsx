@@ -115,7 +115,7 @@ export function DeckVsSelector({
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
   const presetDecks = usePresetDecks(offlineEngine);
-  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
+  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined, true, [offlineEngine]);
   const hubDeckEntries = hubDecks.decks.filter((entry) =>
     supportsEngine(hubEntryEngines(entry), offlineEngine),
   );

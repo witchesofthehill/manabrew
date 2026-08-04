@@ -326,6 +326,7 @@ struct DeckHubListQuery {
     card: Option<String>,
     favorites: Option<bool>,
     owned: Option<bool>,
+    engines: Option<String>,
     sort: Option<String>,
     page: Option<u32>,
     page_size: Option<u32>,
@@ -366,6 +367,7 @@ async fn deckhub_entries_handler(
         card: query.card,
         favorites_only: query.favorites.unwrap_or(false),
         owned_only: query.owned.unwrap_or(false),
+        engines: Some(csv_values(query.engines)).filter(|values| !values.is_empty()),
         sort: match query.sort.as_deref() {
             Some("name") => DeckHubSortOrder::Name,
             Some("favorites") => DeckHubSortOrder::Favorites,

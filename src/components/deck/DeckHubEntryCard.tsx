@@ -100,6 +100,14 @@ export function DeckHubEntryCard({
           <span className="mt-1 flex flex-wrap items-center gap-1">
             <FormatBadge formatId={entry.format ?? "commander"} />
             {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
+            {entry.engines?.map((engine) => (
+              <span
+                key={engine}
+                className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
+              >
+                {engine} engine
+              </span>
+            ))}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">
               <span className={cn(variant === "list" && "text-muted-foreground")}>
                 {entry.cardCount} cards

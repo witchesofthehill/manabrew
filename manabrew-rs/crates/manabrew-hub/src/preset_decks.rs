@@ -6,11 +6,13 @@ use manabrew_protocol::deck_dto::{
     CardBackFaceSummary, CardImageUris, CardPart, CardRulesSummary, Deck, DeckCard,
     DeckCardIdentity, DeckFormat,
 };
+use manabrew_protocol::protocol::EngineKind;
 use serde::Deserialize;
 
 pub struct PresetDeck {
     pub key: String,
     pub deck: Deck,
+    pub engines: Option<Vec<EngineKind>>,
 }
 
 #[derive(Deserialize)]
@@ -22,6 +24,7 @@ struct PresetDeckFile {
     format: Option<String>,
     commander: Option<String>,
     cover_card_name: Option<String>,
+    engines: Option<Vec<EngineKind>>,
     cards: Vec<PresetDeckCard>,
     #[serde(default)]
     sideboard: Vec<PresetDeckCard>,
@@ -69,6 +72,7 @@ pub fn load_preset_decks(directory: &Path) -> io::Result<Vec<PresetDeck>> {
             let file: PresetDeckFile =
                 serde_json::from_str(&fs::read_to_string(path)?).map_err(invalid_data)?;
             Ok(PresetDeck {
+                engines: file.engines.clone(),
                 deck: expand_preset_deck(&key, file)?,
                 key,
             })

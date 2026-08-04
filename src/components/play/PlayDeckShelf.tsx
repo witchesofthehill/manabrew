@@ -1,24 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LibraryBig, Plus } from "lucide-react";
+import { DeckGridCard } from "@/components/deck/DeckGridCard";
+import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
+import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
-import { PlayDeckTable, type PlayDeckRow } from "@/components/play/PlayDeckTable";
 import { Button } from "@/components/ui/button";
+import { isFeatureEnabled } from "@/featureFlags";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
+import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
+import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
 import { cn } from "@/lib/utils";
-import { resolveCoverCard } from "@/components/deck/deckCover.utils";
+import { isIronsmithRuntimeEnabled } from "@/game/runtimeRegistry";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
-import type { PresetDeck } from "@/lib/presetDecks";
-import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
-import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
-import { useAccountDecks } from "@/hooks/useAccountDecks";
-import { isFeatureEnabled } from "@/featureFlags";
+import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
+
+type DeckSource = "all" | "yours" | "starter" | "community";
+
+const SOURCE_FILTERS: Array<{ id: DeckSource; name: string }> = [
+  { id: "all", name: "All" },
+  { id: "yours", name: "Yours" },
+  { id: "starter", name: "Starters" },
+  { id: "community", name: "Community" },
+];
 
 interface PlayDeckShelfProps {
   onPlay: (savedDeckId: string) => void;
@@ -32,8 +43,11 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const loadAccountDeck = useDeckStore((state) => state.loadAccountDeck);
   const lastPlayedDeckId = usePreferencesStore((state) => state.lastPlayedDeckId);
   const lastPlayedAtByDeck = usePreferencesStore((state) => state.lastPlayedAtByDeck);
+  const ironsmithPref = usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
+  const ironsmithEnabled = ironsmithPref && isIronsmithRuntimeEnabled();
   const presetDecks = usePresetDecks();
   const [formatFilter, setFormatFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState<DeckSource>("all");
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importDeckText = useDeckTextImport();
@@ -70,19 +84,35 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     ),
     ...accountSavedDecks.filter((savedDeck) => !savedDeck.deck.draft),
   ];
+  const availableEngines: EngineKind[] = ironsmithEnabled
+    ? ["Manabrew", "Forge", "Ironsmith"]
+    : ["Manabrew", "Forge"];
+  const visiblePresets = presetDecks.filter((preset) =>
+    availableEngines.some((engine) => presetSupportsEngine(preset, engine)),
+  );
+  const communityAvailable = hubAccountsEnabled && signedIn;
+
   const matchesFormat = (format?: string) =>
     formatFilter === "all" || (format ?? "standard") === formatFilter;
-  const filteredDecks = ownedDecks
-    .filter((savedDeck) => matchesFormat(savedDeck.deck.format))
-    .slice()
-    .sort(
-      (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
-    );
-  const filteredPresets = presetDecks.filter((preset) => matchesFormat(preset.format));
+  const matchesSource = (source: DeckSource) => sourceFilter === "all" || sourceFilter === source;
+  const filteredDecks = matchesSource("yours")
+    ? ownedDecks
+        .filter((savedDeck) => matchesFormat(savedDeck.deck.format))
+        .slice()
+        .sort(
+          (a, b) =>
+            (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
+        )
+    : [];
+  const filteredPresets = matchesSource("starter")
+    ? visiblePresets.filter((preset) => matchesFormat(preset.format))
+    : [];
   const filteredPublishedDecks =
-    hubAccountsEnabled && signedIn
+    communityAvailable && matchesSource("community")
       ? publishedDecks.filter((deck) => matchesFormat(deck.format))
       : [];
+  const visibleCount =
+    filteredDecks.length + filteredPresets.length + filteredPublishedDecks.length;
   const formatName =
     formatFilter === "all" ? null : (getFormat(formatFilter)?.name ?? formatFilter);
 
@@ -128,55 +158,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     );
   }
 
-  const rows: PlayDeckRow[] = [
-    ...filteredDecks.map((deck): PlayDeckRow => {
-      const presetKey = deck.accountDeckId
-        ? accountDeckDetails[deck.accountDeckId]?.derivedFromPresetKey
-        : undefined;
-      return {
-        key: deck.id,
-        name: deck.deck.name,
-        formatId: deck.deck.format ?? "standard",
-        source: "yours",
-        cover: resolveCoverCard(deck.deck),
-        lastPlayed: deck.id === lastPlayedDeckId,
-        badge: presetKey ? "Preset copy" : undefined,
-        playing: pendingDeckId === deck.id,
-        playDisabled: pendingDeckId !== null,
-        onPlay: () => onPlay(materializeDeck(deck)),
-        onOpen: () => openDeck(deck),
-      };
-    }),
-    ...filteredPresets.map((preset): PlayDeckRow => {
-      const presetId = preset.id ?? preset.name;
-      return {
-        key: `preset:${presetId}`,
-        name: preset.name,
-        formatId: preset.format ?? "standard",
-        source: "starter",
-        engines: preset.engines,
-        cover: resolveCoverCard(preset),
-        playing: pendingDeckId === presetId,
-        playDisabled: pendingDeckId !== null,
-        onPlay: () => onPlayPreset(preset),
-        onOpen: () =>
-          hubEnabled
-            ? navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`)
-            : onPlayPreset(preset),
-      };
-    }),
-    ...filteredPublishedDecks.map(
-      (entry): PlayDeckRow => ({
-        key: `hub:${entry.id}`,
-        name: entry.title,
-        formatId: entry.format ?? "standard",
-        source: "community",
-        coverUrl: entry.coverImageUrl,
-        badge: "Published",
-        onOpen: () => setHubPreviewId(entry.id),
-      }),
-    ),
-  ];
+  const filterChipClass = (active: boolean) =>
+    cn(
+      "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-10 pointer-coarse:px-3",
+      active
+        ? "border-primary/50 bg-primary/15 text-primary"
+        : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
+    );
 
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6">
@@ -193,27 +181,43 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         </div>
       </div>
 
-      <div
-        role="group"
-        aria-label="Filter decks by format"
-        className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
-      >
-        {[{ id: "all", name: "All" }, ...GAME_FORMATS].map((format) => (
-          <button
-            key={format.id}
-            type="button"
-            aria-pressed={formatFilter === format.id}
-            onClick={() => setFormatFilter(format.id)}
-            className={cn(
-              "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none pointer-coarse:min-h-10 pointer-coarse:px-3",
-              formatFilter === format.id
-                ? "border-primary/50 bg-primary/15 text-primary"
-                : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
-            )}
-          >
-            {format.name}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-col gap-2">
+        <div
+          role="group"
+          aria-label="Filter decks by source"
+          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
+        >
+          {SOURCE_FILTERS.filter((source) => source.id !== "community" || communityAvailable).map(
+            (source) => (
+              <button
+                key={source.id}
+                type="button"
+                aria-pressed={sourceFilter === source.id}
+                onClick={() => setSourceFilter(source.id)}
+                className={filterChipClass(sourceFilter === source.id)}
+              >
+                {source.name}
+              </button>
+            ),
+          )}
+        </div>
+        <div
+          role="group"
+          aria-label="Filter decks by format"
+          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
+        >
+          {[{ id: "all", name: "All formats" }, ...GAME_FORMATS].map((format) => (
+            <button
+              key={format.id}
+              type="button"
+              aria-pressed={formatFilter === format.id}
+              onClick={() => setFormatFilter(format.id)}
+              className={filterChipClass(formatFilter === format.id)}
+            >
+              {format.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
@@ -224,7 +228,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
           </Button>
         </div>
       )}
-      {hubAccountsEnabled && signedIn && publishedDecksError && (
+      {communityAvailable && publishedDecksError && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
           <span className="min-w-0 flex-1">{publishedDecksError}</span>
           <Button variant="outline" size="sm" onClick={() => void refreshPublishedDecks()}>
@@ -247,13 +251,74 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
         </div>
       )}
 
-      {rows.length > 0 ? (
-        <PlayDeckTable rows={rows} />
+      {visibleCount > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {filteredDecks.map((deck) => {
+            const presetKey = deck.accountDeckId
+              ? accountDeckDetails[deck.accountDeckId]?.derivedFromPresetKey
+              : undefined;
+            return (
+              <div key={deck.id} className="relative">
+                {deck.id === lastPlayedDeckId && (
+                  <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
+                    Last played
+                  </span>
+                )}
+                <DeckGridCard
+                  deck={deck}
+                  onOpen={() => openDeck(deck)}
+                  onPlay={() => onPlay(materializeDeck(deck))}
+                  onViewInHub={
+                    hubEnabled && presetKey
+                      ? () =>
+                          navigate(
+                            `${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`,
+                          )
+                      : undefined
+                  }
+                  badge={presetKey ? "Preset copy" : undefined}
+                  playing={pendingDeckId === deck.id}
+                  playDisabled={pendingDeckId !== null}
+                  readOnly
+                />
+              </div>
+            );
+          })}
+          {filteredPresets.map((preset) => {
+            const presetId = preset.id ?? preset.name;
+            return (
+              <DeckGridCard
+                key={`preset:${presetId}`}
+                deck={{ id: presetId, deck: preset, savedAt: 0 }}
+                onOpen={() => {
+                  if (hubEnabled) {
+                    navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`);
+                  } else if (pendingDeckId === null) {
+                    onPlayPreset(preset);
+                  }
+                }}
+                onPlay={() => onPlayPreset(preset)}
+                badge="Official preset"
+                engines={preset.engines}
+                playing={pendingDeckId === presetId}
+                playDisabled={pendingDeckId !== null}
+                readOnly
+              />
+            );
+          })}
+          {filteredPublishedDecks.map((entry) => (
+            <DeckHubEntryCard
+              key={`hub:${entry.id}`}
+              entry={entry}
+              onOpen={() => setHubPreviewId(entry.id)}
+            />
+          ))}
+        </div>
       ) : (
         <p className="py-4 text-center text-xs italic text-muted-foreground">
           {presetDecks.length === 0
             ? "Loading decks…"
-            : `No ${formatName ?? ""} decks yet — build one or pick another format.`}
+            : `No ${formatName ?? ""} decks here — adjust the filters or build one.`}
         </p>
       )}
 

@@ -6,18 +6,19 @@ import { ROUTES } from "@/lib/constants";
 import { reportPublishedDeckPlay } from "@/lib/deckPlayEvidence";
 import { getFormat } from "@/lib/formats";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
+import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
-import type { Deck } from "@/protocol/deck";
+import type { EngineKind } from "@/protocol";
 
-async function ensurePresets(): Promise<Deck[]> {
-  const loaded = usePresetDecksStore.getState().decks;
-  if (loaded.length > 0) return loaded;
-  await prefetchPresetDecks();
-  return usePresetDecksStore.getState().decks;
+async function ensurePresets(engine: EngineKind): Promise<PresetDeck[]> {
+  if (usePresetDecksStore.getState().decks.length === 0) {
+    await prefetchPresetDecks();
+  }
+  return usePresetDecksStore.getState().decks.filter((deck) => presetSupportsEngine(deck, engine));
 }
 
 export function useQuickPlay() {
@@ -51,8 +52,9 @@ export function useQuickPlay() {
           });
           return;
         }
+        const engine = resolveOfflineEngine();
         const opponent = resolveAiOpponent({
-          presets: await ensurePresets(),
+          presets: await ensurePresets(engine),
           savedDecks: useDeckStore.getState().savedDecks,
           formatId,
           last: usePreferencesStore.getState().lastAiOpponent,
@@ -67,13 +69,7 @@ export function useQuickPlay() {
         }
         const started = await useGameStore
           .getState()
-          .startGame(
-            deck,
-            formatId,
-            deck.commanders?.[0]?.identity.name,
-            [opponent.deck],
-            resolveOfflineEngine(),
-          );
+          .startGame(deck, formatId, deck.commanders?.[0]?.identity.name, [opponent.deck], engine);
         if (!started) return;
         const prefs = usePreferencesStore.getState();
         prefs.setLastOfflineFormatId(formatId);
@@ -91,7 +87,7 @@ export function useQuickPlay() {
     [navigate],
   );
 
-  const quickPlayPreset = useCallback(async (preset: Deck) => {
+  const quickPlayPreset = useCallback(async (preset: PresetDeck) => {
     if (pendingRef.current) return;
     const presetId = preset.id ?? preset.name;
     pendingRef.current = true;
@@ -102,8 +98,15 @@ export function useQuickPlay() {
         toast.error("This starter deck uses an unsupported format.");
         return;
       }
+      const engine = resolveOfflineEngine();
+      if (!presetSupportsEngine(preset, engine)) {
+        toast.error(
+          `This deck is built for the ${preset.engines?.[0] ?? "Ironsmith"} engine — start a table with that engine from Multiplayer.`,
+        );
+        return;
+      }
       const opponent = resolveAiOpponent({
-        presets: await ensurePresets(),
+        presets: await ensurePresets(engine),
         savedDecks: useDeckStore.getState().savedDecks,
         formatId,
         last: usePreferencesStore.getState().lastAiOpponent,
@@ -120,7 +123,7 @@ export function useQuickPlay() {
           formatId,
           preset.commanders?.[0]?.identity.name,
           [opponent.deck],
-          resolveOfflineEngine(),
+          engine,
         );
       if (!started) return;
       void reportPublishedDeckPlay(presetId, preset);

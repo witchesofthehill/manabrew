@@ -8,6 +8,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
+import type { EngineKind } from "@/protocol";
 import {
   GAME_FORMATS,
   validateDeckSections,
@@ -31,6 +32,7 @@ interface CreateGameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode?: "play" | "lobby";
+  engineKind?: EngineKind;
   forcedFormatId?: string;
   preSelectedDeckId?: string;
   preSelectedHubDeckId?: string;
@@ -48,6 +50,7 @@ export function CreateGameDialog({
   open,
   onOpenChange,
   mode = "play",
+  engineKind,
   forcedFormatId,
   preSelectedDeckId,
   preSelectedHubDeckId,
@@ -67,7 +70,7 @@ export function CreateGameDialog({
   const [selectedCommander, setSelectedCommander] = useState<string>(
     currentDeck.commanders?.[0]?.identity.name ?? "",
   );
-  const presetDecks = usePresetDecks();
+  const presetDecks = usePresetDecks(engineKind);
   const [playerCount, setPlayerCount] = useState(2);
   const [deckSearch, setDeckSearch] = useState("");
   const [loadedHubDecks, setLoadedHubDecks] = useState<Record<string, DeckHubEntryDetail>>({});

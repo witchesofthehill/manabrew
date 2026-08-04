@@ -1,10 +1,9 @@
 import { fetchSets } from "@/api/scryfall";
 import { prefetchCards, prefetchTokenArchive, useScryfallStore } from "@/stores/useScryfallStore";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { getDefaultGameRuntime } from "@/game";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { prefetchPresetDecks } from "@/stores/usePresetDecksStore";
-import type { Deck, DeckCard } from "@/protocol/deck";
+import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
+import type { DeckCard } from "@/protocol/deck";
 import { initializeForgeRoomAvailability } from "@/stores/useForgeRoomAvailabilityStore";
 
 let initPromise: Promise<void> | null = null;
@@ -22,12 +21,8 @@ async function initScryfallSets(): Promise<void> {
  * the Scryfall image queue and starves the active game's prefetch.
  */
 async function prefetchDeckCovers(): Promise<void> {
-  const presetDecks = await getDefaultGameRuntime()
-    .api.getPresetDecks()
-    .catch((e) => {
-      console.error("[appInit] failed to load preset decks:", e);
-      return [] as Deck[];
-    });
+  await prefetchPresetDecks();
+  const presetDecks = usePresetDecksStore.getState().decks;
   const { savedDecks = [], currentDeck } = useDeckStore.getState();
   const seen = new Set<string>();
   const covers: DeckCard[] = [];

@@ -32,8 +32,6 @@ import { DUPLICATE_USERNAME_ERROR_FRAGMENT, SERVER_ERROR_CODE } from "@/types/se
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
-import type { Deck } from "@/protocol/deck";
-import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 import { logComms } from "@/lib/commsLog";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
@@ -630,12 +628,6 @@ class WebGameApi implements IGameApi {
     await this.bridge.invoke("restore_snapshot", {
       checkpointId: params.checkpointId,
     });
-  }
-
-  async getPresetDecks(): Promise<Deck[]> {
-    return expandPresetDeckDefinitions(
-      await this.bridge.invoke<PresetDeckDefinition[]>("get_preset_decks"),
-    );
   }
 
   async getPrompt(): Promise<Prompt | null> {

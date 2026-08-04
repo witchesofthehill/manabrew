@@ -29,7 +29,8 @@ impl fmt::Display for Level {
 
 /// Level implied by one conventional commit. The level applies to EVERY crate
 /// the commit touches (team decision: a breaking PR majors everything it
-/// touches; keep blast radius down by splitting PRs).
+/// touches; keep blast radius down by splitting PRs). Exception: the app
+/// caps at minor in `compute` — its version is a product line, not an API.
 pub fn commit_level(typ: Option<&str>, breaking: bool) -> Level {
     if breaking {
         return Level::Major;
@@ -124,7 +125,12 @@ pub fn compute(ws: &Workspace, root: &Path) -> Result<Vec<Entry>> {
                 .with_context(|| format!("planning {} (untagged fallback)", pkg.name))?;
             log.tagged_version = None;
         }
-        let level = log_level(&log);
+        let mut level = log_level(&log);
+        if is_app {
+            // No API depends on the app: majors are a product decision, made
+            // by hand-bumping Cargo.toml, never implied by a breaking commit.
+            level = level.min(Level::Minor);
+        }
         let sample = log
             .commits
             .iter()

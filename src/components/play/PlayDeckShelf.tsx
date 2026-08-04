@@ -64,6 +64,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     formatFilter === "all" ? undefined : formatFilter,
     hubEnabled && (sourceFilter === "all" || sourceFilter === "community"),
   );
+  const communityEntries = communityDecks.decks.filter((entry) => entry.sourceKind !== "preset");
   const {
     details: accountDeckDetails,
     error: accountDecksError,
@@ -337,7 +338,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
           <div>
             <SectionHeader
               title="Community decks"
-              count={communityDecks.loading ? undefined : communityDecks.decks.length}
+              count={communityDecks.loading ? undefined : communityEntries.length}
             />
             {communityDecks.error ? (
               <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
@@ -346,12 +347,12 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
                   Retry
                 </Button>
               </div>
-            ) : communityDecks.loading && communityDecks.decks.length === 0 ? (
+            ) : communityDecks.loading && communityEntries.length === 0 ? (
               <p className="text-xs text-muted-foreground">Loading community decks…</p>
-            ) : communityDecks.decks.length > 0 ? (
+            ) : communityEntries.length > 0 ? (
               <>
                 <div className={GRID_CLASS}>
-                  {communityDecks.decks.map((entry) => (
+                  {communityEntries.map((entry) => (
                     <DeckHubEntryCard
                       key={`hub:${entry.id}`}
                       entry={entry}

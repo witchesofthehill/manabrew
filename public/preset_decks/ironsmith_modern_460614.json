@@ -2,6 +2,7 @@
   "label": "UR Aggro — GALL",
   "desc": "Verified Ironsmith preset from MTGTop8 deck 460614.",
   "color": "text-amber-300",
+  "engines": ["Ironsmith"],
   "format": "modern",
   "opponent": "",
   "ai_eligible": false,

@@ -2,6 +2,7 @@
   "label": "UR Aggro — Nicola Magni",
   "desc": "Verified Ironsmith preset from MTGTop8 deck 442295.",
   "color": "text-amber-300",
+  "engines": ["Ironsmith"],
   "format": "modern",
   "opponent": "",
   "ai_eligible": false,

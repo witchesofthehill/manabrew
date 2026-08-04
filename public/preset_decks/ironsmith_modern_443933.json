@@ -2,6 +2,7 @@
   "label": "UR Aggro — Oowada Takahito",
   "desc": "Verified Ironsmith preset from MTGTop8 deck 443933.",
   "color": "text-amber-300",
+  "engines": ["Ironsmith"],
   "format": "modern",
   "opponent": "",
   "ai_eligible": false,

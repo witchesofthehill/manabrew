@@ -2,6 +2,7 @@
   "label": "Goblins — Steven Paris",
   "desc": "Verified Ironsmith preset from MTGTop8 deck 106774.",
   "color": "text-amber-300",
+  "engines": ["Ironsmith"],
   "format": "vintage",
   "opponent": "",
   "ai_eligible": false,

@@ -2,6 +2,7 @@
   "label": "UR Aggro — benbot9003",
   "desc": "Verified Ironsmith preset from MTGTop8 deck 441756.",
   "color": "text-amber-300",
+  "engines": ["Ironsmith"],
   "format": "modern",
   "opponent": "",
   "ai_eligible": false,

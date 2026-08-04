@@ -2,6 +2,7 @@
   "label": "Elven Empire — Ironsmith Edition",
   "desc": "Lathril precon with four Ironsmith-compatible substitutions.",
   "color": "text-emerald-300",
+  "engines": ["Ironsmith"],
   "format": "commander",
   "commander": "Lathril, Blade of the Elves",
   "coverCardName": "Lathril, Blade of the Elves",

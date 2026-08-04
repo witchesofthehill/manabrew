@@ -22,17 +22,16 @@ const INITIAL_HOLD_MS = 300;
 /**
  * Each stage maps to a milestone on the progress bar so the fill keeps
  * moving forward visibly even on cached loads (where the worker flashes
- * through idle → cached → parsing → presets → ready in tens of
- * milliseconds). For the downloading stage we honor the real `loaded/total`
- * ratio, but cap it at 60% so the parsing + presets stages still get
- * dedicated visual real-estate at the end.
+ * through idle → cached → parsing → ready in tens of milliseconds). For the
+ * downloading stage we honor the real `loaded/total` ratio, but cap it at
+ * 60% so the parsing stage still gets dedicated visual real-estate at the
+ * end.
  */
 const STAGE_PROGRESS: Record<string, number> = {
   idle: 4,
   cached: 30,
   downloading: 0, // computed from loaded/total when active
-  parsing: 75,
-  presets: 92,
+  parsing: 80,
   ready: 100,
   error: 0,
 };
@@ -42,7 +41,6 @@ const STAGE_TITLE: Record<string, string> = {
   cached: "Loading engine",
   downloading: "Downloading card data",
   parsing: "Parsing cards",
-  presets: "Loading decks",
   ready: "Ready",
 };
 
@@ -81,7 +79,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   const stage = minHoldPassed ? rawStage : "idle";
 
   // Compute the progress target. During `downloading`, the bar reflects
-  // bytes-loaded mapped into the 0–60% window so the parsing / presets
+  // bytes-loaded mapped into the 0–60% window so the parsing
   // stages still have headroom to advance the visual.
   const target = useMemo(() => {
     if (stage === "downloading") {

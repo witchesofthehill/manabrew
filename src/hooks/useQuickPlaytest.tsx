@@ -15,7 +15,8 @@ export function useQuickPlaytest(): {
 } {
   const navigate = useNavigate();
   const startGame = useGameStore((s) => s.startGame);
-  const presetDecks = usePresetDecks();
+  const aiEngine = getDefaultAiEngine();
+  const presetDecks = usePresetDecks(aiEngine);
   const [pendingDeck, setPendingDeck] = useState<Deck | null>(null);
 
   function start(deck: Deck, opponentCount: number) {
@@ -29,7 +30,7 @@ export function useQuickPlaytest(): {
       formatId,
       deck.commanders?.[0]?.identity.name,
       opponents.length > 0 ? opponents : [deck],
-      getDefaultAiEngine(),
+      aiEngine,
     ).then((started) => {
       if (started && presetDecks.some((preset) => preset.id === deck.id)) {
         savePresetToAccountOnUse(deck.id);

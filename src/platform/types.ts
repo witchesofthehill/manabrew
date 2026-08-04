@@ -147,9 +147,6 @@ export interface IGameApi {
   /** Restore game to a checkpoint */
   restoreSnapshot(params: RestoreSnapshotParams): Promise<void>;
 
-  /** Get preset deck list */
-  getPresetDecks(): Promise<Deck[]>;
-
   /** Get current prompt (for debugging/polling) */
   getPrompt(): Promise<Prompt | null>;
 }

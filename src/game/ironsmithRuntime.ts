@@ -270,10 +270,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
     throw new Error("Ironsmith trusted runtime snapshots are not wired to Manabrew restore yet");
   }
 
-  async getPresetDecks(): Promise<Deck[]> {
-    return [];
-  }
-
   async getPrompt(): Promise<Prompt | null> {
     return this.localPlayerSlot ? (this.prompts.get(this.localPlayerSlot) ?? null) : null;
   }

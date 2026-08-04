@@ -63,7 +63,6 @@ export function DeckVsSelector({
   preSelectedHubDeckId,
   onStart,
 }: DeckVsSelectorProps) {
-  const presetDecks = usePresetDecks();
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
   const { savedDecks, currentDeck } = useDeckStore();
@@ -114,6 +113,7 @@ export function DeckVsSelector({
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
+  const presetDecks = usePresetDecks(offlineEngine);
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined);
   const loadHubDeck = useHubStore((state) => state.loadEntry);
   const restoredHubDeckRef = useRef<string | null>(null);

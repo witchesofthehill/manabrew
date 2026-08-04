@@ -10,7 +10,7 @@ import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
 import { Button } from "@/components/ui/button";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
-import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
+import { useHubDeckSearch } from "@/hooks/useHubDeckSearch";
 import { DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
@@ -22,14 +22,20 @@ import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import type { EngineKind } from "@/protocol";
 import type { SavedDeck } from "@/stores/useDeckStore";
 
-type DeckSource = "all" | "yours" | "starter" | "community";
+type DeckSource = "all" | "yours" | "preset" | "community";
 
-const SOURCE_FILTERS: Array<{ id: DeckSource; name: string }> = [
-  { id: "all", name: "All" },
-  { id: "yours", name: "Yours" },
-  { id: "starter", name: "Starters" },
-  { id: "community", name: "Community" },
-];
+const GRID_CLASS = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+
+function SectionHeader({ title, count }: { title: string; count?: number }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {title}
+      </h3>
+      {count !== undefined && <span className="text-[11px] text-muted-foreground">{count}</span>}
+    </div>
+  );
+}
 
 interface PlayDeckShelfProps {
   onPlay: (savedDeckId: string) => void;
@@ -51,16 +57,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const importDeckText = useDeckTextImport();
-  const {
-    entries: publishedDecks,
-    error: publishedDecksError,
-    signedIn,
-    refresh: refreshPublishedDecks,
-  } = useMyDeckHubEntries();
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
   const hubEnabled = isFeatureEnabled("deckHub");
-  const accountsEnabled = isFeatureEnabled("accounts");
-  const hubAccountsEnabled = hubEnabled && accountsEnabled;
+  const communityDecks = useHubDeckSearch(
+    "",
+    formatFilter === "all" ? undefined : formatFilter,
+    hubEnabled && (sourceFilter === "all" || sourceFilter === "community"),
+  );
   const {
     details: accountDeckDetails,
     error: accountDecksError,
@@ -90,31 +93,26 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const visiblePresets = presetDecks.filter((preset) =>
     availableEngines.some((engine) => presetSupportsEngine(preset, engine)),
   );
-  const communityAvailable = hubAccountsEnabled && signedIn;
 
   const matchesFormat = (format?: string) =>
     formatFilter === "all" || (format ?? "standard") === formatFilter;
-  const matchesSource = (source: DeckSource) => sourceFilter === "all" || sourceFilter === source;
-  const filteredDecks = matchesSource("yours")
-    ? ownedDecks
-        .filter((savedDeck) => matchesFormat(savedDeck.deck.format))
-        .slice()
-        .sort(
-          (a, b) =>
-            (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
-        )
-    : [];
-  const filteredPresets = matchesSource("starter")
-    ? visiblePresets.filter((preset) => matchesFormat(preset.format))
-    : [];
-  const filteredPublishedDecks =
-    communityAvailable && matchesSource("community")
-      ? publishedDecks.filter((deck) => matchesFormat(deck.format))
-      : [];
-  const visibleCount =
-    filteredDecks.length + filteredPresets.length + filteredPublishedDecks.length;
+  const showSection = (source: DeckSource) => sourceFilter === "all" || sourceFilter === source;
+  const filteredDecks = ownedDecks
+    .filter((savedDeck) => matchesFormat(savedDeck.deck.format))
+    .slice()
+    .sort(
+      (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
+    );
+  const filteredPresets = visiblePresets.filter((preset) => matchesFormat(preset.format));
   const formatName =
     formatFilter === "all" ? null : (getFormat(formatFilter)?.name ?? formatFilter);
+
+  const sourceFilters: Array<{ id: DeckSource; name: string }> = [
+    { id: "all", name: "All decks" },
+    { id: "yours", name: "Your decks" },
+    { id: "preset", name: "Preset decks" },
+    ...(hubEnabled ? [{ id: "community" as const, name: "Community decks" }] : []),
+  ];
 
   function materializeDeck(saved: SavedDeck) {
     return saved.accountDeckId
@@ -182,13 +180,16 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
       </div>
 
       <div className="mb-4 flex flex-col gap-2">
-        <div
-          role="group"
-          aria-label="Filter decks by source"
-          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
-        >
-          {SOURCE_FILTERS.filter((source) => source.id !== "community" || communityAvailable).map(
-            (source) => (
+        <div className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Show
+          </span>
+          <div
+            role="group"
+            aria-label="Filter decks by source"
+            className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
+          >
+            {sourceFilters.map((source) => (
               <button
                 key={source.id}
                 type="button"
@@ -198,25 +199,30 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
               >
                 {source.name}
               </button>
-            ),
-          )}
+            ))}
+          </div>
         </div>
-        <div
-          role="group"
-          aria-label="Filter decks by format"
-          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
-        >
-          {[{ id: "all", name: "All formats" }, ...GAME_FORMATS].map((format) => (
-            <button
-              key={format.id}
-              type="button"
-              aria-pressed={formatFilter === format.id}
-              onClick={() => setFormatFilter(format.id)}
-              className={filterChipClass(formatFilter === format.id)}
-            >
-              {format.name}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <span className="w-14 shrink-0 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Format
+          </span>
+          <div
+            role="group"
+            aria-label="Filter decks by format"
+            className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 no-scrollbar"
+          >
+            {[{ id: "all", name: "All formats" }, ...GAME_FORMATS].map((format) => (
+              <button
+                key={format.id}
+                type="button"
+                aria-pressed={formatFilter === format.id}
+                onClick={() => setFormatFilter(format.id)}
+                className={filterChipClass(formatFilter === format.id)}
+              >
+                {format.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -228,99 +234,148 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
           </Button>
         </div>
       )}
-      {communityAvailable && publishedDecksError && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-          <span className="min-w-0 flex-1">{publishedDecksError}</span>
-          <Button variant="outline" size="sm" onClick={() => void refreshPublishedDecks()}>
-            Retry
-          </Button>
-        </div>
-      )}
 
-      {ownedDecks.length === 0 && (
-        <div className="mb-4 flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-8 text-center">
-          <LibraryBig className="mb-3 h-7 w-7 text-primary" />
-          <p className="font-medium">Your first deck is waiting to be brewed.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Build from scratch, import a decklist — or start from a starter deck below.
-          </p>
-          <Button size="sm" className="mt-4" onClick={addDeck}>
-            <Plus className="h-4 w-4" />
-            Build / Import
-          </Button>
-        </div>
-      )}
-
-      {visibleCount > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filteredDecks.map((deck) => {
-            const presetKey = deck.accountDeckId
-              ? accountDeckDetails[deck.accountDeckId]?.derivedFromPresetKey
-              : undefined;
-            return (
-              <div key={deck.id} className="relative">
-                {deck.id === lastPlayedDeckId && (
-                  <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
-                    Last played
-                  </span>
-                )}
-                <DeckGridCard
-                  deck={deck}
-                  onOpen={() => openDeck(deck)}
-                  onPlay={() => onPlay(materializeDeck(deck))}
-                  onViewInHub={
-                    hubEnabled && presetKey
-                      ? () =>
-                          navigate(
-                            `${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`,
-                          )
-                      : undefined
-                  }
-                  badge={presetKey ? "Preset copy" : undefined}
-                  playing={pendingDeckId === deck.id}
-                  playDisabled={pendingDeckId !== null}
-                  readOnly
-                />
+      <div className="max-h-[60vh] space-y-6 overflow-y-auto overscroll-contain pr-1">
+        {showSection("yours") && (
+          <div>
+            <SectionHeader title="Your decks" count={filteredDecks.length} />
+            {filteredDecks.length > 0 ? (
+              <div className={GRID_CLASS}>
+                {filteredDecks.map((deck) => {
+                  const presetKey = deck.accountDeckId
+                    ? accountDeckDetails[deck.accountDeckId]?.derivedFromPresetKey
+                    : undefined;
+                  return (
+                    <div key={deck.id} className="relative">
+                      {deck.id === lastPlayedDeckId && (
+                        <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
+                          Last played
+                        </span>
+                      )}
+                      <DeckGridCard
+                        deck={deck}
+                        onOpen={() => openDeck(deck)}
+                        onPlay={() => onPlay(materializeDeck(deck))}
+                        onViewInHub={
+                          hubEnabled && presetKey
+                            ? () =>
+                                navigate(
+                                  `${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`,
+                                )
+                            : undefined
+                        }
+                        badge={presetKey ? "Preset copy" : undefined}
+                        playing={pendingDeckId === deck.id}
+                        playDisabled={pendingDeckId !== null}
+                        readOnly
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-          {filteredPresets.map((preset) => {
-            const presetId = preset.id ?? preset.name;
-            return (
-              <DeckGridCard
-                key={`preset:${presetId}`}
-                deck={{ id: presetId, deck: preset, savedAt: 0 }}
-                onOpen={() => {
-                  if (hubEnabled) {
-                    navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`);
-                  } else if (pendingDeckId === null) {
-                    onPlayPreset(preset);
-                  }
-                }}
-                onPlay={() => onPlayPreset(preset)}
-                badge="Official preset"
-                engines={preset.engines}
-                playing={pendingDeckId === presetId}
-                playDisabled={pendingDeckId !== null}
-                readOnly
-              />
-            );
-          })}
-          {filteredPublishedDecks.map((entry) => (
-            <DeckHubEntryCard
-              key={`hub:${entry.id}`}
-              entry={entry}
-              onOpen={() => setHubPreviewId(entry.id)}
+            ) : ownedDecks.length === 0 ? (
+              <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-muted/30 px-6 py-8 text-center">
+                <LibraryBig className="mb-3 h-7 w-7 text-primary" />
+                <p className="font-medium">Your first deck is waiting to be brewed.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Build from scratch, import a decklist — or start from a preset deck below.
+                </p>
+                <Button size="sm" className="mt-4" onClick={addDeck}>
+                  <Plus className="h-4 w-4" />
+                  Build / Import
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs italic text-muted-foreground">
+                No {formatName} decks of yours yet.
+              </p>
+            )}
+          </div>
+        )}
+
+        {showSection("preset") && (
+          <div>
+            <SectionHeader title="Preset decks" count={filteredPresets.length} />
+            {filteredPresets.length > 0 ? (
+              <div className={GRID_CLASS}>
+                {filteredPresets.map((preset) => {
+                  const presetId = preset.id ?? preset.name;
+                  return (
+                    <DeckGridCard
+                      key={`preset:${presetId}`}
+                      deck={{ id: presetId, deck: preset, savedAt: 0 }}
+                      onOpen={() => {
+                        if (hubEnabled) {
+                          navigate(
+                            `${ROUTES.HUB}?deck=${encodeURIComponent(presetId)}&source=presets`,
+                          );
+                        } else if (pendingDeckId === null) {
+                          onPlayPreset(preset);
+                        }
+                      }}
+                      onPlay={() => onPlayPreset(preset)}
+                      badge="Official preset"
+                      engines={preset.engines}
+                      playing={pendingDeckId === presetId}
+                      playDisabled={pendingDeckId !== null}
+                      readOnly
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs italic text-muted-foreground">
+                {presetDecks.length === 0
+                  ? "Loading preset decks…"
+                  : `No preset decks for ${formatName ?? "this format"}.`}
+              </p>
+            )}
+          </div>
+        )}
+
+        {hubEnabled && showSection("community") && (
+          <div>
+            <SectionHeader
+              title="Community decks"
+              count={communityDecks.loading ? undefined : communityDecks.decks.length}
             />
-          ))}
-        </div>
-      ) : (
-        <p className="py-4 text-center text-xs italic text-muted-foreground">
-          {presetDecks.length === 0
-            ? "Loading decks…"
-            : `No ${formatName ?? ""} decks here — adjust the filters or build one.`}
-        </p>
-      )}
+            {communityDecks.error ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+                <span className="min-w-0 break-words">{communityDecks.error}</span>
+                <Button variant="outline" size="sm" onClick={communityDecks.retry}>
+                  Retry
+                </Button>
+              </div>
+            ) : communityDecks.loading && communityDecks.decks.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Loading community decks…</p>
+            ) : communityDecks.decks.length > 0 ? (
+              <>
+                <div className={GRID_CLASS}>
+                  {communityDecks.decks.map((entry) => (
+                    <DeckHubEntryCard
+                      key={`hub:${entry.id}`}
+                      entry={entry}
+                      onOpen={() => setHubPreviewId(entry.id)}
+                    />
+                  ))}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => navigate(ROUTES.HUB)}
+                >
+                  Browse all community decks
+                </Button>
+              </>
+            ) : (
+              <p className="text-xs italic text-muted-foreground">
+                No community decks for {formatName ?? "this format"} yet.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       <NewDeckChoiceDialog
         open={choiceOpen}

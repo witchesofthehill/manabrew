@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
+import type { EngineKind } from "@/protocol";
+import { EngineMark } from "@/components/lobby/EngineMark";
 import { DeckCoverImage } from "@/components/deck/deckCover";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import {
@@ -42,6 +44,7 @@ interface DeckGridCardProps {
   onViewInHub?: () => void;
   onPlay?: () => void;
   badge?: string;
+  engines?: EngineKind[];
   playing?: boolean;
   playDisabled?: boolean;
   readOnly?: boolean;
@@ -58,6 +61,7 @@ export function DeckGridCard({
   onViewInHub,
   onPlay,
   badge,
+  engines,
   playing = false,
   playDisabled = false,
   readOnly = false,
@@ -226,6 +230,15 @@ export function DeckGridCard({
             {badge && (
               <span className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm">
                 {badge}
+              </span>
+            )}
+            {engines && engines.length > 0 && (
+              <span className="flex items-center gap-1 rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 backdrop-blur-sm">
+                {engines.map((engine) => (
+                  <span key={engine} title={engine}>
+                    <EngineMark engine={engine} className="h-3 w-3 text-foreground" />
+                  </span>
+                ))}
               </span>
             )}
             <span className="ml-auto text-[10px] text-text-on-tinted/85">

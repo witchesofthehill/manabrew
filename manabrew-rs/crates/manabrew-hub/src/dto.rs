@@ -1,4 +1,5 @@
 use manabrew_protocol::deck_dto::{Deck, DeckFormat};
+use manabrew_protocol::protocol::EngineKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -201,6 +202,9 @@ pub struct DeckHubEntrySummary {
     pub favorite_count: u32,
     pub favorited: bool,
     pub owned_by_viewer: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "Array<EngineKind>")]
+    pub engines: Option<Vec<EngineKind>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

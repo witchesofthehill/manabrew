@@ -703,15 +703,22 @@ impl Storage {
             let snapshot_json = serde_json::to_string(&preset.deck)
                 .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
             let content_hash = sha256_hex(snapshot_json.as_bytes());
+            let engines_json = preset
+                .engines
+                .as_ref()
+                .map(|engines| serde_json::to_string(engines))
+                .transpose()
+                .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
             tx.execute(
                 "INSERT INTO decks
-                    (id, account_id, kind, preset_key, name, format, description, visibility,
-                     created_at, updated_at)
-                 VALUES (?1, NULL, 'preset', ?2, ?3, ?4, ?5, 'public', ?6, ?6)
+                    (id, account_id, kind, preset_key, name, format, description, engines,
+                     visibility, created_at, updated_at)
+                 VALUES (?1, NULL, 'preset', ?2, ?3, ?4, ?5, ?6, 'public', ?7, ?7)
                  ON CONFLICT(id) DO UPDATE SET
                     name = excluded.name,
                     format = excluded.format,
                     description = excluded.description,
+                    engines = excluded.engines,
                     visibility = 'public',
                     updated_at = excluded.updated_at,
                     deleted_at = NULL",
@@ -721,6 +728,7 @@ impl Storage {
                     preset.deck.name,
                     format_to_str(preset.deck.format),
                     preset.deck.description,
+                    engines_json,
                     now,
                 ],
             )?;
@@ -1322,7 +1330,7 @@ impl Storage {
                         AS favorite_count,
                     EXISTS(SELECT 1 FROM deckhub_favorites f
                            WHERE f.deckhub_entry_id = e.id AND f.account_id = ?{viewer_index}),
-                    COALESCE(d.account_id = ?{viewer_index}, 0)
+                    COALESCE(d.account_id = ?{viewer_index}, 0), d.engines
              FROM deckhub_entries e
              JOIN decks d ON d.id = e.deck_id
              LEFT JOIN accounts a ON a.id = d.account_id
@@ -1360,7 +1368,7 @@ impl Storage {
                          WHERE f.deckhub_entry_id = e.id),
                         EXISTS(SELECT 1 FROM deckhub_favorites f
                                WHERE f.deckhub_entry_id = e.id AND f.account_id = ?2),
-                        COALESCE(d.account_id = ?2, 0)
+                        COALESCE(d.account_id = ?2, 0), d.engines
                  FROM deckhub_entries e
                  JOIN decks d ON d.id = e.deck_id
                  LEFT JOIN accounts a ON a.id = d.account_id
@@ -2519,6 +2527,9 @@ fn map_deckhub_entry_summary(row: &Row) -> SqlResult<DeckHubEntrySummary> {
         favorite_count: row.get(19)?,
         favorited: row.get(20)?,
         owned_by_viewer: row.get(21)?,
+        engines: row
+            .get::<_, Option<String>>(22)?
+            .and_then(|engines| serde_json::from_str(&engines).ok()),
     })
 }
 
@@ -2846,7 +2857,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 10);
+        assert_eq!(version, 11);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

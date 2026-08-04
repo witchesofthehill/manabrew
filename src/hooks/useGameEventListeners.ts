@@ -22,6 +22,7 @@ import {
 import type { Prompt, StateUpdate, ProtocolError } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameViewDto } from "@/protocol/game";
+import { SERVER_ERROR_CODE } from "@/types/server";
 import type { AuthResultPayload, GameAbortedPayload, RoomMessagePayload } from "@/types/server";
 
 type SelfHostedNodeRoomPayload = {
@@ -91,7 +92,20 @@ async function rejoinAfterRelayRestart() {
         void getPlatform().server?.requestResync();
         setReconnectPhase("idle");
         return;
-      } catch {
+      } catch (error) {
+        // game_already_started means the room is InGame with no disconnected
+        // seat left for this username — the grace timer forfeited it, and no
+        // retry can bring it back.
+        if (
+          error instanceof Error &&
+          error.message === SERVER_ERROR_CODE.GameAlreadyStarted &&
+          getState().isGameActive
+        ) {
+          setReconnectPhase("idle");
+          toast.error("Your seat was forfeited while you were disconnected.");
+          void useGameStore.getState().endGame();
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, REJOIN_RETRY_DELAY_MS));
       }
     }

@@ -10,8 +10,17 @@ import {
   isActiveGameSessionAbandonmentPending,
   peekActiveGameSession,
 } from "@/lib/activeGameSession";
-import { claimTabSession, holdTabSession, type TabSessionHolder } from "@/lib/tabSession";
-import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
+import {
+  claimTabSession,
+  holdTabSession,
+  probeTabSession,
+  type TabSessionHolder,
+} from "@/lib/tabSession";
+import {
+  DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  SERVER_ERROR_CODE,
+  USER_FACING_ERROR_MESSAGES,
+} from "@/types/server";
 import type {
   RoomInfo,
   PlayerInfo,
@@ -128,6 +137,37 @@ function releaseTabSession() {
   tabSession = null;
 }
 
+// The duplicate backoff in platform/web.ts only helps when the holder is a
+// dead session the relay will reap. When the holder is alive (another tab of
+// this browser, or another device), the retry loop can never win — stop it
+// and tell the player instead.
+const DUPLICATE_GIVE_UP_MS = 120_000;
+let duplicateRejectionSince: number | null = null;
+
+async function stopReconnectAsDuplicate(error: string) {
+  duplicateRejectionSince = null;
+  await getPlatform().server?.disconnect();
+  useServerStore.setState({ connected: false, connecting: false, error });
+  toast.info(error);
+}
+
+async function handleDuplicateRejection() {
+  const username = useServerStore.getState().username;
+  if (!username) return;
+  if ((await probeTabSession(username)) === "held") {
+    await stopReconnectAsDuplicate(
+      "You are signed in in another tab of this browser. Close it, or connect here to take over.",
+    );
+    return;
+  }
+  duplicateRejectionSince ??= Date.now();
+  if (Date.now() - duplicateRejectionSince >= DUPLICATE_GIVE_UP_MS) {
+    await stopReconnectAsDuplicate(
+      "Your username is still connected from somewhere else. Try again in a minute.",
+    );
+  }
+}
+
 function settlePendingJoin(error: Error | null, roomId?: string) {
   if (!pendingJoin) return false;
   if (roomId && pendingJoin.roomId !== roomId) return false;
@@ -166,6 +206,7 @@ export const useServerStore = create<ServerState>()(
           return;
         }
         set({ username, connecting: true, error: null });
+        duplicateRejectionSince = null;
         releaseTabSession();
         const claim = await claimTabSession(username);
         if (claim.outcome === "refused") {
@@ -194,6 +235,7 @@ export const useServerStore = create<ServerState>()(
       },
 
       async disconnect() {
+        duplicateRejectionSince = null;
         releaseTabSession();
         const platform = getPlatform();
         if (!platform.server) return;
@@ -405,6 +447,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
             if (payload.success) {
+              duplicateRejectionSince = null;
               set({
                 connected: true,
                 connecting: false,
@@ -420,6 +463,8 @@ export const useServerStore = create<ServerState>()(
               }
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
+              if (payload.error?.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT))
+                void handleDuplicateRejection();
             }
           }),
         );

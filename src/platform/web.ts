@@ -28,7 +28,7 @@ import type {
   SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
-import { SERVER_ERROR_CODE } from "@/types/server";
+import { DUPLICATE_USERNAME_ERROR_FRAGMENT, SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
@@ -1348,11 +1348,10 @@ class WebServerApi implements IServerApi {
       // (e.g. duplicate_username from a second tab) arrives. Count the
       // rejection so the retry loop backs off instead of hammering the relay.
       this.reconnectAttempt += 1;
-      // "already taken" matches manabrew-server's duplicate-username AuthResult
-      // error. The holder is a session no tab-claim could release (crashed
-      // browser, other device), so it stays until the relay's 90s idle reap —
-      // jump to the slow end of the backoff instead of retrying every 2s.
-      if (typeof msg.error === "string" && msg.error.includes("already taken")) {
+      // A duplicate-username holder stays until the relay's 90s idle reap (or
+      // until useServerStore's probe stops the loop) — jump to the slow end
+      // of the backoff instead of retrying every 2s.
+      if (typeof msg.error === "string" && msg.error.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT)) {
         this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
       }
     }

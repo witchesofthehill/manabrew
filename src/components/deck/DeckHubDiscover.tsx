@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DeckHubFilters } from "@/components/deck/DeckHubFilters";
 import { DeckHubResults } from "@/components/deck/DeckHubResults";
-import { hubEntryEngines, supportsAvailableEngine } from "@/lib/engines";
+import { availableEngines, hubEntryEngines, supportsAvailableEngine } from "@/lib/engines";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { DeckHubDiscoveryFilters } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
@@ -29,8 +29,7 @@ function positivePage(value: string | null) {
 }
 
 export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
-  // Subscribed so engine availability re-renders when the Settings toggle flips.
-  usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
+  const ironsmithRuntimeOn = usePreferencesStore((state) => state.ironsmithRuntimeEnabled);
   const accountsEnabled = isFeatureEnabled("accounts");
   const [searchParams, setSearchParams] = useSearchParams();
   const querySearch = searchParams.get("q") ?? "";
@@ -121,6 +120,7 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
       commander: filters.commander || undefined,
       card: filters.card || undefined,
       favorites: filters.favorites,
+      engines: availableEngines(),
       sort: filters.sort,
       page,
       pageSize: PAGE_SIZE,
@@ -128,6 +128,7 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   }, [
     debouncedSearch,
     fetchEntries,
+    ironsmithRuntimeOn,
     filters.card,
     filters.colorMatch,
     filters.colors,

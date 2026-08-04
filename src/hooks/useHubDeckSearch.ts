@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchDeckHubEntries } from "@/api/hub";
+import { availableEngines } from "@/lib/engines";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 
@@ -22,6 +23,7 @@ export function useHubDeckSearch(search: string, format?: string, active = true)
       void fetchDeckHubEntries({
         search: search.trim() || undefined,
         formats: format ? [format] : undefined,
+        engines: availableEngines(),
         sort: "newest",
         page: 1,
         pageSize: 10,

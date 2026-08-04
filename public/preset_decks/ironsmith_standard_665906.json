@@ -1,0 +1,517 @@
+{
+  "label": "RDW — Alessandro Mazzi",
+  "desc": "Verified Ironsmith preset from MTGTop8 deck 665906.",
+  "color": "text-amber-300",
+  "format": "standard",
+  "opponent": "",
+  "ai_eligible": false,
+  "order": 322,
+  "cards": [
+    {
+      "name": "Mountain",
+      "count": 17,
+      "set": "msh",
+      "cardNumber": "294",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": ["Basic"],
+      "subtypes": ["Mountain"],
+      "text": "({T}: Add {R}.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "normal": "https://cards.scryfall.io/normal/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "large": "https://cards.scryfall.io/large/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "png": "https://cards.scryfall.io/png/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.png?1783902876",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/7/f7752159-06bd-4f6c-b3d2-c4c7616acfbb.jpg?1783902876"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Rockface Village",
+      "count": 4,
+      "set": "blb",
+      "cardNumber": "259",
+      "manaCost": "",
+      "colors": [],
+      "colorIdentity": ["R"],
+      "cmc": 0,
+      "types": ["Land"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "{T}: Add {C}.\n{T}: Add {R}. Spend this mana only to cast a creature spell.\n{R}, {T}: Target Lizard, Mouse, Otter, or Raccoon you control gets +1/+0 and gains haste until end of turn. Activate only as a sorcery.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/2/62799d24-39a6-4e66-8ac3-7cafa99e6e6d.jpg?1783910782",
+        "normal": "https://cards.scryfall.io/normal/front/6/2/62799d24-39a6-4e66-8ac3-7cafa99e6e6d.jpg?1783910782",
+        "large": "https://cards.scryfall.io/large/front/6/2/62799d24-39a6-4e66-8ac3-7cafa99e6e6d.jpg?1783910782",
+        "png": "https://cards.scryfall.io/png/front/6/2/62799d24-39a6-4e66-8ac3-7cafa99e6e6d.png?1783910782",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/2/62799d24-39a6-4e66-8ac3-7cafa99e6e6d.jpg?1783910782",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/2/62799d24-39a6-4e66-8ac3-7cafa99e6e6d.jpg?1783910782"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Emberheart Challenger",
+      "count": 4,
+      "set": "pblb",
+      "cardNumber": "133s",
+      "manaCost": "{1}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Mouse", "Warrior"],
+      "text": "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nValiant — Whenever this creature becomes the target of a spell or ability you control for the first time each turn, exile the top card of your library. Until end of turn, you may play that card.",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/3/631788f6-93a1-4ab8-be61-9e985d98bf3d.jpg?1783909825",
+        "normal": "https://cards.scryfall.io/normal/front/6/3/631788f6-93a1-4ab8-be61-9e985d98bf3d.jpg?1783909825",
+        "large": "https://cards.scryfall.io/large/front/6/3/631788f6-93a1-4ab8-be61-9e985d98bf3d.jpg?1783909825",
+        "png": "https://cards.scryfall.io/png/front/6/3/631788f6-93a1-4ab8-be61-9e985d98bf3d.png?1783909825",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/3/631788f6-93a1-4ab8-be61-9e985d98bf3d.jpg?1783909825",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/3/631788f6-93a1-4ab8-be61-9e985d98bf3d.jpg?1783909825"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Heartfire Hero",
+      "count": 4,
+      "set": "blb",
+      "cardNumber": "138",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Mouse", "Soldier"],
+      "text": "Valiant — Whenever this creature becomes the target of a spell or ability you control for the first time each turn, put a +1/+1 counter on it.\nWhen this creature dies, it deals damage equal to its power to each opponent.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/8/48ace959-66b2-40c8-9bff-fd7ed9c99a82.jpg?1783910820",
+        "normal": "https://cards.scryfall.io/normal/front/4/8/48ace959-66b2-40c8-9bff-fd7ed9c99a82.jpg?1783910820",
+        "large": "https://cards.scryfall.io/large/front/4/8/48ace959-66b2-40c8-9bff-fd7ed9c99a82.jpg?1783910820",
+        "png": "https://cards.scryfall.io/png/front/4/8/48ace959-66b2-40c8-9bff-fd7ed9c99a82.png?1783910820",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/8/48ace959-66b2-40c8-9bff-fd7ed9c99a82.jpg?1783910820",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/8/48ace959-66b2-40c8-9bff-fd7ed9c99a82.jpg?1783910820"
+      },
+      "allParts": [
+        {
+          "name": "Heartfire Hero",
+          "component": "combo_piece"
+        },
+        {
+          "name": "A-Heartfire Hero",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Hired Claw",
+      "count": 4,
+      "set": "pblb",
+      "cardNumber": "140s",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Lizard", "Mercenary"],
+      "text": "Whenever you attack with one or more Lizards, this creature deals 1 damage to target opponent.\n{1}{R}: Put a +1/+1 counter on this creature. Activate only if an opponent lost life this turn and only once each turn.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/b/fb7378b5-c201-4cd6-bfea-ab73a9cdded7.jpg?1783909822",
+        "normal": "https://cards.scryfall.io/normal/front/f/b/fb7378b5-c201-4cd6-bfea-ab73a9cdded7.jpg?1783909822",
+        "large": "https://cards.scryfall.io/large/front/f/b/fb7378b5-c201-4cd6-bfea-ab73a9cdded7.jpg?1783909822",
+        "png": "https://cards.scryfall.io/png/front/f/b/fb7378b5-c201-4cd6-bfea-ab73a9cdded7.png?1783909822",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/b/fb7378b5-c201-4cd6-bfea-ab73a9cdded7.jpg?1783909822",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/b/fb7378b5-c201-4cd6-bfea-ab73a9cdded7.jpg?1783909822"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Manifold Mouse",
+      "count": 4,
+      "set": "pblb",
+      "cardNumber": "143s",
+      "manaCost": "{1}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Mouse", "Soldier"],
+      "text": "Offspring {2} (You may pay an additional {2} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.)\nAt the beginning of combat on your turn, target Mouse you control gains your choice of double strike or trample until end of turn.",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/9/d9628fe9-f070-4efc-b4b3-23123816d88f.jpg?1783909821",
+        "normal": "https://cards.scryfall.io/normal/front/d/9/d9628fe9-f070-4efc-b4b3-23123816d88f.jpg?1783909821",
+        "large": "https://cards.scryfall.io/large/front/d/9/d9628fe9-f070-4efc-b4b3-23123816d88f.jpg?1783909821",
+        "png": "https://cards.scryfall.io/png/front/d/9/d9628fe9-f070-4efc-b4b3-23123816d88f.png?1783909821",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/9/d9628fe9-f070-4efc-b4b3-23123816d88f.jpg?1783909821",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/9/d9628fe9-f070-4efc-b4b3-23123816d88f.jpg?1783909821"
+      },
+      "allParts": [
+        {
+          "name": "Manifold Mouse",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Manifold Mouse",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Monastery Swiftspear",
+      "count": 4,
+      "set": "bro",
+      "cardNumber": "144",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Human", "Monk"],
+      "text": "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
+      "layout": "normal",
+      "power": "1",
+      "toughness": "2",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "normal": "https://cards.scryfall.io/normal/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "large": "https://cards.scryfall.io/large/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "png": "https://cards.scryfall.io/png/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.png?1783920066",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/6/d6bfa227-4309-40ed-952c-279595eab17e.jpg?1783920066"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Screaming Nemesis",
+      "count": 4,
+      "set": "pdsk",
+      "cardNumber": "157s",
+      "manaCost": "{2}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Spirit"],
+      "text": "Haste\nWhenever this creature is dealt damage, it deals that much damage to any other target. If a player is dealt damage this way, they can't gain life for the rest of the game.",
+      "layout": "normal",
+      "power": "3",
+      "toughness": "3",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/e/ae79260b-818c-4157-a3bf-e6cd91f56ba5.jpg?1783909330",
+        "normal": "https://cards.scryfall.io/normal/front/a/e/ae79260b-818c-4157-a3bf-e6cd91f56ba5.jpg?1783909330",
+        "large": "https://cards.scryfall.io/large/front/a/e/ae79260b-818c-4157-a3bf-e6cd91f56ba5.jpg?1783909330",
+        "png": "https://cards.scryfall.io/png/front/a/e/ae79260b-818c-4157-a3bf-e6cd91f56ba5.png?1783909330",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/e/ae79260b-818c-4157-a3bf-e6cd91f56ba5.jpg?1783909330",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/e/ae79260b-818c-4157-a3bf-e6cd91f56ba5.jpg?1783909330"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Burst Lightning",
+      "count": 4,
+      "set": "pw26",
+      "cardNumber": "20",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Kicker {4} (You may pay an additional {4} as you cast this spell.)\nBurst Lightning deals 2 damage to any target. If this spell was kicked, it deals 4 damage instead.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "normal": "https://cards.scryfall.io/normal/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "large": "https://cards.scryfall.io/large/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "png": "https://cards.scryfall.io/png/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.png?1784652223",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/a/4a2552ae-a1ef-4558-860f-7b1c0e749f9c.jpg?1784652223"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Lightning Strike",
+      "count": 4,
+      "set": "msh",
+      "cardNumber": "142",
+      "manaCost": "{1}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Lightning Strike deals 3 damage to any target.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.jpg?1783902927",
+        "normal": "https://cards.scryfall.io/normal/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.jpg?1783902927",
+        "large": "https://cards.scryfall.io/large/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.jpg?1783902927",
+        "png": "https://cards.scryfall.io/png/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.png?1783902927",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.jpg?1783902927",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/8/8/88b13bc0-da54-4c3b-917c-7c8345a329f5.jpg?1783902927"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Monstrous Rage",
+      "count": 4,
+      "set": "soa",
+      "cardNumber": "45",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "normal": "https://cards.scryfall.io/normal/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "large": "https://cards.scryfall.io/large/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "png": "https://cards.scryfall.io/png/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.png?1783903919",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/b/4b2e000b-a147-443b-9138-9ff2d16c0422.jpg?1783903919"
+      },
+      "allParts": [
+        {
+          "name": "Monstrous Rage",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Monster // Sorcerer",
+          "component": "token"
+        }
+      ]
+    },
+    {
+      "name": "Witchstalker Frenzy",
+      "count": 3,
+      "set": "woe",
+      "cardNumber": "159",
+      "manaCost": "{3}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This spell costs {1} less to cast for each creature that attacked this turn.\nWitchstalker Frenzy deals 5 damage to target creature.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "normal": "https://cards.scryfall.io/normal/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "large": "https://cards.scryfall.io/large/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "png": "https://cards.scryfall.io/png/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.png?1783915086",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086"
+      },
+      "allParts": []
+    }
+  ],
+  "sideboard": [
+    {
+      "name": "Witchstalker Frenzy",
+      "count": 1,
+      "set": "woe",
+      "cardNumber": "159",
+      "manaCost": "{3}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "This spell costs {1} less to cast for each creature that attacked this turn.\nWitchstalker Frenzy deals 5 damage to target creature.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "normal": "https://cards.scryfall.io/normal/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "large": "https://cards.scryfall.io/large/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "png": "https://cards.scryfall.io/png/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.png?1783915086",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/4/649025a7-79d1-4d7c-b1db-d46bcf5a1ae2.jpg?1783915086"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Jaya, Fiery Negotiator",
+      "count": 1,
+      "set": "pdmu",
+      "cardNumber": "133s",
+      "manaCost": "{2}{R}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "types": ["Planeswalker"],
+      "supertypes": ["Legendary"],
+      "subtypes": ["Jaya"],
+      "text": "+1: Create a 1/1 red Monk creature token with prowess.\n−1: Exile the top two cards of your library. Choose one of them. You may play that card this turn.\n−2: Choose target creature an opponent controls. Whenever you attack this turn, Jaya deals damage equal to the number of attacking creatures to that creature.\n−8: You get an emblem with \"Whenever you cast a red instant or sorcery spell, copy it twice. You may choose new targets for the copies.\"",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/c/5/c5f22024-047f-4387-8f49-99ffd36f076a.jpg?1783921083",
+        "normal": "https://cards.scryfall.io/normal/front/c/5/c5f22024-047f-4387-8f49-99ffd36f076a.jpg?1783921083",
+        "large": "https://cards.scryfall.io/large/front/c/5/c5f22024-047f-4387-8f49-99ffd36f076a.jpg?1783921083",
+        "png": "https://cards.scryfall.io/png/front/c/5/c5f22024-047f-4387-8f49-99ffd36f076a.png?1783921083",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/c/5/c5f22024-047f-4387-8f49-99ffd36f076a.jpg?1783921083",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/c/5/c5f22024-047f-4387-8f49-99ffd36f076a.jpg?1783921083"
+      },
+      "allParts": [
+        {
+          "name": "Monk",
+          "component": "token"
+        },
+        {
+          "name": "Jaya, Fiery Negotiator Emblem",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Jaya, Fiery Negotiator",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Sunspine Lynx",
+      "count": 3,
+      "set": "pblb",
+      "cardNumber": "155s",
+      "manaCost": "{2}{R}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 4,
+      "types": ["Creature"],
+      "supertypes": [],
+      "subtypes": ["Elemental", "Cat"],
+      "text": "Players can't gain life.\nDamage can't be prevented.\nWhen this creature enters, it deals damage to each player equal to the number of nonbasic lands that player controls.",
+      "layout": "normal",
+      "power": "5",
+      "toughness": "4",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "normal": "https://cards.scryfall.io/normal/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "large": "https://cards.scryfall.io/large/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "png": "https://cards.scryfall.io/png/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.png?1783909815",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/b/ab808e60-562f-4842-9ca5-d7c6c60ed14a.jpg?1783909815"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Torch the Tower",
+      "count": 4,
+      "set": "woe",
+      "cardNumber": "378",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Instant"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nTorch the Tower deals 2 damage to target creature or planeswalker. If this spell was bargained, instead it deals 3 damage to that permanent and you scry 1.\nIf a permanent dealt damage by Torch the Tower would die this turn, exile it instead.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "normal": "https://cards.scryfall.io/normal/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "large": "https://cards.scryfall.io/large/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "png": "https://cards.scryfall.io/png/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.png?1783915021",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/6/f603675e-84df-4dd2-b45b-47349341f64c.jpg?1783915021"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Twisted Fealty",
+      "count": 3,
+      "set": "woe",
+      "cardNumber": "154",
+      "manaCost": "{2}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "types": ["Sorcery"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn.\nCreate a Wicked Role token attached to up to one target creature. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1. When this token is put into a graveyard, each opponent loses 1 life.)",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/3/8/382d6085-79b9-48f7-8949-9f44dde2c753.jpg?1783915087",
+        "normal": "https://cards.scryfall.io/normal/front/3/8/382d6085-79b9-48f7-8949-9f44dde2c753.jpg?1783915087",
+        "large": "https://cards.scryfall.io/large/front/3/8/382d6085-79b9-48f7-8949-9f44dde2c753.jpg?1783915087",
+        "png": "https://cards.scryfall.io/png/front/3/8/382d6085-79b9-48f7-8949-9f44dde2c753.png?1783915087",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/3/8/382d6085-79b9-48f7-8949-9f44dde2c753.jpg?1783915087",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/3/8/382d6085-79b9-48f7-8949-9f44dde2c753.jpg?1783915087"
+      },
+      "allParts": [
+        {
+          "name": "Wicked // Cursed",
+          "component": "token"
+        },
+        {
+          "name": "Twisted Fealty",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Urabrask's Forge",
+      "count": 3,
+      "set": "pone",
+      "cardNumber": "153s",
+      "manaCost": "{2}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 3,
+      "types": ["Artifact"],
+      "supertypes": [],
+      "subtypes": [],
+      "text": "At the beginning of combat on your turn, put an oil counter on this artifact, then create an X/1 red Phyrexian Horror creature token with trample and haste, where X is the number of oil counters on this artifact. Sacrifice that token at the beginning of the next end step.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/2/a/2a9f089b-ee4a-4765-a384-4490962df403.jpg?1783917828",
+        "normal": "https://cards.scryfall.io/normal/front/2/a/2a9f089b-ee4a-4765-a384-4490962df403.jpg?1783917828",
+        "large": "https://cards.scryfall.io/large/front/2/a/2a9f089b-ee4a-4765-a384-4490962df403.jpg?1783917828",
+        "png": "https://cards.scryfall.io/png/front/2/a/2a9f089b-ee4a-4765-a384-4490962df403.png?1783917828",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/2/a/2a9f089b-ee4a-4765-a384-4490962df403.jpg?1783917828",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/2/a/2a9f089b-ee4a-4765-a384-4490962df403.jpg?1783917828"
+      },
+      "allParts": [
+        {
+          "name": "Phyrexian Horror",
+          "component": "token"
+        },
+        {
+          "name": "Urabrask's Forge",
+          "component": "combo_piece"
+        }
+      ]
+    }
+  ]
+}

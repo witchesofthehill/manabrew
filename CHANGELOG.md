@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.4.0](https://github.com/witchesofthehill/manabrew/compare/v3.3.0...v3.4.0) (2026-08-04)
+
+### Features
+
+* allow cancelling during choose_targets ([#604](https://github.com/witchesofthehill/manabrew/issues/604)) ([ce9204c](https://github.com/witchesofthehill/manabrew/commit/ce9204ce26f1d29f2877245645b59df0dd72da37))
+
 ## [3.3.0](https://github.com/witchesofthehill/manabrew/compare/v3.2.1...v3.3.0) (2026-08-04)
 
 ### Features

@@ -103,6 +103,7 @@ export function MainActionOverlay({
   onDefaultDamageOrder,
   onOpenStack,
   targetCompletionLabel,
+  targetCompletionKind,
   onCompleteTargets,
   resolveCardName,
   resolveCard,
@@ -345,6 +346,7 @@ export function MainActionOverlay({
                 onDefaultDamageOrder={onDefaultDamageOrder}
                 onOpenStack={onOpenStack}
                 targetCompletionLabel={targetCompletionLabel}
+                targetCompletionKind={targetCompletionKind}
                 onCompleteTargets={onCompleteTargets}
                 payManaCostInfo={payManaCostInfo}
                 onPayManaCost={onPayManaCost}

@@ -1365,7 +1365,10 @@ impl GameLoop {
         }
 
         if !sa.overloaded {
-            if !sa.setup_targets(game, agents, &self.mana_pools) {
+            agents[player.index()].set_targeting_cancellable(true);
+            let targets_ok = sa.setup_targets(game, agents, &self.mana_pools);
+            agents[player.index()].set_targeting_cancellable(false);
+            if !targets_ok {
                 rollback_cast!();
             }
             // Post-targeting validation: reject cast if MustTarget (Flagbearer)

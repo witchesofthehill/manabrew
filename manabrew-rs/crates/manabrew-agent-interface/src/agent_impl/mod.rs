@@ -91,6 +91,8 @@ pub struct PromptAgent<R: Responder> {
     pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     conceded: bool,
     next_prompt_id: u32,
+    pub(crate) targeting_cancellable: bool,
+    pub(crate) targeting_cancelled: bool,
 }
 
 impl<R: Responder> PromptAgent<R> {
@@ -106,6 +108,8 @@ impl<R: Responder> PromptAgent<R> {
             pass_until: None,
             conceded: false,
             next_prompt_id: 0,
+            targeting_cancellable: false,
+            targeting_cancelled: false,
         }
     }
 
@@ -166,6 +170,13 @@ impl<R: Responder> PromptAgent<R> {
                                 &prompt,
                                 ProtocolErrorCode::UnknownActionId,
                                 format!("action id {id:?} was not advertised by the prompt"),
+                            );
+                        }
+                        Err(ResponseViolation::CancelNotAllowed) => {
+                            self.reject(
+                                &prompt,
+                                ProtocolErrorCode::CancelNotAllowed,
+                                "this prompt is not cancellable".to_string(),
                             );
                         }
                     }
@@ -402,6 +413,10 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::Cancel) => {
+                self.targeting_cancelled = true;
+                None
+            }
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
                 chosen.into_iter().find_map(|r| match r.kind {
                     TargetKind::Card => parse_card_id(&r.id),
@@ -414,6 +429,10 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn recv_player_choice_or_first(&mut self, valid: &[PlayerId]) -> Option<PlayerId> {
         match self.recv_action() {
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::Cancel) => {
+                self.targeting_cancelled = true;
+                None
+            }
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
                 chosen.into_iter().find_map(|r| match r.kind {
                     TargetKind::Player => parse_player_id(&r.id),
@@ -426,6 +445,10 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn recv_spell_choice_or_first(&mut self, valid: &[u32]) -> Option<u32> {
         match self.recv_action() {
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::Cancel) => {
+                self.targeting_cancelled = true;
+                None
+            }
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
                 chosen.into_iter().find_map(|r| match r.kind {
                     TargetKind::Spell => crate::ids_codec::parse_stack_id(&r.id),
@@ -444,7 +467,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         game: &GameState,
         mana_pools: &[ManaPool],
     ) -> bool {
-        manabrew_engine::spellability::choose_targets_by_kind(self, sa, game, mana_pools)
+        self.targeting_cancelled = false;
+        let ok = manabrew_engine::spellability::choose_targets_by_kind(self, sa, game, mana_pools);
+        ok && !self.targeting_cancelled
+    }
+
+    fn set_targeting_cancellable(&mut self, cancellable: bool) {
+        self.targeting_cancellable = cancellable;
     }
 
     fn get_pass_until(&self) -> Option<manabrew_engine::agent::PassUntilTarget> {

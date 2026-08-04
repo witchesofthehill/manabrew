@@ -626,18 +626,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return parts.length > 0 ? parts.join(" · ") : null;
   }, [chooseBlockersInput, gameView?.battlefield]);
-  const { declineTargets } = casting;
+  const { declineTargets, cancelTargeting } = casting;
   const targetCompletion = useMemo(() => {
     if (activePrompt?.input.type !== "chooseBoardTargets") return null;
     const input = activePrompt.input;
-    if (input.maxTargets <= input.minTargets || input.chosenTargets < input.minTargets) {
+    if (input.chosenTargets < input.minTargets) {
+      return input.cancellable
+        ? { label: "Cancel", kind: "cancel" as const, onComplete: cancelTargeting }
+        : null;
+    }
+    if (input.maxTargets <= input.minTargets) {
       return null;
     }
     return {
       label: input.chosenTargets === 0 ? "Skip" : "Done",
+      kind: "done" as const,
       onComplete: declineTargets,
     };
-  }, [activePrompt, declineTargets]);
+  }, [activePrompt, declineTargets, cancelTargeting]);
 
   function openZone(
     title: string,
@@ -1848,6 +1854,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 }
                 onOpenStack={() => setSpellStackModalOpen(true)}
                 targetCompletionLabel={targetCompletion?.label}
+                targetCompletionKind={targetCompletion?.kind}
                 onCompleteTargets={targetCompletion?.onComplete}
                 resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
                 resolveCard={(cardId) => visibleCardsById.get(cardId)}

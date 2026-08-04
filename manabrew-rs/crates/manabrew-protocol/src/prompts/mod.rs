@@ -110,6 +110,7 @@ pub enum PromptOutput {
 pub enum ResponseViolation {
     WrongPromptType,
     UnknownActionId(String),
+    CancelNotAllowed,
 }
 
 impl PromptInput {
@@ -136,11 +137,16 @@ impl PromptInput {
                 }
                 _ => Ok(()),
             },
+            (I::ChooseBoardTargets(input), O::ChooseBoardTargets(out)) => match out {
+                ChooseBoardTargetsOutput::Cancel if !input.cancellable => {
+                    Err(ResponseViolation::CancelNotAllowed)
+                }
+                _ => Ok(()),
+            },
             (I::Mulligan(_), O::Mulligan(_))
             | (I::MulliganPutBack(_), O::MulliganPutBack(_))
             | (I::ChooseAttackers(_), O::ChooseAttackers(_))
             | (I::ChooseBlockers(_), O::ChooseBlockers(_))
-            | (I::ChooseBoardTargets(_), O::ChooseBoardTargets(_))
             | (I::ChooseBoolean(_), O::ChooseBoolean(_))
             | (I::ChooseFromSelection(_), O::ChooseFromSelection(_))
             | (I::RevealCards(_), O::RevealCards(_))

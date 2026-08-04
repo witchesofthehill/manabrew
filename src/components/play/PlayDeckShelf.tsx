@@ -62,6 +62,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     "",
     formatFilter === "all" ? undefined : formatFilter,
     hubEnabled && (sourceFilter === "all" || sourceFilter === "community"),
+    availableEngines(),
   );
   const communityEntries = communityDecks.decks.filter(
     (entry) => entry.sourceKind !== "preset" && supportsAvailableEngine(hubEntryEngines(entry)),

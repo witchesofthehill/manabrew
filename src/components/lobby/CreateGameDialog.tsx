@@ -21,7 +21,12 @@ import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
-import { hubEntryEngines, supportsAvailableEngine, supportsEngine } from "@/lib/engines";
+import {
+  availableEngines,
+  hubEntryEngines,
+  supportsAvailableEngine,
+  supportsEngine,
+} from "@/lib/engines";
 import { cn } from "@/lib/utils";
 import { Loader2, Search, Shuffle, Swords } from "lucide-react";
 import { getDeckFingerprint } from "@/lib/decks";
@@ -79,7 +84,12 @@ export function CreateGameDialog({
   const [starting, setStarting] = useState(false);
   const selectedFormatRef = useRef(selectedFormat);
   selectedFormatRef.current = selectedFormat;
-  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat.id, open);
+  const hubDecks = useHubDeckSearch(
+    deckSearch,
+    selectedFormat.id,
+    open,
+    engineKind ? [engineKind] : availableEngines(),
+  );
   const hubSearchResults = hubDecks.decks.filter((entry) =>
     engineKind
       ? supportsEngine(hubEntryEngines(entry), engineKind)

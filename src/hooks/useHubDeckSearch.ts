@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { fetchDeckHubEntries } from "@/api/hub";
-import { availableEngines } from "@/lib/engines";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
+import type { EngineKind } from "@/protocol";
 
 const SEARCH_DELAY_MS = 300;
 
-export function useHubDeckSearch(search: string, format?: string, active = true) {
+export function useHubDeckSearch(
+  search: string,
+  format?: string,
+  active = true,
+  engines?: EngineKind[],
+) {
   const [result, setResult] = useState<{
     key: string;
     decks: DeckHubEntrySummary[];
@@ -14,7 +19,8 @@ export function useHubDeckSearch(search: string, format?: string, active = true)
   }>({ key: "", decks: [], error: null });
   const [attempt, setAttempt] = useState(0);
   const enabled = isFeatureEnabled("deckHub") && active;
-  const key = `${format ?? ""}\n${search.trim()}\n${attempt}`;
+  const enginesKey = (engines ?? []).join(",");
+  const key = `${format ?? ""}\n${search.trim()}\n${enginesKey}\n${attempt}`;
 
   useEffect(() => {
     if (!enabled) return;
@@ -23,7 +29,7 @@ export function useHubDeckSearch(search: string, format?: string, active = true)
       void fetchDeckHubEntries({
         search: search.trim() || undefined,
         formats: format ? [format] : undefined,
-        engines: availableEngines(),
+        engines: enginesKey ? (enginesKey.split(",") as EngineKind[]) : undefined,
         sort: "newest",
         page: 1,
         pageSize: 10,
@@ -45,7 +51,7 @@ export function useHubDeckSearch(search: string, format?: string, active = true)
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [attempt, enabled, format, key, search]);
+  }, [attempt, enabled, enginesKey, format, key, search]);
 
   const current = enabled && result.key === key;
   return {

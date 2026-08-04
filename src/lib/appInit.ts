@@ -5,6 +5,7 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { DeckCard } from "@/protocol/deck";
 import { initializeForgeRoomAvailability } from "@/stores/useForgeRoomAvailabilityStore";
+import { getPlatform } from "@/platform";
 
 let initPromise: Promise<void> | null = null;
 
@@ -48,6 +49,9 @@ export function initApp(): Promise<void> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     await Promise.all([
+      getPlatform()
+        .init()
+        .catch((e) => console.error("[appInit] engine init failed:", e)),
       initializeForgeRoomAvailability(),
       initScryfallSets().catch((e) => console.error("[appInit] sets failed:", e)),
       prefetchPresetDecks().catch((e) => console.error("[appInit] preset enrichment failed:", e)),

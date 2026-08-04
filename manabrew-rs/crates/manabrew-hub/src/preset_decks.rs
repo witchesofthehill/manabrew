@@ -23,6 +23,8 @@ struct PresetDeckFile {
     commander: Option<String>,
     cover_card_name: Option<String>,
     cards: Vec<PresetDeckCard>,
+    #[serde(default)]
+    sideboard: Vec<PresetDeckCard>,
 }
 
 #[derive(Deserialize)]
@@ -83,9 +85,15 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
         .transpose()?
         .unwrap_or(DeckFormat::Standard);
     let mut cards = Vec::new();
+    let mut sideboard = Vec::new();
     let mut commander = None;
     let mut index = 0;
-    for entry in preset.cards {
+    for (entry, in_sideboard) in preset
+        .cards
+        .iter()
+        .map(|entry| (entry, false))
+        .chain(preset.sideboard.iter().map(|entry| (entry, true)))
+    {
         let name = front_face_name(&entry.name).to_string();
         for _ in 0..entry.count {
             let card = DeckCard {
@@ -117,7 +125,9 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
                 all_parts: entry.all_parts.clone(),
             };
             index += 1;
-            if commander.is_none() && commander_name == Some(name.as_str()) {
+            if in_sideboard {
+                sideboard.push(card);
+            } else if commander.is_none() && commander_name == Some(name.as_str()) {
                 commander = Some(card);
             } else {
                 cards.push(card);
@@ -137,7 +147,7 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
         color: Some(preset.color),
         format: Some(format),
         cards,
-        sideboard: Vec::new(),
+        sideboard,
         commanders: commander.map(|card| vec![card]),
         cover_card_name: preset
             .cover_card_name

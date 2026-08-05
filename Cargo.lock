@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "futures-util",
  "manabrew-agent-interface",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.4.0"
+version = "3.5.0"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -3900,7 +3900,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-protocol"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3911,7 +3911,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -3934,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.11"
+version = "0.3.12"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -6353,7 +6353,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -8447,7 +8447,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.4.9"
+version = "0.5.0"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

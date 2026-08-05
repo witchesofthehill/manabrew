@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.5.0](https://github.com/witchesofthehill/manabrew/compare/v3.4.0...v3.5.0) (2026-08-05)
+
+### Features
+
+* **deckhub:** add versioned decks and official presets ([#573](https://github.com/witchesofthehill/manabrew/issues/573)) ([#605](https://github.com/witchesofthehill/manabrew/issues/605)) ([3aa3f85](https://github.com/witchesofthehill/manabrew/commit/3aa3f85f1837412058bcf6c849f72f47458fe469))
+
 ## [3.4.0](https://github.com/witchesofthehill/manabrew/compare/v3.3.0...v3.4.0) (2026-08-04)
 
 ### Features

@@ -38,8 +38,8 @@ export function AccountSection() {
         <h2 className="text-lg font-semibold">Account</h2>
         <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
           <p className="text-sm text-muted-foreground">
-            You are not signed in. An account keeps your published decks yours, on any device.
-            Playing does not require one.
+            You are not signed in. An account syncs your decks and keeps publications yours on any
+            device. Playing does not require one.
           </p>
           <Button onClick={() => showSignIn()}>Sign in</Button>
         </div>

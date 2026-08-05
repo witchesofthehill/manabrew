@@ -73,6 +73,9 @@ services:
       FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      DECK_HUB: "${DECK_HUB:-0}"
+      MANABREW_HUB_DECK_PLAYS_URL: "http://manabrew-hub:9500"
+      MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"
       # Events + captures live on the host filesystem, never a container layer.
@@ -104,7 +107,9 @@ services:
       HUB_PORT: "9500"
       # hub.db on the host filesystem so it rides the existing restic backups.
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
-      EVENTS_DB_PATH: "/var/manabrew/events/events.db"
+      HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
+      HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      DECK_HUB: "${DECK_HUB:-0}"
       RUST_LOG: "manabrew_hub=info"
       # Auth (/api/auth/*). Client ids/secrets live in ops/production.secrets;
       # an unset client id disables that provider. No RESEND_API_KEY →
@@ -121,7 +126,7 @@ services:
       AUTH_EMAIL_FROM: "${AUTH_EMAIL_FROM:-Manabrew <login@mail.manabrew.app>}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
-      - ./ops/observability/data/events:/var/manabrew/events:ro
+      - ./ops/observability/data/events:/var/manabrew/events
     expose:
       - "9500"
     restart: unless-stopped

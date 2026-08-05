@@ -95,6 +95,7 @@ export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
       name: frontFaceName(sc.name),
       setCode: sc.set,
       cardNumber: sc.collector_number,
+      oracleId: sc.oracle_id,
     },
     color: sc.colors ? sc.colors.join("") : "",
     colorIdentity: sc.color_identity ?? [],

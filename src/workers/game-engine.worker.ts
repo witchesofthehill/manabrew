@@ -69,17 +69,6 @@ interface WorkerEvent {
   payload: unknown;
 }
 
-interface PresetDeck {
-  id: string;
-  label: string;
-  desc: string;
-  color: string;
-  format?: string;
-  commander?: string;
-  coverCardName?: string;
-  cards: Array<{ name: string; count: number; set: string; cardNumber: string }>;
-}
-
 // ============================================================================
 // State
 // ============================================================================
@@ -89,7 +78,6 @@ const SAB_SIZE = 256 * 1024;
 
 let wasmInitPromise: Promise<void> | null = null;
 let cardsLoaded = false;
-let presetDecks: PresetDeck[] = [];
 let gameSharedBuffer: SharedArrayBuffer | null = null;
 let remoteSharedBuffers: SharedArrayBuffer[] = [];
 let gameRunning = false;
@@ -196,41 +184,8 @@ async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> 
   const tokenCount = Number(counts & 0xffffffffn);
   console.log(`[GameWorker] Loaded ${cardCount} cards + ${tokenCount} tokens into database`);
 
-  postEvent("worker:init", { stage: "presets" });
-  presetDecks = await loadPresetDecks();
-  console.log(`[GameWorker] Loaded ${presetDecks.length} preset decks`);
-
   cardsLoaded = true;
   postEvent("worker:init", { stage: "ready" });
-}
-
-/**
- * Fetch the preset-deck index, then every deck file in parallel.
- *
- * `public/preset_decks/` ships in the frontend bundle (vite serves it at
- * `/preset_decks/`) on both web and desktop. This worker fetch is the single
- * source on every platform — there is no native preset command.
- */
-async function loadPresetDecks(): Promise<PresetDeck[]> {
-  const indexResponse = await fetch("/preset_decks/index.json");
-  if (!indexResponse.ok) {
-    throw new Error(`Failed to fetch preset deck index: ${indexResponse.status}`);
-  }
-  const ids: string[] = await indexResponse.json();
-
-  const results = await Promise.all(
-    ids.map(async (id) => {
-      const r = await fetch(`/preset_decks/${id}.json`);
-      if (!r.ok) {
-        console.warn(`[GameWorker] Preset deck '${id}' failed (${r.status})`);
-        return null;
-      }
-      const data = (await r.json()) as Omit<PresetDeck, "id">;
-      return { id, ...data } as PresetDeck;
-    }),
-  );
-
-  return results.filter((d): d is PresetDeck => d !== null);
 }
 
 /**
@@ -316,17 +271,6 @@ async function fetchCardArchive(silent: boolean): Promise<ArrayBuffer> {
     }),
   );
   return bytes.buffer;
-}
-
-function choosePresetCoverCardName(
-  cards: Array<{ name: string; count: number; set?: string }>,
-): string | undefined {
-  return (
-    cards.find((card) => !/^([wburgc]|snow-)?basic land$/i.test(card.name))?.name ??
-    cards.find((card) => !/^(plains|island|swamp|mountain|forest|wastes)$/i.test(card.name))
-      ?.name ??
-    cards[0]?.name
-  );
 }
 
 // ============================================================================
@@ -519,13 +463,6 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
     case "restore_snapshot": {
       console.log("[GameWorker] Restore snapshot:", args?.checkpointId);
       return null;
-    }
-
-    case "get_preset_decks": {
-      return presetDecks.map((deck) => ({
-        ...deck,
-        coverCardName: deck.coverCardName ?? choosePresetCoverCardName(deck.cards),
-      }));
     }
 
     case "is_card_supported": {

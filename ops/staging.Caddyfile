@@ -81,12 +81,6 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    handle /api/stats/top-decks {
-        reverse_proxy https://api.manabrew.app {
-            header_up Host api.manabrew.app
-        }
-    }
-
     # Deck hub + auth API, same-origin under the staging host. The hub's OAuth
     # callback is /api/auth/callback/*; the SPA's own /auth/callback route is
     # untouched.

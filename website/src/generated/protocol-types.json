@@ -229,8 +229,8 @@
       ]
     },
     "DeckCardIdentity": {
-      "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  foil?: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
+      "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  oracleId?: string;\n  foil?: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
       "refs": []
     },
     "DeckFormat": {

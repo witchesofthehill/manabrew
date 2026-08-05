@@ -13,6 +13,7 @@ import type {
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { DirectiveInput, GameFormat, Prompt, PromptOutput, ProtocolError } from "@/protocol";
+
 import type { GameViewDto } from "@/protocol/game";
 import type { RoomMessagePayload } from "@/types/server";
 
@@ -267,10 +268,6 @@ export class IronsmithTrustedGameApi implements IGameApi {
 
   async restoreSnapshot(_params: RestoreSnapshotParams): Promise<void> {
     throw new Error("Ironsmith trusted runtime snapshots are not wired to Manabrew restore yet");
-  }
-
-  async getPresetDecks(): Promise<Deck[]> {
-    return [];
   }
 
   async getPrompt(): Promise<Prompt | null> {

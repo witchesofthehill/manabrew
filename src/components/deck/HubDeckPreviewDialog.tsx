@@ -18,16 +18,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DeckCardBrowser } from "@/components/deck/DeckCardBrowser";
+import { EditDeckHubEntryDialog } from "@/components/deck/EditDeckHubEntryDialog";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { unpublishDeck } from "@/api/hub";
-import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { removeDeckHubEntry } from "@/api/hub";
+import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { usePublishedDecksStore } from "@/stores/usePublishedDecksStore";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useHubStore } from "@/stores/useHubStore";
-import type { HubDeckDetail } from "@/api/hubTypes";
+import type { DeckHubEntryDetail } from "@/api/hubTypes";
+import type { DeckFormat } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
 import { ROUTES } from "@/lib/constants";
+import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
+import { isFeatureEnabled } from "@/featureFlags";
 
 interface HubDeckPreviewDialogProps {
   deckId: string | null;
@@ -36,41 +41,71 @@ interface HubDeckPreviewDialogProps {
   onViewSnapshot?: () => void;
 }
 
+interface PreviewDeckDetail {
+  id: string;
+  name: string;
+  author: string;
+  description?: string;
+  format?: DeckFormat;
+  colors: string;
+  deck: EditorDeck;
+}
+
 export function HubDeckPreviewDialog({
   deckId,
   onClose,
   onUnpublished,
   onViewSnapshot,
 }: HubDeckPreviewDialogProps) {
+  const hubEnabled = isFeatureEnabled("deckHub");
   const navigate = useNavigate();
   const {
-    decks: myDecks,
+    entries: myEntries,
     loading: ownershipLoading,
     error: ownershipError,
     signedIn,
     refresh,
-  } = useMyHubDecks();
+  } = useMyDeckHubEntries();
   const addSavedDeck = useDeckStore((s) => s.addSavedDeck);
+  const loadAccountDeck = useDeckStore((s) => s.loadAccountDeck);
   const loadHubDeck = useDeckStore((s) => s.loadHubDeck);
-  const loadDeck = useHubStore((s) => s.loadDeck);
-  const removeDeck = useHubStore((s) => s.removeDeck);
-  const published = usePublishedDecksStore((s) => s.published);
-  const removePublished = usePublishedDecksStore((s) => s.removePublished);
-  const [detail, setDetail] = useState<HubDeckDetail | null>(null);
+  const loadEntry = useHubStore((s) => s.loadEntry);
+  const removeEntry = useHubStore((s) => s.removeEntry);
+  const [detail, setDetail] = useState<PreviewDeckDetail | null>(null);
+  const [entryDetail, setEntryDetail] = useState<DeckHubEntryDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
+  const [editingPublication, setEditingPublication] = useState(false);
+  const { details: accountDeckDetails } = useAccountDecks();
 
   useEffect(() => {
     setDetail(null);
+    setEntryDetail(null);
     setError(null);
     setConfirmingUnpublish(false);
-    if (!deckId) return;
+    setEditingPublication(false);
+    if (!hubEnabled || !deckId) return;
     let cancelled = false;
-    loadDeck(deckId)
-      .then((d) => {
-        if (!cancelled) setDetail(d);
+    const request = loadEntry(deckId).then((entry) => ({
+      entry,
+      detail: {
+        id: entry.id,
+        name: entry.title,
+        author: entry.author,
+        description: entry.summary,
+        format: entry.format,
+        colors: entry.colors,
+        deck: entry.deck as EditorDeck,
+      } satisfies PreviewDeckDetail,
+    }));
+    request
+      .then(({ entry, detail: loadedDetail }) => {
+        if (!cancelled) {
+          setEntryDetail(entry);
+          setDetail(loadedDetail);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load deck");
@@ -78,26 +113,49 @@ export function HubDeckPreviewDialog({
     return () => {
       cancelled = true;
     };
-  }, [deckId, loadAttempt, loadDeck]);
+  }, [deckId, hubEnabled, loadAttempt, loadEntry]);
 
-  const legacyPublication = published.find((record) => record.hubId === deckId);
-  const mine = myDecks.some((deck) => deck.id === deckId) || legacyPublication !== undefined;
-  const mainCardCount = detail
+  const mine =
+    entryDetail?.ownedByViewer === true || myEntries.some((entry) => entry.id === deckId);
+  const linkedAccountDeck = entryDetail
+    ? (accountDeckDetails[entryDetail.deckId] ??
+      (entryDetail.presetKey
+        ? Object.values(accountDeckDetails).find(
+            (deck) => deck.derivedFromPresetKey === entryDetail.presetKey,
+          )
+        : undefined))
+    : undefined;
+  const visibleCardCount = detail
     ? detail.deck.cards.length +
+      detail.deck.sideboard.length +
       (detail.deck.commanders?.length ?? 0) +
+      (detail.deck.companion ? 1 : 0) +
+      (detail.deck.maybeboard?.length ?? 0) +
       (detail.deck.attractions?.length ?? 0) +
       (detail.deck.contraptions?.length ?? 0) +
       (detail.deck.schemes?.length ?? 0) +
       (detail.deck.planes?.length ?? 0)
     : 0;
-  const sideboardCount = detail?.deck.sideboard.length ?? 0;
   const colorCost = detail?.colors
     .split("")
     .map((color) => `{${color}}`)
     .join("");
 
-  function handleSave() {
+  async function handleSave() {
     if (!detail) return;
+    if (entryDetail?.presetKey && signedIn) {
+      setBusy(true);
+      try {
+        await useAccountDecksStore.getState().forkPreset(entryDetail.presetKey);
+        toast.success(`"${detail.name}" added to your account decks`);
+        onClose();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to save preset");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     addSavedDeck(detail.deck as EditorDeck);
     toast.success(`"${detail.name}" saved to My Decks`);
     onClose();
@@ -114,9 +172,27 @@ export function HubDeckPreviewDialog({
     }
   }
 
+  function handleOpenAccountDeck() {
+    if (!linkedAccountDeck) {
+      handleOpen();
+      return;
+    }
+    const id = loadAccountDeck(
+      linkedAccountDeck.id,
+      linkedAccountDeck.currentVersionNo,
+      linkedAccountDeck.deck as EditorDeck,
+    );
+    onClose();
+    navigate(
+      { pathname: ROUTES.DECK_EDITOR, search: `?deck=${encodeURIComponent(id)}` },
+      { state: { deckEditorFromList: true } },
+    );
+  }
+
   async function handleCopyLink() {
     if (!deckId) return;
-    const url = `${window.location.origin}/hub?deck=${encodeURIComponent(deckId)}`;
+    const entryRef = entryDetail?.slug ?? deckId;
+    const url = `${window.location.origin}/hub?deck=${encodeURIComponent(entryRef)}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success("Share link copied — anyone can open and play this deck");
@@ -127,12 +203,14 @@ export function HubDeckPreviewDialog({
 
   function handlePlayOffline() {
     if (!deckId) return;
+    savePresetToAccountOnUse(entryDetail?.presetKey);
     onClose();
     navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
   }
 
   function handleMultiplayer() {
     if (!deckId) return;
+    savePresetToAccountOnUse(entryDetail?.presetKey);
     onClose();
     navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
   }
@@ -141,12 +219,11 @@ export function HubDeckPreviewDialog({
     if (!deckId || !mine) return;
     setBusy(true);
     try {
-      await unpublishDeck(deckId, legacyPublication?.managementToken);
+      await removeDeckHubEntry(deckId);
       setConfirmingUnpublish(false);
-      removePublished(deckId);
-      removeDeck(deckId);
+      removeEntry(deckId);
       void refresh();
-      toast.success(`"${detail?.name ?? "Deck"}" removed from the Deck Hub`);
+      toast.success(`"${detail?.name ?? "Deck"}" removed from Community`);
       onClose();
       onUnpublished?.();
     } catch (err) {
@@ -158,7 +235,7 @@ export function HubDeckPreviewDialog({
 
   return (
     <>
-      <Dialog open={deckId !== null} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={hubEnabled && deckId !== null} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]">
           <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5">
             <DialogTitle className="truncate">
@@ -167,16 +244,26 @@ export function HubDeckPreviewDialog({
             <DialogDescription className="line-clamp-2">
               {detail
                 ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
-                : (error ?? "Fetching deck from the hub…")}
+                : (error ?? "Fetching deck from Community…")}
             </DialogDescription>
             {detail && (
               <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-muted-foreground">
                 <FormatBadge formatId={detail.format ?? detail.deck.format ?? "commander"} />
                 {colorCost && <ManaSymbols cost={colorCost} size="sm" className="m-0" />}
-                <span>{mainCardCount} main</span>
-                {sideboardCount > 0 && <span>{sideboardCount} sideboard</span>}
+                <span>{visibleCardCount} cards</span>
                 <span aria-hidden="true">·</span>
-                <span>Public snapshot</span>
+                <span>
+                  {entryDetail
+                    ? `${entryDetail.presetKey ? "Official preset · " : ""}Published version ${entryDetail.publishedVersionNo}`
+                    : "Public snapshot"}
+                </span>
+                {entryDetail?.tags
+                  .filter((tag) => tag.slug !== "official" && tag.slug !== "preset")
+                  .map((tag) => (
+                    <span key={tag.id} className="rounded-full border px-2 py-0.5">
+                      {tag.name}
+                    </span>
+                  ))}
               </div>
             )}
           </DialogHeader>
@@ -208,7 +295,7 @@ export function HubDeckPreviewDialog({
           )}
 
           <div className="shrink-0 border-t bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
-            {signedIn && ownershipError && !legacyPublication && (
+            {signedIn && ownershipError && (
               <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
                 <span className="min-w-0 break-words">Couldn’t verify deck ownership.</span>
                 <Button variant="outline" size="sm" onClick={() => void refresh()}>
@@ -243,7 +330,7 @@ export function HubDeckPreviewDialog({
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" disabled={!detail} className="col-span-2">
+                    <Button size="sm" disabled={!detail} className="col-span-2">
                       Play
                       <ChevronDown className="h-3.5 w-3.5" />
                     </Button>
@@ -259,8 +346,19 @@ export function HubDeckPreviewDialog({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline" size="sm" disabled={!detail} onClick={handleSave}>
-                  Save editable copy
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!detail || busy}
+                  onClick={
+                    mine || linkedAccountDeck ? handleOpenAccountDeck : () => void handleSave()
+                  }
+                >
+                  {linkedAccountDeck && !mine
+                    ? "Open My Copy"
+                    : mine
+                      ? "Open in Deck Editor"
+                      : "Save to My Decks"}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -270,14 +368,21 @@ export function HubDeckPreviewDialog({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem disabled={!detail} onSelect={handleOpen}>
-                      Open in Deck Editor
-                    </DropdownMenuItem>
+                    {!mine && (
+                      <DropdownMenuItem disabled={!detail} onSelect={handleOpen}>
+                        Open in Deck Editor
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem disabled={!deckId} onSelect={() => void handleCopyLink()}>
                       Copy share link
                     </DropdownMenuItem>
                     {mine && !ownershipLoading && (
                       <>
+                        {entryDetail && (
+                          <DropdownMenuItem onSelect={() => setEditingPublication(true)}>
+                            Edit publication
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           disabled={busy || !detail}
@@ -295,6 +400,25 @@ export function HubDeckPreviewDialog({
           </div>
         </DialogContent>
       </Dialog>
+      {hubEnabled && entryDetail && (
+        <EditDeckHubEntryDialog
+          entry={entryDetail}
+          open={editingPublication}
+          onOpenChange={setEditingPublication}
+          onSaved={(updated) => {
+            setEntryDetail(updated);
+            setDetail((current) =>
+              current
+                ? {
+                    ...current,
+                    name: updated.title,
+                    description: updated.summary,
+                  }
+                : current,
+            );
+          }}
+        />
+      )}
     </>
   );
 }

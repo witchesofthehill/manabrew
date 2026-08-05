@@ -31,6 +31,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
           key={to}
           size="sm"
           variant={isActive(to) ? "secondary" : "ghost"}
+          aria-label={label}
           title={label}
           className="h-8 gap-1.5 px-2 text-xs"
           disabled={disabled}
@@ -53,6 +54,7 @@ export function TopBarNav({ disabled = false }: TopBarNavProps) {
               <Button
                 size="sm"
                 variant={menuActive ? "secondary" : "ghost"}
+                aria-label={menu.label}
                 title={menu.label}
                 className="h-8 gap-1 px-2 text-xs"
                 disabled={disabled}

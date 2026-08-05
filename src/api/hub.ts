@@ -3,25 +3,57 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { platformFetch } from "@/lib/platformFetch";
 import { useAuthStore } from "@/stores/useAuthStore";
 import type {
-  HubDeckDetail,
-  HubDeckList,
-  PublishDeckRequest,
-  PublishDeckResponse,
-  TopDeckStat,
+  AccountDeckDetail,
+  AccountDeckList,
+  CreateAccountDeckRequest,
+  DeckHubEntryDetail,
+  DeckHubEntryList,
+  DeckHubFacets,
+  DeckHubTag,
+  DeckPlayReportRequest,
+  DeckVersionDetail,
+  DeckVersionSummary,
+  FavoriteResponse,
+  HubCapabilities,
+  PublishDeckHubEntryRequest,
+  SaveDeckVersionRequest,
+  TopDeckBucket,
+  TopDeckSnapshot,
+  UpdateDeckHubEntryRequest,
 } from "@/api/hubTypes";
+import type { EngineKind } from "@/protocol";
 
-export type HubSort = "newest" | "name";
-export type TopDecksWindow = "7d" | "30d" | "all";
+export type DeckHubSort = "newest" | "name" | "favorites";
+export type DeckHubColorMatch = "exact" | "includes";
+export type DeckHubTagMatch = "any" | "all";
+export type DeckHubSource = "all" | "community" | "presets";
 
-export interface HubListParams {
+export interface DeckHubEntryListParams {
   search?: string;
-  format?: string;
-  sort?: HubSort;
+  source?: DeckHubSource;
+  formats?: string[];
+  colors?: string;
+  colorMatch?: DeckHubColorMatch;
+  tags?: string[];
+  tagMatch?: DeckHubTagMatch;
+  commander?: string;
+  card?: string;
+  favorites?: boolean;
+  owned?: boolean;
+  engines?: EngineKind[];
+  sort?: DeckHubSort;
   page?: number;
   pageSize?: number;
 }
 
-const MANAGEMENT_TOKEN_HEADER = "X-Management-Token";
+export class HubRequestError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
 
 async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   const token = isFeatureEnabled("accounts") ? useAuthStore.getState().token : null;
@@ -31,19 +63,30 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   if (!response.ok) {
     const message = await response.text().catch(() => "");
     if (response.status === 429) {
-      throw new Error("Too many Deck Hub requests from your connection. Try again later.");
+      throw new HubRequestError(
+        response.status,
+        "Too many Community requests from your connection. Try again later.",
+      );
     }
     if (response.status === 401) {
       if (token && useAuthStore.getState().token === token) {
         useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
       }
-      throw new Error(
-        token
-          ? "Your Deck Hub session expired. Sign in again."
-          : "Sign in to publish decks to the Deck Hub.",
+      throw new HubRequestError(
+        response.status,
+        token ? "Your session expired. Sign in again." : "Sign in to publish decks to Community.",
       );
     }
-    throw new Error(message || `Hub request failed (${response.status})`);
+    if (response.status === 409) {
+      throw new HubRequestError(
+        response.status,
+        message || "This deck changed on another device. Reload it and try again.",
+      );
+    }
+    throw new HubRequestError(
+      response.status,
+      message || `Hub request failed (${response.status})`,
+    );
   }
   return response;
 }
@@ -53,42 +96,133 @@ async function hubJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function fetchHubDecks(params: HubListParams): Promise<HubDeckList> {
-  const query = new URLSearchParams();
-  if (params.search) query.set("search", params.search);
-  if (params.format) query.set("format", params.format);
-  if (params.sort) query.set("sort", params.sort);
-  if (params.page) query.set("page", String(params.page));
-  if (params.pageSize) query.set("pageSize", String(params.pageSize));
-  const queryString = query.toString();
-  const suffix = queryString ? `?${queryString}` : "";
-  return hubJson<HubDeckList>(`/api/hub/decks${suffix}`);
+export function fetchHubCapabilities(): Promise<HubCapabilities> {
+  return hubJson<HubCapabilities>("/api/hub/capabilities");
 }
 
-export function fetchHubDeck(id: string): Promise<HubDeckDetail> {
-  return hubJson<HubDeckDetail>(`/api/hub/decks/${encodeURIComponent(id)}`);
+export function fetchAccountDecks(): Promise<AccountDeckList> {
+  return hubJson<AccountDeckList>("/api/decks");
 }
 
-export function publishDeck(request: PublishDeckRequest): Promise<PublishDeckResponse> {
-  return hubJson<PublishDeckResponse>("/api/hub/decks", {
+export function createAccountDeck(request: CreateAccountDeckRequest): Promise<AccountDeckDetail> {
+  return hubJson<AccountDeckDetail>("/api/decks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
   });
 }
 
-export async function unpublishDeck(id: string, managementToken?: string): Promise<void> {
-  const headers = managementToken ? { [MANAGEMENT_TOKEN_HEADER]: managementToken } : undefined;
-  await hubRequest(`/api/hub/decks/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    headers,
+export function fetchAccountDeck(id: string): Promise<AccountDeckDetail> {
+  return hubJson<AccountDeckDetail>(`/api/decks/${encodeURIComponent(id)}`);
+}
+
+export function forkPresetDeck(presetKey: string): Promise<AccountDeckDetail> {
+  return hubJson<AccountDeckDetail>(`/api/presets/${encodeURIComponent(presetKey)}/fork`, {
+    method: "POST",
   });
 }
 
-export function fetchTopDecks(window: TopDecksWindow, limit = 25): Promise<TopDeckStat[]> {
-  return hubJson<TopDeckStat[]>(`/api/stats/top-decks?window=${window}&limit=${limit}`);
+export function saveAccountDeck(
+  id: string,
+  request: SaveDeckVersionRequest,
+): Promise<AccountDeckDetail> {
+  return hubJson<AccountDeckDetail>(`/api/decks/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }
 
-export function fetchMyDecks(): Promise<HubDeckList> {
-  return hubJson<HubDeckList>("/api/hub/my-decks");
+export async function deleteAccountDeck(id: string): Promise<void> {
+  await hubRequest(`/api/decks/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function fetchDeckVersions(id: string): Promise<DeckVersionSummary[]> {
+  return hubJson<DeckVersionSummary[]>(`/api/decks/${encodeURIComponent(id)}/versions`);
+}
+
+export function fetchDeckVersion(id: string, versionNo: number): Promise<DeckVersionDetail> {
+  return hubJson<DeckVersionDetail>(`/api/decks/${encodeURIComponent(id)}/versions/${versionNo}`);
+}
+
+export function fetchDeckHubEntries(params: DeckHubEntryListParams): Promise<DeckHubEntryList> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.source && params.source !== "all") query.set("source", params.source);
+  if (params.formats?.length) query.set("formats", params.formats.join(","));
+  if (params.colors) query.set("colors", params.colors);
+  if (params.colorMatch) query.set("colorMatch", params.colorMatch);
+  if (params.tags?.length) query.set("tags", params.tags.join(","));
+  if (params.tagMatch) query.set("tagMatch", params.tagMatch);
+  if (params.commander) query.set("commander", params.commander);
+  if (params.card) query.set("card", params.card);
+  if (params.favorites) query.set("favorites", "true");
+  if (params.owned) query.set("owned", "true");
+  if (params.engines?.length) query.set("engines", params.engines.join(","));
+  if (params.sort) query.set("sort", params.sort);
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+  const queryString = query.toString();
+  const suffix = queryString ? `?${queryString}` : "";
+  return hubJson<DeckHubEntryList>(`/api/deckhub/entries${suffix}`);
+}
+
+export function fetchDeckHubFacets(): Promise<DeckHubFacets> {
+  return hubJson<DeckHubFacets>("/api/deckhub/facets");
+}
+
+export function fetchDeckHubEntry(entryRef: string): Promise<DeckHubEntryDetail> {
+  return hubJson<DeckHubEntryDetail>(`/api/deckhub/entries/${encodeURIComponent(entryRef)}`);
+}
+
+export function createDeckHubEntry(
+  request: PublishDeckHubEntryRequest,
+): Promise<DeckHubEntryDetail> {
+  return hubJson<DeckHubEntryDetail>("/api/deckhub/entries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+}
+
+export function updateDeckHubEntry(
+  id: string,
+  request: UpdateDeckHubEntryRequest,
+): Promise<DeckHubEntryDetail> {
+  return hubJson<DeckHubEntryDetail>(`/api/deckhub/entries/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+}
+
+export async function removeDeckHubEntry(id: string): Promise<void> {
+  await hubRequest(`/api/deckhub/entries/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function fetchDeckHubTags(): Promise<DeckHubTag[]> {
+  return hubJson<DeckHubTag[]>("/api/deckhub/tags");
+}
+
+export function setDeckHubFavorite(id: string, favorite: boolean): Promise<FavoriteResponse> {
+  return hubJson<FavoriteResponse>(`/api/deckhub/entries/${encodeURIComponent(id)}/favorite`, {
+    method: favorite ? "PUT" : "DELETE",
+  });
+}
+
+export function fetchTopDeckBuckets(): Promise<TopDeckBucket[]> {
+  return hubJson<TopDeckBucket[]>("/api/deckhub/top/buckets");
+}
+
+export function fetchTopDeckSnapshot(bucket: string, date?: string): Promise<TopDeckSnapshot> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return hubJson<TopDeckSnapshot>(`/api/deckhub/top/${encodeURIComponent(bucket)}${query}`);
+}
+
+export async function recordDeckPlay(request: DeckPlayReportRequest): Promise<void> {
+  await hubRequest("/api/deckhub/plays", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }

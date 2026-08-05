@@ -5,11 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  fetchHubDecks: vi.fn(),
+  fetchDeckHubEntries: vi.fn(),
 }));
 
 vi.mock("@/api/hub", () => ({
-  fetchHubDecks: mocks.fetchHubDecks,
+  fetchDeckHubEntries: mocks.fetchDeckHubEntries,
 }));
 
 vi.mock("@/featureFlags", () => ({
@@ -29,8 +29,8 @@ describe("useHubDeckSearch", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mocks.fetchHubDecks.mockResolvedValue({
-      decks: [],
+    mocks.fetchDeckHubEntries.mockResolvedValue({
+      entries: [],
       total: 0,
       page: 1,
       pageSize: 10,
@@ -51,15 +51,15 @@ describe("useHubDeckSearch", () => {
   it("does not request decks until its owning dialog is open", async () => {
     await act(async () => root.render(createElement(Harness, { active: false })));
     await vi.advanceTimersByTimeAsync(300);
-    expect(mocks.fetchHubDecks).not.toHaveBeenCalled();
+    expect(mocks.fetchDeckHubEntries).not.toHaveBeenCalled();
 
     await act(async () => root.render(createElement(Harness, { active: true })));
     await act(async () => vi.advanceTimersByTimeAsync(300));
 
-    expect(mocks.fetchHubDecks).toHaveBeenCalledOnce();
-    expect(mocks.fetchHubDecks).toHaveBeenCalledWith({
+    expect(mocks.fetchDeckHubEntries).toHaveBeenCalledOnce();
+    expect(mocks.fetchDeckHubEntries).toHaveBeenCalledWith({
       search: undefined,
-      format: "commander",
+      formats: ["commander"],
       sort: "newest",
       page: 1,
       pageSize: 10,

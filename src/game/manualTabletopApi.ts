@@ -7,7 +7,6 @@ import type {
   StartMultiplayerGameParams,
 } from "@/platform";
 import type { CardDto } from "@/protocol/game";
-import type { Deck } from "@/protocol/deck";
 import type { Prompt } from "@/protocol";
 import type { ClientCardDto, ClientGameView, ClientPlayerDto } from "@/stores/gameStore.types";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
@@ -243,10 +242,6 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
 
   async restoreSnapshot(_params: RestoreSnapshotParams): Promise<void> {
     throw new Error("Manual tabletop snapshots are not implemented yet.");
-  }
-
-  async getPresetDecks(): Promise<Deck[]> {
-    return [];
   }
 
   async getPrompt(): Promise<Prompt | null> {

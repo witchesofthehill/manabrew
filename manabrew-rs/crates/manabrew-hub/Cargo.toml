@@ -3,7 +3,7 @@ name = "manabrew-hub"
 version = "0.4.2"
 edition = "2021"
 license.workspace = true
-description = "Deck hub and analytics stats API for manabrew"
+description = "Accounts, decks, and Community API for manabrew"
 
 [features]
 default = ["server"]
@@ -35,7 +35,7 @@ manabrew-protocol = { path = "../manabrew-protocol", version = "4.0.0" }
 serde = { workspace = true }
 ts-rs = { workspace = true }
 axum = { version = "0.7", optional = true }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "time"], optional = true }
 tower-http = { version = "0.5", features = ["cors"], optional = true }
 rusqlite = { version = "0.31", features = ["bundled"], optional = true }
 serde_json = { workspace = true, optional = true }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.6.0](https://github.com/witchesofthehill/manabrew/compare/v3.5.0...v3.6.0) (2026-08-05)
+
+### Features
+
+* **ops:** enable deck hub on production web ([#621](https://github.com/witchesofthehill/manabrew/issues/621)) ([340e482](https://github.com/witchesofthehill/manabrew/commit/340e482d454db43472fcbdd19232fb2c233d3fee))
+
 ## [3.5.0](https://github.com/witchesofthehill/manabrew/compare/v3.4.0...v3.5.0) (2026-08-05)
 
 ### Features

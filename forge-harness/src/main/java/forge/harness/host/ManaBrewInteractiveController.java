@@ -1954,8 +1954,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         if (delve) {
                             autoDelve(unpaid, cardsToDelve, delvePaymentSources(player, unpaid, cardsToDelve));
                         }
-                        if (autoPay.payManaCost(unpaid.toManaCost(), sa, effect)) {
-                            return true;
+                        for (final Card source : autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect)) {
+                            sessionTapped.put(source.getId(), source);
                         }
                         break;
                     }

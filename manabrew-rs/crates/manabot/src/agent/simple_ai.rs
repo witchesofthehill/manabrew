@@ -234,19 +234,25 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
-                let can_pay = input.can_confirm_from_pool || !input.actions.is_empty();
-                // auto-pay is one-shot: a failed attempt bounces the identical
-                // prompt back, so a repeat means auto-pay can't complete — bail.
-                let signature = format!(
-                    "pay:{}|{}|{}",
-                    input.card_id,
-                    input.mana_cost,
-                    input.actions.len()
-                );
-                let payment = if !can_pay || self.looping_on(signature) {
-                    PayManaCostOutput::Cancel
+                let payment = if input.can_confirm_from_pool {
+                    PayManaCostOutput::Pay { auto: false }
                 } else {
-                    PayManaCostOutput::Pay { auto: true }
+                    let signature = format!(
+                        "pay:{}|{}|{}",
+                        input.card_id,
+                        input.mana_cost,
+                        input
+                            .actions
+                            .iter()
+                            .map(|action| action.id.as_str())
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    );
+                    if input.actions.is_empty() || self.looping_on(signature) {
+                        PayManaCostOutput::Cancel
+                    } else {
+                        PayManaCostOutput::Pay { auto: true }
+                    }
                 };
                 Some(PromptOutput::PayManaCost(payment))
             }

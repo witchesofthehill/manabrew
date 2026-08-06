@@ -135,6 +135,37 @@ public final class AutoPay {
         return payManaCostWithTrace(toPay, saBeingPaid, effect).paid;
     }
 
+    public List<Card> floatManaForCost(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
+        final ManaPool pool = payer.getManaPool();
+        final List<Card> tapped = new ArrayList<>();
+
+        int guard = 0;
+        while (guard++ < 128) {
+            final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(toPay);
+            final List<Mana> probe = new ArrayList<>();
+            if (pool.payManaCostFromPool(unpaid, saBeingPaid, true, probe)) {
+                break;
+            }
+            pool.refundMana(probe);
+
+            final List<ManaAbilityCandidate> candidates = collectPlayableManaAbilities(saBeingPaid);
+            if (candidates.isEmpty()) {
+                break;
+            }
+
+            final ManaAbilityCandidate chosen = chooseCandidate(unpaid, candidates, saBeingPaid);
+            if (chosen == null) {
+                break;
+            }
+
+            if (!floatManaFromSource(chosen.spellAbility, effect)) {
+                break;
+            }
+            tapped.add(chosen.spellAbility.getHostCard());
+        }
+        return tapped;
+    }
+
     public List<SpellAbility> manaSources(final SpellAbility saBeingPaid) {
         final List<SpellAbility> out = new ArrayList<>();
         for (final ManaAbilityCandidate candidate : collectPlayableManaAbilities(saBeingPaid)) {

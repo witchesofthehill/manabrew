@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -48,10 +49,12 @@ import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/vi
 import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
-import { useMyHubDecks } from "@/hooks/useMyHubDecks";
+import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
+import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
-import { HubDeckCard } from "@/components/deck/HubDeckCard";
+import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 
 export default function DeckEditor() {
@@ -71,6 +74,8 @@ export default function DeckEditor() {
     setDeckName,
     deleteSavedDeck,
     currentDeckId: _currentDeckId,
+    loadAccountDeck,
+    linkSavedDeckToAccount,
   } = useDeckStore();
   const importDeckText = useDeckTextImport();
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -78,14 +83,23 @@ export default function DeckEditor() {
   const presetDecks = usePresetDecks();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const {
-    decks: publishedDecks,
+    entries: publishedDecks,
     loading: publishedDecksLoading,
     error: publishedDecksError,
     signedIn,
     refresh: refreshPublishedDecks,
-  } = useMyHubDecks();
+  } = useMyDeckHubEntries();
+  const {
+    details: accountDeckDetails,
+    loading: accountDecksLoading,
+    error: accountDecksError,
+    available: accountDecksAvailable,
+    signedIn: accountDecksSignedIn,
+    refresh: refreshAccountDecks,
+  } = useAccountDecks();
   const navigate = useNavigate();
-  const publishEnabled = isFeatureEnabled("deckHub") && isFeatureEnabled("accounts");
+  const hubEnabled = isFeatureEnabled("deckHub");
+  const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
   const location = useLocation();
   const routeState = location.state as {
     directToEditor?: boolean;
@@ -113,12 +127,13 @@ export default function DeckEditor() {
   const [choiceDialogOpen, setChoiceDialogOpen] = useState(false);
   const [selectedPublishingDeck, setPublishingDeck] = useState<SavedDeck | null>(null);
   const [hubPreviewId, setHubPreviewId] = useState<string | null>(null);
-  const routePublishingDeck = routeState?.resumePublishDeck
-    ? {
-        deck: routeState.resumePublishDeck,
-        localDeckId: routeState.resumePublishDeckId ?? null,
-      }
-    : null;
+  const routePublishingDeck =
+    publishEnabled && routeState?.resumePublishDeck
+      ? {
+          deck: routeState.resumePublishDeck,
+          localDeckId: routeState.resumePublishDeckId ?? null,
+        }
+      : null;
   const publishingDeck = selectedPublishingDeck
     ? { deck: selectedPublishingDeck.deck, localDeckId: selectedPublishingDeck.id }
     : routePublishingDeck;
@@ -144,11 +159,15 @@ export default function DeckEditor() {
 
   const [stateView, setStateView] = useState<"list" | "editor">(() => {
     if (useDeckStore.getState().isReadOnly) return "editor";
-    return routeState?.directToEditor || routeState?.resumeCurrentPublish ? "editor" : "list";
+    return routeState?.directToEditor || (publishEnabled && routeState?.resumeCurrentPublish)
+      ? "editor"
+      : "list";
   });
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;
   const [showBackConfirm, setShowBackConfirm] = useState(false);
+  const [deletingAccountDeck, setDeletingAccountDeck] = useState<SavedDeck | null>(null);
+  const [deletingAccountBusy, setDeletingAccountBusy] = useState(false);
 
   const [search, setSearch] = useState("");
   const [formatFilter, setFormatFilter] = useState("");
@@ -172,7 +191,7 @@ export default function DeckEditor() {
   }, []);
 
   const restoredParamRef = useRef<string | null>(null);
-  /* eslint-disable react-hooks/set-state-in-effect */
+
   useEffect(() => {
     const deckParam = searchParams.get("deck");
     if (!deckParam) {
@@ -227,7 +246,6 @@ export default function DeckEditor() {
     setSearchParams,
     routeState,
   ]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function toggleColor(color: string) {
     setColorFilter((prev) =>
@@ -237,27 +255,80 @@ export default function DeckEditor() {
 
   const deckFilterArgs = { search, formatFilter, colorFilter, sortBy };
   const { valid: presetSavedDecks } = applyDeckFilters(presetSavedDecksUnfiltered, deckFilterArgs);
-  const { valid: filteredValid, drafts: filteredDrafts } = applyDeckFilters(savedDecks, {
+  const localSavedDecks = savedDecks.filter((saved) => !saved.accountDeckId);
+  const { valid: filteredValid, drafts: filteredDrafts } = applyDeckFilters(localSavedDecks, {
     search,
     formatFilter,
     colorFilter,
     sortBy,
   });
+  const accountSavedDecks: SavedDeck[] = Object.values(accountDeckDetails).map((detail) => ({
+    id: `account:${detail.id}`,
+    deck: detail.deck as SavedDeck["deck"],
+    savedAt: new Date(detail.updatedAt).getTime(),
+    accountDeckId: detail.id,
+    accountVersionNo: detail.currentVersionNo,
+  }));
+  const { valid: filteredAccountDecks, drafts: filteredAccountDrafts } = applyDeckFilters(
+    accountSavedDecks,
+    deckFilterArgs,
+  );
   const filteredPublishedDecks = publishedDecks
     .filter((deck) => {
-      if (search && !deck.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search && !deck.title.toLowerCase().includes(search.toLowerCase())) return false;
       if (formatFilter && (deck.format ?? "standard") !== formatFilter) return false;
       return colorFilter.every((color) => deck.colors.includes(color));
     })
     .slice()
     .sort((left, right) => {
-      if (sortBy === "name") return left.name.localeCompare(right.name);
+      if (sortBy === "name") return left.title.localeCompare(right.title);
       if (sortBy === "color") return left.colors.localeCompare(right.colors);
-      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+      return new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime();
     });
 
   function handleSelectDeck(id: string) {
     setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
+  }
+
+  function handleSelectAccountDeck(saved: SavedDeck) {
+    if (!saved.accountDeckId || !saved.accountVersionNo) return;
+    const id = loadAccountDeck(saved.accountDeckId, saved.accountVersionNo, saved.deck);
+    setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
+  }
+
+  function viewPresetInHub(presetKey: string) {
+    navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`);
+  }
+
+  async function confirmDeleteAccountDeck() {
+    const saved = deletingAccountDeck;
+    if (!saved?.accountDeckId || deletingAccountBusy) return;
+    setDeletingAccountBusy(true);
+    try {
+      await useAccountDecksStore.getState().remove(saved.accountDeckId);
+      deleteSavedDeck(saved.id);
+      toast.success(`"${saved.deck.name}" removed from your account`);
+      setDeletingAccountDeck(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to remove account deck");
+    } finally {
+      setDeletingAccountBusy(false);
+    }
+  }
+
+  async function handleSaveToAccount(saved: SavedDeck) {
+    try {
+      const detail = await useAccountDecksStore.getState().create(saved.deck, "Initial version");
+      linkSavedDeckToAccount(
+        saved.id,
+        detail.id,
+        detail.currentVersionNo,
+        detail.deck as SavedDeck["deck"],
+      );
+      toast.success(`"${saved.deck.name}" saved to your account`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save deck to your account");
+    }
   }
 
   function handleNewDeck() {
@@ -444,6 +515,83 @@ export default function DeckEditor() {
 
           <ScrollArea className="flex-1">
             <div className="p-4 sm:px-6 lg:px-8">
+              {accountDecksAvailable && accountDecksSignedIn && (
+                <section className="mb-4 border-b pb-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Account decks
+                    </span>
+                    {!accountDecksLoading && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({filteredAccountDecks.length + filteredAccountDrafts.length})
+                      </span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto"
+                      disabled={accountDecksLoading}
+                      onClick={() => void refreshAccountDecks()}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
+                  {accountDecksError ? (
+                    <p className="text-sm text-destructive">{accountDecksError}</p>
+                  ) : accountDecksLoading && accountSavedDecks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Loading account decks…</p>
+                  ) : filteredAccountDecks.length + filteredAccountDrafts.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      {[...filteredAccountDecks, ...filteredAccountDrafts].map((saved) => {
+                        const presetKey = saved.accountDeckId
+                          ? accountDeckDetails[saved.accountDeckId]?.derivedFromPresetKey
+                          : undefined;
+                        return (
+                          <DeckGridCard
+                            key={saved.id}
+                            deck={saved}
+                            onOpen={() => handleSelectAccountDeck(saved)}
+                            onPlaytest={() => quickPlaytest(saved.deck)}
+                            onDelete={() => setDeletingAccountDeck(saved)}
+                            onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
+                            onViewInHub={
+                              hubEnabled && presetKey ? () => viewPresetInHub(presetKey) : undefined
+                            }
+                            onPlay={() => {
+                              const id = saved.accountDeckId
+                                ? loadAccountDeck(
+                                    saved.accountDeckId,
+                                    saved.accountVersionNo ?? 1,
+                                    saved.deck,
+                                  )
+                                : saved.id;
+                              navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
+                            }}
+                            badge={presetKey ? "Preset copy" : undefined}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : accountSavedDecks.length > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No account decks match your filters.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Save or publish a local deck to add it to your account.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Local decks
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  ({localSavedDecks.length})
+                </span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 <div className="group relative">
                   <button
@@ -470,6 +618,11 @@ export default function DeckEditor() {
                     onDelete={() => handleDelete(s.id)}
                     onRename={() => startRename(s.id, s.deck.name)}
                     onPublish={publishEnabled ? () => setPublishingDeck(s) : undefined}
+                    onSaveToAccount={
+                      accountDecksAvailable && accountDecksSignedIn
+                        ? () => void handleSaveToAccount(s)
+                        : undefined
+                    }
                     onPlay={() => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)}
                   />
                 ))}
@@ -503,7 +656,7 @@ export default function DeckEditor() {
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Published on Deck Hub
+                      Published in Community
                     </span>
                     {!publishedDecksLoading && (
                       <span className="text-[10px] text-muted-foreground">
@@ -530,15 +683,15 @@ export default function DeckEditor() {
                         You haven’t published a deck yet. Use the share action on any local deck.
                       </span>
                       <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
-                        Browse Deck Hub
+                        Browse Community
                       </Button>
                     </div>
                   ) : filteredPublishedDecks.length > 0 ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                       {filteredPublishedDecks.map((deck) => (
-                        <HubDeckCard
+                        <DeckHubEntryCard
                           key={deck.id}
-                          deck={deck}
+                          entry={deck}
                           onOpen={() => setHubPreviewId(deck.id)}
                         />
                       ))}
@@ -574,6 +727,15 @@ export default function DeckEditor() {
                         readOnly
                         onOpen={() => handleOpenPreset(s.deck)}
                         onPlaytest={() => quickPlaytest(s.deck)}
+                        onViewInHub={
+                          hubEnabled
+                            ? () =>
+                                navigate(
+                                  `${ROUTES.HUB}?deck=${encodeURIComponent(s.deck.id ?? s.deck.name)}&source=presets`,
+                                )
+                            : undefined
+                        }
+                        badge="Official preset"
                       />
                     ))}
                   </div>
@@ -613,13 +775,15 @@ export default function DeckEditor() {
 
         {playtestDialog}
 
-        <HubDeckPreviewDialog
-          deckId={hubPreviewId}
-          onClose={() => setHubPreviewId(null)}
-          onViewSnapshot={() => setView("editor")}
-        />
+        {hubEnabled && (
+          <HubDeckPreviewDialog
+            deckId={hubPreviewId}
+            onClose={() => setHubPreviewId(null)}
+            onViewSnapshot={() => setView("editor")}
+          />
+        )}
 
-        {publishingDeck && (
+        {publishEnabled && publishingDeck && (
           <PublishDeckDialog
             open
             onOpenChange={(open) => {
@@ -664,6 +828,41 @@ export default function DeckEditor() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog
+          open={deletingAccountDeck !== null}
+          onOpenChange={(open) => {
+            if (!open && !deletingAccountBusy) setDeletingAccountDeck(null);
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Remove account deck</DialogTitle>
+              <DialogDescription>
+                “{deletingAccountDeck?.deck.name}” and all its versions will be permanently removed
+                from your account on every device. Publications of it in Community stay online.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={deletingAccountBusy}
+                onClick={() => setDeletingAccountDeck(null)}
+              >
+                Keep deck
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deletingAccountBusy}
+                onClick={() => void confirmDeleteAccountDeck()}
+              >
+                {deletingAccountBusy ? "Removing…" : "Remove deck"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -684,7 +883,9 @@ export default function DeckEditor() {
               setPreviewSlot={setPreviewSlot}
               previewCollapsed={previewCollapsed}
               onTogglePreview={togglePreview}
-              resumedPublication={routeState?.resumeCurrentPublish ? routePublishingDeck : null}
+              resumedPublication={
+                publishEnabled && routeState?.resumeCurrentPublish ? routePublishingDeck : null
+              }
               onResumedPublicationClose={() =>
                 navigate(`${location.pathname}${location.search}`, {
                   replace: true,

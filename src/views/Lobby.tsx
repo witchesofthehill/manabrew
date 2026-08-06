@@ -551,6 +551,7 @@ export default function Lobby() {
         open={deckDialogOpen}
         onOpenChange={setDeckDialogOpen}
         mode="lobby"
+        engineKind={currentRoom?.engine}
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
         preSelectedDeckId={deckDialogPreSelectedId}
         preSelectedHubDeckId={preferredHubDeckId}
@@ -565,6 +566,7 @@ export default function Lobby() {
           if (!open) setBotDeckTarget(null);
         }}
         mode="lobby"
+        engineKind={currentRoom?.engine}
         forcedFormatId={currentRoom?.format ? currentRoom.format.toLowerCase() : "standard"}
         target="bot"
         onStart={(deck, _formatId, commanderName) => {

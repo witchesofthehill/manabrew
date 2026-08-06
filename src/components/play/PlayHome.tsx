@@ -1,9 +1,10 @@
-import { Swords, Users } from "lucide-react";
+import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
 import { RejoinMatchCard } from "@/components/play/RejoinMatchCard";
+import { isFeatureEnabled } from "@/featureFlags";
 import { useQuickPlay } from "@/hooks/useQuickPlay";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
@@ -29,7 +30,7 @@ const MODES = [
 ];
 
 export function PlayHome() {
-  const { quickPlay, quickPlayPreset, pendingDeckId } = useQuickPlay();
+  const { quickPlay, quickPlayPreset, pendingDeckId, playersDialog } = useQuickPlay();
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
@@ -49,6 +50,7 @@ export function PlayHome() {
     connected && (openTables > 0 || players.length > 0)
       ? `${openTables} ${openTables === 1 ? "table" : "tables"} open · ${players.length} online`
       : null;
+  const communityEnabled = isFeatureEnabled("deckHub");
 
   useEffect(() => {
     if (!resumePending && !connected && !connecting && !connectionError && serverUsername) {
@@ -137,6 +139,22 @@ export function PlayHome() {
             />
           </div>
 
+          {communityEnabled && (
+            <div
+              className={cn("motion-safe:animate-onboard-fade-up", resumePending && "hidden")}
+              style={{ animationDelay: "140ms" }}
+            >
+              <FeatureTile
+                to={ROUTES.HUB}
+                label="Explore community decks"
+                desc="Browse complete decklists, discover popular builds, and save a version to your collection."
+                icon={LibraryBig}
+                tone="community"
+                size="sm"
+              />
+            </div>
+          )}
+
           <div
             className={cn(
               "mt-auto flex flex-col gap-6 motion-safe:animate-onboard-fade-up sm:gap-8",
@@ -148,6 +166,7 @@ export function PlayHome() {
           </div>
         </div>
       </div>
+      {playersDialog}
     </div>
   );
 }

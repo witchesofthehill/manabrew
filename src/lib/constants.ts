@@ -42,6 +42,7 @@ export const STORAGE_KEYS = {
   KEYBINDINGS: "manabrew-keybindings",
   STATUS_BANNER: "manabrew-status-banner",
   PUBLISHED_DECKS: "manabrew-published-decks",
+  DECK_PLAY_REPORTS: "manabrew-deck-play-reports",
 } as const;
 
 // ─── Deck Defaults ───────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export const FORMAT_DISPLAY: Record<string, string> = {
   pauper: "Pauper",
   historic: "Historic",
   brawl: "Brawl",
+  oathbreaker: "Oathbreaker",
 };
 
 export const LEGALITY_STYLES: Record<string, string> = {

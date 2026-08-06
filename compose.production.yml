@@ -52,10 +52,10 @@ services:
       HOSTED_AI_ENABLED: "${HOSTED_AI_ENABLED:-true}"
       # Set DESIGN_SYSTEM=1 on the host to expose /design-system on this build.
       DESIGN_SYSTEM: "${DESIGN_SYSTEM:-}"
-      # Runtime feature flags (config.js; enable-only). Accounts and email
-      # sign-in ship on; deckHub waits on the v2 domain (#605).
+      # Runtime feature flags (config.js; enable-only). Accounts, email
+      # sign-in, and the deck hub ship on.
       ACCOUNTS: "${ACCOUNTS:-1}"
-      DECK_HUB: "${DECK_HUB:-0}"
+      DECK_HUB: "${DECK_HUB:-1}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
@@ -73,6 +73,9 @@ services:
       FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      DECK_HUB: "${DECK_HUB:-1}"
+      MANABREW_HUB_DECK_PLAYS_URL: "http://manabrew-hub:9500"
+      MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"
       # Events + captures live on the host filesystem, never a container layer.
@@ -104,7 +107,9 @@ services:
       HUB_PORT: "9500"
       # hub.db on the host filesystem so it rides the existing restic backups.
       HUB_DB_PATH: "/var/manabrew/hub/hub.db"
-      EVENTS_DB_PATH: "/var/manabrew/events/events.db"
+      HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
+      HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
+      DECK_HUB: "${DECK_HUB:-1}"
       RUST_LOG: "manabrew_hub=info"
       # Auth (/api/auth/*). Client ids/secrets live in ops/production.secrets;
       # an unset client id disables that provider. No RESEND_API_KEY →
@@ -121,7 +126,7 @@ services:
       AUTH_EMAIL_FROM: "${AUTH_EMAIL_FROM:-Manabrew <login@mail.manabrew.app>}"
     volumes:
       - ./ops/hub-data:/var/manabrew/hub
-      - ./ops/observability/data/events:/var/manabrew/events:ro
+      - ./ops/observability/data/events:/var/manabrew/events
     expose:
       - "9500"
     restart: unless-stopped

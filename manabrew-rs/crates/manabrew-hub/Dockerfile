@@ -24,6 +24,7 @@ COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
 RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 COPY xtask/ xtask/
+COPY public/preset_decks/ public/preset_decks/
 
 RUN cargo build --release -p manabrew-hub \
     && cp /build/target/release/manabrew-hub /usr/local/bin/manabrew-hub
@@ -35,9 +36,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/manabrew-hub /usr/local/bin/manabrew-hub
+COPY --from=builder /build/public/preset_decks/ /app/preset_decks/
 
 ENV HUB_HOST=0.0.0.0
 ENV HUB_PORT=9500
+ENV HUB_PRESET_DECKS_DIR=/app/preset_decks
 
 EXPOSE 9500
 

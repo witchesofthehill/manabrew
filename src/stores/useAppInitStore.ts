@@ -10,18 +10,10 @@ import { getEventBus, getPlatformType } from "@/platform";
  * - `cached`: archive served from Cache API, no network
  * - `downloading`: cache miss, fetching from origin (loaded / total tracked)
  * - `parsing`: WASM is parsing the 32k card scripts into the database
- * - `presets`: fetching + parsing preset-decks.json (~1 MB)
  * - `ready`: fully initialized; gate releases the app
  * - `error`: init failed; gate shows the error and offers a retry
  */
-export type AppInitStage =
-  | "idle"
-  | "cached"
-  | "downloading"
-  | "parsing"
-  | "presets"
-  | "ready"
-  | "error";
+export type AppInitStage = "idle" | "cached" | "downloading" | "parsing" | "ready" | "error";
 
 export interface AppInitState {
   stage: AppInitStage;

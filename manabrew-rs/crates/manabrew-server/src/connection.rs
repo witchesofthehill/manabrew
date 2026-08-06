@@ -1044,6 +1044,7 @@ fn handle_client_message(
                         started.player_order
                     );
                     metrics::record_game_started(started.room_info.engine);
+                    state.deck_play_events.game_started(&started);
                     state
                         .analytics
                         .emit(analytics::game_started_event(&started));

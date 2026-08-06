@@ -11,6 +11,9 @@ pub struct ServerConfig {
     pub events_dir: Option<String>,
     pub capture_dir: Option<String>,
     pub capture_max_gb: u64,
+    pub deck_hub_enabled: bool,
+    pub hub_deck_plays_url: Option<String>,
+    pub hub_deck_plays_token: Option<String>,
 }
 
 impl ServerConfig {
@@ -43,6 +46,18 @@ impl ServerConfig {
                 .ok()
                 .and_then(|gb| gb.parse().ok())
                 .unwrap_or(DEFAULT_CAPTURE_MAX_GB),
+            deck_hub_enabled: std::env::var("DECK_HUB").ok().is_some_and(|value| {
+                matches!(
+                    value.to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            }),
+            hub_deck_plays_url: std::env::var("MANABREW_HUB_DECK_PLAYS_URL")
+                .ok()
+                .filter(|url| !url.is_empty()),
+            hub_deck_plays_token: std::env::var("MANABREW_HUB_DECK_PLAYS_TOKEN")
+                .ok()
+                .filter(|token| !token.is_empty()),
         }
     }
 

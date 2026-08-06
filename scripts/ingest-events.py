@@ -67,7 +67,11 @@ CREATE TABLE IF NOT EXISTS events (
   payload TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_games_started ON games(started_at);
+CREATE INDEX IF NOT EXISTS idx_games_ranking ON games(official, format, started_at);
 CREATE INDEX IF NOT EXISTS idx_game_players_user ON game_players(username);
+CREATE INDEX IF NOT EXISTS idx_game_players_publication
+  ON game_players(published_deck_id, deck_fingerprint)
+  WHERE is_bot = 0 AND published_deck_id IS NOT NULL AND deck_fingerprint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(name);
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
 """

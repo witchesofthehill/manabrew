@@ -5,24 +5,33 @@ COMPOSE="compose.dev.yaml"
 
 case "${1:-}" in
   start)
+    mkdir -p ops/hub-data/dev/events
     docker compose -f "$COMPOSE" up -d --build --remove-orphans
-    echo "==> waiting for hub migrations (a cold start compiles first)"
+    echo "==> waiting for hub health (a cold start compiles first)"
     i=0
-    until docker compose -f "$COMPOSE" logs hub 2>/dev/null | grep -q "migration ran"; do
-      if [ "$i" -ge 150 ]; then
-        echo "==> still no migration log; follow it with ./dev logs"
-        exit 0
+    until docker compose -f "$COMPOSE" exec -T hub curl -fsS http://localhost:9500/health >/dev/null 2>&1; do
+      if [ "$i" -ge 300 ]; then
+        echo "==> hub did not become healthy; recent logs follow"
+        docker compose -f "$COMPOSE" logs --tail=100 hub
+        exit 1
       fi
       i=$((i + 1))
       sleep 2
     done
-    docker compose -f "$COMPOSE" logs hub 2>/dev/null | grep "migration ran"
+    if docker compose -f "$COMPOSE" logs hub 2>/dev/null | grep -q "migration ran"; then
+      docker compose -f "$COMPOSE" logs hub 2>/dev/null | grep "migration ran"
+    else
+      echo "==> hub schema already current"
+    fi
+    echo "==> hub database: $PWD/ops/hub-data/dev/hub.db"
+    echo "==> relay analytics database: $PWD/ops/hub-data/dev/events/events.db"
     ;;
   logs) docker compose -f "$COMPOSE" logs -f ;;
   stop) docker compose -f "$COMPOSE" down ;;
   clean)
     docker compose -f "$COMPOSE" down -v --remove-orphans
-    echo "==> purged containers and volumes: hub.db, cargo caches, node_modules"
+    rm -rf "ops/hub-data/dev"
+    echo "==> purged containers, hub.db, cargo caches, and node_modules"
     ;;
   *) echo "Usage: ./dev {start|logs|stop|clean}"; exit 1 ;;
 esac

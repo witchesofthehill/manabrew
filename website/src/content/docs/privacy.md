@@ -4,17 +4,21 @@ description: What Manabrew stores, what it sends, and what it never collects.
 ---
 
 The short version: **no ads, no third-party tracking, and accounts are
-optional.** Three things can leave your machine: games played on the public
-relay are recorded, you can publish decks to the Deck Hub, and you can create
-an account to own them. All three are described below.
+optional.** Games played on the public relay are recorded, offline use of an
+exact Community publication is reported for aggregate rankings, and you can
+explicitly save or publish decks. These are described below.
 
 ## What stays on your machine
 
-Everything you create lives in local storage on your device: your decks,
-preferences, theme choice, and the marker that lets you reconnect to an
-in-progress game. Nothing is uploaded or synced unless you explicitly publish
-a deck (see below). The flip side: clearing site/app data deletes your decks,
-so export the ones you care about.
+Decks you keep local, your preferences, theme choice, and the marker that lets
+you reconnect to an in-progress game live in local storage on your device.
+The app does not upload local deck contents. When you start an offline game
+with an exact published Community deck, it queues the publication reference, a
+deck fingerprint, the format, and an opaque report ID locally, then sends them
+for aggregate Top Deck rankings when the Hub is reachable. The server records
+when it receives the report. It does not include a username or card list.
+Clearing site/app data deletes local-only decks and queued play reports, so
+export the decks you care about.
 
 ## What the relay sees
 
@@ -38,9 +42,10 @@ operator turns it on.
 
 ## Accounts
 
-Accounts are optional. You never need one to play, build decks, or join
-multiplayer games. They exist for one thing: owning the decks you publish to
-the Deck Hub.
+Accounts are optional. You never need one to play, build local decks, or join
+multiplayer games. An account lets you save selected decks across devices,
+keeps immutable version history when you save changes, owns your Community
+publications, and stores your Community favorites.
 
 You can sign in with GitHub, Discord, or an email code. We store your handle,
 the provider you signed in with and its user id, and your email address when
@@ -49,15 +54,22 @@ Sign-in codes are delivered through
 [Resend](https://resend.com/legal/privacy-policy), which processes your email
 address for that purpose.
 
-## Deck Hub
+## Community
 
-Publishing a deck to the Deck Hub is opt-in, per deck, and needs an account so
-the deck stays yours. When you publish, we store the deck (name, description,
-card list) under your handle, and both are publicly visible to everyone. You
-can remove a published deck from any device you are signed in on.
+Publishing to Community is opt-in and needs an account so each public entry
+stays yours. A publication points to one immutable version of an account deck;
+the same deck or version can be published more than once. We publicly show the
+publishing account's handle, publication title and summary, card list, tags,
+cover card, and aggregate favorite count. Favorites store the relationship
+between your account and an entry, but we do not publish who favorited it. You
+can remove each public entry from any device you are signed in on. Removing a
+deck from My Decks does not automatically remove its existing public entries.
 
-The top-decks board shows aggregates from public-relay games: deck names,
-commanders, play counts, and recent-play timing. No usernames appear there.
+Top Deck collections are dated ranking snapshots of public Community entries,
+so they show the same publication and account-handle information as the entry
+itself. Rankings combine human deck use on the managed public relay with the
+limited offline reports described above. Reports are accepted only when the
+fingerprint still matches the exact published version.
 
 ## What leaves your machine
 

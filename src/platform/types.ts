@@ -147,9 +147,6 @@ export interface IGameApi {
   /** Restore game to a checkpoint */
   restoreSnapshot(params: RestoreSnapshotParams): Promise<void>;
 
-  /** Get preset deck list */
-  getPresetDecks(): Promise<Deck[]>;
-
   /** Get current prompt (for debugging/polling) */
   getPrompt(): Promise<Prompt | null>;
 }
@@ -217,6 +214,9 @@ export interface IEventBus {
 export interface IPlatformApi {
   /** Platform identifier */
   readonly type: "tauri" | "web";
+
+  /** Eagerly initialize the game engine (worker + card data). */
+  init(): Promise<void>;
 
   /** Game engine API */
   readonly game: IGameApi;

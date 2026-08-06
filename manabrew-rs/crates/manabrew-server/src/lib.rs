@@ -2,6 +2,7 @@ pub mod analytics;
 pub mod cleanup;
 pub mod config;
 pub mod connection;
+pub mod deck_play_events;
 pub mod error;
 pub mod lobby;
 pub mod metrics;

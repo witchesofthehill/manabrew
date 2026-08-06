@@ -43,7 +43,7 @@ function getRouteChrome(pathname: string, search: string): RouteChrome {
       fallback: ROUTES.PLAY,
     };
   }
-  if (pathname === ROUTES.HUB) return { title: "Deck Hub", fallback: ROUTES.PLAY };
+  if (pathname === ROUTES.HUB) return { title: "Community", fallback: ROUTES.PLAY };
   if (pathname === `${ROUTES.DRAFT}/multiplayer`) {
     return { title: "Multiplayer Draft", fallback: ROUTES.LOBBY };
   }
@@ -201,6 +201,7 @@ export function TopBar({ override }: TopBarProps) {
             variant={signedInAccount ? "ghost" : "outline"}
             className="h-8 gap-1.5 px-2.5"
             disabled={navigationDisabled}
+            aria-label={signedInAccount ? `Account: @${signedInAccount.handle}` : "Sign in"}
             title={signedInAccount ? `@${signedInAccount.handle}` : "Sign in"}
             onClick={() =>
               signedInAccount

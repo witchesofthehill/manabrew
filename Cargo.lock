@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "futures-util",
  "manabrew-agent-interface",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.6.0"
+version = "3.7.0"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -6353,7 +6353,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.11.1"
+version = "0.12.0"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -8447,7 +8447,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

@@ -10,7 +10,7 @@ publish = false
 
 [dev-dependencies]
 manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.6.1" }
-manabot = { path = "../manabot/", version = "0.5.2" }
+manabot = { path = "../manabot/", version = "0.6.0" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.7.0](https://github.com/witchesofthehill/manabrew/compare/v3.6.0...v3.7.0) (2026-08-06)
+
+### Features
+
+* autopay doesnt instalock ([#629](https://github.com/witchesofthehill/manabrew/issues/629)) ([3c764c3](https://github.com/witchesofthehill/manabrew/commit/3c764c36dd4dcad41f86cb7ba14c057785789516))
+
 ## [3.6.0](https://github.com/witchesofthehill/manabrew/compare/v3.5.0...v3.6.0) (2026-08-05)
 
 ### Features

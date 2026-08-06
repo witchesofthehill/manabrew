@@ -1326,8 +1326,7 @@ impl GameState {
                 let accepted = if let Some(agents) = agents.as_deref_mut() {
                     let name = self.card(cid).card_name.clone();
                     let message = format!(
-                        "{}: If a commander is in a graveyard or in exile and that card was put into that zone since the last time state-based actions were checked, its owner may put it into the command zone.",
-                        name
+                        "{name}: If a commander is in a graveyard or in exile and that card was put into that zone since the last time state-based actions were checked, its owner may put it into the command zone."
                     );
                     agents[pid.index()].confirm_action(
                         pid,

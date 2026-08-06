@@ -1,7 +1,7 @@
 use manabrew_engine::ids::{CardId, PlayerId};
 
 pub fn player_slot(index: usize) -> String {
-    format!("player-{}", index)
+    format!("player-{index}")
 }
 
 pub fn player_id_str(pid: PlayerId) -> String {
@@ -13,7 +13,7 @@ pub fn card_id_str(cid: CardId) -> String {
 }
 
 pub fn stack_id_str(id: u32) -> String {
-    format!("stack-{}", id)
+    format!("stack-{id}")
 }
 
 pub fn parse_player_slot(slot: &str) -> Option<usize> {

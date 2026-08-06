@@ -84,6 +84,6 @@ impl TriggerBehavior for TriggerAttackerBlocked {
                 }
             })
             .unwrap_or(0);
-        format!("Attacker: {}, Number Blockers: {}", attacker, num_blockers)
+        format!("Attacker: {attacker}, Number Blockers: {num_blockers}")
     }
 }

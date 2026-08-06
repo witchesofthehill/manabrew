@@ -133,7 +133,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 "Unknown SetState mode: {:?}",
                 mode.map(ToString::to_string)
             ));
-            eprintln!("{}", err);
+            eprintln!("{err}");
         }
     }
 }

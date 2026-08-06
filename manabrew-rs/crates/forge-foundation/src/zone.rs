@@ -103,7 +103,7 @@ impl ZoneType {
             _ => {
                 // Case-insensitive fallback
                 for zt in Self::ALL.iter() {
-                    if format!("{:?}", zt).eq_ignore_ascii_case(s) {
+                    if format!("{zt:?}").eq_ignore_ascii_case(s) {
                         return Some(*zt);
                     }
                 }
@@ -137,7 +137,7 @@ impl ZoneType {
 
 impl std::fmt::Display for ZoneType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

@@ -881,7 +881,7 @@ impl PlayerAgent for DeterministicAgent {
             ));
         }
         if let Some(stack_id) = sa.target_chosen.target_stack_entry {
-            target_names.push(format!("Stack({})", stack_id));
+            target_names.push(format!("Stack({stack_id})"));
         }
         if !target_names.is_empty() {
             self.emit_callback(

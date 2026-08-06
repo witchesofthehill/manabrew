@@ -301,6 +301,6 @@ pub fn add_card_zone_table_params(
 
     trigger_params.insert(
         "ChangeZoneTable".to_string(),
-        format!("{:?}", change_zone_table),
+        format!("{change_zone_table:?}"),
     );
 }

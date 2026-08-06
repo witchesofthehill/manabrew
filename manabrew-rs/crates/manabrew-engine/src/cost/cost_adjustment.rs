@@ -140,7 +140,7 @@ fn matches_cost_adjustment_activator(
             player_predicates::is_opponent_of(game, caster, source.controller)
         }
         _ => {
-            eprintln!("[WARN] Unknown cost adjustment Activator: {:?}", activator);
+            eprintln!("[WARN] Unknown cost adjustment Activator: {activator:?}");
             false
         }
     }

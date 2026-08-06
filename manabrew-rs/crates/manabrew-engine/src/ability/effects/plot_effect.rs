@@ -28,7 +28,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     crate::agent::notify_all_agents(
         ctx.agents,
-        crate::agent::GameLogEvent::action(format!("Plotted: {}", card_name))
+        crate::agent::GameLogEvent::action(format!("Plotted: {card_name}"))
             .with_player(player)
             .with_card(card_id),
     );

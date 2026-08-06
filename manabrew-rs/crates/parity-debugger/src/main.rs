@@ -2325,8 +2325,7 @@ impl eframe::App for App {
                                     ui.colored_label(
                                         theme::FG_2,
                                         format!(
-                                            "decisions {} · callbacks {}",
-                                            decision_count, callback_count
+                                            "decisions {decision_count} · callbacks {callback_count}"
                                         ),
                                     );
                                 }
@@ -3550,7 +3549,7 @@ fn render_deck_modal(ctx: &egui::Context, app: &mut App) {
                                 .collect();
                             for (idx, name, deck1, deck2) in preset_rows {
                                 let searchable =
-                                    format!("{} {} {}", name, deck1, deck2).to_ascii_lowercase();
+                                    format!("{name} {deck1} {deck2}").to_ascii_lowercase();
                                 if !query.is_empty() && !searchable.contains(&query) {
                                     continue;
                                 }
@@ -3558,7 +3557,7 @@ fn render_deck_modal(ctx: &egui::Context, app: &mut App) {
                                 if selectable_modal_row(
                                     ui,
                                     &name,
-                                    &format!("{} vs {}", deck1, deck2),
+                                    &format!("{deck1} vs {deck2}"),
                                     "↵",
                                     selected,
                                 )
@@ -4318,7 +4317,7 @@ fn render_timeline_rows(
             },
             "●",
         );
-        row_ui.colored_label(theme::FG_3, format!("#{:02}", idx));
+        row_ui.colored_label(theme::FG_3, format!("#{idx:02}"));
         row_ui.colored_label(theme::FG_2, format!("T{}", key.turn));
         row_ui.colored_label(row_kind_color(&key.phase), phase_label);
         row_ui.label(format!("P{}", key.priority_player));
@@ -4472,12 +4471,12 @@ fn render_compare_timeline_rows(
             },
             "●",
         );
-        row_ui.colored_label(theme::FG_3, format!("#{:02}", idx));
+        row_ui.colored_label(theme::FG_3, format!("#{idx:02}"));
         row_ui.colored_label(theme::FG_2, format!("T{}", row.key.turn));
         row_ui.colored_label(row_kind_color(&row.key.phase), phase_label);
         row_ui.label(format!("P{}", row.key.priority_player));
         if occurrence > 1 {
-            row_ui.colored_label(theme::FG_3, format!("·{}", occurrence));
+            row_ui.colored_label(theme::FG_3, format!("·{occurrence}"));
         }
         if row.rust_index.is_none() {
             row_ui.colored_label(theme::RUST, "rust ·");
@@ -5069,7 +5068,7 @@ fn render_action_space_event_card(ui: &mut egui::Ui, callback: &CallbackRecord) 
             // Skip path: harness emits "SKIPPED <reason>" when it bails on enumeration.
             if let Some(reason) = raw.strip_prefix("SKIPPED") {
                 ui.label(
-                    egui::RichText::new(format!("skipped:{}", reason))
+                    egui::RichText::new(format!("skipped:{reason}"))
                         .monospace()
                         .italics()
                         .color(theme::FG_3),

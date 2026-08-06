@@ -110,7 +110,7 @@ impl GameRng for JavaGameRng {
         let v = self.0.borrow_mut().next_int(bound);
         if std::env::var("FORGE_RNG_BT").is_ok() && bound == 1 {
             let bt = std::backtrace::Backtrace::force_capture();
-            eprintln!("[RNG_BT] next_int(1) backtrace:\n{}", bt);
+            eprintln!("[RNG_BT] next_int(1) backtrace:\n{bt}");
         }
         v
     }

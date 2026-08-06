@@ -193,10 +193,8 @@ pub(super) fn resolve_known_origin(
             .into_iter()
             .filter(|&cid| {
                 let card_name = ctx.game.card(cid).card_name.clone();
-                let prompt = format!(
-                    "Do you want to move {} from {} to {}?",
-                    card_name, origin_zone, dest_zone,
-                );
+                let prompt =
+                    format!("Do you want to move {card_name} from {origin_zone} to {dest_zone}?",);
                 ctx.agents[chooser.index()].confirm_action(
                     chooser,
                     None,

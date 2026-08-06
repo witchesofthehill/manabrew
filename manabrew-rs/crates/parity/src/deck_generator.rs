@@ -138,7 +138,7 @@ pub fn generate_deck(rng: &mut JavaRandom, pool: &CardPool) -> DeckSpec {
 /// (e.g., "Zuko, Firebending Master").
 pub fn format_inline(spec: &DeckSpec) -> String {
     spec.iter()
-        .map(|(name, count)| format!("{}*{}", name, count))
+        .map(|(name, count)| format!("{name}*{count}"))
         .collect::<Vec<_>>()
         .join("|")
 }
@@ -160,16 +160,15 @@ pub fn parse_inline(s: &str) -> Result<DeckSpec, String> {
                 let count_str = &entry[pos + 1..];
                 let count: usize = count_str
                     .parse()
-                    .map_err(|_| format!("Invalid count '{}' in entry '{}'", count_str, entry))?;
+                    .map_err(|_| format!("Invalid count '{count_str}' in entry '{entry}'"))?;
                 if name.is_empty() {
-                    return Err(format!("Empty card name in entry '{}'", entry));
+                    return Err(format!("Empty card name in entry '{entry}'"));
                 }
                 result.push((name, count));
             }
             None => {
                 return Err(format!(
-                    "Invalid entry '{}': expected 'Name*Count' format",
-                    entry
+                    "Invalid entry '{entry}': expected 'Name*Count' format"
                 ));
             }
         }

@@ -707,7 +707,7 @@ impl Storage {
             let engines_json = preset
                 .engines
                 .as_ref()
-                .map(|engines| serde_json::to_string(engines))
+                .map(serde_json::to_string)
                 .transpose()
                 .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
             tx.execute(

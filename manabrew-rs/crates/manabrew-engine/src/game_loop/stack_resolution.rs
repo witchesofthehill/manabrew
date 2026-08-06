@@ -138,8 +138,7 @@ impl GameLoop {
             crate::agent::notify_all_agents(
                 agents,
                 crate::agent::GameLogEvent::warning(format!(
-                    "{} fizzles (all targets invalid)",
-                    stack_item_name
+                    "{stack_item_name} fizzles (all targets invalid)"
                 ))
                 .with_player(entry.spell_ability.activating_player),
             );
@@ -628,10 +627,8 @@ impl GameLoop {
                         .get_keyword_cost(if is_mega { "Megamorph" } else { "Morph" })
                         .unwrap_or_else(|| "3".to_string());
                     let mega_param = if is_mega { " | Mega$ True" } else { "" };
-                    let ab_text = format!(
-                        "AB$ SetState | Cost$ {} | Mode$ TurnFaceUp{}",
-                        morph_cost, mega_param
-                    );
+                    let ab_text =
+                        format!("AB$ SetState | Cost$ {morph_cost} | Mode$ TurnFaceUp{mega_param}");
                     let ab_index = c.activated_abilities.len();
                     if let Some(parsed) =
                         crate::ability::activated::parse_activated_ability(&ab_text, ab_index)
@@ -1056,8 +1053,7 @@ impl GameLoop {
             .unwrap_or_else(|| "Unknown source".to_string());
         let effect_kind = Self::effect_kind_for_sa(sa);
         let mut event = crate::agent::GameLogEvent::stack(format!(
-            "Effect resolved: {} | source={}",
-            effect_kind, source_name
+            "Effect resolved: {effect_kind} | source={source_name}"
         ))
         .with_player(sa.activating_player);
         if let Some(source_id) = sa.source {

@@ -78,7 +78,7 @@ pub(crate) fn parse_card_components(face: &forge_carddb::CardFace) -> ParsedComp
     // Parse static abilities from S: lines (need S$ prefix for the parser)
     let mut static_abilities = Vec::new();
     for raw in &face.static_abilities {
-        let prefixed = format!("S$ {}", raw);
+        let prefixed = format!("S$ {raw}");
         if let Some(sa) =
             parse_classified_or_warn(parse_static_ability(&prefixed), "StaticAbility", raw)
         {
@@ -91,7 +91,7 @@ pub(crate) fn parse_card_components(face: &forge_carddb::CardFace) -> ParsedComp
         .replacements
         .iter()
         .filter_map(|raw| {
-            let prefixed = format!("R$ {}", raw);
+            let prefixed = format!("R$ {raw}");
             parse_classified_or_warn(
                 parse_replacement_effect(&prefixed),
                 "ReplacementEffect",
@@ -140,8 +140,7 @@ pub(crate) fn synthesize_derived(components: &mut ParsedComponents, existing_tri
         if has_exert {
             if let Some(svar_name) = sa.ir.trigger_text.as_deref() {
                 let raw = format!(
-                    "Mode$ Exerted | ValidCard$ Card.Self | Execute$ {} | TriggerZones$ Battlefield",
-                    svar_name
+                    "Mode$ Exerted | ValidCard$ Card.Self | Execute$ {svar_name} | TriggerZones$ Battlefield"
                 );
                 if let Some(mut trig) = parse_trigger(&raw, &mut next_trig_id) {
                     trig.execute = svar_name.to_string();
@@ -260,8 +259,7 @@ pub(crate) fn assemble_card(
             card.set_s_var("RoomRightSplitCost", &unlock_cost);
             // Build an activated ability for unlocking the second door.
             let ab_text = format!(
-                "AB$ UnlockDoor | Cost$ {} | SorcerySpeed$ True | CardState$ RightSplit | SpellDescription$ Unlock {}",
-                unlock_cost, unlock_name
+                "AB$ UnlockDoor | Cost$ {unlock_cost} | SorcerySpeed$ True | CardState$ RightSplit | SpellDescription$ Unlock {unlock_name}"
             );
             let next_idx = card.activated_abilities.len();
             if let Some(ab) = crate::ability::activated::parse_activated_ability(&ab_text, next_idx)
@@ -313,7 +311,7 @@ pub(crate) fn assemble_card(
                 .iter()
                 .filter_map(|raw| {
                     parse_classified_or_warn(
-                        parse_static_ability(&format!("S$ {}", raw)),
+                        parse_static_ability(&format!("S$ {raw}")),
                         "StaticAbility",
                         raw,
                     )
@@ -325,7 +323,7 @@ pub(crate) fn assemble_card(
                 .iter()
                 .filter_map(|raw| {
                     parse_classified_or_warn(
-                        parse_replacement_effect(&format!("R$ {}", raw)),
+                        parse_replacement_effect(&format!("R$ {raw}")),
                         "ReplacementEffect",
                         raw,
                     )

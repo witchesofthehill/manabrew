@@ -535,7 +535,7 @@ impl PlayerAgent for CapturingAgent {
                 }
             }
             GameNotification::PhaseChanged { phase } => {
-                self.current_phase = format!("{:?}", phase);
+                self.current_phase = format!("{phase:?}");
                 if let Some(ref mut game) = self.last_game_state {
                     game.turn.phase = *phase;
                 }
@@ -952,18 +952,18 @@ pub fn load_data(cards_dir: Option<&str>, verbose: bool) -> Result<LoadedData, S
     } = bundle;
     if verbose {
         let script_stats = crate::card_pool::scan_raw_script_diagnostics(cards_path);
-        eprintln!("[parity] {}", script_stats);
+        eprintln!("[parity] {script_stats}");
         for example in script_stats.example_lines() {
-            eprintln!("[parity] script diagnostic example: {}", example);
+            eprintln!("[parity] script diagnostic example: {example}");
         }
         for example in script_stats.semantic_raw_example_lines() {
-            eprintln!("[parity] script semantic raw example: {}", example);
+            eprintln!("[parity] script semantic raw example: {example}");
         }
         for example in script_stats.svar_raw_dollar_example_lines() {
-            eprintln!("[parity] script raw SVar dollar example: {}", example);
+            eprintln!("[parity] script raw SVar dollar example: {example}");
         }
         for example in script_stats.raw_dsl_domain_example_lines() {
-            eprintln!("[parity] script raw DSL domain example: {}", example);
+            eprintln!("[parity] script raw DSL domain example: {example}");
         }
         if !script_stats.svar_raw_dollar_shapes.is_empty() {
             eprintln!("[parity] script raw SVar dollar shapes:");
@@ -1005,20 +1005,15 @@ pub fn load_data(cards_dir: Option<&str>, verbose: bool) -> Result<LoadedData, S
             .unwrap_or_default();
         if !type_list_path.exists() {
             return Err(format!(
-                "TypeLists.txt not found at {:?}. This file is required for creature type data.",
-                type_list_path
+                "TypeLists.txt not found at {type_list_path:?}. This file is required for creature type data."
             ));
         }
         if verbose {
-            eprintln!("[parity] Loading type lists from {:?} ...", type_list_path);
+            eprintln!("[parity] Loading type lists from {type_list_path:?} ...");
         }
         let _t_types_read = Instant::now();
-        let content = std::fs::read_to_string(&type_list_path).map_err(|e| {
-            format!(
-                "Failed to read TypeLists.txt at {:?}: {}",
-                type_list_path, e
-            )
-        })?;
+        let content = std::fs::read_to_string(&type_list_path)
+            .map_err(|e| format!("Failed to read TypeLists.txt at {type_list_path:?}: {e}"))?;
         let _t_types_parse = Instant::now();
         manabrew_engine::game::TypeRegistry::load(&content);
         if verbose {

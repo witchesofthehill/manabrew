@@ -960,9 +960,9 @@ impl SpellAbility {
     /// Generate a unique key for this ability.
     /// Mirrors Java's `SpellAbility.yieldKey()`.
     pub fn yield_key(&self) -> String {
-        let api_str = self.api.map(|a| format!("{:?}", a)).unwrap_or_default();
+        let api_str = self.api.map(|a| format!("{a:?}")).unwrap_or_default();
         let source_str = self.source.map(|s| format!("{}", s.0)).unwrap_or_default();
-        format!("{}_{}", api_str, source_str)
+        format!("{api_str}_{source_str}")
     }
 
     /// Build a description from params.
@@ -1188,7 +1188,7 @@ impl SpellAbility {
         crate::perf::increment(crate::perf::Metric::SpellAbilityClones, 1);
         let mut copied = self.clone();
         if let Some(ref cost) = self.pay_costs {
-            let cost_str = format!("{:?}", cost);
+            let cost_str = format!("{cost:?}");
             let replaced = cost_str.replace(old, new);
             copied.pay_costs = Some(parse_cost(&replaced));
         }

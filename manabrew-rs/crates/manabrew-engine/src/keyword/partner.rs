@@ -33,7 +33,7 @@ impl Partner {
     /// Get the display title.
     pub fn get_title(&self) -> String {
         if let Some(ref with) = self.with {
-            format!("Partner \u{2014} {}", with)
+            format!("Partner \u{2014} {with}")
         } else {
             self.base.keyword.display_name().to_string()
         }

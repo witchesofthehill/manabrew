@@ -729,7 +729,7 @@ pub(super) fn resolve_effect_with_unless_cost(
         let prompt = if cost_display.is_empty() {
             "Pay this cost?".to_string()
         } else {
-            format!("Pay {}?", cost_display)
+            format!("Pay {cost_display}?")
         };
         let card_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
         ctx.agents[payer.index()].snapshot_state(ctx.game, ctx.mana_pools);
@@ -968,10 +968,10 @@ fn effect_cost_part_kind(part: &CostPart) -> &'static str {
 
 pub(crate) fn effect_cost_part_display(part: &CostPart) -> String {
     match part {
-        CostPart::PayLife(v) => format!("{} {{LIFE}}", v),
-        CostPart::DamageYou(v) => format!("{} damage", v),
-        CostPart::Draw(v) => format!("draw {}", v),
-        CostPart::Mill(v) => format!("mill {}", v),
+        CostPart::PayLife(v) => format!("{v} {{LIFE}}"),
+        CostPart::DamageYou(v) => format!("{v} damage"),
+        CostPart::Draw(v) => format!("draw {v}"),
+        CostPart::Mill(v) => format!("mill {v}"),
         other => effect_cost_part_kind(other).to_string(),
     }
 }

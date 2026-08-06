@@ -121,8 +121,8 @@ fn create_army_token(
     token.set_is_token(true);
     token.set_s_var("TokenScript", army_script);
     token.set_s_var("TokenSpawningAbility", _sa.ability_text.clone());
-    token.card_name = format!("{} Army Token", amass_type);
-    token.type_line = CardTypeLine::parse(&format!("Creature - {} Army", amass_type));
+    token.card_name = format!("{amass_type} Army Token");
+    token.type_line = CardTypeLine::parse(&format!("Creature - {amass_type} Army"));
 
     let token_table = TOKEN_EFFECT_BASE.make_token_table_internal(controller, token, 1);
     let mut trigger_list = CardZoneTable::default();
@@ -160,10 +160,9 @@ fn add_type_effect(
     effect.set_temp_effect_host(Some(target)); // Removed when target leaves play
 
     let static_text = format!(
-        "Mode$ Continuous | Affected$ Card.IsRemembered | EffectZone$ Command | AddType$ {}",
-        amass_type
+        "Mode$ Continuous | Affected$ Card.IsRemembered | EffectZone$ Command | AddType$ {amass_type}"
     );
-    if let Some(parsed) = parse_static_ability(&format!("S$ {}", static_text)) {
+    if let Some(parsed) = parse_static_ability(&format!("S$ {static_text}")) {
         effect.add_static_ability(parsed);
     }
 

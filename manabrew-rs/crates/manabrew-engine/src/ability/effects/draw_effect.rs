@@ -54,7 +54,7 @@ fn draw_for_player(
         let accepted = ctx.agents[target.index()].confirm_action(
             target,
             None,
-            &format!("Do you want to draw {} card(s)?", actual_num),
+            &format!("Do you want to draw {actual_num} card(s)?"),
             &[],
             sa.source,
             Some(crate::ability::api_type::ApiType::Draw),

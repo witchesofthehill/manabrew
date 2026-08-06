@@ -276,7 +276,7 @@ impl CardScriptParser {
         if self.faces[idx].is_none() {
             // This shouldn't happen in well-formed scripts (Name comes first),
             // but handle gracefully
-            self.faces[idx] = Some(CardFace::new(format!("__unnamed_face_{}", idx)));
+            self.faces[idx] = Some(CardFace::new(format!("__unnamed_face_{idx}")));
         }
     }
 
@@ -293,7 +293,7 @@ impl CardScriptParser {
         let specialize_names = ["W", "U", "B", "R", "G"];
         for (i, name) in specialize_names.iter().enumerate() {
             if let Some(face) = self.faces[i + 2].take() {
-                specialized.insert(format!("Specialize{}", name), face);
+                specialized.insert(format!("Specialize{name}"), face);
             }
         }
 

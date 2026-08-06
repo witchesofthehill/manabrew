@@ -121,7 +121,7 @@ pub fn offer_cast_or_alternative(
     ctx.agents[controller.index()].confirm_action(
         controller,
         Some("CastFromEffect"),
-        &format!("{}: {} or {}?", card_name, cast_label, alt_label),
+        &format!("{card_name}: {cast_label} or {alt_label}?"),
         &[cast_label.to_string(), alt_label.to_string()],
         Some(card_id),
         None,
@@ -174,7 +174,7 @@ fn push_spell_to_stack(
     );
     super::emit_targeting_triggers(ctx, card_id, &trigger_sa);
 
-    let mut event = GameLogEvent::stack(format!("{}: cast {}", label, card_name))
+    let mut event = GameLogEvent::stack(format!("{label}: cast {card_name}"))
         .with_player(controller)
         .with_source_card(card_id);
     if let Some(target_id) = chosen_target {

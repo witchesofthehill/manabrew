@@ -590,8 +590,7 @@ impl Params {
             self.0
                 .get(key)
                 .is_some_and(|value| value.eq_ignore_ascii_case("True")),
-            "semantic boolean param {} diverged from string params",
-            key
+            "semantic boolean param {key} diverged from string params"
         );
         result
     }
@@ -605,8 +604,7 @@ impl Params {
         debug_assert_eq!(
             result,
             self.0.get(key).and_then(|value| value.trim().parse().ok()),
-            "semantic i32 param {} diverged from string params",
-            key
+            "semantic i32 param {key} diverged from string params"
         );
         result
     }
@@ -624,8 +622,7 @@ impl Params {
         debug_assert_eq!(
             result,
             self.0.get(key).and_then(|value| value.trim().parse().ok()),
-            "semantic usize param {} diverged from string params",
-            key
+            "semantic usize param {key} diverged from string params"
         );
         result
     }
@@ -642,8 +639,7 @@ impl Params {
         debug_assert_eq!(
             result,
             self.0.get(key).and_then(|value| legacy_zone_type(value)),
-            "semantic zone param {} diverged from string params",
-            key
+            "semantic zone param {key} diverged from string params"
         );
         result
     }
@@ -664,8 +660,7 @@ impl Params {
                 .get(key)
                 .map(|value| legacy_zone_types(value))
                 .unwrap_or_default(),
-            "semantic zone-list param {} diverged from string params",
-            key
+            "semantic zone-list param {key} diverged from string params"
         );
         result
     }
@@ -782,7 +777,7 @@ impl Params {
         match self.get(key) {
             Some(v) => Some(v),
             None => {
-                eprintln!("[parse] missing required param '{}' in {}", key, context);
+                eprintln!("[parse] missing required param '{key}' in {context}");
                 None
             }
         }
@@ -1626,7 +1621,7 @@ pub fn parse_or_warn<T>(result: Option<T>, kind: &str, raw: &str) -> Option<T> {
         };
         if should_warn {
             let preview: String = trimmed.chars().take(100).collect();
-            eprintln!("[parse] failed to parse {} from: {}", kind, preview);
+            eprintln!("[parse] failed to parse {kind} from: {preview}");
         }
     }
     result

@@ -59,7 +59,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let confirm = ctx.agents[controller.index()].confirm_action(
             controller,
             Some("ControlExchange"),
-            &format!("Exchange control of {} and {}?", name1, name2),
+            &format!("Exchange control of {name1} and {name2}?"),
             &[],
             None,
             None,

@@ -682,7 +682,7 @@ pub trait CardTrait {
         src_card: Option<&Card>,
     ) -> bool {
         let b = self.base();
-        let invert_key = format!("Invert{}", param);
+        let invert_key = format!("Invert{param}");
         let invert = b.has_param(&invert_key);
         if b.has_param(param) {
             let raw = b.get_param(param).unwrap_or("");

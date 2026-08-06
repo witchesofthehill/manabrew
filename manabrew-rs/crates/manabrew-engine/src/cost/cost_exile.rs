@@ -93,7 +93,7 @@ pub fn can_pay(
                 let mut unique_types = std::collections::BTreeSet::new();
                 for cid in &candidates {
                     for t in &game.card(*cid).type_line.core_types {
-                        unique_types.insert(format!("{:?}", t));
+                        unique_types.insert(format!("{t:?}"));
                     }
                 }
                 if (unique_types.len() as i32) < n {

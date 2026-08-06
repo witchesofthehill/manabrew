@@ -117,7 +117,7 @@ impl JavaBridge {
             cmd.arg("-Dforge.parity.rng.trace=true");
         }
         if let Ok(bounds) = std::env::var("FORGE_RNG_BT_BOUNDS") {
-            cmd.arg(format!("-Dforge.parity.rng.bt.bounds={}", bounds));
+            cmd.arg(format!("-Dforge.parity.rng.bt.bounds={bounds}"));
         }
         if std::env::var("FORGE_RNG_BT_UNBOUNDED").is_ok() {
             cmd.arg("-Dforge.parity.rng.bt.unbounded=true");
@@ -167,7 +167,7 @@ impl JavaBridge {
             if forge_gui.join("res").join("cardsfolder").exists() {
                 let forge_gui_str = format!("{}/", forge_gui.display());
                 if verbose {
-                    eprintln!("[parity]   auto-detected forge-home: {}", forge_gui_str);
+                    eprintln!("[parity]   auto-detected forge-home: {forge_gui_str}");
                 }
                 cmd.arg("--forge-home").arg(forge_gui_str);
             }
@@ -177,7 +177,7 @@ impl JavaBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| JavaBridgeError::SpawnError(format!("Failed to spawn java: {}", e)))?;
+            .map_err(|e| JavaBridgeError::SpawnError(format!("Failed to spawn java: {e}")))?;
 
         // Read stderr in a background thread for diagnostics
         let stderr = child.stderr.take();
@@ -201,7 +201,7 @@ impl JavaBridge {
                         || line.contains("[rng-java-bt")
                         || line.contains("  at ")
                     {
-                        eprintln!("[java] {}", line);
+                        eprintln!("[java] {line}");
                     }
                 }
             }
@@ -219,7 +219,7 @@ impl JavaBridge {
 
         for line_result in reader.lines() {
             let line = line_result.map_err(|e| {
-                JavaBridgeError::ProtocolError(format!("Failed to read stdout: {}", e))
+                JavaBridgeError::ProtocolError(format!("Failed to read stdout: {e}"))
             })?;
 
             let line = line.trim().to_string();
@@ -250,11 +250,8 @@ impl JavaBridge {
                 }
                 Err(e) => {
                     if verbose {
-                        eprintln!(
-                            "[parity] Warning: failed to parse Java output as snapshot: {}",
-                            e
-                        );
-                        eprintln!("[parity]   line: {}", line);
+                        eprintln!("[parity] Warning: failed to parse Java output as snapshot: {e}");
+                        eprintln!("[parity]   line: {line}");
                     }
                 }
             }
@@ -264,21 +261,18 @@ impl JavaBridge {
         let _ = stderr_handle.join();
         let status = child
             .wait()
-            .map_err(|e| JavaBridgeError::SpawnError(format!("Failed to wait for java: {}", e)))?;
+            .map_err(|e| JavaBridgeError::SpawnError(format!("Failed to wait for java: {e}")))?;
 
         if !status.success() {
             let code = status.code().unwrap_or(-1);
             if verbose {
-                eprintln!("[parity] Java process exited with code {}", code);
+                eprintln!("[parity] Java process exited with code {code}");
             }
             return Err(JavaBridgeError::ProcessError(code));
         }
 
         if verbose {
-            eprintln!(
-                "[parity] Java harness completed: {} snapshot(s)",
-                snapshot_count
-            );
+            eprintln!("[parity] Java harness completed: {snapshot_count} snapshot(s)");
         }
         Ok(JavaMatchupData { log })
     }
@@ -363,9 +357,9 @@ impl JavaServer {
         // Pass preset decks directory list as JVM system property (must come before -jar).
         // See `decks_dir_property` for multi-dir semantics.
         let dd_prop = decks_dir_property(config.decks_dir.as_deref());
-        cmd.arg(format!("-Dpreset.decks.dir={}", dd_prop));
+        cmd.arg(format!("-Dpreset.decks.dir={dd_prop}"));
         if verbose {
-            eprintln!("[parity]   preset.decks.dir = {}", dd_prop);
+            eprintln!("[parity]   preset.decks.dir = {dd_prop}");
         }
 
         // Forward RNG trace flag to Java engine
@@ -373,7 +367,7 @@ impl JavaServer {
             cmd.arg("-Dforge.parity.rng.trace=true");
         }
         if let Ok(bounds) = std::env::var("FORGE_RNG_BT_BOUNDS") {
-            cmd.arg(format!("-Dforge.parity.rng.bt.bounds={}", bounds));
+            cmd.arg(format!("-Dforge.parity.rng.bt.bounds={bounds}"));
         }
         if std::env::var("FORGE_RNG_BT_UNBOUNDED").is_ok() {
             cmd.arg("-Dforge.parity.rng.bt.unbounded=true");
@@ -403,7 +397,7 @@ impl JavaServer {
             if forge_gui.join("res").join("cardsfolder").exists() {
                 let forge_gui_str = format!("{}/", forge_gui.display());
                 if verbose {
-                    eprintln!("[parity]   auto-detected forge-home: {}", forge_gui_str);
+                    eprintln!("[parity]   auto-detected forge-home: {forge_gui_str}");
                 }
                 cmd.arg("--forge-home").arg(forge_gui_str);
             }
@@ -414,7 +408,7 @@ impl JavaServer {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| JavaBridgeError::SpawnError(format!("Failed to spawn java: {}", e)))?;
+            .map_err(|e| JavaBridgeError::SpawnError(format!("Failed to spawn java: {e}")))?;
 
         let stdin = child
             .stdin
@@ -447,7 +441,7 @@ impl JavaServer {
                         || line.contains("[rng-java-bt")
                         || line.contains("  at ")
                     {
-                        eprintln!("[java] {}", line);
+                        eprintln!("[java] {line}");
                     }
                 }
             }
@@ -494,18 +488,18 @@ impl JavaServer {
 
         // Write request as a single JSON line
         let request_json = serde_json::to_string(&request).map_err(|e| {
-            JavaBridgeError::ProtocolError(format!("Failed to serialize request: {}", e))
+            JavaBridgeError::ProtocolError(format!("Failed to serialize request: {e}"))
         })?;
 
         self.stdin.write_all(request_json.as_bytes()).map_err(|e| {
-            JavaBridgeError::ProtocolError(format!("Failed to write to stdin: {}", e))
-        })?;
-        self.stdin.write_all(b"\n").map_err(|e| {
-            JavaBridgeError::ProtocolError(format!("Failed to write newline: {}", e))
+            JavaBridgeError::ProtocolError(format!("Failed to write to stdin: {e}"))
         })?;
         self.stdin
+            .write_all(b"\n")
+            .map_err(|e| JavaBridgeError::ProtocolError(format!("Failed to write newline: {e}")))?;
+        self.stdin
             .flush()
-            .map_err(|e| JavaBridgeError::ProtocolError(format!("Failed to flush stdin: {}", e)))?;
+            .map_err(|e| JavaBridgeError::ProtocolError(format!("Failed to flush stdin: {e}")))?;
 
         let mut log = Vec::new();
         let mut snapshot_count = 0usize;
@@ -514,7 +508,7 @@ impl JavaServer {
         loop {
             line_buf.clear();
             let bytes_read = self.stdout.read_line(&mut line_buf).map_err(|e| {
-                JavaBridgeError::ProtocolError(format!("Failed to read stdout: {}", e))
+                JavaBridgeError::ProtocolError(format!("Failed to read stdout: {e}"))
             })?;
 
             if bytes_read == 0 {
@@ -532,8 +526,7 @@ impl JavaServer {
                 if sentinel.done {
                     if let Some(err) = sentinel.error {
                         return Err(JavaBridgeError::ProtocolError(format!(
-                            "Java game error: {}",
-                            err
+                            "Java game error: {err}"
                         )));
                     }
                     break;
@@ -564,8 +557,7 @@ impl JavaServer {
                 Err(e) => {
                     if self.verbose {
                         eprintln!(
-                            "[parity] Warning: failed to parse Java output: {} (line: {})",
-                            e, line
+                            "[parity] Warning: failed to parse Java output: {e} (line: {line})"
                         );
                     }
                 }
@@ -573,10 +565,7 @@ impl JavaServer {
         }
 
         if self.verbose {
-            eprintln!(
-                "[parity] Java server matchup completed: {} snapshot(s)",
-                snapshot_count
-            );
+            eprintln!("[parity] Java server matchup completed: {snapshot_count} snapshot(s)");
         }
         Ok(JavaMatchupData { log })
     }
@@ -621,18 +610,18 @@ impl JavaServer {
         };
 
         let request_json = serde_json::to_string(&request).map_err(|e| {
-            JavaBridgeError::ProtocolError(format!("Failed to serialize request: {}", e))
+            JavaBridgeError::ProtocolError(format!("Failed to serialize request: {e}"))
         })?;
 
         self.stdin.write_all(request_json.as_bytes()).map_err(|e| {
-            JavaBridgeError::ProtocolError(format!("Failed to write to stdin: {}", e))
-        })?;
-        self.stdin.write_all(b"\n").map_err(|e| {
-            JavaBridgeError::ProtocolError(format!("Failed to write newline: {}", e))
+            JavaBridgeError::ProtocolError(format!("Failed to write to stdin: {e}"))
         })?;
         self.stdin
+            .write_all(b"\n")
+            .map_err(|e| JavaBridgeError::ProtocolError(format!("Failed to write newline: {e}")))?;
+        self.stdin
             .flush()
-            .map_err(|e| JavaBridgeError::ProtocolError(format!("Failed to flush stdin: {}", e)))?;
+            .map_err(|e| JavaBridgeError::ProtocolError(format!("Failed to flush stdin: {e}")))?;
 
         let mut log = Vec::new();
         let mut snapshot_count = 0usize;
@@ -642,7 +631,7 @@ impl JavaServer {
         loop {
             line_buf.clear();
             let bytes_read = self.stdout.read_line(&mut line_buf).map_err(|e| {
-                JavaBridgeError::ProtocolError(format!("Failed to read stdout: {}", e))
+                JavaBridgeError::ProtocolError(format!("Failed to read stdout: {e}"))
             })?;
 
             if bytes_read == 0 {
@@ -660,8 +649,7 @@ impl JavaServer {
                 if sentinel.done {
                     if let Some(err) = sentinel.error {
                         return Err(JavaBridgeError::ProtocolError(format!(
-                            "Java game error: {}",
-                            err
+                            "Java game error: {err}"
                         )));
                     }
                     break;
@@ -711,8 +699,7 @@ impl JavaServer {
                 Err(e) => {
                     if self.verbose {
                         eprintln!(
-                            "[parity] Warning: failed to parse Java output: {} (line: {})",
-                            e, line
+                            "[parity] Warning: failed to parse Java output: {e} (line: {line})"
                         );
                     }
                 }
@@ -749,7 +736,7 @@ impl JavaServer {
             match self.child.try_wait() {
                 Ok(Some(status)) => {
                     if self.verbose {
-                        eprintln!("[parity] Java server exited: {}", status);
+                        eprintln!("[parity] Java server exited: {status}");
                     }
                     return;
                 }
@@ -764,7 +751,7 @@ impl JavaServer {
                 }
                 Err(e) => {
                     if self.verbose {
-                        eprintln!("[parity] Error waiting for Java server: {}", e);
+                        eprintln!("[parity] Error waiting for Java server: {e}");
                     }
                     return;
                 }
@@ -874,14 +861,13 @@ fn resolve_java_bin(verbose: bool) -> String {
         let version = extract_jdk_version(&dir_name).unwrap_or(17); // assume OK if can't parse
         if version >= 17 && bin.exists() {
             if verbose {
-                eprintln!("[parity]   using JAVA_HOME (Java {}): {}", version, home);
+                eprintln!("[parity]   using JAVA_HOME (Java {version}): {home}");
             }
             return bin.to_string_lossy().to_string();
         }
         if verbose {
             eprintln!(
-                "[parity]   JAVA_HOME points to Java {} (<17), searching for newer JDK...",
-                version
+                "[parity]   JAVA_HOME points to Java {version} (<17), searching for newer JDK..."
             );
         }
     }
@@ -945,10 +931,10 @@ pub enum JavaBridgeError {
 impl std::fmt::Display for JavaBridgeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JavaBridgeError::SpawnError(msg) => write!(f, "Failed to spawn Java: {}", msg),
-            JavaBridgeError::ProtocolError(msg) => write!(f, "Protocol error: {}", msg),
+            JavaBridgeError::SpawnError(msg) => write!(f, "Failed to spawn Java: {msg}"),
+            JavaBridgeError::ProtocolError(msg) => write!(f, "Protocol error: {msg}"),
             JavaBridgeError::ProcessError(code) => {
-                write!(f, "Java process exited with code {}", code)
+                write!(f, "Java process exited with code {code}")
             }
         }
     }

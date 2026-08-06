@@ -107,7 +107,7 @@ fn resolve_impl(ctx: &mut EffectContext, sa: &SpellAbility) {
         .iter()
         .filter_map(|svar_name| ctx.game.card(source_id).get_s_var(svar_name))
         .filter_map(|raw| {
-            let mut static_ability = parse_static_ability(&format!("S$ {}", raw))?;
+            let mut static_ability = parse_static_ability(&format!("S$ {raw}"))?;
             static_ability.ir.active_zones = vec![ZoneType::Command];
             static_ability.ir.has_zone_keys = true;
             static_ability.base.set_intrinsic(true);
@@ -239,7 +239,7 @@ fn resolve_effect_name(sa: &SpellAbility, host_name: &str) -> String {
         return name.to_string();
     }
     let suffix = if sa.ir.boon { "'s Boon" } else { "'s Effect" };
-    format!("{}{}", host_name, suffix)
+    format!("{host_name}{suffix}")
 }
 
 fn player_has_effect_named(ctx: &EffectContext, player: PlayerId, name: &str) -> bool {

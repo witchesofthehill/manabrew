@@ -246,8 +246,7 @@ pub fn build_spell_ability_from_host_card(
     let parsed = ParsedParams::parse(ability_text);
     let record_type = AbilityRecordType::from_parsed(&parsed).unwrap_or_else(|| {
         panic!(
-            "AbilityFactory::build_spell_ability requires AB$/SP$/ST$/DB$ ability text; got: {:?}",
-            ability_text
+            "AbilityFactory::build_spell_ability requires AB$/SP$/ST$/DB$ ability text; got: {ability_text:?}"
         )
     });
     let params = Params::from_parsed(&parsed);

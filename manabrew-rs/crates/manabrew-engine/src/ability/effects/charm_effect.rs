@@ -517,7 +517,7 @@ pub fn make_formated_description(
         let mode_desc = params
             .get_cloned(keys::SPELL_DESCRIPTION)
             .unwrap_or_else(|| text.clone());
-        description.push_str(&format!("• {}\n", mode_desc));
+        description.push_str(&format!("• {mode_desc}\n"));
         let _ = i; // index for potential numbering
     }
     description

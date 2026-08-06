@@ -519,8 +519,7 @@ impl GameLoop {
         crate::agent::notify_all_agents(
             agents,
             crate::agent::GameLogEvent::action(format!(
-                "Activated ability: {} | source={}",
-                ability_kind, card_name
+                "Activated ability: {ability_kind} | source={card_name}"
             ))
             .with_player(player)
             .with_source_card(card_id),
@@ -986,7 +985,7 @@ impl GameLoop {
         } else {
             ab.ability_kind.as_str()
         };
-        let stack_message = format!("Activated ability: {} | source={}", ability_kind, card_name);
+        let stack_message = format!("Activated ability: {ability_kind} | source={card_name}");
         let sa_for_trigger = self.push_spell_ability_to_stack(
             game,
             agents,
@@ -995,7 +994,7 @@ impl GameLoop {
                 source_card: card_id,
                 entry,
                 pending_stack_id: None,
-                stack_log_name: format!("{} ability", card_name),
+                stack_log_name: format!("{card_name} ability"),
                 stack_message,
                 target_card,
                 event_kind: SpellAbilityLogEventKind::Action,

@@ -30,7 +30,7 @@ pub fn build_report(trace: &GameTrace, divergences: Vec<Divergence>) -> ParityRe
 
 /// Format a parity report as a JSON string.
 pub fn format_json(report: &ParityReport) -> String {
-    serde_json::to_string_pretty(report).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
+    serde_json::to_string_pretty(report).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}"))
 }
 
 /// Format a parity report as human-readable text.
@@ -85,7 +85,7 @@ pub fn format_text_with_snapshots(
 
 /// Format a matrix report as a JSON string.
 pub fn format_matrix_json(report: &MatrixReport) -> String {
-    serde_json::to_string_pretty(report).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
+    serde_json::to_string_pretty(report).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}"))
 }
 
 /// Format a matrix report as human-readable text.
@@ -257,7 +257,7 @@ pub fn format_matrix_text(report: &MatrixReport) -> String {
 
 /// Format a fuzz report as a JSON string.
 pub fn format_fuzz_json(report: &FuzzReport) -> String {
-    serde_json::to_string_pretty(report).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
+    serde_json::to_string_pretty(report).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}"))
 }
 
 /// Format a fuzz report as human-readable text.
@@ -334,7 +334,7 @@ pub fn format_fuzz_text(report: &FuzzReport) -> String {
 
             match &r.result.error_message {
                 Some(msg) => {
-                    out.push_str(&format!("     Error: {}\n", msg));
+                    out.push_str(&format!("     Error: {msg}\n"));
                 }
                 None => {
                     if let Some(ref div) = r.result.first_divergence {
@@ -365,10 +365,10 @@ fn completion_label(
 ) -> String {
     match status {
         MatchupStatus::Skipped => skip_reason
-            .map(|reason| format!("SKIPPED: {}", reason))
+            .map(|reason| format!("SKIPPED: {reason}"))
             .unwrap_or_else(|| "SKIPPED".to_string()),
         MatchupStatus::Fail => failed_turn
-            .map(|t| format!("FAILED AT TURN {}", t))
+            .map(|t| format!("FAILED AT TURN {t}"))
             .unwrap_or_else(|| "FAILED".to_string()),
         MatchupStatus::Pass => {
             if let Some(reason) = skip_reason {
@@ -377,7 +377,7 @@ fn completion_label(
                 }
             }
             finished_turn
-                .map(|turn| format!("FINISHED TURN {}", turn))
+                .map(|turn| format!("FINISHED TURN {turn}"))
                 .unwrap_or_else(|| {
                     let _ = max_turns;
                     "STOPPED AT MAX".to_string()
@@ -569,17 +569,13 @@ fn format_card_snapshot(c: &CardSnapshot) -> String {
         s.push_str(" (T)");
     }
     if let (Some(p), Some(t)) = (c.power, c.toughness) {
-        s.push_str(&format!(" {}/{}", p, t));
+        s.push_str(&format!(" {p}/{t}"));
     }
     if c.damage > 0 {
         s.push_str(&format!(" dmg={}", c.damage));
     }
     if !c.counters.is_empty() {
-        let counters: Vec<String> = c
-            .counters
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
+        let counters: Vec<String> = c.counters.iter().map(|(k, v)| format!("{k}={v}")).collect();
         s.push_str(&format!(" [{}]", counters.join(",")));
     }
     s
@@ -609,7 +605,7 @@ pub fn format_trace_text(trace: &GameTrace) -> String {
             out.push_str(&format!(
                 "  GAME OVER — winner: {}\n",
                 snap.winner
-                    .map(|w| format!("P{}", w))
+                    .map(|w| format!("P{w}"))
                     .unwrap_or_else(|| "draw".into()),
             ));
         }
@@ -635,7 +631,7 @@ pub fn format_trace_text(trace: &GameTrace) -> String {
                             s.push_str(" (T)");
                         }
                         if let (Some(p), Some(t)) = (c.power, c.toughness) {
-                            s.push_str(&format!(" {}/{}", p, t));
+                            s.push_str(&format!(" {p}/{t}"));
                         }
                         s
                     })

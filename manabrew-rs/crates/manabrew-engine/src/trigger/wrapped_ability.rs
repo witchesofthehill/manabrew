@@ -250,7 +250,7 @@ impl WrappedAbility {
         self.wrapped
             .param_value("Keyword")
             .map(|v| {
-                let kw_str = format!("{:?}", kw);
+                let kw_str = format!("{kw:?}");
                 v.eq_ignore_ascii_case(&kw_str)
             })
             .unwrap_or(false)

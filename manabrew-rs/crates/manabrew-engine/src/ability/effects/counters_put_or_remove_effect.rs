@@ -30,7 +30,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let counter_type = sa.ir.counter_type.clone().or_else(|| {
         // Sort keys for deterministic fallback (HashMap iteration is random).
         let mut keys: Vec<_> = ctx.game.card(target_id).counters.keys().cloned().collect();
-        keys.sort_by(|a, b| format!("{:?}", a).cmp(&format!("{:?}", b)));
+        keys.sort_by(|a, b| format!("{a:?}").cmp(&format!("{b:?}")));
         keys.into_iter().next()
     });
     let Some(counter_type) = counter_type else {
@@ -85,7 +85,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             crate::trigger::TriggerType::CounterRemoved,
             crate::event::RunParams {
                 card: Some(target_id),
-                counter_type: Some(format!("{:?}", counter_type)),
+                counter_type: Some(format!("{counter_type:?}")),
                 counter_amount: Some(amount),
                 cause_player: Some(controller),
                 ..Default::default()

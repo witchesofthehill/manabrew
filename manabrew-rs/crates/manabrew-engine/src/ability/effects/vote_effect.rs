@@ -105,7 +105,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     if sa.param_is_true(keys::STORE_VOTE_NUM) {
         if let Some(source_id) = sa.source {
             for (choice, voters_list) in &vote_counts {
-                let svar_name = format!("VoteNum{}", choice);
+                let svar_name = format!("VoteNum{choice}");
                 let svar_val = format!("Number${}", voters_list.len());
                 ctx.game.card_mut(source_id).set_s_var(svar_name, svar_val);
             }

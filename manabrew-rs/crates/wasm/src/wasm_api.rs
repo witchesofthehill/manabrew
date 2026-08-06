@@ -43,13 +43,13 @@ pub fn get_engine_info() -> JsValue {
 /// Used to verify WASM is up and running
 #[wasm_bindgen]
 pub fn echo(msg: &str) -> String {
-    format!("wasm echo: {}", msg)
+    format!("wasm echo: {msg}")
 }
 
 #[wasm_bindgen]
 pub fn parse_deck(deck_json: JsValue) -> Result<JsValue, JsError> {
     let deck: WireDeck = serde_wasm_bindgen::from_value(deck_json)
-        .map_err(|e| JsError::new(&format!("Failed to parse deck: {}", e)))?;
+        .map_err(|e| JsError::new(&format!("Failed to parse deck: {e}")))?;
 
     #[derive(Serialize)]
     struct DeckSummary {
@@ -63,7 +63,7 @@ pub fn parse_deck(deck_json: JsValue) -> Result<JsValue, JsError> {
     };
 
     serde_wasm_bindgen::to_value(&summary)
-        .map_err(|e| JsError::new(&format!("Failed to serialize summary: {}", e)))
+        .map_err(|e| JsError::new(&format!("Failed to serialize summary: {e}")))
 }
 
 /// Parse a game config from JSON.
@@ -73,11 +73,11 @@ pub fn parse_config(config_json: JsValue) -> Result<JsValue, JsError> {
         GameConfig::default()
     } else {
         serde_wasm_bindgen::from_value(config_json)
-            .map_err(|e| JsError::new(&format!("Failed to parse config: {}", e)))?
+            .map_err(|e| JsError::new(&format!("Failed to parse config: {e}")))?
     };
 
     serde_wasm_bindgen::to_value(&config)
-        .map_err(|e| JsError::new(&format!("Failed to serialize config: {}", e)))
+        .map_err(|e| JsError::new(&format!("Failed to serialize config: {e}")))
 }
 
 /// Test that the RNG works in WASM.
@@ -151,9 +151,9 @@ pub fn run_interactive_game(
     let card_db = get_card_db().ok_or_else(|| JsError::new("Card database not loaded"))?;
 
     let human_deck: WireDeck = serde_wasm_bindgen::from_value(human_deck_json)
-        .map_err(|e| JsError::new(&format!("Failed to parse human deck: {}", e)))?;
+        .map_err(|e| JsError::new(&format!("Failed to parse human deck: {e}")))?;
     let ai_decks: Vec<WireDeck> = serde_wasm_bindgen::from_value(ai_decks_json)
-        .map_err(|e| JsError::new(&format!("Failed to parse AI decks: {}", e)))?;
+        .map_err(|e| JsError::new(&format!("Failed to parse AI decks: {e}")))?;
     if ai_decks.is_empty() {
         return Err(JsError::new("At least one AI deck is required"));
     }
@@ -162,7 +162,7 @@ pub fn run_interactive_game(
         GameConfig::default()
     } else {
         serde_wasm_bindgen::from_value(config_json)
-            .map_err(|e| JsError::new(&format!("Failed to parse config: {}", e)))?
+            .map_err(|e| JsError::new(&format!("Failed to parse config: {e}")))?
     };
     let starting_life = config.starting_life;
 
@@ -237,7 +237,7 @@ pub fn run_interactive_game(
         winner_id: outcome.winner.map(|p| p.0),
         game_over: true,
     })
-    .map_err(|e| JsError::new(&format!("Failed to serialize result: {}", e)))
+    .map_err(|e| JsError::new(&format!("Failed to serialize result: {e}")))
 }
 
 #[wasm_bindgen]

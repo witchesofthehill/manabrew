@@ -72,8 +72,7 @@ impl Card {
                 });
                 if !already_produces {
                     let raw = format!(
-                        "AB$ Mana | Cost$ T | Produced$ {} | SpellDescription$ {}",
-                        letter, desc
+                        "AB$ Mana | Cost$ T | Produced$ {letter} | SpellDescription$ {desc}"
                     );
                     let idx = self.abilities.len();
                     self.abilities.push(raw.clone());
@@ -91,8 +90,7 @@ impl Card {
         // Cycling: K:Cycling:{cost} → AB$ Draw | Cost$ {cost} Discard<1/CARDNAME> | ActivationZone$ Hand
         if let Some(cycling_cost) = self.get_keyword_cost("Cycling") {
             let ab_text = format!(
-                "AB$ Draw | Cost$ {} Discard<1/CARDNAME> | ActivationZone$ Hand | NumCards$ 1 | Defined$ You",
-                cycling_cost
+                "AB$ Draw | Cost$ {cycling_cost} Discard<1/CARDNAME> | ActivationZone$ Hand | NumCards$ 1 | Defined$ You"
             );
             let next_idx = self.activated_abilities.len();
             if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -123,8 +121,7 @@ impl Card {
                             + &cycle_type[1..]
                     );
                     let ab_text = format!(
-                        "AB$ ChangeZone | Cost$ {} Discard<1/CARDNAME> | ActivationZone$ Hand | PrecostDesc$ {} | Origin$ Library | Destination$ Hand | ChangeType$ {}",
-                        mana_cost, precost_desc, cycle_type
+                        "AB$ ChangeZone | Cost$ {mana_cost} Discard<1/CARDNAME> | ActivationZone$ Hand | PrecostDesc$ {precost_desc} | Origin$ Library | Destination$ Hand | ChangeType$ {cycle_type}"
                     );
                     let next_idx = self.activated_abilities.len();
                     if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -153,8 +150,7 @@ impl Card {
                 .unwrap_or("Creature.YouCtrl");
             if !equip_cost.is_empty() {
                 let ab_text = format!(
-                    "AB$ Attach | Cost$ {} | ValidTgts$ {} | SorcerySpeed$ True | SpellDescription$ Equip {}",
-                    equip_cost, target_filter, equip_cost
+                    "AB$ Attach | Cost$ {equip_cost} | ValidTgts$ {target_filter} | SorcerySpeed$ True | SpellDescription$ Equip {equip_cost}"
                 );
                 let next_idx = self.activated_abilities.len();
                 if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -176,8 +172,7 @@ impl Card {
                     let magnitude = parts[0].trim();
                     let mana_cost = parts[1].trim();
                     let ab_text = format!(
-                        "AB$ PutCounter | Cost$ {} | Adapt$ True | CounterNum$ {} | CounterType$ P1P1 | StackDescription$ SpellDescription | SpellDescription$ Adapt {}",
-                        mana_cost, magnitude, magnitude
+                        "AB$ PutCounter | Cost$ {mana_cost} | Adapt$ True | CounterNum$ {magnitude} | CounterType$ P1P1 | StackDescription$ SpellDescription | SpellDescription$ Adapt {magnitude}"
                     );
                     let next_idx = self.activated_abilities.len();
                     if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -198,8 +193,7 @@ impl Card {
             if let Some(n_str) = crate::keyword::extract_keyword_cost_str(kw, "Crew") {
                 let n = n_str.trim();
                 let ab_text = format!(
-                    "AB$ Animate | Cost$ tapXType<Any/Creature.Other+withTotalPowerGE{{{}}}> | Defined$ Self | Types$ Artifact,Creature | Secondary$ True | SpellDescription$ Crew {}",
-                    n, n
+                    "AB$ Animate | Cost$ tapXType<Any/Creature.Other+withTotalPowerGE{{{n}}}> | Defined$ Self | Types$ Artifact,Creature | Secondary$ True | SpellDescription$ Crew {n}"
                 );
                 let next_idx = self.activated_abilities.len();
                 if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -239,8 +233,7 @@ impl Card {
             if let Some(cost_str) = crate::keyword::extract_keyword_cost_str(kw, "Embalm") {
                 let cost = cost_str.trim();
                 let ab_text = format!(
-                    "AB$ CopyPermanent | Cost$ {} ExileFromGrave<1/CARDNAME> | ActivationZone$ Graveyard | SorcerySpeed$ True | Defined$ Self | SetColor$ White | AddTypes$ Zombie | SpellDescription$ Embalm",
-                    cost
+                    "AB$ CopyPermanent | Cost$ {cost} ExileFromGrave<1/CARDNAME> | ActivationZone$ Graveyard | SorcerySpeed$ True | Defined$ Self | SetColor$ White | AddTypes$ Zombie | SpellDescription$ Embalm"
                 );
                 let next_idx = self.activated_abilities.len();
                 if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -259,8 +252,7 @@ impl Card {
             if let Some(cost_str) = crate::keyword::extract_keyword_cost_str(kw, "Eternalize") {
                 let cost = cost_str.trim();
                 let ab_text = format!(
-                    "AB$ CopyPermanent | Cost$ {} ExileFromGrave<1/CARDNAME> | ActivationZone$ Graveyard | SorcerySpeed$ True | Defined$ Self | SetColor$ Black | SetPower$ 4 | SetToughness$ 4 | AddTypes$ Zombie | SpellDescription$ Eternalize",
-                    cost
+                    "AB$ CopyPermanent | Cost$ {cost} ExileFromGrave<1/CARDNAME> | ActivationZone$ Graveyard | SorcerySpeed$ True | Defined$ Self | SetColor$ Black | SetPower$ 4 | SetToughness$ 4 | AddTypes$ Zombie | SpellDescription$ Eternalize"
                 );
                 let next_idx = self.activated_abilities.len();
                 if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -301,8 +293,7 @@ impl Card {
         // Exiles the card from hand; plotted cards can later be cast for free.
         if let Some(plot_cost) = self.get_keyword_cost("Plot") {
             let ab_text = format!(
-                "AB$ Plot | Cost$ {} | ActivationZone$ Hand | SorcerySpeed$ True | Secondary$ True | SpellDescription$ Plot",
-                plot_cost
+                "AB$ Plot | Cost$ {plot_cost} | ActivationZone$ Hand | SorcerySpeed$ True | Secondary$ True | SpellDescription$ Plot"
             );
             let next_idx = self.activated_abilities.len();
             if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -391,8 +382,7 @@ impl Card {
                     }
 
                     let mut effect = format!(
-                        "Mode$ Continuous | Affected$ Card.Self | ClassLevel$ {} | {}",
-                        level_num, params
+                        "Mode$ Continuous | Affected$ Card.Self | ClassLevel$ {level_num} | {params}"
                     );
                     if !desc_parts.is_empty() {
                         effect.push_str(" | Description$ ");
@@ -418,8 +408,7 @@ impl Card {
             if let Some(n_str) = crate::keyword::extract_keyword_cost_str(kw, "Crew") {
                 let n = n_str.trim();
                 let ab_text = format!(
-                    "AB$ Animate | Cost$ tapXType<Any/Creature.Other+withTotalPowerGE{{{}}}> | Defined$ Self | Types$ Artifact,Creature | Secondary$ True | SpellDescription$ Crew {}",
-                    n, n
+                    "AB$ Animate | Cost$ tapXType<Any/Creature.Other+withTotalPowerGE{{{n}}}> | Defined$ Self | Types$ Artifact,Creature | Secondary$ True | SpellDescription$ Crew {n}"
                 );
                 let next_idx = self.activated_abilities.len();
                 if let Some(ab) = parse_activated_ability(&ab_text, next_idx) {
@@ -879,8 +868,7 @@ impl Card {
                 .entry("TrigMadnessPlay".to_string())
                 .or_insert_with(|| {
                     format!(
-                        "DB$ Play | Defined$ Self | ValidSA$ Spell | PlayCost$ {} | Optional$ True | RememberPlayed$ True | SubAbility$ MadnessMoveToYard",
-                        madness_cost
+                        "DB$ Play | Defined$ Self | ValidSA$ Spell | PlayCost$ {madness_cost} | Optional$ True | RememberPlayed$ True | SubAbility$ MadnessMoveToYard"
                     )
                 });
             self.svars
@@ -896,8 +884,7 @@ impl Card {
         if let Some(partner_name) = kw.strip_prefix("Partner with:") {
             let mut partner_name = partner_name.trim().to_string();
             let raw = format!(
-                "Mode$ ChangesZone | Destination$ Battlefield | ValidCard$ Card.Self | Secondary$ True | TriggerDescription$ Partner with {}",
-                partner_name
+                "Mode$ ChangesZone | Destination$ Battlefield | ValidCard$ Card.Self | Secondary$ True | TriggerDescription$ Partner with {partner_name}"
             );
             if let Some(mut trig) = parse_trigger(&raw, next_id) {
                 trig.execute = "TrigPartnerWith".to_string();
@@ -908,8 +895,7 @@ impl Card {
                 .entry("TrigPartnerWith".to_string())
                 .or_insert_with(|| {
                     format!(
-                        "DB$ ChangeZone | ValidTgts$ Player | Origin$ Library | Destination$ Hand | ChangeType$ Card.named{} | Hidden$ True | Chooser$ Targeted | Optional$ True",
-                        partner_name
+                        "DB$ ChangeZone | ValidTgts$ Player | Origin$ Library | Destination$ Hand | ChangeType$ Card.named{partner_name} | Hidden$ True | Chooser$ Targeted | Optional$ True"
                     )
                 });
         }

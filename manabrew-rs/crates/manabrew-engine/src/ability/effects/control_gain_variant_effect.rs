@@ -73,7 +73,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
         _ => {
             // Other modes (multiplayer-specific) are logged and skipped
-            eprintln!("[ControlGainVariant] Unimplemented mode: {}", mode);
+            eprintln!("[ControlGainVariant] Unimplemented mode: {mode}");
         }
     }
 }

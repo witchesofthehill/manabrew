@@ -106,7 +106,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         TriggerType::CounterRemoved,
         RunParams {
             card: Some(card_id),
-            counter_type: Some(format!("{:?}", counter_type)),
+            counter_type: Some(format!("{counter_type:?}")),
             counter_amount: Some(actual),
             ..Default::default()
         },

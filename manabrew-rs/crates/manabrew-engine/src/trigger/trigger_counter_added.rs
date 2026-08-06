@@ -108,9 +108,9 @@ impl TriggerBehavior for TriggerCounterAdded {
         let card = sa.get_triggering_object(crate::ability::AbilityKey::Card);
         let player = sa.get_triggering_object(crate::ability::AbilityKey::Player);
         if let Some(c) = card {
-            format!("AddedOnce: {}", c)
+            format!("AddedOnce: {c}")
         } else if let Some(p) = player {
-            format!("AddedOnce: {}", p)
+            format!("AddedOnce: {p}")
         } else {
             String::new()
         }

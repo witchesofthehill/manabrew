@@ -387,7 +387,7 @@ fn load_data_or_exit(cli: &Cli) -> runner::LoadedData {
     match runner::load_data(cli.cards_dir.as_deref(), cli.is_verbose()) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("[parity] Load error: {}", e);
+            eprintln!("[parity] Load error: {e}");
             std::process::exit(1);
         }
     }
@@ -498,10 +498,7 @@ fn run_multi_game_mode(cli: &Cli) {
         match ServerPool::spawn(workers, &server_config) {
             Ok(pool) => {
                 if cli.is_verbose() {
-                    eprintln!(
-                        "[parity] Multi-game mode: {} Java worker(s), {} games",
-                        workers, total
-                    );
+                    eprintln!("[parity] Multi-game mode: {workers} Java worker(s), {total} games");
                 }
                 let completed = AtomicUsize::new(0);
                 let mut indexed: Vec<(usize, MatchupResult)> = seeds
@@ -568,7 +565,7 @@ fn run_multi_game_mode(cli: &Cli) {
                 results
             }
             Err(e) => {
-                eprintln!("[parity] Failed to spawn Java server pool: {}", e);
+                eprintln!("[parity] Failed to spawn Java server pool: {e}");
                 eprintln!("[parity] Falling back to one-shot mode");
                 let mut results: Vec<MatchupResult> = Vec::with_capacity(total);
                 for (i, seed) in seeds.iter().copied().enumerate() {
@@ -736,10 +733,7 @@ fn game_seeds(start_seed: u64, games: usize) -> Vec<u64> {
     (0..games)
         .map(|i| {
             start_seed.checked_add(i as u64).unwrap_or_else(|| {
-                eprintln!(
-                    "[parity] Seed overflow: start_seed={} games={}",
-                    start_seed, games
-                );
+                eprintln!("[parity] Seed overflow: start_seed={start_seed} games={games}");
                 std::process::exit(1);
             })
         })
@@ -752,7 +746,7 @@ fn run_rust_only_mode(cli: &Cli) {
     let data = match runner::load_data(config.cards_dir.as_deref(), cli.is_verbose()) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("[parity] Load error: {}", e);
+            eprintln!("[parity] Load error: {e}");
             std::process::exit(1);
         }
     };
@@ -761,7 +755,7 @@ fn run_rust_only_mode(cli: &Cli) {
         Ok(trace) => {
             let mut output = match cli.format.as_str() {
                 "json" => serde_json::to_string_pretty(&trace)
-                    .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e)),
+                    .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
                 _ => report::format_trace_text(&trace),
             };
             if cli.format != "json" {
@@ -781,7 +775,7 @@ fn run_rust_only_mode(cli: &Cli) {
             write_output(cli, &output);
         }
         Err(e) => {
-            eprintln!("[parity] Error: {}", e);
+            eprintln!("[parity] Error: {e}");
             std::process::exit(1);
         }
     }
@@ -864,7 +858,7 @@ fn run_matrix_mode(cli: &Cli) {
     let valid = available_presets(&decks_dirs);
     for d in &deck_names {
         if !valid.contains(d) {
-            eprintln!("[parity] Unknown deck '{}'. Available: {:?}", d, valid);
+            eprintln!("[parity] Unknown deck '{d}'. Available: {valid:?}");
             std::process::exit(1);
         }
     }
@@ -936,7 +930,7 @@ fn run_matrix_mode(cli: &Cli) {
         match ServerPool::spawn(num_workers.max(1), &server_config) {
             Ok(pool) => Some(pool),
             Err(e) => {
-                eprintln!("[parity] Failed to spawn Java server pool: {}", e);
+                eprintln!("[parity] Failed to spawn Java server pool: {e}");
                 eprintln!("[parity] Falling back to one-shot mode");
                 None
             }
@@ -967,10 +961,7 @@ fn run_matrix_mode(cli: &Cli) {
                 Some(c)
             }
             Err(e) => {
-                eprintln!(
-                    "[parity] Failed to open Java cache: {} (continuing without)",
-                    e
-                );
+                eprintln!("[parity] Failed to open Java cache: {e} (continuing without)");
                 None
             }
         }
@@ -1419,7 +1410,7 @@ fn render_side_by_side(
             let passed = abs_snap < divergent_snapshot;
             let color = if passed { "\x1b[32m" } else { "\x1b[31m" };
             let status_label = if passed { "✅" } else { "❌" };
-            let label = format!(" snapshot {} {} ", abs_snap, status_label);
+            let label = format!(" snapshot {abs_snap} {status_label} ");
             let total = lw + rw + ROW_LABEL_WIDTH + SEPARATOR_WIDTH;
             let pad = total.saturating_sub(label.chars().count());
             let left = pad / 2;
@@ -1523,9 +1514,9 @@ fn run_fuzz_mode(cli: &Cli) {
     // Discover card pool
     let (pool, pool_stats) = CardPool::discover(&data.db);
     if cli.is_verbose() {
-        eprintln!("[parity] {}", pool_stats);
+        eprintln!("[parity] {pool_stats}");
         for example in pool_stats.example_lines() {
-            eprintln!("[parity] pool diagnostic example: {}", example);
+            eprintln!("[parity] pool diagnostic example: {example}");
         }
     }
 
@@ -1549,7 +1540,7 @@ fn run_fuzz_mode(cli: &Cli) {
         match JavaServer::spawn(&server_config) {
             Ok(s) => Some(s),
             Err(e) => {
-                eprintln!("[parity] Failed to spawn Java server: {}", e);
+                eprintln!("[parity] Failed to spawn Java server: {e}");
                 eprintln!("[parity] Falling back to one-shot mode");
                 None
             }
@@ -1579,8 +1570,8 @@ fn run_fuzz_mode(cli: &Cli) {
         let deck2_inline = deck_generator::format_inline(&deck2_spec);
 
         let config = RunConfig {
-            deck1: format!("inline:{}", deck1_inline),
-            deck2: format!("inline:{}", deck2_inline),
+            deck1: format!("inline:{deck1_inline}"),
+            deck2: format!("inline:{deck2_inline}"),
             seed: game_seed,
             max_turns: cli.max_turns,
             cards_dir: cli.cards_dir.clone(),
@@ -1617,7 +1608,7 @@ fn run_fuzz_mode(cli: &Cli) {
                         run_single_matchup_server(&config, &data, srv)
                     }
                     Err(e) => {
-                        eprintln!("[parity] Failed to respawn Java server: {}", e);
+                        eprintln!("[parity] Failed to respawn Java server: {e}");
                         // Fall back to one-shot for this iteration
                         if let Some(ref jar_path) = cli.java_jar {
                             run_single_matchup_oneshot(&config, &data, jar_path)
@@ -1724,14 +1715,14 @@ fn run_fuzz_mode(cli: &Cli) {
 fn write_output(cli: &Cli, output: &str) {
     if let Some(ref path) = cli.output {
         match std::fs::write(path, output) {
-            Ok(_) => eprintln!("[parity] Report written to {:?}", path),
+            Ok(_) => eprintln!("[parity] Report written to {path:?}"),
             Err(e) => {
-                eprintln!("[parity] Failed to write report: {}", e);
+                eprintln!("[parity] Failed to write report: {e}");
                 std::process::exit(1);
             }
         }
     } else {
-        println!("{}", output);
+        println!("{output}");
     }
 }
 
@@ -1745,10 +1736,7 @@ fn collect_unique_deck_cards(deck1: &str, deck2: &str, decks_dirs: &[&str]) -> V
                 }
             }
             Err(e) => {
-                eprintln!(
-                    "[parity] Coverage warning: failed to parse deck '{}': {}",
-                    deck, e
-                );
+                eprintln!("[parity] Coverage warning: failed to parse deck '{deck}': {e}");
             }
         }
     }
@@ -1796,16 +1784,13 @@ fn build_coverage_report_from_cards(deck_cards: &[String], covered_cards: &[Stri
 
     let mut out = String::new();
     out.push_str("\n=== Coverage Report ===\n\n");
-    out.push_str(&format!(
-        "Covered cards: {}/{} ({:.1}%)\n",
-        covered, total, pct
-    ));
+    out.push_str(&format!("Covered cards: {covered}/{total} ({pct:.1}%)\n"));
     if uncovered.is_empty() {
         out.push_str("Uncovered cards: none\n");
     } else {
         out.push_str("Uncovered cards:\n");
         for name in uncovered {
-            out.push_str(&format!("  - {}\n", name));
+            out.push_str(&format!("  - {name}\n"));
         }
     }
     out

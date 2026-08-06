@@ -210,7 +210,7 @@ impl GameLoop {
         game.player_record_land_play(player);
         crate::agent::notify_all_agents(
             agents,
-            crate::agent::GameLogEvent::action(format!("Played land: {}", play_name))
+            crate::agent::GameLogEvent::action(format!("Played land: {play_name}"))
                 .with_player(player)
                 .with_card(card_id),
         );
@@ -629,7 +629,7 @@ impl GameLoop {
                     );
                     crate::agent::notify_all_agents(
                         agents,
-                        crate::agent::GameLogEvent::rule(format!("Foretold: {}", card_name))
+                        crate::agent::GameLogEvent::rule(format!("Foretold: {card_name}"))
                             .with_player(player)
                             .with_card(card_id),
                     );
@@ -676,8 +676,7 @@ impl GameLoop {
                     crate::agent::notify_all_agents(
                         agents,
                         crate::agent::GameLogEvent::rule(format!(
-                            "Suspended: {} with {} time counters",
-                            card_name, counters
+                            "Suspended: {card_name} with {counters} time counters"
                         ))
                         .with_player(player)
                         .with_card(card_id),
@@ -1041,7 +1040,7 @@ impl GameLoop {
                         let desc = params
                             .get_cloned(keys::SPELL_DESCRIPTION)
                             .unwrap_or_else(|| name.to_string());
-                        mode_descriptions.push(format!("+ {} — {}", cost, desc));
+                        mode_descriptions.push(format!("+ {cost} — {desc}"));
                         mode_costs.push(cost);
                         original_indices.push(idx);
                     }
@@ -1381,8 +1380,7 @@ impl GameLoop {
                 );
             if !meets {
                 eprintln!(
-                    "[RUST-MUST-TARGET] Cast rejected for {} — MustTarget restriction not met",
-                    card_name
+                    "[RUST-MUST-TARGET] Cast rejected for {card_name} — MustTarget restriction not met"
                 );
                 rollback_cast!();
             }
@@ -2265,9 +2263,9 @@ impl GameLoop {
         };
         let chosen_target = entry.spell_ability.target_chosen.target_card;
         let stack_message = if is_flashback {
-            format!("Cast: {} [Flashback from Graveyard]", card_name)
+            format!("Cast: {card_name} [Flashback from Graveyard]")
         } else {
-            format!("Cast: {}", card_name)
+            format!("Cast: {card_name}")
         };
         crate::perf::increment(crate::perf::Metric::StackEntryClones, 1);
         let sa_for_trigger = self.push_spell_ability_to_stack(
@@ -2306,12 +2304,9 @@ impl GameLoop {
             if storm_count > 0 {
                 crate::agent::notify_all_agents(
                     agents,
-                    crate::agent::GameLogEvent::stack(format!(
-                        "Storm count: {} copies",
-                        storm_count
-                    ))
-                    .with_player(player)
-                    .with_card(card_id),
+                    crate::agent::GameLogEvent::stack(format!("Storm count: {storm_count} copies"))
+                        .with_player(player)
+                        .with_card(card_id),
                 );
                 for i in 0..storm_count {
                     if crate::card::card_factory::spell_ability_cant_be_copied(
@@ -2348,7 +2343,7 @@ impl GameLoop {
                     }
                     game.stack.push(copy);
                     self.log_stack_push(
-                        &format!("{} (Storm copy)", card_name),
+                        &format!("{card_name} (Storm copy)"),
                         &game.player(player).name,
                     );
 
@@ -2370,7 +2365,7 @@ impl GameLoop {
         if replicate_count > 0 {
             crate::agent::notify_all_agents(
                 agents,
-                crate::agent::GameLogEvent::stack(format!("Replicate: {} copies", replicate_count))
+                crate::agent::GameLogEvent::stack(format!("Replicate: {replicate_count} copies"))
                     .with_player(player)
                     .with_card(card_id),
             );
@@ -2409,7 +2404,7 @@ impl GameLoop {
                 }
                 game.stack.push(copy);
                 self.log_stack_push(
-                    &format!("{} (Replicate copy)", card_name),
+                    &format!("{card_name} (Replicate copy)"),
                     &game.player(player).name,
                 );
 
@@ -2509,7 +2504,7 @@ impl GameLoop {
                 && agents[player.index()].confirm_action(
                     player,
                     None,
-                    &format!("Do you want to play {}?", card_name),
+                    &format!("Do you want to play {card_name}?"),
                     &[],
                     Some(cascade_card_id),
                     Some(crate::ability::api_type::ApiType::Play),
@@ -2545,7 +2540,7 @@ impl GameLoop {
                     self.log_stack_push(&card_name, &game.player(player).name);
                     crate::agent::notify_all_agents(
                         agents,
-                        crate::agent::GameLogEvent::stack(format!("Cascade cast: {}", card_name))
+                        crate::agent::GameLogEvent::stack(format!("Cascade cast: {card_name}"))
                             .with_player(player)
                             .with_card(cascade_card_id),
                     );

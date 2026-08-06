@@ -70,7 +70,7 @@ impl TriggerBehavior for TriggerEnteredRoom {
         sa: &SpellAbility,
     ) -> String {
         sa.get_triggering_object(crate::ability::AbilityKey::RoomName)
-            .map(|r| format!("Room: {}", r))
+            .map(|r| format!("Room: {r}"))
             .unwrap_or_default()
     }
 }

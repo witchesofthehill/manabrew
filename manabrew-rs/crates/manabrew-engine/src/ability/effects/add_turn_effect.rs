@@ -61,7 +61,7 @@ pub fn create_cant_set_schemes_in_motion_effect(ctx: &mut EffectContext, sa: &Sp
     // Create a minimal effect card (mirrors Java's createEffect helper)
     let effect_card = crate::card::Card::new(
         crate::ids::CardId(0),
-        format!("{}'s Effect", card_name),
+        format!("{card_name}'s Effect"),
         controller,
         CardTypeLine::default(),
         ManaCost::no_cost(),

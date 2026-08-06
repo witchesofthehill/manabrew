@@ -277,13 +277,13 @@ impl ChoiceLogEntry {
         let mut s = String::new();
         s.push_str(&self.name);
         if let Some(n) = self.choices {
-            s.push_str(&format!("[{}]", n));
+            s.push_str(&format!("[{n}]"));
         }
         if !self.outcome.is_empty() {
             s.push_str(&format!(" -> {}", self.outcome));
         }
         if let Some(cc) = self.rng_call_count {
-            s.push_str(&format!(" \x1b[33m{{{}}}\x1b[0m", cc));
+            s.push_str(&format!(" \x1b[33m{{{cc}}}\x1b[0m"));
         }
         s
     }

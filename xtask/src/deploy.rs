@@ -569,11 +569,22 @@ fn deploy(root: &Path, opts: &Opts) -> Result<()> {
     }
     pull_images(root, opts, &images)?;
 
-    // ingress is created on first deploy and left alone after: its compose
-    // config never interpolates the tag, so a listed `up` without
-    // --force-recreate is a no-op — recreating it would sever every live
-    // relay websocket.
-    let mut services = vec!["ingress", "manabrew"];
+    // ingress is created on first deploy and never touched again — bouncing
+    // the container that holds 80/443 severs every live relay websocket, and
+    // compose restarts a listed service when a dependency it shares the `up`
+    // with is recreated (that took prod down at v3.6.0). So it gets its own
+    // create-if-missing `up` and stays out of the rollout list; even a
+    // config-hash change waits for a deliberate manual recreate.
+    ssh_streamed(
+        root,
+        &opts.host,
+        &compose(
+            &opts.path,
+            &opts.tag,
+            "up -d --no-deps --no-recreate ingress",
+        ),
+    )?;
+    let mut services = vec!["manabrew"];
     let mut relay_note = String::new();
     if !web_only {
         services.push("manabrew-hub");

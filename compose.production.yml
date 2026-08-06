@@ -1,9 +1,11 @@
 services:
   # Edge proxy: owns 80/443 + TLS for every host (ops/Caddyfile) and never
-  # runs app code, so app rollouts leave it up — recreating the container
-  # that holds 80/443 severs every live relay websocket. Deploys are listed
-  # `up`s that never recreate it (stock image, no tag interpolation); config
-  # changes land via `caddy reload`.
+  # runs app code, so app rollouts leave it up — stopping the container
+  # that holds 80/443 severs every live relay websocket. Deploys create it
+  # with a dedicated `up --no-recreate` and otherwise never list it; config
+  # changes land via `caddy reload`. No depends_on: compose restarts a
+  # dependent whenever its dependency is recreated, which is exactly the
+  # bounce this container must never take.
   ingress:
     image: caddy:2.10-alpine
     restart: unless-stopped
@@ -20,10 +22,6 @@ services:
       PUSHGATEWAY_PASSWORD_HASH:
       # Bcrypt hash for the api. /admin/* ingress (same single-quote caveat).
       HUB_ADMIN_PASSWORD_HASH:
-    # Ordering only, and only for the migration deploy: the old web container
-    # must release 80/443 before ingress can bind them.
-    depends_on:
-      - manabrew
 
   manabrew:
     # Pre-built in CI (docker-images.yml) and pulled here — the web image is a

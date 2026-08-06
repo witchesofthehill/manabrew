@@ -124,7 +124,13 @@ export function DeckVsSelector({
   const presetDecks = usePresetDecks(offlineEngine).filter(
     (preset) => !forkedPresetKeys.has((preset.id ?? "").toLowerCase()),
   );
-  const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined, true, [offlineEngine]);
+  const hubDecks = useHubDeckSearch(
+    deckSearch,
+    selectedFormat ?? undefined,
+    true,
+    [offlineEngine],
+    "community",
+  );
   const hubDeckEntries = hubDecks.decks.filter((entry) =>
     supportsEngine(hubEntryEngines(entry), offlineEngine),
   );

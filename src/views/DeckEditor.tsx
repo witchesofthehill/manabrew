@@ -125,6 +125,9 @@ export default function DeckEditor() {
       deck,
       savedAt: 0,
     }));
+  const presetEnginesById = new Map(
+    presetDecks.map((deck) => [presetDeckParamId(deck), deck.engines]),
+  );
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
@@ -743,6 +746,7 @@ export default function DeckEditor() {
                             : undefined
                         }
                         badge="Official preset"
+                        engines={presetEnginesById.get(s.id)}
                       />
                     ))}
                   </div>

@@ -359,23 +359,13 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             ) : communityDecks.loading && communityEntries.length === 0 ? (
               <p className="text-xs text-muted-foreground">Loading community decks…</p>
             ) : communityEntries.length > 0 ? (
-              <>
-                <DeckShelfRow label="Community decks">
-                  {communityEntries.map((entry) => (
-                    <div key={`hub:${entry.id}`} className={SHELF_CARD_CLASS}>
-                      <DeckHubEntryCard entry={entry} onOpen={() => setHubPreviewId(entry.id)} />
-                    </div>
-                  ))}
-                </DeckShelfRow>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => navigate(ROUTES.HUB)}
-                >
-                  Browse all community decks
-                </Button>
-              </>
+              <DeckShelfRow label="Community decks">
+                {communityEntries.map((entry) => (
+                  <div key={`hub:${entry.id}`} className={SHELF_CARD_CLASS}>
+                    <DeckHubEntryCard entry={entry} onOpen={() => setHubPreviewId(entry.id)} />
+                  </div>
+                ))}
+              </DeckShelfRow>
             ) : (
               <p className="text-xs italic text-muted-foreground">
                 No community decks for {formatName ?? "this format"} yet.

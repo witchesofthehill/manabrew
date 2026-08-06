@@ -23,6 +23,7 @@ import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
@@ -114,7 +115,15 @@ export function DeckVsSelector({
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
-  const presetDecks = usePresetDecks(offlineEngine);
+  const { details: accountDeckDetails } = useAccountDecks();
+  const forkedPresetKeys = new Set(
+    Object.values(accountDeckDetails)
+      .map((detail) => detail.derivedFromPresetKey?.toLowerCase())
+      .filter((key): key is string => key !== undefined),
+  );
+  const presetDecks = usePresetDecks(offlineEngine).filter(
+    (preset) => !forkedPresetKeys.has((preset.id ?? "").toLowerCase()),
+  );
   const hubDecks = useHubDeckSearch(deckSearch, selectedFormat ?? undefined, true, [offlineEngine]);
   const hubDeckEntries = hubDecks.decks.filter((entry) =>
     supportsEngine(hubEntryEngines(entry), offlineEngine),

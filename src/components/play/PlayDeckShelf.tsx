@@ -64,9 +64,10 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     formatFilter === "all" ? undefined : formatFilter,
     hubEnabled && (sourceFilter === "all" || sourceFilter === "community"),
     availableEngines(),
+    "community",
   );
-  const communityEntries = communityDecks.decks.filter(
-    (entry) => entry.sourceKind !== "preset" && supportsAvailableEngine(hubEntryEngines(entry)),
+  const communityEntries = communityDecks.decks.filter((entry) =>
+    supportsAvailableEngine(hubEntryEngines(entry)),
   );
   const {
     details: accountDeckDetails,
@@ -91,8 +92,15 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     ),
     ...accountSavedDecks.filter((savedDeck) => !savedDeck.deck.draft),
   ];
-  const visiblePresets = presetDecks.filter((preset) =>
-    availableEngines().some((engine) => presetSupportsEngine(preset, engine)),
+  const forkedPresetKeys = new Set(
+    Object.values(accountDeckDetails)
+      .map((detail) => detail.derivedFromPresetKey?.toLowerCase())
+      .filter((key): key is string => key !== undefined),
+  );
+  const visiblePresets = presetDecks.filter(
+    (preset) =>
+      !forkedPresetKeys.has((preset.id ?? "").toLowerCase()) &&
+      availableEngines().some((engine) => presetSupportsEngine(preset, engine)),
   );
 
   const matchesFormat = (format?: string) =>

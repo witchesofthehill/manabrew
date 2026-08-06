@@ -369,7 +369,7 @@ fn refund_cost_part(game: &mut GameState, source: CardId, player: PlayerId, part
         // Most cost parts (sacrifice, discard, exile, return, etc.) are not
         // individually refundable — zone changes are rolled back by GameSnapshot.
         _ => {
-            eprintln!("[WARN] Unhandled cost part refund: {:?}", part);
+            eprintln!("[WARN] Unhandled cost part refund: {part:?}");
         }
     }
 }

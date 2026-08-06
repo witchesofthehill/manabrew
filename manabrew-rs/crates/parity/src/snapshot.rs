@@ -180,10 +180,7 @@ fn counters_to_java_string(counters: &BTreeMap<String, i32>) -> String {
     if counters.is_empty() {
         return "{}".to_string();
     }
-    let entries: Vec<String> = counters
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect();
+    let entries: Vec<String> = counters.iter().map(|(k, v)| format!("{k}={v}")).collect();
     format!("{{{}}}", entries.join(", "))
 }
 

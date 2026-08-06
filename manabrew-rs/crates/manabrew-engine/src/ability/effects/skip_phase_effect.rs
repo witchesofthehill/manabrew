@@ -16,7 +16,7 @@ pub fn create_skip_phase_effect(
         "Combat" | "BeginCombat" => game.player_mut(player).skip_next_combat = true,
         "Untap" => game.player_mut(player).skip_next_untap = true,
         _ => {
-            eprintln!("SkipPhaseEffect: Unknown phase to skip: {:?}", phase);
+            eprintln!("SkipPhaseEffect: Unknown phase to skip: {phase:?}");
         }
     }
 }
@@ -69,10 +69,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             "Untap" => ctx.game.player_set_skip_untap(target),
             _ => {
                 let err = crate::ability::IllegalAbilityException::new(format!(
-                    "Unknown phase to skip: {:?}",
-                    phase
+                    "Unknown phase to skip: {phase:?}"
                 ));
-                eprintln!("{}", err);
+                eprintln!("{err}");
             }
         }
     }

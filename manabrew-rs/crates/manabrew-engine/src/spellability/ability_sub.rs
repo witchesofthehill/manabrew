@@ -40,7 +40,7 @@ pub fn resolve(sa: &SpellAbility) -> String {
 
     // Last resort: describe via API type
     match sa.api {
-        Some(api) => format!("{:?} (sub-ability)", api),
+        Some(api) => format!("{api:?} (sub-ability)"),
         None => "Sub-ability".to_string(),
     }
 }

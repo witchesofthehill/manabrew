@@ -74,7 +74,7 @@ pub fn compare(index: usize, rust: &StateSnapshot, java: &StateSnapshot) -> Vec<
     // Per-player comparison
     let max_players = rust.players.len().max(java.players.len());
     for i in 0..max_players {
-        let prefix = format!("players[{}]", i);
+        let prefix = format!("players[{i}]");
         match (rust.players.get(i), java.players.get(i)) {
             (Some(rp), Some(jp)) => {
                 compare_players(&mut divs, index, turn, &phase, &prefix, rp, jp);
@@ -84,7 +84,7 @@ pub fn compare(index: usize, rust: &StateSnapshot, java: &StateSnapshot) -> Vec<
                     index,
                     turn,
                     &phase,
-                    &format!("{}.exists", prefix),
+                    &format!("{prefix}.exists"),
                     &"present",
                     &"missing",
                 ));
@@ -94,7 +94,7 @@ pub fn compare(index: usize, rust: &StateSnapshot, java: &StateSnapshot) -> Vec<
                     index,
                     turn,
                     &phase,
-                    &format!("{}.exists", prefix),
+                    &format!("{prefix}.exists"),
                     &"missing",
                     &"present",
                 ));
@@ -146,7 +146,7 @@ fn compare_players(
             snapshot_index: index,
             turn,
             phase: phase.to_string(),
-            field: format!("{}.library_top", prefix),
+            field: format!("{prefix}.library_top"),
             rust_value: format!("{:?}", rust.library_top),
             java_value: format!("{:?}", java.library_top),
         });
@@ -158,7 +158,7 @@ fn compare_players(
         index,
         turn,
         phase,
-        &format!("{}.graveyard", prefix),
+        &format!("{prefix}.graveyard"),
         &rust.graveyard,
         &java.graveyard,
     );
@@ -167,7 +167,7 @@ fn compare_players(
         index,
         turn,
         phase,
-        &format!("{}.hand", prefix),
+        &format!("{prefix}.hand"),
         &rust.hand,
         &java.hand,
     );
@@ -176,7 +176,7 @@ fn compare_players(
         index,
         turn,
         phase,
-        &format!("{}.exile", prefix),
+        &format!("{prefix}.exile"),
         &rust.exile,
         &java.exile,
     );
@@ -187,7 +187,7 @@ fn compare_players(
         index,
         turn,
         phase,
-        &format!("{}.battlefield", prefix),
+        &format!("{prefix}.battlefield"),
         &rust.battlefield,
         &java.battlefield,
     );
@@ -208,8 +208,8 @@ fn compare_name_list(
             turn,
             phase,
             field,
-            &format!("{:?}", rust),
-            &format!("{:?}", java),
+            &format!("{rust:?}"),
+            &format!("{java:?}"),
         ));
     }
 }
@@ -230,14 +230,14 @@ fn compare_battlefield(
             index,
             turn,
             phase,
-            &format!("{}.count", prefix),
+            &format!("{prefix}.count"),
             &rust.len(),
             &java.len(),
         ));
     }
 
     for i in 0..max {
-        let card_prefix = format!("{}[{}]", prefix, i);
+        let card_prefix = format!("{prefix}[{i}]");
         match (rust.get(i), java.get(i)) {
             (Some(rc), Some(jc)) => {
                 if rc.name != jc.name {
@@ -245,7 +245,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.name", card_prefix),
+                        &format!("{card_prefix}.name"),
                         &rc.name,
                         &jc.name,
                     ));
@@ -255,7 +255,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.tapped", card_prefix),
+                        &format!("{card_prefix}.tapped"),
                         &rc.tapped,
                         &jc.tapped,
                     ));
@@ -265,7 +265,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.power", card_prefix),
+                        &format!("{card_prefix}.power"),
                         &format!("{:?}", rc.power),
                         &format!("{:?}", jc.power),
                     ));
@@ -275,7 +275,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.toughness", card_prefix),
+                        &format!("{card_prefix}.toughness"),
                         &format!("{:?}", rc.toughness),
                         &format!("{:?}", jc.toughness),
                     ));
@@ -285,7 +285,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.damage", card_prefix),
+                        &format!("{card_prefix}.damage"),
                         &rc.damage,
                         &jc.damage,
                     ));
@@ -305,7 +305,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.summoning_sick", card_prefix),
+                        &format!("{card_prefix}.summoning_sick"),
                         &rc.summoning_sick,
                         &jc.summoning_sick,
                     ));
@@ -315,7 +315,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.counters", card_prefix),
+                        &format!("{card_prefix}.counters"),
                         &format!("{:?}", rc.counters),
                         &format!("{:?}", jc.counters),
                     ));
@@ -325,7 +325,7 @@ fn compare_battlefield(
                         index,
                         turn,
                         phase,
-                        &format!("{}.controller", card_prefix),
+                        &format!("{card_prefix}.controller"),
                         &rc.controller,
                         &jc.controller,
                     ));
@@ -336,7 +336,7 @@ fn compare_battlefield(
                     index,
                     turn,
                     phase,
-                    &format!("{}.exists", card_prefix),
+                    &format!("{card_prefix}.exists"),
                     &rc.name,
                     &"<missing>",
                 ));
@@ -346,7 +346,7 @@ fn compare_battlefield(
                     index,
                     turn,
                     phase,
-                    &format!("{}.exists", card_prefix),
+                    &format!("{card_prefix}.exists"),
                     &"<missing>",
                     &jc.name,
                 ));

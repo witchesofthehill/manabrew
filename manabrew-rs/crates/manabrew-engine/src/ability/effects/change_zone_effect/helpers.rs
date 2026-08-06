@@ -561,7 +561,7 @@ fn create_warp_effect(ctx: &mut EffectContext, sa: &SpellAbility, exiled_card_id
     let card_name = ctx.game.card(exiled_card_id).card_name.clone();
     let mut effect = Card::new(
         CardId(0),
-        format!("Warped {}", card_name),
+        format!("Warped {card_name}"),
         controller,
         CardTypeLine::parse("Effect"),
         ManaCost::parse("0"),
@@ -576,7 +576,7 @@ fn create_warp_effect(ctx: &mut EffectContext, sa: &SpellAbility, exiled_card_id
     effect.add_remembered_card(exiled_card_id);
     effect.set_forget_on_moved_origin(Some(ZoneType::Exile));
     let static_text = "Mode$ Continuous | MayPlay$ True | EffectZone$ Command | Affected$ Card.IsRemembered+nonLand | AffectedZone$ Exile";
-    if let Some(parsed) = parse_static_ability(&format!("S$ {}", static_text)) {
+    if let Some(parsed) = parse_static_ability(&format!("S$ {static_text}")) {
         effect.add_static_ability(parsed);
     }
     let eid = ctx.game.create_card(effect);

@@ -80,7 +80,7 @@ fn parse_literal_target_count(expr: &str) -> Option<i32> {
 }
 
 pub fn make_plotted_keyword(turn: u32) -> String {
-    format!("{}{}", KEYWORD_PLOTTED_PREFIX, turn)
+    format!("{KEYWORD_PLOTTED_PREFIX}{turn}")
 }
 
 /// Extract the turn number from a `"Plotted:{turn}"` keyword, if present.
@@ -1396,7 +1396,7 @@ impl Card {
 
     /// Check "Hexproof from <color>" variants (e.g. "Hexproof from blue").
     pub fn has_hexproof_from(&self, color: &str) -> bool {
-        let target = format!("Hexproof from {}", color);
+        let target = format!("Hexproof from {color}");
         self.keywords.contains_string_ignore_case(&target)
             || self.granted_keywords.contains_string_ignore_case(&target)
     }
@@ -1422,7 +1422,7 @@ impl Card {
 
     /// Check "Protection from <quality>" (e.g. "Protection from red").
     pub fn has_protection_from(&self, quality: &str) -> bool {
-        let target = format!("Protection from {}", quality);
+        let target = format!("Protection from {quality}");
         self.keywords.contains_string_ignore_case(&target)
             || self.granted_keywords.contains_string_ignore_case(&target)
     }

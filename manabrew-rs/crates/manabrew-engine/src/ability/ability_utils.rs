@@ -1467,7 +1467,7 @@ pub fn x_count(game: &GameState, card_id: CardId, expr: &str, sa: &SpellAbility)
     let full_expr = if expr.starts_with("Count$") || expr.starts_with("Number$") {
         expr.to_string()
     } else {
-        format!("Count${}", expr)
+        format!("Count${expr}")
     };
     crate::svar::resolve_count_svar_for_sa(&full_expr, game, card_id, controller, sa)
 }
@@ -2252,7 +2252,7 @@ pub fn add_splice_effect(sa: &mut SpellAbility, game: &GameState, splice_card_id
     let name = splice_card.card_name.clone();
     if !sa.description.is_empty() {
         sa.description
-            .push_str(&format!(" (Splicing {} onto it)", name));
+            .push_str(&format!(" (Splicing {name} onto it)"));
     }
 }
 

@@ -436,8 +436,7 @@ impl TriggerHandler {
 
             let trigger_msg = if pt.description.is_empty() {
                 format!(
-                    "Trigger fired: mode={} | api={} | source={}",
-                    trigger_mode, trigger_api, source_name
+                    "Trigger fired: mode={trigger_mode} | api={trigger_api} | source={source_name}"
                 )
             } else {
                 format!(

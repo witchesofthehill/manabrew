@@ -591,10 +591,9 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                         .unwrap_or(0)
                         .saturating_add(1);
                     let mut next_id_mut = next_id;
-                    let execute = format!("TrigWardGranted{}", next_id);
+                    let execute = format!("TrigWardGranted{next_id}");
                     let raw = format!(
-                        "Mode$ BecomesTarget | ValidSource$ SpellAbility.OppCtrl | ValidTarget$ Card.Self | Secondary$ True | Execute$ {} | TriggerZones$ Battlefield | TriggerDescription$ Ward",
-                        execute
+                        "Mode$ BecomesTarget | ValidSource$ SpellAbility.OppCtrl | ValidTarget$ Card.Self | Secondary$ True | Execute$ {execute} | TriggerZones$ Battlefield | TriggerDescription$ Ward"
                     );
                     if let Some(mut trig) = crate::trigger::parse_trigger(&raw, &mut next_id_mut) {
                         trig.execute = execute.clone();

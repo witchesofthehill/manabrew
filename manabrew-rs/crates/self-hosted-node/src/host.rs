@@ -892,7 +892,7 @@ async fn wait_for_host_room(
             }
             Some(ServerMessage::AuthResult { success, error, .. }) => {
                 if !success {
-                    return Err(format!("authentication failed: {:?}", error).into());
+                    return Err(format!("authentication failed: {error:?}").into());
                 }
             }
             Some(ServerMessage::Error { code, message }) => {
@@ -2110,7 +2110,7 @@ impl RelayClient {
                         info!(username = %self.username, "authenticated");
                         return Ok(());
                     }
-                    return Err(format!("authentication failed: {:?}", error).into());
+                    return Err(format!("authentication failed: {error:?}").into());
                 }
                 Some(other) => {
                     debug!(?other, username = %self.username, "ignored pre-auth message")

@@ -16,7 +16,7 @@ pub fn to_string(part: &super::CostPart) -> String {
         super::CostPart::Unattach { type_filter, .. } => type_filter.clone(),
         _ => "equipment".to_string(),
     };
-    format!("Unattach {}", desc)
+    format!("Unattach {desc}")
 }
 
 /// Pay by detaching the target card from whatever it's attached to.

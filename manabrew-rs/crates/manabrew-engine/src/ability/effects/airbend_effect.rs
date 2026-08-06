@@ -106,7 +106,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         // it's still exiled. Mirrors Java `AirbendEffect.resolve`.
         let card_name_for_effect = ctx.game.card(card_id).card_name.clone();
         let host_name = host_image.clone().unwrap_or_else(|| "Airbend".to_string());
-        let effect_name = format!("{} ({})", host_name, card_name_for_effect);
+        let effect_name = format!("{host_name} ({card_name_for_effect})");
 
         let mut effect = Card::new(
             CardId(0),

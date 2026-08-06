@@ -160,7 +160,7 @@ impl ParityFormat for (Option<CardId>, i32) {
             Some(c) => ctx.card(*c),
             None => "defender".to_string(),
         };
-        format!("{}={}", target_str, dmg)
+        format!("{target_str}={dmg}")
     }
 }
 
@@ -247,7 +247,7 @@ impl ParityFormat for PlayerAction {
                 format!("ActivateMana({}, {:?})", ctx.card(*cid), idx)
             }
             // For other variants, fall back to Debug but resolve card IDs where possible.
-            other => format!("{:?}", other),
+            other => format!("{other:?}"),
         }
     }
 }
@@ -354,7 +354,7 @@ fn fmt_mana_atom_set(atom: u16) -> String {
 
 impl ParityFormat for RollSwapChoice {
     fn parity_fmt(&self, _ctx: &FmtCtx<'_>) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 
@@ -483,28 +483,28 @@ impl CallbackArgDisplay for CardId {
         if let Some(ctx) = ctx {
             ctx.card(*self)
         } else {
-            format!("{:?}", self)
+            format!("{self:?}")
         }
     }
 }
 impl CallbackArgDisplay for ZoneType {
     fn callback_arg_display(&self, _ctx: Option<&FmtCtx<'_>>) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 impl CallbackArgDisplay for DefenderId {
     fn callback_arg_display(&self, _ctx: Option<&FmtCtx<'_>>) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 impl CallbackArgDisplay for BinaryChoiceKind {
     fn callback_arg_display(&self, _ctx: Option<&FmtCtx<'_>>) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 impl CallbackArgDisplay for ApiType {
     fn callback_arg_display(&self, _ctx: Option<&FmtCtx<'_>>) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 

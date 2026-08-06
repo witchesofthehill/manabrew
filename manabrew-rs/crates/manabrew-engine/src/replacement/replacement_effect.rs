@@ -451,13 +451,10 @@ impl ReplacementEffect {
                     node.set_triggering_object(AbilityKey::Card, card_csv.as_str());
                     node.set_triggering_object(AbilityKey::ReplacedCard, card_csv.as_str());
                     node.set_triggering_object(AbilityKey::Affected, card_csv.as_str());
-                    node.set_triggering_object(
-                        AbilityKey::Origin,
-                        format!("{:?}", origin).as_str(),
-                    );
+                    node.set_triggering_object(AbilityKey::Origin, format!("{origin:?}").as_str());
                     node.set_triggering_object(
                         AbilityKey::Destination,
-                        format!("{:?}", destination).as_str(),
+                        format!("{destination:?}").as_str(),
                     );
                 }
                 ReplacementEvent::DamageToCard {
@@ -531,7 +528,7 @@ impl ReplacementEffect {
                     node.set_triggering_object(AbilityKey::Object, target_csv.as_str());
                     node.set_triggering_object(
                         AbilityKey::CounterMap,
-                        format!("{:?}:{}", counter_type, count).as_str(),
+                        format!("{counter_type:?}:{count}").as_str(),
                     );
                 }
                 ReplacementEvent::Draw {
@@ -634,7 +631,7 @@ impl ReplacementEffect {
                     node.set_triggering_object(AbilityKey::Card, target_csv.as_str());
                     node.set_triggering_object(
                         AbilityKey::CounterMap,
-                        format!("{:?}:{}", counter_type, count).as_str(),
+                        format!("{counter_type:?}:{count}").as_str(),
                     );
                 }
                 ReplacementEvent::Attached { card, target } => {

@@ -60,7 +60,7 @@ async fn run_bot_session(
 ) -> Result<SessionEnd, String> {
     let (socket, _) = connect_async(relay_url)
         .await
-        .map_err(|error| format!("Failed to connect bot to {}: {}", relay_url, error))?;
+        .map_err(|error| format!("Failed to connect bot to {relay_url}: {error}"))?;
     let (mut sink, mut stream) = socket.split();
 
     let mut state = BotState::new(config);

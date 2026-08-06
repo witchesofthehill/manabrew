@@ -1397,8 +1397,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     .unwrap_or_else(|| format!("Player {}", active_player.0));
                 self.responder.send_log(GameLogEntryDto::from_event(
                     manabrew_engine::agent::GameLogEvent::rule(format!(
-                        "TURN {} — {}",
-                        turn_number, active_player_name
+                        "TURN {turn_number} — {active_player_name}"
                     ))
                     .with_player(active_player),
                 ));

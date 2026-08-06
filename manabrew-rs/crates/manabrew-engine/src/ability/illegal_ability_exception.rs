@@ -21,7 +21,7 @@ impl IllegalAbilityException {
     /// Create from a spell ability description and effect name.
     pub fn with_effect(sa_desc: &str, effect_name: &str) -> Self {
         Self {
-            message: format!("{} (effect {})", sa_desc, effect_name),
+            message: format!("{sa_desc} (effect {effect_name})"),
         }
     }
 }

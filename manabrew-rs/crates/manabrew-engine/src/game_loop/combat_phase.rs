@@ -323,7 +323,7 @@ impl GameLoop {
                 if cost > 0 {
                     let controller = game.card(attacker_id).controller;
                     let attacker_name = game.card(attacker_id).card_name.clone();
-                    let description = format!("Pay {{{}}} to attack with {}", cost, attacker_name);
+                    let description = format!("Pay {{{cost}}} to attack with {attacker_name}");
 
                     // Loop: let the agent tap lands / pay / decline
                     loop {

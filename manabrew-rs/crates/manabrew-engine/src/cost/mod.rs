@@ -579,11 +579,11 @@ impl Cost {
 
 pub fn convert_amount_type_to_words(amount: i32, amount_expr: &str, noun: &str) -> String {
     if amount_expr == "X" {
-        format!("X {}", noun)
+        format!("X {noun}")
     } else if amount == 1 {
-        format!("a {}", noun)
+        format!("a {noun}")
     } else {
-        format!("{} {}s", amount, noun)
+        format!("{amount} {noun}s")
     }
 }
 
@@ -652,9 +652,9 @@ pub fn to_simple_string(cost: &Cost) -> String {
         match part {
             CostPart::Tap => out.push("{T}".to_string()),
             CostPart::Untap => out.push("{Q}".to_string()),
-            CostPart::Mana { cost, .. } => out.push(format!("{}", cost)),
-            CostPart::PayLife(v) => out.push(format!("Pay {} life", v)),
-            _ => out.push(format!("{:?}", part)),
+            CostPart::Mana { cost, .. } => out.push(format!("{cost}")),
+            CostPart::PayLife(v) => out.push(format!("Pay {v} life")),
+            _ => out.push(format!("{part:?}")),
         }
     }
     out.join(", ")
@@ -668,9 +668,9 @@ pub fn to_prompt_string(cost: &Cost) -> String {
         match part {
             CostPart::Tap => out.push("{T}".to_string()),
             CostPart::Untap => out.push("{Q}".to_string()),
-            CostPart::Mana { cost, .. } => out.push(format!("{}", cost)),
-            CostPart::PayLife(v) => out.push(format!("{} {{LIFE}}", v)),
-            _ => out.push(format!("{:?}", part)),
+            CostPart::Mana { cost, .. } => out.push(format!("{cost}")),
+            CostPart::PayLife(v) => out.push(format!("{v} {{LIFE}}")),
+            _ => out.push(format!("{part:?}")),
         }
     }
     out.join(", ")

@@ -20,7 +20,7 @@ struct PresetDeckFile {
 fn load_preset_deck(name: &str, decks_dirs: &[&str]) -> Result<Vec<(String, usize)>, String> {
     let mut tried = Vec::with_capacity(decks_dirs.len());
     for dir in decks_dirs {
-        let path = std::path::Path::new(dir).join(format!("{}.json", name));
+        let path = std::path::Path::new(dir).join(format!("{name}.json"));
         if !path.exists() {
             tried.push(path.display().to_string());
             continue;
@@ -67,7 +67,7 @@ pub fn resolve_deck_spec(spec: &str, decks_dirs: &[&str]) -> Result<Vec<(String,
 
 fn parse_deck_file(path: &str) -> Result<Vec<(String, usize)>, String> {
     let contents =
-        std::fs::read_to_string(path).map_err(|e| format!("Failed to read '{}': {}", path, e))?;
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read '{path}': {e}"))?;
     let mut deck = Vec::new();
     for (line_num, line) in contents.lines().enumerate() {
         let line = line.trim();
@@ -101,7 +101,7 @@ fn parse_deck_file(path: &str) -> Result<Vec<(String, usize)>, String> {
         deck.push((name.to_string(), count));
     }
     if deck.is_empty() {
-        return Err(format!("Deck file '{}' contains no cards", path));
+        return Err(format!("Deck file '{path}' contains no cards"));
     }
     Ok(deck)
 }
@@ -125,7 +125,7 @@ pub fn build_deck_from_spec(
             }
             None => {
                 if verbose {
-                    eprintln!("[parity] Unknown card '{}' — skipped", name);
+                    eprintln!("[parity] Unknown card '{name}' — skipped");
                 }
             }
         }

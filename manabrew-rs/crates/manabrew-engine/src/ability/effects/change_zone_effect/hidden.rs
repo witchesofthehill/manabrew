@@ -148,8 +148,7 @@ pub(super) fn resolve_hidden_origin(
                 ordered.retain(|&cid| {
                     let card_name = ctx.game.card(cid).card_name.clone();
                     let prompt = format!(
-                        "Do you want to move {} from {} to {}?",
-                        card_name, origin_zone, dest_zone,
+                        "Do you want to move {card_name} from {origin_zone} to {dest_zone}?",
                     );
                     ctx.agents[chooser.index()].confirm_action(
                         chooser,
@@ -562,7 +561,7 @@ fn offer_panglacial_cast(
         let cast = ctx.agents[controller.index()].confirm_action(
             controller,
             Some("PanglacialCast"),
-            &format!("Cast {} from library while searching?", name),
+            &format!("Cast {name} from library while searching?"),
             &[],
             Some(pg_id),
             None,

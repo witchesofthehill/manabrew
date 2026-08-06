@@ -259,7 +259,7 @@ impl JavaCache {
         };
         // Shard by first 2 hex chars to avoid giant flat directories
         let shard = &hash[..2];
-        self.cache_dir.join(shard).join(format!("{}.json", hash))
+        self.cache_dir.join(shard).join(format!("{hash}.json"))
     }
 }
 

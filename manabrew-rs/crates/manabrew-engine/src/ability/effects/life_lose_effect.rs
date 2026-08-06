@@ -59,7 +59,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         ctx.game
             .card_mut(source_id)
             .svars
-            .insert("AFLifeLost".to_string(), format!("Number${}", amount));
+            .insert("AFLifeLost".to_string(), format!("Number${amount}"));
     }
 
     // Per-player `LifeLost` trigger.

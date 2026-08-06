@@ -448,7 +448,7 @@ pub fn create_effect(game: &mut GameState, sa: &SpellAbility, name: &str, _image
         .unwrap_or_default();
 
     let effect_name = if name.is_empty() {
-        format!("{} Effect", source_name)
+        format!("{source_name} Effect")
     } else {
         name.to_string()
     };
@@ -953,8 +953,7 @@ pub fn replace_dying(game: &mut GameState, sa: &SpellAbility) -> Vec<CardId> {
         .unwrap_or("Card.IsRemembered");
     let zone = sa.ir.replace_dying_zone_text.as_deref().unwrap_or("Exile");
     let mut replacement_raw = format!(
-        "R$ Event$ Moved | ValidLKI$ {} | Origin$ Battlefield | Destination$ Graveyard | NewDestination$ {} | Description$ If that permanent would die this turn, exile it instead.",
-        valid, zone
+        "R$ Event$ Moved | ValidLKI$ {valid} | Origin$ Battlefield | Destination$ Graveyard | NewDestination$ {zone} | Description$ If that permanent would die this turn, exile it instead."
     );
     if sa.ir.replace_dying_exiled_with {
         replacement_raw.push_str(" | ExiledWithEffectSource$ True");

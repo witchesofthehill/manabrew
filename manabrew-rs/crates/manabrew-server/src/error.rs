@@ -25,10 +25,10 @@ pub enum ServerError {
 impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AuthFailed(msg) => write!(f, "Authentication failed: {}", msg),
+            Self::AuthFailed(msg) => write!(f, "Authentication failed: {msg}"),
             Self::AuthTimeout => write!(f, "Authentication timed out"),
-            Self::RoomNotFound(id) => write!(f, "Room not found: {}", id),
-            Self::RoomFull(id) => write!(f, "Room is full: {}", id),
+            Self::RoomNotFound(id) => write!(f, "Room not found: {id}"),
+            Self::RoomFull(id) => write!(f, "Room is full: {id}"),
             Self::IncorrectPassword => write!(f, "Incorrect room password"),
             Self::NotInRoom => write!(f, "You are not in a room"),
             Self::NotHost => write!(f, "Only the host can do that"),
@@ -37,12 +37,12 @@ impl fmt::Display for ServerError {
             Self::GameAlreadyStarted => write!(f, "Game has already started"),
             Self::GameNotInProgress => write!(f, "No game is in progress"),
             Self::FormatNotChosen => write!(f, "A format must be chosen before starting"),
-            Self::InvalidDraftConfig(msg) => write!(f, "Invalid draft config: {}", msg),
+            Self::InvalidDraftConfig(msg) => write!(f, "Invalid draft config: {msg}"),
             Self::InvalidResumeToken => write!(f, "Invalid resume token"),
-            Self::AlreadyInRoom(id) => write!(f, "Already in room: {}", id),
-            Self::DuplicateUsername(name) => write!(f, "Username already taken: {}", name),
-            Self::WebSocket(e) => write!(f, "WebSocket error: {}", e),
-            Self::Serde(e) => write!(f, "Serialization error: {}", e),
+            Self::AlreadyInRoom(id) => write!(f, "Already in room: {id}"),
+            Self::DuplicateUsername(name) => write!(f, "Username already taken: {name}"),
+            Self::WebSocket(e) => write!(f, "WebSocket error: {e}"),
+            Self::Serde(e) => write!(f, "Serialization error: {e}"),
         }
     }
 }

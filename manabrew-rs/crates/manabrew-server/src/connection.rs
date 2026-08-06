@@ -508,7 +508,7 @@ async fn authenticate(
                     success: false,
                     player_id: None,
                     reconnected: None,
-                    error: Some(format!("Username '{}' is already taken", username)),
+                    error: Some(format!("Username '{username}' is already taken")),
                 };
                 send_msg(sender, &reply);
                 return Err(ServerError::DuplicateUsername(username));

@@ -30,7 +30,7 @@ pub fn make_formated_description(game: &GameState, sa: &SpellAbility) -> String 
     let sides = sa.ir.sides.unwrap_or(6);
     let card_name = game.card(source_id).card_name.clone();
 
-    let mut desc = format!("{} — Roll a d{}.", card_name, sides);
+    let mut desc = format!("{card_name} — Roll a d{sides}.");
 
     if let Some(result_str) = sa.ir.result_sub_abilities_text.as_deref() {
         desc.push('\n');
@@ -44,7 +44,7 @@ pub fn make_formated_description(game: &GameState, sa: &SpellAbility) -> String 
                     let effect_desc = params
                         .get_cloned(crate::parsing::keys::SPELL_DESCRIPTION)
                         .unwrap_or_else(|| svar_name.to_string());
-                    desc.push_str(&format!("  {}: {}\n", threshold, effect_desc));
+                    desc.push_str(&format!("  {threshold}: {effect_desc}\n"));
                 }
             }
         }
@@ -379,7 +379,7 @@ fn roll_for_player(
         .join(", ");
     crate::agent::notify_all_agents(
         ctx.agents,
-        GameLogEvent::rule(format!("Rolled {} (d{})", rolled_text, sides)).with_player(player),
+        GameLogEvent::rule(format!("Rolled {rolled_text} (d{sides})")).with_player(player),
     );
     if !ignored_rolls.is_empty() {
         let ignored_text = ignored_rolls
@@ -558,7 +558,7 @@ pub fn roll_to_visit_attractions(
         .join(", ");
     crate::agent::notify_all_agents(
         agents,
-        GameLogEvent::rule(format!("Rolled {} (d6)", rolled_text)).with_player(player),
+        GameLogEvent::rule(format!("Rolled {rolled_text} (d6)")).with_player(player),
     );
     if !ignored_rolls.is_empty() {
         let ignored_text = ignored_rolls

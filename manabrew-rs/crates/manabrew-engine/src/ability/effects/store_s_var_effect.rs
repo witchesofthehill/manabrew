@@ -72,7 +72,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             .parse::<i32>()
             .unwrap_or_else(|_| crate::svar::evaluate_svar(&expression, sa)),
     };
-    let resolved_value = format!("Number${}", resolved_number);
+    let resolved_value = format!("Number${resolved_number}");
 
     ctx.game
         .card_mut(source_id)

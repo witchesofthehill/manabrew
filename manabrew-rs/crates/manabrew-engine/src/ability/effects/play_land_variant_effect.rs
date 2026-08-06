@@ -19,5 +19,5 @@ fn resolve(_ctx: &mut EffectContext, _sa: &crate::spellability::SpellAbility) {
     let err = crate::ability::IllegalAbilityException::new(
         "PlayLandVariant effect not yet fully implemented",
     );
-    eprintln!("{}", err);
+    eprintln!("{err}");
 }

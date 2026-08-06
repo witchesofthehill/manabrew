@@ -965,8 +965,7 @@ impl GameLoop {
                 crate::agent::notify_all_agents(
                     agents,
                     crate::agent::GameLogEvent::stack(format!(
-                        "Suspend: casting {} for free!",
-                        card_name
+                        "Suspend: casting {card_name} for free!"
                     ))
                     .with_player(active)
                     .with_card(card_id),

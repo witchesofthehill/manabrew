@@ -257,11 +257,11 @@ fn format_example_line(example: &ScriptScanExample) -> String {
     let key = example
         .key
         .as_ref()
-        .map(|key| format!(" key={}", key))
+        .map(|key| format!(" key={key}"))
         .unwrap_or_default();
     let values = match (&example.previous_value, &example.value) {
-        (Some(previous), Some(value)) => format!(" [{} -> {}]", previous, value),
-        (_, Some(value)) => format!(" [{}]", value),
+        (Some(previous), Some(value)) => format!(" [{previous} -> {value}]"),
+        (_, Some(value)) => format!(" [{value}]"),
         _ => String::new(),
     };
     format!(
@@ -376,7 +376,7 @@ impl CardPool {
             // Check static abilities
             if all_parse {
                 for raw in &face.static_abilities {
-                    let prefixed = format!("S$ {}", raw);
+                    let prefixed = format!("S$ {raw}");
                     if parse_static_ability(&prefixed).is_none() {
                         all_parse = false;
                         break;
@@ -387,7 +387,7 @@ impl CardPool {
             // Check replacement effects
             if all_parse {
                 for raw in &face.replacements {
-                    let prefixed = format!("R$ {}", raw);
+                    let prefixed = format!("R$ {raw}");
                     if parse_replacement_effect(&prefixed).is_none() {
                         all_parse = false;
                         break;
@@ -999,7 +999,7 @@ fn record_param_diagnostics(face: &CardFace, stats: &mut PoolStats) {
         record_raw_param_diagnostics(raw, &face.name, idx + 1, "Replacement", stats);
     }
     for (idx, raw) in face.static_abilities.iter().enumerate() {
-        let prefixed = format!("S$ {}", raw);
+        let prefixed = format!("S$ {raw}");
         record_raw_param_diagnostics(&prefixed, &face.name, idx + 1, "StaticAbility", stats);
     }
 }
@@ -1029,7 +1029,7 @@ fn synthesize_face_script(face: &CardFace) -> String {
     push_script_line(&mut raw, "ManaCost", &face.mana_cost.to_string());
     push_script_line(&mut raw, "Types", &face.type_line.to_string());
     if let (Some(power), Some(toughness)) = (face.int_power, face.int_toughness) {
-        push_script_line(&mut raw, "PT", &format!("{}/{}", power, toughness));
+        push_script_line(&mut raw, "PT", &format!("{power}/{toughness}"));
     }
     for keyword in &face.keywords {
         push_script_line(&mut raw, "K", keyword);
@@ -1047,7 +1047,7 @@ fn synthesize_face_script(face: &CardFace) -> String {
         push_script_line(&mut raw, "R", replacement);
     }
     for (name, value) in &face.svars {
-        push_script_line(&mut raw, "SVar", &format!("{}:{}", name, value));
+        push_script_line(&mut raw, "SVar", &format!("{name}:{value}"));
     }
     raw
 }
@@ -1085,7 +1085,7 @@ fn record_raw_param_diagnostics(
         }
         if stats.examples.len() < 16 {
             stats.examples.push(ScriptScanExample {
-                file: format!("{} {}", card_name, source),
+                file: format!("{card_name} {source}"),
                 line_no,
                 kind,
                 segment: diagnostic.segment.to_string(),

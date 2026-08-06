@@ -19,9 +19,9 @@ pub fn to_string(part: &super::CostPart) -> String {
             // Simplified inline since the full utility isn't ported yet.
             let desc = type_filter.as_str();
             if matches!(amount.as_literal(), Some(1)) {
-                sb.push_str(&format!("a tapped {}", desc));
+                sb.push_str(&format!("a tapped {desc}"));
             } else {
-                sb.push_str(&format!("{} tapped {}s", amount, desc));
+                sb.push_str(&format!("{amount} tapped {desc}s"));
             }
 
             if type_filter.contains("OppCtrl") {

@@ -129,7 +129,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let prompt = if cost_display.is_empty() {
             "Pay this cost?".to_string()
         } else {
-            format!("Pay {}?", cost_display)
+            format!("Pay {cost_display}?")
         };
         ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
         let wants_to_pay = ctx.agents[controller.index()].pay_cost_to_prevent_effect(

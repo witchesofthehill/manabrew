@@ -21,7 +21,7 @@ impl WasmBot {
     #[wasm_bindgen(constructor)]
     pub fn new(config_json: &str) -> Result<WasmBot, JsValue> {
         let config: BotConfig = serde_json::from_str(config_json)
-            .map_err(|e| JsValue::from_str(&format!("invalid bot config: {}", e)))?;
+            .map_err(|e| JsValue::from_str(&format!("invalid bot config: {e}")))?;
         Ok(WasmBot {
             state: BotState::new(config),
         })

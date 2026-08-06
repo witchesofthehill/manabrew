@@ -740,7 +740,7 @@ impl ManaCost {
 
 impl std::fmt::Debug for ManaCost {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ManaCost({})", self)
+        write!(f, "ManaCost({self})")
     }
 }
 
@@ -752,7 +752,7 @@ impl std::fmt::Display for ManaCost {
         // X shards first
         for s in &self.shards {
             if *s == ManaCostShard::X {
-                write!(f, "{}", s)?;
+                write!(f, "{s}")?;
             }
         }
         if self.generic_cost > 0 || (self.generic_cost == 0 && self.shards.is_empty()) {
@@ -760,7 +760,7 @@ impl std::fmt::Display for ManaCost {
         }
         for s in &self.shards {
             if *s != ManaCostShard::X {
-                write!(f, "{}", s)?;
+                write!(f, "{s}")?;
             }
         }
         if self.generic_cost < 0 {

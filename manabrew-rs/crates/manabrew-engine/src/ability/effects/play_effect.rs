@@ -51,7 +51,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let accepted = ctx.agents[controller.index()].confirm_action(
             controller,
             None,
-            &format!("Do you want to play {}?", card_name),
+            &format!("Do you want to play {card_name}?"),
             &[],
             Some(card_id),
             Some(crate::ability::api_type::ApiType::Play),
@@ -269,7 +269,7 @@ fn push_spell_to_stack(
     );
     super::emit_targeting_triggers(ctx, card_id, &trigger_sa);
 
-    let mut event = GameLogEvent::stack(format!("{}: cast {}", label, card_name))
+    let mut event = GameLogEvent::stack(format!("{label}: cast {card_name}"))
         .with_player(controller)
         .with_source_card(card_id);
     if let Some(target_id) = chosen_target {
@@ -298,8 +298,7 @@ pub fn add_replace_graveyard_effect(
     );
     effect.remembered_cards.push(card_id);
     let raw = format!(
-        "R$ Event$ Moved | ValidCard$ Card.IsRemembered | Origin$ Stack | Destination$ Graveyard | NewDestination$ {} | ForgetOnMoved$ Origin | Description$ If that card would be put into your graveyard this turn, put it into {} instead.",
-        dest_zone, dest_zone
+        "R$ Event$ Moved | ValidCard$ Card.IsRemembered | Origin$ Stack | Destination$ Graveyard | NewDestination$ {dest_zone} | ForgetOnMoved$ Origin | Description$ If that card would be put into your graveyard this turn, put it into {dest_zone} instead."
     );
     crate::player::player_factory_util::add_replacement_effect(&mut effect, &raw);
     effect.exile_when_no_remembered = true;

@@ -73,14 +73,14 @@ pub struct EscapeInfo {
 /// E.g. "Ward:2" with name "Ward" → Some("2").
 /// Used by keyword_gen for inline cost extraction from individual keyword strings.
 pub fn extract_keyword_cost_str<'a>(kw: &'a str, name: &str) -> Option<&'a str> {
-    let prefix = format!("{}:", name);
+    let prefix = format!("{name}:");
     kw.strip_prefix(&prefix)
 }
 
 /// Parse a keyword cost from a card's keywords list.
 /// E.g. keywords contains "Flashback:2 R", name = "Flashback" -> Some("2 R")
 pub fn parse_keyword_cost(keywords: &[String], name: &str) -> Option<String> {
-    let prefix = format!("{}:", name);
+    let prefix = format!("{name}:");
     for kw in keywords {
         if let Some(cost) = kw.strip_prefix(&prefix) {
             return Some(cost.to_string());
@@ -99,7 +99,7 @@ pub fn extract_keyword_cost(
     collection: &keyword_collection::KeywordCollection,
     name: &str,
 ) -> Option<String> {
-    let prefix = format!("{}:", name);
+    let prefix = format!("{name}:");
     for kw in collection.iter_strings() {
         if let Some(cost) = kw.strip_prefix(&prefix) {
             return Some(cost.to_string());
@@ -113,7 +113,7 @@ pub fn extract_keyword_cost_from_all<'a>(
     collections: impl IntoIterator<Item = &'a keyword_collection::KeywordCollection>,
     name: &str,
 ) -> Option<String> {
-    let prefix = format!("{}:", name);
+    let prefix = format!("{name}:");
     for coll in collections {
         for kw in coll.iter_strings() {
             if let Some(cost) = kw.strip_prefix(&prefix) {

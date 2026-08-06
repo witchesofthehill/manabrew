@@ -56,7 +56,7 @@ pub fn load_card_archive(bytes: &[u8]) -> Result<u64, JsError> {
             .into(),
         );
         for (file, err) in bundle.cards_result.errors.iter().take(5) {
-            web_sys::console::warn_1(&format!("  - {}: {}", file, err).into());
+            web_sys::console::warn_1(&format!("  - {file}: {err}").into());
         }
     }
 
@@ -114,11 +114,8 @@ pub fn load_card_archive(bytes: &[u8]) -> Result<u64, JsError> {
     }
 
     web_sys::console::log_1(
-        &format!(
-            "[card_loader] Loaded {} cards, {} tokens from archive",
-            cards_loaded, tokens_loaded
-        )
-        .into(),
+        &format!("[card_loader] Loaded {cards_loaded} cards, {tokens_loaded} tokens from archive")
+            .into(),
     );
 
     Ok(((cards_loaded as u64) << 32) | (tokens_loaded as u64))

@@ -59,6 +59,6 @@ impl TriggerBehavior for TriggerFightOnce {
         let parts: Vec<&str> = fighters_csv.split(',').collect();
         let f1 = parts.first().copied().unwrap_or("");
         let f2 = parts.get(1).copied().unwrap_or("");
-        format!("Fighter 1: {}, Fighter 2: {}", f1, f2)
+        format!("Fighter 1: {f1}, Fighter 2: {f2}")
     }
 }

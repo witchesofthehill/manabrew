@@ -202,8 +202,7 @@ pub fn add_etb_keyword_replacements(card: &mut Card) {
             .replace('|', "/");
 
         let mut raw = format!(
-            "R$ Event$ Moved | Layer$ {} | ValidCard$ {} | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ {} | Description$ {}",
-            layer, valid, svar_name, desc
+            "R$ Event$ Moved | Layer$ {layer} | ValidCard$ {valid} | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ {svar_name} | Description$ {desc}"
         );
         if optional {
             raw.push_str(" | Optional$ True");
@@ -299,16 +298,12 @@ pub fn add_madness_replacement(card: &mut Card) {
             "Madness: If you discard this card, discard it into exile.".to_string()
         } else {
             let display = forge_foundation::ManaCost::parse(cost);
-            format!(
-                "Madness {}: If you discard this card, discard it into exile.",
-                display
-            )
+            format!("Madness {display}: If you discard this card, discard it into exile.")
         };
         let repl_str = format!(
             "R$ Event$ Moved | ActiveZones$ Hand | ValidCard$ Card.Self | Discard$ True \
              | Secondary$ True | NewDestination$ Exile \
-             | Description$ {}",
-            desc
+             | Description$ {desc}"
         );
         if let Some(repl) = parse_replacement_effect(&repl_str) {
             card.add_replacement_effect(repl);
@@ -332,18 +327,16 @@ pub fn add_flashback_replacement(card: &mut Card) {
         .find_map(|kw| kw.strip_prefix("Flashback:"))
         .map(|c| {
             let mc = forge_foundation::ManaCost::parse(c.trim());
-            format!("{}", mc)
+            format!("{mc}")
         })
         .unwrap_or_default();
     let desc = format!(
-        "Flashback {} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-        cost_display
+        "Flashback {cost_display} (You may cast this card from your graveyard for its flashback cost. Then exile it.)"
     );
     let repl_str = format!(
         "R$ Event$ Moved | ValidCard$ Card.Self | Origin$ Stack | ExcludeDestination$ Exile \
          | FlashbackCast$ True | Secondary$ True | NewDestination$ Exile \
-         | Description$ {}",
-        desc
+         | Description$ {desc}"
     );
     if let Some(repl) = parse_replacement_effect(&repl_str) {
         card.add_replacement_effect(repl);
@@ -360,14 +353,12 @@ pub fn add_harmonize_replacement(card: &mut Card) {
     };
     let cost_display = forge_foundation::ManaCost::parse(cost);
     let desc = format!(
-        "Harmonize {} (You may cast this card from your graveyard for its harmonize cost. You may tap a creature you control to reduce that cost by {{X}}, where X is its power. Then exile this spell.)",
-        cost_display
+        "Harmonize {cost_display} (You may cast this card from your graveyard for its harmonize cost. You may tap a creature you control to reduce that cost by {{X}}, where X is its power. Then exile this spell.)"
     );
     let repl_str = format!(
         "R$ Event$ Moved | ValidCard$ Card.Self | Origin$ Stack | ExcludeDestination$ Exile \
          | HarmonizeCast$ True | Secondary$ True | NewDestination$ Exile \
-         | Description$ {}",
-        desc
+         | Description$ {desc}"
     );
     if let Some(repl) = parse_replacement_effect(&repl_str) {
         card.add_replacement_effect(repl);

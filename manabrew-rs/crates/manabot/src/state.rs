@@ -116,7 +116,7 @@ impl BotState {
                         }]
                     }
                 } else {
-                    self.fail(format!("authentication failed: {:?}", error))
+                    self.fail(format!("authentication failed: {error:?}"))
                 }
             }
             (Phase::AwaitingRoomJoin, ServerMessage::RoomUpdate { room })
@@ -143,7 +143,7 @@ impl BotState {
                 }
             }
             (Phase::AwaitingRoomJoin, ServerMessage::Error { message, .. }) => {
-                self.fail(format!("room join failed: {}", message))
+                self.fail(format!("room join failed: {message}"))
             }
             (Phase::AwaitingGameStart, ServerMessage::GameStarted { player_order, .. }) => {
                 match player_order

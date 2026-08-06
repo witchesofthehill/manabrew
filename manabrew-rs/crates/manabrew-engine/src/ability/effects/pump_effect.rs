@@ -139,7 +139,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         keywords.push("CanBlockAny".to_string());
     }
     if let Some(amt) = sa.ir.can_block_amount.as_deref() {
-        keywords.push(format!("CanBlock:{}", amt));
+        keywords.push(format!("CanBlock:{amt}"));
     }
 
     let is_perpetual = sa.ir.perpetual_duration;

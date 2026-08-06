@@ -106,7 +106,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             // Use confirm_action here to match that RNG-consuming path.
             let card_name = ctx.game.card(top_card).card_name.clone();
             let _explorer_name = ctx.game.card(explorer_id).card_name.clone();
-            let msg = format!("Put {} into your graveyard?", card_name);
+            let msg = format!("Put {card_name} into your graveyard?");
             let put_in_gy = ctx.agents[controller.index()].confirm_action(
                 controller,
                 None,

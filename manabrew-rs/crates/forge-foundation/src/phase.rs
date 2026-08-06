@@ -110,7 +110,7 @@ impl PhaseType {
         }
         for &phase in &Self::TURN_ORDER {
             if phase.script_name().eq_ignore_ascii_case(s)
-                || format!("{:?}", phase).eq_ignore_ascii_case(s)
+                || format!("{phase:?}").eq_ignore_ascii_case(s)
             {
                 return Some(phase);
             }

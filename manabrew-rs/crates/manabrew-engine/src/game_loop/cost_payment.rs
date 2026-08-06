@@ -3517,7 +3517,7 @@ impl GameLoop {
                 RunParams {
                     card: Some(chosen),
                     player: Some(player),
-                    counter_type: Some(format!("{:?}", ct_to_remove)),
+                    counter_type: Some(format!("{ct_to_remove:?}")),
                     counter_amount: Some(1),
                     ..Default::default()
                 },

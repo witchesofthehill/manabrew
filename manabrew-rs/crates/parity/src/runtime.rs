@@ -106,7 +106,7 @@ impl JavaServerPool {
         }
         let mut server = self.servers[0]
             .lock()
-            .map_err(|e| JavaBridgeError::ProtocolError(format!("Mutex poisoned: {}", e)))?;
+            .map_err(|e| JavaBridgeError::ProtocolError(format!("Mutex poisoned: {e}")))?;
         server.run_matchup_streaming(
             deck1,
             deck2,
@@ -199,7 +199,7 @@ impl<'a> ParityRuntime<'a> {
     pub fn run_rust_only(&self, config: &RunConfig) -> MatchupResult {
         match runner::run_with_data(config, self.data) {
             Ok(trace) => build_rust_only_result(config, trace),
-            Err(e) => MatchupResult::error(config, format!("Rust engine error: {}", e)),
+            Err(e) => MatchupResult::error(config, format!("Rust engine error: {e}")),
         }
     }
 
@@ -361,10 +361,7 @@ impl<'a> ParityRuntime<'a> {
                     Ok(t) => t,
                     Err(e) => {
                         return RuntimeMatchup {
-                            result: MatchupResult::error(
-                                config,
-                                format!("Rust engine error: {}", e),
-                            ),
+                            result: MatchupResult::error(config, format!("Rust engine error: {e}")),
                             duration_ms: start.elapsed().as_millis() as u64,
                             cache_hit: false,
                         };
@@ -505,7 +502,7 @@ fn compare_results_with_java_data(
         Err(e) => {
             return Err(MatchupResult::error(
                 config,
-                format!("Rust engine error: {}", e),
+                format!("Rust engine error: {e}"),
             ));
         }
     };
@@ -514,7 +511,7 @@ fn compare_results_with_java_data(
         Err(e) => {
             return Err(MatchupResult::error(
                 config,
-                format!("{}: {}", java_error_prefix, e),
+                format!("{java_error_prefix}: {e}"),
             ));
         }
     };
@@ -576,7 +573,7 @@ pub fn dump_snapshot_timeline(
     for i in 0..max_len {
         let left = rust_lines.get(i).map(String::as_str).unwrap_or("");
         let right = java_lines.get(i).map(String::as_str).unwrap_or("");
-        eprintln!("{:col_w$} | {}", left, right, col_w = col_w);
+        eprintln!("{left:col_w$} | {right}");
     }
     eprintln!(
         "Rust: {} snapshots, Java: {} snapshots",

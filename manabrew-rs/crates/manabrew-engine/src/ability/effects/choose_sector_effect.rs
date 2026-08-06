@@ -13,6 +13,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let sector = ctx.rng.next_int(6) + 1;
         ctx.game
             .card_mut(source)
-            .set_s_var("ChosenSector", format!("Number${}", sector));
+            .set_s_var("ChosenSector", format!("Number${sector}"));
     }
 }

@@ -54,9 +54,13 @@ export function DeckHubResults({
   onRetry,
 }: DeckHubResultsProps) {
   const groups = new Map<string, DeckHubEntrySummary[]>();
+  if (group === "source") groups.set("Community", []);
   for (const entry of entries) {
     const label = groupLabel(entry, group);
     groups.set(label, [...(groups.get(label) ?? []), entry]);
+  }
+  for (const [label, items] of groups) {
+    if (items.length === 0) groups.delete(label);
   }
 
   const scrollRef = useRef<HTMLDivElement>(null);

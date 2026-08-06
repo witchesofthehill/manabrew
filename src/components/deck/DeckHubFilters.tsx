@@ -81,6 +81,7 @@ export function DeckHubFilters({
               onChange({ sort: event.target.value as DeckHubDiscoveryFilters["sort"] })
             }
           >
+            <option value="community">Community first</option>
             <option value="newest">Newest</option>
             <option value="name">Name</option>
             <option value="favorites">Most favorited</option>

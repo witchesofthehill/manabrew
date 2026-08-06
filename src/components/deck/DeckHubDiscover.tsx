@@ -60,15 +60,17 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         ? "name"
         : searchParams.get("sort") === "favorites"
           ? "favorites"
-          : "newest",
+          : searchParams.get("sort") === "newest"
+            ? "newest"
+            : "community",
     view: searchParams.get("view") === "list" ? "list" : "grid",
     group:
-      searchParams.get("group") === "source" ||
+      searchParams.get("group") === "none" ||
       searchParams.get("group") === "format" ||
       searchParams.get("group") === "color" ||
       searchParams.get("group") === "tag"
         ? (searchParams.get("group") as DeckHubDiscoveryFilters["group"])
-        : "none",
+        : "source",
   };
 
   const entries = useHubStore((state) => state.entries);
@@ -175,9 +177,9 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         (filterKey === "colorMatch" && value === "exact") ||
         (filterKey === "source" && value === "all") ||
         (filterKey === "tagMatch" && value === "any") ||
-        (filterKey === "sort" && value === "newest") ||
+        (filterKey === "sort" && value === "community") ||
         (filterKey === "view" && value === "grid") ||
-        (filterKey === "group" && value === "none") ||
+        (filterKey === "group" && value === "source") ||
         value === false ||
         value === "" ||
         (Array.isArray(value) && value.length === 0);

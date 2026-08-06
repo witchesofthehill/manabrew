@@ -575,7 +575,10 @@ export function DeckVsSelector({
         </div>
 
         {hubDecks.enabled &&
-          (deckSearch.trim() !== "" || hubDecks.error !== null || hubDeckEntries.length > 0) && (
+          (deckSearch.trim() !== "" ||
+            hubDecks.loading ||
+            hubDecks.error !== null ||
+            hubDeckEntries.length > 0) && (
             <div>
               <p className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Community

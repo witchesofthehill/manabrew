@@ -1,4 +1,4 @@
-import { Heart, Layers } from "lucide-react";
+import { Heart, Layers, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
@@ -9,6 +9,7 @@ import type { DeckHubEntrySummary } from "@/api/hubTypes";
 interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
   onOpen: () => void;
+  onPlay?: () => void;
   onFavorite?: () => void;
   favoritePending?: boolean;
   variant?: "grid" | "list";
@@ -17,6 +18,7 @@ interface DeckHubEntryCardProps {
 export function DeckHubEntryCard({
   entry,
   onOpen,
+  onPlay,
   onFavorite,
   favoritePending = false,
   variant = "grid",
@@ -120,6 +122,19 @@ export function DeckHubEntryCard({
         </span>
       </button>
 
+      {onPlay && (
+        <Button
+          type="button"
+          size="sm"
+          className="absolute left-1.5 top-1.5 z-20 h-8 gap-1 px-2 shadow-sm"
+          aria-label={`Play ${entry.title}`}
+          onClick={onPlay}
+        >
+          <Swords className="h-3.5 w-3.5" />
+          Play
+        </Button>
+      )}
+
       {onFavorite ? (
         <Button
           type="button"
@@ -148,7 +163,11 @@ export function DeckHubEntryCard({
         <div
           className={cn(
             "pointer-events-none absolute left-1.5 z-20 flex max-w-[65%] gap-1 overflow-hidden",
-            entry.sourceKind === "preset" ? "top-10" : "top-1.5",
+            entry.sourceKind === "preset" && onPlay
+              ? "top-[4.75rem]"
+              : entry.sourceKind === "preset" || onPlay
+                ? "top-10"
+                : "top-1.5",
           )}
         >
           {discoveryTags.slice(0, 2).map((tag) => (
@@ -162,7 +181,12 @@ export function DeckHubEntryCard({
         </div>
       )}
       {entry.sourceKind === "preset" && (
-        <span className="pointer-events-none absolute left-1.5 top-1.5 z-20 rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
+        <span
+          className={cn(
+            "pointer-events-none absolute left-1.5 z-20 rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm",
+            onPlay ? "top-10" : "top-1.5",
+          )}
+        >
           Official preset
         </span>
       )}

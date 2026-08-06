@@ -362,7 +362,15 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
               <DeckShelfRow label="Community decks">
                 {communityEntries.map((entry) => (
                   <div key={`hub:${entry.id}`} className={SHELF_CARD_CLASS}>
-                    <DeckHubEntryCard entry={entry} onOpen={() => setHubPreviewId(entry.id)} />
+                    <DeckHubEntryCard
+                      entry={entry}
+                      onOpen={() => setHubPreviewId(entry.id)}
+                      onPlay={() =>
+                        navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, {
+                          state: { preSelectedHubDeckId: entry.id },
+                        })
+                      }
+                    />
                   </div>
                 ))}
               </DeckShelfRow>

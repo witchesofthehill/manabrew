@@ -1,6 +1,6 @@
 [package]
 name = "self-hosted-node"
-version = "0.11.1"
+version = "0.12.0"
 edition = "2021"
 license.workspace = true
 description = "Headless manabrew engine node for hosting AI games"
@@ -20,7 +20,7 @@ path = "src/main.rs"
 [dependencies]
 manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.6.1" }
 manabrew-protocol = { path = "../manabrew-protocol", version = "4.1.0" }
-manabot = { path = "../manabot/", version = "0.5.2" }
+manabot = { path = "../manabot/", version = "0.6.0" }
 forge-carddb = { path = "../forge-carddb", version = "0.2.3" }
 manabrew-engine = { path = "../manabrew-engine", version = "0.6.0" }
 forge-foundation = { path = "../forge-foundation", version = "0.3.2" }

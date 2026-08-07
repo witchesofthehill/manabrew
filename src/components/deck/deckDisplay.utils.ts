@@ -60,15 +60,18 @@ export function getDeckColorCost(cards: Pick<CardRulesSummary, "color" | "manaCo
     .join("");
 }
 
+export function getColorsNameClass(colors: string): string {
+  const ordered = MANA_LETTERS.filter((color) => colors.includes(color));
+  if (ordered.length === 0) return "text-foreground";
+  if (ordered.length === 1) return MONO_COLOR_CLASSES[ordered[0]] ?? "text-foreground";
+
+  return MULTI_COLOR_CLASSES[ordered.join("")] ?? "text-foreground";
+}
+
 export function getDeckNameColorClass(
   cards: Pick<CardRulesSummary, "color" | "manaCost">[],
   presetColor?: string,
 ): string {
   if (presetColor) return presetColor;
-  const colors = getDeckColors(cards);
-  if (colors.length === 0) return "text-foreground";
-  if (colors.length === 1) return MONO_COLOR_CLASSES[colors[0]] ?? "text-foreground";
-
-  const colorKey = colors.join("");
-  return MULTI_COLOR_CLASSES[colorKey] ?? "text-foreground";
+  return getColorsNameClass(getDeckColors(cards).join(""));
 }

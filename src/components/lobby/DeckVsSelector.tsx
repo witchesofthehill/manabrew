@@ -675,7 +675,6 @@ export function DeckVsSelector({
                   color={deck.color}
                   cards={deck.cards}
                   cover={resolveCoverCard(deck)}
-                  coverFallbackClassName="absolute inset-0 bg-gradient-to-br from-muted-foreground/10 via-muted/40 to-muted-foreground/20"
                   isPreset={true}
                   isSelected={false}
                   isPlayerDeck={playerDeck?.id === `preset:${deck.id ?? deck.name}`}

@@ -54,7 +54,8 @@ async function platformFetchText(url: string): Promise<string> {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.text();
   }
-  const r = await fetch(url, { method: "GET" });
+  const cubeUrl = new URL(url);
+  const r = await fetch(`/cubecobra-download${cubeUrl.pathname}`, { method: "GET" });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.text();
 }

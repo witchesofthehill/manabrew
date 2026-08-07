@@ -100,12 +100,19 @@ fn parse_cube_id(input: &str, platform: CubeHostingPlatform) -> Result<String, S
 }
 
 fn current_yyyymmdd_hhmm() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs:x}")
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        format!("{secs:x}")
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        "0".to_string()
+    }
 }
 
 struct ForgeDeckBody {

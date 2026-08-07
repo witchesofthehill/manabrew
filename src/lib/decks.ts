@@ -17,12 +17,14 @@ export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard 
   );
   if (exact) return exact;
   if (isToken) {
+    const exactToken = peekArchivedToken({ setCode, cardNumber });
+    if (exactToken) return exactToken;
     const target = normalizeTokenName(name);
     const byName = pool.find(
       (c) => c.identity.name === name || normalizeTokenName(c.identity.name) === target,
     );
     if (byName) return byName;
-    const token = peekArchivedToken({ name, setCode, cardNumber });
+    const token = peekArchivedToken({ name });
     if (token) return token;
     // Not a real token: a copy of a nontoken card (e.g. Prepare's copied
     // spell, Spark Double) is flagged isToken but keeps the source card's

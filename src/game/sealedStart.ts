@@ -1,4 +1,4 @@
-import { fetchSetPool } from "@/api/limitedEdition";
+import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { getPlatform } from "@/platform";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import type { DraftCard, SealedPool } from "@/types/limited";
@@ -38,10 +38,22 @@ export async function startMpSealed({ room, username }: StartMpSealedArgs): Prom
   const platform = getPlatform();
 
   let pool: DraftCard[];
+  let singleton = false;
+  let poolName: string;
   try {
-    pool = await fetchSetPool(config.set_code);
+    if (config.cube_id) {
+      const cube = await fetchCubeMetadata(config.cube_id);
+      pool = cube.pool ?? [];
+      singleton = cube.singleton;
+      poolName = cube.name;
+    } else if (config.set_code) {
+      pool = await fetchSetPool(config.set_code);
+      poolName = config.set_code;
+    } else {
+      throw new Error("sealed config has no pool source");
+    }
   } catch (err) {
-    const msg = `failed to load set ${config.set_code}: ${String(err)}`;
+    const msg = `failed to load sealed pool: ${String(err)}`;
     store.setError(msg);
     throw new Error(msg);
   }
@@ -51,10 +63,11 @@ export async function startMpSealed({ room, username }: StartMpSealedArgs): Prom
   try {
     sealed = await platform.invoke<SealedPool>("limited_start_sealed", {
       setup: {
-        poolType: "Full",
+        poolType: config.cube_id ? "Custom" : "Full",
         numBoosters: config.num_boosters,
         pool,
         seed,
+        singleton,
       },
     });
   } catch (err) {
@@ -65,7 +78,7 @@ export async function startMpSealed({ room, username }: StartMpSealedArgs): Prom
 
   store.enter({
     roomId: room.room_id,
-    setCode: config.set_code,
+    setCode: poolName,
     pool: sealed.cards,
     sessionId: sealed.sessionId,
   });

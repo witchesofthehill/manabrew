@@ -188,17 +188,21 @@ pub async fn limited_import_cube(
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
     let mut pool: Vec<DeckCardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
-        for copy in 0..entry.count {
+        for _ in 0..entry.count {
             pool.push(DeckCardIdentity {
                 id: String::new(),
                 oracle_id: None,
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
-                card_number: format!("cube-{copy}"),
+                card_number: String::new(),
                 foil: None,
             });
         }
     }
+    let playable_card_count = pool
+        .iter()
+        .filter(|card| card_name_known(&card.name))
+        .count() as u32;
     Ok(CubeImportResultDto {
         cube_id: importer.cube_id,
         name: cube.name,
@@ -206,6 +210,8 @@ pub async fn limited_import_cube(
         num_packs: cube.num_packs,
         singleton: cube.singleton,
         pool,
+        playable_card_count,
+        rejected_card_count: card_count.saturating_sub(playable_card_count),
     })
 }
 
@@ -214,8 +220,15 @@ pub async fn limited_start_gauntlet_from_sealed(
     lm: State<'_, LimitedManager>,
     session_id: String,
     rounds: u32,
+    main: Vec<DeckCardIdentity>,
+    sideboard: Vec<DeckCardIdentity>,
 ) -> Result<GauntletStateDto, String> {
-    lm.start_gauntlet_from_sealed(&session_id, rounds)
+    lm.start_gauntlet_from_sealed(
+        &session_id,
+        rounds,
+        main.iter().map(identity_to_paper_card).collect(),
+        sideboard.iter().map(identity_to_paper_card).collect(),
+    )
 }
 
 #[tauri::command]

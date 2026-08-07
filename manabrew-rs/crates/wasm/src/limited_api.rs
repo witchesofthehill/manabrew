@@ -28,6 +28,8 @@ pub struct SealedSetupDto {
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
+    #[serde(default)]
+    pub singleton: bool,
 }
 
 fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
@@ -438,6 +440,8 @@ pub struct CubeImportResultDto {
     pub num_packs: u32,
     pub singleton: bool,
     pub pool: Vec<DeckCardIdentity>,
+    pub playable_card_count: u32,
+    pub rejected_card_count: u32,
 }
 
 struct WasmLimitedState {
@@ -604,9 +608,21 @@ pub fn limited_start_sealed(setup_json: JsValue) -> Result<JsValue, JsError> {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => StdRng::from_entropy(),
         };
-        let template = template_for_pool(&card_pool, setup.variant.as_deref());
+        let template = if pool_type == LimitedPoolType::Custom {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            template_for_pool(&card_pool, setup.variant.as_deref())
+        };
+        let required_cards =
+            template.number_of_cards_expected() as usize * setup.num_boosters as usize;
+        if setup.singleton && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "singleton pool has {} playable cards but {required_cards} are required",
+                card_pool.len()
+            )));
+        }
         let mut gen = SealedCardPoolGenerator::new(pool_type, card_pool)
-            .with_template(template, setup.num_boosters as usize);
+            .with_template_and_pool_limit(template, setup.num_boosters as usize, setup.singleton);
         let ranker = Arc::new(CardRanker::new(state.rank_cache.clone()));
         let cache = state.rank_cache.clone();
         let group = gen.generate_sealed_deck(
@@ -943,16 +959,29 @@ pub fn limited_get_winston_state(session_id: String) -> Result<JsValue, JsError>
 pub fn limited_start_gauntlet_from_sealed(
     session_id: String,
     rounds: u32,
+    main_json: JsValue,
+    sideboard_json: JsValue,
 ) -> Result<JsValue, JsError> {
+    let main: Vec<DeckCardIdentity> =
+        serde_wasm_bindgen::from_value(main_json).map_err(|e| JsError::new(&e.to_string()))?;
+    let sideboard: Vec<DeckCardIdentity> =
+        serde_wasm_bindgen::from_value(sideboard_json).map_err(|e| JsError::new(&e.to_string()))?;
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
         let group = state
             .sessions
             .get(&session_id)
             .ok_or_else(|| JsError::new(&format!("no sealed session for id {session_id}")))?;
-        let human_deck = group.suggested_human_deck.clone().ok_or_else(|| {
-            JsError::new("sealed pool has no suggested human deck — open more packs")
-        })?;
+        if main.len() < 40 {
+            return Err(JsError::new(
+                "sealed main deck must contain at least 40 cards",
+            ));
+        }
+        let human_deck = LimitedDeck {
+            name: group.deck_name.clone(),
+            main: main.iter().map(identity_to_paper_card).collect(),
+            sideboard: sideboard.iter().map(identity_to_paper_card).collect(),
+        };
         let ai_decks: Vec<LimitedDeck> = group.ai_decks.clone();
         let gauntlet = GauntletMini::new(GauntletKind::Sealed, rounds, human_deck, ai_decks)
             .map_err(|e| JsError::new(&e))?;
@@ -1109,17 +1138,25 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
     let mut pool: Vec<DeckCardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
-        for copy in 0..entry.count {
+        for _ in 0..entry.count {
             pool.push(DeckCardIdentity {
                 id: String::new(),
                 oracle_id: None,
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
-                card_number: format!("cube-{copy}"),
+                card_number: String::new(),
                 foil: None,
             });
         }
     }
+    let playable_card_count = pool
+        .iter()
+        .filter(|card| {
+            get_card_db()
+                .and_then(|db| db.get_by_card_name(&card.name))
+                .is_some()
+        })
+        .count() as u32;
     let dto = CubeImportResultDto {
         cube_id: imp.cube_id,
         name: cube.name,
@@ -1127,6 +1164,8 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
         num_packs: cube.num_packs,
         singleton: cube.singleton,
         pool,
+        playable_card_count,
+        rejected_card_count: card_count.saturating_sub(playable_card_count),
     };
     serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
 }

@@ -4,6 +4,7 @@ import type {
   AuthAccount,
   AuthProviders,
   AuthSessionResponse,
+  IdentityTokenResponse,
   MeResponse,
   OAuthStartResponse,
 } from "@/api/authTypes";
@@ -75,6 +76,10 @@ export async function requestMagicLink(email: string): Promise<void> {
 
 export function verifyEmailCode(email: string, code: string): Promise<AuthSessionResponse> {
   return authJson<AuthSessionResponse>("/api/auth/email/verify", jsonInit("POST", { email, code }));
+}
+
+export function fetchIdentityToken(token: string): Promise<IdentityTokenResponse> {
+  return authJson<IdentityTokenResponse>("/api/auth/token", { method: "POST" }, token);
 }
 
 export function fetchMe(token: string): Promise<MeResponse> {

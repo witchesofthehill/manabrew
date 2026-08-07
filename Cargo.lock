@@ -3913,7 +3913,9 @@ dependencies = [
 name = "manabrew-server"
 version = "0.9.0"
 dependencies = [
+ "aws-lc-rs",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "dashmap 6.1.0",
  "futures-util",
@@ -3923,6 +3925,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "socket2 0.5.10",
  "tokio",
  "tokio-tungstenite",

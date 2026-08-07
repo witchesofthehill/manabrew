@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { fetchMe, signOutSession, AuthRequestError } from "@/api/auth";
+import { clearIdentityToken } from "@/lib/relayIdentity";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
 
@@ -30,6 +31,7 @@ export const useAuthStore = create<AuthState>()(
         status: "unknown",
         signIn: (token, account) => {
           refreshRequestId += 1;
+          clearIdentityToken();
           set({ token, account, identities: [], status: "signedIn" });
           void get().refresh();
         },
@@ -68,6 +70,7 @@ export const useAuthStore = create<AuthState>()(
         signOut: async () => {
           const token = get().token;
           refreshRequestId += 1;
+          clearIdentityToken();
           set({ token: null, account: null, identities: [], status: "signedOut" });
           if (token) {
             await signOutSession(token).catch(() => {});

@@ -470,6 +470,14 @@ export const useServerStore = create<ServerState>()(
         );
 
         unsubscribers.push(
+          platform.events.on("server:session_taken_over", () => {
+            void stopReconnectAsDuplicate(
+              "You connected as this player somewhere else. This session was signed out.",
+            );
+          }),
+        );
+
+        unsubscribers.push(
           platform.events.on<ReconnectingPayload>("server:reconnecting", (payload) => {
             set({
               reconnect: {

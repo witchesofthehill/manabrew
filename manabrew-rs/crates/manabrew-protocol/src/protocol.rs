@@ -34,6 +34,14 @@ pub struct PlayerDeckInfo {
     pub avatar: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IdentityProof {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]
@@ -43,6 +51,8 @@ pub enum ClientMessage {
         password: String,
         #[serde(default)]
         service: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        identity: Option<IdentityProof>,
     },
 
     Ping,
@@ -142,6 +152,8 @@ pub enum ServerMessage {
         reconnected: Option<bool>,
         error: Option<String>,
     },
+
+    SessionTakenOver,
 
     RoomList {
         rooms: Vec<RoomInfo>,

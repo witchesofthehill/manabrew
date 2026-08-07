@@ -12,6 +12,8 @@ export type EmailVerifyRequest = { email: string; code: string };
 
 export type ExchangeCodeRequest = { code: string };
 
+export type IdentityTokenResponse = { token: string; expiresIn: number };
+
 export type MagicLinkRequest = { email: string };
 
 export type MeResponse = { account: AuthAccount; identities: Array<AuthIdentity> };

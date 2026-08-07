@@ -81,6 +81,7 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
             username: "smoke-probe".to_string(),
             password: key.to_string(),
             service: false,
+            identity: None,
         },
     )
     .await?;
@@ -126,6 +127,7 @@ async fn play_game(
                 username: username.clone(),
                 password: key.to_string(),
                 service: false,
+                identity: None,
             },
         )
         .await?;

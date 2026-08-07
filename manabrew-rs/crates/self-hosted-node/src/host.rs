@@ -2096,6 +2096,7 @@ impl RelayClient {
                 username: username.to_string(),
                 password: password.to_string(),
                 service: true,
+                identity: None,
             })
             .await?;
         client.wait_for_auth().await?;

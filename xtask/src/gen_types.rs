@@ -12,9 +12,9 @@ use manabrew_hub::dto::{
     AuthProviders, AuthSessionResponse, CreateAccountDeckRequest, DeckHubEntryDetail,
     DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag, DeckPlayReportRequest,
     DeckVersionDetail, DeckVersionSummary, EmailVerifyRequest, ExchangeCodeRequest,
-    FavoriteResponse, HubCapabilities, MagicLinkRequest, MeResponse, OAuthStartRequest,
-    OAuthStartResponse, PublishDeckHubEntryRequest, SaveDeckVersionRequest, TopDeckBucket,
-    TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
+    FavoriteResponse, HubCapabilities, IdentityTokenResponse, MagicLinkRequest, MeResponse,
+    OAuthStartRequest, OAuthStartResponse, PublishDeckHubEntryRequest, SaveDeckVersionRequest,
+    TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
 };
 use ts_rs::TS;
 
@@ -73,6 +73,7 @@ pub fn generate(root: &Path) -> Result<()> {
     MagicLinkRequest::export_all_to(&out).context("export MagicLinkRequest")?;
     EmailVerifyRequest::export_all_to(&out).context("export EmailVerifyRequest")?;
     UpdateHandleRequest::export_all_to(&out).context("export UpdateHandleRequest")?;
+    IdentityTokenResponse::export_all_to(&out).context("export IdentityTokenResponse")?;
 
     let path = out.join("hubTypes.ts");
     let generated = fs::read_to_string(&path).context("read hubTypes.ts")?;

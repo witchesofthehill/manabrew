@@ -78,8 +78,8 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       ? snapshot.entries
       : snapshot.entries.slice(0, INITIAL_RANK_COUNT)
     : [];
-  const podiumEntries = displayedEntries.slice(0, 3);
-  const remainingEntries = displayedEntries.slice(3);
+  const stageEntries = displayedEntries.slice(0, 6);
+  const remainingEntries = displayedEntries.slice(6);
 
   function favorite(ranked: TopDeckSnapshotEntry) {
     if (!signedIn) {
@@ -94,11 +94,16 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
   function rankedDeck(
     ranked: TopDeckSnapshotEntry,
     podium = false,
-    variant: "card" | "hero" = "card",
+    variant: "card" | "hero" | "stage" = "card",
   ) {
+    const staged = variant === "stage";
     return (
-      <div>
-        <DeckHubPodiumFrame rank={ranked.rank} prominent={podium}>
+      <div className={cn(staged && "flex h-full min-h-0 flex-col")}>
+        <DeckHubPodiumFrame
+          rank={ranked.rank}
+          prominent={podium}
+          className={cn(staged && "flex min-h-0 flex-1 flex-col")}
+        >
           <DeckHubEntryCard
             entry={ranked.entry}
             variant={variant}
@@ -175,26 +180,30 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="mx-auto w-full md:max-w-[70%]">
-              {podiumEntries[0] && rankedDeck(podiumEntries[0], true, "hero")}
-              {podiumEntries.length > 1 && (
-                <div className="mt-5 grid grid-cols-12 items-start gap-4">
-                  {podiumEntries.slice(1).map((ranked, index) => (
-                    <div
-                      key={ranked.entry.id}
-                      className={cn(
-                        index === 0 && "col-span-11 md:col-span-7",
-                        index === 1 && "col-span-9 col-start-4 md:col-span-5 md:col-start-auto",
-                      )}
-                    >
-                      {rankedDeck(ranked, true)}
-                    </div>
-                  ))}
+            <div className="grid grid-cols-12 gap-4 md:aspect-[12/5] md:grid-rows-6">
+              {stageEntries.map((ranked, index) => (
+                <div
+                  key={ranked.entry.id}
+                  className={cn(
+                    index === 0 && "col-span-12 md:col-span-5 md:row-span-6",
+                    index === 1 &&
+                      "col-span-7 row-start-2 md:col-span-4 md:col-start-6 md:row-span-3 md:row-start-1",
+                    index === 2 &&
+                      "col-span-5 col-start-1 row-start-3 md:col-span-4 md:col-start-6 md:row-span-3 md:row-start-4",
+                    index === 3 &&
+                      "col-span-6 row-start-4 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-1",
+                    index === 4 &&
+                      "col-span-6 col-start-7 row-start-4 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-3",
+                    index === 5 &&
+                      "col-span-6 row-start-5 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-5",
+                  )}
+                >
+                  {rankedDeck(ranked, index < 3, "stage")}
                 </div>
-              )}
+              ))}
             </div>
             {remainingEntries.length > 0 && (
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {remainingEntries.map((ranked) => (
                   <div key={ranked.entry.id}>{rankedDeck(ranked)}</div>
                 ))}

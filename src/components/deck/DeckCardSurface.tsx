@@ -15,7 +15,7 @@ interface DeckCardSurfaceProps {
   onOpen: () => void;
   onSubtitleClick?: () => void;
   subtitleAriaLabel?: string;
-  variant?: "card" | "hero" | "list";
+  variant?: "card" | "hero" | "list" | "stage";
 }
 
 export function DeckCardSurface({
@@ -39,9 +39,11 @@ export function DeckCardSurface({
         "group relative overflow-hidden rounded-lg border bg-muted transition-all hover:border-primary hover:ring-2 hover:ring-primary",
         variant === "list"
           ? "h-32 sm:h-36"
-          : variant === "hero"
-            ? "aspect-[4/3] sm:aspect-[16/7]"
-            : "aspect-[4/3]",
+          : variant === "stage"
+            ? "aspect-[4/3] md:aspect-auto md:h-full"
+            : variant === "hero"
+              ? "aspect-[4/3] sm:aspect-[16/7]"
+              : "aspect-[4/3]",
       )}
     >
       <button

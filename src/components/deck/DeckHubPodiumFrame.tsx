@@ -5,11 +5,17 @@ interface DeckHubPodiumFrameProps {
   rank: number;
   children: ReactNode;
   prominent?: boolean;
+  className?: string;
 }
 
-export function DeckHubPodiumFrame({ rank, children, prominent = false }: DeckHubPodiumFrameProps) {
+export function DeckHubPodiumFrame({
+  rank,
+  children,
+  prominent = false,
+  className,
+}: DeckHubPodiumFrameProps) {
   return (
-    <div className={cn("podium-frame relative pt-8", `podium-rank-${rank}`)}>
+    <div className={cn("podium-frame relative pt-8", `podium-rank-${rank}`, className)}>
       {rank <= 3 && <span className="podium-aura" aria-hidden="true" />}
       {rank === 1 && (
         <span className="podium-sparkles" aria-hidden="true">
@@ -26,7 +32,7 @@ export function DeckHubPodiumFrame({ rank, children, prominent = false }: DeckHu
       >
         #{rank}
       </span>
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 min-h-0 flex-1">{children}</div>
     </div>
   );
 }

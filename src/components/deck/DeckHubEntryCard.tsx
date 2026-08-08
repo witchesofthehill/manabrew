@@ -11,7 +11,7 @@ interface DeckHubEntryCardProps {
   onOpen: () => void;
   onFavorite?: () => void;
   favoritePending?: boolean;
-  variant?: "card" | "hero" | "list";
+  variant?: "card" | "hero" | "list" | "stage";
   onAuthorClick?: () => void;
 }
 

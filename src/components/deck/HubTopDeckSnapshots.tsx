@@ -181,7 +181,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                     index === 1 &&
                       "col-span-7 row-start-2 md:col-span-8 md:col-start-11 md:row-span-4 md:row-start-1",
                     index === 2 &&
-                      "col-span-5 col-start-1 row-start-3 md:col-span-7 md:col-start-11 md:row-span-2 md:row-start-5",
+                      "col-span-5 col-start-1 row-start-3 md:col-span-8 md:col-start-11 md:row-span-2 md:row-start-5",
                     index === 3 &&
                       "col-span-6 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-1",
                     index === 4 &&

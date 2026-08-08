@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.8.0](https://github.com/witchesofthehill/manabrew/compare/v3.7.1...v3.8.0) (2026-08-08)
+
+### Features
+
+* **editor:** read printing suffixes in text deck import ([#633](https://github.com/witchesofthehill/manabrew/issues/633)) ([0c50207](https://github.com/witchesofthehill/manabrew/commit/0c502076413d329b7cdbe7a9b47f5e40b3c97ab9))
+
 ## [3.7.1](https://github.com/witchesofthehill/manabrew/compare/v3.7.0...v3.7.1) (2026-08-08)
 
 ### Fixes

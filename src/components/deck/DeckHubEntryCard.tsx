@@ -11,7 +11,7 @@ interface DeckHubEntryCardProps {
   onOpen: () => void;
   onFavorite?: () => void;
   favoritePending?: boolean;
-  variant?: "card" | "compact";
+  variant?: "card" | "list";
 }
 
 export function DeckHubEntryCard({
@@ -59,7 +59,7 @@ export function DeckHubEntryCard({
           Official preset
         </span>
       )}
-      {discoveryTags.length > 0 && (
+      {variant === "card" && discoveryTags.length > 0 && (
         <div className="flex min-w-0 gap-1 overflow-hidden">
           {discoveryTags.slice(0, 2).map((tag) => (
             <span
@@ -78,6 +78,7 @@ export function DeckHubEntryCard({
     <DeckCardSurface
       title={entry.title}
       subtitle={`by ${entry.author}`}
+      description={entry.summary}
       ariaLabel={`Open ${entry.title} by ${entry.author}`}
       onOpen={onOpen}
       variant={variant}
@@ -87,10 +88,18 @@ export function DeckHubEntryCard({
             src={entry.coverImageUrl}
             alt=""
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover"
+            className={cn(
+              "absolute h-full object-cover",
+              variant === "list" ? "inset-y-0 left-0 w-32 sm:w-48" : "inset-0 w-full",
+            )}
           />
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center">
+          <span
+            className={cn(
+              "absolute flex items-center justify-center",
+              variant === "list" ? "inset-y-0 left-0 w-32 sm:w-48" : "inset-0",
+            )}
+          >
             <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
           </span>
         )
@@ -109,7 +118,12 @@ export function DeckHubEntryCard({
               {engine} engine
             </span>
           ))}
-          <span className="ml-auto text-[10px] text-text-on-tinted/85">
+          <span
+            className={cn(
+              "ml-auto text-[10px] text-text-on-tinted/85",
+              variant === "list" && "text-muted-foreground",
+            )}
+          >
             {entry.cardCount} cards
           </span>
         </>

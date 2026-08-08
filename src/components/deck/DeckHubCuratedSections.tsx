@@ -44,7 +44,7 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
     <div className="space-y-10 pb-10">
       {popular.length > 0 && (
         <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
-          <SectionHeading title="Main-character decks" />
+          <SectionHeading title="Most favorited" />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {popular.map((entry, index) => (
               <div key={entry.id} className={index === 0 ? "col-span-2 row-span-2" : ""}>
@@ -58,22 +58,16 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
       {newest.length > 0 && (
         <section>
           <SectionHeading title="Fresh brews" />
-          <ol className="grid gap-2 md:grid-cols-2">
-            {newest.map((entry, index) => (
-              <li key={entry.id} className="flex min-w-0 items-center gap-3">
-                <span className="w-6 shrink-0 text-center font-serif text-xl text-muted-foreground/60">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <DeckHubEntryCard
-                    entry={entry}
-                    variant="compact"
-                    onOpen={() => onOpen(entry.id)}
-                  />
-                </div>
-              </li>
+          <div className="grid gap-3 xl:grid-cols-2">
+            {newest.map((entry) => (
+              <DeckHubEntryCard
+                key={entry.id}
+                entry={entry}
+                variant="list"
+                onOpen={() => onOpen(entry.id)}
+              />
             ))}
-          </ol>
+          </div>
         </section>
       )}
 

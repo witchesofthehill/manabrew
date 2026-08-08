@@ -90,7 +90,11 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     );
   }
 
-  function rankedDeck(ranked: TopDeckSnapshotEntry, podium = false) {
+  function rankedDeck(
+    ranked: TopDeckSnapshotEntry,
+    podium = false,
+    variant: "card" | "hero" = "card",
+  ) {
     return (
       <div className="relative pl-2 pt-2">
         <span
@@ -103,6 +107,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
         </span>
         <DeckHubEntryCard
           entry={ranked.entry}
+          variant={variant}
           onOpen={() => onOpenDeck(ranked.entry.id)}
           favoritePending={Boolean(favoritePending[ranked.entry.id])}
           onFavorite={accountsEnabled ? () => favorite(ranked) : undefined}
@@ -175,20 +180,22 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-12 gap-4">
-              {podiumEntries.map((ranked, index) => (
-                <div
-                  key={ranked.entry.id}
-                  className={cn(
-                    index === 0 && "col-span-12 md:col-span-7 md:row-span-2",
-                    index === 1 && "col-span-10 md:col-span-5",
-                    index === 2 && "col-span-8 col-start-5 md:col-span-4 md:col-start-9",
-                  )}
-                >
-                  {rankedDeck(ranked, true)}
-                </div>
-              ))}
-            </div>
+            {podiumEntries[0] && rankedDeck(podiumEntries[0], true, "hero")}
+            {podiumEntries.length > 1 && (
+              <div className="mt-5 grid grid-cols-12 items-start gap-4">
+                {podiumEntries.slice(1).map((ranked, index) => (
+                  <div
+                    key={ranked.entry.id}
+                    className={cn(
+                      index === 0 && "col-span-11 md:col-span-7",
+                      index === 1 && "col-span-9 col-start-4 md:col-span-5 md:col-start-auto",
+                    )}
+                  >
+                    {rankedDeck(ranked, true)}
+                  </div>
+                ))}
+              </div>
+            )}
             {remainingEntries.length > 0 && (
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {remainingEntries.map((ranked) => (

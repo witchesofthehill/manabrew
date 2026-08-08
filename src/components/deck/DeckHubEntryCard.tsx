@@ -11,7 +11,7 @@ interface DeckHubEntryCardProps {
   onOpen: () => void;
   onFavorite?: () => void;
   favoritePending?: boolean;
-  variant?: "card" | "list";
+  variant?: "card" | "hero" | "list";
 }
 
 export function DeckHubEntryCard({
@@ -59,7 +59,7 @@ export function DeckHubEntryCard({
           Official preset
         </span>
       )}
-      {variant === "card" && discoveryTags.length > 0 && (
+      {variant !== "list" && discoveryTags.length > 0 && (
         <div className="flex min-w-0 gap-1 overflow-hidden">
           {discoveryTags.slice(0, 2).map((tag) => (
             <span

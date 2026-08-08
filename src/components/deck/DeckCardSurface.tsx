@@ -13,7 +13,7 @@ interface DeckCardSurfaceProps {
   topRight?: ReactNode;
   titleClassName?: string;
   onOpen: () => void;
-  variant?: "card" | "list";
+  variant?: "card" | "hero" | "list";
 }
 
 export function DeckCardSurface({
@@ -33,7 +33,11 @@ export function DeckCardSurface({
     <div
       className={cn(
         "group relative overflow-hidden rounded-lg border bg-muted transition-all hover:border-primary hover:ring-2 hover:ring-primary",
-        variant === "card" ? "aspect-[4/3]" : "h-32 sm:h-36",
+        variant === "list"
+          ? "h-32 sm:h-36"
+          : variant === "hero"
+            ? "aspect-[4/3] sm:aspect-[16/7]"
+            : "aspect-[4/3]",
       )}
     >
       <button
@@ -63,6 +67,7 @@ export function DeckCardSurface({
               "block truncate text-sm font-semibold leading-tight text-text-on-tinted",
               DECK_NAME_SHADOW_CLASS,
               variant === "list" && "text-base text-foreground shadow-none",
+              variant === "hero" && "text-lg sm:text-2xl",
               titleClassName,
             )}
           >

@@ -103,8 +103,12 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:staging
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          # Read main's warm layers but write to a staging-scoped ref, so a
+          # staging build never overwrites the cache production pulls from.
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache-staging
+            type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache-staging,mode=max,image-manifest=true,oci-mediatypes=true
 
   # ── Deploy the staging slot on the prod box ────────────────────────
   # `cargo xtask deploy --staging` runs on the RUNNER at the deployed ref's

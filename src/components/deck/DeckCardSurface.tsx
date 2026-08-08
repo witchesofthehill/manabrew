@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { DECK_NAME_SHADOW_CLASS } from "@/components/deck/deckDisplay.utils";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,13 @@ interface DeckCardSurfaceProps {
   onSubtitleClick?: () => void;
   subtitleAriaLabel?: string;
   variant?: "card" | "hero" | "list" | "stage";
+  className?: string;
+  style?: CSSProperties;
+  disabled?: boolean;
+  loading?: boolean;
+  pressed?: boolean;
+  titleAttribute?: string;
+  onDoubleClick?: () => void;
 }
 
 export function DeckCardSurface({
@@ -34,6 +41,13 @@ export function DeckCardSurface({
   onSubtitleClick,
   subtitleAriaLabel,
   variant = "card",
+  className,
+  style,
+  disabled = false,
+  loading = false,
+  pressed,
+  titleAttribute,
+  onDoubleClick,
 }: DeckCardSurfaceProps) {
   return (
     <div
@@ -46,13 +60,21 @@ export function DeckCardSurface({
             : variant === "hero"
               ? "aspect-[4/3] sm:aspect-[16/7]"
               : "aspect-[4/3]",
+        disabled && "opacity-60",
+        className,
       )}
+      style={style}
     >
       <button
         type="button"
         className="absolute inset-0 w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         onClick={onOpen}
+        onDoubleClick={onDoubleClick}
         aria-label={ariaLabel}
+        aria-pressed={pressed}
+        aria-busy={loading}
+        disabled={disabled}
+        title={titleAttribute}
       >
         {cover}
         <span

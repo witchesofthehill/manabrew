@@ -251,7 +251,7 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   const [zone, setZone] = useState<BrowserZoneFilter>("all");
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [viewMode, setViewMode] = useState<ViewMode>("visual");
-  const [cardSize, setCardSize] = useState(3);
+  const [cardSize, setCardSize] = useState(4);
   const [colorFilters, setColorFilters] = useState<string[]>([]);
   const [cardTypeFilter, setCardTypeFilter] = useState<BrowserCardTypeFilter>("all");
   const [manaValueFilter, setManaValueFilter] = useState<BrowserManaValueFilter>("all");

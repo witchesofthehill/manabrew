@@ -175,7 +175,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="mx-auto w-full max-w-2xl">
+            <div className="mx-auto w-full md:max-w-[70%]">
               {podiumEntries[0] && rankedDeck(podiumEntries[0], true, "hero")}
               {podiumEntries.length > 1 && (
                 <div className="mt-5 grid grid-cols-12 items-start gap-4">

@@ -14,6 +14,7 @@ export function useAccountDecks() {
   const authStatus = useAuthStore((state) => state.status);
   const capabilities = useHubStore((state) => state.capabilities);
   const capabilitiesLoaded = useHubStore((state) => state.capabilitiesLoaded);
+  const capabilitiesError = useHubStore((state) => state.capabilitiesError);
   const loadCapabilities = useHubStore((state) => state.loadCapabilities);
   const decksAccountId = useAccountDecksStore((state) => state.accountId);
   const storedDecks = useAccountDecksStore((state) => state.decks);
@@ -23,6 +24,14 @@ export function useAccountDecks() {
   const refresh = useAccountDecksStore((state) => state.refresh);
   const clear = useAccountDecksStore((state) => state.clear);
   const currentAccountLoaded = enabled && accountId !== null && decksAccountId === accountId;
+  const resolved =
+    authStatus !== "unknown" &&
+    (!enabled ||
+      capabilitiesError !== null ||
+      (capabilitiesLoaded &&
+        (authStatus !== "signedIn" ||
+          capabilities?.accountDecks !== true ||
+          (currentAccountLoaded && !loading))));
   const decks = currentAccountLoaded ? storedDecks : EMPTY_DECKS;
   const details = currentAccountLoaded ? storedDetails : EMPTY_DETAILS;
 
@@ -50,6 +59,7 @@ export function useAccountDecks() {
     error,
     available: enabled && capabilities?.accountDecks === true,
     signedIn: enabled && authStatus === "signedIn" && accountId !== null,
+    resolved,
     refresh,
   };
 }

@@ -17,6 +17,7 @@ import { TopBarOverrideContext, type TopBarOverride } from "./TopBarOverride";
 import { useStatusBanner } from "@/hooks/useStatusBanner";
 import { useDesktopUpdater } from "@/hooks/useDesktopUpdater";
 import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
+import { useLocalDeckAccountSync } from "@/hooks/useLocalDeckAccountSync";
 import { ROUTES } from "@/lib/constants";
 import { flushPublishedDeckPlayReports } from "@/lib/deckPlayEvidence";
 
@@ -78,6 +79,7 @@ export function AppShell() {
   useStatusBanner();
   useDesktopUpdater();
   useEngineHostCloseGuard();
+  useLocalDeckAccountSync();
 
   function goToAdjacentPage(delta: number) {
     if (isGameActive || hideNavChrome || activeTopBarOverride?.navigationDisabled) return;

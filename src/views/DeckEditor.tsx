@@ -52,6 +52,7 @@ import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
@@ -75,7 +76,6 @@ export default function DeckEditor() {
     deleteSavedDeck,
     currentDeckId: _currentDeckId,
     loadAccountDeck,
-    linkSavedDeckToAccount,
   } = useDeckStore();
   const importDeckText = useDeckTextImport();
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -95,8 +95,10 @@ export default function DeckEditor() {
     error: accountDecksError,
     available: accountDecksAvailable,
     signedIn: accountDecksSignedIn,
+    resolved: accountDecksResolved,
     refresh: refreshAccountDecks,
   } = useAccountDecks();
+  const authStatus = useAuthStore((state) => state.status);
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
   const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
@@ -256,12 +258,6 @@ export default function DeckEditor() {
   const deckFilterArgs = { search, formatFilter, colorFilter, sortBy };
   const { valid: presetSavedDecks } = applyDeckFilters(presetSavedDecksUnfiltered, deckFilterArgs);
   const localSavedDecks = savedDecks.filter((saved) => !saved.accountDeckId);
-  const { valid: filteredValid, drafts: filteredDrafts } = applyDeckFilters(localSavedDecks, {
-    search,
-    formatFilter,
-    colorFilter,
-    sortBy,
-  });
   const accountSavedDecks: SavedDeck[] = Object.values(accountDeckDetails).map((detail) => ({
     id: `account:${detail.id}`,
     deck: detail.deck as SavedDeck["deck"],
@@ -269,8 +265,16 @@ export default function DeckEditor() {
     accountDeckId: detail.id,
     accountVersionNo: detail.currentVersionNo,
   }));
-  const { valid: filteredAccountDecks, drafts: filteredAccountDrafts } = applyDeckFilters(
-    accountSavedDecks,
+  const collectionPending =
+    (isFeatureEnabled("accounts") && authStatus === "unknown") ||
+    (accountDecksSignedIn && !accountDecksResolved);
+  const collectionDecks = collectionPending
+    ? []
+    : accountDecksAvailable && accountDecksSignedIn
+      ? [...accountSavedDecks, ...localSavedDecks]
+      : localSavedDecks;
+  const { valid: filteredCollectionDecks, drafts: filteredCollectionDrafts } = applyDeckFilters(
+    collectionDecks,
     deckFilterArgs,
   );
   const filteredPublishedDecks = publishedDecks
@@ -316,21 +320,6 @@ export default function DeckEditor() {
     }
   }
 
-  async function handleSaveToAccount(saved: SavedDeck) {
-    try {
-      const detail = await useAccountDecksStore.getState().create(saved.deck, "Initial version");
-      linkSavedDeckToAccount(
-        saved.id,
-        detail.id,
-        detail.currentVersionNo,
-        detail.deck as SavedDeck["deck"],
-      );
-      toast.success(`"${saved.deck.name}" saved to your account`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save deck to your account");
-    }
-  }
-
   function handleNewDeck() {
     setSearchParams({}, { replace: true, state: null });
     clearDeck();
@@ -373,6 +362,43 @@ export default function DeckEditor() {
     } else {
       returnToDeckList();
     }
+  }
+
+  function renderCollectionDeck(saved: SavedDeck, draft = false) {
+    const accountDeckId = saved.accountDeckId;
+    const presetKey = accountDeckId
+      ? accountDeckDetails[accountDeckId]?.derivedFromPresetKey
+      : undefined;
+    const accountDeck = accountDeckId !== undefined;
+    return (
+      <DeckGridCard
+        key={saved.id}
+        deck={saved}
+        onOpen={() => (accountDeck ? handleSelectAccountDeck(saved) : handleSelectDeck(saved.id))}
+        onPlaytest={draft ? undefined : () => quickPlaytest(saved.deck)}
+        onDelete={() => (accountDeck ? setDeletingAccountDeck(saved) : handleDelete(saved.id))}
+        onRename={accountDeck ? undefined : () => startRename(saved.id, saved.deck.name)}
+        onPublish={!draft && publishEnabled ? () => setPublishingDeck(saved) : undefined}
+        onViewInHub={hubEnabled && presetKey ? () => viewPresetInHub(presetKey) : undefined}
+        onPlay={
+          draft
+            ? undefined
+            : () => {
+                const id = accountDeck
+                  ? loadAccountDeck(accountDeckId, saved.accountVersionNo ?? 1, saved.deck)
+                  : saved.id;
+                navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
+              }
+        }
+        badge={
+          presetKey
+            ? "Preset copy"
+            : accountDecksSignedIn && !accountDeck
+              ? "Sync pending"
+              : undefined
+        }
+      />
+    );
   }
 
   useTopBarOverride({
@@ -515,139 +541,69 @@ export default function DeckEditor() {
 
           <ScrollArea className="flex-1">
             <div className="p-4 sm:px-6 lg:px-8">
-              {accountDecksAvailable && accountDecksSignedIn && (
-                <section className="mb-4 border-b pb-4">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Account decks
-                    </span>
-                    {!accountDecksLoading && (
-                      <span className="text-[10px] text-muted-foreground">
-                        ({filteredAccountDecks.length + filteredAccountDrafts.length})
-                      </span>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-auto"
-                      disabled={accountDecksLoading}
-                      onClick={() => void refreshAccountDecks()}
-                    >
-                      Refresh
-                    </Button>
-                  </div>
-                  {accountDecksError ? (
-                    <p className="text-sm text-destructive">{accountDecksError}</p>
-                  ) : accountDecksLoading && accountSavedDecks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Loading account decks…</p>
-                  ) : filteredAccountDecks.length + filteredAccountDrafts.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                      {[...filteredAccountDecks, ...filteredAccountDrafts].map((saved) => {
-                        const presetKey = saved.accountDeckId
-                          ? accountDeckDetails[saved.accountDeckId]?.derivedFromPresetKey
-                          : undefined;
-                        return (
-                          <DeckGridCard
-                            key={saved.id}
-                            deck={saved}
-                            onOpen={() => handleSelectAccountDeck(saved)}
-                            onPlaytest={() => quickPlaytest(saved.deck)}
-                            onDelete={() => setDeletingAccountDeck(saved)}
-                            onPublish={publishEnabled ? () => setPublishingDeck(saved) : undefined}
-                            onViewInHub={
-                              hubEnabled && presetKey ? () => viewPresetInHub(presetKey) : undefined
-                            }
-                            onPlay={() => {
-                              const id = saved.accountDeckId
-                                ? loadAccountDeck(
-                                    saved.accountDeckId,
-                                    saved.accountVersionNo ?? 1,
-                                    saved.deck,
-                                  )
-                                : saved.id;
-                              navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
-                            }}
-                            badge={presetKey ? "Preset copy" : undefined}
-                          />
-                        );
-                      })}
-                    </div>
-                  ) : accountSavedDecks.length > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No account decks match your filters.
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Save or publish a local deck to add it to your account.
-                    </p>
-                  )}
-                </section>
-              )}
-
               <div className="mb-3 flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Local decks
+                  My decks
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  ({localSavedDecks.length})
+                  ({collectionDecks.length})
                 </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                <div className="group relative">
-                  <button
-                    type="button"
-                    onClick={() => setChoiceDialogOpen(true)}
-                    className={cn(
-                      "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
-                      "flex flex-col items-center justify-center gap-1.5",
-                      "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
-                      "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
-                    )}
+                {accountDecksAvailable && accountDecksSignedIn && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={accountDecksLoading}
+                    onClick={() => void refreshAccountDecks()}
                   >
-                    <Plus className="h-6 w-6" />
-                    <span className="text-xs font-medium">Add deck</span>
-                  </button>
-                </div>
-
-                {filteredValid.map((s) => (
-                  <DeckGridCard
-                    key={s.id}
-                    deck={s}
-                    onOpen={() => handleSelectDeck(s.id)}
-                    onPlaytest={() => quickPlaytest(s.deck)}
-                    onDelete={() => handleDelete(s.id)}
-                    onRename={() => startRename(s.id, s.deck.name)}
-                    onPublish={publishEnabled ? () => setPublishingDeck(s) : undefined}
-                    onSaveToAccount={
-                      accountDecksAvailable && accountDecksSignedIn
-                        ? () => void handleSaveToAccount(s)
-                        : undefined
-                    }
-                    onPlay={() => navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(s.id)}`)}
-                  />
-                ))}
+                    Refresh
+                  </Button>
+                )}
               </div>
+              {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
+                <p className="mb-3 text-sm text-destructive">{accountDecksError}</p>
+              )}
+              {(collectionPending ||
+                (accountDecksAvailable &&
+                  accountDecksSignedIn &&
+                  accountDecksLoading &&
+                  collectionDecks.length === 0)) && (
+                <p className="mb-3 text-sm text-muted-foreground">Loading your decks…</p>
+              )}
+              {!collectionPending && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => setChoiceDialogOpen(true)}
+                      className={cn(
+                        "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
+                        "flex flex-col items-center justify-center gap-1.5",
+                        "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
+                        "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
+                      )}
+                    >
+                      <Plus className="h-6 w-6" />
+                      <span className="text-xs font-medium">Add deck</span>
+                    </button>
+                  </div>
 
-              {filteredDrafts.length > 0 && (
-                <div className={cn("mt-4", filteredValid.length > 0 && "border-t pt-4")}>
+                  {filteredCollectionDecks.map((saved) => renderCollectionDeck(saved))}
+                </div>
+              )}
+
+              {filteredCollectionDrafts.length > 0 && (
+                <div className={cn("mt-4", filteredCollectionDecks.length > 0 && "border-t pt-4")}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Drafts
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      ({filteredDrafts.length})
+                      ({filteredCollectionDrafts.length})
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {filteredDrafts.map((s) => (
-                      <DeckGridCard
-                        key={s.id}
-                        deck={s}
-                        onOpen={() => handleSelectDeck(s.id)}
-                        onDelete={() => handleDelete(s.id)}
-                        onRename={() => startRename(s.id, s.deck.name)}
-                      />
-                    ))}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {filteredCollectionDrafts.map((saved) => renderCollectionDeck(saved, true))}
                   </div>
                 </div>
               )}
@@ -680,7 +636,7 @@ export default function DeckEditor() {
                   ) : publishedDecks.length === 0 ? (
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                       <span>
-                        You haven’t published a deck yet. Use the share action on any local deck.
+                        You haven’t published a deck yet. Use the share action on any deck.
                       </span>
                       <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.HUB)}>
                         Browse Community
@@ -708,7 +664,8 @@ export default function DeckEditor() {
                 <div
                   className={cn(
                     "mt-4",
-                    (filteredValid.length > 0 || filteredDrafts.length > 0) && "border-t pt-4",
+                    (filteredCollectionDecks.length > 0 || filteredCollectionDrafts.length > 0) &&
+                      "border-t pt-4",
                   )}
                 >
                   <div className="flex items-center gap-2 mb-3">
@@ -742,10 +699,10 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {filteredValid.length === 0 &&
-                filteredDrafts.length === 0 &&
+              {filteredCollectionDecks.length === 0 &&
+                filteredCollectionDrafts.length === 0 &&
                 presetSavedDecks.length === 0 &&
-                savedDecks.length > 0 && (
+                collectionDecks.length > 0 && (
                   <p className="col-span-5 pt-6 text-center text-sm text-muted-foreground">
                     No decks match your filters.
                   </p>

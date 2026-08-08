@@ -297,10 +297,36 @@ public final class HarnessPlayPlumbing {
                     }
                     ability.setXManaCostPaid(value);
                 }
-            } else {
-                ability.setXManaCostPaid(null);
+            } else if (!announceAdjustedCostX(ability, controller)) {
+                return false;
             }
         }
+        return true;
+    }
+
+    private boolean announceAdjustedCostX(final SpellAbility ability, final PlayerController controller) {
+        final String sVar = ability.getParamOrDefault("XAlternative", ability.getSVar("X"));
+        if (!"Count$xPaid".equals(sVar) && !sVar.isEmpty()) {
+            ability.setXManaCostPaid(null);
+            return true;
+        }
+        final Cost adjusted = forge.game.cost.CostAdjustment.adjust(ability.getPayCosts(), ability, false);
+        final String maxWaterbend = adjusted == null ? null : adjusted.getMaxWaterbend();
+        if (maxWaterbend == null || !maxWaterbend.contains("X")) {
+            ability.setXManaCostPaid(null);
+            return true;
+        }
+        final Player activator = ability.getActivatingPlayer();
+        final int candidates = forge.game.card.CardLists.filter(
+                forge.game.card.CardLists.filter(
+                        activator.getCardsIn(ZoneType.Battlefield), forge.game.card.CardPredicates.CAN_TAP),
+                card -> card.isArtifact() || card.isCreature()).size();
+        final int leftoverMana = forge.ai.ComputerUtilMana.determineLeftoverMana(ability, activator, false);
+        final Integer value = controller.announceRequirements(ability, 0, candidates + leftoverMana, "X");
+        if (value == null) {
+            return false;
+        }
+        ability.setXManaCostPaid(value);
         return true;
     }
 

@@ -241,13 +241,39 @@ export default function Game({ exitTo }: GameProps = {}) {
   const tappableLandIds = useMemo<string[]>(
     () =>
       promptActions.flatMap((a) =>
-        a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
+        a.type === "activateManaAbility" ||
+        (a.type === "activateAbility" && a.isManaAbility) ||
+        (a.type === "useResource" && a.resource === "waterbend")
+          ? [a.cardId]
+          : [],
       ),
     [promptActions],
   );
   const untappableLandIds = useMemo<string[]>(
     () => promptActions.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : [])),
     [promptActions],
+  );
+  const waterbendActionIdByCardId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of promptActions) {
+      if (a.type === "useResource" && a.resource === "waterbend") map.set(a.cardId, a.id);
+    }
+    return map;
+  }, [promptActions]);
+  const unwaterbendActionIdByCardId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of promptActions) {
+      if (a.type === "releaseResource" && a.resource === "waterbend") map.set(a.cardId, a.id);
+    }
+    return map;
+  }, [promptActions]);
+  const waterbendSourceIds = useMemo(
+    () => [...waterbendActionIdByCardId.keys()],
+    [waterbendActionIdByCardId],
+  );
+  const waterbentCardIds = useMemo(
+    () => [...unwaterbendActionIdByCardId.keys()],
+    [unwaterbendActionIdByCardId],
   );
 
   const mulliganPutBack = useMulliganSelection(activePrompt, (cardIds) =>
@@ -349,7 +375,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const manaAbilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     for (const a of promptActions) {
-      if (a.type !== "activateAbility" || !a.isManaAbility) continue;
+      const isManaAction =
+        a.type === "activateManaAbility" || (a.type === "activateAbility" && a.isManaAbility);
+      if (!isManaAction) continue;
       const arr = map.get(a.cardId) ?? [];
       const displayed = getDisplayedManaAbilities(a.cardId, [
         {
@@ -442,7 +470,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     (card: CardDto): HandActionOption[] => {
       if (manualApi) return getManualCardActions(card);
       if (promptType === "payManaCost") {
-        return manaAbilitiesByCardId.get(card.id) ?? [];
+        const options = [...(manaAbilitiesByCardId.get(card.id) ?? [])];
+        const waterbend = waterbendActionIdByCardId.get(card.id);
+        if (waterbend) {
+          options.push({
+            kind: "ability",
+            cardId: card.id,
+            label: "Waterbend (pays {1})",
+            actionId: waterbend,
+          });
+        }
+        return options;
       }
       if (promptType !== "chooseAction") return [];
 
@@ -462,6 +500,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       castOptions,
       abilitiesByCardId,
       manaAbilitiesByCardId,
+      waterbendActionIdByCardId,
       tappableLandIdSet,
     ],
   );
@@ -704,13 +743,18 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const handleTapLand = (card: CardDto) => {
     const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
-    if (manaAbilities.length > 1) {
+    const waterbend = waterbendActionIdByCardId.get(card.id);
+    if (manaAbilities.length + (waterbend ? 1 : 0) > 1) {
       preview.showSticky(card);
       return;
     }
     if (manaAbilities.length === 1) {
       const actionId = manaAbilities[0].actionId;
       if (actionId) respond({ type: "act", actionId });
+      return;
+    }
+    if (waterbend) {
+      respond({ type: "act", actionId: waterbend });
       return;
     }
 
@@ -725,6 +769,11 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const handleUntapLand = (card: CardDto) => {
+    const release = unwaterbendActionIdByCardId.get(card.id);
+    if (release) {
+      respond({ type: "act", actionId: release });
+      return;
+    }
     const undo = promptActions.find((a) => a.type === "undoMana" && a.cardId === card.id);
     if (undo) respond({ type: "act", actionId: undo.id });
   };
@@ -752,7 +801,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     const action = promptActions.find(
       (a) => a.type === "activateAbility" && a.isManaAbility && a.cardId === id,
     );
-    if (action) respond({ type: "act", actionId: action.id });
+    if (action) {
+      respond({ type: "act", actionId: action.id });
+      return;
+    }
+    const waterbend = waterbendActionIdByCardId.get(id);
+    if (waterbend) respond({ type: "act", actionId: waterbend });
   };
   const untapResponse = (id: string) => {
     const a = promptActions.find((x) => x.type === "undoMana" && x.cardId === id);
@@ -1763,6 +1817,8 @@ export default function Game({ exitTo }: GameProps = {}) {
             casting.wrappedTargetCard(cardId);
           }}
           onCastSpell={handleCastSpell}
+          waterbendSourceIds={waterbendSourceIds}
+          waterbentCardIds={waterbentCardIds}
           onTapLand={
             promptType === "chooseAction" || promptType === "payManaCost"
               ? handleTapLand

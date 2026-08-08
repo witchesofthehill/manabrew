@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Flame, Sparkles } from "lucide-react";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
+import { DeckHubTopDeckPreview } from "@/components/deck/DeckHubTopDeckPreview";
 import { fetchDeckHubEntries } from "@/api/hub";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { availableEngines } from "@/lib/engines";
@@ -54,6 +55,8 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
           </div>
         </section>
       )}
+
+      <DeckHubTopDeckPreview onOpen={onOpen} />
 
       {newest.length > 0 && (
         <section>

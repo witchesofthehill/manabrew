@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.9.0](https://github.com/witchesofthehill/manabrew/compare/v3.8.1...v3.9.0) (2026-08-08)
+
+### Features
+
+* unify deck collections and rank vs-AI games ([#641](https://github.com/witchesofthehill/manabrew/issues/641)) ([c98523c](https://github.com/witchesofthehill/manabrew/commit/c98523c91f5c7be81a8d3f6340246f632b96e876))
+
 ## [3.8.1](https://github.com/witchesofthehill/manabrew/compare/v3.8.0...v3.8.1) (2026-08-08)
 
 ### Fixes

@@ -234,8 +234,22 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
+                let waterbend = input.actions.iter().find(|action| {
+                    matches!(
+                        &action.kind,
+                        manabrew_protocol::prompts::common::PaymentActionKind::UseResource {
+                            resource:
+                                manabrew_protocol::prompts::common::PaymentResourceKind::Waterbend,
+                            ..
+                        }
+                    )
+                });
                 let payment = if input.can_confirm_from_pool {
                     PayManaCostOutput::Pay { auto: false }
+                } else if let Some(action) = waterbend {
+                    PayManaCostOutput::Act {
+                        action_id: action.id.clone(),
+                    }
                 } else {
                     let signature = format!(
                         "pay:{}|{}|{}",

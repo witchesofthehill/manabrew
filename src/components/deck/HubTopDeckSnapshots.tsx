@@ -172,22 +172,22 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-12 gap-4 md:aspect-[12/5] md:grid-rows-6">
+            <div className="grid grid-cols-12 gap-4 md:aspect-[12/5] md:grid-cols-[repeat(24,minmax(0,1fr))] md:grid-rows-6">
               {stageEntries.map((ranked, index) => (
                 <div
                   key={ranked.entry.id}
                   className={cn(
-                    index === 0 && "col-span-12 md:col-span-5 md:row-span-6",
+                    index === 0 && "col-span-12 md:col-span-10 md:row-span-6",
                     index === 1 &&
-                      "col-span-7 row-start-2 md:col-span-4 md:col-start-6 md:row-span-3 md:row-start-1",
+                      "col-span-7 row-start-2 md:col-span-8 md:col-start-11 md:row-span-4 md:row-start-1",
                     index === 2 &&
-                      "col-span-5 col-start-1 row-start-3 md:col-span-4 md:col-start-6 md:row-span-3 md:row-start-4",
+                      "col-span-5 col-start-1 row-start-3 md:col-span-7 md:col-start-11 md:row-span-2 md:row-start-5",
                     index === 3 &&
-                      "col-span-6 row-start-4 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-1",
+                      "col-span-6 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-1",
                     index === 4 &&
-                      "col-span-6 col-start-7 row-start-4 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-3",
+                      "col-span-6 col-start-7 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-3",
                     index === 5 &&
-                      "col-span-6 row-start-5 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-5",
+                      "col-span-6 row-start-5 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-5",
                   )}
                 >
                   {rankedDeck(ranked, "stage")}

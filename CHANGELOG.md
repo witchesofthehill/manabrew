@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.7.1](https://github.com/witchesofthehill/manabrew/compare/v3.7.0...v3.7.1) (2026-08-08)
+
+### Fixes
+
+* waterbend ([#643](https://github.com/witchesofthehill/manabrew/issues/643)) ([cb9fd30](https://github.com/witchesofthehill/manabrew/commit/cb9fd3033273ecad3c5af265e0a120b0da02f9f9))
+
 ## [3.7.0](https://github.com/witchesofthehill/manabrew/compare/v3.6.0...v3.7.0) (2026-08-06)
 
 ### Features

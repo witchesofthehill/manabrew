@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Loader2, MoreHorizontal, Swords, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -78,6 +78,7 @@ export function HubDeckPreviewDialog({
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
   const [editingPublication, setEditingPublication] = useState(false);
+  const routeLaunchRef = useRef(false);
   const { details: accountDeckDetails } = useAccountDecks();
 
   useEffect(() => {
@@ -86,6 +87,7 @@ export function HubDeckPreviewDialog({
     setError(null);
     setConfirmingUnpublish(false);
     setEditingPublication(false);
+    routeLaunchRef.current = false;
     if (!hubEnabled || !deckId) return;
     let cancelled = false;
     const request = loadEntry(deckId).then((entry) => ({
@@ -204,14 +206,14 @@ export function HubDeckPreviewDialog({
   function handlePlayOffline() {
     if (!deckId) return;
     savePresetToAccountOnUse(entryDetail?.presetKey);
-    onClose();
+    routeLaunchRef.current = true;
     navigate(ROUTES.PLAY_OFFLINE_CONSTRUCTED, { state: { preSelectedHubDeckId: deckId } });
   }
 
   function handleMultiplayer() {
     if (!deckId) return;
     savePresetToAccountOnUse(entryDetail?.presetKey);
-    onClose();
+    routeLaunchRef.current = true;
     navigate(ROUTES.LOBBY, { state: { preferredHubDeckId: deckId } });
   }
 
@@ -235,7 +237,10 @@ export function HubDeckPreviewDialog({
 
   return (
     <>
-      <Dialog open={hubEnabled && deckId !== null} onOpenChange={(open) => !open && onClose()}>
+      <Dialog
+        open={hubEnabled && deckId !== null}
+        onOpenChange={(open) => !open && !routeLaunchRef.current && onClose()}
+      >
         <DialogContent className="flex h-[calc(100dvh-1rem-var(--safe-area-inset-top)-var(--safe-area-inset-bottom))] w-[calc(100vw-1rem)] max-w-7xl flex-col gap-0 overflow-hidden p-0 sm:h-[90dvh] sm:w-[94vw]">
           <DialogHeader className="shrink-0 border-b px-4 py-3 pr-12 text-left sm:px-5">
             <DialogTitle className="truncate">

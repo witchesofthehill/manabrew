@@ -882,6 +882,10 @@ export const useDeckStore = create<DeckState>()(
       {
         name: STORAGE_KEYS.DECK,
         storage: deckStorage,
+        partialize: (state) => ({
+          ...state,
+          savedDecks: state.savedDecks.filter((saved) => !saved.accountDeckId),
+        }),
         // Bump on any persisted-deck shape change so `migrate` runs over existing
         // users' decks — a shape change without a bump never migrates.
         version: 4,

@@ -11,6 +11,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
+import type { DeckHubEntryListParams } from "@/api/hub";
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -21,11 +22,6 @@ interface DeckHubDiscoverProps {
 
 function csv(value: string | null) {
   return value?.split(",").filter(Boolean) ?? [];
-}
-
-function positivePage(value: string | null) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
@@ -40,7 +36,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const tagsValue = searchParams.get("tags") ?? searchParams.get("tag") ?? "";
   const formats = useMemo(() => csv(formatsValue), [formatsValue]);
   const tags = useMemo(() => csv(tagsValue), [tagsValue]);
-  const page = positivePage(searchParams.get("page"));
   const filters: DeckHubDiscoveryFilters = {
     search,
     source:
@@ -61,7 +56,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         : searchParams.get("sort") === "favorites"
           ? "favorites"
           : "newest",
-    view: searchParams.get("view") === "list" ? "list" : "grid",
     group:
       searchParams.get("group") === "source" ||
       searchParams.get("group") === "format" ||
@@ -108,8 +102,8 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
     void fetchFacets();
   }, [fetchFacets]);
 
-  useEffect(() => {
-    void fetchEntries({
+  const entryParams = useMemo<DeckHubEntryListParams>(
+    () => ({
       search: debouncedSearch || undefined,
       source: filters.source,
       formats,
@@ -122,27 +116,26 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
       favorites: filters.favorites,
       engines: availableEngines(),
       sort: filters.sort,
-      page,
       pageSize: PAGE_SIZE,
-    });
-  }, [
-    debouncedSearch,
-    fetchEntries,
-    ironsmithRuntimeOn,
-    filters.card,
-    filters.colorMatch,
-    filters.colors,
-    filters.commander,
-    filters.favorites,
-    filters.source,
-    filters.sort,
-    filters.tagMatch,
-    formats,
-    page,
-    refreshKey,
-    tags,
-    viewerAccountId,
-  ]);
+    }),
+    [
+      debouncedSearch,
+      filters.card,
+      filters.colorMatch,
+      filters.colors,
+      filters.commander,
+      filters.favorites,
+      filters.source,
+      filters.sort,
+      filters.tagMatch,
+      formats,
+      tags,
+    ],
+  );
+
+  useEffect(() => {
+    void fetchEntries({ ...entryParams, page: 1 });
+  }, [entryParams, fetchEntries, ironsmithRuntimeOn, refreshKey, viewerAccountId]);
 
   function changeFilters(patch: Partial<DeckHubDiscoveryFilters>) {
     if (patch.favorites && (!accountsEnabled || !signedIn)) {
@@ -166,7 +159,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
       ["card", "card", patch.card],
       ["favorites", "favorites", patch.favorites],
       ["sort", "sort", patch.sort],
-      ["view", "view", patch.view],
       ["group", "group", patch.group],
     ];
     for (const [filterKey, queryKey, value] of values) {
@@ -176,7 +168,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         (filterKey === "source" && value === "all") ||
         (filterKey === "tagMatch" && value === "any") ||
         (filterKey === "sort" && value === "newest") ||
-        (filterKey === "view" && value === "grid") ||
         (filterKey === "group" && value === "none") ||
         value === false ||
         value === "" ||
@@ -186,7 +177,8 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
     }
     next.delete("format");
     next.delete("tag");
-    if (patch.view === undefined && patch.group === undefined) next.delete("page");
+    next.delete("view");
+    next.delete("page");
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
@@ -205,13 +197,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
       card: "",
       favorites: false,
     });
-  }
-
-  function setPage(nextPage: number) {
-    const next = new URLSearchParams(searchParams);
-    if (nextPage > 1) next.set("page", String(nextPage));
-    else next.delete("page");
-    setSearchParams(next);
   }
 
   function favorite(entry: DeckHubEntrySummary) {
@@ -241,13 +226,12 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const total = entries?.total ?? 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <DeckHubFilters
         filters={filters}
         facets={facets}
         activeFilterCount={activeFilterCount}
         favoritesEnabled={accountsEnabled}
-        signedIn={signedIn}
         onChange={changeFilters}
         onClear={clearFilters}
       />
@@ -259,14 +243,15 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         loaded={entries !== null}
         error={entriesError}
         total={total}
-        page={page}
-        totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
         hasFilters={activeFilterCount > 0}
-        view={filters.view}
+        resetKey={JSON.stringify(entryParams)}
         group={filters.group}
         onOpen={onOpen}
+        onAuthor={(author) => changeFilters({ search: author })}
         onFavorite={accountsEnabled ? favorite : undefined}
-        onPage={setPage}
+        onLoadMore={() =>
+          void fetchEntries({ ...entryParams, page: (entries?.page ?? 1) + 1 }, true)
+        }
         onClear={clearFilters}
         onRetry={() => setRefreshKey((value) => value + 1)}
       />

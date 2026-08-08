@@ -1,6 +1,5 @@
 package forge.harness.common;
 
-import forge.ai.ComputerUtilCost;
 import forge.ai.ComputerUtilMana;
 import forge.card.MagicColor;
 import forge.card.mana.ManaAtom;

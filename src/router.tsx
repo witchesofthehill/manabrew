@@ -80,7 +80,7 @@ export const router = createBrowserRouter([
       ...(isFeatureEnabled("deckHub")
         ? [
             {
-              path: "hub",
+              path: "hub/*",
               element: (
                 <ErrorBoundary context="Community">
                   <DeckHub />

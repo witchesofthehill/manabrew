@@ -15,6 +15,7 @@ export const ROUTES = {
   SEARCH: "/search",
   DECK_EDITOR: "/deck-editor",
   HUB: "/hub",
+  HUB_TOP: "/hub/top",
   COMPANION: "/companion",
   SETTINGS: "/settings",
   ABOUT: "/about",

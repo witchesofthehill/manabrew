@@ -1,8 +1,9 @@
-import { Heart, Layers } from "lucide-react";
+import { Award, Crown, Heart, Layers, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
+import { DeckCardPlayButton } from "@/components/deck/DeckCardPlayButton";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { DECK_NAME_SHADOW_CLASS } from "@/components/deck/deckDisplay.utils";
 import { cn } from "@/lib/utils";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 
@@ -11,7 +12,13 @@ interface DeckHubEntryCardProps {
   onOpen: () => void;
   onFavorite?: () => void;
   favoritePending?: boolean;
-  variant?: "grid" | "list";
+  variant?: "card" | "hero" | "list" | "stage";
+  onAuthorClick?: () => void;
+  rank?: number;
+  reason?: string;
+  onPlay?: () => void;
+  playing?: boolean;
+  playDisabled?: boolean;
 }
 
 export function DeckHubEntryCard({
@@ -19,7 +26,13 @@ export function DeckHubEntryCard({
   onOpen,
   onFavorite,
   favoritePending = false,
-  variant = "grid",
+  variant = "card",
+  onAuthorClick,
+  rank,
+  reason,
+  onPlay,
+  playing = false,
+  playDisabled = false,
 }: DeckHubEntryCardProps) {
   const colorCost = entry.colors
     .split("")
@@ -29,128 +42,64 @@ export function DeckHubEntryCard({
     (tag) => tag.slug !== "official" && tag.slug !== "preset",
   );
 
-  return (
-    <div
-      className={cn(
-        "group relative overflow-hidden rounded-lg border bg-muted",
-        variant === "grid" ? "aspect-[4/3]" : "h-32 sm:h-36",
-        "transition-all hover:border-primary hover:ring-2 hover:ring-primary",
-      )}
+  const favorite = onFavorite ? (
+    <Button
+      type="button"
+      size="sm"
+      variant="secondary"
+      className="h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
+      aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={entry.favorited}
+      aria-busy={favoritePending}
+      disabled={favoritePending}
+      onClick={onFavorite}
     >
-      <button
-        type="button"
-        className="absolute inset-0 w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-        onClick={onOpen}
-        aria-label={`Open ${entry.title} by ${entry.author}`}
-      >
-        {entry.coverImageUrl ? (
-          <img
-            src={entry.coverImageUrl}
-            alt=""
-            loading="lazy"
-            className={cn(
-              "absolute h-full object-cover",
-              variant === "grid" ? "inset-0 w-full" : "inset-y-0 left-0 w-32 sm:w-48",
-            )}
-          />
-        ) : (
-          <span
-            className={cn(
-              "absolute inset-y-0 left-0 flex items-center justify-center",
-              variant === "grid" ? "inset-x-0" : "w-32 sm:w-48",
-            )}
-          >
-            <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
-          </span>
-        )}
-        <span
-          className={cn(
-            "absolute inset-0",
-            variant === "grid"
-              ? "bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10"
-              : "bg-gradient-to-r from-overlay/30 via-background/95 to-background",
-          )}
-        />
-        <span
-          className={cn(
-            "absolute z-10 block",
-            variant === "grid"
-              ? "bottom-0 left-0 right-0 px-2 pb-2 pt-8"
-              : "inset-y-0 left-32 right-0 flex flex-col justify-center px-3 pr-14 sm:left-48 sm:px-4",
-          )}
-        >
-          <span
-            className={cn(
-              "block truncate text-sm font-semibold leading-tight text-text-on-tinted",
-              variant === "list" && "text-base text-foreground",
-              variant === "grid" && DECK_NAME_SHADOW_CLASS,
-            )}
-          >
-            {entry.title}
-          </span>
-          <span
-            className={cn(
-              "block truncate text-[11px] text-text-on-tinted/85",
-              variant === "list" && "mt-1 text-xs text-muted-foreground",
-              variant === "grid" && DECK_NAME_SHADOW_CLASS,
-            )}
-          >
-            by {entry.author}
-          </span>
-          <span className="mt-1 flex flex-wrap items-center gap-1">
-            <FormatBadge formatId={entry.format ?? "commander"} />
-            {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
-            {entry.engines?.map((engine) => (
-              <span
-                key={engine}
-                className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
-              >
-                {engine} engine
-              </span>
-            ))}
-            <span className="ml-auto text-[10px] text-text-on-tinted/85">
-              <span className={cn(variant === "list" && "text-muted-foreground")}>
-                {entry.cardCount} cards
-              </span>
-            </span>
-          </span>
-          {variant === "list" && entry.summary && (
-            <span className="mt-2 line-clamp-1 text-xs text-muted-foreground">{entry.summary}</span>
-          )}
+      <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />
+      {entry.favoriteCount > 0 && (
+        <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
+      )}
+    </Button>
+  ) : entry.favoriteCount > 0 ? (
+    <span className="flex h-8 items-center gap-1 rounded-md bg-background/90 px-2 text-xs shadow-sm backdrop-blur-sm">
+      <Heart className="h-3.5 w-3.5" />
+      <span className="tabular-nums">{entry.favoriteCount}</span>
+    </span>
+  ) : null;
+  const rankMarker = rank ? (
+    <span
+      className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[var(--podium-color)] bg-background/90 px-1.5 font-serif text-xs font-semibold text-[var(--podium-color)] shadow-sm backdrop-blur-sm"
+      role={rank <= 3 ? "img" : undefined}
+      aria-label={
+        rank === 1
+          ? "First place"
+          : rank === 2
+            ? "Second place"
+            : rank === 3
+              ? "Third place"
+              : undefined
+      }
+    >
+      {rank === 1 ? (
+        <Crown className="h-4 w-4" aria-hidden="true" />
+      ) : rank === 2 ? (
+        <Medal className="h-4 w-4" aria-hidden="true" />
+      ) : rank === 3 ? (
+        <Award className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        `#${rank}`
+      )}
+    </span>
+  ) : null;
+  const labels = (
+    <div className="pointer-events-none flex max-w-full items-center gap-1 overflow-hidden">
+      {rankMarker}
+      {entry.sourceKind === "preset" && (
+        <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
+          Official preset
         </span>
-      </button>
-
-      {onFavorite ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="absolute right-1.5 top-1.5 z-20 h-8 gap-1 bg-background/90 px-2 shadow-sm backdrop-blur-sm"
-          aria-label={entry.favorited ? "Remove from favorites" : "Add to favorites"}
-          aria-pressed={entry.favorited}
-          aria-busy={favoritePending}
-          disabled={favoritePending}
-          onClick={onFavorite}
-        >
-          <Heart className={cn("h-3.5 w-3.5", entry.favorited && "fill-current text-primary")} />
-          {entry.favoriteCount > 0 && (
-            <span className="text-xs tabular-nums">{entry.favoriteCount}</span>
-          )}
-        </Button>
-      ) : entry.favoriteCount > 0 ? (
-        <span className="absolute right-1.5 top-1.5 z-20 flex h-8 items-center gap-1 rounded-md bg-background/90 px-2 text-xs shadow-sm backdrop-blur-sm">
-          <Heart className="h-3.5 w-3.5" />
-          <span className="tabular-nums">{entry.favoriteCount}</span>
-        </span>
-      ) : null}
-
-      {variant === "grid" && discoveryTags.length > 0 && (
-        <div
-          className={cn(
-            "pointer-events-none absolute left-1.5 z-20 flex max-w-[65%] gap-1 overflow-hidden",
-            entry.sourceKind === "preset" ? "top-10" : "top-1.5",
-          )}
-        >
+      )}
+      {variant !== "list" && discoveryTags.length > 0 && (
+        <div className="flex min-w-0 gap-1 overflow-hidden">
           {discoveryTags.slice(0, 2).map((tag) => (
             <span
               key={tag.id}
@@ -161,11 +110,74 @@ export function DeckHubEntryCard({
           ))}
         </div>
       )}
-      {entry.sourceKind === "preset" && (
-        <span className="pointer-events-none absolute left-1.5 top-1.5 z-20 rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
-          Official preset
-        </span>
-      )}
     </div>
+  );
+  const topLeft = onPlay ? (
+    <div className="flex max-w-full flex-col items-start gap-1 overflow-hidden">
+      {labels}
+      <DeckCardPlayButton playing={playing} disabled={playDisabled} onPlay={onPlay} />
+    </div>
+  ) : (
+    labels
+  );
+
+  return (
+    <DeckCardSurface
+      title={entry.title}
+      subtitle={`by ${entry.author}`}
+      onSubtitleClick={onAuthorClick}
+      subtitleAriaLabel={`Show decks by ${entry.author}`}
+      description={entry.summary}
+      supportingText={reason}
+      ariaLabel={`Open ${entry.title} by ${entry.author}`}
+      onOpen={onOpen}
+      variant={variant}
+      cover={
+        entry.coverImageUrl ? (
+          <img
+            src={entry.coverImageUrl}
+            alt=""
+            loading="lazy"
+            className={cn(
+              "absolute h-full object-cover",
+              variant === "list" ? "inset-y-0 left-0 w-32 sm:w-48" : "inset-0 w-full",
+            )}
+          />
+        ) : (
+          <span
+            className={cn(
+              "absolute flex items-center justify-center",
+              variant === "list" ? "inset-y-0 left-0 w-32 sm:w-48" : "inset-0",
+            )}
+          >
+            <Layers className="h-10 w-10 text-muted-foreground opacity-30" />
+          </span>
+        )
+      }
+      topLeft={topLeft}
+      topRight={favorite}
+      footer={
+        <>
+          <FormatBadge formatId={entry.format ?? "commander"} />
+          {colorCost && <ManaSymbols cost={colorCost} size="sm" />}
+          {entry.engines?.map((engine) => (
+            <span
+              key={engine}
+              className="rounded-full border border-border/70 bg-background/80 px-1.5 py-0.5 text-[9px] font-medium text-foreground backdrop-blur-sm"
+            >
+              {engine} engine
+            </span>
+          ))}
+          <span
+            className={cn(
+              "ml-auto text-[10px] text-text-on-tinted/85",
+              variant === "list" && "text-muted-foreground",
+            )}
+          >
+            {entry.cardCount} cards
+          </span>
+        </>
+      }
+    />
   );
 }

@@ -1,9 +1,9 @@
 import { AlertCircle, Bot, Check, User } from "lucide-react";
+import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckCoverImage } from "@/components/deck/deckCover";
 import {
-  DECK_NAME_SHADOW_CLASS,
   getDeckColorCost,
   getDeckNameColorClass,
   getDeckColors,
@@ -125,48 +125,40 @@ export function DeckSelectionCard({
     : undefined;
 
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-busy={loading}
-      aria-pressed={Boolean(hasVsSide || isSelected)}
-      aria-label={`${name}${assignment}${isLegal ? "" : ", not legal"}`}
-      onClick={onSelect}
+    <DeckCardSurface
+      title={name}
+      ariaLabel={`${name}${assignment}${isLegal ? "" : ", not legal"}`}
+      onOpen={onSelect}
       onDoubleClick={() => {
         if (!isTouch) onActivate?.();
       }}
-      title={!isLegal ? validationError : undefined}
+      disabled={disabled}
+      loading={loading}
+      pressed={Boolean(hasVsSide || isSelected)}
+      titleAttribute={!isLegal ? validationError : undefined}
       className={cn(
-        "relative isolate group rounded-xl border text-left transition-all overflow-hidden bg-muted cursor-pointer",
-        dense ? "h-24" : "aspect-[4/3] sm:min-h-[172px]",
-        "hover:ring-2 hover:ring-primary hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        "disabled:cursor-wait disabled:opacity-60",
-        !hasVsSide && isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary"
-          : !hasVsSide
-            ? cn(
-                "hover:bg-muted/40 hover:shadow-sm",
-                isLegal ? "border-border" : "border-warning/50",
-              )
-            : "",
+        dense && "h-24 aspect-auto",
+        !dense && "sm:min-h-[172px]",
+        !hasVsSide && isSelected && "border-primary bg-primary/5 ring-1 ring-primary",
+        !hasVsSide && !isSelected && !isLegal && "border-warning/50",
       )}
       style={sideStyle}
-    >
-      {coverImageUrl ? (
-        <img
-          src={coverImageUrl}
-          alt={name}
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <DeckCoverImage cover={cover} alt={name} fallbackClassName={coverFallbackClassName} />
-      )}
-
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
-
-      <div className="relative z-10 h-full">
-        <div className="absolute right-3 top-3 flex items-center gap-1">
+      titleClassName={titleColorClass}
+      supportingText={!isLegal ? validationError : !dense ? breakdown : undefined}
+      cover={
+        coverImageUrl ? (
+          <img
+            src={coverImageUrl}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <DeckCoverImage cover={cover} alt={name} fallbackClassName={coverFallbackClassName} />
+        )
+      }
+      topRight={
+        <div className="pointer-events-none flex items-center gap-1">
           {isPlayerDeck && (
             <span
               className="flex h-5 w-5 items-center justify-center rounded-full text-text-on-tinted"
@@ -204,96 +196,45 @@ export function DeckSelectionCard({
             />
           )}
         </div>
-
-        <div
-          className={cn(
-            "absolute inset-x-0 bottom-0 flex flex-col gap-1",
-            "px-3 py-1.5 rounded-b-xl bg-overlay/50 backdrop-blur-sm shadow-[0_-4px_12px_rgba(0,0,0,0.4)]",
-          )}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <span
-              className={cn(
-                "font-semibold text-sm leading-tight line-clamp-2",
-                titleColorClass,
-                DECK_NAME_SHADOW_CLASS,
-              )}
-            >
-              {name}
-            </span>
-            {!cover && !hasVsSide && (
-              <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
-                {isSelected && <Check className="h-3 w-3 text-primary" />}
-                {!isLegal && <AlertCircle className="h-3 w-3 text-warning" />}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1 flex-wrap">
-            {formatId && <FormatBadge formatId={formatId} />}
-            {showManaRow && (
-              <>
-                {colorCost ? (
-                  <ManaSymbols cost={colorCost} size="sm" />
-                ) : fallbackColorLabel ? (
-                  <span
-                    className={cn(
-                      "text-[10px]",
-                      cover ? "text-text-on-tinted/85" : "text-muted-foreground",
-                    )}
-                  >
-                    Colorless
-                  </span>
-                ) : null}
-              </>
-            )}
-            {labels?.map((label) => (
-              <DeckLabelBadge key={label.name} label={label} size="sm" />
-            ))}
-          </div>
-
-          {(!isLegal || (breakdown && !dense)) && (
-            <p
-              className={cn(
-                "text-[11px] leading-tight",
-                dense ? "line-clamp-1" : "line-clamp-2",
-                !isLegal
-                  ? "text-warning"
-                  : cover
-                    ? "text-text-on-tinted/85"
-                    : "text-muted-foreground",
-                DECK_NAME_SHADOW_CLASS,
-              )}
-            >
-              {!isLegal ? validationError : breakdown}
-            </p>
-          )}
-
-          {(!dense || badge) && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {!dense && (
+      }
+      footer={
+        <>
+          {formatId && <FormatBadge formatId={formatId} />}
+          {showManaRow && (
+            <>
+              {colorCost ? (
+                <ManaSymbols cost={colorCost} size="sm" />
+              ) : fallbackColorLabel ? (
                 <span
                   className={cn(
                     "text-[10px]",
                     cover ? "text-text-on-tinted/85" : "text-muted-foreground",
                   )}
                 >
-                  {isHub
-                    ? `Community · ${cardCount ?? cards.length} cards`
-                    : isPreset
-                      ? "Preset deck"
-                      : `${cards.length} cards`}
+                  Colorless
                 </span>
-              )}
-              {badge && (
-                <Badge variant="outline" className="text-[9px] h-4 px-1 ml-auto">
-                  {badge}
-                </Badge>
-              )}
-            </div>
+              ) : null}
+            </>
           )}
-        </div>
-      </div>
-    </button>
+          {labels?.map((label) => (
+            <DeckLabelBadge key={label.name} label={label} size="sm" />
+          ))}
+          {!dense && (
+            <span className="text-[10px] text-text-on-tinted/85">
+              {isHub
+                ? `Community · ${cardCount ?? cards.length} cards`
+                : isPreset
+                  ? "Preset deck"
+                  : `${cards.length} cards`}
+            </span>
+          )}
+          {badge && (
+            <Badge variant="outline" className="ml-auto h-4 px-1 text-[9px]">
+              {badge}
+            </Badge>
+          )}
+        </>
+      }
+    />
   );
 }

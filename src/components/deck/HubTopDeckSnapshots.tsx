@@ -91,32 +91,24 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     );
   }
 
-  function rankedDeck(
-    ranked: TopDeckSnapshotEntry,
-    podium = false,
-    variant: "card" | "hero" | "stage" = "card",
-  ) {
+  function rankedDeck(ranked: TopDeckSnapshotEntry, variant: "card" | "hero" | "stage" = "card") {
     const staged = variant === "stage";
     return (
       <div className={cn(staged && "flex h-full min-h-0 flex-col")}>
         <DeckHubPodiumFrame
           rank={ranked.rank}
-          prominent={podium}
           className={cn(staged && "flex min-h-0 flex-1 flex-col")}
         >
           <DeckHubEntryCard
             entry={ranked.entry}
+            rank={ranked.rank}
+            reason={ranked.reason}
             variant={variant}
             onOpen={() => onOpenDeck(ranked.entry.id)}
             favoritePending={Boolean(favoritePending[ranked.entry.id])}
             onFavorite={accountsEnabled ? () => favorite(ranked) : undefined}
           />
         </DeckHubPodiumFrame>
-        {ranked.reason && (
-          <p className="mt-1 truncate px-1 text-[11px] text-muted-foreground" title={ranked.reason}>
-            {ranked.reason}
-          </p>
-        )}
       </div>
     );
   }
@@ -198,7 +190,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
                       "col-span-6 row-start-5 md:col-span-3 md:col-start-10 md:row-span-2 md:row-start-5",
                   )}
                 >
-                  {rankedDeck(ranked, index < 3, "stage")}
+                  {rankedDeck(ranked, "stage")}
                 </div>
               ))}
             </div>

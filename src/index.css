@@ -732,7 +732,7 @@
 
 .podium-aura {
   position: absolute;
-  inset: calc(2rem - 3px) -3px -3px;
+  inset: -3px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--podium-color) 70%, transparent);
   border-radius: calc(var(--radius) + 3px);
@@ -759,10 +759,16 @@
 
 .podium-rank-2 .podium-aura {
   animation-duration: 9s;
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--podium-color) 34%, transparent),
+    0 0 32px color-mix(in srgb, var(--podium-color) 20%, transparent);
 }
 
 .podium-rank-3 .podium-aura {
   animation-duration: 10s;
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--podium-color) 34%, transparent),
+    0 0 32px color-mix(in srgb, var(--podium-color) 20%, transparent);
 }
 
 .podium-sparkles > span {

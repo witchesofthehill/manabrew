@@ -6,6 +6,7 @@ interface DeckCardSurfaceProps {
   title: string;
   subtitle?: string;
   description?: string;
+  supportingText?: string;
   ariaLabel: string;
   cover: ReactNode;
   footer: ReactNode;
@@ -22,6 +23,7 @@ export function DeckCardSurface({
   title,
   subtitle,
   description,
+  supportingText,
   ariaLabel,
   cover,
   footer,
@@ -104,6 +106,18 @@ export function DeckCardSurface({
             {subtitle}
           </span>
         ) : null}
+        {supportingText && (
+          <span
+            className={cn(
+              "mt-1 block truncate text-[10px] text-text-on-tinted/80",
+              DECK_NAME_SHADOW_CLASS,
+              variant === "list" && "text-muted-foreground shadow-none",
+            )}
+            title={supportingText}
+          >
+            {supportingText}
+          </span>
+        )}
         <span className="mt-1 flex flex-wrap items-center gap-1">{footer}</span>
         {variant === "list" && description && (
           <span className="mt-2 line-clamp-1 text-xs text-muted-foreground">{description}</span>

@@ -1,4 +1,4 @@
-import { Heart, Layers } from "lucide-react";
+import { Award, Crown, Heart, Layers, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
 import { FormatBadge } from "@/components/game/FormatBadge";
@@ -13,6 +13,8 @@ interface DeckHubEntryCardProps {
   favoritePending?: boolean;
   variant?: "card" | "hero" | "list" | "stage";
   onAuthorClick?: () => void;
+  rank?: number;
+  reason?: string;
 }
 
 export function DeckHubEntryCard({
@@ -22,6 +24,8 @@ export function DeckHubEntryCard({
   favoritePending = false,
   variant = "card",
   onAuthorClick,
+  rank,
+  reason,
 }: DeckHubEntryCardProps) {
   const colorCost = entry.colors
     .split("")
@@ -54,8 +58,34 @@ export function DeckHubEntryCard({
       <span className="tabular-nums">{entry.favoriteCount}</span>
     </span>
   ) : null;
+  const rankMarker = rank ? (
+    <span
+      className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border border-[var(--podium-color)] bg-background/90 px-1.5 font-serif text-xs font-semibold text-[var(--podium-color)] shadow-sm backdrop-blur-sm"
+      role={rank <= 3 ? "img" : undefined}
+      aria-label={
+        rank === 1
+          ? "First place"
+          : rank === 2
+            ? "Second place"
+            : rank === 3
+              ? "Third place"
+              : undefined
+      }
+    >
+      {rank === 1 ? (
+        <Crown className="h-4 w-4" aria-hidden="true" />
+      ) : rank === 2 ? (
+        <Medal className="h-4 w-4" aria-hidden="true" />
+      ) : rank === 3 ? (
+        <Award className="h-4 w-4" aria-hidden="true" />
+      ) : (
+        `#${rank}`
+      )}
+    </span>
+  ) : null;
   const labels = (
     <div className="pointer-events-none flex max-w-full items-center gap-1 overflow-hidden">
+      {rankMarker}
       {entry.sourceKind === "preset" && (
         <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
           Official preset
@@ -83,6 +113,7 @@ export function DeckHubEntryCard({
       onSubtitleClick={onAuthorClick}
       subtitleAriaLabel={`Show decks by ${entry.author}`}
       description={entry.summary}
+      supportingText={reason}
       ariaLabel={`Open ${entry.title} by ${entry.author}`}
       onOpen={onOpen}
       variant={variant}

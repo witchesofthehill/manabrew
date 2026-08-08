@@ -48,6 +48,21 @@ pub fn create_room_sync(
             _ => {}
         }
     }
+    if let Some(cfg) = &sealed_config {
+        match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
+            (Some(_), Some(_)) => {
+                return Err(ServerError::InvalidDraftConfig(
+                    "sealed set_code and cube_id are mutually exclusive".into(),
+                ));
+            }
+            (None, None) => {
+                return Err(ServerError::InvalidDraftConfig(
+                    "sealed set_code or cube_id required".into(),
+                ));
+            }
+            _ => {}
+        }
+    }
 
     {
         if let Some(player) = state.players.get(player_id) {

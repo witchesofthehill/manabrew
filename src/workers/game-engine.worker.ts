@@ -515,7 +515,12 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
     case "limited_get_winston_state":
       return limited_get_winston_state(args?.sessionId as string);
     case "limited_start_gauntlet_from_sealed":
-      return limited_start_gauntlet_from_sealed(args?.sessionId as string, args?.rounds as number);
+      return limited_start_gauntlet_from_sealed(
+        args?.sessionId as string,
+        args?.rounds as number,
+        args?.main as object,
+        args?.sideboard as object,
+      );
     case "limited_record_gauntlet_outcome":
       return limited_record_gauntlet_outcome(
         args?.gauntletId as string,

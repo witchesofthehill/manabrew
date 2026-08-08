@@ -76,7 +76,12 @@ export default function Sealed() {
             onClick={async () => {
               if (!id) return;
               try {
-                const g = await startGauntlet(id, activeSealed.aiDecks.length);
+                const g = await startGauntlet(
+                  id,
+                  activeSealed.aiDecks.length,
+                  builtDeck.main,
+                  builtDeck.sideboard,
+                );
                 navigate(`/gauntlet/${g.gauntletId}`);
               } catch {
                 /* surfaced via lastError */

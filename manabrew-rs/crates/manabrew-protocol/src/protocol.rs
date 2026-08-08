@@ -294,7 +294,17 @@ fn default_reconnect_timeout_s() -> u32 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[ts(export, export_to = "lobby/index.ts")]
 pub struct SealedConfig {
-    pub set_code: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub set_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cube_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub cube_name: Option<String>,
+    #[serde(default)]
+    pub singleton: bool,
     pub num_boosters: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "number")]

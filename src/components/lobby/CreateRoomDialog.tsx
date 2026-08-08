@@ -171,6 +171,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [sealedSet, setSealedSet] = useState<string>("");
   const [sealedNumBoosters, setSealedNumBoosters] = useState(6);
   const [sealedSeed, setSealedSeed] = useState("");
+  const [sealedUseCube, setSealedUseCube] = useState(false);
   const [prefetchingSealedSet, setPrefetchingSealedSet] = useState<string | null>(null);
   const [unsupportedSealedSet, setUnsupportedSealedSet] = useState<string | null>(null);
 
@@ -275,12 +276,13 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setSealedSet("");
     setSealedNumBoosters(6);
     setSealedSeed("");
+    setSealedUseCube(false);
   }, [open, isTauri, ironsmithEnabled, forgeRoomAvailable]);
 
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
   const isSealed = kind === "limited" && limitedKind === "sealed";
-  const showPicker = isBoosterDraft || isSealed;
+  const showPicker = isBoosterDraft || (isSealed && !sealedUseCube);
   const pickerSet = isSealed ? sealedSet : draftSet;
   const pickerUnsupported = isSealed ? unsupportedSealedSet : unsupportedSet;
   const limitedKindEnabled =
@@ -288,7 +290,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const draftConfigReady =
     (!isBoosterDraft || (!!draftSet && unsupportedSet !== draftSet)) &&
     (!isCube || !!importedCube) &&
-    (!isSealed || (!!sealedSet && unsupportedSealedSet !== sealedSet));
+    (!isSealed ||
+      (sealedUseCube ? !!importedCube : !!sealedSet && unsupportedSealedSet !== sealedSet));
   const canSubmit = connected && limitedKindEnabled && draftConfigReady;
 
   async function handleImportCube() {
@@ -298,6 +301,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     try {
       const result = await fetchCubeMetadata(cubeInput.trim());
       setImportedCube(result);
+      if (isSealed) {
+        setSealedNumBoosters(Math.max(1, Math.min(12, result.numPacks)));
+      }
     } catch (err) {
       setCubeImportError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -326,7 +332,10 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
       } else if (isSealed) {
         const parsedSeed = sealedSeed.trim() ? Number(sealedSeed) : NaN;
         sealedConfig = {
-          set_code: sealedSet,
+          set_code: sealedUseCube ? undefined : sealedSet,
+          cube_id: sealedUseCube ? importedCube!.cubeId : undefined,
+          cube_name: sealedUseCube ? importedCube!.name : undefined,
+          singleton: sealedUseCube ? importedCube!.singleton : false,
           num_boosters: sealedNumBoosters,
           base_seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         };
@@ -705,6 +714,19 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
             {isSealed && (
               <>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={sealedUseCube}
+                    onChange={(e) => {
+                      setSealedUseCube(e.target.checked);
+                      setImportedCube(null);
+                      setCubeImportError(null);
+                    }}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>Use a CubeCobra cube instead of a set</span>
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="sealed-boosters" className="text-xs font-medium">
@@ -742,7 +764,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               </>
             )}
 
-            {isCube && (
+            {(isCube || (isSealed && sealedUseCube)) && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Cube</Label>
                 <div className="flex items-center gap-2">
@@ -774,6 +796,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   <p className="text-[11px] text-muted-foreground">
                     Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
                     {importedCube.cardCount} cards
+                    {importedCube.rejectedCardCount > 0 &&
+                      ` · ${importedCube.rejectedCardCount} unsupported`}
                   </p>
                 )}
                 {cubeImportError && !importedCube && !importingCube && (

@@ -299,7 +299,7 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
-    enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL, DELVE, UNDELVE }
+    enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL, DELVE, UNDELVE, WATERBEND, UNWATERBEND }
 
     static final class ManaPaymentChoice {
         private final ManaPaymentKind kind;
@@ -364,6 +364,8 @@ public final class ManaBrewInteractiveSession {
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
             final List<Card> convokeSources,
+            final List<Card> waterbendSources,
+            final java.util.Collection<Card> waterbentCards,
             final List<Card> delveSources,
             final java.util.Collection<Card> delvedCards,
             final boolean canConfirm,
@@ -374,7 +376,8 @@ public final class ManaBrewInteractiveSession {
         requireAttached();
         publishManaPaymentPrompt(
                 playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
-                delveSources, delvedCards, canConfirm, canCancel, canPayLife, lifeToPay);
+                waterbendSources, waterbentCards, delveSources, delvedCards, canConfirm, canCancel,
+                canPayLife, lifeToPay);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
@@ -385,7 +388,8 @@ public final class ManaBrewInteractiveSession {
             }
             try {
                 return interpretManaPaymentChoice(
-                        action, tappableSources, untappableCards, convokeSources, delveSources);
+                        action, tappableSources, untappableCards, convokeSources, waterbendSources,
+                        delveSources);
             } catch (IllegalArgumentException | UnsupportedOperationException | NullPointerException invalid) {
                 System.err.println("[mana-brew] ignoring invalid mana-payment answer: " + invalid
                         + " | playerId=" + playerId
@@ -397,7 +401,8 @@ public final class ManaBrewInteractiveSession {
                 invalid.printStackTrace(System.err);
                 publishManaPaymentPrompt(
                         playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
-                        delveSources, delvedCards, canConfirm, canCancel, canPayLife, lifeToPay);
+                        waterbendSources, waterbentCards, delveSources, delvedCards, canConfirm, canCancel,
+                        canPayLife, lifeToPay);
             }
         }
         return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, null, false);
@@ -408,11 +413,26 @@ public final class ManaBrewInteractiveSession {
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
             final List<Card> convokeSources,
+            final List<Card> waterbendSources,
             final List<Card> delveSources
     ) {
         {
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             switch (kind) {
+                case "waterbend": {
+                    final Card card = resolveConvokeSource(action, waterbendSources);
+                    if (card == null) {
+                        throw new IllegalArgumentException("waterbend did not match a tappable permanent");
+                    }
+                    return new ManaPaymentChoice(ManaPaymentKind.WATERBEND, null, null, null, card, null, false);
+                }
+                case "unwaterbend": {
+                    final Card card = resolveUntapCard(action, waterbendSources);
+                    if (card == null) {
+                        throw new IllegalArgumentException("unwaterbend did not match a waterbent permanent");
+                    }
+                    return new ManaPaymentChoice(ManaPaymentKind.UNWATERBEND, null, null, card, null, null, false);
+                }
                 case "tap_land": {
                     final SpellAbility chosen = resolveTapSource(action, tappableSources);
                     if (chosen != null) {
@@ -561,6 +581,8 @@ public final class ManaBrewInteractiveSession {
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
             final List<Card> convokeSources,
+            final List<Card> waterbendSources,
+            final java.util.Collection<Card> waterbentCards,
             final List<Card> delveSources,
             final java.util.Collection<Card> delvedCards,
             final boolean canConfirm,
@@ -593,6 +615,16 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(card);
             actionList.add(new PaymentAction_activateManaAbility(
                     "tap:" + cardId, cardId, 0, card.getName(), true, false, null, null));
+        }
+        for (final Card card : waterbendSources) {
+            final String cardId = SnapshotExtractor.javaCardId(card);
+            if (waterbentCards != null && waterbentCards.contains(card)) {
+                actionList.add(new PaymentAction_releaseResource(
+                        "unwaterbend:" + cardId, cardId, PaymentResourceKind.WATERBEND));
+            } else {
+                actionList.add(new PaymentAction_useResource(
+                        "waterbend:" + cardId, cardId, PaymentResourceKind.WATERBEND));
+            }
         }
         for (final Card card : untappableCards) {
             final String cardId = SnapshotExtractor.javaCardId(card);

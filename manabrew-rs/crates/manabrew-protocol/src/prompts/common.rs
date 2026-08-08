@@ -128,6 +128,7 @@ pub enum PaymentResourceKind {
     Convoke,
     Improvise,
     Delve,
+    Waterbend,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

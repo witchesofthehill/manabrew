@@ -306,8 +306,8 @@
       "refs": ["ActivatableAbilityInfo", "PaymentResourceKind"]
     },
     "PaymentResourceKind": {
-      "ts": "type PaymentResourceKind = \"convoke\" | \"improvise\" | \"delve\";",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum PaymentResourceKind {\n    Convoke,\n    Improvise,\n    Delve,\n}",
+      "ts": "type PaymentResourceKind = \"convoke\" | \"improvise\" | \"delve\" | \"waterbend\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum PaymentResourceKind {\n    Convoke,\n    Improvise,\n    Delve,\n    Waterbend,\n}",
       "refs": []
     },
     "PlayCardMode": {

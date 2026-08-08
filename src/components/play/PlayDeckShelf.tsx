@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
 import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
+import { CommunityDeckShelf } from "@/components/play/CommunityDeckShelf";
 import { OwnedDeckShelf } from "@/components/play/OwnedDeckShelf";
 import { PresetDeckShelf } from "@/components/play/PresetDeckShelf";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   const presetDecks = usePresetDecks();
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [communityOpen, setCommunityOpen] = useState(true);
   const [presetsOpenOverride, setPresetsOpenOverride] = useState<boolean | null>(null);
   const importDeckText = useDeckTextImport();
   const hubEnabled = isFeatureEnabled("deckHub");
@@ -123,6 +125,14 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
     }
   }
 
+  function openCommunityDeck(id: string) {
+    navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(id)}&source=community`);
+  }
+
+  function openCommunityAuthor(author: string) {
+    navigate(`${ROUTES.HUB}?q=${encodeURIComponent(author)}&source=community`);
+  }
+
   return (
     <section className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-background/80 p-5 shadow-xl backdrop-blur-md sm:p-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -160,6 +170,14 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             navigate(`${ROUTES.HUB}?deck=${encodeURIComponent(presetKey)}&source=presets`)
           }
         />
+        {hubEnabled && (
+          <CommunityDeckShelf
+            open={communityOpen}
+            onOpenChange={setCommunityOpen}
+            onOpenDeck={openCommunityDeck}
+            onAuthorClick={openCommunityAuthor}
+          />
+        )}
         <PresetDeckShelf
           decks={visiblePresets}
           loaded={presetDecks.length > 0}

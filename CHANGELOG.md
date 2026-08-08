@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.9.2](https://github.com/witchesofthehill/manabrew/compare/v3.9.1...v3.9.2) (2026-08-08)
+
+### Fixes
+
+* **limited:** restore cubecobra draft imports ([#637](https://github.com/witchesofthehill/manabrew/issues/637)) ([4ae31b1](https://github.com/witchesofthehill/manabrew/commit/4ae31b1479adadd39f2b209f9829e93a856c5994))
+
 ## [3.9.1](https://github.com/witchesofthehill/manabrew/compare/v3.9.0...v3.9.1) (2026-08-08)
 
 ### Fixes

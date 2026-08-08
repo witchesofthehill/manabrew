@@ -61,7 +61,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         : searchParams.get("sort") === "favorites"
           ? "favorites"
           : "newest",
-    view: searchParams.get("view") === "list" ? "list" : "grid",
     group:
       searchParams.get("group") === "source" ||
       searchParams.get("group") === "format" ||
@@ -166,7 +165,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
       ["card", "card", patch.card],
       ["favorites", "favorites", patch.favorites],
       ["sort", "sort", patch.sort],
-      ["view", "view", patch.view],
       ["group", "group", patch.group],
     ];
     for (const [filterKey, queryKey, value] of values) {
@@ -176,7 +174,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         (filterKey === "source" && value === "all") ||
         (filterKey === "tagMatch" && value === "any") ||
         (filterKey === "sort" && value === "newest") ||
-        (filterKey === "view" && value === "grid") ||
         (filterKey === "group" && value === "none") ||
         value === false ||
         value === "" ||
@@ -186,7 +183,8 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
     }
     next.delete("format");
     next.delete("tag");
-    if (patch.view === undefined && patch.group === undefined) next.delete("page");
+    next.delete("view");
+    if (patch.group === undefined) next.delete("page");
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
@@ -241,13 +239,12 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
   const total = entries?.total ?? 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <DeckHubFilters
         filters={filters}
         facets={facets}
         activeFilterCount={activeFilterCount}
         favoritesEnabled={accountsEnabled}
-        signedIn={signedIn}
         onChange={changeFilters}
         onClear={clearFilters}
       />
@@ -262,7 +259,6 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         page={page}
         totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
         hasFilters={activeFilterCount > 0}
-        view={filters.view}
         group={filters.group}
         onOpen={onOpen}
         onFavorite={accountsEnabled ? favorite : undefined}

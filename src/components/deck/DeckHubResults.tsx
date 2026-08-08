@@ -4,11 +4,10 @@ import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import type { DeckHubGroup, DeckHubView } from "@/components/deck/deckHub.types";
+import type { DeckHubGroup } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
-import { cn } from "@/lib/utils";
 
 interface DeckHubResultsProps {
   entries: DeckHubEntrySummary[];
@@ -19,7 +18,6 @@ interface DeckHubResultsProps {
   page: number;
   totalPages: number;
   hasFilters: boolean;
-  view: DeckHubView;
   group: DeckHubGroup;
   onOpen: (id: string) => void;
   onFavorite?: (entry: DeckHubEntrySummary) => void;
@@ -45,7 +43,6 @@ export function DeckHubResults({
   page,
   totalPages,
   hasFilters,
-  view,
   group,
   onOpen,
   onFavorite,
@@ -66,7 +63,7 @@ export function DeckHubResults({
   }, [page]);
 
   return (
-    <>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="p-4 sm:px-6 lg:px-8">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -154,18 +151,11 @@ export function DeckHubResults({
                       <span className="text-xs text-muted-foreground">{groupedEntries.length}</span>
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      view === "grid"
-                        ? "grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                        : "grid gap-3 xl:grid-cols-2",
-                    )}
-                  >
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                     {groupedEntries.map((entry) => (
                       <DeckHubEntryCard
                         key={entry.id}
                         entry={entry}
-                        variant={view}
                         onOpen={() => onOpen(entry.id)}
                         onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
                         favoritePending={Boolean(favoritePending[entry.id])}
@@ -204,6 +194,6 @@ export function DeckHubResults({
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 }

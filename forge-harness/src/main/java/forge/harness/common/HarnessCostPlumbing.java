@@ -114,7 +114,8 @@ public final class HarnessCostPlumbing {
         }
 
         private CardCollectionView chooseCards(final CardCollectionView pool, final int amount, final String title) {
-            return controller.chooseCardsForEffect(pool, ability, title, amount, amount, false, null);
+            return controller.chooseCardsForEffect(
+                    pool, ability, title, amount, amount, ability.isOptionalTrigger(), null);
         }
 
         @Override

@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.1](https://github.com/witchesofthehill/manabrew/compare/v3.8.0...v3.8.1) (2026-08-08)
+
+### Fixes
+
+* **ui:** resolve forge token set identities ([#635](https://github.com/witchesofthehill/manabrew/issues/635)) ([aa86ce2](https://github.com/witchesofthehill/manabrew/commit/aa86ce2fada651bfe0d33425ee1d6bbaa3ae1c16))
+* **forge:** allow declining optional trigger costs ([#636](https://github.com/witchesofthehill/manabrew/issues/636)) ([0eea076](https://github.com/witchesofthehill/manabrew/commit/0eea07674da3171d30cd99e4f1fe917c70b97fe0))
+
 ## [3.8.0](https://github.com/witchesofthehill/manabrew/compare/v3.7.1...v3.8.0) (2026-08-08)
 
 ### Features

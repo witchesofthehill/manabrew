@@ -115,6 +115,8 @@ export interface BattlefieldState {
   mustAttackCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
+  waterbendSourceIds?: string[];
+  waterbentCardIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
   /** Selectable cards that should glow hostile-red rather than the neutral ring

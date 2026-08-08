@@ -107,4 +107,5 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache
           # Tag-scoped layer saves are unreadable by the next tag; cache-warm
           # owns the main-scoped layers. Dispatch runs (from main) still save.
-          cache-to: ${{ github.ref_type != 'tag' && format('type=registry,ref=ghcr.io/{0}/{1}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', github.repository_owner, matrix.image) || '' }}
+          # ignore-error: a cache export hiccup must never fail a release build.
+          cache-to: ${{ github.ref_type != 'tag' && format('type=registry,ref=ghcr.io/{0}/{1}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true', github.repository_owner, matrix.image) || '' }}

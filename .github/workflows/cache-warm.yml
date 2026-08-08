@@ -74,10 +74,9 @@ jobs:
           echo "rust=$rust" >> "$GITHUB_OUTPUT"
           echo "docker=$docker" >> "$GITHUB_OUTPUT"
 
-  # GHA caches are ref-scoped: docker layers cached by a PR's preview build
-  # are invisible to other PRs, and a release tag's layers are invisible to
-  # the next tag. Only main-scoped caches are readable everywhere — so warm
-  # the image layer caches (the cargo-chef dependency cooks especially) here.
+  # The GHCR layer cache is not ref-scoped the way the Actions cache was, so
+  # every ref reads the same `:buildcache`. This job still runs first on main
+  # so the cargo-chef dependency cooks are warm before anything needs them.
   # `push: false`: this only populates the cache. The cook layers sit before
   # the VITE_* ARGs in Dockerfile.web, so one warm serves the prod, staging
   # and preview arg variants alike. Ironsmith stays dark (mirrors the
@@ -86,6 +85,11 @@ jobs:
     name: Warm ${{ matrix.image }} layers
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # Overrides the workflow-level `contents: read`: the layer cache now lives
+    # in GHCR, so warming it is a package write even though no image is pushed.
+    permissions:
+      contents: read
+      packages: write
     needs: changes
     if: needs.changes.outputs.docker == 'true' && !startsWith(github.event.head_commit.message, 'chore(release):')
     strategy:
@@ -125,7 +129,7 @@ jobs:
           platforms: linux/amd64
           push: false
           cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true
 
   engine:
     name: Warm engine & parity

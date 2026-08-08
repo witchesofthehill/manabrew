@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.9.1](https://github.com/witchesofthehill/manabrew/compare/v3.9.0...v3.9.1) (2026-08-08)
+
+### Fixes
+
+* **harness:** unbreak native builds on unused import ([#647](https://github.com/witchesofthehill/manabrew/issues/647)) ([68a9fb3](https://github.com/witchesofthehill/manabrew/commit/68a9fb3237bbf61637dc31a77f6b2d4c2692d8c4))
+
 ## [3.9.0](https://github.com/witchesofthehill/manabrew/compare/v3.8.1...v3.9.0) (2026-08-08)
 
 ### Features

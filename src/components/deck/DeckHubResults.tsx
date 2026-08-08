@@ -129,12 +129,7 @@ export function DeckHubResults({
             <div className="space-y-6">
               {!hasFilters && <DeckHubCuratedSections onOpen={onOpen} />}
               {!hasFilters && (
-                <div>
-                  <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Keep scrolling to discover more from the Community.
-                  </p>
-                </div>
+                <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
               )}
               {[...groups.entries()].map(([label, groupedEntries]) => (
                 <section key={label}>

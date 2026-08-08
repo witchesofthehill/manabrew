@@ -92,32 +92,26 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
 
   function rankedDeck(ranked: TopDeckSnapshotEntry, podium = false) {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 px-1">
-          <span
-            className={cn(
-              "font-serif font-semibold text-primary",
-              podium && ranked.rank === 1
-                ? "text-2xl"
-                : podium && ranked.rank === 2
-                  ? "text-xl"
-                  : "text-lg",
-            )}
-          >
-            #{ranked.rank}
-          </span>
-          {ranked.reason && (
-            <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">
-              {ranked.reason}
-            </span>
+      <div className="relative pl-2 pt-2">
+        <span
+          className={cn(
+            "absolute left-0 top-0 z-30 rounded-full border border-primary/30 bg-background/95 px-2 py-0.5 font-serif font-semibold text-primary shadow-sm",
+            podium && ranked.rank === 1 ? "text-xl" : "text-sm",
           )}
-        </div>
+        >
+          #{ranked.rank}
+        </span>
         <DeckHubEntryCard
           entry={ranked.entry}
           onOpen={() => onOpenDeck(ranked.entry.id)}
           favoritePending={Boolean(favoritePending[ranked.entry.id])}
           onFavorite={accountsEnabled ? () => favorite(ranked) : undefined}
         />
+        {ranked.reason && (
+          <p className="mt-1 truncate px-1 text-[11px] text-muted-foreground" title={ranked.reason}>
+            {ranked.reason}
+          </p>
+        )}
       </div>
     );
   }
@@ -181,14 +175,14 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-6 gap-4 md:flex md:items-start">
+            <div className="grid grid-cols-12 gap-4">
               {podiumEntries.map((ranked, index) => (
                 <div
                   key={ranked.entry.id}
                   className={cn(
-                    index === 0 && "col-span-6 md:flex-[1.6]",
-                    index === 1 && "col-span-5 md:flex-[1.3]",
-                    index === 2 && "col-span-4 col-start-3 md:flex-1",
+                    index === 0 && "col-span-12 md:col-span-7 md:row-span-2",
+                    index === 1 && "col-span-10 md:col-span-5",
+                    index === 2 && "col-span-8 col-start-5 md:col-span-4 md:col-start-9",
                   )}
                 >
                   {rankedDeck(ranked, true)}

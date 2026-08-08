@@ -64,7 +64,7 @@ Feature flags cover routes, navigation, dialogs, background requests, persisted-
 
 `DeckHub` remains the internal domain and API name, but user-facing copy calls the discovery surface **Community**. Keep My Decks and Community as direct top-level destinations; the play home introduces Community with a full-width exploration tile below the player's deck shelf. Top Deck cards must display their snapshot reason, and measured play rankings come only from exact published-version fingerprints used by humans in managed-relay multiplayer or reported offline games. Most Played uses 30 days, Rising compares the last seven days with the previous seven, Highest Win Rate uses a 20-match minimum plus the 95% Wilson lower bound, and New & Notable combines recent plays with favorites. Presets are Community entries but are never ranked merely for appearing in the preset catalog.
 
-Community Discover is a continuous explore feed with curated shelves and infinite loading. Keep its desktop filter rail collapsible and use the shared mobile filter sheet below the desktop breakpoint; do not reintroduce page controls or alternate list views.
+Community Discover is a continuous explore feed with playful editorial sections and infinite loading. Curated areas may mix mosaics, compact lists, and horizontal shelves, but every deck presentation must use the shared card surface and the main feed remains a stable grid. Keep the desktop filter rail collapsible and use the shared mobile filter sheet below the desktop breakpoint; do not reintroduce page controls or user-facing view toggles.
 
 ## Card data — Scryfall store
 

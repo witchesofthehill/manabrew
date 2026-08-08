@@ -11,6 +11,7 @@ interface DeckHubEntryCardProps {
   onOpen: () => void;
   onFavorite?: () => void;
   favoritePending?: boolean;
+  variant?: "card" | "compact";
 }
 
 export function DeckHubEntryCard({
@@ -18,6 +19,7 @@ export function DeckHubEntryCard({
   onOpen,
   onFavorite,
   favoritePending = false,
+  variant = "card",
 }: DeckHubEntryCardProps) {
   const colorCost = entry.colors
     .split("")
@@ -78,6 +80,7 @@ export function DeckHubEntryCard({
       subtitle={`by ${entry.author}`}
       ariaLabel={`Open ${entry.title} by ${entry.author}`}
       onOpen={onOpen}
+      variant={variant}
       cover={
         entry.coverImageUrl ? (
           <img

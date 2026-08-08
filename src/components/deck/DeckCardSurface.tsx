@@ -12,6 +12,7 @@ interface DeckCardSurfaceProps {
   topRight?: ReactNode;
   titleClassName?: string;
   onOpen: () => void;
+  variant?: "card" | "compact";
 }
 
 export function DeckCardSurface({
@@ -24,9 +25,15 @@ export function DeckCardSurface({
   topRight,
   titleClassName,
   onOpen,
+  variant = "card",
 }: DeckCardSurfaceProps) {
   return (
-    <div className="group relative aspect-[4/3] overflow-hidden rounded-lg border bg-muted transition-all hover:border-primary hover:ring-2 hover:ring-primary">
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-lg border bg-muted transition-all hover:border-primary hover:ring-2 hover:ring-primary",
+        variant === "card" ? "aspect-[4/3]" : "h-24",
+      )}
+    >
       <button
         type="button"
         className="absolute inset-0 w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
@@ -35,7 +42,12 @@ export function DeckCardSurface({
       >
         {cover}
         <span className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10" />
-        <span className="absolute bottom-0 left-0 right-0 z-10 block px-2 pb-2 pt-8">
+        <span
+          className={cn(
+            "absolute bottom-0 left-0 right-0 z-10 block px-2 pb-2 pt-8",
+            variant === "compact" && "pl-3 pr-12",
+          )}
+        >
           <span
             className={cn(
               "block truncate text-sm font-semibold leading-tight text-text-on-tinted",

@@ -4,6 +4,7 @@ import { Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
+import { DeckHubPodiumFrame } from "@/components/deck/DeckHubPodiumFrame";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
@@ -96,22 +97,16 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     variant: "card" | "hero" = "card",
   ) {
     return (
-      <div className="relative pt-8">
-        <span
-          className={cn(
-            "absolute left-0 top-0 z-30 rounded-full border border-primary/30 bg-background/95 px-2 py-0.5 font-serif font-semibold text-primary shadow-sm",
-            podium && ranked.rank === 1 ? "text-xl" : "text-sm",
-          )}
-        >
-          #{ranked.rank}
-        </span>
-        <DeckHubEntryCard
-          entry={ranked.entry}
-          variant={variant}
-          onOpen={() => onOpenDeck(ranked.entry.id)}
-          favoritePending={Boolean(favoritePending[ranked.entry.id])}
-          onFavorite={accountsEnabled ? () => favorite(ranked) : undefined}
-        />
+      <div>
+        <DeckHubPodiumFrame rank={ranked.rank} prominent={podium}>
+          <DeckHubEntryCard
+            entry={ranked.entry}
+            variant={variant}
+            onOpen={() => onOpenDeck(ranked.entry.id)}
+            favoritePending={Boolean(favoritePending[ranked.entry.id])}
+            onFavorite={accountsEnabled ? () => favorite(ranked) : undefined}
+          />
+        </DeckHubPodiumFrame>
         {ranked.reason && (
           <p className="mt-1 truncate px-1 text-[11px] text-muted-foreground" title={ranked.reason}>
             {ranked.reason}
@@ -180,22 +175,24 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            {podiumEntries[0] && rankedDeck(podiumEntries[0], true, "hero")}
-            {podiumEntries.length > 1 && (
-              <div className="mt-5 grid grid-cols-12 items-start gap-4">
-                {podiumEntries.slice(1).map((ranked, index) => (
-                  <div
-                    key={ranked.entry.id}
-                    className={cn(
-                      index === 0 && "col-span-11 md:col-span-7",
-                      index === 1 && "col-span-9 col-start-4 md:col-span-5 md:col-start-auto",
-                    )}
-                  >
-                    {rankedDeck(ranked, true)}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="mx-auto w-full max-w-2xl">
+              {podiumEntries[0] && rankedDeck(podiumEntries[0], true, "hero")}
+              {podiumEntries.length > 1 && (
+                <div className="mt-5 grid grid-cols-12 items-start gap-4">
+                  {podiumEntries.slice(1).map((ranked, index) => (
+                    <div
+                      key={ranked.entry.id}
+                      className={cn(
+                        index === 0 && "col-span-11 md:col-span-7",
+                        index === 1 && "col-span-9 col-start-4 md:col-span-5 md:col-start-auto",
+                      )}
+                    >
+                      {rankedDeck(ranked, true)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {remainingEntries.length > 0 && (
               <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {remainingEntries.map((ranked) => (

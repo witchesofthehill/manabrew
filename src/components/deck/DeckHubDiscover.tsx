@@ -247,6 +247,7 @@ export function DeckHubDiscover({ onOpen }: DeckHubDiscoverProps) {
         resetKey={JSON.stringify(entryParams)}
         group={filters.group}
         onOpen={onOpen}
+        onAuthor={(author) => changeFilters({ search: author })}
         onFavorite={accountsEnabled ? favorite : undefined}
         onLoadMore={() =>
           void fetchEntries({ ...entryParams, page: (entries?.page ?? 1) + 1 }, true)

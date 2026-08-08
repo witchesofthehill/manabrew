@@ -8,13 +8,14 @@ import { availableEngines } from "@/lib/engines";
 
 interface DeckHubCuratedSectionsProps {
   onOpen: (id: string) => void;
+  onAuthor: (author: string) => void;
 }
 
 function SectionHeading({ title }: { title: string }) {
   return <h2 className="mb-3 font-serif text-xl font-semibold">{title}</h2>;
 }
 
-export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) {
+export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSectionsProps) {
   const [presets, setPresets] = useState<DeckHubEntrySummary[]>([]);
   const [popular, setPopular] = useState<DeckHubEntrySummary[]>([]);
   const [newest, setNewest] = useState<DeckHubEntrySummary[]>([]);
@@ -43,7 +44,7 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
 
   return (
     <div className="space-y-10 pb-10">
-      <DeckHubTopDeckPreview onOpen={onOpen} />
+      <DeckHubTopDeckPreview onOpen={onOpen} onAuthor={onAuthor} />
 
       {popular.length > 0 && (
         <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
@@ -51,7 +52,11 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {popular.map((entry, index) => (
               <div key={entry.id} className={index === 0 ? "col-span-2 row-span-2" : ""}>
-                <DeckHubEntryCard entry={entry} onOpen={() => onOpen(entry.id)} />
+                <DeckHubEntryCard
+                  entry={entry}
+                  onOpen={() => onOpen(entry.id)}
+                  onAuthorClick={() => onAuthor(entry.author)}
+                />
               </div>
             ))}
           </div>
@@ -68,6 +73,7 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
                 entry={entry}
                 variant="list"
                 onOpen={() => onOpen(entry.id)}
+                onAuthorClick={() => onAuthor(entry.author)}
               />
             ))}
           </div>
@@ -87,7 +93,11 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
                 className="w-64 shrink-0 snap-start sm:w-72"
                 style={{ transform: `rotate(${index % 2 === 0 ? "-0.35deg" : "0.35deg"})` }}
               >
-                <DeckHubEntryCard entry={entry} onOpen={() => onOpen(entry.id)} />
+                <DeckHubEntryCard
+                  entry={entry}
+                  onOpen={() => onOpen(entry.id)}
+                  onAuthorClick={() => onAuthor(entry.author)}
+                />
               </div>
             ))}
           </div>

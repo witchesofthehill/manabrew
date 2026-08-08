@@ -12,6 +12,7 @@ interface DeckHubEntryCardProps {
   onFavorite?: () => void;
   favoritePending?: boolean;
   variant?: "card" | "hero" | "list";
+  onAuthorClick?: () => void;
 }
 
 export function DeckHubEntryCard({
@@ -20,6 +21,7 @@ export function DeckHubEntryCard({
   onFavorite,
   favoritePending = false,
   variant = "card",
+  onAuthorClick,
 }: DeckHubEntryCardProps) {
   const colorCost = entry.colors
     .split("")
@@ -78,6 +80,8 @@ export function DeckHubEntryCard({
     <DeckCardSurface
       title={entry.title}
       subtitle={`by ${entry.author}`}
+      onSubtitleClick={onAuthorClick}
+      subtitleAriaLabel={`Show decks by ${entry.author}`}
       description={entry.summary}
       ariaLabel={`Open ${entry.title} by ${entry.author}`}
       onOpen={onOpen}

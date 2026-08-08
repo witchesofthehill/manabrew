@@ -712,3 +712,137 @@
     background-position: 200% 0;
   }
 }
+
+.podium-frame {
+  --podium-color: var(--color-muted-foreground);
+  isolation: isolate;
+}
+
+.podium-rank-1 {
+  --podium-color: var(--color-warning);
+}
+
+.podium-rank-2 {
+  --podium-color: var(--color-muted-foreground);
+}
+
+.podium-rank-3 {
+  --podium-color: color-mix(in srgb, var(--color-commander) 58%, var(--color-muted-foreground));
+}
+
+.podium-aura {
+  position: absolute;
+  inset: calc(2rem - 3px) -3px -3px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--podium-color) 70%, transparent);
+  border-radius: calc(var(--radius) + 3px);
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--podium-color) 28%, transparent),
+    0 0 28px color-mix(in srgb, var(--podium-color) 16%, transparent);
+  pointer-events: none;
+  animation: podium-glow 7s ease-in-out infinite;
+}
+
+.podium-aura::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 25%,
+    color-mix(in srgb, var(--podium-color) 55%, transparent) 48%,
+    transparent 72%
+  );
+  content: "";
+  transform: translateX(-140%);
+  animation: podium-sheen 8s ease-in-out infinite;
+}
+
+.podium-rank-2 .podium-aura {
+  animation-duration: 9s;
+}
+
+.podium-rank-3 .podium-aura {
+  animation-duration: 10s;
+}
+
+.podium-sparkles > span {
+  position: absolute;
+  z-index: 20;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--podium-color);
+  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--podium-color) 65%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: podium-sparkle 6s ease-in-out infinite;
+}
+
+.podium-sparkles > span:nth-child(1) {
+  top: 24%;
+  left: -5px;
+}
+
+.podium-sparkles > span:nth-child(2) {
+  top: 48%;
+  right: -5px;
+  animation-delay: 2s;
+}
+
+.podium-sparkles > span:nth-child(3) {
+  bottom: -5px;
+  left: 64%;
+  animation-delay: 4s;
+}
+
+.podium-frame:hover .podium-aura {
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--podium-color) 38%, transparent),
+    0 0 36px color-mix(in srgb, var(--podium-color) 22%, transparent);
+}
+
+@keyframes podium-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes podium-sheen {
+  0%,
+  58% {
+    transform: translateX(-140%);
+  }
+  82%,
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+@keyframes podium-sparkle {
+  0%,
+  72%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(0deg);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.5) rotate(45deg);
+  }
+  88% {
+    opacity: 0;
+    transform: scale(0.6) rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .podium-aura,
+  .podium-aura::after,
+  .podium-sparkles > span {
+    animation: none !important;
+  }
+}

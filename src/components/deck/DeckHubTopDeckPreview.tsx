@@ -2,14 +2,16 @@ import { useEffect } from "react";
 import { ArrowRight, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
+import { DeckHubPodiumFrame } from "@/components/deck/DeckHubPodiumFrame";
 import { ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
 
 interface DeckHubTopDeckPreviewProps {
   onOpen: (id: string) => void;
+  onAuthor: (author: string) => void;
 }
 
-export function DeckHubTopDeckPreview({ onOpen }: DeckHubTopDeckPreviewProps) {
+export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPreviewProps) {
   const buckets = useHubStore((state) => state.topBuckets);
   const bucketsLoaded = useHubStore((state) => state.topBucketsLoaded);
   const snapshot = useHubStore((state) => state.topSnapshot);
@@ -60,12 +62,13 @@ export function DeckHubTopDeckPreview({ onOpen }: DeckHubTopDeckPreviewProps) {
                     : "col-span-7 col-start-6 md:col-span-2 md:col-start-auto"
               }
             >
-              <div className="relative pt-8">
-                <span className="absolute left-0 top-0 z-30 rounded-full border border-primary/30 bg-background/95 px-2 py-0.5 font-serif text-sm font-semibold text-primary shadow-sm">
-                  #{ranked.rank}
-                </span>
-                <DeckHubEntryCard entry={ranked.entry} onOpen={() => onOpen(ranked.entry.id)} />
-              </div>
+              <DeckHubPodiumFrame rank={ranked.rank}>
+                <DeckHubEntryCard
+                  entry={ranked.entry}
+                  onOpen={() => onOpen(ranked.entry.id)}
+                  onAuthorClick={() => onAuthor(ranked.entry.author)}
+                />
+              </DeckHubPodiumFrame>
             </div>
           ))}
         </div>

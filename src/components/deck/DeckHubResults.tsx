@@ -20,6 +20,7 @@ interface DeckHubResultsProps {
   resetKey: string;
   group: DeckHubGroup;
   onOpen: (id: string) => void;
+  onAuthor: (author: string) => void;
   onFavorite?: (entry: DeckHubEntrySummary) => void;
   onLoadMore: () => void;
   onClear: () => void;
@@ -44,6 +45,7 @@ export function DeckHubResults({
   resetKey,
   group,
   onOpen,
+  onAuthor,
   onFavorite,
   onLoadMore,
   onClear,
@@ -127,7 +129,7 @@ export function DeckHubResults({
             </div>
           ) : (
             <div className="space-y-6">
-              {!hasFilters && <DeckHubCuratedSections onOpen={onOpen} />}
+              {!hasFilters && <DeckHubCuratedSections onOpen={onOpen} onAuthor={onAuthor} />}
               {!hasFilters && (
                 <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
               )}
@@ -165,6 +167,7 @@ export function DeckHubResults({
                         key={entry.id}
                         entry={entry}
                         onOpen={() => onOpen(entry.id)}
+                        onAuthorClick={() => onAuthor(entry.author)}
                         onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
                         favoritePending={Boolean(favoritePending[entry.id])}
                       />

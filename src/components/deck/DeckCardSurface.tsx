@@ -13,6 +13,8 @@ interface DeckCardSurfaceProps {
   topRight?: ReactNode;
   titleClassName?: string;
   onOpen: () => void;
+  onSubtitleClick?: () => void;
+  subtitleAriaLabel?: string;
   variant?: "card" | "hero" | "list";
 }
 
@@ -27,6 +29,8 @@ export function DeckCardSurface({
   topRight,
   titleClassName,
   onOpen,
+  onSubtitleClick,
+  subtitleAriaLabel,
   variant = "card",
 }: DeckCardSurfaceProps) {
   return (
@@ -55,41 +59,54 @@ export function DeckCardSurface({
               : "bg-gradient-to-t from-overlay/80 via-overlay/20 to-overlay/10",
           )}
         />
+      </button>
+      <span
+        className={cn(
+          "pointer-events-none absolute bottom-0 left-0 right-0 z-10 block px-2 pb-2 pt-8",
+          variant === "list" &&
+            "inset-y-0 left-32 flex flex-col justify-center px-3 pb-0 pr-14 pt-0 sm:left-48 sm:px-4",
+        )}
+      >
         <span
           className={cn(
-            "absolute bottom-0 left-0 right-0 z-10 block px-2 pb-2 pt-8",
-            variant === "list" &&
-              "inset-y-0 left-32 flex flex-col justify-center px-3 pb-0 pr-14 pt-0 sm:left-48 sm:px-4",
+            "block truncate text-sm font-semibold leading-tight text-text-on-tinted",
+            DECK_NAME_SHADOW_CLASS,
+            variant === "list" && "text-base text-foreground shadow-none",
+            variant === "hero" && "text-lg sm:text-2xl",
+            titleClassName,
           )}
         >
+          {title}
+        </span>
+        {subtitle && onSubtitleClick ? (
+          <button
+            type="button"
+            className={cn(
+              "pointer-events-auto block max-w-full truncate text-left text-[11px] text-text-on-tinted/85 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              DECK_NAME_SHADOW_CLASS,
+              variant === "list" && "mt-1 text-xs text-muted-foreground shadow-none",
+            )}
+            aria-label={subtitleAriaLabel}
+            onClick={onSubtitleClick}
+          >
+            {subtitle}
+          </button>
+        ) : subtitle ? (
           <span
             className={cn(
-              "block truncate text-sm font-semibold leading-tight text-text-on-tinted",
+              "block truncate text-[11px] text-text-on-tinted/85",
               DECK_NAME_SHADOW_CLASS,
-              variant === "list" && "text-base text-foreground shadow-none",
-              variant === "hero" && "text-lg sm:text-2xl",
-              titleClassName,
+              variant === "list" && "mt-1 text-xs text-muted-foreground shadow-none",
             )}
           >
-            {title}
+            {subtitle}
           </span>
-          {subtitle && (
-            <span
-              className={cn(
-                "block truncate text-[11px] text-text-on-tinted/85",
-                DECK_NAME_SHADOW_CLASS,
-                variant === "list" && "mt-1 text-xs text-muted-foreground shadow-none",
-              )}
-            >
-              {subtitle}
-            </span>
-          )}
-          <span className="mt-1 flex flex-wrap items-center gap-1">{footer}</span>
-          {variant === "list" && description && (
-            <span className="mt-2 line-clamp-1 text-xs text-muted-foreground">{description}</span>
-          )}
-        </span>
-      </button>
+        ) : null}
+        <span className="mt-1 flex flex-wrap items-center gap-1">{footer}</span>
+        {variant === "list" && description && (
+          <span className="mt-2 line-clamp-1 text-xs text-muted-foreground">{description}</span>
+        )}
+      </span>
       {topLeft && (
         <div className="absolute left-1.5 top-1.5 z-20 max-w-[calc(100%-4.5rem)]">{topLeft}</div>
       )}

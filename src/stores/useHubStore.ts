@@ -48,7 +48,7 @@ interface HubState {
   clearMyEntries: () => void;
   removeEntry: (id: string) => void;
   loadCapabilities: () => Promise<HubCapabilities | null>;
-  fetchEntries: (params: DeckHubEntryListParams) => Promise<void>;
+  fetchEntries: (params: DeckHubEntryListParams, append?: boolean) => Promise<void>;
   loadEntry: (entryRef: string) => Promise<DeckHubEntryDetail>;
   fetchTags: () => Promise<void>;
   fetchFacets: () => Promise<void>;
@@ -244,12 +244,28 @@ export const useHubStore = create<HubState>((set, get) => ({
     capabilitiesRequest = request;
     return request;
   },
-  fetchEntries: async (params) => {
+  fetchEntries: async (params, append = false) => {
     const requestId = ++entryListRequestId;
     set({ entriesLoading: true, entriesError: null });
     try {
       const entries = await fetchDeckHubEntries(params);
-      if (requestId === entryListRequestId) set({ entries, entriesLoading: false });
+      if (requestId === entryListRequestId) {
+        set((state) => ({
+          entries:
+            append && state.entries
+              ? {
+                  ...entries,
+                  entries: [
+                    ...state.entries.entries,
+                    ...entries.entries.filter(
+                      (entry) => !state.entries?.entries.some((current) => current.id === entry.id),
+                    ),
+                  ],
+                }
+              : entries,
+          entriesLoading: false,
+        }));
+      }
     } catch (error) {
       if (requestId === entryListRequestId) {
         set({

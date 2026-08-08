@@ -53,15 +53,28 @@ async fn main() {
         .sync_preset_decks(&presets, &chrono::Utc::now().to_rfc3339())
         .expect("sync preset decks");
     if let Some(path) = config.analytics_import_db_path.as_deref() {
-        match storage.import_analytics_deck_plays(path, &chrono::Utc::now().to_rfc3339()) {
-            Ok(AnalyticsImportOutcome::AlreadyCompleted) => {}
-            Ok(AnalyticsImportOutcome::SourceUnavailable) => {
-                tracing::warn!(%path, "analytics deck-play import source unavailable");
+        for hosted in [false, true] {
+            match storage.import_analytics_deck_plays(
+                path,
+                &chrono::Utc::now().to_rfc3339(),
+                hosted,
+            ) {
+                Ok(AnalyticsImportOutcome::AlreadyCompleted) => {}
+                Ok(AnalyticsImportOutcome::SourceUnavailable) => {
+                    tracing::warn!(%path, "analytics deck-play import source unavailable");
+                }
+                Ok(AnalyticsImportOutcome::Imported { imported, skipped }) => {
+                    tracing::info!(
+                        hosted,
+                        imported,
+                        skipped,
+                        "analytics deck-play import completed"
+                    );
+                }
+                Err(error) => {
+                    tracing::warn!(%error, %path, hosted, "analytics deck-play import failed")
+                }
             }
-            Ok(AnalyticsImportOutcome::Imported { imported, skipped }) => {
-                tracing::info!(imported, skipped, "analytics deck-play import completed");
-            }
-            Err(error) => tracing::warn!(%error, %path, "analytics deck-play import failed"),
         }
     }
     let state = Arc::new(AppState {

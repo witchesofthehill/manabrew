@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
+import { Loader2, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeckHubCuratedSections } from "@/components/deck/DeckHubCuratedSections";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import type { DeckHubGroup, DeckHubView } from "@/components/deck/deckHub.types";
+import type { DeckHubGroup } from "@/components/deck/deckHub.types";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
 import { FORMAT_DISPLAY, ROUTES } from "@/lib/constants";
 import { useHubStore } from "@/stores/useHubStore";
-import { cn } from "@/lib/utils";
 
 interface DeckHubResultsProps {
   entries: DeckHubEntrySummary[];
@@ -16,14 +16,13 @@ interface DeckHubResultsProps {
   loaded: boolean;
   error: string | null;
   total: number;
-  page: number;
-  totalPages: number;
   hasFilters: boolean;
-  view: DeckHubView;
+  resetKey: string;
   group: DeckHubGroup;
   onOpen: (id: string) => void;
+  onAuthor: (author: string) => void;
   onFavorite?: (entry: DeckHubEntrySummary) => void;
-  onPage: (page: number) => void;
+  onLoadMore: () => void;
   onClear: () => void;
   onRetry: () => void;
 }
@@ -42,14 +41,13 @@ export function DeckHubResults({
   loaded,
   error,
   total,
-  page,
-  totalPages,
   hasFilters,
-  view,
+  resetKey,
   group,
   onOpen,
+  onAuthor,
   onFavorite,
-  onPage,
+  onLoadMore,
   onClear,
   onRetry,
 }: DeckHubResultsProps) {
@@ -60,13 +58,30 @@ export function DeckHubResults({
   }
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const favoritePending = useHubStore((state) => state.favoritePending);
+  const hasMore = entries.length < total;
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [page]);
+  }, [resetKey]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    const root = scrollRef.current;
+    if (!target || !root || !loaded || loading || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) onLoadMore();
+      },
+      { root, rootMargin: "400px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loaded, loading, onLoadMore]);
 
   return (
-    <>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="p-4 sm:px-6 lg:px-8">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -91,18 +106,6 @@ export function DeckHubResults({
                 <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
               ))}
             </div>
-          ) : entries.length === 0 && total > 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Layers className="h-9 w-9 text-muted-foreground/50" />
-              <p className="mt-3 text-lg font-semibold">This page is out of range</p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Page {page} is beyond the {totalPages} available{" "}
-                {totalPages === 1 ? "page" : "pages"}.
-              </p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={() => onPage(1)}>
-                Back to page 1
-              </Button>
-            </div>
           ) : entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Layers className="h-9 w-9 text-muted-foreground/50" />
@@ -126,6 +129,10 @@ export function DeckHubResults({
             </div>
           ) : (
             <div className="space-y-6">
+              {!hasFilters && <DeckHubCuratedSections onOpen={onOpen} onAuthor={onAuthor} />}
+              {!hasFilters && (
+                <h2 className="font-serif text-xl font-semibold">Explore all decks</h2>
+              )}
               {[...groups.entries()].map(([label, groupedEntries]) => (
                 <section key={label}>
                   {group !== "none" && (
@@ -154,19 +161,13 @@ export function DeckHubResults({
                       <span className="text-xs text-muted-foreground">{groupedEntries.length}</span>
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      view === "grid"
-                        ? "grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                        : "grid gap-3 xl:grid-cols-2",
-                    )}
-                  >
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                     {groupedEntries.map((entry) => (
                       <DeckHubEntryCard
                         key={entry.id}
                         entry={entry}
-                        variant={view}
                         onOpen={() => onOpen(entry.id)}
+                        onAuthorClick={() => onAuthor(entry.author)}
                         onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
                         favoritePending={Boolean(favoritePending[entry.id])}
                       />
@@ -174,36 +175,18 @@ export function DeckHubResults({
                   </div>
                 </section>
               ))}
+              <div ref={loadMoreRef} className="flex h-14 items-center justify-center">
+                {loading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+                {!hasMore && entries.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    You’ve reached the end of Community.
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
-
-      {loaded && totalPages > 1 && (
-        <div className="flex shrink-0 items-center justify-center gap-2 border-t px-4 py-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            aria-label="Previous page"
-            onClick={() => onPage(page - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            aria-label="Next page"
-            onClick={() => onPage(page + 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

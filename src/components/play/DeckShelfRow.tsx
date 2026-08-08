@@ -7,6 +7,8 @@ interface DeckShelfRowProps {
   children: ReactNode;
 }
 
+export const DECK_SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
+
 export function DeckShelfRow({ label, children }: DeckShelfRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);

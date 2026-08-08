@@ -4,11 +4,13 @@ import { Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
+import { DeckHubPodiumFrame } from "@/components/deck/DeckHubPodiumFrame";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useHubStore } from "@/stores/useHubStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { isFeatureEnabled } from "@/featureFlags";
 import { cn } from "@/lib/utils";
+import type { TopDeckSnapshotEntry } from "@/api/hubTypes";
 
 const DEFAULT_BUCKET = "trending";
 const INITIAL_RANK_COUNT = 10;
@@ -76,6 +78,40 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
       ? snapshot.entries
       : snapshot.entries.slice(0, INITIAL_RANK_COUNT)
     : [];
+  const stageEntries = displayedEntries.slice(0, 6);
+  const remainingEntries = displayedEntries.slice(6);
+
+  function favorite(ranked: TopDeckSnapshotEntry) {
+    if (!signedIn) {
+      showSignIn();
+      return;
+    }
+    void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch((error) =>
+      toast.error(error instanceof Error ? error.message : "Failed to update favorite"),
+    );
+  }
+
+  function rankedDeck(ranked: TopDeckSnapshotEntry, variant: "card" | "hero" | "stage" = "card") {
+    const staged = variant === "stage";
+    return (
+      <div className={cn(staged && "flex h-full min-h-0 flex-col")}>
+        <DeckHubPodiumFrame
+          rank={ranked.rank}
+          className={cn(staged && "flex min-h-0 flex-1 flex-col")}
+        >
+          <DeckHubEntryCard
+            entry={ranked.entry}
+            rank={ranked.rank}
+            reason={ranked.reason}
+            variant={variant}
+            onOpen={() => onOpenDeck(ranked.entry.id)}
+            favoritePending={Boolean(favoritePending[ranked.entry.id])}
+            onFavorite={accountsEnabled ? () => favorite(ranked) : undefined}
+          />
+        </DeckHubPodiumFrame>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -136,45 +172,35 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {displayedEntries.map((ranked) => (
-                <div key={ranked.entry.id} className="space-y-2">
-                  <div className="flex items-center gap-2 px-1">
-                    <span className="font-serif text-lg font-semibold text-primary">
-                      #{ranked.rank}
-                    </span>
-                    {ranked.reason && (
-                      <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">
-                        {ranked.reason}
-                      </span>
-                    )}
-                  </div>
-                  <DeckHubEntryCard
-                    entry={ranked.entry}
-                    onOpen={() => onOpenDeck(ranked.entry.id)}
-                    favoritePending={Boolean(favoritePending[ranked.entry.id])}
-                    onFavorite={
-                      accountsEnabled
-                        ? () => {
-                            if (!signedIn) {
-                              showSignIn();
-                              return;
-                            }
-                            void setFavorite(ranked.entry.id, !ranked.entry.favorited).catch(
-                              (error) =>
-                                toast.error(
-                                  error instanceof Error
-                                    ? error.message
-                                    : "Failed to update favorite",
-                                ),
-                            );
-                          }
-                        : undefined
-                    }
-                  />
+            <div className="grid grid-cols-12 gap-4 md:aspect-[12/5] md:grid-cols-[repeat(24,minmax(0,1fr))] md:grid-rows-6">
+              {stageEntries.map((ranked, index) => (
+                <div
+                  key={ranked.entry.id}
+                  className={cn(
+                    index === 0 && "col-span-12 md:col-span-10 md:row-span-6",
+                    index === 1 &&
+                      "col-span-7 row-start-2 md:col-span-8 md:col-start-11 md:row-span-4 md:row-start-1",
+                    index === 2 &&
+                      "col-span-5 col-start-1 row-start-3 md:col-span-8 md:col-start-11 md:row-span-2 md:row-start-5",
+                    index === 3 &&
+                      "col-span-6 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-1",
+                    index === 4 &&
+                      "col-span-6 col-start-7 row-start-4 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-3",
+                    index === 5 &&
+                      "col-span-6 row-start-5 md:col-span-6 md:col-start-[19] md:row-span-2 md:row-start-5",
+                  )}
+                >
+                  {rankedDeck(ranked, "stage")}
                 </div>
               ))}
             </div>
+            {remainingEntries.length > 0 && (
+              <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                {remainingEntries.map((ranked) => (
+                  <div key={ranked.entry.id}>{rankedDeck(ranked)}</div>
+                ))}
+              </div>
+            )}
             {!showAll && snapshot.entries.length > INITIAL_RANK_COUNT && (
               <div className="mt-4 flex justify-center">
                 <Button variant="outline" size="sm" onClick={() => setShowAllBucket(activeBucket)}>

@@ -96,7 +96,7 @@ export function HubTopDeckSnapshots({ onOpenDeck }: HubTopDeckSnapshotsProps) {
     variant: "card" | "hero" = "card",
   ) {
     return (
-      <div className="relative pl-2 pt-2">
+      <div className="relative pt-8">
         <span
           className={cn(
             "absolute left-0 top-0 z-30 rounded-full border border-primary/30 bg-background/95 px-2 py-0.5 font-serif font-semibold text-primary shadow-sm",

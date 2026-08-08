@@ -60,7 +60,7 @@ export function DeckHubTopDeckPreview({ onOpen }: DeckHubTopDeckPreviewProps) {
                     : "col-span-7 col-start-6 md:col-span-2 md:col-start-auto"
               }
             >
-              <div className="relative pl-2 pt-2">
+              <div className="relative pt-8">
                 <span className="absolute left-0 top-0 z-30 rounded-full border border-primary/30 bg-background/95 px-2 py-0.5 font-serif text-sm font-semibold text-primary shadow-sm">
                   #{ranked.rank}
                 </span>

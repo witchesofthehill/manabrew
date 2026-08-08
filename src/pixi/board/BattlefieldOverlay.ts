@@ -31,6 +31,8 @@ import {
   OVERLAY_LABEL_SELECT,
   OVERLAY_LABEL_TAP,
   OVERLAY_LABEL_UNTAP,
+  OVERLAY_LABEL_UNWATERBEND,
+  OVERLAY_LABEL_WATERBEND,
   SELECT_BUTTON_ALPHA,
   SELECT_BUTTON_HOVER_ALPHA,
   SYMBOL_TAP,
@@ -116,6 +118,8 @@ export class BattlefieldOverlay {
       kind.isTappable,
       kind.isUntappable,
       kind.isSelectable,
+      state.waterbendSourceIds?.includes(card.id) ?? false,
+      state.waterbentCardIds?.includes(card.id) ?? false,
       this.host.isCompact(),
       expandedMana.map((ab) => [
         ab.actionId,
@@ -287,14 +291,20 @@ export class BattlefieldOverlay {
     let idleAlpha = SELECT_BUTTON_ALPHA;
     let hoverAlpha = SELECT_BUTTON_HOVER_ALPHA;
 
+    const live = this.host.getLastState() ?? state;
+    const isWaterbend =
+      (live.waterbendSourceIds?.includes(card.id) ?? false) &&
+      this.manaAbilitiesForCard(card.id, live.manaAbilityOptions).length === 0;
+    const isWaterbent = live.waterbentCardIds?.includes(card.id) ?? false;
+
     if (kind.isTappable) {
-      label = OVERLAY_LABEL_TAP;
-      symbol = SYMBOL_TAP;
+      label = isWaterbend ? OVERLAY_LABEL_WATERBEND : OVERLAY_LABEL_TAP;
+      symbol = isWaterbend ? null : SYMBOL_TAP;
       idleAlpha = ACTION_BUTTON_ALPHA;
       hoverAlpha = ACTION_BUTTON_HOVER_ALPHA;
     } else if (kind.isUntappable) {
-      label = OVERLAY_LABEL_UNTAP;
-      symbol = SYMBOL_UNTAP;
+      label = isWaterbent ? OVERLAY_LABEL_UNWATERBEND : OVERLAY_LABEL_UNTAP;
+      symbol = isWaterbent ? null : SYMBOL_UNTAP;
       color = hexToNum(this.host.getTheme().gameTheme.promptAction.cancel);
       idleAlpha = ACTION_BUTTON_ALPHA;
       hoverAlpha = ACTION_BUTTON_HOVER_ALPHA;

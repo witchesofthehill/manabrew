@@ -43,6 +43,8 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
 
   return (
     <div className="space-y-10 pb-10">
+      <DeckHubTopDeckPreview onOpen={onOpen} />
+
       {popular.length > 0 && (
         <section className="rounded-2xl border border-border/70 bg-muted/20 p-3 sm:p-4">
           <SectionHeading title="Most favorited" />
@@ -55,8 +57,6 @@ export function DeckHubCuratedSections({ onOpen }: DeckHubCuratedSectionsProps) 
           </div>
         </section>
       )}
-
-      <DeckHubTopDeckPreview onOpen={onOpen} />
 
       {newest.length > 0 && (
         <section>

@@ -551,11 +551,16 @@ impl Storage {
         &self,
         path: &str,
         completed_at: &str,
+        hosted: bool,
     ) -> SqlResult<AnalyticsImportOutcome> {
-        const MIGRATION_KEY: &str = "analytics-deck-plays-v1";
+        let migration_key = if hosted {
+            "analytics-deck-plays-hosted-v1"
+        } else {
+            "analytics-deck-plays-v1"
+        };
         let completed = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM data_migrations WHERE key = ?1)",
-            params![MIGRATION_KEY],
+            params![migration_key],
             |row| row.get::<_, bool>(0),
         )?;
         if completed {
@@ -580,13 +585,13 @@ impl Storage {
                     g.format, g.started_at, COALESCE(g.game_over, 0), g.winner
              FROM game_players gp
              JOIN games g ON g.game_id = gp.game_id
-             WHERE gp.is_bot = 0 AND g.hosted = 0
+             WHERE gp.is_bot = 0 AND g.hosted = ?1
                AND gp.published_deck_id IS NOT NULL
                AND gp.deck_fingerprint IS NOT NULL
                AND g.started_at IS NOT NULL
              ORDER BY g.started_at ASC, gp.game_id ASC, gp.username ASC",
         )?;
-        let rows = stmt.query_map([], |row| {
+        let rows = stmt.query_map(params![hosted as i64], |row| {
             Ok(AnalyticsDeckPlay {
                 game_id: row.get(0)?,
                 username: row.get(1)?,
@@ -609,8 +614,8 @@ impl Storage {
             imported += tx.execute(
                 "INSERT OR IGNORE INTO deck_play_reports
                     (id, deckhub_entry_id, deck_fingerprint, format, source, game_key,
-                     player_key, completed_game, won, played_at)
-                 VALUES (?1, ?2, ?3, ?4, 'relay', ?5, ?6, ?7, ?8, ?9)",
+                     player_key, completed_game, won, played_at, hosted)
+                 VALUES (?1, ?2, ?3, ?4, 'relay', ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     format!("relay:{}", uuid::Uuid::new_v4()),
                     row.deckhub_entry_id,
@@ -622,12 +627,13 @@ impl Storage {
                     (row.completed_game && row.winner.as_deref() == Some(row.username.as_str()))
                         as i64,
                     row.played_at,
+                    hosted as i64,
                 ],
             )?;
         }
         tx.execute(
             "INSERT INTO data_migrations (key, completed_at) VALUES (?1, ?2)",
-            params![MIGRATION_KEY, completed_at],
+            params![migration_key, completed_at],
         )?;
         tx.commit()?;
         Ok(AnalyticsImportOutcome::Imported {

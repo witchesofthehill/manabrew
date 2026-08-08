@@ -43,6 +43,9 @@ export interface ParsedDeckEntry {
   side: boolean;
   maybe: boolean;
   commander: boolean;
+  setCode?: string;
+  collectorNumber?: string;
+  foil?: boolean;
 }
 
 const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
@@ -50,7 +53,7 @@ const MAYBEBOARD_LINE_REGEX = /^(maybeboard|maybe)\s*:?$/i;
 const COMMANDER_LINE_REGEX = /^(commander|command)s?\s*:?$/i;
 const MAIN_SECTION_LINE_REGEX = /^(mainboard|main|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
-const SET_SUFFIX_REGEX = /\s+\([A-Za-z0-9]{2,6}\)(?:\s+[\w-]+)?(?:\s+\*F\*)?$/i;
+const SET_SUFFIX_REGEX = /\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w-]+))?(\s+\*F\*)?$/i;
 // Archidekt text exports decorate lines with `[Category]` and `^Label,#hex^`
 // suffixes; the category is also how they mark the commander.
 const LABEL_SUFFIX_REGEX = /\s+\^[^^]*\^$/;
@@ -115,7 +118,9 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
       .split(",")
       .map((c) => c.trim());
     if (categoryMatch) rest = rest.replace(CATEGORY_SUFFIX_REGEX, "");
-    const name = rest.trim().replace(SET_SUFFIX_REGEX, "").trim();
+    rest = rest.trim();
+    const setMatch = rest.match(SET_SUFFIX_REGEX);
+    const name = rest.replace(SET_SUFFIX_REGEX, "").trim();
     if (!name) continue;
     const inCategory = (prefix: string) => categories.some((c) => c.startsWith(prefix));
     blockOf.push(block);
@@ -125,6 +130,9 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
       side: section === "side" || inCategory("sideboard"),
       maybe: section === "maybe" || inCategory("maybeboard") || inCategory("considering"),
       commander: section === "commander" || inCategory("commander") || commanderHint,
+      setCode: setMatch?.[1]?.toLowerCase(),
+      collectorNumber: setMatch?.[2],
+      foil: setMatch?.[3] ? true : undefined,
     });
   }
   markTrailingCommanderBlock(entries, blockOf, sawHeader);

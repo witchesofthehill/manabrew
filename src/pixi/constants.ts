@@ -145,6 +145,8 @@ export const ICON_HOVER_SCALE = 1.12;
 
 export const OVERLAY_LABEL_TAP = "TAP";
 export const OVERLAY_LABEL_UNTAP = "UNTAP";
+export const OVERLAY_LABEL_WATERBEND = "WATERBEND";
+export const OVERLAY_LABEL_UNWATERBEND = "RELEASE";
 export const OVERLAY_LABEL_SELECT = "SELECT";
 
 export const SYMBOL_TAP = "T";

@@ -18,7 +18,6 @@ import com.google.common.collect.Multimap;
 import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
-import forge.ai.ComputerUtilCost;
 import forge.ai.ComputerUtilMana;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
@@ -1643,7 +1642,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final Cost cost, final SpellAbility sa, final boolean alreadyPaid, final FCollectionView<Player> allPayers) {
         probingPayability = true;
         try {
-            if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
+            if (!ActionSpace.canPayCost(cost, sa, player, true)) {
                 return false;
             }
         } finally {
@@ -1683,7 +1682,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public boolean payCostDuringRoll(final Cost cost, final SpellAbility sa) {
         probingPayability = true;
         try {
-            if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
+            if (!ActionSpace.canPayCost(cost, sa, player, true)) {
                 return false;
             }
         } finally {
@@ -1856,10 +1855,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
         final Map<Integer, ManaCostShard> sessionConvoke = new LinkedHashMap<>();
+        final Map<Integer, ManaCostShard> sessionWaterbend = new LinkedHashMap<>();
+        final CardCollection waterbentCards = new CardCollection();
         final Card host = sa.getHostCard();
         final boolean convoke = sa.isSpell() && host != null
                 && (host.hasKeyword(Keyword.CONVOKE) || sa.hasParam("TapCreaturesForMana"));
         final boolean improvise = sa.isSpell() && host != null && host.hasKeyword(Keyword.IMPROVISE);
+        final int maxWaterbend = sa.getMaxWaterbend() == null ? 0 : sa.getMaxWaterbend();
         final boolean delve = cardsToDelve != null && sa.isSpell() && host != null && host.hasKeyword(Keyword.DELVE);
         // CR 118.3c: a mandatory cost the pool can already cover may not be cancelled
         // (mirrors InputPayManaOfCostPayment's constructor).
@@ -1876,6 +1878,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final List<Card> convokeSources = convoke || improvise
                     ? convokePaymentSources(player, convoke, improvise)
                     : new ArrayList<>();
+            final List<Card> waterbendSources =
+                    waterbendPaymentSources(player, unpaid, maxWaterbend, waterbentCards);
             final List<Card> delveSources = delve
                     ? delvePaymentSources(player, unpaid, cardsToDelve)
                     : new ArrayList<>();
@@ -1886,14 +1890,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     && player.canPayLife(2, effect, sa);
             final ManaBrewInteractiveSession.ManaPaymentChoice choice = session.awaitManaPaymentChoice(
                     me(), sa.getHostCard(), unpaid.toString(), sources, untappable, convokeSources,
-                    delveSources, cardsToDelve, canConfirm, !mandatory, canPayLife, 2);
+                    waterbendSources, waterbentCards, delveSources, cardsToDelve, canConfirm,
+                    !mandatory, canPayLife, 2);
             switch (choice.kind()) {
                 case TAP: {
                     if (choice.convokeCard() != null) {
                         payConvoke(unpaid, sa, choice.convokeCard(), convoke, sessionTapped, sessionConvoke);
-                        if (unpaid.isPaid()) {
-                            return true;
-                        }
                         break;
                     }
                     final SpellAbility chosen = choice.tapAbility();
@@ -1919,6 +1921,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     } else {
                         untapSource(untap, sessionTapped);
                     }
+                    break;
+                }
+                case WATERBEND: {
+                    payWaterbend(unpaid, sa, choice.convokeCard(), sessionWaterbend, waterbentCards);
+                    break;
+                }
+                case UNWATERBEND: {
+                    unwaterbend(unpaid, choice.untapCard(), sessionWaterbend, waterbentCards);
                     break;
                 }
                 case DELVE: {
@@ -1957,6 +1967,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                         for (final Card source : autoPay.floatManaForCost(unpaid.toManaCost(), sa, effect)) {
                             sessionTapped.put(source.getId(), source);
                         }
+                        autoWaterbend(unpaid, sa, pool, maxWaterbend, sessionWaterbend, waterbentCards);
                         break;
                     }
                     // Only commit when floating mana fully covers the cost — a partial
@@ -2066,6 +2077,84 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             payDelve(unpaid, cardsToDelve, c);
         }
+    }
+
+    private List<Card> waterbendPaymentSources(
+            final Player payer,
+            final ManaCostBeingPaid unpaid,
+            final int maxWaterbend,
+            final CardCollection waterbentCards
+    ) {
+        final List<Card> out = new ArrayList<>(waterbentCards);
+        if (out.size() >= maxWaterbend || unpaid.getGenericManaAmount() <= 0) {
+            return out;
+        }
+        for (final Card c : waterbendCandidates(payer)) {
+            if (!out.contains(c)) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    private CardCollectionView waterbendCandidates(final Player payer) {
+        final CardCollectionView untapped =
+                CardLists.filter(payer.getCardsIn(ZoneType.Battlefield), CardPredicates.CAN_TAP);
+        return CardLists.filter(untapped, card -> card.isArtifact() || card.isCreature());
+    }
+
+    private void autoWaterbend(
+            final ManaCostBeingPaid unpaid,
+            final SpellAbility sa,
+            final ManaPool pool,
+            final int maxWaterbend,
+            final Map<Integer, ManaCostShard> sessionWaterbend,
+            final CardCollection waterbentCards
+    ) {
+        for (final Card card : waterbendCandidates(player)) {
+            if (waterbentCards.size() >= maxWaterbend || unpaid.getGenericManaAmount() <= 0
+                    || poolCanCover(pool, unpaid, sa)) {
+                break;
+            }
+            payWaterbend(unpaid, sa, card, sessionWaterbend, waterbentCards);
+        }
+    }
+
+    private void payWaterbend(
+            final ManaCostBeingPaid unpaid,
+            final SpellAbility sa,
+            final Card card,
+            final Map<Integer, ManaCostShard> sessionWaterbend,
+            final CardCollection waterbentCards
+    ) {
+        if (card == null || waterbentCards.contains(card)) {
+            return;
+        }
+        final ManaCostShard shard = unpaid.payManaViaConvoke(ManaCostShard.COLORLESS.getColorMask());
+        if (shard == null) {
+            return;
+        }
+        if (card.tap(true, sa, player)) {
+            final Map<AbilityKey, Object> runParams = AbilityKey.newMap();
+            runParams.put(AbilityKey.Cards, new CardCollection(card));
+            game.getTriggerHandler().runTrigger(TriggerType.TapAll, runParams, false);
+        }
+        waterbentCards.add(card);
+        sessionWaterbend.put(card.getId(), shard);
+    }
+
+    private void unwaterbend(
+            final ManaCostBeingPaid unpaid,
+            final Card card,
+            final Map<Integer, ManaCostShard> sessionWaterbend,
+            final CardCollection waterbentCards
+    ) {
+        if (card == null || !waterbentCards.contains(card)) {
+            return;
+        }
+        unpaid.increaseShard(sessionWaterbend.remove(card.getId()), 1);
+        waterbentCards.remove(card);
+        card.untap();
     }
 
     private void payConvoke(

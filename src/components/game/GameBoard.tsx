@@ -134,6 +134,8 @@ interface GameBoardProps {
   delveAvailable?: boolean;
   onOpenDelveZone?: () => void;
   onCastSpell: (cardId: string) => void;
+  waterbendSourceIds?: string[];
+  waterbentCardIds?: string[];
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
   onTapLandAbility?: (actionId: string) => void;
@@ -216,6 +218,8 @@ export function GameBoard({
   onTargetFromZone,
   delveAvailable,
   onOpenDelveZone,
+  waterbendSourceIds,
+  waterbentCardIds,
   onTapLand,
   onTapLands,
   onTapLandAbility,
@@ -423,8 +427,16 @@ export function GameBoard({
               .filter((a) => a.mustAttack)
               .map((a) => a.attackerId)
           : undefined,
-      tappableLandIds: manaAbilityOptions?.map((o) => o.cardId),
-      untappableLandIds: promptActions?.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : [])),
+      tappableLandIds: [
+        ...(manaAbilityOptions?.map((o) => o.cardId) ?? []),
+        ...(waterbendSourceIds ?? []),
+      ],
+      untappableLandIds: [
+        ...(promptActions?.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : [])) ?? []),
+        ...(waterbentCardIds ?? []),
+      ],
+      waterbendSourceIds,
+      waterbentCardIds,
       manaAbilityOptions,
       hostileTargeting,
       hostileTargetCardIds:
@@ -445,6 +457,8 @@ export function GameBoard({
       chooseAttackersPrompt,
       promptActions,
       manaAbilityOptions,
+      waterbendSourceIds,
+      waterbentCardIds,
       hostileTargeting,
       hostileAttackTargetIds,
     ],

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
+import { fetchCardCollection, fetchCardByFuzzyName, scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { getFormat } from "@/lib/formats";
@@ -19,12 +19,32 @@ export function useDeckTextImport() {
     ): Promise<string> => {
       const customName = name.trim();
       onProgress(0.05);
-      const scryfallMap = await fetchCardCollection(entries.map((e) => ({ name: e.name })));
+      const scryfallMap = await fetchCardCollection(
+        entries.map((e) => ({
+          name: e.name,
+          setCode: e.setCode,
+          collectorNumber: e.collectorNumber,
+        })),
+      );
+      const lookup = (e: ParsedDeckEntry) =>
+        scryfallMap.get(scryfallCardKey(e.name, e.setCode, e.collectorNumber)) ??
+        scryfallMap.get(scryfallCardKey(e.name, e.setCode)) ??
+        scryfallMap.get(scryfallCardKey(e.name));
+      onProgress(0.5);
+      // A bad collector number shouldn't lose the whole set label; retry those
+      // entries by name+set before falling back to the default printing.
+      const setRetries = entries.filter((e) => e.collectorNumber && !lookup(e));
+      if (setRetries.length > 0) {
+        const retried = await fetchCardCollection(
+          setRetries.map((e) => ({ name: e.name, setCode: e.setCode })),
+        );
+        retried.forEach((card, key) => {
+          if (!scryfallMap.has(key)) scryfallMap.set(key, card);
+        });
+      }
       onProgress(0.55);
       // Cards with name variants miss the exact lookup; retry them with fuzzy search.
-      const stragglers = [
-        ...new Set(entries.map((e) => e.name).filter((n) => !scryfallMap.get(n.toLowerCase()))),
-      ];
+      const stragglers = [...new Set(entries.filter((e) => !lookup(e)).map((e) => e.name))];
       let resolved = 0;
       await Promise.all(
         stragglers.map((n) =>
@@ -43,16 +63,20 @@ export function useDeckTextImport() {
       const maybeboard: DeckCard[] = [];
       const commanders: DeckCard[] = [];
       const notFound: string[] = [];
-      for (const { name: cardName, count, side, maybe, commander } of entries) {
-        const sc = scryfallMap.get(cardName.toLowerCase());
+      for (const entry of entries) {
+        const { count, side, maybe, commander } = entry;
+        const sc = lookup(entry);
         if (!sc) {
-          notFound.push(cardName);
+          notFound.push(entry.name);
           continue;
         }
         const target = commander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
         for (let i = 0; i < count; i++) {
           const base = scryfallToDeckCard(sc);
-          target.push({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
+          target.push({
+            ...base,
+            identity: { ...base.identity, id: crypto.randomUUID(), foil: entry.foil },
+          });
         }
       }
       if (

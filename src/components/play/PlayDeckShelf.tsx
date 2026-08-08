@@ -62,8 +62,15 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
   ].sort(
     (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
   );
-  const visiblePresets = presetDecks.filter((preset) =>
-    availableEngines().some((engine) => presetSupportsEngine(preset, engine)),
+  const forkedPresetKeys = new Set(
+    Object.values(accountDeckDetails)
+      .map((detail) => detail.derivedFromPresetKey?.toLowerCase())
+      .filter((key): key is string => key !== undefined),
+  );
+  const visiblePresets = presetDecks.filter(
+    (preset) =>
+      !forkedPresetKeys.has((preset.id ?? "").toLowerCase()) &&
+      availableEngines().some((engine) => presetSupportsEngine(preset, engine)),
   );
   const presetKeyByDeckId = Object.fromEntries(
     ownedDecks.map((deck) => [

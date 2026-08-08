@@ -115,11 +115,18 @@ export default function DeckEditor() {
     setSearchParams({ deck: presetDeckParamId(deck) }, { state: { deckEditorFromList: true } });
   }
 
-  const presetSavedDecksUnfiltered: SavedDeck[] = presetDecks.map((deck) => ({
-    id: presetDeckParamId(deck),
-    deck,
-    savedAt: 0,
-  }));
+  const forkedPresetKeys = new Set(
+    Object.values(accountDeckDetails)
+      .map((detail) => detail.derivedFromPresetKey?.toLowerCase())
+      .filter((key): key is string => key !== undefined),
+  );
+  const presetSavedDecksUnfiltered: SavedDeck[] = presetDecks
+    .filter((deck) => !forkedPresetKeys.has((deck.id ?? "").toLowerCase()))
+    .map((deck) => ({
+      id: presetDeckParamId(deck),
+      deck,
+      savedAt: 0,
+    }));
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);

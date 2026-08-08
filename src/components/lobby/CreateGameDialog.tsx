@@ -89,6 +89,7 @@ export function CreateGameDialog({
     selectedFormat.id,
     open,
     engineKind ? [engineKind] : availableEngines(),
+    "community",
   );
   const hubSearchResults = hubDecks.decks.filter((entry) =>
     engineKind

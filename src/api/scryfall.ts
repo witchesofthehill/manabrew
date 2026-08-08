@@ -42,8 +42,9 @@ function parseRetryAfterMs(retryAfter: string | null): number | null {
   return Math.max(retryDate - Date.now(), 0);
 }
 
-export function scryfallCardKey(name: string, setCode?: string): string {
-  return setCode ? `${name.toLowerCase()}::${setCode.toLowerCase()}` : name.toLowerCase();
+export function scryfallCardKey(name: string, setCode?: string, collectorNumber?: string): string {
+  const base = setCode ? `${name.toLowerCase()}::${setCode.toLowerCase()}` : name.toLowerCase();
+  return setCode && collectorNumber ? `${base}::${collectorNumber.toLowerCase()}` : base;
 }
 
 async function waitForScryfallSlot(): Promise<void> {
@@ -146,16 +147,20 @@ export async function getCardBySetAndNumber(
   return enqueueCardLookup({ set: setCode.toLowerCase(), collector_number: collectorNumber });
 }
 export async function fetchCardCollection(
-  cards: { name: string; setCode?: string }[],
+  cards: { name: string; setCode?: string; collectorNumber?: string }[],
 ): Promise<Map<string, ScryfallCard>> {
   const result = new Map<string, ScryfallCard>();
   const unique = Array.from(
-    new Map(cards.map((c) => [scryfallCardKey(c.name, c.setCode), c])).values(),
+    new Map(cards.map((c) => [scryfallCardKey(c.name, c.setCode, c.collectorNumber), c])).values(),
   );
   for (let i = 0; i < unique.length; i += COLLECTION_BATCH_SIZE) {
     const batch = unique.slice(i, i + COLLECTION_BATCH_SIZE);
     const ids: CardIdentifier[] = batch.map((c) =>
-      c.setCode ? { name: c.name, set: c.setCode.toLowerCase() } : { name: c.name },
+      c.setCode && c.collectorNumber
+        ? { set: c.setCode.toLowerCase(), collector_number: c.collectorNumber }
+        : c.setCode
+          ? { name: c.name, set: c.setCode.toLowerCase() }
+          : { name: c.name },
     );
     const data = await scryfallFetch<{ data: ScryfallCard[] }>(
       `${SCRYFALL_API}/cards/collection`,
@@ -168,10 +173,13 @@ export async function fetchCardCollection(
     );
     batch.forEach((c, idx) => {
       const card = data.data.find((found) => matchesIdentifier(found, ids[idx]));
-      if (!card) return;
-      result.set(scryfallCardKey(c.name, c.setCode), card);
-      const legacyKey = scryfallCardKey(c.name);
-      if (!result.has(legacyKey)) result.set(legacyKey, card);
+      // A set+number identifier carries no name, so a mistyped number would
+      // silently resolve to a different card in that set — reject it instead.
+      if (!card || !matchesIdentifier(card, { name: c.name })) return;
+      result.set(scryfallCardKey(c.name, c.setCode, c.collectorNumber), card);
+      for (const fallbackKey of [scryfallCardKey(c.name, c.setCode), scryfallCardKey(c.name)]) {
+        if (!result.has(fallbackKey)) result.set(fallbackKey, card);
+      }
     });
   }
   return result;

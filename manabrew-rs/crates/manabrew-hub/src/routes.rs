@@ -371,7 +371,8 @@ async fn deckhub_entries_handler(
         sort: match query.sort.as_deref() {
             Some("name") => DeckHubSortOrder::Name,
             Some("favorites") => DeckHubSortOrder::Favorites,
-            _ => DeckHubSortOrder::Newest,
+            Some("newest") => DeckHubSortOrder::Newest,
+            _ => DeckHubSortOrder::CommunityFirst,
         },
         page: query.page.unwrap_or(1).max(1),
         page_size,
@@ -670,9 +671,6 @@ async fn relay_deck_game_handler(
             hosted,
             players,
         } => {
-            if hosted {
-                return StatusCode::NO_CONTENT.into_response();
-            }
             let plays = players
                 .iter()
                 .filter_map(|player| {
@@ -690,7 +688,7 @@ async fn relay_deck_game_handler(
                 .storage
                 .lock()
                 .unwrap()
-                .record_relay_game_started(&game_id, &format, &ts, &plays)
+                .record_relay_game_started(&game_id, &format, &ts, hosted, &plays)
             {
                 Ok(_) => StatusCode::NO_CONTENT.into_response(),
                 Err(error) => internal_error(error),

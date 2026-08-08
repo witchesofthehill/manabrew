@@ -50,21 +50,24 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
         </Link>
       </div>
       {entries.length > 0 ? (
-        <div className="grid grid-cols-12 items-start gap-3">
+        <div className="grid grid-cols-12 gap-3 md:aspect-[12/5] md:grid-rows-3">
           {entries.map((ranked, index) => (
             <div
               key={ranked.entry.id}
               className={
                 index === 0
-                  ? "col-span-12 md:col-span-6"
+                  ? "col-span-12 md:col-span-7 md:row-span-3"
                   : index === 1
-                    ? "col-span-9 md:col-span-4"
-                    : "col-span-7 col-start-6 md:col-span-2 md:col-start-auto"
+                    ? "col-span-7 row-start-2 md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1"
+                    : "col-span-5 col-start-1 row-start-3 md:col-span-5 md:col-start-8 md:row-start-3"
               }
             >
-              <DeckHubPodiumFrame rank={ranked.rank}>
+              <DeckHubPodiumFrame rank={ranked.rank} className="flex h-full min-h-0 flex-col">
                 <DeckHubEntryCard
                   entry={ranked.entry}
+                  rank={ranked.rank}
+                  reason={ranked.reason}
+                  variant="stage"
                   onOpen={() => onOpen(ranked.entry.id)}
                   onAuthorClick={() => onAuthor(ranked.entry.author)}
                 />
@@ -73,10 +76,10 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="aspect-[4/3] animate-pulse rounded-lg bg-muted" />
-          ))}
+        <div className="grid grid-cols-12 gap-3 md:aspect-[12/5] md:grid-rows-3">
+          <div className="col-span-12 aspect-[4/3] animate-pulse rounded-lg bg-muted md:col-span-7 md:row-span-3 md:aspect-auto" />
+          <div className="col-span-7 aspect-[4/3] animate-pulse rounded-lg bg-muted md:col-span-5 md:col-start-8 md:row-span-2 md:row-start-1 md:aspect-auto" />
+          <div className="col-span-5 aspect-[4/3] animate-pulse rounded-lg bg-muted md:col-span-5 md:col-start-8 md:row-start-3 md:aspect-auto" />
         </div>
       )}
     </section>

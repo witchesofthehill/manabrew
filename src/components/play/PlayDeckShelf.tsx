@@ -21,10 +21,16 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 interface PlayDeckShelfProps {
   onPlay: (savedDeckId: string) => void;
   onPlayPreset: (preset: PresetDeck) => void;
+  onPlayCommunity: (entryId: string) => void;
   pendingDeckId: string | null;
 }
 
-export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckShelfProps) {
+export function PlayDeckShelf({
+  onPlay,
+  onPlayPreset,
+  onPlayCommunity,
+  pendingDeckId,
+}: PlayDeckShelfProps) {
   const navigate = useNavigate();
   const savedDecks = useDeckStore((state) => state.savedDecks);
   const loadAccountDeck = useDeckStore((state) => state.loadAccountDeck);
@@ -176,6 +182,8 @@ export function PlayDeckShelf({ onPlay, onPlayPreset, pendingDeckId }: PlayDeckS
             onOpenChange={setCommunityOpen}
             onOpenDeck={openCommunityDeck}
             onAuthorClick={openCommunityAuthor}
+            onPlayDeck={onPlayCommunity}
+            pendingDeckId={pendingDeckId}
           />
         )}
         <PresetDeckShelf

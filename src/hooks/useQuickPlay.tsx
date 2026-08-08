@@ -12,12 +12,16 @@ import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { pickRandomDistinct } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { useHubStore } from "@/stores/useHubStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/protocol";
 
-type PendingPod = { kind: "saved"; savedDeckId: string } | { kind: "preset"; preset: PresetDeck };
+type PendingPod =
+  | { kind: "saved"; savedDeckId: string }
+  | { kind: "preset"; preset: PresetDeck }
+  | { kind: "community"; entryId: string; deck: Deck };
 
 async function ensurePresets(engine: EngineKind): Promise<PresetDeck[]> {
   if (usePresetDecksStore.getState().decks.length === 0) {
@@ -154,6 +158,39 @@ export function useQuickPlay() {
     }
   }, []);
 
+  const startCommunity = useCallback(async (entryId: string, deck: Deck, opponentCount: number) => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPendingDeckId(entryId);
+    try {
+      const formatId = deck.format ?? "standard";
+      const engine = resolveOfflineEngine();
+      const opponents = await resolveOpponents(engine, formatId, opponentCount);
+      if (!mountedRef.current) return;
+      if (opponents.decks.length === 0) {
+        toast.error("No AI deck available for this format — pick one yourself.");
+        return;
+      }
+      const started = await useGameStore
+        .getState()
+        .startGame(deck, formatId, deck.commanders?.[0]?.identity.name, opponents.decks, engine);
+      if (!started) return;
+      void reportPublishedDeckPlay(entryId, deck);
+      const prefs = usePreferencesStore.getState();
+      prefs.setLastOfflineFormatId(formatId);
+      if (opponents.remember) {
+        prefs.setLastAiOpponent(
+          opponents.remember.source === "preset"
+            ? { kind: "preset", id: opponents.remember.id }
+            : { kind: "saved", id: opponents.remember.id },
+        );
+      }
+    } finally {
+      pendingRef.current = false;
+      if (mountedRef.current) setPendingDeckId(null);
+    }
+  }, []);
+
   const quickPlay = useCallback(
     async (savedDeckId: string) => {
       if (pendingRef.current) return;
@@ -191,6 +228,41 @@ export function useQuickPlay() {
     [startPreset],
   );
 
+  const quickPlayCommunity = useCallback(
+    async (entryId: string) => {
+      if (pendingRef.current) return;
+      pendingRef.current = true;
+      setPendingDeckId(entryId);
+      try {
+        const entry = await useHubStore.getState().loadEntry(entryId);
+        const formatId = entry.deck.format ?? entry.format ?? "standard";
+        if (getFormat(formatId) === undefined) {
+          toast.error("This Community deck uses an unsupported format.");
+          return;
+        }
+        const engine = resolveOfflineEngine();
+        if (entry.engines?.length && !entry.engines.includes(engine)) {
+          toast.error(
+            `This deck is built for the ${entry.engines[0]} engine — start a table with that engine from Multiplayer.`,
+          );
+          return;
+        }
+        if (formatId === "commander") {
+          setPendingPod({ kind: "community", entryId, deck: entry.deck });
+          return;
+        }
+        pendingRef.current = false;
+        await startCommunity(entryId, entry.deck, 1);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to load Community deck");
+      } finally {
+        pendingRef.current = false;
+        if (mountedRef.current) setPendingDeckId(null);
+      }
+    },
+    [startCommunity],
+  );
+
   const playersDialog: ReactNode = pendingPod ? (
     <PlaytestPlayersDialog
       open
@@ -198,11 +270,12 @@ export function useQuickPlay() {
         const pod = pendingPod;
         setPendingPod(null);
         if (pod.kind === "saved") void startSaved(pod.savedDeckId, opponentCount);
-        else void startPreset(pod.preset, opponentCount);
+        else if (pod.kind === "preset") void startPreset(pod.preset, opponentCount);
+        else void startCommunity(pod.entryId, pod.deck, opponentCount);
       }}
       onCancel={() => setPendingPod(null)}
     />
   ) : null;
 
-  return { quickPlay, quickPlayPreset, pendingDeckId, playersDialog };
+  return { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog };
 }

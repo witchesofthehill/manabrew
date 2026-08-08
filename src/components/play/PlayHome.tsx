@@ -30,7 +30,8 @@ const MODES = [
 ];
 
 export function PlayHome() {
-  const { quickPlay, quickPlayPreset, pendingDeckId, playersDialog } = useQuickPlay();
+  const { quickPlay, quickPlayPreset, quickPlayCommunity, pendingDeckId, playersDialog } =
+    useQuickPlay();
   const [resumeSession, setResumeSession] = useState(peekActiveGameSession);
   const resumePending = resumeSession !== null;
   const connected = useServerStore((state) => state.connected);
@@ -135,6 +136,7 @@ export function PlayHome() {
             <PlayDeckShelf
               onPlay={quickPlay}
               onPlayPreset={quickPlayPreset}
+              onPlayCommunity={quickPlayCommunity}
               pendingDeckId={pendingDeckId}
             />
           </div>

@@ -1,6 +1,7 @@
 import { Award, Crown, Heart, Layers, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
+import { DeckCardPlayButton } from "@/components/deck/DeckCardPlayButton";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,9 @@ interface DeckHubEntryCardProps {
   onAuthorClick?: () => void;
   rank?: number;
   reason?: string;
+  onPlay?: () => void;
+  playing?: boolean;
+  playDisabled?: boolean;
 }
 
 export function DeckHubEntryCard({
@@ -26,6 +30,9 @@ export function DeckHubEntryCard({
   onAuthorClick,
   rank,
   reason,
+  onPlay,
+  playing = false,
+  playDisabled = false,
 }: DeckHubEntryCardProps) {
   const colorCost = entry.colors
     .split("")
@@ -105,6 +112,14 @@ export function DeckHubEntryCard({
       )}
     </div>
   );
+  const topLeft = onPlay ? (
+    <div className="flex max-w-full items-center gap-1 overflow-hidden">
+      <DeckCardPlayButton playing={playing} disabled={playDisabled} onPlay={onPlay} />
+      {labels}
+    </div>
+  ) : (
+    labels
+  );
 
   return (
     <DeckCardSurface
@@ -139,7 +154,7 @@ export function DeckHubEntryCard({
           </span>
         )
       }
-      topLeft={labels}
+      topLeft={topLeft}
       topRight={favorite}
       footer={
         <>

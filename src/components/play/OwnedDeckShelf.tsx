@@ -1,11 +1,9 @@
 import { LibraryBig, Plus } from "lucide-react";
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
-import { DeckShelfRow } from "@/components/play/DeckShelfRow";
+import { DECK_SHELF_CARD_CLASS, DeckShelfRow } from "@/components/play/DeckShelfRow";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SavedDeck } from "@/stores/useDeckStore";
-
-const SHELF_CARD_CLASS = "w-[70vw] max-w-64 shrink-0 snap-start sm:w-72 sm:max-w-none";
 
 interface OwnedDeckShelfProps {
   decks: SavedDeck[];
@@ -49,7 +47,7 @@ export function OwnedDeckShelf({
       {decks.map((deck) => {
         const presetKey = presetKeyByDeckId[deck.id];
         return (
-          <div key={deck.id} className={cn(SHELF_CARD_CLASS, "relative")}>
+          <div key={deck.id} className={cn(DECK_SHELF_CARD_CLASS, "relative")}>
             {deck.id === lastPlayedDeckId && (
               <span className="absolute right-1.5 top-1.5 z-20 rounded bg-background/90 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur-sm">
                 Last played

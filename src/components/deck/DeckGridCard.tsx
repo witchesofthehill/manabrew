@@ -1,15 +1,7 @@
 import { useState } from "react";
-import {
-  CloudUpload,
-  LibraryBig,
-  Loader2,
-  Pencil,
-  Play,
-  Share2,
-  Swords,
-  Trash2,
-} from "lucide-react";
+import { CloudUpload, LibraryBig, Pencil, Share2, Swords, Trash2 } from "lucide-react";
 import { DeckCardSurface } from "@/components/deck/DeckCardSurface";
+import { DeckCardPlayButton } from "@/components/deck/DeckCardPlayButton";
 import { DeckCoverImage } from "@/components/deck/deckCover";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { getDeckColorCost, getDeckNameColorClass } from "@/components/deck/deckDisplay.utils";
@@ -78,20 +70,7 @@ export function DeckGridCard({
         cover={<DeckCoverImage cover={cover} alt={cover?.identity.name ?? deck.deck.name} />}
         topLeft={
           onPlay ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={playing || playDisabled}
-              className="h-8 bg-background/90 opacity-0 shadow-sm backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
-              onClick={onPlay}
-            >
-              {playing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Play className="h-3.5 w-3.5" />
-              )}
-              {playing ? "Starting…" : "Play"}
-            </Button>
+            <DeckCardPlayButton playing={playing} disabled={playDisabled} onPlay={onPlay} />
           ) : undefined
         }
         topRight={

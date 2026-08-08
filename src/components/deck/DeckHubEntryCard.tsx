@@ -113,9 +113,9 @@ export function DeckHubEntryCard({
     </div>
   );
   const topLeft = onPlay ? (
-    <div className="flex max-w-full items-center gap-1 overflow-hidden">
-      <DeckCardPlayButton playing={playing} disabled={playDisabled} onPlay={onPlay} />
+    <div className="flex max-w-full flex-col items-start gap-1 overflow-hidden">
       {labels}
+      <DeckCardPlayButton playing={playing} disabled={playDisabled} onPlay={onPlay} />
     </div>
   ) : (
     labels

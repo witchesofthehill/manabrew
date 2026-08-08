@@ -51,14 +51,14 @@ export function DeckHubEntryCard({
     </span>
   ) : null;
   const labels = (
-    <div className="pointer-events-none flex max-w-[65%] flex-col items-start gap-1 overflow-hidden">
+    <div className="pointer-events-none flex max-w-full items-center gap-1 overflow-hidden">
       {entry.sourceKind === "preset" && (
-        <span className="rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
+        <span className="shrink-0 whitespace-nowrap rounded-full border bg-background/90 px-2 py-1 text-[10px] font-medium backdrop-blur-sm">
           Official preset
         </span>
       )}
       {discoveryTags.length > 0 && (
-        <div className="flex gap-1 overflow-hidden">
+        <div className="flex min-w-0 gap-1 overflow-hidden">
           {discoveryTags.slice(0, 2).map((tag) => (
             <span
               key={tag.id}

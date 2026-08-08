@@ -58,7 +58,9 @@ export function DeckCardSurface({
           <span className="mt-1 flex flex-wrap items-center gap-1">{footer}</span>
         </span>
       </button>
-      {topLeft && <div className="absolute left-1.5 top-1.5 z-20">{topLeft}</div>}
+      {topLeft && (
+        <div className="absolute left-1.5 top-1.5 z-20 max-w-[calc(100%-4.5rem)]">{topLeft}</div>
+      )}
       {topRight && <div className="absolute right-1.5 top-1.5 z-20">{topRight}</div>}
     </div>
   );

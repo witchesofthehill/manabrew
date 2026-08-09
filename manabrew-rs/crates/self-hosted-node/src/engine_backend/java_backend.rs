@@ -1142,6 +1142,7 @@ pub fn run_hosted_engine_game(
 }
 
 #[cfg(forge_backend)]
+#[allow(clippy::too_many_arguments)]
 fn run_hosted_engine_game_inner(
     game_id: String,
     player_names: Vec<String>,

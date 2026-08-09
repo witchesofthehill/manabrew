@@ -173,7 +173,9 @@ pub struct DeckHubEntrySummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub summary: Option<String>,
-    pub author: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub author: Option<String>,
     pub source_kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

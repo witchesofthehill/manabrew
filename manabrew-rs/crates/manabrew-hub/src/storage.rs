@@ -1205,8 +1205,7 @@ impl Storage {
                 " AND (e.title LIKE ?{index} ESCAPE '\\'
                        OR COALESCE(e.summary, '') LIKE ?{index} ESCAPE '\\'
                        OR COALESCE(a.username, a.handle,
-                             CASE d.kind WHEN 'preset' THEN 'ManaBrew'
-                                         ELSE 'Deleted user' END) LIKE ?{index} ESCAPE '\\'
+                             CASE WHEN d.kind = 'preset' THEN 'ManaBrew' END) LIKE ?{index} ESCAPE '\\'
                        OR EXISTS(
                            SELECT 1 FROM deck_cards search_card
                            WHERE search_card.deck_version_id = v.id
@@ -1360,8 +1359,7 @@ impl Storage {
         let sql = format!(
             "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
                     e.summary, COALESCE(a.username, a.handle,
-                             CASE d.kind WHEN 'preset' THEN 'ManaBrew'
-                                         ELSE 'Deleted user' END),
+                             CASE WHEN d.kind = 'preset' THEN 'ManaBrew' END),
                     d.kind, d.preset_key, v.format,
                     v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                     e.cover_card_id, e.cover_card_name, e.status, e.published_at,
@@ -1400,8 +1398,7 @@ impl Storage {
             .query_row(
                 "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
                         e.summary, COALESCE(a.username, a.handle,
-                             CASE d.kind WHEN 'preset' THEN 'ManaBrew'
-                                         ELSE 'Deleted user' END),
+                             CASE WHEN d.kind = 'preset' THEN 'ManaBrew' END),
                         d.kind, d.preset_key, v.format,
                         v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                         e.cover_card_id, e.cover_card_name, e.status, e.published_at,

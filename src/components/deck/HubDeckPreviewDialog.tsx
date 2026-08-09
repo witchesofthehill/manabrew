@@ -44,7 +44,7 @@ interface HubDeckPreviewDialogProps {
 interface PreviewDeckDetail {
   id: string;
   name: string;
-  author: string;
+  author?: string;
   description?: string;
   format?: DeckFormat;
   colors: string;
@@ -248,7 +248,7 @@ export function HubDeckPreviewDialog({
             </DialogTitle>
             <DialogDescription className="line-clamp-2">
               {detail
-                ? `by ${detail.author}${detail.description ? ` — ${detail.description}` : ""}`
+                ? `by ${detail.author ?? "Deleted user"}${detail.description ? ` — ${detail.description}` : ""}`
                 : (error ?? "Fetching deck from Community…")}
             </DialogDescription>
             {detail && (

@@ -13,13 +13,15 @@ interface DeckHubEntryCardProps {
   onFavorite?: () => void;
   favoritePending?: boolean;
   variant?: "card" | "hero" | "list" | "stage";
-  onAuthorClick?: () => void;
+  onAuthorClick?: (author: string) => void;
   rank?: number;
   reason?: string;
   onPlay?: () => void;
   playing?: boolean;
   playDisabled?: boolean;
 }
+
+const NO_AUTHOR = "Deleted user";
 
 export function DeckHubEntryCard({
   entry,
@@ -34,6 +36,7 @@ export function DeckHubEntryCard({
   playing = false,
   playDisabled = false,
 }: DeckHubEntryCardProps) {
+  const author = entry.author;
   const colorCost = entry.colors
     .split("")
     .map((color) => `{${color}}`)
@@ -124,12 +127,12 @@ export function DeckHubEntryCard({
   return (
     <DeckCardSurface
       title={entry.title}
-      subtitle={`by ${entry.author}`}
-      onSubtitleClick={onAuthorClick}
-      subtitleAriaLabel={`Show decks by ${entry.author}`}
+      subtitle={`by ${author ?? NO_AUTHOR}`}
+      onSubtitleClick={author && onAuthorClick ? () => onAuthorClick(author) : undefined}
+      subtitleAriaLabel={author ? `Show decks by ${author}` : undefined}
       description={entry.summary}
       supportingText={reason}
-      ariaLabel={`Open ${entry.title} by ${entry.author}`}
+      ariaLabel={`Open ${entry.title} by ${author ?? NO_AUTHOR}`}
       onOpen={onOpen}
       variant={variant}
       cover={

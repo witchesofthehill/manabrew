@@ -1,5 +1,16 @@
 import type { PromptResolver } from "./promptHandlers";
 import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { TRIGGER_ORDER_PROMPT_TITLE } from "@/components/game/game.constants";
+
+function shuffled<T>(items: readonly T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 function canFinishTargeting(input: {
   minTargets: number;
@@ -130,10 +141,20 @@ export const emptyScry: PromptResolver<"scry"> = (prompt) => {
 
 export const singleCardOrder: PromptResolver<"reorder"> = (prompt) => {
   const ids = prompt.input.items.map((i) => i.id);
-  if (ids.length > 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "reorderDecision", orderedIds: ids },
-    reason: `≤1 card to order (${ids.length})`,
-  };
+  if (ids.length <= 1) {
+    return {
+      kind: "auto",
+      respond: { type: "reorderDecision", orderedIds: ids },
+      reason: `≤1 card to order (${ids.length})`,
+    };
+  }
+  const isTriggerOrder = prompt.input.presentation.title === TRIGGER_ORDER_PROMPT_TITLE;
+  if (isTriggerOrder && !usePreferencesStore.getState().chooseOrderOnMultipleTriggers) {
+    return {
+      kind: "auto",
+      respond: { type: "reorderDecision", orderedIds: shuffled(ids) },
+      reason: "trigger ordering disabled — random order",
+    };
+  }
+  return { kind: "force-show" };
 };

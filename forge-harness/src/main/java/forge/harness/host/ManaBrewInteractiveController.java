@@ -274,7 +274,32 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public void orderAndPlaySimultaneousSa(final List<SpellAbility> activePlayerSAs) {
-        playPlumbing.orderAndPlaySimultaneousSa(activePlayerSAs, getGame());
+        if (needPromptForOrder(activePlayerSAs)) {
+            final List<SpellAbility> ordered = session.awaitTriggerOrder(me(), activePlayerSAs, null);
+            playPlumbing.playSimultaneousSaInOrder(ordered, getGame());
+        } else {
+            playPlumbing.orderAndPlaySimultaneousSa(activePlayerSAs, getGame());
+        }
+    }
+
+    private boolean needPromptForOrder(final List<SpellAbility> sas) {
+        if (sas.size() < 2) {
+            return false;
+        }
+        final SpellAbility first = sas.get(0);
+        boolean needPrompt = !first.isTrigger();
+        for (final SpellAbility sa : sas) {
+            if (sa.usesTargeting()) {
+                needPrompt = true;
+            }
+            if (sa.isTrigger() && sa.getTrigger().hasParam("OrderDuplicates")) {
+                needPrompt = true;
+            }
+            if (!sa.toString().equals(first.toString())) {
+                needPrompt = true;
+            }
+        }
+        return needPrompt;
     }
 
     @Override

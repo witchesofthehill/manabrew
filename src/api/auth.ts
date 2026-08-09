@@ -3,8 +3,8 @@ import { platformFetch } from "@/lib/platformFetch";
 import type {
   AuthAccount,
   AuthProviders,
+  AccessTokenResponse,
   AuthSessionResponse,
-  IdentityTokenResponse,
   MeResponse,
   OAuthStartResponse,
 } from "@/api/authTypes";
@@ -78,8 +78,14 @@ export function verifyEmailCode(email: string, code: string): Promise<AuthSessio
   return authJson<AuthSessionResponse>("/api/auth/email/verify", jsonInit("POST", { email, code }));
 }
 
-export function fetchIdentityToken(token: string): Promise<IdentityTokenResponse> {
-  return authJson<IdentityTokenResponse>("/api/auth/token", { method: "POST" }, token);
+export function requestAccessToken(
+  refreshToken: string,
+  resource?: string,
+): Promise<AccessTokenResponse> {
+  return authJson<AccessTokenResponse>(
+    "/api/auth/token",
+    jsonInit("POST", { grant_type: "refresh_token", refresh_token: refreshToken, resource }),
+  );
 }
 
 export function fetchMe(token: string): Promise<MeResponse> {
@@ -90,8 +96,8 @@ export function updateHandle(token: string, handle: string): Promise<AuthAccount
   return authJson<AuthAccount>("/api/auth/me", jsonInit("PATCH", { handle }), token);
 }
 
-export async function signOutSession(token: string): Promise<void> {
-  await authRequest("/api/auth/logout", { method: "POST" }, token);
+export async function signOutSession(refreshToken: string): Promise<void> {
+  await authRequest("/api/auth/logout", jsonInit("POST", { token: refreshToken }));
 }
 
 export async function unlinkIdentity(token: string, provider: string): Promise<void> {

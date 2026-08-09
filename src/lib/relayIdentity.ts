@@ -1,7 +1,8 @@
-import { fetchIdentityToken } from "@/api/auth";
+import { requestAccessToken } from "@/api/auth";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useAuthStore } from "@/stores/useAuthStore";
 
+const RELAY_AUDIENCE = "manabrew-relay";
 const DEVICE_SECRET_STORAGE_KEY = "manabrew.deviceSecret";
 const DEVICE_SECRET_BYTES = 24;
 const TOKEN_EXPIRY_MARGIN_MS = 30_000;
@@ -41,22 +42,22 @@ export function clearIdentityToken(): void {
 
 async function identityToken(): Promise<string | undefined> {
   if (!isFeatureEnabled("accounts")) return undefined;
-  const session = useAuthStore.getState().token;
-  if (!session) return undefined;
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) return undefined;
   if (cachedToken && cachedToken.expiresAt - TOKEN_EXPIRY_MARGIN_MS > Date.now()) {
     return cachedToken.value;
   }
   try {
     const minted = await Promise.race([
-      fetchIdentityToken(session),
+      requestAccessToken(refreshToken, RELAY_AUDIENCE),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), TOKEN_FETCH_TIMEOUT_MS)),
     ]);
     if (!minted) return undefined;
     cachedToken = {
-      value: minted.token,
-      expiresAt: Date.now() + minted.expiresIn * 1000,
+      value: minted.access_token,
+      expiresAt: Date.now() + minted.expires_in * 1000,
     };
-    return minted.token;
+    return minted.access_token;
   } catch {
     return undefined;
   }

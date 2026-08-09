@@ -1,7 +1,6 @@
 import { getHubApiUrl } from "@/config/webRuntimeConfig";
-import { isFeatureEnabled } from "@/featureFlags";
 import { platformFetch } from "@/lib/platformFetch";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import type {
   AccountDeckDetail,
   AccountDeckList,
@@ -56,7 +55,8 @@ export class HubRequestError extends Error {
 }
 
 async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
-  const token = isFeatureEnabled("accounts") ? useAuthStore.getState().token : null;
+  const refreshToken = useAuthStore.getState().refreshToken;
+  const token = await getAccessToken();
   const headers = new Headers(init?.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await platformFetch(`${getHubApiUrl()}${path}`, { ...init, headers });
@@ -69,8 +69,13 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
       );
     }
     if (response.status === 401) {
-      if (token && useAuthStore.getState().token === token) {
-        useAuthStore.setState({ token: null, account: null, identities: [], status: "signedOut" });
+      if (token && useAuthStore.getState().refreshToken === refreshToken) {
+        useAuthStore.setState({
+          refreshToken: null,
+          account: null,
+          identities: [],
+          status: "signedOut",
+        });
       }
       throw new HubRequestError(
         response.status,

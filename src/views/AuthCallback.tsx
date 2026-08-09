@@ -71,7 +71,7 @@ export default function AuthCallback() {
     if (code) {
       exchangeCode(code)
         .then((session) => {
-          useAuthStore.getState().signIn(session.token, session.account);
+          useAuthStore.getState().signIn(session);
           if (session.account.handlePending) {
             useSignInDialog.getState().show({ claimHandle: true });
           } else {

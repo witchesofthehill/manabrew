@@ -354,10 +354,13 @@ pub struct AuthAccount {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "authTypes.ts")]
 pub struct AuthSessionResponse {
-    pub token: String,
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: u32,
+    pub refresh_token: String,
     pub account: AuthAccount,
 }
 
@@ -402,9 +405,28 @@ pub struct UpdateHandleRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "authTypes.ts")]
-pub struct IdentityTokenResponse {
-    pub token: String,
+pub struct AccessTokenResponse {
+    pub access_token: String,
+    pub token_type: String,
     pub expires_in: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "authTypes.ts")]
+pub struct TokenRequest {
+    pub grant_type: String,
+    pub refresh_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub resource: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "authTypes.ts")]
+pub struct RevocationRequest {
+    pub token: String,
 }

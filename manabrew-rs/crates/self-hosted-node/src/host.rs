@@ -164,6 +164,14 @@ pub async fn cli_entry() {
         info!(max_prompts, "java-forge smoke completed");
         return;
     }
+    if std::env::var("SELF_HOSTED_NODE_GRAAL_SMOKE").is_ok() {
+        if let Err(error) = java_backend::run_graal_smoke() {
+            error!(%error, "graal-forge smoke failed");
+            std::process::exit(1);
+        }
+        info!("graal-forge smoke completed");
+        return;
+    }
     if std::env::var("SELF_HOSTED_NODE_JAVA_CONCEDE_SMOKE").is_ok() {
         if let Err(error) = java_backend::run_concede_smoke() {
             error!(%error, "java-forge concede smoke failed");

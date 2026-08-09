@@ -91,14 +91,69 @@ jobs:
 
       - run: yarn
 
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
       - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
+      - name: Harness cache keys
+        id: harness-keys
+        shell: bash
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      # The generated protocol sources ship with the jar: they sit under
+      # forge-harness/src, so computeChecksum() hashes them. Without them the
+      # stored checksum can never match a key computed before codegen, and
+      # ensure:harness rebuilds on every run.
+      - name: Cache Forge harness jar
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
+
+      # The key is the only guard against a stale library here: `ensure:harness`
+      # re-checks the jar at runtime, but nothing revalidates this artifact.
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
       - name: Build Forge harness jar (Maven, GraalVM JDK 21)
-        run: yarn build:harness
+        run: yarn ensure:harness
 
       - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.sh
+
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
 
       - name: Tauri build (macOS)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
@@ -198,15 +253,70 @@ jobs:
 
       - run: yarn
 
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
       - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
+      - name: Harness cache keys
+        id: harness-keys
+        shell: bash
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      # The generated protocol sources ship with the jar: they sit under
+      # forge-harness/src, so computeChecksum() hashes them. Without them the
+      # stored checksum can never match a key computed before codegen, and
+      # ensure:harness rebuilds on every run.
+      - name: Cache Forge harness jar
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
+
+      # The key is the only guard against a stale library here: `ensure:harness`
+      # re-checks the jar at runtime, but nothing revalidates this artifact.
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
       - name: Build Forge harness jar (Maven, GraalVM JDK 21)
-        run: yarn build:harness
+        run: yarn ensure:harness
 
       - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.ps1
         shell: pwsh
+
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
 
       - name: Tauri build (Windows)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
@@ -304,7 +414,24 @@ jobs:
 
       - run: yarn
 
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
       - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
       # tauri.ios.conf.json bundles resources/cardset.rkyv; the tauri CLI
@@ -375,7 +502,24 @@ jobs:
 
       - run: yarn
 
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
       - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
       # card_db.rs include_bytes!es resources/cardset.rkyv on Android; build

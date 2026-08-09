@@ -342,7 +342,7 @@ jobs:
             forge-harness/target/forge-harness-jar-with-dependencies.jar
             forge-harness/target/.harness-sources-checksum
             forge-harness/src/main/java/forge/harness/protocol
-          key: harness-jar-${{ steps.harness-keys.outputs.jar }}
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
 
       # The key is the only guard against a stale library here: `ensure:harness`
       # re-checks the jar at runtime, but nothing revalidates this artifact.
@@ -451,7 +451,7 @@ jobs:
             forge-harness/target/forge-harness-jar-with-dependencies.jar
             forge-harness/target/.harness-sources-checksum
             forge-harness/src/main/java/forge/harness/protocol
-          key: harness-jar-${{ steps.harness-keys.outputs.jar }}
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
 
       # The key is the only guard against a stale library here: `ensure:harness`
       # re-checks the jar at runtime, but nothing revalidates this artifact.

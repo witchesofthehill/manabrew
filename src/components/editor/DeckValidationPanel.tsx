@@ -2,7 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { getFormat, validateDeckSections } from "@/lib/formats";
 
-export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: Set<string> }) {
+export function DeckValidationPanel() {
   const { currentDeck } = useDeckStore();
 
   const format = getFormat(currentDeck.format ?? "standard");
@@ -16,17 +16,9 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
     format,
   );
 
-  const unsupportedList = unsupportedNames ? [...unsupportedNames].sort() : [];
-  const hasUnsupported = unsupportedList.length > 0;
+  if (validation.legal) return null;
 
-  if (validation.legal && !hasUnsupported) return null;
-
-  const unsupportedErrors = hasUnsupported
-    ? [
-        `${unsupportedList.length} card${unsupportedList.length === 1 ? "" : "s"} not implemented by the engine - playable build blocked, save as draft only: ${unsupportedList.join(", ")}`,
-      ]
-    : [];
-  const errors = [...unsupportedErrors, ...validation.errors];
+  const errors = validation.errors;
   const count = errors.length;
 
   return (

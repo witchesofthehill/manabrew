@@ -118,6 +118,7 @@ export async function startDraftAsHost(args: {
         rounds: config.rounds,
         pool,
         picksPerPass: config.picksPerPass,
+        customPool: Boolean(config.cubeId),
         seed: config.seed,
       },
       humans: seats.filter((s) => s.isHuman).map((s) => ({ seat: s.seat, name: s.displayName })),

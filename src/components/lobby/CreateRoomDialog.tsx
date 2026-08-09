@@ -797,7 +797,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
                     {importedCube.cardCount} cards
                     {importedCube.rejectedCardCount > 0 &&
-                      ` · ${importedCube.rejectedCardCount} unsupported`}
+                      ` · ${importedCube.rejectedCardCount} without local engine data`}
                   </p>
                 )}
                 {cubeImportError && !importedCube && !importingCube && (

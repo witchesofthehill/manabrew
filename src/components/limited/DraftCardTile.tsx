@@ -37,11 +37,23 @@ function DraftCardTileImpl({
       }),
     hide: () => preview?.dismiss(),
   });
-  if (!deckCard) {
+  const hasImage = !deckCard.uris.normal.startsWith("data:");
+  if (!hasImage) {
     return (
-      <div className="relative w-full">
-        <div className="aspect-[5/7] w-full animate-pulse rounded-lg border border-border/50 bg-muted/40" />
-      </div>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="relative aspect-[5/7] w-full rounded-lg border border-border/70 bg-card p-2 text-left text-xs font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span className="break-words">{card.name}</span>
+        {card.setCode && (
+          <span className="absolute bottom-2 left-2 font-mono text-[10px] uppercase text-muted-foreground">
+            {card.setCode}
+          </span>
+        )}
+        {overlay}
+      </button>
     );
   }
   return (

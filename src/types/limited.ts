@@ -83,6 +83,7 @@ export interface BoosterDraftSetup {
   variant?: string;
   seed?: number;
   picksPerPass?: number;
+  customPool?: boolean;
 }
 
 export interface WinstonSetup {
@@ -90,6 +91,7 @@ export interface WinstonSetup {
   pool: DraftCard[];
   variant?: string;
   seed?: number;
+  customPool?: boolean;
 }
 
 export interface WinstonState {

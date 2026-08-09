@@ -524,7 +524,7 @@ export function DeckBuilder({
         : { legal: false, errors: [] as string[] },
     [currentDeck, deckFormat],
   );
-  const isDeckLegal = !hasUnsupportedCards && deckValidation.legal;
+  const isDeckLegal = deckValidation.legal;
 
   const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
   const matchesFilters = useCallback(
@@ -856,7 +856,7 @@ export function DeckBuilder({
     }
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
+        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} missing from local card data; compatibility depends on the selected engine`,
       );
     } else if (!deckValidation.legal) {
       toast.warning(
@@ -872,7 +872,7 @@ export function DeckBuilder({
     setUnsavedState(snapshot, snapshot);
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
+        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} missing from local card data`,
       );
     } else {
       toast.success(`Draft "${currentDeck.name}" saved`);
@@ -1095,7 +1095,7 @@ export function DeckBuilder({
                 )}
                 title={
                   hasUnsupportedCards
-                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — saves with a warning`
+                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} missing from local card data — engine compatibility is checked when playing`
                     : !isDeckLegal
                       ? `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
                       : hasUnsavedChanges
@@ -1219,7 +1219,7 @@ export function DeckBuilder({
 
           <fieldset disabled={isReadOnly} className="contents">
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
-              <DeckValidationPanel unsupportedNames={unsupportedNames} />
+              <DeckValidationPanel />
               <div
                 ref={setMainDropRef}
                 className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}

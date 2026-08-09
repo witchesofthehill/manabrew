@@ -310,7 +310,7 @@ export default function Limited() {
                   Loaded: <span className="text-foreground/90">{lastImportedCube.name}</span> —{" "}
                   {lastImportedCube.cardCount} cards
                   {lastImportedCube.rejectedCardCount > 0 &&
-                    ` · ${lastImportedCube.rejectedCardCount} unsupported`}
+                    ` · ${lastImportedCube.rejectedCardCount} without local engine data`}
                 </>
               ) : null
             }
@@ -369,6 +369,7 @@ export default function Limited() {
                 pool: lastImportedCube.pool!,
                 seed: seedOpt,
                 picksPerPass,
+                customPool: true,
               });
               navigate(`/draft/${state.sessionId}`);
             } catch {
@@ -381,6 +382,7 @@ export default function Limited() {
                 poolPacks: winstonPacks,
                 pool: lastImportedCube.pool!,
                 seed: seedOpt,
+                customPool: true,
               });
               navigate(`/winston/${state.sessionId}`);
             } catch {
@@ -902,8 +904,8 @@ function CubeStartActions({
             cards · {cube.numPacks} packs/player{" "}
             {cube.singleton && <span className="text-muted-foreground">· singleton</span>}
             {cube.rejectedCardCount > 0 && (
-              <span className="ml-2 text-destructive">
-                {cube.playableCardCount} playable · {cube.rejectedCardCount} unsupported
+              <span className="ml-2 text-muted-foreground">
+                {cube.playableCardCount} locally recognized · {cube.rejectedCardCount} name-only
               </span>
             )}
             {seed !== undefined && (

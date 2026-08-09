@@ -418,7 +418,24 @@ jobs:
 
       - run: yarn
 
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
       - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
       - name: Build cardset archive
@@ -473,7 +490,24 @@ jobs:
 
       - run: yarn
 
+      # Mirrors what scripts/ensure-wasm.mjs hashes (its own stamp can't be
+      # used here: it hashes card-data mtimes, which a fresh checkout always
+      # changes). The forge gitlink stands in for the card-data dirs.
+      - name: Compute wasm output key
+        id: wasm-key
+        run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Wasm output cache
+        id: wasm-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/wasm
+            public/wasm
+          key: ${{ steps.wasm-key.outputs.key }}
+
       - name: Build WASM + bundle cards
+        if: steps.wasm-cache.outputs.cache-hit != 'true'
         run: yarn build:wasm
 
       - name: Build cardset archive
@@ -548,10 +582,35 @@ jobs:
 
       - run: yarn
 
+      - name: Harness cache keys
+        id: harness-keys
+        shell: bash
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Forge harness jar
+        uses: actions/cache@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+          key: harness-jar-${{ steps.harness-keys.outputs.jar }}
+
+      # The key is the only guard against a stale library here: `ensure:harness`
+      # re-checks the jar at runtime, but nothing revalidates this artifact.
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
       - name: Build Forge harness jar (Maven, GraalVM JDK 21)
-        run: yarn build:harness
+        run: yarn ensure:harness
 
       - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.ps1
         shell: pwsh
 
@@ -600,10 +659,35 @@ jobs:
 
       - run: yarn
 
+      - name: Harness cache keys
+        id: harness-keys
+        shell: bash
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Forge harness jar
+        uses: actions/cache@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+          key: harness-jar-${{ steps.harness-keys.outputs.jar }}
+
+      # The key is the only guard against a stale library here: `ensure:harness`
+      # re-checks the jar at runtime, but nothing revalidates this artifact.
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
       - name: Build Forge harness jar (Maven, GraalVM JDK 21)
-        run: yarn build:harness
+        run: yarn ensure:harness
 
       - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.sh
 
       # `cargo build` of the tauri crate runs `generate_context!`, which embeds

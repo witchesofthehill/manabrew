@@ -147,6 +147,14 @@ jobs:
         if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.sh
 
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
+
       - name: Tauri build (macOS)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
@@ -301,6 +309,14 @@ jobs:
         if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.ps1
         shell: pwsh
+
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
 
       - name: Tauri build (Windows)
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f

@@ -121,6 +121,43 @@ pub fn run_smoke_game(_max_prompts: usize) -> Result<(), String> {
     )
 }
 
+// Unlike run_smoke_game, which spawns the JAR in a subprocess, this drives the
+// GraalVM native library in-process: isolate creation, forge_initialize (which
+// loads the card database) and a real game start. CI runs it after restoring
+// forge-harness/native/build from cache, where nothing else would notice a
+// stale or broken libforgeharness.
+#[cfg(feature = "graal-forge")]
+pub fn run_graal_smoke() -> Result<(), String> {
+    let config = JavaRuntimeConfig::from_env();
+    let engine = GraalEngineHandle::create(&config.assets_dir)?;
+
+    let deck_a = smoke_deck("Mountain", "Lightning Bolt");
+    let deck_b = smoke_deck("Forest", "Grizzly Bears");
+    let request = StartGameRequest::new(
+        "self-hosted-graal-smoke".to_string(),
+        String::new(),
+        20,
+        42,
+        vec![
+            PlayerConfig::new("Smoke A".to_string(), &deck_a, Vec::new()),
+            PlayerConfig::new("Smoke B".to_string(), &deck_b, Vec::new()),
+        ],
+    );
+
+    let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
+    info!(session_id, "graal-forge smoke session started");
+    engine.end_game(&session_id)?;
+    Ok(())
+}
+
+#[cfg(not(feature = "graal-forge"))]
+pub fn run_graal_smoke() -> Result<(), String> {
+    Err(
+        "graal-forge smoke requires building self-hosted-node with --features graal-forge"
+            .to_string(),
+    )
+}
+
 #[cfg(feature = "java-forge")]
 pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
     let scenario = JavaScenario::from_name(name)?;
@@ -1506,7 +1543,7 @@ fn commander_names_for_java(deck: &Deck, fallback: Option<&str>) -> Vec<String> 
         .unwrap_or_default()
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 fn smoke_deck(land_name: &str, spell_name: &str) -> Vec<DeckCardIdentity> {
     (0..24)
         .map(|_| DeckCardIdentity {

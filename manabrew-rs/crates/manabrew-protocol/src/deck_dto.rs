@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use std::fmt::Write;
 use ts_rs::TS;
 
-use crate::game::PlaymatSettings;
+use crate::{game::PlaymatSettings, TokenScript};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +17,9 @@ pub struct DeckCardIdentity {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub oracle_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub token_script: Option<TokenScript>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub foil: Option<bool>,

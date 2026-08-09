@@ -51,6 +51,29 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
+// The terms body is plain prose in termsContent.ts; the gate is the one place
+// that renders it, so bare host names are turned into links here rather than
+// restructuring the content into segments.
+const TERMS_LINK = /((?:github\.com|docs\.manabrew\.app|scryfall\.com)(?:[^\s,)]*[^\s,).])?)/g;
+
+function linkifyTerms(body: string) {
+  return body.split(TERMS_LINK).map((part, index) =>
+    index % 2 === 1 ? (
+      <a
+        key={part + index}
+        href={`https://${part}`}
+        target="_blank"
+        rel="noreferrer"
+        className="underline underline-offset-2"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  );
+}
+
 // Prevents reanimating on re-mount
 let hasReleasedOnce = false;
 
@@ -202,7 +225,9 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
                       {TERMS_AND_CONDITIONS.title}
                     </p>
-                    <p className="text-sm text-muted-foreground">{TERMS_AND_CONDITIONS.intro}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {linkifyTerms(TERMS_AND_CONDITIONS.intro)}
+                    </p>
                   </div>
 
                   <ScrollArea className="h-[38dvh] max-h-[360px]">
@@ -212,7 +237,9 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                           <h3 className="text-sm font-semibold text-foreground">
                             {section.heading}
                           </h3>
-                          <p className="text-sm text-muted-foreground">{section.body}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {linkifyTerms(section.body)}
+                          </p>
                         </section>
                       ))}
                     </div>

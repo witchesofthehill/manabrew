@@ -95,6 +95,31 @@ pub async fn update_handle_handler(
     }
 }
 
+pub async fn delete_account_handler(
+    State(state): State<Arc<AppState>>,
+    SessionAccount(account): SessionAccount,
+) -> Response {
+    match state.storage.lock().unwrap().delete_account(&account.id) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+pub async fn export_account_handler(
+    State(state): State<Arc<AppState>>,
+    SessionAccount(account): SessionAccount,
+) -> Response {
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .export_account(&account.id, &now_str())
+    {
+        Ok(export) => Json(export).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
 pub async fn logout_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
     let Some(token) = bearer_token(&headers) else {
         return StatusCode::UNAUTHORIZED.into_response();

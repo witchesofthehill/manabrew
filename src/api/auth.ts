@@ -7,6 +7,7 @@ import type {
   MeResponse,
   OAuthStartResponse,
 } from "@/api/authTypes";
+import type { AccountExport } from "@/api/hubTypes";
 
 export type OAuthProvider = "github" | "discord";
 export type OAuthMode = "signin" | "link";
@@ -87,6 +88,14 @@ export function updateHandle(token: string, handle: string): Promise<AuthAccount
 
 export async function signOutSession(token: string): Promise<void> {
   await authRequest("/api/auth/logout", { method: "POST" }, token);
+}
+
+export async function deleteAccount(token: string): Promise<void> {
+  await authRequest("/api/auth/me", { method: "DELETE" }, token);
+}
+
+export function exportAccount(token: string): Promise<AccountExport> {
+  return authJson<AccountExport>("/api/auth/export", undefined, token);
 }
 
 export async function unlinkIdentity(token: string, provider: string): Promise<void> {

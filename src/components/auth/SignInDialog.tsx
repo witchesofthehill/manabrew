@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { isFeatureEnabled } from "@/featureFlags";
 import {
@@ -27,6 +28,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { getPlatformType } from "@/platform";
 import { clearAuthReturnIntent, storeAuthReturnIntent } from "@/lib/authReturn";
+import { DOCS_URL } from "@/lib/constants";
 import type { AuthProviders, AuthSessionResponse } from "@/api/authTypes";
 
 type Step = "start" | "email-code" | "desktop-code" | "handle";
@@ -43,6 +45,7 @@ export function SignInDialog() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [handle, setHandle] = useState("");
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providersError, setProvidersError] = useState(false);
@@ -62,6 +65,7 @@ export function SignInDialog() {
     setCode(prefill?.code ?? "");
     setEmail(prefill?.email ?? "");
     setHandle("");
+    setTermsAgreed(false);
     setProvidersError(false);
     if (prefill?.claimHandle) {
       setStep("handle");
@@ -314,28 +318,62 @@ export function SignInDialog() {
         )}
 
         {step === "handle" && (
-          <div className="space-y-2">
-            <Label htmlFor="claim-handle">Handle</Label>
-            <Input
-              id="claim-handle"
-              value={handle}
-              autoFocus
-              maxLength={24}
-              placeholder="your-handle"
-              onChange={(e) => setHandle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && handle.trim().length >= 3) handleClaimHandle();
-              }}
-            />
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="claim-handle">Handle</Label>
+              <Input
+                id="claim-handle"
+                value={handle}
+                autoFocus
+                maxLength={24}
+                placeholder="your-handle"
+                onChange={(e) => setHandle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && termsAgreed && handle.trim().length >= 3)
+                    handleClaimHandle();
+                }}
+              />
+            </div>
+
+            <label className="flex cursor-pointer select-none items-start gap-2.5 text-sm">
+              <Checkbox
+                checked={termsAgreed}
+                onCheckedChange={(value) => setTermsAgreed(value === true)}
+                className="mt-0.5"
+              />
+              <span>
+                I agree to the{" "}
+                <a
+                  href={`${DOCS_URL}/terms`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  terms
+                </a>{" "}
+                and the{" "}
+                <a
+                  href={`${DOCS_URL}/privacy`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  privacy policy
+                </a>
+              </span>
+            </label>
+
             <div className="flex gap-2">
               <Button
                 className="flex-1"
-                disabled={busy || handle.trim().length < 3}
+                disabled={busy || !termsAgreed || handle.trim().length < 3}
                 onClick={handleClaimHandle}
               >
                 {busy ? "Saving…" : "Claim handle"}
               </Button>
-              <Button variant="ghost" disabled={busy} onClick={handleSkipHandle}>
+              <Button variant="ghost" disabled={busy || !termsAgreed} onClick={handleSkipHandle}>
                 Later
               </Button>
             </div>

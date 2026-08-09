@@ -137,8 +137,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/auth/email/verify", post(auth::email_verify_handler))
         .route(
             "/api/auth/me",
-            get(auth::me_handler).patch(auth::update_handle_handler),
+            get(auth::me_handler)
+                .patch(auth::update_handle_handler)
+                .delete(auth::delete_account_handler),
         )
+        .route("/api/auth/export", get(auth::export_account_handler))
         .route("/api/auth/logout", post(auth::logout_handler))
         .route("/api/auth/token", post(auth::token_handler))
         .route("/api/auth/jwks", get(auth::jwks_handler))

@@ -25,6 +25,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
+import { DOCS_URL } from "@/lib/constants";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -593,6 +594,30 @@ export default function Settings() {
       </section>
 
       {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
+
+      {activeTab === "account" && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Legal</h2>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <a
+              className="underline underline-offset-2"
+              href={`${DOCS_URL}/terms`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Terms
+            </a>
+            <a
+              className="underline underline-offset-2"
+              href={`${DOCS_URL}/privacy`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Privacy &amp; data
+            </a>
+          </div>
+        </section>
+      )}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 

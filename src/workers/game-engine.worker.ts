@@ -493,12 +493,19 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
     case "limited_start_multiplayer_draft":
       return limited_start_multiplayer_draft(args?.setup as object, args?.humans as object);
     case "limited_pick_card":
-      return limited_pick_card(args?.sessionId as string, args?.cardName as string);
+      return limited_pick_card(
+        args?.sessionId as string,
+        args?.cardName as string,
+        args?.setCode as string,
+        args?.cardNumber as string,
+      );
     case "limited_submit_pick":
       return limited_submit_pick(
         args?.sessionId as string,
         args?.seatIdx as number,
         args?.cardName as string,
+        args?.setCode as string,
+        args?.cardNumber as string,
       );
     case "limited_get_seat_state":
       return limited_get_seat_state(args?.sessionId as string, args?.seatIdx as number);

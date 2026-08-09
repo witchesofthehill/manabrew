@@ -660,6 +660,13 @@ pub fn limited_start_booster_draft(setup_json: JsValue) -> Result<JsValue, JsErr
         }
         let pod_size = setup.pod_size.clamp(2, 8) as usize;
         let rounds = setup.rounds.clamp(1, 6);
+        let required_cards = pod_size * rounds as usize * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "cube has {} cards but {required_cards} are required for {pod_size} players and {rounds} rounds",
+                card_pool.len()
+            )));
+        }
         let ranker = Arc::new(CardRanker::new(state.rank_cache.clone()));
         let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
             Arc::new(|c: &PaperCard| c.colors);
@@ -669,6 +676,7 @@ pub fn limited_start_booster_draft(setup_json: JsValue) -> Result<JsValue, JsErr
             template_for_pool(&card_pool, setup.variant.as_deref())
         };
         let mut draft = BoosterDraft::new(pod_size, rounds, template, card_pool, ranker, color_of);
+        draft.set_limited_pool(setup.custom_pool);
         if let Some(n) = setup.picks_per_pass {
             draft.set_picks_per_pass(n);
         }
@@ -683,7 +691,12 @@ pub fn limited_start_booster_draft(setup_json: JsValue) -> Result<JsValue, JsErr
 }
 
 #[wasm_bindgen]
-pub fn limited_pick_card(session_id: String, card_name: String) -> Result<JsValue, JsError> {
+pub fn limited_pick_card(
+    session_id: String,
+    card_name: String,
+    set_code: String,
+    card_number: String,
+) -> Result<JsValue, JsError> {
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
         let draft = state
@@ -692,7 +705,12 @@ pub fn limited_pick_card(session_id: String, card_name: String) -> Result<JsValu
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
         let pack_card = draft
             .current_pack_for_human()
-            .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .and_then(|p: &DraftPack| {
+                p.cards()
+                    .iter()
+                    .find(|c| card_identity_matches(c, &card_name, &set_code, &card_number))
+                    .cloned()
+            })
             .ok_or_else(|| JsError::new(&format!("card {card_name:?} not in current pack")))?;
         draft
             .submit_human_pick(pack_card)
@@ -753,6 +771,13 @@ pub fn limited_start_multiplayer_draft(
         }
         let pod_size = setup.pod_size.clamp(2, 8) as usize;
         let rounds = setup.rounds.clamp(1, 6);
+        let required_cards = pod_size * rounds as usize * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "cube has {} cards but {required_cards} are required for {pod_size} players and {rounds} rounds",
+                card_pool.len()
+            )));
+        }
         if humans.is_empty() || humans.len() > pod_size {
             return Err(JsError::new(&format!(
                 "multiplayer draft needs 1..={pod_size} humans, got {}",
@@ -774,6 +799,7 @@ pub fn limited_start_multiplayer_draft(
         let mut draft = BoosterDraft::with_human_seats(
             pod_size, rounds, template, card_pool, ranker, color_of, &humans,
         );
+        draft.set_limited_pool(setup.custom_pool);
         if let Some(n) = setup.picks_per_pass {
             draft.set_picks_per_pass(n);
         }
@@ -792,6 +818,8 @@ pub fn limited_submit_pick(
     session_id: String,
     seat_idx: u32,
     card_name: String,
+    set_code: String,
+    card_number: String,
 ) -> Result<JsValue, JsError> {
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
@@ -808,7 +836,12 @@ pub fn limited_submit_pick(
         }
         let pack_card = draft
             .current_pack_for_seat(seat)
-            .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .and_then(|p: &DraftPack| {
+                p.cards()
+                    .iter()
+                    .find(|c| card_identity_matches(c, &card_name, &set_code, &card_number))
+                    .cloned()
+            })
             .ok_or_else(|| {
                 JsError::new(&format!("card {card_name:?} not in seat {seat}'s pack"))
             })?;
@@ -885,12 +918,30 @@ pub fn limited_start_winston(setup_json: JsValue) -> Result<JsValue, JsError> {
         } else {
             template_for_pool(&card_pool, setup.variant.as_deref())
         };
-        let draft = WinstonDraft::new(template, card_pool, pool_packs);
+        let required_cards = pool_packs * 2 * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "cube has {} cards but {required_cards} are required for {pool_packs} packs per player",
+                card_pool.len()
+            )));
+        }
+        let draft = WinstonDraft::new_with_pool_limit(
+            template,
+            card_pool,
+            pool_packs,
+            setup.custom_pool,
+        );
         let session_id = state.fresh_id("winston");
         let dto = WinstonStateDto::from_engine(session_id.clone(), &draft);
         state.winston.insert(session_id, draft);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
+}
+
+fn card_identity_matches(card: &PaperCard, name: &str, set_code: &str, card_number: &str) -> bool {
+    card.name == name
+        && (set_code.is_empty() || card.set_code.eq_ignore_ascii_case(set_code))
+        && (card_number.is_empty() || card.collector_number == card_number)
 }
 
 fn template_for_pool(pool: &[PaperCard], variant: Option<&str>) -> SealedTemplate {

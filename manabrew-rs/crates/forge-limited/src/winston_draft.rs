@@ -48,9 +48,19 @@ impl WinstonDraft {
     /// shuffled into the central deck. Seat 0 is the human; seat 1 is
     /// the AI.
     pub fn new(template: SealedTemplate, pool: Vec<PaperCard>, pool_packs: usize) -> Self {
+        Self::new_with_pool_limit(template, pool, pool_packs, false)
+    }
+
+    pub fn new_with_pool_limit(
+        template: SealedTemplate,
+        pool: Vec<PaperCard>,
+        pool_packs: usize,
+        pool_limited: bool,
+    ) -> Self {
         assert!(pool_packs >= 1);
         let mut rng = StdRng::from_entropy();
         let mut product = UnOpenedProduct::new(template, pool);
+        product.set_limited_pool(pool_limited);
         let mut deck: Vec<PaperCard> = Vec::new();
         for _ in 0..pool_packs * NUM_PLAYERS {
             for card in product.open(&mut rng) {

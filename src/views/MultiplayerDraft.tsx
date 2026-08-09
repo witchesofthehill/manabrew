@@ -74,9 +74,9 @@ export default function MultiplayerDraft() {
   const handlePick = async (card: DraftCard) => {
     if (!state?.awaitingHuman || pickPending) return;
     if (amHost) {
-      await submitHostPick(card.name);
+      await submitHostPick(card);
     } else {
-      await submitPeerPick(card.name);
+      await submitPeerPick(card);
     }
   };
 

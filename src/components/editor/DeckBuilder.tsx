@@ -856,7 +856,7 @@ export function DeckBuilder({
     }
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} missing from local card data; compatibility depends on the selected engine`,
+        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines`,
       );
     } else if (!deckValidation.legal) {
       toast.warning(
@@ -872,7 +872,7 @@ export function DeckBuilder({
     setUnsavedState(snapshot, snapshot);
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} missing from local card data`,
+        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine`,
       );
     } else {
       toast.success(`Draft "${currentDeck.name}" saved`);
@@ -1095,7 +1095,7 @@ export function DeckBuilder({
                 )}
                 title={
                   hasUnsupportedCards
-                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} missing from local card data — engine compatibility is checked when playing`
+                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine — export remains available`
                     : !isDeckLegal
                       ? `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
                       : hasUnsavedChanges
@@ -1219,7 +1219,7 @@ export function DeckBuilder({
 
           <fieldset disabled={isReadOnly} className="contents">
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
-              <DeckValidationPanel />
+              <DeckValidationPanel unsupportedNames={unsupportedNames} />
               <div
                 ref={setMainDropRef}
                 className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}

@@ -469,7 +469,7 @@ function DraggableStackCard({
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
-          title="Missing from local card data; compatibility depends on the selected engine"
+          title="Unsupported by the Manabrew engine; export remains available for other engines"
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -701,7 +701,7 @@ function CardVisual({
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
-          title="Missing from local card data; compatibility depends on the selected engine"
+          title="Unsupported by the Manabrew engine; export remains available for other engines"
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -888,14 +888,14 @@ function CardRow({
       {unsupported && (
         <AlertTriangle
           className="h-3 w-3 text-warning shrink-0"
-          aria-label="Card missing from local card data"
+          aria-label="Card unsupported by the Manabrew engine"
         />
       )}
       <span
         className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
         title={
           unsupported
-            ? `${name} - missing from local card data; compatibility depends on the selected engine`
+            ? `${name} - unsupported by the Manabrew engine; export remains available for other engines`
             : name
         }
       >

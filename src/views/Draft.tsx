@@ -59,7 +59,7 @@ export default function Draft() {
     pickingRef.current = true;
     setPicking(true);
     try {
-      await pick(draftId, card.name);
+      await pick(draftId, card);
     } catch {
       /* surfaced via lastError */
     } finally {

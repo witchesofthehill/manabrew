@@ -2,7 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { getFormat, validateDeckSections } from "@/lib/formats";
 
-export function DeckValidationPanel() {
+export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: Set<string> }) {
   const { currentDeck } = useDeckStore();
 
   const format = getFormat(currentDeck.format ?? "standard");
@@ -16,9 +16,16 @@ export function DeckValidationPanel() {
     format,
   );
 
-  if (validation.legal) return null;
+  const unsupportedList = unsupportedNames ? [...unsupportedNames].sort() : [];
+  if (validation.legal && unsupportedList.length === 0) return null;
 
-  const errors = validation.errors;
+  const compatibilityErrors =
+    unsupportedList.length > 0
+      ? [
+          `${unsupportedList.length} card${unsupportedList.length === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines: ${unsupportedList.join(", ")}`,
+        ]
+      : [];
+  const errors = [...compatibilityErrors, ...validation.errors];
   const count = errors.length;
 
   return (

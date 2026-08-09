@@ -53,7 +53,11 @@ impl IUnOpenedProduct for UnOpenedProduct {
                     copy
                 })
                 .collect();
-            self.pool.retain(|c| !to_remove.contains(c));
+            for card in to_remove {
+                if let Some(index) = self.pool.iter().position(|candidate| candidate == &card) {
+                    self.pool.remove(index);
+                }
+            }
         }
 
         pack

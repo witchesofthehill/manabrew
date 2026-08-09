@@ -1,9 +1,9 @@
 import { useState } from "react";
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { PreviewRail } from "@/components/editor/PreviewRail";
 import { DraftCardTile } from "@/components/limited/DraftCardTile";
 import { DraftPoolPanel } from "@/components/limited/DraftPoolPanel";
+import { DraftPreviewPanel } from "@/components/limited/DraftPreviewPanel";
 import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
 import {
   LimitedWorkspaceTabs,
@@ -37,7 +37,11 @@ export function DraftWorkspace({
   const [mobileTab, setMobileTab] = useState<LimitedWorkspaceTab>("pack");
   const [selectedCardKey, setSelectedCardKey] = useState<string | null>(null);
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
-  const [previewCollapsed, setPreviewCollapsed] = useState(true);
+  const [previewCollapsed, setPreviewCollapsed] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("draft.previewPanelCollapsed") === "true",
+  );
   const packKey = `${draft.round}:${draft.pickNumber}:${draft.currentPack.length}`;
   const selectedStillVisible = draft.currentPack.some(
     (card, index) => cardKey(card, index) === selectedCardKey,
@@ -48,6 +52,14 @@ export function DraftWorkspace({
     if (!draft.awaitingHuman || pickPending) return;
     setSelectedCardKey(cardKey(card, index));
     void Promise.resolve(onPick(card)).catch(() => setSelectedCardKey(null));
+  };
+
+  const togglePreview = () => {
+    setPreviewCollapsed((value) => {
+      const next = !value;
+      window.localStorage.setItem("draft.previewPanelCollapsed", String(next));
+      return next;
+    });
   };
 
   const packPanel = (
@@ -122,15 +134,14 @@ export function DraftWorkspace({
 
       <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden lg:flex">
         <div className="flex min-w-0 flex-[2]">{packPanel}</div>
-        <aside className="flex w-[320px] min-h-0 shrink-0 xl:w-[360px]">{poolPanel}</aside>
-        <div className="hidden min-h-0 overflow-hidden 2xl:flex">
-          <PreviewRail
+        <aside className="flex min-h-0 w-[320px] shrink-0 flex-col gap-3 xl:w-[360px]">
+          {poolPanel}
+          <DraftPreviewPanel
             setSlot={setPreviewSlot}
             collapsed={previewCollapsed}
-            onCollapse={() => setPreviewCollapsed((value) => !value)}
-            defaultWidth={300}
+            onCollapse={togglePreview}
           />
-        </div>
+        </aside>
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden lg:hidden">

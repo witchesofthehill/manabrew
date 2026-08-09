@@ -619,6 +619,14 @@ jobs:
         run: ./forge-harness/build-native.ps1
         shell: pwsh
 
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
+
       - name: Stub frontend dist for tauri context macro
         shell: bash
         run: |
@@ -699,6 +707,14 @@ jobs:
       - name: Build native Forge library (GraalVM native-image)
         if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.sh
+
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the Forge native library
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run -p self-hosted-node --features graal-forge
 
       # `cargo build` of the tauri crate runs `generate_context!`, which embeds
       # `frontendDist` (../dist). Stub it so the link test doesn't drag in the

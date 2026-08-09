@@ -1,6 +1,7 @@
 //! Regenerates every TypeScript type the frontend consumes from Rust:
-//! the wire protocol (via manabrew-protocol's own publishable gen-protocol
-//! bin, run as a subprocess) and the hub REST DTOs (in-process via ts-rs).
+//! the wire protocol (via manabrew-relay-protocol's own publishable
+//! gen-protocol bin, run as a subprocess) and the hub REST DTOs (in-process
+//! via ts-rs).
 
 use std::fs;
 use std::path::Path;
@@ -31,7 +32,7 @@ pub fn generate(root: &Path) -> Result<()> {
             "run",
             "-q",
             "-p",
-            "manabrew-protocol",
+            "manabrew-relay-protocol",
             "--bin",
             "gen-protocol",
             "--",

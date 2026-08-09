@@ -90,6 +90,7 @@ function computeChecksum() {
 
   const protocolFiles = walkFiles(
     join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
+    join(root, "manabrew-rs", "crates", "manabrew-relay-protocol", "src"),
     (filePath) => filePath.endsWith(".rs"),
   ).sort();
 
@@ -203,7 +204,7 @@ function generateProtocolSources() {
   const steps = [
     [
       "cargo",
-      ["run", "-q", "-p", "manabrew-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
+      ["run", "-q", "-p", "manabrew-relay-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
     ],
     [process.execPath, ["scripts/gen-harness-prompts.mjs", "forge-harness/src/main/java"]],
   ];

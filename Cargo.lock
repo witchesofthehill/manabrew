@@ -3836,6 +3836,7 @@ dependencies = [
  "forge-foundation",
  "manabrew-engine",
  "manabrew-protocol",
+ "manabrew-relay-protocol",
  "rand 0.8.6",
  "serde",
  "serde_json",
@@ -3910,6 +3911,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "manabrew-relay-protocol"
+version = "4.1.2"
+dependencies = [
+ "manabrew-protocol",
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
 name = "manabrew-server"
 version = "0.9.2"
 dependencies = [
@@ -3920,6 +3931,7 @@ dependencies = [
  "dashmap 6.1.0",
  "futures-util",
  "manabrew-protocol",
+ "manabrew-relay-protocol",
  "metrics",
  "metrics-exporter-prometheus",
  "reqwest 0.12.28",

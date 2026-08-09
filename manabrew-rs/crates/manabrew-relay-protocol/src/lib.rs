@@ -1,4 +1,8 @@
-pub use crate::deck_dto::Deck;
+//! Relay wire protocol: the session handshake, lobby management and game
+//! transport envelopes exchanged between clients and `manabrew-server`.
+//! Engine and UI DTOs live in `manabrew-protocol`.
+pub use manabrew_protocol::deck_dto::Deck;
+pub use manabrew_protocol::game::{EngineKind, GameFormat};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -367,30 +371,4 @@ pub struct PlayerInfo {
 pub enum RoomStatus {
     Lobby,
     InGame,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[ts(export, export_to = "lobby/index.ts")]
-pub enum GameFormat {
-    Any,
-    Standard,
-    Pioneer,
-    Modern,
-    Legacy,
-    Vintage,
-    Pauper,
-    Commander,
-    Brawl,
-    Oathbreaker,
-    Draft,
-    Sealed,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
-#[ts(export, export_to = "lobby/index.ts")]
-pub enum EngineKind {
-    #[default]
-    Manabrew,
-    Forge,
-    Ironsmith,
 }

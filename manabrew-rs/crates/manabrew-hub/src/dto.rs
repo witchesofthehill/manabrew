@@ -1,5 +1,5 @@
 use manabrew_protocol::deck_dto::{Deck, DeckFormat};
-use manabrew_protocol::protocol::EngineKind;
+use manabrew_protocol::game::EngineKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

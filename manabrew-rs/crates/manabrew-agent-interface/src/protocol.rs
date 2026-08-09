@@ -5,7 +5,7 @@ use serde_json::Value;
 
 // Wire types (ClientMessage, ServerMessage, RoomInfo, Deck, …) live in
 // manabrew-protocol; StateEnvelope stays here because it carries engine DTOs.
-pub use manabrew_protocol::protocol::*;
+pub use manabrew_relay_protocol::*;
 
 /// Typed envelope carried inside `ClientMessage::BroadcastState.state` /
 /// `ServerMessage::StateUpdate.state`. One discriminator (`kind`) plus the

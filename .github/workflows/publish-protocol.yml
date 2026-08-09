@@ -83,7 +83,7 @@ jobs:
           fi
 
       - name: Generate TypeScript bindings
-        run: cargo run -q -p manabrew-protocol --bin gen-protocol -- packages/protocol/src
+        run: cargo run -q -p manabrew-relay-protocol --bin gen-protocol -- packages/protocol/src
 
       - name: Build npm package
         working-directory: packages/protocol

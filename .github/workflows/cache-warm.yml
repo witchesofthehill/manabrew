@@ -331,12 +331,17 @@ jobs:
           echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
           echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
 
+      # The generated protocol sources ship with the jar: they sit under
+      # forge-harness/src, so computeChecksum() hashes them. Without them the
+      # stored checksum can never match a key computed before codegen, and
+      # ensure:harness rebuilds on every run.
       - name: Cache Forge harness jar
         uses: actions/cache@v4
         with:
           path: |
             forge-harness/target/forge-harness-jar-with-dependencies.jar
             forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
           key: harness-jar-${{ steps.harness-keys.outputs.jar }}
 
       # The key is the only guard against a stale library here: `ensure:harness`
@@ -435,12 +440,17 @@ jobs:
           echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
           echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
 
+      # The generated protocol sources ship with the jar: they sit under
+      # forge-harness/src, so computeChecksum() hashes them. Without them the
+      # stored checksum can never match a key computed before codegen, and
+      # ensure:harness rebuilds on every run.
       - name: Cache Forge harness jar
         uses: actions/cache@v4
         with:
           path: |
             forge-harness/target/forge-harness-jar-with-dependencies.jar
             forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
           key: harness-jar-${{ steps.harness-keys.outputs.jar }}
 
       # The key is the only guard against a stale library here: `ensure:harness`

@@ -40,6 +40,8 @@ type CardEntry = {
 
 interface TokenArchive {
   schemaVersion: number;
+  cardTokenScripts?: Record<string, string[]>;
+  tokenScriptPrintIds?: Record<string, string[]>;
   tokens: DeckCard[];
 }
 
@@ -47,9 +49,12 @@ interface TokenArchiveIndex {
   tokens: DeckCard[];
   byId: Map<string, DeckCard>;
   byOracleId: Map<string, DeckCard[]>;
+  byTokenScript: Map<string, DeckCard[]>;
+  tokenScriptsById: Map<string, string[]>;
   byExactSetAndNumber: Map<string, DeckCard>;
   bySetAndNumber: Map<string, DeckCard>;
   byName: Map<string, DeckCard>;
+  cardTokenScripts: Record<string, string[]>;
 }
 
 export interface ScryfallEntry {
@@ -148,6 +153,8 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
       }));
       const byId = new Map<string, DeckCard>();
       const byOracleId = new Map<string, DeckCard[]>();
+      const byTokenScript = new Map<string, DeckCard[]>();
+      const tokenScriptsById = new Map<string, string[]>();
       const byExactSetAndNumber = new Map<string, DeckCard>();
       const bySetAndNumber = new Map<string, DeckCard>();
       const byName = new Map<string, DeckCard>();
@@ -173,13 +180,27 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
         const withSuffix = `${lower} token`;
         if (!byName.has(withSuffix)) byName.set(withSuffix, token);
       }
+      for (const [tokenScript, ids] of Object.entries(archive.tokenScriptPrintIds ?? {})) {
+        const prints = ids.flatMap((id) => {
+          const token = byId.get(id);
+          const scripts = tokenScriptsById.get(id) ?? [];
+          scripts.push(tokenScript);
+          tokenScriptsById.set(id, scripts);
+          tokenScriptsById.set(`token:${id}`, scripts);
+          return token ? [{ ...token, identity: { ...token.identity, tokenScript } }] : [];
+        });
+        if (prints.length > 0) byTokenScript.set(tokenScript, prints);
+      }
       const index = {
         tokens,
         byId,
         byOracleId,
+        byTokenScript,
+        tokenScriptsById,
         byExactSetAndNumber,
         bySetAndNumber,
         byName,
+        cardTokenScripts: archive.cardTokenScripts ?? {},
       };
       loadedTokenArchive = index;
       return index;
@@ -205,6 +226,7 @@ export function peekArchivedToken(
   lookup: {
     id?: string;
     oracleId?: string;
+    tokenScript?: string;
     name?: string;
     setCode?: string;
     cardNumber?: string;
@@ -217,6 +239,10 @@ export function peekArchivedToken(
   }
   if (lookup.oracleId) {
     const hit = loadedTokenArchive.byOracleId.get(lookup.oracleId)?.[0];
+    if (hit) return hit;
+  }
+  if (lookup.tokenScript) {
+    const hit = loadedTokenArchive.byTokenScript.get(lookup.tokenScript)?.[0];
     if (hit) return hit;
   }
   if (lookup.setCode && lookup.cardNumber) {
@@ -232,6 +258,7 @@ export function peekArchivedToken(
 }
 
 export function tokenIdentityKey(token: DeckCard): string {
+  if (token.identity.tokenScript) return `script:${token.identity.tokenScript}`;
   const archived =
     peekArchivedToken({ id: token.identity.id }) ??
     peekArchivedToken({
@@ -239,7 +266,15 @@ export function tokenIdentityKey(token: DeckCard): string {
       cardNumber: token.identity.cardNumber,
     });
   const oracleId = token.identity.oracleId ?? archived?.identity.oracleId;
+  const tokenScript = archived
+    ? loadedTokenArchive?.tokenScriptsById.get(archived.identity.id)?.[0]
+    : undefined;
+  if (tokenScript) return `script:${tokenScript}`;
   return oracleId ? `oracle:${oracleId}` : `name:${token.identity.name.toLowerCase()}`;
+}
+
+export function getCardTokenScripts(cardName: string): string[] {
+  return loadedTokenArchive?.cardTokenScripts[frontFaceName(cardName).toLowerCase()] ?? [];
 }
 
 async function lookupArchivedToken(lookup: ScryfallCardLookup): Promise<DeckCard | null> {
@@ -320,6 +355,9 @@ function tokenToScryfallCard(token: DeckCard): ScryfallCard {
 
 export async function getArchivedTokenPrints(token: DeckCard): Promise<ScryfallCard[]> {
   const archive = await loadTokenArchive();
+  if (token.identity.tokenScript) {
+    return (archive.byTokenScript.get(token.identity.tokenScript) ?? []).map(tokenToScryfallCard);
+  }
   const archived =
     archive.byId.get(token.identity.id) ??
     archive.bySetAndNumber.get(

@@ -15,6 +15,7 @@ pub struct CardScriptParser {
     meld_with: Option<String>,
     partner_with: Option<String>,
     normalized_name: String,
+    tokens: Vec<String>,
 }
 
 impl CardScriptParser {
@@ -26,6 +27,7 @@ impl CardScriptParser {
             meld_with: None,
             partner_with: None,
             normalized_name: String::new(),
+            tokens: Vec::new(),
         }
     }
 
@@ -36,6 +38,7 @@ impl CardScriptParser {
         self.meld_with = None;
         self.partner_with = None;
         self.normalized_name.clear();
+        self.tokens.clear();
     }
 
     /// Parse all lines from a card script and produce a CardRules.
@@ -74,6 +77,16 @@ impl CardScriptParser {
         };
 
         let value_str = value.unwrap_or("");
+
+        if let Some(tok_idx) = value_str.find("TokenScript$").filter(|&idx| idx > 0) {
+            let token_param = value_str[tok_idx + 12..].trim();
+            let token_param = token_param
+                .find('|')
+                .map(|end_idx| token_param[..end_idx].trim())
+                .unwrap_or(token_param);
+            self.tokens
+                .extend(token_param.split(',').map(str::to_string));
+        }
 
         match key.as_bytes().first() {
             Some(b'A') => {
@@ -324,6 +337,7 @@ impl CardScriptParser {
             normalized_name: std::mem::take(&mut self.normalized_name),
             meld_with: self.meld_with.take(),
             partner_with: self.partner_with.take(),
+            tokens: std::mem::take(&mut self.tokens),
         })
     }
 }

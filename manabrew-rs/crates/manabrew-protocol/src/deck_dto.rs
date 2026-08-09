@@ -19,6 +19,9 @@ pub struct DeckCardIdentity {
     pub oracle_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub token_script: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub foil: Option<bool>,
 }
 
@@ -115,9 +118,6 @@ pub enum CardPartComponent {
 pub struct CardPart {
     pub name: String,
     pub component: CardPartComponent,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub scryfall_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, TS)]

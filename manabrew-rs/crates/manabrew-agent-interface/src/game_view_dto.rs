@@ -535,6 +535,11 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
             set_code: card.set_code.clone().unwrap_or_default(),
             card_number: card.card_number.clone().unwrap_or_default(),
             is_token: card.is_token,
+            token_script: if card.is_token {
+                card.get_s_var("TokenScript").map(str::to_owned)
+            } else {
+                None
+            },
         },
         color,
         mana_cost: mana_cost_str,
@@ -784,6 +789,9 @@ impl GameViewDtoExt for GameViewDto {
                         .and_then(|c| c.card_number.clone())
                         .unwrap_or_default(),
                     is_token: source_card.map(|c| c.is_token).unwrap_or(false),
+                    token_script: source_card
+                        .filter(|c| c.is_token)
+                        .and_then(|c| c.get_s_var("TokenScript").map(str::to_owned)),
                 };
                 StackObjectDto {
                     id: format!("stack-{}", entry.id),

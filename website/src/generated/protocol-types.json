@@ -119,8 +119,8 @@
       "refs": ["CardIdentity", "ClassLevelDto", "SagaChapterDto"]
     },
     "CardIdentity": {
-      "ts": "interface CardIdentity {\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  isToken: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct CardIdentity {\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    pub is_token: bool,\n}",
+      "ts": "interface CardIdentity {\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  isToken: boolean;\n  tokenScript?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct CardIdentity {\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    pub is_token: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<String>,\n}",
       "refs": []
     },
     "CardImageUris": {
@@ -129,8 +129,8 @@
       "refs": []
     },
     "CardPart": {
-      "ts": "interface CardPart {\n  name: string;\n  component: CardPartComponent;\n  scryfallId?: string;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardPart {\n    pub name: String,\n    pub component: CardPartComponent,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub scryfall_id: Option<String>,\n}",
+      "ts": "interface CardPart {\n  name: string;\n  component: CardPartComponent;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardPart {\n    pub name: String,\n    pub component: CardPartComponent,\n}",
       "refs": ["CardPartComponent"]
     },
     "CardPartComponent": {
@@ -229,8 +229,8 @@
       ]
     },
     "DeckCardIdentity": {
-      "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  oracleId?: string;\n  foil?: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
+      "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  oracleId?: string;\n  tokenScript?: string;\n  foil?: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
       "refs": []
     },
     "DeckFormat": {

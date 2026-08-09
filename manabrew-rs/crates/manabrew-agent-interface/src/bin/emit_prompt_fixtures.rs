@@ -20,6 +20,7 @@ fn wrap(inner: PromptInput) -> AgentPrompt {
                 set_code: "M11".to_string(),
                 card_number: "149".to_string(),
                 is_token: false,
+                token_script: None,
             },
             owner_id: "player-0".to_string(),
             controller_id: "player-0".to_string(),

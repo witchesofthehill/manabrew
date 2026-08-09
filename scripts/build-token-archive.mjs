@@ -6,12 +6,88 @@ import path from "path";
 const SCRYFALL_API = "https://api.scryfall.com";
 const DEFAULT_OUT = "public/token_archive.json";
 const TOKEN_SEARCH_QUERY = "include:extras type:token";
+const FORGE_CARDS_DIR = "forge/forge-gui/res/cardsfolder";
+const FORGE_EDITIONS_DIR = "forge/forge-gui/res/editions";
 
 const MTG_SUPERTYPES = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing", "Token"]);
 
 function argValue(name, fallback) {
   const idx = process.argv.indexOf(name);
   return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1] : fallback;
+}
+
+function filesUnder(root) {
+  return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const filePath = path.join(root, entry.name);
+    return entry.isDirectory() ? filesUnder(filePath) : [filePath];
+  });
+}
+
+function tokenScriptsInLine(line) {
+  const colon = line.indexOf(":");
+  if (colon <= 0) return [];
+  const value = line.slice(colon + 1).trim();
+  const tokenIndex = value.indexOf("TokenScript$");
+  if (tokenIndex <= 0) return [];
+  const tokenParam = value
+    .slice(tokenIndex + 12)
+    .trim()
+    .split("|", 1)[0]
+    .trim();
+  return tokenParam.split(",");
+}
+
+function forgeCardTokenScripts(root) {
+  const byCardName = new Map();
+  for (const filePath of filesUnder(root).filter((file) => file.endsWith(".txt"))) {
+    const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+    const name = lines.find((line) => line.startsWith("Name:"))?.slice(5);
+    if (!name) continue;
+    const scripts = lines.flatMap(tokenScriptsInLine);
+    if (scripts.length === 0) continue;
+    const key = name.toLowerCase();
+    const existing = byCardName.get(key) ?? new Set();
+    scripts.forEach((script) => existing.add(script));
+    byCardName.set(key, existing);
+  }
+  return Object.fromEntries(
+    [...byCardName.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, scripts]) => [name, [...scripts].sort()]),
+  );
+}
+
+function forgeEditionTokenScripts(root) {
+  const byPrinting = new Map();
+  for (const filePath of filesUnder(root).filter((file) => file.endsWith(".txt"))) {
+    let section = "";
+    let code = "";
+    let scryfallCode = "";
+    const tokenLines = [];
+    for (const rawLine of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (line.startsWith("[") && line.endsWith("]")) {
+        section = line.toLowerCase();
+        continue;
+      }
+      if (section === "[metadata]") {
+        if (line.startsWith("Code=")) code = line.slice(5).toLowerCase();
+        if (line.startsWith("ScryfallCode=")) scryfallCode = line.slice(13).toLowerCase();
+      } else if (section === "[tokens]" && line && !line.startsWith("#")) {
+        tokenLines.push(line);
+      }
+    }
+    const setCode = scryfallCode || code;
+    for (const line of tokenLines) {
+      const [collectorNumber, tokenScript] = line.split(/\s+/, 3);
+      if (!collectorNumber || !tokenScript || !setCode) continue;
+      const key = `${setCode}:${collectorNumber.toLowerCase()}`;
+      const scripts = byPrinting.get(key) ?? new Set();
+      scripts.add(tokenScript);
+      byPrinting.set(key, scripts);
+    }
+  }
+  return byPrinting;
 }
 
 function parseTypeLine(typeLine) {
@@ -106,6 +182,50 @@ async function fetchTokenCards() {
 }
 
 function buildArchive(cards) {
+  const cardTokenScripts = forgeCardTokenScripts(path.resolve(process.cwd(), FORGE_CARDS_DIR));
+  const scriptsByPrinting = forgeEditionTokenScripts(
+    path.resolve(process.cwd(), FORGE_EDITIONS_DIR),
+  );
+  const oracleIdsByScript = new Map();
+  const directIdsByScript = new Map();
+  for (const card of cards) {
+    const setCode = card.set.toLowerCase();
+    const collectorNumber = card.collector_number.toLowerCase();
+    const directKey = `${setCode}:${collectorNumber}`;
+    const forgeKey = setCode.startsWith("t") ? `${setCode.slice(1)}:${collectorNumber}` : directKey;
+    const scripts = scriptsByPrinting.get(directKey) ?? scriptsByPrinting.get(forgeKey);
+    for (const script of scripts ?? []) {
+      const directIds = directIdsByScript.get(script) ?? new Set();
+      directIds.add(card.id);
+      directIdsByScript.set(script, directIds);
+      if (card.oracle_id) {
+        const oracleIds = oracleIdsByScript.get(script) ?? new Set();
+        oracleIds.add(card.oracle_id);
+        oracleIdsByScript.set(script, oracleIds);
+      }
+    }
+  }
+  const scriptsByOracleId = new Map();
+  for (const [script, oracleIds] of oracleIdsByScript) {
+    for (const oracleId of oracleIds) {
+      const scripts = scriptsByOracleId.get(oracleId) ?? new Set();
+      scripts.add(script);
+      scriptsByOracleId.set(oracleId, scripts);
+    }
+  }
+  const printIdsByScript = new Map(directIdsByScript);
+  for (const card of cards) {
+    for (const script of scriptsByOracleId.get(card.oracle_id) ?? []) {
+      const printIds = printIdsByScript.get(script) ?? new Set();
+      printIds.add(card.id);
+      printIdsByScript.set(script, printIds);
+    }
+  }
+  const tokenScriptPrintIds = Object.fromEntries(
+    [...printIdsByScript.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([script, ids]) => [script, [...ids].sort()]),
+  );
   const tokens = cards.map(deckCardFromScryfallToken).sort((a, b) => {
     const nameCmp = a.identity.name.localeCompare(b.identity.name);
     if (nameCmp !== 0) return nameCmp;
@@ -117,17 +237,23 @@ function buildArchive(cards) {
   });
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     generatedAt: new Date().toISOString(),
     source: {
       type: "scryfall-search",
       query: TOKEN_SEARCH_QUERY,
       uri: `${SCRYFALL_API}/cards/search`,
+      forgeCards: FORGE_CARDS_DIR,
+      forgeEditions: FORGE_EDITIONS_DIR,
     },
     counts: {
       scryfallTokenCandidates: cards.length,
       tokens: tokens.length,
+      sourceCardsWithTokenScripts: Object.keys(cardTokenScripts).length,
+      tokenScriptsWithPrints: Object.keys(tokenScriptPrintIds).length,
     },
+    cardTokenScripts,
+    tokenScriptPrintIds,
     tokens,
   };
 }

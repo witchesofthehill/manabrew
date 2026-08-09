@@ -1,13 +1,17 @@
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { peekArchivedToken, tokenIdentityKey } from "@/stores/useScryfallStore";
+import {
+  getCardTokenScripts,
+  peekArchivedToken,
+  tokenIdentityKey,
+} from "@/stores/useScryfallStore";
 
 function normalizeTokenName(name: string): string {
   return name.toLowerCase().replace(/\s+token$/i, "");
 }
 
 export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
-  const { name, setCode, cardNumber, isToken } = gameCard.identity;
+  const { name, setCode, cardNumber, isToken, tokenScript } = gameCard.identity;
   const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(
     (c) =>
@@ -18,12 +22,14 @@ export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard 
   if (exact) return exact;
   if (isToken) {
     const exactToken = peekArchivedToken({ setCode, cardNumber });
-    if (exactToken?.identity.oracleId && deck?.tokens) {
-      const key = tokenIdentityKey(exactToken);
+    const semanticToken = tokenScript ? peekArchivedToken({ tokenScript }) : exactToken;
+    if (semanticToken && (tokenScript || exactToken?.identity.oracleId) && deck?.tokens) {
+      const key = tokenIdentityKey(semanticToken);
       const customized = deck.tokens.find((token) => tokenIdentityKey(token) === key);
       if (customized) return customized;
     }
     if (exactToken) return exactToken;
+    if (semanticToken) return semanticToken;
     const target = normalizeTokenName(name);
     const byName = pool.find(
       (c) => c.identity.name === name || normalizeTokenName(c.identity.name) === target,
@@ -80,15 +86,14 @@ function getTokenSourceCards(deck: Deck): DeckCard[] {
 export function collectProducedTokenKeys(deck: Deck): Set<string> {
   const out = new Set<string>();
   for (const card of getTokenSourceCards(deck)) {
+    const tokenScripts = getCardTokenScripts(card.identity.name);
+    if (tokenScripts.length > 0) {
+      tokenScripts.forEach((script) => out.add(`script:${script}`));
+      continue;
+    }
     for (const part of card.allParts ?? []) {
       if (part.component !== "token") continue;
-      if (!part.scryfallId) {
-        out.add(`name:${part.name.toLowerCase()}`);
-        continue;
-      }
-      const token =
-        peekArchivedToken({ id: part.scryfallId }) ?? peekArchivedToken({ name: part.name });
-      out.add(token ? tokenIdentityKey(token) : `name:${part.name.toLowerCase()}`);
+      out.add(`name:${part.name.toLowerCase()}`);
     }
   }
   return out;
@@ -98,11 +103,23 @@ export function deriveTokens(deck: Deck): DeckCard[] {
   const seen = new Set<string>();
   const out: DeckCard[] = [];
   for (const card of getTokenSourceCards(deck)) {
+    const tokenScripts = getCardTokenScripts(card.identity.name);
+    if (tokenScripts.length > 0) {
+      let resolved = false;
+      for (const tokenScript of tokenScripts) {
+        const key = `script:${tokenScript}`;
+        if (seen.has(key)) continue;
+        const token = peekArchivedToken({ tokenScript });
+        if (!token) continue;
+        resolved = true;
+        seen.add(key);
+        out.push(token);
+      }
+      if (resolved) continue;
+    }
     for (const part of card.allParts ?? []) {
       if (part.component !== "token") continue;
-      const token =
-        (part.scryfallId ? peekArchivedToken({ id: part.scryfallId }) : null) ??
-        peekArchivedToken({ name: part.name });
+      const token = peekArchivedToken({ name: part.name });
       if (!token) continue;
       const key = tokenIdentityKey(token);
       if (seen.has(key)) continue;

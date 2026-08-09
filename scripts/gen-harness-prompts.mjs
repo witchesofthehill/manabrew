@@ -36,6 +36,8 @@ for (const file of walk(PROTO))
     if (m) aliases.set(m[1], m[2].trim());
   }
 
+const isPrimitiveAlias = (body) => /^(string|number|boolean)$/.test((body ?? "").trim());
+
 // Input type -> its PromptInput tag, e.g. ChooseFromSelectionInput -> "chooseFromSelection".
 const inputTag = new Map();
 for (const m of (aliases.get("PromptInput") ?? "").matchAll(/\{ "type": "(\w+)" \}(?: & (\w+))?/g))
@@ -107,6 +109,11 @@ const javaType = (ts, optional) => {
   if (record) return `java.util.Map<String, ${javaType(record[1], true)}>`;
   const arr = ts.match(/^Array<(.+)>$/);
   if (arr) return `java.util.List<${javaType(arr[1], true)}>`;
+  // A #[serde(transparent)] newtype exports as `export type X = string;`, which
+  // carries no fields. Emitting a class for it would compile to an empty
+  // wrapper that silently drops the value on the wire, so follow the alias to
+  // the primitive the JSON actually contains.
+  if (isPrimitiveAlias(aliases.get(ts))) return javaType(aliases.get(ts), opt);
   switch (ts) {
     case "string":
       return "String";
@@ -194,6 +201,7 @@ for (const name of reachable) {
 
 for (const name of reachable) {
   const body = aliases.get(name);
+  if (isPrimitiveAlias(body)) continue;
   if (unions.has(name)) {
     emit(name, `public interface ${name} {}`);
     for (const v of unions.get(name)) emitClass(v.vName, v.discriminator, v.fields, null);

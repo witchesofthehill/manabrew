@@ -32,6 +32,8 @@ Docker images that build the harness directly must perform the same generation s
 
 `gen-harness-prompts.mjs` roots the generated Java graph at every prompt input plus `CardDto` (the manually serialized `AgentPrompt` envelope uses it), then parses the generated TS with a **single-line** regex (`^export type X = …;$`). A `///` doc comment on a `manabrew-protocol` DTO field makes ts-rs emit a multi-line JSDoc block inside that type literal, so prettier wraps the alias across lines and the parser silently **drops the type** (and anything reachable only through it) — the harness then fails to compile with `cannot find symbol: CardDto`. Use a plain `//` comment on protocol DTO fields, never `///`.
 
+A `#[serde(transparent)]` newtype (`pub struct TokenScript(pub String)`) exports as `export type X = string;`. The generator follows those aliases to the underlying primitive instead of emitting a class: a class would have no fields, so it would compile but serialize as `{}` and drop the value on the wire. Keep `isPrimitiveAlias` in step with any new primitive the protocol wraps.
+
 Protocol generators replace their output directories. Do not run `yarn gen:types`, `yarn gen:protocol-docs`, `yarn build:harness`, or commands that invoke them concurrently; one process can delete files while another is exporting them.
 
 ## Lint and format (yarn)

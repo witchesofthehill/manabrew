@@ -47,6 +47,7 @@ interface TokenArchiveIndex {
   tokens: DeckCard[];
   byId: Map<string, DeckCard>;
   byOracleId: Map<string, DeckCard[]>;
+  byExactSetAndNumber: Map<string, DeckCard>;
   bySetAndNumber: Map<string, DeckCard>;
   byName: Map<string, DeckCard>;
 }
@@ -147,6 +148,7 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
       }));
       const byId = new Map<string, DeckCard>();
       const byOracleId = new Map<string, DeckCard[]>();
+      const byExactSetAndNumber = new Map<string, DeckCard>();
       const bySetAndNumber = new Map<string, DeckCard>();
       const byName = new Map<string, DeckCard>();
       for (const token of tokens) {
@@ -158,7 +160,9 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
           prints.push(token);
           byOracleId.set(oracleId, prints);
         }
-        bySetAndNumber.set(cardKey({ setCode, collectorNumber: cardNumber }), token);
+        const exactKey = cardKey({ setCode, collectorNumber: cardNumber });
+        byExactSetAndNumber.set(exactKey, token);
+        bySetAndNumber.set(exactKey, token);
         const forgeSetCode = forgeTokenSetCode(setCode);
         if (forgeSetCode) {
           const forgeKey = cardKey({ setCode: forgeSetCode, collectorNumber: cardNumber });
@@ -169,7 +173,14 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
         const withSuffix = `${lower} token`;
         if (!byName.has(withSuffix)) byName.set(withSuffix, token);
       }
-      const index = { tokens, byId, byOracleId, bySetAndNumber, byName };
+      const index = {
+        tokens,
+        byId,
+        byOracleId,
+        byExactSetAndNumber,
+        bySetAndNumber,
+        byName,
+      };
       loadedTokenArchive = index;
       return index;
     });
@@ -238,7 +249,7 @@ async function lookupArchivedToken(lookup: ScryfallCardLookup): Promise<DeckCard
   }
   if (lookup.setCode && lookup.collectorNumber) {
     const archive = await loadTokenArchive();
-    return archive.bySetAndNumber.get(cardKey(lookup)) ?? null;
+    return archive.byExactSetAndNumber.get(cardKey(lookup)) ?? null;
   }
   return null;
 }

@@ -1,8 +1,9 @@
 name: Publish protocol
 
 # Publishes the wire protocol to both registries from a single source of truth:
-# the Rust crate `manabrew-protocol` to crates.io, and the TypeScript types it
-# generates (`@manabrew/protocol`) to npm — both at the crate's version.
+# the Rust crates `manabrew-protocol` and `manabrew-relay-protocol` to
+# crates.io, and the TypeScript types they generate (`@manabrew/protocol`) to
+# npm at the `manabrew-protocol` version.
 #
 # Triggers:
 #   workflow_call     — release.yml calls this after a release that bumped the
@@ -68,19 +69,24 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Publishing manabrew-protocol / @manabrew/protocol @ $VERSION"
 
-      - name: Publish crate to crates.io
+      - name: Publish crates to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
-          V="${{ steps.ver.outputs.version }}"
-          if curl -sf -o /dev/null \
-            -A "manabrew-ci (github.com/witchesofthehill/manabrew)" \
-            "https://crates.io/api/v1/crates/manabrew-protocol/$V"; then
-            echo "manabrew-protocol $V already on crates.io — skip"
-          else
-            cargo publish -p manabrew-protocol --no-verify
-          fi
+          # manabrew-protocol first: manabrew-relay-protocol depends on it, and
+          # crates.io rejects a crate whose dependency version is not yet up.
+          for crate in manabrew-protocol manabrew-relay-protocol; do
+            V=$(grep -m1 '^version' "manabrew-rs/crates/$crate/Cargo.toml" \
+              | sed -E 's/version *= *"([^"]+)".*/\1/')
+            if curl -sf -o /dev/null \
+              -A "manabrew-ci (github.com/witchesofthehill/manabrew)" \
+              "https://crates.io/api/v1/crates/$crate/$V"; then
+              echo "$crate $V already on crates.io — skip"
+            else
+              cargo publish -p "$crate" --no-verify
+            fi
+          done
 
       - name: Generate TypeScript bindings
         run: cargo run -q -p manabrew-relay-protocol --bin gen-protocol -- packages/protocol/src

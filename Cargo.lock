@@ -2206,7 +2206,7 @@ dependencies = [
 
 [[package]]
 name = "forge-carddb"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "deunicode",
  "forge-card-script",
@@ -2228,7 +2228,7 @@ dependencies = [
 
 [[package]]
 name = "forge-foundation"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "rand 0.8.6",
  "serde",
@@ -2236,7 +2236,7 @@ dependencies = [
 
 [[package]]
 name = "forge-limited"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "bitflags 2.11.0",
  "forge-foundation",
@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "futures-util",
  "manabrew-agent-interface",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.9.4"
+version = "3.9.5"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3831,7 +3831,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -3846,7 +3846,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-engine"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dyn-clone",
  "forge-card-script",
@@ -3934,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.15"
+version = "0.3.16"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -4947,7 +4947,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "axum",
  "chrono",
@@ -4974,7 +4974,7 @@ dependencies = [
 
 [[package]]
 name = "parity-debugger"
-version = "0.2.12"
+version = "0.2.13"
 dependencies = [
  "eframe",
  "egui",
@@ -6353,7 +6353,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.12.6"
+version = "0.12.7"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -8447,7 +8447,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

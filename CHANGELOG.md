@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.9.5](https://github.com/witchesofthehill/manabrew/compare/v3.9.4...v3.9.5) (2026-08-09)
+
+### Fixes
+
+* **limited:** restore cube drafts and improve draft workspace ([#652](https://github.com/witchesofthehill/manabrew/issues/652)) ([5d5c80f](https://github.com/witchesofthehill/manabrew/commit/5d5c80fe9b15782a17fbdd82480127dc42683960))
+
 ## [3.9.4](https://github.com/witchesofthehill/manabrew/compare/v3.9.3...v3.9.4) (2026-08-09)
 
 ### Fixes

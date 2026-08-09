@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.9.4](https://github.com/witchesofthehill/manabrew/compare/v3.9.3...v3.9.4) (2026-08-09)
+
+### Fixes
+
+* **ui:** preserve token printing identity ([#651](https://github.com/witchesofthehill/manabrew/issues/651)) ([e02a8d7](https://github.com/witchesofthehill/manabrew/commit/e02a8d7ab1475095c3cbac16254fa03f3e0d17e9))
+
 ## [3.9.3](https://github.com/witchesofthehill/manabrew/compare/v3.9.2...v3.9.3) (2026-08-09)
 
 ## [3.9.2](https://github.com/witchesofthehill/manabrew/compare/v3.9.1...v3.9.2) (2026-08-08)

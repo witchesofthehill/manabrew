@@ -138,8 +138,8 @@ export function refToDeckCard(
     identity: {
       id: `pool-${idx}-${ref.setCode}-${ref.cardNumber}`,
       name: frontFaceName(ref.name),
-      setCode: ref.setCode,
-      cardNumber: ref.cardNumber,
+      setCode: info?.set ?? ref.setCode,
+      cardNumber: info?.collector_number ?? ref.cardNumber,
       oracleId: info?.oracle_id,
       foil: ref.foil,
     },
@@ -176,13 +176,13 @@ export async function resolveDeckCards(refs: DraftCard[]): Promise<DeckCard[]> {
   );
 }
 
-export function useDeckCard(ref: DraftCard, idx: number): DeckCard | null {
+export function useDeckCard(ref: DraftCard, idx: number): DeckCard {
   const entry = useCard({
     name: ref.name,
     setCode: ref.setCode,
     cardNumber: ref.cardNumber,
   });
-  return useMemo(() => (entry ? refToDeckCard(ref, entry, idx) : null), [entry, ref, idx]);
+  return useMemo(() => refToDeckCard(ref, entry, idx), [entry, ref, idx]);
 }
 
 export function indexPool(pool: DraftCard[]): PoolEntry[] {

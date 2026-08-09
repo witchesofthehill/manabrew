@@ -57,6 +57,9 @@ export interface DraftSeat {
   isHuman: boolean;
   picksMade: number;
   lastPickName: string | null;
+  currentPackSize?: number;
+  packsWaiting?: number;
+  awaitingPick?: boolean;
 }
 
 export interface DraftState {
@@ -74,6 +77,7 @@ export interface DraftState {
   humanConspiracies?: string[];
   picksPerPass: number;
   picksRemainingInPack: number;
+  passDirection?: "left" | "right";
 }
 
 export interface BoosterDraftSetup {
@@ -83,6 +87,7 @@ export interface BoosterDraftSetup {
   variant?: string;
   seed?: number;
   picksPerPass?: number;
+  customPool?: boolean;
 }
 
 export interface WinstonSetup {
@@ -90,6 +95,7 @@ export interface WinstonSetup {
   pool: DraftCard[];
   variant?: string;
   seed?: number;
+  customPool?: boolean;
 }
 
 export interface WinstonState {

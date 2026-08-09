@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
+import { exportToArena } from "@/components/editor/deckBuilder.utils";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DraftCardTile } from "@/components/limited/DraftCardTile";
 import { LimitedCompareDialog } from "@/components/limited/LimitedCompareDialog";
@@ -411,6 +412,26 @@ export default function LimitedDeckBuilder({
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
+      const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
+      const leftoverCards = unused
+        .map((i) => fullPool[i])
+        .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
+      const [resolvedMain, resolvedSide] = await Promise.all([
+        resolveDeckCards(mainCards),
+        resolveDeckCards([...sideboardCards, ...leftoverCards]),
+      ]);
+      await navigator.clipboard.writeText(
+        exportToArena({ name: defaultDeckName, cards: resolvedMain, sideboard: resolvedSide }),
+      );
+      toast.success("Deck copied to clipboard.");
+    } catch {
+      toast.error("Couldn't copy the deck. Try again.");
+    }
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -437,6 +458,7 @@ export default function LimitedDeckBuilder({
           confirmLabel={confirmLabel}
           onConfirm={onConfirm ? handleConfirm : undefined}
           onSaveToMyDecks={openSaveDialog}
+          onExport={handleExport}
         />
 
         <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-2 md:grid-rows-2 lg:grid-cols-[1.4fr_1fr_0.7fr_minmax(0,326px)] lg:grid-rows-1">
@@ -590,6 +612,7 @@ interface ToolbarProps {
   confirmLabel: string;
   onConfirm?: () => void;
   onSaveToMyDecks: () => void;
+  onExport: () => void;
 }
 
 function Toolbar({
@@ -609,6 +632,7 @@ function Toolbar({
   confirmLabel,
   onConfirm,
   onSaveToMyDecks,
+  onExport,
 }: ToolbarProps) {
   const mainShortBy = targetMainSize - mainCount;
   const filterActive = colorFilter.size > 0;
@@ -718,6 +742,9 @@ function Toolbar({
         )}
         <Button size="sm" variant="outline" onClick={onSaveToMyDecks}>
           Save to My Decks
+        </Button>
+        <Button size="sm" variant="outline" onClick={onExport}>
+          Copy decklist
         </Button>
         {onConfirm && (
           <Button onClick={onConfirm} disabled={mainCount < targetMainSize}>

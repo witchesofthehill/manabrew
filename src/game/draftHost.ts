@@ -118,6 +118,7 @@ export async function startDraftAsHost(args: {
         rounds: config.rounds,
         pool,
         picksPerPass: config.picksPerPass,
+        customPool: Boolean(config.cubeId),
         seed: config.seed,
       },
       humans: seats.filter((s) => s.isHuman).map((s) => ({ seat: s.seat, name: s.displayName })),
@@ -166,7 +167,7 @@ export async function startDraftAsHost(args: {
 
 function enqueuePick(
   seat: number,
-  cardName: string,
+  card: DraftCard,
   round?: number,
   pickNumber?: number,
 ): Promise<void> {
@@ -175,17 +176,17 @@ function enqueuePick(
     .catch((err) => {
       console.error("[draftHost] pick chain swallowed error:", err);
     })
-    .then(() => applyPick(seat, cardName, round, pickNumber));
+    .then(() => applyPick(seat, card, round, pickNumber));
   active.pendingChain = next;
   return next;
 }
 
-export async function submitHostPick(cardName: string): Promise<void> {
+export async function submitHostPick(card: DraftCard): Promise<void> {
   if (!active) return;
   const store = useMultiplayerDraftStore.getState();
   if (store.pickPending) return;
   store.setPickPending(true);
-  await enqueuePick(active.mySeat, cardName, store.state?.round, store.state?.pickNumber);
+  await enqueuePick(active.mySeat, card, store.state?.round, store.state?.pickNumber);
 }
 
 async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope }): Promise<void> {
@@ -200,12 +201,22 @@ async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope 
     console.warn("[draftHost] pick from unknown player", payload.from_player);
     return;
   }
-  await enqueuePick(seat.seat, pick.cardName, pick.round, pick.pickNumber);
+  await enqueuePick(
+    seat.seat,
+    {
+      id: "",
+      name: pick.cardName,
+      setCode: pick.setCode ?? "",
+      cardNumber: pick.cardNumber ?? "",
+    },
+    pick.round,
+    pick.pickNumber,
+  );
 }
 
 async function applyPick(
   seat: number,
-  cardName: string,
+  card: DraftCard,
   round?: number,
   pickNumber?: number,
 ): Promise<void> {
@@ -216,7 +227,7 @@ async function applyPick(
     const current = await fetchSeatState(session.sessionId, seat);
     if (current && (current.round !== round || current.pickNumber !== pickNumber)) {
       console.warn(
-        `[draftHost] dropping stale pick "${cardName}" from seat ${seat} — sent at round ${round} pick ${pickNumber}, seat is now at round ${current.round} pick ${current.pickNumber}`,
+        `[draftHost] dropping stale pick "${card.name}" from seat ${seat} — sent at round ${round} pick ${pickNumber}, seat is now at round ${current.round} pick ${current.pickNumber}`,
       );
       if (seat === session.mySeat) useMultiplayerDraftStore.getState().setPickPending(false);
       return;
@@ -227,7 +238,9 @@ async function applyPick(
     nextState = await platform.invoke<DraftState>("limited_submit_pick", {
       sessionId: session.sessionId,
       seatIdx: seat,
-      cardName,
+      cardName: card.name,
+      setCode: card.setCode,
+      cardNumber: card.cardNumber,
     });
   } catch (err) {
     useMultiplayerDraftStore.getState().setError(`pick failed: ${String(err)}`);

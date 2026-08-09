@@ -17,16 +17,15 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
   );
 
   const unsupportedList = unsupportedNames ? [...unsupportedNames].sort() : [];
-  const hasUnsupported = unsupportedList.length > 0;
+  if (validation.legal && unsupportedList.length === 0) return null;
 
-  if (validation.legal && !hasUnsupported) return null;
-
-  const unsupportedErrors = hasUnsupported
-    ? [
-        `${unsupportedList.length} card${unsupportedList.length === 1 ? "" : "s"} not implemented by the engine - playable build blocked, save as draft only: ${unsupportedList.join(", ")}`,
-      ]
-    : [];
-  const errors = [...unsupportedErrors, ...validation.errors];
+  const compatibilityErrors =
+    unsupportedList.length > 0
+      ? [
+          `${unsupportedList.length} card${unsupportedList.length === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines: ${unsupportedList.join(", ")}`,
+        ]
+      : [];
+  const errors = [...compatibilityErrors, ...validation.errors];
   const count = errors.length;
 
   return (

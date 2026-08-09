@@ -46,6 +46,7 @@ pub struct BoosterDraft {
     direction: PassDirection,
     pick_history: Vec<DraftSnapshot>,
     picks_per_pass: u32,
+    pool_limited: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +54,8 @@ struct DraftSnapshot {
     current_round: u32,
     direction: PassDirection,
     next_pack_id: u32,
+    pool: Vec<PaperCard>,
+    rng: StdRng,
     seats: Vec<SeatSnapshot>,
 }
 
@@ -132,6 +135,7 @@ impl BoosterDraft {
             direction: PassDirection::Left,
             pick_history: Vec::new(),
             picks_per_pass: PICKS_PER_PASS_DEFAULT,
+            pool_limited: false,
         }
     }
 
@@ -141,6 +145,10 @@ impl BoosterDraft {
 
     pub fn picks_per_pass(&self) -> u32 {
         self.picks_per_pass
+    }
+
+    pub fn set_limited_pool(&mut self, limited: bool) {
+        self.pool_limited = limited;
     }
 
     pub fn can_undo(&self) -> bool {
@@ -158,6 +166,8 @@ impl BoosterDraft {
         self.current_round = snap.current_round;
         self.direction = snap.direction;
         self.next_pack_id = snap.next_pack_id;
+        self.pool = snap.pool;
+        self.rng = snap.rng;
         for (seat, snap) in self.seats.iter_mut().zip(snap.seats.into_iter()) {
             seat.picked = snap.picked;
             seat.last_pick = snap.last_pick;
@@ -180,6 +190,8 @@ impl BoosterDraft {
             current_round: self.current_round,
             direction: self.direction,
             next_pack_id: self.next_pack_id,
+            pool: self.pool.clone(),
+            rng: self.rng.clone(),
             seats: self
                 .seats
                 .iter()
@@ -264,12 +276,16 @@ impl BoosterDraft {
         };
 
         let mut product = UnOpenedProduct::new(self.template.clone(), self.pool.clone());
+        product.set_limited_pool(self.pool_limited);
         for seat in &mut self.seats {
             let cards = product.open(&mut self.rng);
             let mut pack = DraftPack::new(cards, self.next_pack_id);
             pack.set_picks_remaining(self.picks_per_pass);
             self.next_pack_id += 1;
             seat.receive_pack(pack);
+        }
+        if self.pool_limited {
+            self.pool = product.pool().to_vec();
         }
         self.log.add_log_entry(format!(
             "--- Round {} opened ({} packs) ---",

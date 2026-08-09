@@ -125,7 +125,14 @@ async function fetchScryfallCard(lookup: ScryfallCardLookup): Promise<ScryfallCa
   if (!lookup.name) {
     throw new Error("Scryfall lookup requires a name or id");
   }
-  return getCardByName(lookup.name, lookup.setCode);
+  if (lookup.setCode) {
+    try {
+      return await getCardByName(lookup.name, lookup.setCode);
+    } catch {
+      return getCardByName(lookup.name);
+    }
+  }
+  return getCardByName(lookup.name);
 }
 
 function normalizeTokenId(id: string): string {
@@ -443,7 +450,14 @@ export const useScryfallStore = create<ScryfallState>()(
         set((state) => {
           state.cards[key] = { pendingPromise };
         });
-        return pendingPromise;
+        try {
+          return await pendingPromise;
+        } catch (error) {
+          set((state) => {
+            if (state.cards[key]?.pendingPromise === pendingPromise) delete state.cards[key];
+          });
+          throw error;
+        }
       },
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>

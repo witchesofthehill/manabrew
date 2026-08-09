@@ -46,6 +46,7 @@ interface TokenArchive {
 interface TokenArchiveIndex {
   tokens: DeckCard[];
   byId: Map<string, DeckCard>;
+  byOracleId: Map<string, DeckCard[]>;
   bySetAndNumber: Map<string, DeckCard>;
   byName: Map<string, DeckCard>;
 }
@@ -145,12 +146,18 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
         identity: { ...t.identity, name: frontFaceName(t.identity.name) },
       }));
       const byId = new Map<string, DeckCard>();
+      const byOracleId = new Map<string, DeckCard[]>();
       const bySetAndNumber = new Map<string, DeckCard>();
       const byName = new Map<string, DeckCard>();
       for (const token of tokens) {
-        const { id, setCode, cardNumber, name } = token.identity;
+        const { id, oracleId, setCode, cardNumber, name } = token.identity;
         byId.set(id, token);
         byId.set(normalizeTokenId(id), token);
+        if (oracleId) {
+          const prints = byOracleId.get(oracleId) ?? [];
+          prints.push(token);
+          byOracleId.set(oracleId, prints);
+        }
         bySetAndNumber.set(cardKey({ setCode, collectorNumber: cardNumber }), token);
         const forgeSetCode = forgeTokenSetCode(setCode);
         if (forgeSetCode) {
@@ -162,7 +169,7 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
         const withSuffix = `${lower} token`;
         if (!byName.has(withSuffix)) byName.set(withSuffix, token);
       }
-      const index = { tokens, byId, bySetAndNumber, byName };
+      const index = { tokens, byId, byOracleId, bySetAndNumber, byName };
       loadedTokenArchive = index;
       return index;
     });
@@ -184,9 +191,23 @@ export function peekAllArchivedTokens(): DeckCard[] {
 }
 
 export function peekArchivedToken(
-  lookup: { name?: string; setCode?: string; cardNumber?: string } = {},
+  lookup: {
+    id?: string;
+    oracleId?: string;
+    name?: string;
+    setCode?: string;
+    cardNumber?: string;
+  } = {},
 ): DeckCard | null {
   if (!loadedTokenArchive) return null;
+  if (lookup.id) {
+    const hit = loadedTokenArchive.byId.get(lookup.id);
+    if (hit) return hit;
+  }
+  if (lookup.oracleId) {
+    const hit = loadedTokenArchive.byOracleId.get(lookup.oracleId)?.[0];
+    if (hit) return hit;
+  }
   if (lookup.setCode && lookup.cardNumber) {
     const hit = loadedTokenArchive.bySetAndNumber.get(
       cardKey({ setCode: lookup.setCode, collectorNumber: lookup.cardNumber }),
@@ -197,6 +218,17 @@ export function peekArchivedToken(
     return loadedTokenArchive.byName.get(lookup.name.toLowerCase()) ?? null;
   }
   return null;
+}
+
+export function tokenIdentityKey(token: DeckCard): string {
+  const archived =
+    peekArchivedToken({ id: token.identity.id }) ??
+    peekArchivedToken({
+      setCode: token.identity.setCode,
+      cardNumber: token.identity.cardNumber,
+    });
+  const oracleId = token.identity.oracleId ?? archived?.identity.oracleId;
+  return oracleId ? `oracle:${oracleId}` : `name:${token.identity.name.toLowerCase()}`;
 }
 
 async function lookupArchivedToken(lookup: ScryfallCardLookup): Promise<DeckCard | null> {
@@ -212,13 +244,13 @@ async function lookupArchivedToken(lookup: ScryfallCardLookup): Promise<DeckCard
 }
 
 function tokenToScryfallCard(token: DeckCard): ScryfallCard {
-  const { id, name, setCode, cardNumber } = token.identity;
+  const { id, oracleId, name, setCode, cardNumber } = token.identity;
   const scryfallId = normalizeTokenId(id);
   const typeLine = [...token.supertypes, ...token.types].join(" ");
   const subtypeLine = token.subtypes.length > 0 ? ` — ${token.subtypes.join(" ")}` : "";
   return {
     id: scryfallId,
-    oracle_id: scryfallId,
+    oracle_id: oracleId ?? scryfallId,
     name,
     lang: "en",
     released_at: "",
@@ -275,11 +307,23 @@ function tokenToScryfallCard(token: DeckCard): ScryfallCard {
   };
 }
 
-export async function getArchivedTokenPrints(name: string): Promise<ScryfallCard[]> {
+export async function getArchivedTokenPrints(token: DeckCard): Promise<ScryfallCard[]> {
   const archive = await loadTokenArchive();
-  const lowerName = name.toLowerCase();
+  const archived =
+    archive.byId.get(token.identity.id) ??
+    archive.bySetAndNumber.get(
+      cardKey({
+        setCode: token.identity.setCode,
+        collectorNumber: token.identity.cardNumber,
+      }),
+    );
+  const oracleId = token.identity.oracleId ?? archived?.identity.oracleId;
+  if (oracleId) {
+    return (archive.byOracleId.get(oracleId) ?? []).map(tokenToScryfallCard);
+  }
+  const lowerName = token.identity.name.toLowerCase();
   return archive.tokens
-    .filter((token) => token.identity.name.toLowerCase() === lowerName)
+    .filter((candidate) => candidate.identity.name.toLowerCase() === lowerName)
     .map(tokenToScryfallCard);
 }
 

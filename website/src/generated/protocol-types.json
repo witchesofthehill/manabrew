@@ -129,8 +129,8 @@
       "refs": []
     },
     "CardPart": {
-      "ts": "interface CardPart {\n  name: string;\n  component: CardPartComponent;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardPart {\n    pub name: String,\n    pub component: CardPartComponent,\n}",
+      "ts": "interface CardPart {\n  name: string;\n  component: CardPartComponent;\n  scryfallId?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CardPart {\n    pub name: String,\n    pub component: CardPartComponent,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub scryfall_id: Option<String>,\n}",
       "refs": ["CardPartComponent"]
     },
     "CardPartComponent": {

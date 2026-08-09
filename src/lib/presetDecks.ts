@@ -27,7 +27,7 @@ interface PresetDeckCardDefinition {
   power?: string;
   toughness?: string;
   backFace?: CardBackFaceSummary;
-  allParts?: Array<{ name: string; component: CardPartComponent }>;
+  allParts?: Array<{ name: string; component: CardPartComponent; scryfallId?: string }>;
 }
 
 export interface PresetDeckDefinition {

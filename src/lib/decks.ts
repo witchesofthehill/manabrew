@@ -1,6 +1,6 @@
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import { peekArchivedToken } from "@/stores/useScryfallStore";
+import { peekArchivedToken, tokenIdentityKey } from "@/stores/useScryfallStore";
 
 function normalizeTokenName(name: string): string {
   return name.toLowerCase().replace(/\s+token$/i, "");
@@ -18,6 +18,11 @@ export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard 
   if (exact) return exact;
   if (isToken) {
     const exactToken = peekArchivedToken({ setCode, cardNumber });
+    if (exactToken?.identity.oracleId && deck?.tokens) {
+      const key = tokenIdentityKey(exactToken);
+      const customized = deck.tokens.find((token) => tokenIdentityKey(token) === key);
+      if (customized) return customized;
+    }
     if (exactToken) return exactToken;
     const target = normalizeTokenName(name);
     const byName = pool.find(
@@ -72,12 +77,18 @@ function getTokenSourceCards(deck: Deck): DeckCard[] {
   ];
 }
 
-export function collectAllPartsNames(deck: Deck): Set<string> {
+export function collectProducedTokenKeys(deck: Deck): Set<string> {
   const out = new Set<string>();
   for (const card of getTokenSourceCards(deck)) {
     for (const part of card.allParts ?? []) {
       if (part.component !== "token") continue;
-      out.add(part.name.toLowerCase());
+      if (!part.scryfallId) {
+        out.add(`name:${part.name.toLowerCase()}`);
+        continue;
+      }
+      const token =
+        peekArchivedToken({ id: part.scryfallId }) ?? peekArchivedToken({ name: part.name });
+      out.add(token ? tokenIdentityKey(token) : `name:${part.name.toLowerCase()}`);
     }
   }
   return out;
@@ -89,10 +100,12 @@ export function deriveTokens(deck: Deck): DeckCard[] {
   for (const card of getTokenSourceCards(deck)) {
     for (const part of card.allParts ?? []) {
       if (part.component !== "token") continue;
-      const key = part.name.toLowerCase();
-      if (seen.has(key)) continue;
-      const token = peekArchivedToken({ name: part.name });
+      const token =
+        (part.scryfallId ? peekArchivedToken({ id: part.scryfallId }) : null) ??
+        peekArchivedToken({ name: part.name });
       if (!token) continue;
+      const key = tokenIdentityKey(token);
+      if (seen.has(key)) continue;
       seen.add(key);
       out.push(token);
     }

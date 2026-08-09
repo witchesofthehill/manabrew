@@ -17,8 +17,8 @@ import {
   canHaveAnyNumberOf,
   copyLimitFromText,
 } from "@/lib/formats";
-import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
-import { collectAllPartsNames } from "@/lib/decks";
+import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallStore";
+import { collectProducedTokenKeys } from "@/lib/decks";
 
 /** Migrate legacy "constructed" format id to "standard". */
 function migrateFormatId(id: string): DeckFormat {
@@ -50,13 +50,17 @@ function patchCardsByName(cards: DeckCard[], updates: Map<string, CardPatch>): D
   );
 }
 
-/** Drop entries from `deck.tokens` whose name isn't produced by any remaining
+/** Drop entries from `deck.tokens` whose identity isn't produced by any remaining
  *  card's `allParts`. Called after every card removal so that a customized
  *  token print auto-cleans when its source leaves the deck. */
 function pruneOrphanedTokens(deck: EditorDeck): EditorDeck {
   if (!deck.tokens || deck.tokens.length === 0) return deck;
-  const produced = collectAllPartsNames(deck);
-  const tokens = deck.tokens.filter((t) => produced.has(t.identity.name.toLowerCase()));
+  const produced = collectProducedTokenKeys(deck);
+  const tokens = deck.tokens.filter(
+    (token) =>
+      produced.has(tokenIdentityKey(token)) ||
+      produced.has(`name:${token.identity.name.toLowerCase()}`),
+  );
   if (tokens.length === deck.tokens.length) return deck;
   return { ...deck, tokens: tokens.length > 0 ? tokens : undefined };
 }
@@ -166,7 +170,7 @@ function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): Edit
     maybeboard: normalized.maybeboard
       ? patchCardsByName(normalized.maybeboard, updates)
       : undefined,
-    tokens: normalized.tokens ? patchCardsByName(normalized.tokens, updates) : undefined,
+    tokens: normalized.tokens,
   };
 }
 
@@ -234,8 +238,9 @@ interface DeckState {
   setCommander: (card: DeckCard) => void;
   removeCommander: (card?: DeckCard) => void;
   updatePrint: (cardName: string, scryfallCard: ScryfallCard) => void;
+  updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
   toggleFoil: (cardName: string) => void;
-  removeToken: (name: string) => void;
+  resetTokenPrint: (token: DeckCard) => void;
   enrichDeckCards: (updates: Map<string, CardPatch>) => void;
   addCardToSavedDeck: (id: string, card: DeckCard) => void;
   enrichSavedDeck: (id: string, updates: Map<string, CardPatch>) => void;
@@ -551,13 +556,19 @@ export const useDeckStore = create<DeckState>()(
               },
             };
           }),
-        removeToken: (name) =>
-          set((state) => ({
-            currentDeck: {
-              ...state.currentDeck,
-              tokens: (state.currentDeck.tokens ?? []).filter((t) => t.identity.name !== name),
-            },
-          })),
+        resetTokenPrint: (token) =>
+          set((state) => {
+            const key = tokenIdentityKey(token);
+            const tokens = (state.currentDeck.tokens ?? []).filter(
+              (candidate) => tokenIdentityKey(candidate) !== key,
+            );
+            return {
+              currentDeck: {
+                ...state.currentDeck,
+                tokens: tokens.length > 0 ? tokens : undefined,
+              },
+            };
+          }),
         updatePrint: (cardName, scryfallCard) =>
           set((state) => {
             const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
@@ -573,6 +584,35 @@ export const useDeckStore = create<DeckState>()(
             });
             return {
               currentDeck: patchDeckCards(state.currentDeck, updates),
+            };
+          }),
+        updateTokenPrint: (token, scryfallCard) =>
+          set((state) => {
+            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
+            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            const key = tokenIdentityKey(token);
+            const customized: DeckCard = {
+              ...token,
+              identity: {
+                ...token.identity,
+                id: `token:${scryfallCard.id}`,
+                setCode: scryfallCard.set,
+                cardNumber: scryfallCard.collector_number,
+                oracleId: scryfallCard.oracle_id,
+              },
+              uris,
+            };
+            const existing = state.currentDeck.tokens ?? [];
+            const replaced = existing.some((candidate) => tokenIdentityKey(candidate) === key);
+            return {
+              currentDeck: {
+                ...state.currentDeck,
+                tokens: replaced
+                  ? existing.map((candidate) =>
+                      tokenIdentityKey(candidate) === key ? customized : candidate,
+                    )
+                  : [...existing, customized],
+              },
             };
           }),
         toggleFoil: (cardName) =>

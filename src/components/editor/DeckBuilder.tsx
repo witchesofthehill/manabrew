@@ -281,8 +281,9 @@ export function DeckBuilder({
   const accountsEnabled = isFeatureEnabled("accounts");
   const publishEnabled = hubEnabled && accountsEnabled;
   const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
-  const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
+  const [tokenPrintPicker, setTokenPrintPicker] = useState<DeckCard | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
+  const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -313,9 +314,9 @@ export function DeckBuilder({
     untagCard,
     setCoverCard,
     setStackPositions,
-    updatePrint,
+    updateTokenPrint,
     toggleFoil,
-    removeToken,
+    resetTokenPrint,
     updateAccountDeckVersion,
   } = useDeckStore();
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
@@ -340,7 +341,7 @@ export function DeckBuilder({
   });
   const [confirmClear, setConfirmClear] = useState(false);
   const filterInputRef = useRef<HTMLInputElement>(null);
-  const enrichedNamesRef = useRef(new Set<string>());
+  const enrichedCardsRef = useRef(new Set<string>());
 
   useKeybindings({
     "deck-editor-focus-filter": () => {
@@ -421,16 +422,30 @@ export function DeckBuilder({
   useEffect(() => {
     const allCards = [...currentDeck.cards, ...supplementaryCards];
     const toFetch = allCards
-      .filter(
-        (c) =>
-          !enrichedNamesRef.current.has(c.identity.name.toLowerCase()) &&
-          needsScryfallEnrichment(c),
-      )
-      .map((c) => c.identity.name);
+      .filter((card) => {
+        const key = `${card.identity.name.toLowerCase()}::${card.identity.setCode.toLowerCase()}::${card.identity.cardNumber.toLowerCase()}`;
+        return !enrichedCardsRef.current.has(key) && needsScryfallEnrichment(card);
+      })
+      .map((card) => ({
+        name: card.identity.name,
+        setCode: card.identity.setCode,
+        collectorNumber: card.identity.cardNumber,
+      }));
     if (toFetch.length === 0) return;
-    const uniqueNames = [...new Set(toFetch)];
-    uniqueNames.forEach((n) => enrichedNamesRef.current.add(n.toLowerCase()));
-    fetchCardCollection(uniqueNames.map((n) => ({ name: n })))
+    const uniqueCards = [
+      ...new Map(
+        toFetch.map((card) => [
+          `${card.name.toLowerCase()}::${card.setCode.toLowerCase()}::${card.collectorNumber.toLowerCase()}`,
+          card,
+        ]),
+      ).values(),
+    ];
+    uniqueCards.forEach((card) =>
+      enrichedCardsRef.current.add(
+        `${card.name.toLowerCase()}::${card.setCode.toLowerCase()}::${card.collectorNumber.toLowerCase()}`,
+      ),
+    );
+    fetchCardCollection(uniqueCards)
       .then((scryfallMap) => {
         const updates = new Map<string, Partial<DeckCard>>();
         for (const [key, sc] of scryfallMap) updates.set(key, scryfallToDeckCard(sc));
@@ -637,6 +652,7 @@ export function DeckBuilder({
 
   function handleShowInfo(cardName: string) {
     if (isReadOnly) return;
+    setDetailToken(null);
     // Find the card in the deck to pass its stored setCode for accurate printing
     const allCards = [
       ...currentDeck.cards,
@@ -661,6 +677,21 @@ export function DeckBuilder({
       .getCard(lookup)
       .then((sc) => setDetailCard(sc.info))
       .catch(() => toast.error(`Could not fetch info for "${cardName}"`));
+  }
+
+  function handleShowTokenInfo(token: DeckCard) {
+    if (isReadOnly) return;
+    useScryfallStore
+      .getState()
+      .getCard({
+        setCode: token.identity.setCode,
+        collectorNumber: token.identity.cardNumber,
+      })
+      .then((sc) => {
+        setDetailToken(token);
+        setDetailCard(sc.info);
+      })
+      .catch(() => toast.error(`Could not fetch info for "${token.identity.name}"`));
   }
 
   function handleRemoveOneFromSide(cardName: string) {
@@ -1311,10 +1342,11 @@ export function DeckBuilder({
                   {mergedTokens.length > 0 && (
                     <TokenSection
                       tokens={mergedTokens}
+                      customizedTokens={currentDeck.tokens}
                       cardSize={cardSize}
-                      onShowInfo={handleShowInfo}
-                      onPickPrint={setTokenPrintPickerName}
-                      onRemoveToken={removeToken}
+                      onShowInfo={handleShowTokenInfo}
+                      onPickPrint={setTokenPrintPicker}
+                      onResetPrint={resetTokenPrint}
                       onHover={(token, e) =>
                         preview.handleMouseEnter(token as unknown as CardDto, e, {
                           useDelay: true,
@@ -1404,17 +1436,20 @@ export function DeckBuilder({
         <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
         <PrintPickerModal cardName={printPickerCard} onClose={() => setPrintPickerCard(null)} />
         <PrintPickerModal
-          cardName={tokenPrintPickerName}
-          onClose={() => setTokenPrintPickerName(null)}
+          cardName={tokenPrintPicker?.identity.name ?? null}
+          token={tokenPrintPicker ?? undefined}
+          onClose={() => setTokenPrintPicker(null)}
           onSelect={(sc) => {
-            if (tokenPrintPickerName) updatePrint(tokenPrintPickerName, sc);
+            if (tokenPrintPicker) updateTokenPrint(tokenPrintPicker, sc);
           }}
-          isToken
         />
         {detailCard && (
           <CardDetailModal
             card={detailCard}
-            onClose={() => setDetailCard(null)}
+            onClose={() => {
+              setDetailCard(null);
+              setDetailToken(null);
+            }}
             deckEditorActions={{
               onAddOne: handleAddOneToMainByName,
               onRemoveOne: handleRemoveOneFromMain,
@@ -1442,8 +1477,10 @@ export function DeckBuilder({
               customTags: currentDeck.customTags,
               onTagCard: tagCard,
               onAddTag: addCustomTag,
-              isToken: mergedTokens.some((t) => t.identity.name === frontFaceName(detailCard.name)),
-              onUpdateTokenPrint: updatePrint,
+              token: detailToken ?? undefined,
+              onUpdateTokenPrint: (_name, print) => {
+                if (detailToken) updateTokenPrint(detailToken, print);
+              },
             }}
           />
         )}

@@ -32,7 +32,16 @@ function frontFace(card) {
 
 function imageUris(card) {
   const face = frontFace(card);
-  return face.image_uris ?? card.image_uris ?? null;
+  const uris = face.image_uris ?? card.image_uris;
+  if (!uris) return null;
+  return {
+    small: uris.small,
+    normal: uris.normal,
+    large: uris.large,
+    png: uris.png,
+    art_crop: uris.art_crop,
+    border_crop: uris.border_crop,
+  };
 }
 
 function deckCardFromScryfallToken(card) {
@@ -50,6 +59,7 @@ function deckCardFromScryfallToken(card) {
       name: card.name,
       setCode: card.set,
       cardNumber: card.collector_number,
+      oracleId: card.oracle_id,
       foil: false,
     },
     color: colors.join(""),
@@ -72,6 +82,7 @@ async function fetchJson(url) {
   const res = await fetch(url, {
     headers: {
       Accept: "application/json",
+      "User-Agent": "Manabrew token archive builder (https://manabrew.app)",
     },
   });
   if (!res.ok) throw new Error(`fetch ${url} failed: ${res.status} ${res.statusText}`);
@@ -106,7 +117,7 @@ function buildArchive(cards) {
   });
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
     source: {
       type: "scryfall-search",

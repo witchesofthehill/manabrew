@@ -71,6 +71,12 @@ for (const f of walk(RUST_DIR, ".rs")) {
     }
     const m = line.match(/^pub (?:struct|enum) (\w+)\b/);
     if (m) {
+      if (line.trimEnd().endsWith(";")) {
+        rustText[m[1]] = [...attrs.filter((a) => !isNoise(a)), line].join("\n");
+        definedIn[m[1]] = f;
+        attrs = [];
+        continue;
+      }
       const body = [];
       let depth = 0,
         started = false,

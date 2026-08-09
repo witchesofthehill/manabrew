@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::TargetRef;
+use crate::{prompts::common::TargetRef, TokenScript};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "game/index.ts")]
@@ -175,7 +175,7 @@ pub struct CardIdentity {
     pub is_token: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub token_script: Option<String>,
+    pub token_script: Option<TokenScript>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

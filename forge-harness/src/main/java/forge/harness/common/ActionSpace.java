@@ -8,6 +8,7 @@ import forge.card.mana.ManaCostShard;
 import forge.game.Game;
 import forge.game.GameEntity;
 import forge.game.GameObject;
+import forge.game.ability.AbilityUtils;
 import forge.game.card.Card;
 import forge.game.card.CardCollectionView;
 import forge.game.card.CardCopyService;
@@ -21,8 +22,12 @@ import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetRestrictions;
 import forge.game.cost.Cost;
+import forge.game.cost.CostAdjustment;
 import forge.game.cost.CostPart;
+import forge.game.cost.CostPartMana;
+import forge.game.cost.CostPayment;
 import forge.game.cost.CostSacrifice;
+import forge.game.zone.Zone;
 import forge.game.zone.ZoneType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -36,6 +41,9 @@ import java.util.Map;
 import java.util.Set;
 
 public final class ActionSpace {
+    private static final String SPEND_ONLY_COLORED_ON_X =
+            "Spend only colored mana on X. No more than one mana of each color may be spent this way.";
+
     private ActionSpace() {}
 
     private static String actionBaseLabel(final SpellAbility sa) {
@@ -224,18 +232,62 @@ public final class ActionSpace {
         return canPayManaCostWithLifeFallback(sa, player, getFixedReservedSacrifices(sa));
     }
 
+    public static boolean canPayCost(
+            final Cost cost, final SpellAbility sa, final Player player, final boolean effect) {
+        return ComputerUtilMana.canPayManaCost(probeManaCost(cost, sa, player, effect), sa, player, effect)
+                && CostPayment.canPayAdditionalCosts(cost, sa, effect, player);
+    }
+
     private static boolean canPayManaCostWithLifeFallback(
             final SpellAbility sa,
             final Player player,
             final Set<Card> reservedSacrifices
     ) {
-        if (reservedSacrifices.isEmpty() && ComputerUtilMana.canPayManaCost(sa, player, 0, false)) {
+        final ManaCostBeingPaid base = probeManaCost(sa.getPayCosts(), sa, player, false);
+        if (reservedSacrifices.isEmpty()
+                && ComputerUtilMana.canPayManaCost(base, sa, player, false)) {
             return true;
         }
-        final ManaCostBeingPaid base =
-                ComputerUtilMana.calculateManaCost(sa.getPayCosts(), sa, player, true, 0, false);
         return canPayManaCostWithLifeFallback(
                 base, sa, player, false, reservedSacrifices, 0, new HashSet<>());
+    }
+
+    private static ManaCostBeingPaid probeManaCost(
+            final Cost cost, final SpellAbility sa, final Player payer, final boolean effect) {
+        final Card host = sa.getHostCard();
+        Zone castFromBackup = null;
+        if (sa.isSpell() && !host.isInZone(ZoneType.Stack)) {
+            castFromBackup = host.getCastFrom();
+            host.setCastFrom(host.getZone());
+        }
+
+        final Cost payCosts = CostAdjustment.adjust(cost, sa, effect);
+        final CostPartMana manaPart = payCosts != null ? payCosts.getCostMana() : null;
+        final ManaCost mana = payCosts == null
+                ? ManaCost.NO_COST
+                : (manaPart == null ? ManaCost.ZERO : manaPart.getManaCostFor(sa));
+
+        final ManaCostBeingPaid manaCost = new ManaCostBeingPaid(mana);
+        final int xCounter = manaCost.getXcounter();
+        if (xCounter > 0) {
+            int manaToAdd = AbilityUtils.calculateAmount(
+                    host, sa.getParamOrDefault("XAlternative", "X"), sa) * xCounter;
+            if (manaToAdd < 1 && manaPart != null && manaPart.getXMin() > 0) {
+                manaToAdd = 1;
+            }
+            String xColor = sa.getXColor() == null ? "1" : sa.getXColor();
+            if (host.hasKeyword(SPEND_ONLY_COLORED_ON_X)) {
+                xColor = "WUBRGX";
+            }
+            manaCost.setXManaCostPaid(manaToAdd / xCounter, xColor);
+        }
+
+        CostAdjustment.adjust(manaCost, sa, payer, null, true, effect);
+
+        if (sa.isSpell() && !host.isInZone(ZoneType.Stack)) {
+            host.setCastFrom(castFromBackup);
+        }
+        return manaCost;
     }
 
     public static ManaCostShard chooseLifePaymentShard(

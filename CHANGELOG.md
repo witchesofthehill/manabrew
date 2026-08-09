@@ -1,5 +1,42 @@
 # Changelog
 
+## [3.9.2](https://github.com/witchesofthehill/manabrew/compare/v3.9.1...v3.9.2) (2026-08-08)
+
+### Fixes
+
+* **limited:** restore cubecobra draft imports ([#637](https://github.com/witchesofthehill/manabrew/issues/637)) ([4ae31b1](https://github.com/witchesofthehill/manabrew/commit/4ae31b1479adadd39f2b209f9829e93a856c5994))
+
+## [3.9.1](https://github.com/witchesofthehill/manabrew/compare/v3.9.0...v3.9.1) (2026-08-08)
+
+### Fixes
+
+* **harness:** unbreak native builds on unused import ([#647](https://github.com/witchesofthehill/manabrew/issues/647)) ([68a9fb3](https://github.com/witchesofthehill/manabrew/commit/68a9fb3237bbf61637dc31a77f6b2d4c2692d8c4))
+
+## [3.9.0](https://github.com/witchesofthehill/manabrew/compare/v3.8.1...v3.9.0) (2026-08-08)
+
+### Features
+
+* unify deck collections and rank vs-AI games ([#641](https://github.com/witchesofthehill/manabrew/issues/641)) ([c98523c](https://github.com/witchesofthehill/manabrew/commit/c98523c91f5c7be81a8d3f6340246f632b96e876))
+
+## [3.8.1](https://github.com/witchesofthehill/manabrew/compare/v3.8.0...v3.8.1) (2026-08-08)
+
+### Fixes
+
+* **ui:** resolve forge token set identities ([#635](https://github.com/witchesofthehill/manabrew/issues/635)) ([aa86ce2](https://github.com/witchesofthehill/manabrew/commit/aa86ce2fada651bfe0d33425ee1d6bbaa3ae1c16))
+* **forge:** allow declining optional trigger costs ([#636](https://github.com/witchesofthehill/manabrew/issues/636)) ([0eea076](https://github.com/witchesofthehill/manabrew/commit/0eea07674da3171d30cd99e4f1fe917c70b97fe0))
+
+## [3.8.0](https://github.com/witchesofthehill/manabrew/compare/v3.7.1...v3.8.0) (2026-08-08)
+
+### Features
+
+* **editor:** read printing suffixes in text deck import ([#633](https://github.com/witchesofthehill/manabrew/issues/633)) ([0c50207](https://github.com/witchesofthehill/manabrew/commit/0c502076413d329b7cdbe7a9b47f5e40b3c97ab9))
+
+## [3.7.1](https://github.com/witchesofthehill/manabrew/compare/v3.7.0...v3.7.1) (2026-08-08)
+
+### Fixes
+
+* waterbend ([#643](https://github.com/witchesofthehill/manabrew/issues/643)) ([cb9fd30](https://github.com/witchesofthehill/manabrew/commit/cb9fd3033273ecad3c5af265e0a120b0da02f9f9))
+
 ## [3.7.0](https://github.com/witchesofthehill/manabrew/compare/v3.6.0...v3.7.0) (2026-08-06)
 
 ### Features

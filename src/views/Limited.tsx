@@ -152,7 +152,8 @@ export default function Limited() {
   const handleImportCube = async () => {
     if (!cubeInput.trim()) return;
     try {
-      await importCube(cubeInput.trim());
+      const result = await importCube(cubeInput.trim());
+      setNumBoosters(Math.max(3, Math.min(12, result.numPacks)));
     } catch {
       /* surfaced via lastError */
     }
@@ -176,6 +177,8 @@ export default function Limited() {
           numPacks: 3,
           singleton: false,
           pool,
+          playableCardCount: pool.length,
+          rejectedCardCount: 0,
         },
         lastError: null,
       });
@@ -306,6 +309,8 @@ export default function Limited() {
                 <>
                   Loaded: <span className="text-foreground/90">{lastImportedCube.name}</span> —{" "}
                   {lastImportedCube.cardCount} cards
+                  {lastImportedCube.rejectedCardCount > 0 &&
+                    ` · ${lastImportedCube.rejectedCardCount} unsupported`}
                 </>
               ) : null
             }
@@ -349,6 +354,7 @@ export default function Limited() {
                 numBoosters,
                 pool: lastImportedCube.pool!,
                 seed: seedOpt,
+                singleton: lastImportedCube.singleton,
               });
               navigate(`/sealed/${result.sessionId}`);
             } catch {
@@ -854,7 +860,14 @@ function matchSetsForTheme(tag: string, sets: ScryfallSet[]): ScryfallSet[] {
 }
 
 interface CubeStartActionsProps {
-  cube: { name: string; cardCount: number; numPacks: number; singleton: boolean };
+  cube: {
+    name: string;
+    cardCount: number;
+    playableCardCount: number;
+    rejectedCardCount: number;
+    numPacks: number;
+    singleton: boolean;
+  };
   numBoosters: number;
   podSize: number;
   winstonPacks: number;
@@ -888,6 +901,11 @@ function CubeStartActions({
             <span className="font-medium text-foreground/90">{cube.name}</span> · {cube.cardCount}{" "}
             cards · {cube.numPacks} packs/player{" "}
             {cube.singleton && <span className="text-muted-foreground">· singleton</span>}
+            {cube.rejectedCardCount > 0 && (
+              <span className="ml-2 text-destructive">
+                {cube.playableCardCount} playable · {cube.rejectedCardCount} unsupported
+              </span>
+            )}
             {seed !== undefined && (
               <span className="ml-2 font-mono text-[10px] text-primary">seed {seed}</span>
             )}

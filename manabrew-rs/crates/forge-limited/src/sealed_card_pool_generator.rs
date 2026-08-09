@@ -19,6 +19,7 @@ pub struct SealedCardPoolGenerator {
     card_pool: Vec<PaperCard>,
     products: Vec<UnOpenedProduct>,
     land_set_code: Option<String>,
+    pool_limited: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -37,6 +38,7 @@ impl SealedCardPoolGenerator {
             card_pool,
             products: Vec::new(),
             land_set_code: None,
+            pool_limited: false,
         }
     }
 
@@ -48,6 +50,19 @@ impl SealedCardPoolGenerator {
         self.products = (0..num_boosters)
             .map(|_| UnOpenedProduct::new(template.clone(), self.card_pool.clone()))
             .collect();
+        self
+    }
+
+    pub fn with_template_and_pool_limit(
+        mut self,
+        template: SealedTemplate,
+        num_boosters: usize,
+        pool_limited: bool,
+    ) -> Self {
+        self.products = (0..num_boosters)
+            .map(|_| UnOpenedProduct::new(template.clone(), self.card_pool.clone()))
+            .collect();
+        self.pool_limited = pool_limited;
         self
     }
 
@@ -120,8 +135,19 @@ impl SealedCardPoolGenerator {
 
         let mut human_pool: Vec<PaperCard> = Vec::new();
         let mut products = std::mem::take(&mut self.products);
-        for prod in &mut products {
-            human_pool.extend(prod.open(rng));
+        if self.pool_limited {
+            if let Some(first) = products.first() {
+                let mut product =
+                    UnOpenedProduct::new(first.template().clone(), self.card_pool.clone());
+                product.set_limited_pool(true);
+                for _ in 0..products.len() {
+                    human_pool.extend(product.open(rng));
+                }
+            }
+        } else {
+            for prod in &mut products {
+                human_pool.extend(prod.open(rng));
+            }
         }
 
         let mut chosen = DeckColors::new();
@@ -148,15 +174,21 @@ impl SealedCardPoolGenerator {
         let mut ai_decks: Vec<LimitedDeck> = Vec::new();
         for ai_idx in 0..ai_opponent_count {
             let mut pool: Vec<PaperCard> = Vec::new();
-            for _ in 0..products.len().max(1) {
-                let mut prod = UnOpenedProduct::new(
-                    products
-                        .first()
-                        .map(|p| p.template().clone())
-                        .unwrap_or_else(SealedTemplate::generic_draft_booster),
-                    self.card_pool.clone(),
-                );
-                pool.extend(prod.open(rng));
+            let template = products
+                .first()
+                .map(|p| p.template().clone())
+                .unwrap_or_else(SealedTemplate::generic_draft_booster);
+            if self.pool_limited {
+                let mut product = UnOpenedProduct::new(template, self.card_pool.clone());
+                product.set_limited_pool(true);
+                for _ in 0..products.len().max(1) {
+                    pool.extend(product.open(rng));
+                }
+            } else {
+                for _ in 0..products.len().max(1) {
+                    let mut prod = UnOpenedProduct::new(template.clone(), self.card_pool.clone());
+                    pool.extend(prod.open(rng));
+                }
             }
 
             let mut ai_chosen = DeckColors::new();

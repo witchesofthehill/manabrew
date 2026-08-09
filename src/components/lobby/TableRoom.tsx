@@ -68,7 +68,7 @@ export function TableRoom({
   const modeLabel = room.draft_config
     ? (room.draft_config.cube_name ?? room.draft_config.set_code ?? "Draft")
     : room.sealed_config
-      ? room.sealed_config.set_code
+      ? (room.sealed_config.cube_name ?? room.sealed_config.set_code ?? "Sealed")
       : room.format;
 
   function renderPrimaryAction() {

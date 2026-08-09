@@ -52,7 +52,12 @@ interface LimitedStore {
 
   activeGauntlet: GauntletState | null;
   conspiracyHooks: ConspiracyHook[];
-  startGauntletFromSealed: (sessionId: string, rounds: number) => Promise<GauntletState>;
+  startGauntletFromSealed: (
+    sessionId: string,
+    rounds: number,
+    main: DraftCard[],
+    sideboard: DraftCard[],
+  ) => Promise<GauntletState>;
   recordGauntletOutcome: (
     gauntletId: string,
     wonGame: boolean,
@@ -236,12 +241,14 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
     }
   },
 
-  startGauntletFromSealed: async (sessionId, rounds) => {
+  startGauntletFromSealed: async (sessionId, rounds, main, sideboard) => {
     set({ isStarting: true, lastError: null });
     try {
       const state = await invoke<GauntletState>("limited_start_gauntlet_from_sealed", {
         sessionId,
         rounds,
+        main,
+        sideboard,
       });
       set({ activeGauntlet: state, isStarting: false });
       return state;

@@ -1,35 +1,35 @@
 import { useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { RefreshCw, Search, Trophy } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckHubDiscover } from "@/components/deck/DeckHubDiscover";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { HubTopDeckSnapshots } from "@/components/deck/HubTopDeckSnapshots";
 import { useHubStore } from "@/stores/useHubStore";
-
-type HubTab = "discover" | "top";
+import { ROUTES } from "@/lib/constants";
 
 export default function DeckHub() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const openedPreviewId = useRef<string | null>(null);
   const capabilitiesLoaded = useHubStore((state) => state.capabilitiesLoaded);
   const capabilitiesError = useHubStore((state) => state.capabilitiesError);
   const loadCapabilities = useHubStore((state) => state.loadCapabilities);
-  const tab: HubTab = searchParams.get("tab") === "top" ? "top" : "discover";
+  const topDecks = location.pathname === ROUTES.HUB_TOP;
   const deckId = searchParams.get("deck");
 
   useEffect(() => {
     void loadCapabilities();
   }, [loadCapabilities]);
 
-  function selectTab(nextTab: HubTab) {
+  useEffect(() => {
+    if (topDecks || searchParams.get("tab") !== "top") return;
     const next = new URLSearchParams(searchParams);
-    if (nextTab === "top") next.set("tab", "top");
-    else next.delete("tab");
+    next.delete("tab");
     next.delete("page");
-    setSearchParams(next);
-  }
+    navigate({ pathname: ROUTES.HUB_TOP, search: next.toString() }, { replace: true });
+  }, [navigate, searchParams, topDecks]);
 
   function openPreview(id: string) {
     openedPreviewId.current = id;
@@ -52,35 +52,6 @@ export default function DeckHub() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <div>
-          <p className="text-sm font-medium">Published decks you can inspect card by card</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Every result and ranking opens the exact version its author shared.
-          </p>
-        </div>
-        <div className="flex w-fit items-center gap-1 rounded-lg bg-muted/60 p-1">
-          <Button
-            variant={tab === "discover" ? "secondary" : "ghost"}
-            size="sm"
-            aria-pressed={tab === "discover"}
-            onClick={() => selectTab("discover")}
-          >
-            <Search className="mr-1 h-4 w-4" />
-            Discover
-          </Button>
-          <Button
-            variant={tab === "top" ? "secondary" : "ghost"}
-            size="sm"
-            aria-pressed={tab === "top"}
-            onClick={() => selectTab("top")}
-          >
-            <Trophy className="mr-1 h-4 w-4" />
-            Top Decks
-          </Button>
-        </div>
-      </div>
-
       {!capabilitiesLoaded && capabilitiesError ? (
         <div className="grid min-h-0 flex-1 place-items-center px-6 text-center">
           <div className="max-w-md">
@@ -101,10 +72,10 @@ export default function DeckHub() {
         <div className="grid min-h-0 flex-1 place-items-center text-sm text-muted-foreground">
           Loading Community…
         </div>
-      ) : tab === "discover" ? (
-        <DeckHubDiscover onOpen={openPreview} />
-      ) : (
+      ) : topDecks ? (
         <HubTopDeckSnapshots onOpenDeck={openPreview} />
+      ) : (
+        <DeckHubDiscover onOpen={openPreview} />
       )}
 
       <HubDeckPreviewDialog deckId={deckId} onClose={closePreview} />

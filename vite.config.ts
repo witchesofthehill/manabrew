@@ -89,6 +89,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/spellbook-api/, ""),
       },
+      "/cubecobra-download": {
+        target: "https://cubecobra.com",
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes) => {
+            delete proxyRes.headers["set-cookie"];
+          });
+        },
+        rewrite: (p) => p.replace(/^\/cubecobra-download/, ""),
+      },
       "/scryfall-symbols": {
         target: "https://svgs.scryfall.io",
         changeOrigin: true,

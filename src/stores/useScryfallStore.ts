@@ -125,6 +125,11 @@ function normalizeTokenId(id: string): string {
   return id.startsWith("token:") ? id.slice("token:".length) : id;
 }
 
+function forgeTokenSetCode(setCode: string): string | null {
+  const normalized = setCode.toLowerCase();
+  return normalized.startsWith("t") && normalized.length > 1 ? normalized.slice(1) : null;
+}
+
 let tokenArchivePromise: Promise<TokenArchiveIndex> | null = null;
 let loadedTokenArchive: TokenArchiveIndex | null = null;
 
@@ -147,6 +152,11 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
         byId.set(id, token);
         byId.set(normalizeTokenId(id), token);
         bySetAndNumber.set(cardKey({ setCode, collectorNumber: cardNumber }), token);
+        const forgeSetCode = forgeTokenSetCode(setCode);
+        if (forgeSetCode) {
+          const forgeKey = cardKey({ setCode: forgeSetCode, collectorNumber: cardNumber });
+          if (!bySetAndNumber.has(forgeKey)) bySetAndNumber.set(forgeKey, token);
+        }
         const lower = name.toLowerCase();
         if (!byName.has(lower)) byName.set(lower, token);
         const withSuffix = `${lower} token`;

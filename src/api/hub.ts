@@ -23,7 +23,7 @@ import type {
 } from "@/api/hubTypes";
 import type { EngineKind } from "@/protocol";
 
-export type DeckHubSort = "newest" | "name" | "favorites";
+export type DeckHubSort = "community" | "newest" | "name" | "favorites";
 export type DeckHubColorMatch = "exact" | "includes";
 export type DeckHubTagMatch = "any" | "all";
 export type DeckHubSource = "all" | "community" | "presets";

@@ -100,7 +100,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image }}
+          # Layers live in GHCR, not the Actions cache: `mode=max` saves every
+          # intermediate stage, which as `type=gha` filled 6.3GB of the repo's
+          # 10GB quota and evicted the Rust caches. Registry storage is free of
+          # that quota. GHCR needs OCI media types for the cache manifest.
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:buildcache
           # Tag-scoped layer saves are unreadable by the next tag; cache-warm
           # owns the main-scoped layers. Dispatch runs (from main) still save.
-          cache-to: ${{ github.ref_type != 'tag' && format('type=gha,mode=max,scope={0}', matrix.image) || '' }}
+          # ignore-error: a cache export hiccup must never fail a release build.
+          cache-to: ${{ github.ref_type != 'tag' && format('type=registry,ref=ghcr.io/{0}/{1}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true', github.repository_owner, matrix.image) || '' }}

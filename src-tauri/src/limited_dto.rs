@@ -19,6 +19,8 @@ pub struct SealedSetupDto {
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
+    #[serde(default)]
+    pub singleton: bool,
 }
 
 pub fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
@@ -284,6 +286,8 @@ pub struct CubeImportResultDto {
     pub num_packs: u32,
     pub singleton: bool,
     pub pool: Vec<DeckCardIdentity>,
+    pub playable_card_count: u32,
+    pub rejected_card_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

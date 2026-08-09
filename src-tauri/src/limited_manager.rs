@@ -74,9 +74,21 @@ impl LimitedManager {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => StdRng::from_entropy(),
         };
-        let template = self.template_for_pool(&card_pool, setup.variant.as_deref());
+        let template = if pool_type == LimitedPoolType::Custom {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            self.template_for_pool(&card_pool, setup.variant.as_deref())
+        };
+        let required_cards =
+            template.number_of_cards_expected() as usize * setup.num_boosters as usize;
+        if setup.singleton && card_pool.len() < required_cards {
+            return Err(format!(
+                "singleton pool has {} playable cards but {required_cards} are required",
+                card_pool.len()
+            ));
+        }
         let mut gen = SealedCardPoolGenerator::new(pool_type, card_pool)
-            .with_template(template, setup.num_boosters as usize);
+            .with_template_and_pool_limit(template, setup.num_boosters as usize, setup.singleton);
 
         let ranker = Arc::new(CardRanker::new(self.rank_cache.clone()));
 
@@ -316,14 +328,21 @@ impl LimitedManager {
         &self,
         session_id: &str,
         rounds: u32,
+        main: Vec<PaperCard>,
+        sideboard: Vec<PaperCard>,
     ) -> Result<GauntletStateDto, String> {
         let sessions = lock_recover(&self.sessions);
         let group = sessions
             .get(session_id)
             .ok_or_else(|| format!("no sealed session for id {session_id}"))?;
-        let human_deck = group.suggested_human_deck.clone().ok_or_else(|| {
-            "sealed pool has no suggested human deck — open more packs".to_string()
-        })?;
+        if main.len() < 40 {
+            return Err("sealed main deck must contain at least 40 cards".to_string());
+        }
+        let human_deck = LimitedDeck {
+            name: group.deck_name.clone(),
+            main,
+            sideboard,
+        };
         let ai_decks: Vec<LimitedDeck> = group.ai_decks.clone();
         let gauntlet = GauntletMini::new(GauntletKind::Sealed, rounds, human_deck, ai_decks)?;
         let gauntlet_id = format!("gauntlet-{}", uuid_like());

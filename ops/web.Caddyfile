@@ -100,6 +100,17 @@ http://play.manabrew.app {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    @cubecobra path_regexp cubecobra ^/cubecobra-download/cube/download/forge/([A-Za-z0-9-]+)$
+    handle @cubecobra {
+        rewrite * /cube/download/forge/{re.cubecobra.1}
+        reverse_proxy https://cubecobra.com {
+            header_up Host cubecobra.com
+            header_down -Access-Control-Allow-Origin
+            header_down -Set-Cookie
+        }
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
     # Status banner (ops/status.json, bind-mounted). Open CORS so desktop and
     # off-origin web builds read this one canonical file.
     handle /status.json {

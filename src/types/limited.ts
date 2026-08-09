@@ -41,6 +41,7 @@ export interface SealedSetup {
   pool: DraftCard[];
   variant?: string;
   seed?: number;
+  singleton?: boolean;
 }
 
 export interface SealedTemplateMetadata {
@@ -114,6 +115,8 @@ export interface CubeImportResult {
   numPacks: number;
   singleton: boolean;
   pool?: DraftCard[];
+  playableCardCount: number;
+  rejectedCardCount: number;
 }
 
 export interface ChaosTheme {

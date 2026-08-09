@@ -28,12 +28,21 @@ export function DraftPodButton({ seats }: DraftPodButtonProps) {
         </DropdownMenuLabel>
         <ul className="space-y-1 px-2 pb-2 text-sm">
           {seats.map((s) => (
-            <li key={s.seat} className="flex items-center justify-between gap-3">
+            <li
+              key={s.seat}
+              className="flex items-center justify-between gap-3 rounded px-1 py-0.5"
+            >
               <span className={s.isHuman ? "font-semibold" : ""}>
                 {s.seat}. {s.name}
               </span>
-              <span className="shrink-0 text-muted-foreground">
-                {s.picksMade} pick{s.picksMade === 1 ? "" : "s"}
+              <span className="shrink-0 text-right text-[11px] text-muted-foreground">
+                <span className="block">
+                  {s.currentPackSize ?? 0} cards
+                  {(s.packsWaiting ?? 0) > 0 ? ` · ${s.packsWaiting} waiting` : ""}
+                </span>
+                <span className="block">
+                  {s.awaitingPick ? "Picking" : `${s.picksMade} picked`}
+                </span>
               </span>
             </li>
           ))}

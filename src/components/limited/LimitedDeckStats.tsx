@@ -9,12 +9,13 @@ import type { DraftCard } from "@/types/limited";
 interface Props {
   cards: DraftCard[];
   className?: string;
+  compact?: boolean;
 }
 
 const COLOR_KEYS = ["W", "U", "B", "R", "G"] as const;
 type ColorKey = (typeof COLOR_KEYS)[number];
 
-export function LimitedDeckStats({ cards, className }: Props) {
+export function LimitedDeckStats({ cards, className, compact = false }: Props) {
   const cacheBucket = useScryfallStore((s) => s.cards);
 
   const stats = useMemo(() => {
@@ -72,6 +73,7 @@ export function LimitedDeckStats({ cards, className }: Props) {
     <div
       className={cn(
         "grid grid-cols-1 gap-3 rounded-md border border-border/70 bg-card/40 p-3 text-xs lg:grid-cols-3",
+        compact && "gap-2 p-2 lg:grid-cols-1",
         className,
       )}
     >

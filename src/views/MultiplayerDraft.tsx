@@ -4,10 +4,9 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
-import { LandscapeGate } from "@/components/LandscapeGate";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
-import { DraftPodButton } from "@/components/limited/DraftPodButton";
-import { DraftingView } from "@/views/Draft";
+import { DraftStatusBar } from "@/components/limited/DraftStatusBar";
+import { DraftWorkspace } from "@/components/limited/DraftWorkspace";
 import { submitHostPick, teardownHost } from "@/game/draftHost";
 import { submitPeerPick } from "@/game/draftPeer";
 import { useLimitedStore } from "@/stores/useLimitedStore";
@@ -109,44 +108,20 @@ export default function MultiplayerDraft() {
 
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
-      <LandscapeGate />
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>
-            Round {state.round} / {state.totalRounds} · Pick {state.pickNumber}
-          </span>
-          {mySeatAssignment && (
-            <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
-              Seat {mySeatAssignment.seat} · {mySeatAssignment.displayName}
-            </span>
-          )}
-          {amHost && (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              Host
-            </span>
-          )}
-          {state.isComplete ? (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              Complete
-            </span>
-          ) : state.awaitingHuman ? (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              Your pick
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] font-medium">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Waiting…
-            </span>
-          )}
-        </p>
-        <div className="flex items-center gap-2">
-          <DraftPodButton seats={state.seatSummaries} />
-        </div>
-      </header>
+      <DraftStatusBar
+        draft={state}
+        seatLabel={
+          mySeatAssignment
+            ? `Seat ${mySeatAssignment.seat} · ${mySeatAssignment.displayName}`
+            : undefined
+        }
+        isHost={amHost}
+        waitingLabel="Waiting for the pod…"
+        viewerSeat={mySeat ?? undefined}
+      />
 
-      <DraftingView
-        activeDraft={state}
+      <DraftWorkspace
+        draft={state}
         onPick={handlePick}
         conspiracyHooks={conspiracyHooks}
         pickPending={pickPending}
@@ -170,7 +145,6 @@ interface CompletionViewProps {
 function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
-      <LandscapeGate />
       <header className="flex items-center justify-between gap-3">
         <div className="max-w-3xl">
           <p className="text-sm text-muted-foreground">

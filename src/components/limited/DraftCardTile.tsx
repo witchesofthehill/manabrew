@@ -17,6 +17,8 @@ interface DraftCardTileProps {
   disabled?: boolean;
   preview?: ReturnType<typeof useCardPreview>;
   overlay?: React.ReactNode;
+  selected?: boolean;
+  pickPending?: boolean;
 }
 
 function DraftCardTileImpl({
@@ -26,6 +28,8 @@ function DraftCardTileImpl({
   disabled,
   preview,
   overlay,
+  selected = false,
+  pickPending = false,
 }: DraftCardTileProps) {
   const deckCard = useDeckCard(card, index);
   const longPress = useLongPressPreview<DeckCard>({
@@ -44,7 +48,11 @@ function DraftCardTileImpl({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="relative aspect-[5/7] w-full rounded-lg border border-border/70 bg-card p-2 text-left text-xs font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+        className={cn(
+          "relative aspect-[5/7] w-full rounded-lg border border-border/70 bg-card p-2 text-left text-xs font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-60",
+          selected && "ring-2 ring-primary",
+          selected && pickPending && "animate-draft-card-pick",
+        )}
       >
         <span className="break-words">{card.name}</span>
         {card.setCode && (
@@ -69,6 +77,8 @@ function DraftCardTileImpl({
       className={cn(
         "group relative w-full text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-60",
         card.foil && "draft-tile-foil",
+        selected && "z-10 ring-2 ring-primary",
+        selected && pickPending && "animate-draft-card-pick",
       )}
     >
       <CardThumbnail card={deckCard} />

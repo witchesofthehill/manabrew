@@ -7,8 +7,8 @@ use forge_foundation::ColorSet;
 use forge_limited::{
     BoosterDraft, CardRanker, CubeImporter, DraftPack, DraftRankCache, GauntletKind, GauntletMini,
     GauntletOutcome, IBoosterDraft, LimitedDeck, LimitedPoolType, LimitedWinLoseController,
-    SealedCardPoolGenerator, SealedDeckGroup, ThemedChaosDraft, TickOutcome, WinstonDraft,
-    WinstonOutcome, CONSPIRACY_HOOKS,
+    PassDirection, SealedCardPoolGenerator, SealedDeckGroup, ThemedChaosDraft, TickOutcome,
+    WinstonDraft, WinstonOutcome, CONSPIRACY_HOOKS,
 };
 use manabrew_protocol::deck_dto::DeckCardIdentity;
 use rand::rngs::StdRng;
@@ -187,6 +187,9 @@ pub struct DraftSeatDto {
     pub is_human: bool,
     pub picks_made: u32,
     pub last_pick_name: Option<String>,
+    pub current_pack_size: u32,
+    pub packs_waiting: u32,
+    pub awaiting_pick: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,6 +209,7 @@ pub struct DraftStateDto {
     pub human_conspiracies: Vec<String>,
     pub picks_per_pass: u32,
     pub picks_remaining_in_pack: u32,
+    pub pass_direction: String,
 }
 
 impl DraftStateDto {
@@ -233,6 +237,16 @@ impl DraftStateDto {
                 is_human: p.is_human,
                 picks_made: p.picked.len() as u32,
                 last_pick_name: p.last_pick.as_ref().map(|c| c.name.clone()),
+                current_pack_size: p.current_pack().map(|pack| pack.len()).unwrap_or(0) as u32,
+                packs_waiting: p
+                    .pack_queue
+                    .len()
+                    .saturating_sub(usize::from(p.current_pack().is_some()))
+                    as u32,
+                awaiting_pick: p
+                    .current_pack()
+                    .map(|pack| !pack.is_empty())
+                    .unwrap_or(false),
             })
             .collect();
         seat_summaries.sort_by_key(|s| s.seat);
@@ -267,6 +281,11 @@ impl DraftStateDto {
             human_conspiracies,
             picks_per_pass: draft.picks_per_pass(),
             picks_remaining_in_pack,
+            pass_direction: match draft.current_direction() {
+                PassDirection::Left => "left",
+                PassDirection::Right => "right",
+            }
+            .to_string(),
         }
     }
 }

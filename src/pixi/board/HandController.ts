@@ -28,6 +28,9 @@ import { lerp, safeDestroy } from "./pixiHelpers";
 import type { BlockingRect, HandHitZone, HandHost, HandTarget } from "./types";
 
 const HAND_SELECTION_DROP_PX = 30;
+/** How far above the fan's bottom edge, in card heights, a drop still counts as
+ *  a reorder rather than a cancelled drag. */
+const HAND_REORDER_BAND_CARDS = 1.6;
 
 export class HandController {
   private host: HandHost;
@@ -131,16 +134,17 @@ export class HandController {
     this.pruneRemovedSprites(new Set(state.cards.map((c) => c.id)));
     this.host.setHandExclusion(this.getBlockerRect());
 
+    const cards = this.displayedCards(state);
     const dims = this.getDimensions();
     const baseLayout = computeBaseLayout(
-      state.cards.length,
+      cards.length,
       dims.cardW,
       dims.maxSpread,
       dims.minSpread,
       dims.spreadWidth,
     );
     const layout = computeHandLayout(
-      state.cards.length,
+      cards.length,
       dims.cardW,
       dims.cardH,
       dims.maxSpread,
@@ -161,9 +165,10 @@ export class HandController {
     // the hand out of the way.
     const draggingInHand =
       state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);
+    const reordering = state.selectionMode !== true && state.reorderIndex != null;
 
-    for (let i = 0; i < state.cards.length; i++) {
-      const card = state.cards[i]!;
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i]!;
       const l = layout[i]!;
       const base = baseLayout[i]!;
       const isHovered = this.hoveredIndex === i;
@@ -182,10 +187,13 @@ export class HandController {
       }
 
       const isCastDrag = !selectionMode && card.id === state.draggingCardId;
-      const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
-      const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
+      const isCastingPermanent = isCastDrag && !reordering && state.draggingIsPermanent === true;
+      const isCastingSpell = isCastDrag && !isCastingPermanent;
       const reshapeFan =
-        !selectionMode && draggingInHand && (state.draggingIsPermanent === true || this.dropActive);
+        !selectionMode &&
+        !reordering &&
+        draggingInHand &&
+        (state.draggingIsPermanent === true || this.dropActive);
       const castOffset = reshapeFan
         ? Math.round(
             (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,
@@ -239,6 +247,39 @@ export class HandController {
     }
     this.hitZones = hitZones;
     this.drawHoverDebug();
+  }
+
+  /** Fan slot the pointer sits over, in the current hand's index space. Feeds
+   *  the drag's reorder preview; the slot centres come from the unpermuted fan
+   *  so the answer can't oscillate as the preview reshuffles the cards. */
+  insertIndexAt(x: number, y: number): number | null {
+    const count = this.lastState?.cards.length ?? 0;
+    if (count === 0) return null;
+    const dims = this.getDimensions();
+    // Only a release at fan height reorders; letting go anywhere else (side
+    // panels, the strip above the fan) stays the drag's cancel gesture.
+    if (y < this.getBottomY() - dims.cardH * HAND_REORDER_BAND_CARDS) return null;
+    const base = computeBaseLayout(
+      count,
+      dims.cardW,
+      dims.maxSpread,
+      dims.minSpread,
+      dims.spreadWidth,
+    );
+    const zone = this.host.getPlayZone();
+    const centerX = zone.x + zone.width / 2;
+    const slotsLeftOfPointer = base.filter((slot) => centerX + slot.x < x).length;
+    return Math.min(slotsLeftOfPointer, count - 1);
+  }
+
+  private displayedCards(state: HandState): CardDto[] {
+    const draggingId = state.draggingCardId;
+    if (state.reorderIndex == null || draggingId == null) return state.cards;
+    const dragged = state.cards.find((c) => c.id === draggingId);
+    if (!dragged) return state.cards;
+    const others = state.cards.filter((c) => c.id !== draggingId);
+    const at = Math.max(0, Math.min(state.reorderIndex, others.length));
+    return [...others.slice(0, at), dragged, ...others.slice(at)];
   }
 
   animate(): void {
@@ -436,22 +477,19 @@ export class HandController {
         this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
         return;
       }
-      if (this.lastState?.playableIds?.has(sprite.card.id)) {
-        this.host.getCallbacks().onStartDrag?.(
-          sprite.card,
-          { x: e.globalX, y: e.globalY },
-          {
-            pointerId: e.pointerId,
-            pointerType: e.pointerType,
-            clientX: e.clientX,
-            clientY: e.clientY,
-          },
-        );
-      } else {
-        this.host
-          .getCallbacks()
-          .onClickCard_Hand?.(sprite.card, { clientX: e.clientX, clientY: e.clientY });
-      }
+      // Every hand card starts a drag, playable or not — a drag that ends
+      // inside the fan reorders it. The tap (no movement) fallback is the
+      // caller's job, so an unplayable card still opens its actions.
+      this.host.getCallbacks().onStartDrag?.(
+        sprite.card,
+        { x: e.globalX, y: e.globalY },
+        {
+          pointerId: e.pointerId,
+          pointerType: e.pointerType,
+          clientX: e.clientX,
+          clientY: e.clientY,
+        },
+      );
     });
 
     this.container.addChild(sprite);

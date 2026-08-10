@@ -141,4 +141,8 @@ export interface HandState {
   castingCardId?: string | null;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
+  /** Slot the dragged hand card would land in when dropped back into the fan.
+   *  Non-null puts the drag in reorder mode: the fan opens a gap instead of
+   *  sinking out of the way for a cast. */
+  reorderIndex?: number | null;
 }

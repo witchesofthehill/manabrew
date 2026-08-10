@@ -1,5 +1,6 @@
 export { AbilityPickerModal } from "./AbilityPickerModal";
 export { ConcedeGameModal } from "./ConcedeGameModal";
+export { ConfirmActionModal } from "./ConfirmActionModal";
 export { EliminatedModal } from "./EliminatedModal";
 export { GameSettingsModal } from "./GameSettingsModal";
 export { LeaveGameModal } from "./LeaveGameModal";

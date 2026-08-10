@@ -52,7 +52,9 @@ export const usePhaseStopStore = create<PhaseStopState>((set, get) => ({
   },
 }));
 
-const PHASE_ORDER: readonly StepKind[] = PHASES.filter((p) => p.id !== "untap").map((p) => p.id);
+export const PHASE_ORDER: readonly StepKind[] = PHASES.filter((p) => p.id !== "untap").map(
+  (p) => p.id,
+);
 
 /**
  * Walk forward through (player, phase) slots in turn order — starting just

@@ -56,6 +56,9 @@ interface GameBoardProps {
   myPermanents: CardDto[];
   opponentPermanentsByPlayer: Map<string, CardDto[]>;
   myHand: CardDto[];
+  /** Slot the dragged hand card would drop into, or null when it isn't a
+   *  reorder drag. */
+  handReorderIndex?: number | null;
   graveyard: CardDto[];
   exile: CardDto[];
   library: CardDto[];
@@ -165,6 +168,7 @@ export function GameBoard({
   myPermanents,
   opponentPermanentsByPlayer,
   myHand,
+  handReorderIndex,
   graveyard,
   exile,
   library,
@@ -473,6 +477,7 @@ export function GameBoard({
       castingCardId,
       selectionMode: handSelectionMode,
       selectedIds: handSelectedIds,
+      reorderIndex: handReorderIndex,
     }),
     [
       myHand,
@@ -482,6 +487,7 @@ export function GameBoard({
       castingCardId,
       handSelectionMode,
       handSelectedIds,
+      handReorderIndex,
     ],
   );
 

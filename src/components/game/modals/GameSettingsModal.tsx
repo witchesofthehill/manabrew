@@ -52,6 +52,10 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
   const prefs = usePreferencesStore();
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
+  const confirmUnspentMana = usePromptPreferencesStore((s) => s.confirmUnspentMana);
+  const setConfirmUnspentMana = usePromptPreferencesStore((s) => s.setConfirmUnspentMana);
+  const confirmRiskyActions = usePromptPreferencesStore((s) => s.confirmRiskyActions);
+  const setConfirmRiskyActions = usePromptPreferencesStore((s) => s.setConfirmRiskyActions);
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-md">
@@ -77,6 +81,28 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
               onClick={() => setFullControl(true)}
             >
               Full control
+            </Button>
+          </div>
+        </SettingRow>
+
+        <SettingRow
+          label="Confirmations"
+          hint="Unspent mana asks before a pass that would empty a non-empty mana pool. Risky actions also asks before combat declarations, sacrifice/discard/pay-life abilities, and ending a turn with your land drop unused."
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant={confirmUnspentMana ? "default" : "outline"}
+              size="sm"
+              onClick={() => setConfirmUnspentMana(!confirmUnspentMana)}
+            >
+              Unspent mana
+            </Button>
+            <Button
+              variant={confirmRiskyActions ? "default" : "outline"}
+              size="sm"
+              onClick={() => setConfirmRiskyActions(!confirmRiskyActions)}
+            >
+              Risky actions
             </Button>
           </div>
         </SettingRow>

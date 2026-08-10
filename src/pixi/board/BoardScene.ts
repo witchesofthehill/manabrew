@@ -1022,6 +1022,14 @@ export class BoardScene {
     this.hand?.updateHand(state);
   }
 
+  /** Hand slot under a viewport point, for the DOM-level hand drag. */
+  handInsertIndexAtClient(clientX: number, clientY: number): number | null {
+    if (!this.hand) return null;
+    const rect = this.app.canvas.getBoundingClientRect();
+    const local = this.root.toLocal(new Point(clientX - rect.left, clientY - rect.top));
+    return this.hand.insertIndexAt(local.x, local.y);
+  }
+
   holdHandHover(): void {
     this.hand?.holdHover();
   }

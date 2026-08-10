@@ -26,6 +26,10 @@ export function PromptPreferencesPanel() {
   const clearShow = usePromptPreferencesStore((s) => s.clearShow);
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
   const setFullControl = usePromptPreferencesStore((s) => s.setFullControl);
+  const confirmUnspentMana = usePromptPreferencesStore((s) => s.confirmUnspentMana);
+  const setConfirmUnspentMana = usePromptPreferencesStore((s) => s.setConfirmUnspentMana);
+  const confirmRiskyActions = usePromptPreferencesStore((s) => s.confirmRiskyActions);
+  const setConfirmRiskyActions = usePromptPreferencesStore((s) => s.setConfirmRiskyActions);
 
   const [logPrompts, setLogPrompts] = useState(isPromptLoggingEnabled);
 
@@ -62,6 +66,44 @@ export function PromptPreferencesPanel() {
               windows where you can only tap for mana pass automatically after a short delay — click
               the sweeping Pass button to hold priority.
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Confirmations</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
+            <input
+              id="confirm-unspent-mana"
+              type="checkbox"
+              checked={confirmUnspentMana}
+              onChange={(e) => setConfirmUnspentMana(e.target.checked)}
+              className="mt-1 accent-primary h-4 w-4"
+            />
+            <div className="space-y-1">
+              <Label htmlFor="confirm-unspent-mana">Warn on unspent mana</Label>
+              <p className="text-xs text-muted-foreground">
+                Ask before a pass that ends the step while mana is still floating in your pool.
+                Untapped lands alone never trigger it.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
+            <input
+              id="confirm-risky-actions"
+              type="checkbox"
+              checked={confirmRiskyActions}
+              onChange={(e) => setConfirmRiskyActions(e.target.checked)}
+              className="mt-1 accent-primary h-4 w-4"
+            />
+            <div className="space-y-1">
+              <Label htmlFor="confirm-risky-actions">Double-check risky actions</Label>
+              <p className="text-xs text-muted-foreground">
+                Ask before declaring attackers or blockers, before an ability that sacrifices,
+                discards, or pays life, and before ending a turn with your land drop unused.
+              </p>
+            </div>
           </div>
         </div>
       </div>

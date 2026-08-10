@@ -13,11 +13,19 @@ export function useAutopass(): { counting: boolean; hold: () => void } {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const fullControl = usePromptPreferencesStore((s) => s.fullControl);
+  const confirmUnspentMana = usePromptPreferencesStore((s) => s.confirmUnspentMana);
+  const manaFloating = useGameStore((s) => {
+    const me = s.gameView?.players.find((p) => p.id === s.myPlayerSlot);
+    return Object.values(me?.manaPool ?? {}).some((amount) => amount > 0);
+  });
   const devOverride = useGameDevStore((s) => s.promptActionOverride);
   const [heldPrompt, setHeldPrompt] = useState<Prompt | null>(null);
 
   const counting =
     !fullControl &&
+    // Someone who asked to be warned about unspent mana does not want the
+    // countdown burning it while they read the board.
+    !(confirmUnspentMana && manaFloating) &&
     devOverride == null &&
     !isWaitingForResponse &&
     currentPrompt != null &&

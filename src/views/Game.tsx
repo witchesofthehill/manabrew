@@ -22,10 +22,15 @@ import { ManualTabletopControls } from "@/components/game/ManualTabletopControls
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
   ConcedeGameModal,
+  ConfirmActionModal,
   EliminatedModal,
   GameSettingsModal,
   LeaveGameModal,
 } from "@/components/game/modals";
+import {
+  actionConfirmRequest,
+  type ActionConfirmRequest,
+} from "@/components/prompts/internal/actionConfirm";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import { useResolveSourceCard } from "@/components/prompts/internal/usePromptSourceCard";
@@ -39,6 +44,7 @@ import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
+import { useHandOrder } from "@/hooks/useHandOrder";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -56,7 +62,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { peek as peekGauntletMatch, tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
 import { intentPrefersArrow } from "@/types/promptType";
-import type { PromptType } from "@/protocol";
+import type { PromptOutput, PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
@@ -151,6 +157,11 @@ interface GameProps {
   exitTo?: string;
 }
 
+interface PendingConfirm {
+  request: ActionConfirmRequest;
+  output: PromptOutput["output"];
+}
+
 export default function Game({ exitTo }: GameProps = {}) {
   const interruption = useMultiplayerInterruption();
   useAutoResolvePrompt(interruption.waiting);
@@ -193,7 +204,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   const hostingForgeRoom = useServerStore((s) => s.hostingForgeRoom);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const { respond, concede, endGame, restoreSnapshot, gameDecks } = useGameStore(
+  const {
+    respond: sendResponse,
+    concede,
+    endGame,
+    restoreSnapshot,
+    gameDecks,
+  } = useGameStore(
     useShallow((s) => ({
       respond: s.respond,
       concede: s.concede,
@@ -225,6 +242,41 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const activePrompt = manualApi ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
+
+  // Every response the board sends passes the confirmation gate first, so the
+  // buttons, the keyboard, and the drag gestures all raise the same dialog.
+  const confirmUnspentMana = usePromptPreferencesStore((s) => s.confirmUnspentMana);
+  const confirmRiskyActions = usePromptPreferencesStore((s) => s.confirmRiskyActions);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  useEffect(() => setPendingConfirm(null), [activePrompt]);
+  const respond = useCallback(
+    (output: PromptOutput["output"]) => {
+      const request = actionConfirmRequest(output, {
+        prompt: activePrompt,
+        gameView,
+        myPlayerId: myPlayerSlot ?? "",
+        confirmUnspentMana,
+        confirmRiskyActions,
+      });
+      if (!request) {
+        void sendResponse(output);
+        return;
+      }
+      setPendingConfirm({ request, output });
+    },
+    [activePrompt, gameView, myPlayerSlot, confirmUnspentMana, confirmRiskyActions, sendResponse],
+  );
+
+  const me =
+    gameView?.players?.find((p) => p.id === myPlayerSlot) ??
+    gameView?.players?.find((p) => p.isHuman) ??
+    gameView?.players?.[0];
+  const opponents = useMemo(
+    () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
+    [gameView?.players, me?.id],
+  );
+  const { orderedHand, moveHandCard } = useHandOrder(me?.hand);
+
   const chooseActionInput = activePrompt?.input.type === "chooseAction" ? activePrompt.input : null;
   const chooseAttackersInput =
     activePrompt?.input.type === "chooseAttackers" ? activePrompt.input : null;
@@ -567,17 +619,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
   };
 
+  // Every hand card drags, so an unplayable one can still be reordered; what a
+  // press means is decided on release, once we know whether it moved.
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
     if (manualApi) {
       preview.showSticky(card, e.clientX, e.clientY);
       return;
     }
+    startHandCardDrag(card, e);
+  };
+
+  const handleHandCardTap = (card: CardDto, at: { clientX: number; clientY: number }) => {
     const actions = getHandActionOptions(card);
-    if (actions.length > 1 || actions.some((action) => action.kind === "ability")) {
-      handleHandCardAction(card, e);
-      return;
-    }
-    if (playableIds.has(card.id)) startHandCardDrag(card, e);
+    const oneObviousPlay =
+      playableIds.has(card.id) &&
+      actions.length <= 1 &&
+      !actions.some((action) => action.kind === "ability");
+    if (oneObviousPlay) handleCastSpell(card.id);
+    else handleHandCardAction(card, at);
   };
 
   const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
@@ -920,13 +979,18 @@ export default function Game({ exitTo }: GameProps = {}) {
   const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
-  const { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag } = useHandDrag({
-    battlefieldContainerRef,
-    handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
-    onCastSpell: handleCastSpell,
-    dismissHover: preview.dismiss,
-    onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
-  });
+  const { draggingHandCard, ghostPos, isOverBattlefield, reorderIndex, startHandCardDrag } =
+    useHandDrag({
+      battlefieldContainerRef,
+      handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
+      onCastSpell: handleCastSpell,
+      onTap: handleHandCardTap,
+      getReorderIndex: (clientX, clientY) =>
+        boardSceneRef.current?.handInsertIndexAtClient(clientX, clientY) ?? null,
+      onReorder: moveHandCard,
+      dismissHover: preview.dismiss,
+      onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
+    });
 
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
@@ -1004,15 +1068,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       prefs.setFullControl(!prefs.fullControl);
     },
   });
-
-  const me =
-    gameView?.players?.find((p) => p.id === myPlayerSlot) ??
-    gameView?.players?.find((p) => p.isHuman) ??
-    gameView?.players?.[0];
-  const opponents = useMemo(
-    () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
-    [gameView?.players, me?.id],
-  );
 
   const iAmEliminated = selfConceded || (me != null && me.status !== "playing");
   const ownsEngine = isHost || hostingForgeRoom;
@@ -1725,7 +1780,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           opponents={displayOpponents}
           myPermanents={myPermanents}
           opponentPermanentsByPlayer={opponentPermanentsByPlayer}
-          myHand={me?.hand ?? []}
+          myHand={orderedHand}
+          handReorderIndex={reorderIndex}
           graveyard={me?.graveyard ?? []}
           exile={me?.exile ?? []}
           library={me?.library ?? []}
@@ -2005,6 +2061,16 @@ export default function Game({ exitTo }: GameProps = {}) {
         <ConcedeGameModal
           onConfirm={handleConcedeConfirm}
           onCancel={() => setConcedeModalOpen(false)}
+        />
+      )}
+      {pendingConfirm && (
+        <ConfirmActionModal
+          request={pendingConfirm.request}
+          onConfirm={() => {
+            setPendingConfirm(null);
+            void sendResponse(pendingConfirm.output);
+          }}
+          onCancel={() => setPendingConfirm(null)}
         />
       )}
 

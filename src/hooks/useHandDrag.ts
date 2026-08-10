@@ -14,6 +14,11 @@ interface UseHandDragOptions {
   battlefieldContainerRef: React.RefObject<HTMLDivElement | null>;
   handDropExclusionPx?: number;
   onCastSpell: (cardId: string) => void;
+  /** Press with no movement — the card's normal click behaviour. */
+  onTap: (card: CardDto, at: { clientX: number; clientY: number }) => void;
+  /** Fan slot the pointer is over, or null when it is outside the hand. */
+  getReorderIndex: (clientX: number, clientY: number) => number | null;
+  onReorder: (cardId: string, toIndex: number) => void;
   dismissHover: () => void;
   onLongPress?: (card: CardDto, pos: { x: number; y: number }) => void;
 }
@@ -22,13 +27,18 @@ export function useHandDrag({
   battlefieldContainerRef,
   handDropExclusionPx = 0,
   onCastSpell,
+  onTap,
+  getReorderIndex,
+  onReorder,
   dismissHover,
   onLongPress,
 }: UseHandDragOptions) {
   const [draggingHandCard, setDraggingHandCard] = useState<CardDto | null>(null);
   const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
   const [isOverBattlefield, setIsOverBattlefield] = useState(false);
+  const [reorderIndex, setReorderIndex] = useState<number | null>(null);
   const isOverBattlefieldRef = useRef(false);
+  const reorderIndexRef = useRef<number | null>(null);
   const teardownRef = useRef<(() => void) | null>(null);
 
   useEffect(() => () => teardownRef.current?.(), []);
@@ -46,10 +56,16 @@ export function useHandDrag({
     let moved = false;
     const longPress = new LongPressTimer();
 
+    const setReorder = (index: number | null) => {
+      reorderIndexRef.current = index;
+      setReorderIndex(index);
+    };
+
     const reset = () => {
       setDraggingHandCard(null);
       setIsOverBattlefield(false);
       isOverBattlefieldRef.current = false;
+      setReorder(null);
     };
 
     const teardown = () => {
@@ -100,13 +116,19 @@ export function useHandDrag({
 
         isOverBattlefieldRef.current = over;
         setIsOverBattlefield(over);
+        // The battlefield owns the drop while the pointer is over it; anywhere
+        // else the drag is a reorder of the fan it came from.
+        setReorder(over ? null : getReorderIndex(pe.clientX, pe.clientY));
       }
     };
 
     const handlePointerUp = (pe: PointerEvent) => {
       if (pe.pointerId !== start.pointerId) return;
       teardown();
-      if (!moved || isOverBattlefieldRef.current) onCastSpell(card.id);
+      const toIndex = reorderIndexRef.current;
+      if (!moved) onTap(card, { clientX: pe.clientX, clientY: pe.clientY });
+      else if (isOverBattlefieldRef.current) onCastSpell(card.id);
+      else if (toIndex != null) onReorder(card.id, toIndex);
       reset();
     };
 
@@ -134,5 +156,5 @@ export function useHandDrag({
     };
   }
 
-  return { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag };
+  return { draggingHandCard, ghostPos, isOverBattlefield, reorderIndex, startHandCardDrag };
 }

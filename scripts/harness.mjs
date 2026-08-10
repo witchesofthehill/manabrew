@@ -272,16 +272,20 @@ function rebuild() {
     delimiter,
   );
   console.log("harness: running regression tests...");
-  const regression = spawnSync(
-    "java",
-    ["-cp", regressionClasspath, "forge.harness.host.InteractiveSnapshotExtractorTest"],
-    { cwd: root, stdio: "inherit" },
-  );
-  if (regression.status !== 0) {
-    console.error(
-      `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
-    );
-    process.exit(regression.status ?? 1);
+  for (const regressionClass of [
+    "forge.harness.host.InteractiveSnapshotExtractorTest",
+    "forge.harness.common.HarnessPlayPlumbingTest",
+  ]) {
+    const regression = spawnSync("java", ["-cp", regressionClasspath, regressionClass], {
+      cwd: root,
+      stdio: "inherit",
+    });
+    if (regression.status !== 0) {
+      console.error(
+        `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
+      );
+      process.exit(regression.status ?? 1);
+    }
   }
 
   updateChecksum();

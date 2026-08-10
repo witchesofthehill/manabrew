@@ -21,6 +21,7 @@ import forge.game.trigger.Trigger;
 import forge.game.trigger.TriggerHandler;
 import forge.game.trigger.TriggerType;
 import forge.game.trigger.TriggerWaiting;
+import forge.game.trigger.WrappedAbility;
 import forge.game.zone.Zone;
 import forge.game.zone.ZoneType;
 import forge.util.Localizer;
@@ -452,6 +453,7 @@ public final class HarnessPlayPlumbing {
     }
 
     public boolean prepareSingleSa(final Card host, final SpellAbility sa, final boolean isMandatory) {
+        detachTriggerTemplate(sa);
         if (sa.getApi() == ApiType.Charm) {
             if (!CharmEffect.makeChoices(sa)) {
                 return false;
@@ -461,6 +463,21 @@ public final class HarnessPlayPlumbing {
         // heuristics (`AiController#doTrigger`). Mirror Java SpellAbility setup flow
         // so all target prompts are resolved by controller callbacks.
         return sa.setupTargets();
+    }
+
+    static void detachTriggerTemplate(final SpellAbility sa) {
+        if (!(sa instanceof WrappedAbility)) {
+            return;
+        }
+        final WrappedAbility wrapper = (WrappedAbility) sa;
+        final Trigger trigger = wrapper.getTrigger();
+        final SpellAbility wrapped = wrapper.getWrappedAbility();
+        if (trigger == null || !wrapped.usesTargeting() || trigger.getOverridingAbility() != wrapped) {
+            return;
+        }
+        final SpellAbility template = wrapped.copy(wrapped.getHostCard(), wrapped.getActivatingPlayer(), false, true);
+        template.clearTargets();
+        trigger.setOverridingAbility(template);
     }
 
     // Sort simultaneous triggers deterministically by host card zone-entry

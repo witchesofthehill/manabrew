@@ -12,15 +12,19 @@ export const featureFlags = {
   // in via Settings (`ironsmithRuntimeEnabled`) — the experimental engine ships
   // dark in prod by default.
   ironsmithRuntime: true,
-  // Deck Hub (browse/publish shared decks + top decks). Ships dark until the
-  // api.manabrew.app service is deployed and the flow has had a manual pass.
-  deckHub: false,
-  // Hub accounts (OAuth + email sign-in, deck ownership). Ships dark until the
-  // prod OAuth apps and the Resend domain are registered. Hub publishing
-  // requires a session once the hub enforces auth, so flip this before deckHub.
+  // Deck Hub (browse/publish shared decks + top decks). Public browse, play and
+  // copy need no session, so this stands alone; publishing and favorites stay
+  // gated behind `accounts` below.
+  deckHub: true,
+  // Hub accounts (OAuth + email sign-in, deck ownership). Still dark at compile
+  // time because both sign-in flows hand off to `WEB_APP_URL` and there is no
+  // route back into a desktop window: the hub sends OAuth to
+  // `{public_url}/api/auth/callback/{provider}` then on to `web_app_url`
+  // (`auth/oauth.rs`), and magic links to `{web_app_url}/auth/callback`
+  // (`auth/email.rs`). The web image turns this on at runtime, where that
+  // handoff lands back on the same origin.
   accounts: false,
-  // Email (magic-link) sign-in inside the accounts dialog. Hidden until the
-  // Resend domain is registered; OAuth sign-in is unaffected.
+  // Email (magic-link) sign-in inside the accounts dialog. Gated by `accounts`.
   emailSignIn: false,
 } as const;
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, ChevronDown, ImagePlus, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +18,7 @@ import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
 import type { DeckFormat } from "@/protocol/deck";
 
-export function DeckHero() {
+export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => void }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
@@ -29,6 +29,7 @@ export function DeckHero() {
   const [editingName, setEditingName] = useState(false);
   const [nameBeforeEdit, setNameBeforeEdit] = useState(currentDeck.name);
   const [editorOpen, setEditorOpen] = useState(false);
+  const cancelNameEditRef = useRef(false);
 
   const playmat = currentDeck.playmat;
   const playmatColor = currentDeck.playmatSettings?.color;
@@ -43,9 +44,19 @@ export function DeckHero() {
   const maybeCount = currentDeck.maybeboard?.length ?? 0;
 
   function finishNameEdit() {
+    if (cancelNameEditRef.current) {
+      cancelNameEditRef.current = false;
+      return;
+    }
     const name = currentDeck.name.trim();
-    setDeckName(name || nameBeforeEdit);
+    if (!name) {
+      setDeckName(nameBeforeEdit);
+      setEditingName(false);
+      return;
+    }
+    setDeckName(name);
     setEditingName(false);
+    if (name !== nameBeforeEdit) onNameCommit(name);
   }
 
   return (
@@ -159,6 +170,7 @@ export function DeckHero() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
                 if (e.key === "Escape") {
+                  cancelNameEditRef.current = true;
                   setDeckName(nameBeforeEdit);
                   setEditingName(false);
                 }
@@ -172,6 +184,7 @@ export function DeckHero() {
             className="group -ml-1.5 flex w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50"
             title="Rename deck"
             onClick={() => {
+              cancelNameEditRef.current = false;
               setNameBeforeEdit(currentDeck.name);
               setEditingName(true);
             }}

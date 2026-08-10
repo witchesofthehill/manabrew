@@ -883,51 +883,52 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
-  async function handleSave() {
+  async function handleSave(deckOverride?: EditorDeck) {
     if (saveInFlightRef.current) return;
-    const normalizedName = currentDeck.name.trim();
+    const sourceDeck = deckOverride ?? currentDeck;
+    const normalizedName = sourceDeck.name.trim();
     if (!normalizedName) {
       toast.error("Give this deck a name before saving");
       return;
     }
-    const deckToSave = { ...currentDeck, name: normalizedName };
-    if (normalizedName !== currentDeck.name) useDeckStore.getState().setDeckName(normalizedName);
+    const deckToSave = { ...sourceDeck, name: normalizedName };
+    if (normalizedName !== sourceDeck.name) useDeckStore.getState().setDeckName(normalizedName);
+    saveInFlightRef.current = true;
     setIsSaving(true);
-    const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
-    saveCurrentDeck();
-    const snapshot = buildDeckSnapshot({ ...deckToSave, draft: undefined });
-    setLastSavedSnapshot(snapshot);
-    setUnsavedState(snapshot, snapshot);
-    if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
-      saveInFlightRef.current = true;
-      try {
+    try {
+      const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
+      saveCurrentDeck();
+      const snapshot = buildDeckSnapshot({ ...deckToSave, draft: undefined });
+      setLastSavedSnapshot(snapshot);
+      setUnsavedState(snapshot, snapshot);
+      if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
         const detail = await useAccountDecksStore
           .getState()
           .save(saved.accountDeckId, saved.accountVersionNo, deckToSave);
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
         toast.success(`Saved version ${detail.currentVersionNo} to your account`);
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? `${error.message} Your local copy is still saved.`
-            : "Account save failed. Your local copy is still saved.",
-        );
-      } finally {
-        saveInFlightRef.current = false;
+      } else {
+        showAccountSaveNudge();
       }
-    } else {
-      showAccountSaveNudge();
-    }
-    if (hasUnsupportedCards) {
-      toast.warning(
-        `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines`,
+      if (hasUnsupportedCards) {
+        toast.warning(
+          `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines`,
+        );
+      } else if (!deckValidation.legal) {
+        toast.warning(
+          `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
+        );
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? `${error.message} Your local copy is still saved.`
+          : "Account save failed. Your local copy is still saved.",
       );
-    } else if (!deckValidation.legal) {
-      toast.warning(
-        `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
-      );
+    } finally {
+      saveInFlightRef.current = false;
+      setIsSaving(false);
     }
-    setIsSaving(false);
   }
 
   function handleSaveDraft() {
@@ -1009,7 +1010,11 @@ export function DeckBuilder({
       )}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-          <DeckHero />
+          <DeckHero
+            onNameCommit={(name) =>
+              void handleSave({ ...useDeckStore.getState().currentDeck, name })
+            }
+          />
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
             <div className="relative shrink-0 w-32">

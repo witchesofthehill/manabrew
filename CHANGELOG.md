@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.12.0](https://github.com/witchesofthehill/manabrew/compare/v3.11.1...v3.12.0) (2026-08-10)
+
+### Features
+
+* **ui:** restore the update callout on the play home ([#675](https://github.com/witchesofthehill/manabrew/issues/675)) ([fae1f56](https://github.com/witchesofthehill/manabrew/commit/fae1f56495c2c78524a33cca06dca6873ae71ac2))
+
 ## [3.11.1](https://github.com/witchesofthehill/manabrew/compare/v3.11.0...v3.11.1) (2026-08-10)
 
 ### Fixes

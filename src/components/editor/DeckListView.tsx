@@ -39,6 +39,7 @@ import {
   Check,
   AlertTriangle,
   Ellipsis,
+  Palette,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -100,6 +101,24 @@ function CardMenuButton({ className }: { className?: string }) {
       onClick={openCardContextMenu}
     >
       <Ellipsis className="h-4 w-4" />
+    </button>
+  );
+}
+
+function CardPrintingButton({ onPickPrint }: { onPickPrint: () => void }) {
+  return (
+    <button
+      type="button"
+      className="absolute right-1 top-1 z-40 rounded-full bg-overlay/70 p-0.5 text-muted-foreground opacity-0 shadow transition-colors hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
+      title="Change printing"
+      aria-label="Change printing"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onPickPrint();
+      }}
+    >
+      <Palette className="h-3.5 w-3.5" />
     </button>
   );
 }
@@ -444,6 +463,7 @@ function DraggableStackCard({
   index,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   onUntag,
   isSelected,
   onSelect,
@@ -460,6 +480,7 @@ function DraggableStackCard({
   index: number;
   onAddOne: () => void;
   onRemoveOne: () => void;
+  onPickPrint?: (cardName: string) => void;
   onUntag?: (cardName: string) => void;
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
@@ -513,6 +534,11 @@ function DraggableStackCard({
         actions={buildCardActions(onAddOne, onRemoveOne, onUntag ? () => onUntag(name) : undefined)}
         rounded="rounded-[4%]"
       />
+      {(contextActions?.onPickPrint || onPickPrint) && (
+        <CardPrintingButton
+          onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(name))}
+        />
+      )}
       {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
     </div>
   );
@@ -571,6 +597,7 @@ interface StackColumnProps {
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
+  onPickPrint?: (cardName: string) => void;
   onUntag?: (cardName: string) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
@@ -586,6 +613,7 @@ function StackColumn({
   cardWidth,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   onUntag,
   selectedCards,
   onSelectCard,
@@ -643,6 +671,7 @@ function StackColumn({
               index={i}
               onAddOne={() => onAddOne(g)}
               onRemoveOne={() => onRemoveOne(g.card.identity.name)}
+              onPickPrint={onPickPrint}
               onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
               isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
               onSelect={onSelectCard}
@@ -690,6 +719,7 @@ function CardVisual({
   dragId,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   isSelected,
   onSelect,
   onShowInfo,
@@ -742,6 +772,7 @@ function CardVisual({
         </div>
       )}
       <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
+      <CardPrintingButton onPickPrint={onPickPrint} />
       <div className="absolute top-1 left-1 z-20 flex gap-0.5">
         {showCommander && (
           <button
@@ -900,8 +931,8 @@ function CardRow({
       data-card-supported={unsupported ? "false" : undefined}
       onClick={(e) => {
         e.stopPropagation();
-        if (e.shiftKey && onSelect) {
-          onSelect(name, true);
+        if ((e.shiftKey || e.ctrlKey || e.metaKey) && onSelect) {
+          onSelect(name, e.shiftKey);
         } else if (onShowInfo) {
           onShowInfo();
         }
@@ -1214,6 +1245,7 @@ function DroppableStackTag({
   cardWidth,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   onRemoveTag,
   onUntagCard,
   selectedCards,
@@ -1225,6 +1257,7 @@ function DroppableStackTag({
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
+  onPickPrint: (cardName: string) => void;
   onRemoveTag: () => void;
   onUntagCard?: (cardName: string, tag: string) => void;
   selectedCards?: Set<string>;
@@ -1250,6 +1283,7 @@ function DroppableStackTag({
           cardWidth={cardWidth}
           onAddOne={onAddOne}
           onRemoveOne={onRemoveOne}
+          onPickPrint={onPickPrint}
           onUntag={onUntagCard ? (cardName) => onUntagCard(cardName, tag) : undefined}
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
@@ -1742,6 +1776,7 @@ export function DeckListView({
               const c = commanders.find((cmd) => cmd.identity.name === name);
               if (c) onRemoveCommander(c);
             }}
+            onPickPrint={onPickPrint}
             dragHandleProps={dhProps}
           />
         </div>
@@ -1775,6 +1810,7 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromSide}
+              onPickPrint={onPickPrint}
               onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
@@ -1836,6 +1872,7 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromMaybe}
+              onPickPrint={onPickPrint}
               onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
@@ -1881,6 +1918,7 @@ export function DeckListView({
             cardWidth={cardWidth}
             onAddOne={onAddOne}
             onRemoveOne={onRemoveOne}
+            onPickPrint={onPickPrint}
             onRemoveTag={() => onRemoveTag?.(tag)}
             onUntagCard={onUntagCard ?? undefined}
             selectedCards={selectedCards}
@@ -1906,6 +1944,7 @@ export function DeckListView({
               onAddToSide({ ...g.card, identity: { ...g.card.identity, id: crypto.randomUUID() } })
             }
             onRemoveOne={onRemoveFromSide}
+            onPickPrint={onPickPrint}
             dragHandleProps={dhProps}
           />
         </div>
@@ -1924,6 +1963,7 @@ export function DeckListView({
           cardWidth={cardWidth}
           onAddOne={onAddOne}
           onRemoveOne={onRemoveOne}
+          onPickPrint={onPickPrint}
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
           onShowInfo={onShowInfo}

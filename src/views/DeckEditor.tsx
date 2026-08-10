@@ -13,6 +13,7 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
+  useDroppable,
   pointerWithin,
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
@@ -39,7 +40,7 @@ import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { DeckListControls } from "@/components/deck/DeckListControls";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Bookmark, HelpCircle, Layers, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
@@ -58,6 +59,36 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 
+const DRAG_TRAY_MAIN = "drag-tray-main";
+const DRAG_TRAY_SIDE = "drag-tray-side";
+const DRAG_TRAY_MAYBE = "drag-tray-maybe";
+const DRAG_TRAY_TAG_PREFIX = "drag-tray-tag:";
+const DRAG_TRAY_NEW_GROUP = "drag-tray-new-group";
+
+function DragTrayTarget({
+  id,
+  label,
+  icon: Icon,
+}: {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed bg-background/90 px-3 py-2 text-xs font-medium shadow-sm transition-all",
+        isOver ? "scale-105 border-primary bg-primary/15 text-primary" : "border-border",
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
 export default function DeckEditor() {
   const {
     addToMain,
@@ -69,6 +100,7 @@ export default function DeckEditor() {
     currentDeck,
     tagCard,
     untagCard,
+    addCustomTag,
     savedDecks,
     loadSavedDeck,
     clearDeck,
@@ -103,6 +135,7 @@ export default function DeckEditor() {
   const hubEnabled = isFeatureEnabled("deckHub");
   const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
   const location = useLocation();
+  const selectedCardsRef = useRef<ReadonlySet<string>>(new Set());
   const routeState = location.state as {
     directToEditor?: boolean;
     deckEditorFromList?: boolean;
@@ -130,7 +163,10 @@ export default function DeckEditor() {
   const presetEnginesBySavedId = new Map(
     presetDecks.map((deck) => [presetDeckParamId(deck), deck.engines]),
   );
-  const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
+  const [draggedCards, setDraggedCards] = useState<DeckCard[]>([]);
+  const [newGroupDropOpen, setNewGroupDropOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [pendingGroupCards, setPendingGroupCards] = useState<string[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(() =>
@@ -453,11 +489,32 @@ export default function DeckEditor() {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
-    if (data?.card) setDraggedCard(data.card as DeckCard);
+    if (!data?.card) return;
+    const card = data.card as DeckCard;
+    const selectedCards = selectedCardsRef.current;
+    if (!selectedCards.has(card.identity.name.toLowerCase())) {
+      setDraggedCards([card]);
+      return;
+    }
+
+    const allCards = [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+    ];
+    const seen = new Set<string>();
+    setDraggedCards(
+      allCards.filter((candidate) => {
+        const name = candidate.identity.name.toLowerCase();
+        if (!selectedCards.has(name) || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      }),
+    );
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    setDraggedCard(null);
+    setDraggedCards([]);
     if (isReadOnly) return;
     const { active, over } = event;
     if (!over) return;
@@ -469,20 +526,40 @@ export default function DeckEditor() {
     const overId = String(over.id);
     const activeId = String(active.id);
     const cardName = (dragData.name as string) ?? card.identity.name;
+    const selectedCards = selectedCardsRef.current;
+    const draggedNames = selectedCards.has(cardName.toLowerCase())
+      ? [...selectedCards]
+      : [cardName.toLowerCase()];
 
     const sourceTagMatch = activeId.match(/^deck-tag-(.+?)-(?:.+)$/);
     const sourceTag = sourceTagMatch?.[1] ?? null;
 
-    if (overId.startsWith(DROP_ZONE.TAG_PREFIX)) {
-      const destTag = overId.slice(DROP_ZONE.TAG_PREFIX.length);
-      if (sourceTag && sourceTag !== destTag) {
-        untagCard(cardName, sourceTag);
+    if (overId === DRAG_TRAY_NEW_GROUP) {
+      setPendingGroupCards(draggedNames);
+      setNewGroupName("");
+      setNewGroupDropOpen(true);
+      return;
+    }
+
+    const trayTag = overId.startsWith(DRAG_TRAY_TAG_PREFIX)
+      ? overId.slice(DRAG_TRAY_TAG_PREFIX.length)
+      : null;
+
+    if (overId.startsWith(DROP_ZONE.TAG_PREFIX) || trayTag) {
+      const destTag = trayTag ?? overId.slice(DROP_ZONE.TAG_PREFIX.length);
+      for (const name of draggedNames) {
+        if (sourceTag && sourceTag !== destTag) {
+          untagCard(name, sourceTag);
+        }
+        tagCard(name, destTag);
       }
-      tagCard(cardName, destTag);
     } else if (
       overId === DROP_ZONE.MAIN ||
       overId === DROP_ZONE.SIDE ||
-      overId === DROP_ZONE.MAYBE
+      overId === DROP_ZONE.MAYBE ||
+      overId === DRAG_TRAY_MAIN ||
+      overId === DRAG_TRAY_SIDE ||
+      overId === DRAG_TRAY_MAYBE
     ) {
       let source: "main" | "side" | "maybe" | "special" | "commander" = "main";
       if (activeId.startsWith("deck-sideboard-")) source = "side";
@@ -497,11 +574,62 @@ export default function DeckEditor() {
         source = "special";
 
       const dest: "main" | "side" | "maybe" =
-        overId === DROP_ZONE.MAIN ? "main" : overId === DROP_ZONE.SIDE ? "side" : "maybe";
+        overId === DROP_ZONE.MAIN || overId === DRAG_TRAY_MAIN
+          ? "main"
+          : overId === DROP_ZONE.SIDE || overId === DRAG_TRAY_SIDE
+            ? "side"
+            : "maybe";
 
       const sourceZone = source === "side" || source === "special" ? "side" : source;
       if (sourceZone === dest) return;
       if (source === "commander") return;
+
+      if (draggedNames.length > 1) {
+        for (const name of draggedNames) {
+          const matchingCards = [
+            ...(dest !== "main"
+              ? currentDeck.cards.filter(
+                  (candidate) => candidate.identity.name.toLowerCase() === name,
+                )
+              : []),
+            ...(dest !== "side"
+              ? currentDeck.sideboard.filter(
+                  (candidate) => candidate.identity.name.toLowerCase() === name,
+                )
+              : []),
+            ...(dest !== "maybe"
+              ? (currentDeck.maybeboard ?? []).filter(
+                  (candidate) => candidate.identity.name.toLowerCase() === name,
+                )
+              : []),
+          ];
+
+          for (const matchingCard of matchingCards) {
+            if (
+              currentDeck.cards.some(
+                (candidate) => candidate.identity.id === matchingCard.identity.id,
+              )
+            )
+              removeFromMain(matchingCard.identity.id);
+            else if (
+              currentDeck.sideboard.some(
+                (candidate) => candidate.identity.id === matchingCard.identity.id,
+              )
+            )
+              removeFromSide(matchingCard.identity.id);
+            else removeFromMaybe(matchingCard.identity.id);
+
+            const fresh = {
+              ...matchingCard,
+              identity: { ...matchingCard.identity, id: crypto.randomUUID() },
+            };
+            if (dest === "main") addToMain(fresh);
+            else if (dest === "side") addToSide(fresh);
+            else addToMaybe(fresh);
+          }
+        }
+        return;
+      }
 
       if (sourceTag) untagCard(cardName, sourceTag);
 
@@ -842,10 +970,14 @@ export default function DeckEditor() {
         collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setDraggedCards([])}
       >
         <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
           <div className="overflow-hidden flex-1 min-h-0 min-w-0">
             <DeckBuilder
+              onSelectionChange={(selectedCards) => {
+                selectedCardsRef.current = selectedCards;
+              }}
               onToggleSearch={() => setShowSearch((v) => !v)}
               previewSlot={previewSlot}
               setPreviewSlot={setPreviewSlot}
@@ -873,14 +1005,93 @@ export default function DeckEditor() {
           )}
         </div>
 
-        <DragOverlay dropAnimation={null}>
-          {draggedCard && (
-            <div className="w-24 opacity-90 rotate-3 shadow-2xl pointer-events-none">
-              <CardThumbnail card={draggedCard} />
+        {draggedCards.length > 0 && (
+          <div className="pointer-events-none fixed inset-x-0 bottom-5 z-[80] flex justify-center px-4">
+            <div className="pointer-events-auto flex max-w-5xl flex-wrap gap-2 rounded-xl border bg-popover/95 p-3 shadow-2xl backdrop-blur-md">
+              <DragTrayTarget id={DRAG_TRAY_MAIN} label="Main deck" icon={Layers} />
+              <DragTrayTarget id={DRAG_TRAY_SIDE} label="Sideboard" icon={Layers} />
+              <DragTrayTarget id={DRAG_TRAY_MAYBE} label="Maybeboard" icon={HelpCircle} />
+              {(currentDeck.customTags ?? []).map((tag) => (
+                <DragTrayTarget
+                  key={tag}
+                  id={`${DRAG_TRAY_TAG_PREFIX}${tag}`}
+                  label={tag}
+                  icon={Bookmark}
+                />
+              ))}
+              <DragTrayTarget id={DRAG_TRAY_NEW_GROUP} label="New group" icon={Plus} />
+            </div>
+          </div>
+        )}
+
+        <DragOverlay>
+          {draggedCards.length > 0 && (
+            <div className="relative h-36 w-36 pointer-events-none">
+              {draggedCards.slice(0, 5).map((card, index) => {
+                const visibleCards = Math.min(draggedCards.length, 5);
+                const center = (visibleCards - 1) / 2;
+                return (
+                  <div
+                    key={card.identity.id}
+                    className="absolute left-5 top-1 w-24 origin-bottom shadow-2xl transition-transform"
+                    style={{
+                      transform: `translateX(${(index - center) * 13}px) translateY(${Math.abs(index - center) * 3}px) rotate(${(index - center) * 7}deg)`,
+                      zIndex: index + 1,
+                    }}
+                  >
+                    <CardThumbnail card={card} />
+                  </div>
+                );
+              })}
+              {draggedCards.length > 1 && (
+                <div className="absolute right-0 top-0 z-20 flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-lg">
+                  {draggedCards.length}
+                </div>
+              )}
             </div>
           )}
         </DragOverlay>
       </DndContext>
+
+      <Dialog open={newGroupDropOpen} onOpenChange={setNewGroupDropOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create card group</DialogTitle>
+            <DialogDescription>
+              Create a reusable tag and add the dropped cards to it.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={newGroupName}
+            placeholder="Ramp, removal, combo…"
+            onChange={(event) => setNewGroupName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || !newGroupName.trim()) return;
+              const tag = newGroupName.trim();
+              addCustomTag(tag);
+              for (const name of pendingGroupCards) tagCard(name, tag);
+              setNewGroupDropOpen(false);
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewGroupDropOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!newGroupName.trim()}
+              onClick={() => {
+                const tag = newGroupName.trim();
+                addCustomTag(tag);
+                for (const name of pendingGroupCards) tagCard(name, tag);
+                setNewGroupDropOpen(false);
+              }}
+            >
+              Create group
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showBackConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">

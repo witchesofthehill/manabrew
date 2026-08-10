@@ -309,6 +309,7 @@ export function DeckBuilder({
   onTogglePreview,
   resumedPublication,
   onResumedPublicationClose,
+  onSelectionChange,
 }: {
   onToggleSearch?: () => void;
   previewSlot?: HTMLElement | null;
@@ -317,6 +318,7 @@ export function DeckBuilder({
   onTogglePreview?: () => void;
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
+  onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
 } = {}) {
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
@@ -370,6 +372,10 @@ export function DeckBuilder({
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
   const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
     useDeckSelection();
+
+  useEffect(() => {
+    onSelectionChange?.(selectedCards);
+  }, [onSelectionChange, selectedCards]);
 
   const derivedTokens = useDerivedTokens(currentDeck);
   const mergedTokens = useMemo(

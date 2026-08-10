@@ -54,6 +54,8 @@ export function handleCardClick(
   e.stopPropagation();
   if (e.shiftKey && onSelect) {
     onSelect(cardName, true);
+  } else if ((e.ctrlKey || e.metaKey) && onSelect) {
+    onSelect(cardName, false);
   } else if (onShowInfo) {
     onShowInfo();
   }

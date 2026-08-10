@@ -44,8 +44,7 @@ import {
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
-import { PartnerBadge } from "@/components/deck/PartnerBadge";
-import { commanderSlotBadge, formatRequiresCommander } from "@/lib/formats";
+import { formatRequiresCommander } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, getTaggedGroups } from "./deckBuilder.utils";
@@ -125,7 +124,6 @@ function CardPrintingButton({ onPickPrint }: { onPickPrint: () => void }) {
 }
 
 // Persisted in deck stackPositions — values must stay stable.
-const STACK_SECTION_COMMANDER = "__commander__";
 const STACK_SECTION_SIDEBOARD = "__sideboard__";
 const STACK_SECTION_MAYBEBOARD = "__maybeboard__";
 const STACK_SECTION_TAG_PREFIX = "__tag__";
@@ -1451,7 +1449,6 @@ export function DeckListView({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
-  const slotBadges = commanders.map((_, i) => commanderSlotBadge(commanders, deckFormat, i));
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1647,7 +1644,6 @@ export function DeckListView({
   // Build natural section IDs
   const naturalSectionIds = useMemo(() => {
     const ids: string[] = [];
-    if (commanders.length > 0) ids.push(STACK_SECTION_COMMANDER);
     for (const col of stackColumns) ids.push(col.id);
     if (customTags && allMainCards) {
       for (const tag of customTags) ids.push(`${STACK_SECTION_TAG_PREFIX}${tag}`);
@@ -1656,7 +1652,7 @@ export function DeckListView({
     ids.push(STACK_SECTION_MAYBEBOARD);
     for (const s of specialSections) ids.push(`${STACK_SECTION_SPECIAL_PREFIX}${s.id}`);
     return ids;
-  }, [commanders.length, stackColumns, customTags, allMainCards, specialSections]);
+  }, [stackColumns, customTags, allMainCards, specialSections]);
 
   // ─── Order-based layout: sections flow into CSS columns; drag reorders. ─────
   // Persisted through stackPositions as {x: index, y: 0}; legacy free-position
@@ -1766,26 +1762,6 @@ export function DeckListView({
       isDragging && "opacity-30 scale-95 ring-2 ring-selection/50 rounded-lg",
       dropTarget === id && !isDragging && "ring-2 ring-selection rounded-lg",
     );
-
-    if (id === STACK_SECTION_COMMANDER) {
-      return (
-        <div key={id} data-stack-id={id} className={wrapperClass}>
-          <StackColumn
-            label={deckFormat === "oathbreaker" ? "Oathbreaker" : "Commander"}
-            sectionId="commander"
-            groups={commanders.map((c) => ({ card: c, count: 1 }))}
-            cardWidth={cardWidth}
-            onAddOne={() => {}}
-            onRemoveOne={(name) => {
-              const c = commanders.find((cmd) => cmd.identity.name === name);
-              if (c) onRemoveCommander(c);
-            }}
-            onPickPrint={onPickPrint}
-            dragHandleProps={dhProps}
-          />
-        </div>
-      );
-    }
 
     if (id === STACK_SECTION_SIDEBOARD) {
       return (
@@ -2032,111 +2008,6 @@ export function DeckListView({
         onPointerOver={handleContainerPointerOver}
         onPointerOut={handleContainerPointerOut}
       >
-        {commanders.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center gap-1 mb-1.5">
-              <GameIcon name="overlord-helm" className="h-3 w-3 text-commander shrink-0" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {deckFormat === "oathbreaker"
-                  ? "Oathbreaker"
-                  : `Commander${commanders.length > 1 ? "s" : ""}`}
-              </span>
-            </div>
-            {viewMode === "list" ? (
-              <div className="space-y-0.5">
-                {commanders.map((cmd, commanderIndex) => {
-                  const { id, name, foil } = cmd.identity;
-                  return (
-                    <CardContextMenu
-                      key={id}
-                      count={1}
-                      location="main"
-                      onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
-                      onPickPrint={() => onPickPrint(name)}
-                      onToggleFoil={onToggleFoil ? () => onToggleFoil(name) : undefined}
-                      isFoil={!!foil}
-                      isCommander
-                      commanderSlot={commanderSlotFor(cmd, deckFormat)}
-                      onRemoveCommander={() => onRemoveCommander(cmd)}
-                      isCover={coverCardName === name && (coverCardFace ?? 0) === 0}
-                      onSetCover={onSetCover ? () => onSetCover(cmd) : undefined}
-                      isCoverBack={coverCardName === name && coverCardFace === 1}
-                      onSetCoverBack={
-                        cmd.isDoubleFaced && onSetCoverBack ? () => onSetCoverBack(cmd) : undefined
-                      }
-                    >
-                      <div
-                        className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5 cursor-pointer"
-                        data-card-name={name}
-                        onClick={() => onShowInfo?.(name)}
-                      >
-                        <GameIcon
-                          name={commanderSlotFor(cmd, deckFormat).icon}
-                          className="h-3 w-3 text-commander shrink-0"
-                        />
-                        <span className="text-sm flex-1 truncate">{name}</span>
-                        {slotBadges[commanderIndex] && (
-                          <PartnerBadge label={slotBadges[commanderIndex]!.label} />
-                        )}
-                        {cmd.manaCost && (
-                          <ManaSymbols cost={cmd.manaCost} size="sm" className="shrink-0" />
-                        )}
-                      </div>
-                    </CardContextMenu>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {commanders.map((cmd, commanderIndex) => {
-                  const { id, name, foil } = cmd.identity;
-                  return (
-                    <div key={id} className="relative shrink-0" style={{ width: cardWidth }}>
-                      <div className="absolute top-1 right-1 z-20 bg-overlay/70 rounded-full p-0.5 shadow">
-                        <GameIcon
-                          name={commanderSlotFor(cmd, deckFormat).icon}
-                          className="h-3.5 w-3.5 text-commander"
-                        />
-                      </div>
-                      {slotBadges[commanderIndex] && (
-                        <div className="absolute top-1 left-1 z-20 max-w-[calc(100%-0.5rem)]">
-                          <PartnerBadge
-                            label={slotBadges[commanderIndex]!.label}
-                            className="bg-overlay/70"
-                          />
-                        </div>
-                      )}
-                      <CardVisual
-                        group={{ card: cmd, count: 1 }}
-                        dragId={`deck-commander-${name}`}
-                        onAddOne={() => {}}
-                        onRemoveOne={() => onRemoveCommander(cmd)}
-                        onPickPrint={() => onPickPrint(name)}
-                        onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
-                        isCover={coverCardName === name && (coverCardFace ?? 0) === 0}
-                        isCoverBack={coverCardName === name && coverCardFace === 1}
-                        onSetCover={onSetCover ? () => onSetCover(cmd) : undefined}
-                        onSetCoverBack={
-                          cmd.isDoubleFaced && onSetCoverBack
-                            ? () => onSetCoverBack(cmd)
-                            : undefined
-                        }
-                        contextLocation="main"
-                        contextActions={{
-                          onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
-                          onPickPrint: () => onPickPrint(name),
-                          onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
-                          isFoil: !!foil,
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
         {totalCards === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="text-4xl mb-3 opacity-20">🃏</div>

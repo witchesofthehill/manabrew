@@ -58,6 +58,7 @@ import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
+import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
 
 const DRAG_TRAY_MAIN = "drag-tray-main";
 const DRAG_TRAY_SIDE = "drag-tray-side";
@@ -101,6 +102,8 @@ export default function DeckEditor() {
     tagCard,
     untagCard,
     addCustomTag,
+    setCommander,
+    removeCommander,
     savedDecks,
     loadSavedDeck,
     clearDeck,
@@ -534,6 +537,22 @@ export default function DeckEditor() {
     const sourceTagMatch = activeId.match(/^deck-tag-(.+?)-(?:.+)$/);
     const sourceTag = sourceTagMatch?.[1] ?? null;
 
+    if (overId === DROP_ZONE.COMMAND) {
+      if (activeId.startsWith("deck-commander-")) return;
+      const eligible =
+        currentDeck.format === "oathbreaker"
+          ? canBeOathbreaker(card) || canBeSignatureSpell(card)
+          : isCommanderEligible(card);
+      if (!eligible) {
+        toast.error(`${card.identity.name} is not eligible for the command zone`);
+        return;
+      }
+      setCommander(card);
+      if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
+      else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
+      return;
+    }
+
     if (overId === DRAG_TRAY_NEW_TAG) {
       setPendingTagCards(draggedNames);
       setNewTagName("");
@@ -582,7 +601,10 @@ export default function DeckEditor() {
 
       const sourceZone = source === "side" || source === "special" ? "side" : source;
       if (sourceZone === dest) return;
-      if (source === "commander") return;
+      if (source === "commander") {
+        if (dest === "main") removeCommander(card);
+        return;
+      }
 
       if (draggedNames.length > 1) {
         for (const name of draggedNames) {

@@ -1,5 +1,6 @@
 import { Crown, Palette, Plus, X } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,90 @@ import {
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
 import { CARD_WIDTH_MAP } from "./deckBuilder.utils";
 import { CardThumbnail } from "./deckEditor.primitives";
+import { DROP_ZONE } from "@/lib/constants";
+import { cn } from "@/lib/utils";
+
+function CommandZoneCard({
+  card,
+  label,
+  cardWidth,
+  readOnly,
+  onRemove,
+  onHover,
+  onLeave,
+  onPickPrint,
+}: {
+  card: DeckCard;
+  label: string;
+  cardWidth: number;
+  readOnly: boolean;
+  onRemove: () => void;
+  onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
+  onLeave?: () => void;
+  onPickPrint?: (cardName: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `deck-commander-${card.identity.name}`,
+    data: { type: "deck-card", card, name: card.identity.name },
+    disabled: readOnly,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={cn(
+        "group relative shrink-0 touch-none",
+        !readOnly && "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-30",
+      )}
+      style={{ width: cardWidth }}
+      onPointerEnter={(event) => {
+        if (event.pointerType !== "touch") onHover?.(card, event);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType !== "touch") onLeave?.();
+      }}
+    >
+      <CardThumbnail card={card} />
+      <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-[10px] font-semibold text-foreground shadow">
+        {label}
+      </div>
+      {!readOnly && (
+        <div className="absolute right-1 top-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100">
+          {onPickPrint && (
+            <button
+              type="button"
+              className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
+              title="Change printing"
+              aria-label={`Change printing for ${card.identity.name}`}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onPickPrint(card.identity.name);
+              }}
+            >
+              <Palette className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-destructive"
+            title={`Remove ${card.identity.name} from the command zone`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface CommanderSlotsProps {
   cards: DeckCard[];
@@ -46,6 +131,10 @@ export function CommanderSlots({
   onLeave,
   onPickPrint,
 }: CommanderSlotsProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: DROP_ZONE.COMMAND,
+    disabled: readOnly || !formatRequiresCommander(format),
+  });
   if (!formatRequiresCommander(format)) return null;
 
   const oathbreakers = commanders.filter((card) => canBeOathbreaker(card));
@@ -84,7 +173,13 @@ export function CommanderSlots({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
 
   return (
-    <section className="border-b bg-muted/15 px-3 py-2">
+    <section
+      ref={setNodeRef}
+      className={cn(
+        "border-b bg-muted/15 px-3 py-2 transition-colors",
+        isOver && "bg-primary/10 ring-2 ring-inset ring-primary/50",
+      )}
+    >
       <div className="mb-1.5 flex items-center gap-2">
         <Crown className="h-3.5 w-3.5 text-primary" />
         <h3 className="text-xs font-semibold uppercase tracking-wide">Command zone</h3>
@@ -92,52 +187,20 @@ export function CommanderSlots({
       </div>
       <div className="flex flex-wrap items-start gap-2">
         {commanders.map((card, index) => (
-          <div
+          <CommandZoneCard
             key={card.identity.id}
-            className="group relative shrink-0"
-            style={{ width: cardWidth }}
-            onPointerEnter={(event) => {
-              if (event.pointerType !== "touch") onHover?.(card, event);
-            }}
-            onPointerLeave={(event) => {
-              if (event.pointerType !== "touch") onLeave?.();
-            }}
-          >
-            <CardThumbnail card={card} />
-            <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-[10px] font-semibold text-foreground shadow">
-              {commanderSlotBadge(commanders, format, index)?.label ??
-                (format === "oathbreaker" ? "Oathbreaker" : "Commander")}
-            </div>
-            {!readOnly && (
-              <div className="absolute right-1 top-1 z-20 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 pointer-coarse:opacity-100">
-                {onPickPrint && (
-                  <button
-                    type="button"
-                    className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-foreground"
-                    title="Change printing"
-                    aria-label={`Change printing for ${card.identity.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onPickPrint(card.identity.name);
-                    }}
-                  >
-                    <Palette className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="rounded-full bg-overlay/70 p-0.5 text-muted-foreground shadow transition-colors hover:text-destructive"
-                  title={`Remove ${card.identity.name} from the command zone`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemoveCommander(card);
-                  }}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
+            card={card}
+            label={
+              commanderSlotBadge(commanders, format, index)?.label ??
+              (format === "oathbreaker" ? "Oathbreaker" : "Commander")
+            }
+            cardWidth={cardWidth}
+            readOnly={readOnly}
+            onRemove={() => onRemoveCommander(card)}
+            onHover={onHover}
+            onLeave={onLeave}
+            onPickPrint={onPickPrint}
+          />
         ))}
         {!readOnly && canAddAnother && (
           <DropdownMenu>

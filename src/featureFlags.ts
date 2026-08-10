@@ -13,19 +13,15 @@ export const featureFlags = {
   // dark in prod by default.
   ironsmithRuntime: true,
   // Deck Hub (browse/publish shared decks + top decks). Public browse, play and
-  // copy need no session, so this stands alone; publishing and favorites stay
-  // gated behind `accounts` below.
+  // copy need no session; publishing and favorites also need `accounts`.
   deckHub: true,
-  // Hub accounts (OAuth + email sign-in, deck ownership). Still dark at compile
-  // time because both sign-in flows hand off to `WEB_APP_URL` and there is no
-  // route back into a desktop window: the hub sends OAuth to
-  // `{public_url}/api/auth/callback/{provider}` then on to `web_app_url`
-  // (`auth/oauth.rs`), and magic links to `{web_app_url}/auth/callback`
-  // (`auth/email.rs`). The web image turns this on at runtime, where that
-  // handoff lands back on the same origin.
-  accounts: false,
-  // Email (magic-link) sign-in inside the accounts dialog. Gated by `accounts`.
-  emailSignIn: false,
+  // Hub accounts (OAuth + email sign-in, deck ownership). Desktop never uses the
+  // `WEB_APP_URL` redirect: an OAuth start with `client: "desktop"` ends on the
+  // hub's own code page and the app exchanges the pasted code at
+  // `/api/auth/exchange`, and the login email carries a code alongside its link.
+  accounts: true,
+  // Email sign-in inside the accounts dialog. Code entry, so desktop-safe.
+  emailSignIn: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

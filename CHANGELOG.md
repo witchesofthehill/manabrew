@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.11.0](https://github.com/witchesofthehill/manabrew/compare/v3.10.0...v3.11.0) (2026-08-10)
+
+### Features
+
+* **accounts:** enable hub accounts on desktop builds ([#672](https://github.com/witchesofthehill/manabrew/issues/672)) ([1ba9ae4](https://github.com/witchesofthehill/manabrew/commit/1ba9ae45bd03c20a315aaf6f54698e3701465828))
+
 ## [3.10.0](https://github.com/witchesofthehill/manabrew/compare/v3.9.7...v3.10.0) (2026-08-10)
 
 ### Features

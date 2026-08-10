@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.12.1](https://github.com/witchesofthehill/manabrew/compare/v3.12.0...v3.12.1) (2026-08-10)
+
+### Fixes
+
+* **ui:** load deck cover art through ScryfallImg on desktop ([#676](https://github.com/witchesofthehill/manabrew/issues/676)) ([4c0c0cd](https://github.com/witchesofthehill/manabrew/commit/4c0c0cd4197f0d1a7677e6de97674ef68e0d2bcf))
+
 ## [3.12.0](https://github.com/witchesofthehill/manabrew/compare/v3.11.1...v3.12.0) (2026-08-10)
 
 ### Features

@@ -1511,6 +1511,7 @@ export function DeckBuilder({
                 cards={currentDeck.cards}
                 commanders={currentDeck.commanders ?? []}
                 format={currentDeck.format ?? "standard"}
+                cardSize={cardSize}
                 readOnly={isReadOnly}
                 onSetCommander={handleSetCommander}
                 onRemoveCommander={handleRemoveCommander}
@@ -1518,6 +1519,7 @@ export function DeckBuilder({
                   preview.handleMouseEnter(card as unknown as CardDto, event, { useDelay: true })
                 }
                 onLeave={preview.handleMouseLeave}
+                onPickPrint={(name) => setPrintPickerCard(name)}
               />
               <div
                 ref={setMainDropRef}

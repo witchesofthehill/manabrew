@@ -1502,6 +1502,7 @@ export function DeckListView({
   const COLUMN_MIN_PX = 18 * 16;
   const COLUMNS_PADDING_PX = 24;
   const GAP = 20;
+  const STACK_COLUMN_EXTRA_PX = 8;
   const [containerWidth, setContainerWidth] = useState(0);
   const measureContainer = useCallback(() => {
     const el = containerRef.current;
@@ -1525,7 +1526,9 @@ export function DeckListView({
   );
   const stackColumnCount = Math.max(
     1,
-    Math.floor((containerWidth - COLUMNS_PADDING_PX + GAP) / (cardWidth + GAP)),
+    Math.floor(
+      (containerWidth - COLUMNS_PADDING_PX + GAP) / (cardWidth + STACK_COLUMN_EXTRA_PX + GAP),
+    ),
   );
 
   const handleMarqueeComplete = useCallback(
@@ -1965,7 +1968,13 @@ export function DeckListView({
           onPointerOver={handleContainerPointerOver}
           onPointerOut={handleContainerPointerOut}
         >
-          <div style={{ columnCount: stackColumnCount, columnGap: GAP }}>
+          <div
+            className="grid items-start"
+            style={{
+              gridTemplateColumns: `repeat(${stackColumnCount}, minmax(${cardWidth + STACK_COLUMN_EXTRA_PX}px, 1fr))`,
+              gap: GAP,
+            }}
+          >
             {orderedSectionIds.map((id) => renderStackSection(id))}
           </div>
 

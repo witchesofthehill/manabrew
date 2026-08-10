@@ -1,4 +1,5 @@
 import { Crown, Plus, X } from "lucide-react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,8 @@ interface CommanderSlotsProps {
   readOnly: boolean;
   onSetCommander: (card: DeckCard) => void;
   onRemoveCommander: (card: DeckCard) => void;
+  onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
+  onLeave?: () => void;
 }
 
 export function CommanderSlots({
@@ -34,6 +37,8 @@ export function CommanderSlots({
   readOnly,
   onSetCommander,
   onRemoveCommander,
+  onHover,
+  onLeave,
 }: CommanderSlotsProps) {
   if (!formatRequiresCommander(format)) return null;
 
@@ -83,6 +88,12 @@ export function CommanderSlots({
           <div
             key={card.identity.id}
             className="flex min-h-10 items-center gap-2 rounded-md border bg-background/70 px-3 py-1.5"
+            onPointerEnter={(event) => {
+              if (event.pointerType !== "touch") onHover?.(card, event);
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType !== "touch") onLeave?.();
+            }}
           >
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">{card.identity.name}</div>
@@ -116,7 +127,16 @@ export function CommanderSlots({
             <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-y-auto">
               {candidates.length > 0 ? (
                 candidates.map((card) => (
-                  <DropdownMenuItem key={card.identity.id} onSelect={() => onSetCommander(card)}>
+                  <DropdownMenuItem
+                    key={card.identity.id}
+                    onSelect={() => onSetCommander(card)}
+                    onPointerEnter={(event) => {
+                      if (event.pointerType !== "touch") onHover?.(card, event);
+                    }}
+                    onPointerLeave={(event) => {
+                      if (event.pointerType !== "touch") onLeave?.();
+                    }}
+                  >
                     <span className="truncate">{card.identity.name}</span>
                   </DropdownMenuItem>
                 ))

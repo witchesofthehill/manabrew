@@ -1514,6 +1514,10 @@ export function DeckBuilder({
                 readOnly={isReadOnly}
                 onSetCommander={handleSetCommander}
                 onRemoveCommander={handleRemoveCommander}
+                onHover={(card, event) =>
+                  preview.handleMouseEnter(card as unknown as CardDto, event, { useDelay: true })
+                }
+                onLeave={preview.handleMouseLeave}
               />
               <div
                 ref={setMainDropRef}

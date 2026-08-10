@@ -40,6 +40,7 @@ import {
   LibraryBig,
   ListPlus,
   Command as CommandIcon,
+  Images,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -122,6 +123,7 @@ import { DeckTagDialog } from "./DeckTagDialog";
 import { matchesDeckQuery } from "./deckEditor.query";
 import { DeckChangeSummary } from "./DeckChangeSummary";
 import { DeckTagManagerDialog } from "./DeckTagManagerDialog";
+import { BatchPrintingDialog } from "./BatchPrintingDialog";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -334,6 +336,7 @@ export function DeckBuilder({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [batchPrintingOpen, setBatchPrintingOpen] = useState(false);
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -1086,6 +1089,14 @@ export function DeckBuilder({
       disabledReason: isReadOnly ? "Read only" : undefined,
       run: () => setTagManagerOpen(true),
     },
+    {
+      id: "batch-printings",
+      label: "Change deck printings",
+      keywords: ["art", "edition", "set"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setBatchPrintingOpen(true),
+    },
   ];
 
   return (
@@ -1402,6 +1413,9 @@ export function DeckBuilder({
                   disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setBatchPrintingOpen(true)}>
+                  <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
                 </DropdownMenuItem>
                 {publishEnabled && (
                   <DropdownMenuItem
@@ -1755,6 +1769,7 @@ export function DeckBuilder({
           onCreateAndApply={handleCreateAndTagSelected}
         />
         <DeckTagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} />
+        <BatchPrintingDialog open={batchPrintingOpen} onOpenChange={setBatchPrintingOpen} />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open

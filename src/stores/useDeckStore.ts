@@ -510,9 +510,14 @@ export const useDeckStore = create<DeckState>()(
               canImportCommanders && !hasCommanders
                 ? sections.cards
                 : [...sections.cards, ...sections.commanders];
+            const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === DEFAULT_DECK_NAME;
             return {
               currentDeck: normalizeDeck({
                 ...deck,
+                name:
+                  autoRename && commanders.length > 0
+                    ? commanders.map((commander) => commander.identity.name).join(" / ")
+                    : deck.name,
                 cards: [...deck.cards, ...importedMain],
                 sideboard: [...deck.sideboard, ...sections.sideboard],
                 maybeboard: [...(deck.maybeboard ?? []), ...sections.maybeboard],

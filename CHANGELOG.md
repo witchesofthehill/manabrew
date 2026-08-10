@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.10.0](https://github.com/witchesofthehill/manabrew/compare/v3.9.7...v3.10.0) (2026-08-10)
+
+### Features
+
+* **deckhub:** enable deck hub browse on desktop builds ([#671](https://github.com/witchesofthehill/manabrew/issues/671)) ([b62dcc2](https://github.com/witchesofthehill/manabrew/commit/b62dcc2619197e7225e1ba01db56df7d5d75ef19))
+
 ## [3.9.7](https://github.com/witchesofthehill/manabrew/compare/v3.9.6...v3.9.7) (2026-08-10)
 
 ### Fixes

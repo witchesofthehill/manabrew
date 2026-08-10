@@ -1006,7 +1006,7 @@ export default function DeckEditor() {
         </div>
 
         {draggedCards.length > 0 && (
-          <div className="pointer-events-none fixed inset-x-0 bottom-5 z-[80] flex justify-center px-4">
+          <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--safe-area-inset-top)+4rem)] z-[80] flex justify-center px-4">
             <div className="pointer-events-auto flex max-w-5xl flex-wrap gap-2 rounded-xl border bg-popover/95 p-3 shadow-2xl backdrop-blur-md">
               <DragTrayTarget id={DRAG_TRAY_MAIN} label="Main deck" icon={Layers} />
               <DragTrayTarget id={DRAG_TRAY_SIDE} label="Sideboard" icon={Layers} />

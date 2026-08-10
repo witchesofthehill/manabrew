@@ -8,6 +8,7 @@ import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import { executeDeckEdit } from "./deckEditor.history";
 
 export interface ResolvedDeckTextImport {
   cards: DeckCard[];
@@ -152,7 +153,9 @@ export function useDeckTextImportIntoCurrent() {
       onProgress: (fraction: number) => void,
     ): Promise<void> => {
       const result = await resolveDeckTextImport(entries, onProgress);
-      useDeckStore.getState().mergeIntoCurrentDeck(result);
+      executeDeckEdit("Import card list", () =>
+        useDeckStore.getState().mergeIntoCurrentDeck(result),
+      );
       onProgress(1);
       const count =
         result.cards.length +

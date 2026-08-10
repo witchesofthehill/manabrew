@@ -3,7 +3,7 @@ import { persist, devtools, createJSONStorage } from "zustand/middleware";
 import { toast } from "sonner";
 import type { DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
 import type { PlaymatSettings } from "@/protocol/game";
-import type { EditorDeck } from "@/types/manabrew";
+import type { DeckEditorMetadata, EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { hasPendingEditorPublication } from "@/lib/authReturn";
@@ -125,10 +125,23 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
     schemes,
     planes,
     commanders: commanders.length > 0 ? commanders : undefined,
+    editor: normalizeEditorMetadata(deck),
   };
   // Remove legacy field
   delete (normalized as { commander?: DeckCard }).commander;
   return normalized;
+}
+
+function normalizeEditorMetadata(deck: EditorDeck): DeckEditorMetadata {
+  if (deck.editor?.version === 1) return deck.editor;
+  return {
+    version: 1,
+    tags: (deck.customTags ?? []).map((name) => ({
+      id: `legacy:${encodeURIComponent(name.toLowerCase())}`,
+      name,
+    })),
+    layouts: [],
+  };
 }
 
 function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefined): EditorDeck {
@@ -137,6 +150,7 @@ function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefin
     ...deck,
     customTags: localDeck.customTags,
     cardTags: localDeck.cardTags,
+    editor: localDeck.editor,
     playmat: localDeck.playmat,
     playmatSettings: localDeck.playmatSettings,
     stackPositions: localDeck.stackPositions,
@@ -252,6 +266,8 @@ interface DeckState {
   enrichSavedDeck: (id: string, updates: Map<string, CardPatch>) => void;
   addCustomTag: (tag: string) => void;
   removeCustomTag: (tag: string) => void;
+  renameCustomTag: (tag: string, name: string) => void;
+  reorderCustomTag: (tag: string, direction: -1 | 1) => void;
   tagCard: (cardName: string, tag: string) => void;
   untagCard: (cardName: string, tag: string) => void;
   addDeckLabel: (label: string, color?: string) => void;
@@ -261,6 +277,7 @@ interface DeckState {
   setPlaymat: (dataUrl: string | undefined) => void;
   setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
   setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
+  setEditorMetadata: (metadata: DeckEditorMetadata) => void;
 }
 
 const initialDeck: EditorDeck = {
@@ -863,20 +880,87 @@ export const useDeckStore = create<DeckState>()(
           set((state) => {
             const existing = state.currentDeck.customTags ?? [];
             if (existing.includes(tag)) return state;
+            const editor = normalizeEditorMetadata(state.currentDeck);
             return {
-              currentDeck: { ...state.currentDeck, customTags: [...existing, tag] },
+              currentDeck: {
+                ...state.currentDeck,
+                customTags: [...existing, tag],
+                editor: {
+                  ...editor,
+                  tags: [...editor.tags, { id: crypto.randomUUID(), name: tag }],
+                },
+              },
             };
           }),
         removeCustomTag: (tag) =>
           set((state) => {
             const customTags = (state.currentDeck.customTags ?? []).filter((t) => t !== tag);
             const cardTags = { ...state.currentDeck.cardTags };
+            const editor = normalizeEditorMetadata(state.currentDeck);
             for (const key of Object.keys(cardTags)) {
               cardTags[key] = cardTags[key].filter((t) => t !== tag);
               if (cardTags[key].length === 0) delete cardTags[key];
             }
             return {
-              currentDeck: { ...state.currentDeck, customTags, cardTags },
+              currentDeck: {
+                ...state.currentDeck,
+                customTags,
+                cardTags,
+                editor: {
+                  ...editor,
+                  tags: editor.tags.filter((candidate) => candidate.name !== tag),
+                },
+              },
+            };
+          }),
+        renameCustomTag: (tag, name) =>
+          set((state) => {
+            const nextName = name.trim();
+            if (!nextName || tag === nextName) return state;
+            const customTags = (state.currentDeck.customTags ?? []).map((candidate) =>
+              candidate === tag ? nextName : candidate,
+            );
+            const cardTags = Object.fromEntries(
+              Object.entries(state.currentDeck.cardTags ?? {}).map(([cardName, tags]) => [
+                cardName,
+                tags.map((candidate) => (candidate === tag ? nextName : candidate)),
+              ]),
+            );
+            const editor = normalizeEditorMetadata(state.currentDeck);
+            return {
+              currentDeck: {
+                ...state.currentDeck,
+                customTags,
+                cardTags,
+                editor: {
+                  ...editor,
+                  tags: editor.tags.map((candidate) =>
+                    candidate.name === tag ? { ...candidate, name: nextName } : candidate,
+                  ),
+                },
+              },
+            };
+          }),
+        reorderCustomTag: (tag, direction) =>
+          set((state) => {
+            const customTags = [...(state.currentDeck.customTags ?? [])];
+            const index = customTags.indexOf(tag);
+            const target = index + direction;
+            if (index === -1 || target < 0 || target >= customTags.length) return state;
+            [customTags[index], customTags[target]] = [customTags[target], customTags[index]];
+            const editor = normalizeEditorMetadata(state.currentDeck);
+            const order = new Map(customTags.map((name, position) => [name, position]));
+            return {
+              currentDeck: {
+                ...state.currentDeck,
+                customTags,
+                editor: {
+                  ...editor,
+                  tags: [...editor.tags].sort(
+                    (a, b) => (order.get(a.name) ?? 0) - (order.get(b.name) ?? 0),
+                  ),
+                },
+              },
             };
           }),
         tagCard: (cardName, tag) =>
@@ -945,6 +1029,10 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: { ...state.currentDeck, stackPositions: positions },
           })),
+        setEditorMetadata: (metadata) =>
+          set((state) => ({
+            currentDeck: { ...state.currentDeck, editor: metadata },
+          })),
       }),
       {
         name: STORAGE_KEYS.DECK,
@@ -955,7 +1043,7 @@ export const useDeckStore = create<DeckState>()(
         }),
         // Bump on any persisted-deck shape change so `migrate` runs over existing
         // users' decks — a shape change without a bump never migrates.
-        version: 4,
+        version: 5,
         migrate: (persistedState: unknown) => {
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;

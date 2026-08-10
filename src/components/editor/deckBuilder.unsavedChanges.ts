@@ -41,6 +41,7 @@ export function buildDeckSnapshot(deck: EditorDeck): string {
     playmat: deck.playmat,
     playmatSettings: deck.playmatSettings,
     stackPositions: deck.stackPositions,
+    editor: deck.editor,
   });
 }
 

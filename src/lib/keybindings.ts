@@ -70,6 +70,30 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "e", mod: true },
   },
   {
+    id: "deck-editor-undo",
+    label: "Undo deck edit",
+    category: "Deck editor",
+    defaultCombo: { key: "z", mod: true },
+  },
+  {
+    id: "deck-editor-redo",
+    label: "Redo deck edit",
+    category: "Deck editor",
+    defaultCombo: { key: "z", mod: true, shift: true },
+  },
+  {
+    id: "deck-editor-command-palette",
+    label: "Open deck command palette",
+    category: "Deck editor",
+    defaultCombo: { key: "k", mod: true },
+  },
+  {
+    id: "deck-editor-tag-selection",
+    label: "Tag selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "t" },
+  },
+  {
     id: "open-settings",
     label: "Open preferences",
     category: "Navigation",

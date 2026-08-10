@@ -39,6 +39,7 @@ import {
   History,
   LibraryBig,
   ListPlus,
+  Command as CommandIcon,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -88,7 +89,6 @@ import {
   SORT_OPTIONS,
   CMC_BUCKET_LABELS,
   cmcBucketIndex,
-  parseFilterTerms,
   groupCards,
   exportToArena,
   computeGroupedSections,
@@ -108,6 +108,20 @@ import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 import { CommanderSlots } from "./CommanderSlots";
 import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
 import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
+import {
+  executeDeckEdit,
+  redoDeckEdit,
+  resetDeckHistory,
+  undoDeckEdit,
+} from "./deckEditor.history";
+import { DeckHistoryControls } from "./DeckHistoryControls";
+import { DeckLayoutMenu } from "./DeckLayoutMenu";
+import { DeckCommandPalette } from "./DeckCommandPalette";
+import type { DeckEditorCommand } from "./deckEditor.commands";
+import { DeckTagDialog } from "./DeckTagDialog";
+import { matchesDeckQuery } from "./deckEditor.query";
+import { DeckChangeSummary } from "./DeckChangeSummary";
+import { DeckTagManagerDialog } from "./DeckTagManagerDialog";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -116,7 +130,7 @@ function QuickCardSearch({
   onRemove,
   getCount,
 }: {
-  onAdd: (card: ScryfallCard) => void;
+  onAdd: (card: ScryfallCard, destination: "main" | "side" | "maybe") => void;
   onRemove: (cardName: string) => void;
   getCount: (cardName: string) => number;
 }) {
@@ -124,6 +138,7 @@ function QuickCardSearch({
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +161,7 @@ function QuickCardSearch({
     searchCards(fullQuery, 1)
       .then((res) => {
         setResults(res.data.slice(0, 20));
+        setActiveIndex(0);
         setIsOpen(true);
       })
       .catch(() => setResults([]))
@@ -183,6 +199,21 @@ function QuickCardSearch({
           onFocus={() => {
             if (results.length > 0) setIsOpen(true);
           }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setActiveIndex((index) => Math.min(index + 1, results.length - 1));
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActiveIndex((index) => Math.max(index - 1, 0));
+            } else if (event.key === "Enter" && results[activeIndex]) {
+              event.preventDefault();
+              onAdd(
+                results[activeIndex],
+                event.shiftKey ? "side" : event.altKey ? "maybe" : "main",
+              );
+            }
+          }}
         />
         {isLoading && (
           <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
@@ -204,14 +235,18 @@ function QuickCardSearch({
 
       {isOpen && results.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-80 overflow-y-auto min-w-[280px]">
-          {results.map((sc) => {
+          {results.map((sc, index) => {
             const count = getCount(sc.name);
             const thumb = sc.image_uris?.small ?? sc.card_faces?.[0]?.image_uris?.small;
             return (
               <div
                 key={sc.id}
-                className="flex items-center gap-2 px-2 py-1 hover:bg-muted border-b border-border/30 last:border-0 cursor-pointer"
-                onClick={() => onAdd(sc)}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 border-b border-border/30 px-2 py-1 last:border-0 hover:bg-muted",
+                  activeIndex === index && "bg-muted",
+                )}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => onAdd(sc, "main")}
                 title={`Add ${sc.name}`}
               >
                 {thumb && (
@@ -249,7 +284,7 @@ function QuickCardSearch({
                     title="Add one"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onAdd(sc);
+                      onAdd(sc, "main");
                     }}
                   >
                     <Plus className="h-3 w-3" />
@@ -294,6 +329,9 @@ export function DeckBuilder({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -330,6 +368,8 @@ export function DeckBuilder({
   } = useDeckStore();
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
+  const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
+    useDeckSelection();
 
   const derivedTokens = useDerivedTokens(currentDeck);
   const mergedTokens = useMemo(
@@ -362,6 +402,12 @@ export function DeckBuilder({
     "deck-editor-toggle-search": () => onToggleSearch?.(),
     "deck-editor-save": () => void handleSave(),
     "deck-editor-export": () => handleExport(),
+    "deck-editor-undo": undoDeckEdit,
+    "deck-editor-redo": redoDeckEdit,
+    "deck-editor-command-palette": () => setCommandPaletteOpen(true),
+    "deck-editor-tag-selection": () => {
+      if (selectedCards.size > 0) setTagDialogOpen(true);
+    },
   });
 
   const supplementaryCards = useMemo(
@@ -403,6 +449,7 @@ export function DeckBuilder({
     const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
+    resetDeckHistory();
   }
 
   // Warn on navigation/tab close with unsaved changes
@@ -414,9 +461,6 @@ export function DeckBuilder({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
-
-  const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
-    useDeckSelection();
 
   const preview = useCardPreview();
 
@@ -478,7 +522,9 @@ export function DeckBuilder({
 
   // Bulk selection actions
   function bulkAction(action: (name: string) => void, message: string) {
-    for (const name of selectedCards) action(name);
+    executeDeckEdit(message, () => {
+      for (const name of selectedCards) action(name);
+    });
     clearSelection();
     toast.success(message);
   }
@@ -520,6 +566,14 @@ export function DeckBuilder({
       (name) => untagCard(name, tag),
       `Untagged ${selectedCards.size} cards from "${tag}"`,
     );
+  const handleCreateAndTagSelected = (tag: string) => {
+    executeDeckEdit(`Create ${tag} and tag ${selectedCards.size} cards`, () => {
+      addCustomTag(tag);
+      for (const name of selectedCards) tagCard(name, tag);
+    });
+    clearSelection();
+    toast.success(`Tagged cards with "${tag}"`);
+  };
 
   // Tags that any of the selected cards belong to
   const selectedCardTags = (() => {
@@ -552,21 +606,22 @@ export function DeckBuilder({
   );
   const isDeckLegal = deckValidation.legal;
 
-  const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
   const matchesFilters = useCallback(
     (c: DeckCard) => {
+      const tags = currentDeck.cardTags?.[c.identity.name.toLowerCase()] ?? [];
       if (
-        filterTerms.length > 0 &&
-        !filterTerms.some((t) => c.identity.name.toLowerCase().includes(t))
-      ) {
+        !matchesDeckQuery(c, deckFilter, {
+          tags,
+          unsupported: unsupportedNames.has(c.identity.name),
+        })
+      )
         return false;
-      }
       if (cmcFilter !== null && cmcBucketIndex(c) !== cmcFilter) return false;
       return true;
     },
-    [filterTerms, cmcFilter],
+    [currentDeck.cardTags, deckFilter, unsupportedNames, cmcFilter],
   );
-  const hasActiveFilter = filterTerms.length > 0 || cmcFilter !== null;
+  const hasActiveFilter = deckFilter.trim().length > 0 || cmcFilter !== null;
   const applyFilters = useCallback(
     (cards: DeckCard[]) => (hasActiveFilter ? cards.filter(matchesFilters) : cards),
     [hasActiveFilter, matchesFilters],
@@ -808,7 +863,7 @@ export function DeckBuilder({
         );
         return;
       }
-      setCommander(card);
+      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => setCommander(card));
       return;
     }
 
@@ -840,7 +895,14 @@ export function DeckBuilder({
       }
     }
 
-    setCommander(card);
+    executeDeckEdit(`Set ${card.identity.name} as commander`, () => setCommander(card));
+  }
+
+  function handleRemoveCommander(card?: DeckCard) {
+    executeDeckEdit(
+      card ? `Remove ${card.identity.name} from the command zone` : "Remove commander",
+      () => removeCommander(card),
+    );
   }
 
   function isAtCopyLimit(cardName: string): boolean {
@@ -969,6 +1031,57 @@ export function DeckBuilder({
     toast.success(`Copied "${importedName}" to My Decks`);
   }
 
+  const editorCommands: DeckEditorCommand[] = [
+    {
+      id: "save",
+      label: "Save deck",
+      keywords: ["persist", "version"],
+      disabled: isReadOnly || isSaving,
+      disabledReason: isReadOnly ? "Read only" : isSaving ? "Saving" : undefined,
+      run: () => void handleSave(),
+    },
+    {
+      id: "import",
+      label: "Import a card list",
+      keywords: ["paste", "add cards"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setImportOpen(true),
+    },
+    { id: "undo", label: "Undo last deck edit", run: undoDeckEdit },
+    { id: "redo", label: "Redo last deck edit", run: redoDeckEdit },
+    { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
+    { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
+    { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
+    { id: "group-type", label: "Group cards by type", run: () => setGroupBy("type") },
+    { id: "group-mana", label: "Group cards by mana value", run: () => setGroupBy("cmc") },
+    { id: "group-color", label: "Group cards by color", run: () => setGroupBy("color") },
+    { id: "group-tags", label: "Group cards by custom tags", run: () => setGroupBy("custom") },
+    {
+      id: "remove-selection",
+      label: "Remove selected cards",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleRemoveSelected,
+    },
+    {
+      id: "tag-selection",
+      label: "Tag selected cards",
+      keywords: ["group", "role", "organize"],
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: () => setTagDialogOpen(true),
+    },
+    {
+      id: "manage-tags",
+      label: "Manage deck tags",
+      keywords: ["rename", "reorder", "delete", "groups"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setTagManagerOpen(true),
+    },
+  ];
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {isReadOnly && (
@@ -1048,6 +1161,18 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
+            <DeckLayoutMenu
+              groupBy={groupBy}
+              sortBy={sortBy}
+              cardSize={cardSize}
+              filter={deckFilter}
+              onApply={(nextGroupBy, nextSortBy, nextCardSize, nextFilter) => {
+                setGroupBy(nextGroupBy);
+                setSortBy(nextSortBy);
+                setCardSize(nextCardSize);
+                setDeckFilter(nextFilter);
+              }}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
@@ -1125,16 +1250,29 @@ export function DeckBuilder({
             )}
             <div className="flex-1 min-w-40">
               <QuickCardSearch
-                onAdd={(sc) => {
-                  if (isAtCopyLimit(sc.name)) {
+                onAdd={(sc, destination) => {
+                  if (destination === "main" && isAtCopyLimit(sc.name)) {
                     const format = getFormat(currentDeck.format ?? "standard");
                     toast.error(
                       `Max ${format?.deckRules.maxCopies} copies of "${sc.name}" allowed in ${format?.name}`,
                     );
                     return;
                   }
-                  addToMain(scryfallToDeckCard(sc));
-                  toast.success(`Added ${sc.name}`);
+                  const card = scryfallToDeckCard(sc);
+                  executeDeckEdit(`Add ${sc.name} to ${destination}`, () => {
+                    if (destination === "side") addToSide(card);
+                    else if (destination === "maybe") addToMaybe(card);
+                    else addToMain(card);
+                  });
+                  toast.success(
+                    `Added ${sc.name} to ${
+                      destination === "side"
+                        ? "sideboard"
+                        : destination === "maybe"
+                          ? "maybeboard"
+                          : "main deck"
+                    }`,
+                  );
                 }}
                 onRemove={(name) => {
                   handleRemoveOneFromMain(name);
@@ -1174,6 +1312,23 @@ export function DeckBuilder({
                 {isSaving ? "Saving…" : hasUnsavedChanges ? "Unsaved" : "Saved"}
               </span>
             )}
+
+            {!isReadOnly && <DeckHistoryControls />}
+
+            {!isReadOnly && (
+              <DeckChangeSummary currentDeck={currentDeck} savedSnapshot={lastSavedSnapshot} />
+            )}
+
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 shrink-0"
+              title="Deck commands"
+              aria-label="Deck commands"
+              onClick={() => setCommandPaletteOpen(true)}
+            >
+              <CommandIcon className="h-3.5 w-3.5" />
+            </Button>
 
             {isReadOnly ? (
               <Button
@@ -1338,7 +1493,7 @@ export function DeckBuilder({
                 format={currentDeck.format ?? "standard"}
                 readOnly={isReadOnly}
                 onSetCommander={handleSetCommander}
-                onRemoveCommander={removeCommander}
+                onRemoveCommander={handleRemoveCommander}
               />
               <div
                 ref={setMainDropRef}
@@ -1363,7 +1518,7 @@ export function DeckBuilder({
                   onRemoveOne={handleRemoveOneFromMain}
                   onRemoveAll={handleRemoveAllFromMain}
                   onSetCommander={handleSetCommander}
-                  onRemoveCommander={removeCommander}
+                  onRemoveCommander={handleRemoveCommander}
                   onMoveOneToSide={handleMoveOneToSide}
                   onMoveAllToSide={handleMoveAllToSide}
                   onMoveOneToMaybe={handleMoveOneToMaybe}
@@ -1546,7 +1701,7 @@ export function DeckBuilder({
               onSetCommander: (name) => {
                 const existing = currentDeck.commanders?.find((c) => c.identity.name === name);
                 if (existing) {
-                  removeCommander(existing);
+                  handleRemoveCommander(existing);
                 } else {
                   const card = currentDeck.cards.find((c) => c.identity.name === name);
                   if (card) handleSetCommander(card);
@@ -1580,6 +1735,20 @@ export function DeckBuilder({
           mode="add"
           onImport={importIntoCurrentDeck}
         />
+        <DeckCommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          commands={editorCommands}
+        />
+        <DeckTagDialog
+          open={tagDialogOpen}
+          onOpenChange={setTagDialogOpen}
+          tags={currentDeck.customTags ?? []}
+          selectedCount={selectedCards.size}
+          onApply={handleTagSelected}
+          onCreateAndApply={handleCreateAndTagSelected}
+        />
+        <DeckTagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open

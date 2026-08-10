@@ -19,6 +19,8 @@
 // `dist/` left by an earlier `vite build` would otherwise hijack `tauri dev`
 // and silently serve that old bundle instead of vite. The port is fixed
 // so capabilities/default.json can list an exact `http://localhost:9527` origin.
+// Also listed in manabrew-hub's `cors_origins` — the Hub rejects the app
+// without it. Keep both in sync.
 const ASSET_SERVER_PORT: u16 = 9527;
 
 #[cfg(not(target_os = "windows"))]

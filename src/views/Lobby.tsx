@@ -11,7 +11,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { useDeckStore } from "@/stores/useDeckStore";
+import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
@@ -119,7 +119,7 @@ export default function Lobby() {
     : connecting
       ? "connecting"
       : "disconnected";
-  const { savedDecks } = useDeckStore();
+  const savedDecks = useOwnedDecks();
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
   const [preferredHubDeckId] = useState(initialPreferredHubDeckId);

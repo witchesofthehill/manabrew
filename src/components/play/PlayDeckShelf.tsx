@@ -10,6 +10,7 @@ import { PresetDeckShelf } from "@/components/play/PresetDeckShelf";
 import { Button } from "@/components/ui/button";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
+import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { availableEngines } from "@/lib/engines";
 import { presetSupportsEngine, type PresetDeck } from "@/lib/presetDecks";
@@ -32,7 +33,7 @@ export function PlayDeckShelf({
   pendingDeckId,
 }: PlayDeckShelfProps) {
   const navigate = useNavigate();
-  const savedDecks = useDeckStore((state) => state.savedDecks);
+  const allOwnedDecks = useOwnedDecks();
   const loadAccountDeck = useDeckStore((state) => state.loadAccountDeck);
   const lastPlayedDeckId = usePreferencesStore((state) => state.lastPlayedDeckId);
   const lastPlayedAtByDeck = usePreferencesStore((state) => state.lastPlayedAtByDeck);
@@ -53,23 +54,11 @@ export function PlayDeckShelf({
     refresh: refreshAccountDecks,
   } = useAccountDecks();
 
-  const accountSavedDecks: SavedDeck[] = Object.values(accountDeckDetails).map((detail) => ({
-    id: `account:${detail.id}`,
-    deck: detail.deck as SavedDeck["deck"],
-    savedAt: new Date(detail.updatedAt).getTime(),
-    accountDeckId: detail.id,
-    accountVersionNo: detail.currentVersionNo,
-  }));
-  const ownedDecks = [
-    ...savedDecks.filter(
-      (savedDeck) =>
-        !savedDeck.deck.draft &&
-        (!savedDeck.accountDeckId || accountDeckDetails[savedDeck.accountDeckId] === undefined),
-    ),
-    ...accountSavedDecks.filter((savedDeck) => !savedDeck.deck.draft),
-  ].sort(
-    (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
-  );
+  const ownedDecks = allOwnedDecks
+    .filter((savedDeck) => !savedDeck.deck.draft)
+    .sort(
+      (a, b) => (lastPlayedAtByDeck[b.id] ?? b.savedAt) - (lastPlayedAtByDeck[a.id] ?? a.savedAt),
+    );
   const forkedPresetKeys = new Set(
     Object.values(accountDeckDetails)
       .map((detail) => detail.derivedFromPresetKey?.toLowerCase())

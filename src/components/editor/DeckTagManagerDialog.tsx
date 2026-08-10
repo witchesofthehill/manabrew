@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { executeDeckEdit } from "./deckEditor.history";
 
+const EMPTY_TAGS: string[] = [];
+
 function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boolean }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(tag);
@@ -97,7 +99,8 @@ export function DeckTagManagerDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const tags = useDeckStore((state) => state.currentDeck.customTags ?? []);
+  const storedTags = useDeckStore((state) => state.currentDeck.customTags);
+  const tags = storedTags ?? EMPTY_TAGS;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

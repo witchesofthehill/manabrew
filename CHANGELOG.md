@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.11.1](https://github.com/witchesofthehill/manabrew/compare/v3.11.0...v3.11.1) (2026-08-10)
+
+### Fixes
+
+* **tauri:** allow manabrew hosts through the http plugin scope ([#674](https://github.com/witchesofthehill/manabrew/issues/674)) ([d0135c2](https://github.com/witchesofthehill/manabrew/commit/d0135c2bfd2e3da9f92b97625d29437ab5e8905e))
+
 ## [3.11.0](https://github.com/witchesofthehill/manabrew/compare/v3.10.0...v3.11.0) (2026-08-10)
 
 ### Features

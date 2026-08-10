@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Check, ChevronDown, ImagePlus, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -28,7 +27,7 @@ export function DeckHero() {
   const setPlaymatSettings = useDeckStore((s) => s.setPlaymatSettings);
 
   const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(currentDeck.name);
+  const [nameBeforeEdit, setNameBeforeEdit] = useState(currentDeck.name);
   const [editorOpen, setEditorOpen] = useState(false);
 
   const playmat = currentDeck.playmat;
@@ -43,8 +42,9 @@ export function DeckHero() {
   const sideCount = currentDeck.sideboard.length;
   const maybeCount = currentDeck.maybeboard?.length ?? 0;
 
-  function confirmName() {
-    if (nameInput.trim()) setDeckName(nameInput.trim());
+  function finishNameEdit() {
+    const name = currentDeck.name.trim();
+    setDeckName(name || nameBeforeEdit);
     setEditingName(false);
   }
 
@@ -153,20 +153,18 @@ export function DeckHero() {
           <div className="flex items-center gap-1.5">
             <Input
               className="h-10 w-80 max-w-full !text-xl font-bold"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
+              value={currentDeck.name}
+              onChange={(e) => setDeckName(e.target.value)}
+              onBlur={finishNameEdit}
               onKeyDown={(e) => {
-                if (e.key === "Enter") confirmName();
+                if (e.key === "Enter") e.currentTarget.blur();
                 if (e.key === "Escape") {
+                  setDeckName(nameBeforeEdit);
                   setEditingName(false);
-                  setNameInput(currentDeck.name);
                 }
               }}
               autoFocus
             />
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={confirmName}>
-              <Check className="h-4 w-4" />
-            </Button>
           </div>
         ) : (
           <button
@@ -174,7 +172,7 @@ export function DeckHero() {
             className="group -ml-1.5 flex w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-0.5 transition-colors hover:bg-background/50"
             title="Rename deck"
             onClick={() => {
-              setNameInput(currentDeck.name);
+              setNameBeforeEdit(currentDeck.name);
               setEditingName(true);
             }}
           >

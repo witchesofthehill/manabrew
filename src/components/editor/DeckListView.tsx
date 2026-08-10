@@ -38,6 +38,7 @@ import {
   Bookmark,
   Check,
   AlertTriangle,
+  Ellipsis,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -69,6 +70,39 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 
 type CardLocation = "main" | "side" | "maybe";
+
+function openCardContextMenu(event: React.MouseEvent<HTMLButtonElement>) {
+  event.preventDefault();
+  event.stopPropagation();
+  const bounds = event.currentTarget.getBoundingClientRect();
+  const clientX = event.clientX || bounds.left + bounds.width / 2;
+  const clientY = event.clientY || bounds.top + bounds.height / 2;
+  event.currentTarget.parentElement?.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      clientX,
+      clientY,
+    }),
+  );
+}
+
+function CardMenuButton({ className }: { className?: string }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100",
+        className,
+      )}
+      title="Card actions"
+      aria-label="Card actions"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={openCardContextMenu}
+    >
+      <Ellipsis className="h-4 w-4" />
+    </button>
+  );
+}
 
 // Persisted in deck stackPositions — values must stay stable.
 const STACK_SECTION_COMMANDER = "__commander__";
@@ -479,6 +513,7 @@ function DraggableStackCard({
         actions={buildCardActions(onAddOne, onRemoveOne, onUntag ? () => onUntag(name) : undefined)}
         rounded="rounded-[4%]"
       />
+      {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
     </div>
   );
 
@@ -771,6 +806,7 @@ function CardVisual({
         )}
       </div>
       <CardHoverOverlay actions={buildCardActions(onAddOne, onRemoveOne, onUntag)} />
+      {contextActions && <CardMenuButton className="absolute bottom-1 left-1 z-40" />}
     </div>
   );
 
@@ -816,6 +852,7 @@ const DraggableMiniRow = forwardRef<
       data-card-name={card.identity.name}
     >
       {children}
+      <CardMenuButton />
     </div>
   );
 });
@@ -918,6 +955,7 @@ function CardRow({
           {group.card.power}/{group.card.toughness}
         </span>
       )}
+      {contextActions && <CardMenuButton />}
     </div>
   );
 

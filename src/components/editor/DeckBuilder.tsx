@@ -38,6 +38,7 @@ import {
   EllipsisVertical,
   History,
   LibraryBig,
+  ListPlus,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -82,7 +83,9 @@ import {
   type CardGroup,
   type ViewMode,
   type GroupByMode,
+  type SortMode,
   GROUP_BY_OPTIONS,
+  SORT_OPTIONS,
   CMC_BUCKET_LABELS,
   cmcBucketIndex,
   parseFilterTerms,
@@ -90,6 +93,7 @@ import {
   exportToArena,
   computeGroupedSections,
   computeGroupedStackColumns,
+  sortCardGroups,
 } from "./deckBuilder.utils";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
@@ -101,6 +105,9 @@ import {
 } from "./deckBuilder.unsavedChanges";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
+import { CommanderSlots } from "./CommanderSlots";
+import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
+import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -285,6 +292,8 @@ export function DeckBuilder({
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -320,6 +329,7 @@ export function DeckBuilder({
     updateAccountDeckVersion,
   } = useDeckStore();
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
+  const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
 
   const derivedTokens = useDerivedTokens(currentDeck);
   const mergedTokens = useMemo(
@@ -334,6 +344,7 @@ export function DeckBuilder({
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(3);
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
+  const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
     const snap = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshotRef(snap);
@@ -565,18 +576,32 @@ export function DeckBuilder({
     [applyFilters, currentDeck.cards],
   );
   // Compute groups
-  const { sections: sectionGroups, otherGroups } = computeGroupedSections(
+  const groupedMain = computeGroupedSections(
     filteredMain,
     groupBy,
     currentDeck.customTags,
     currentDeck.cardTags,
   );
-  const sideGroups = groupCards(applyFilters(currentDeck.sideboard));
-  const attractionGroups = groupCards(applyFilters(currentDeck.attractions ?? []));
-  const contraptionGroups = groupCards(applyFilters(currentDeck.contraptions ?? []));
-  const schemeGroups = groupCards(applyFilters(currentDeck.schemes ?? []));
-  const planeGroups = groupCards(applyFilters(currentDeck.planes ?? []));
-  const maybeGroups = groupCards(applyFilters(currentDeck.maybeboard ?? []));
+  const sectionGroups = groupedMain.sections.map((section) => ({
+    ...section,
+    groups: sortCardGroups(section.groups, sortBy),
+  }));
+  const otherGroups = sortCardGroups(groupedMain.otherGroups, sortBy);
+  const sideGroups = sortCardGroups(groupCards(applyFilters(currentDeck.sideboard)), sortBy);
+  const attractionGroups = sortCardGroups(
+    groupCards(applyFilters(currentDeck.attractions ?? [])),
+    sortBy,
+  );
+  const contraptionGroups = sortCardGroups(
+    groupCards(applyFilters(currentDeck.contraptions ?? [])),
+    sortBy,
+  );
+  const schemeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.schemes ?? [])), sortBy);
+  const planeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.planes ?? [])), sortBy);
+  const maybeGroups = sortCardGroups(
+    groupCards(applyFilters(currentDeck.maybeboard ?? [])),
+    sortBy,
+  );
   const specialSections = [
     { id: "attractions", label: "Attractions", groups: attractionGroups },
     { id: "contraptions", label: "Contraptions", groups: contraptionGroups },
@@ -590,8 +615,8 @@ export function DeckBuilder({
         groupBy,
         currentDeck.customTags,
         currentDeck.cardTags,
-      ),
-    [filteredMain, groupBy, currentDeck.customTags, currentDeck.cardTags],
+      ).map((section) => ({ ...section, groups: sortCardGroups(section.groups, sortBy) })),
+    [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags],
   );
 
   // ── Handlers ──
@@ -860,9 +885,17 @@ export function DeckBuilder({
 
   async function handleSave() {
     if (saveInFlightRef.current) return;
+    const normalizedName = currentDeck.name.trim();
+    if (!normalizedName) {
+      toast.error("Give this deck a name before saving");
+      return;
+    }
+    const deckToSave = { ...currentDeck, name: normalizedName };
+    if (normalizedName !== currentDeck.name) useDeckStore.getState().setDeckName(normalizedName);
+    setIsSaving(true);
     const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
     saveCurrentDeck();
-    const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
+    const snapshot = buildDeckSnapshot({ ...deckToSave, draft: undefined });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
     if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
@@ -870,7 +903,7 @@ export function DeckBuilder({
       try {
         const detail = await useAccountDecksStore
           .getState()
-          .save(saved.accountDeckId, saved.accountVersionNo, currentDeck);
+          .save(saved.accountDeckId, saved.accountVersionNo, deckToSave);
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
         toast.success(`Saved version ${detail.currentVersionNo} to your account`);
       } catch (error) {
@@ -887,13 +920,14 @@ export function DeckBuilder({
     }
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines`,
+        `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines`,
       );
     } else if (!deckValidation.legal) {
       toast.warning(
-        `Saved "${currentDeck.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
+        `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
       );
     }
+    setIsSaving(false);
   }
 
   function handleSaveDraft() {
@@ -1029,6 +1063,25 @@ export function DeckBuilder({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                  <span>Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
+                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {SORT_OPTIONS.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onSelect={() => setSortBy(option.value)}
+                    className={cn(sortBy === option.value && "bg-muted font-medium")}
+                  >
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="flex rounded-md border overflow-hidden shrink-0">
               {(
                 [
@@ -1098,6 +1151,25 @@ export function DeckBuilder({
               </Button>
             )}
 
+            {!isReadOnly && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 gap-1 text-xs"
+                onClick={() => setImportOpen(true)}
+              >
+                <ListPlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Import list</span>
+                <span className="sm:hidden">Import</span>
+              </Button>
+            )}
+
+            {!isReadOnly && (
+              <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
+                {isSaving ? "Saving…" : hasUnsavedChanges ? "Unsaved" : "Saved"}
+              </span>
+            )}
+
             {isReadOnly ? (
               <Button
                 size="sm"
@@ -1119,7 +1191,7 @@ export function DeckBuilder({
                       : "secondary"
                     : "outline"
                 }
-                disabled={!allowIllegalDecks && !hasUnsavedChanges && !currentDeck.draft}
+                disabled={isSaving || (!hasUnsavedChanges && !currentDeck.draft)}
                 className={cn(
                   "h-7 shrink-0 gap-1 text-xs",
                   !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",
@@ -1137,8 +1209,12 @@ export function DeckBuilder({
                 }
                 onClick={() => void handleSave()}
               >
-                <Save className="h-3.5 w-3.5" />
-                Save
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {isSaving ? "Saving" : "Save"}
               </Button>
             )}
 
@@ -1251,6 +1327,14 @@ export function DeckBuilder({
           <fieldset disabled={isReadOnly} className="contents">
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
               <DeckValidationPanel unsupportedNames={unsupportedNames} />
+              <CommanderSlots
+                cards={currentDeck.cards}
+                commanders={currentDeck.commanders ?? []}
+                format={currentDeck.format ?? "standard"}
+                readOnly={isReadOnly}
+                onSetCommander={handleSetCommander}
+                onRemoveCommander={removeCommander}
+              />
               <div
                 ref={setMainDropRef}
                 className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
@@ -1485,6 +1569,12 @@ export function DeckBuilder({
           />
         )}
         <DeckLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} />
+        <ImportDeckTextDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          mode="add"
+          onImport={importIntoCurrentDeck}
+        />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open

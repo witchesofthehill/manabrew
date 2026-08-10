@@ -223,6 +223,12 @@ interface DeckState {
   loadHubDeck: (deck: EditorDeck) => void;
   importReadOnlyDeck: () => string | null;
   addSavedDeck: (deck: EditorDeck) => string;
+  mergeIntoCurrentDeck: (sections: {
+    cards: DeckCard[];
+    sideboard: DeckCard[];
+    maybeboard: DeckCard[];
+    commanders: DeckCard[];
+  }) => void;
   saveCurrentDeck: () => void;
   saveDraft: () => void;
   loadSavedDeck: (id: string) => void;
@@ -476,6 +482,27 @@ export const useDeckStore = create<DeckState>()(
           }));
           return id;
         },
+        mergeIntoCurrentDeck: (sections) =>
+          set((state) => {
+            const deck = normalizeDeck(state.currentDeck);
+            const canImportCommanders = formatRequiresCommander(deck.format);
+            const hasCommanders = (deck.commanders?.length ?? 0) > 0;
+            const commanders =
+              canImportCommanders && !hasCommanders ? sections.commanders : (deck.commanders ?? []);
+            const importedMain =
+              canImportCommanders && !hasCommanders
+                ? sections.cards
+                : [...sections.cards, ...sections.commanders];
+            return {
+              currentDeck: normalizeDeck({
+                ...deck,
+                cards: [...deck.cards, ...importedMain],
+                sideboard: [...deck.sideboard, ...sections.sideboard],
+                maybeboard: [...(deck.maybeboard ?? []), ...sections.maybeboard],
+                commanders,
+              }),
+            };
+          }),
         setCommander: (card) =>
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);

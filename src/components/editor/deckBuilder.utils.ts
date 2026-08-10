@@ -13,11 +13,19 @@ export type ViewMode = "list" | "visual" | "stack";
 
 export type GroupByMode = "type" | "cmc" | "color" | "custom";
 
+export type SortMode = "name" | "mana-value" | "quantity";
+
 export const GROUP_BY_OPTIONS: { value: GroupByMode; label: string }[] = [
   { value: "type", label: "Type" },
   { value: "cmc", label: "Mana Value" },
   { value: "color", label: "Color" },
   { value: "custom", label: "Custom Tags" },
+];
+
+export const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: "name", label: "Name" },
+  { value: "mana-value", label: "Mana Value" },
+  { value: "quantity", label: "Quantity" },
 ];
 
 export interface SectionDefinition {
@@ -118,6 +126,17 @@ export function groupCards(cards: DeckCard[]): CardGroup[] {
     const aCmc = a.card.cmc ?? 0;
     const bCmc = b.card.cmc ?? 0;
     if (aCmc !== bCmc) return aCmc - bCmc;
+    return a.card.identity.name.localeCompare(b.card.identity.name);
+  });
+}
+
+export function sortCardGroups(groups: CardGroup[], mode: SortMode): CardGroup[] {
+  return [...groups].sort((a, b) => {
+    if (mode === "quantity" && a.count !== b.count) return b.count - a.count;
+    if (mode === "mana-value") {
+      const difference = (a.card.cmc ?? 0) - (b.card.cmc ?? 0);
+      if (difference !== 0) return difference;
+    }
     return a.card.identity.name.localeCompare(b.card.identity.name);
   });
 }

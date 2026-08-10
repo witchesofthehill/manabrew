@@ -63,7 +63,7 @@ const DRAG_TRAY_MAIN = "drag-tray-main";
 const DRAG_TRAY_SIDE = "drag-tray-side";
 const DRAG_TRAY_MAYBE = "drag-tray-maybe";
 const DRAG_TRAY_TAG_PREFIX = "drag-tray-tag:";
-const DRAG_TRAY_NEW_GROUP = "drag-tray-new-group";
+const DRAG_TRAY_NEW_TAG = "drag-tray-new-tag";
 
 function DragTrayTarget({
   id,
@@ -164,9 +164,9 @@ export default function DeckEditor() {
     presetDecks.map((deck) => [presetDeckParamId(deck), deck.engines]),
   );
   const [draggedCards, setDraggedCards] = useState<DeckCard[]>([]);
-  const [newGroupDropOpen, setNewGroupDropOpen] = useState(false);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [pendingGroupCards, setPendingGroupCards] = useState<string[]>([]);
+  const [newTagDropOpen, setNewTagDropOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [pendingTagCards, setPendingTagCards] = useState<string[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(() =>
@@ -534,10 +534,10 @@ export default function DeckEditor() {
     const sourceTagMatch = activeId.match(/^deck-tag-(.+?)-(?:.+)$/);
     const sourceTag = sourceTagMatch?.[1] ?? null;
 
-    if (overId === DRAG_TRAY_NEW_GROUP) {
-      setPendingGroupCards(draggedNames);
-      setNewGroupName("");
-      setNewGroupDropOpen(true);
+    if (overId === DRAG_TRAY_NEW_TAG) {
+      setPendingTagCards(draggedNames);
+      setNewTagName("");
+      setNewTagDropOpen(true);
       return;
     }
 
@@ -1019,7 +1019,7 @@ export default function DeckEditor() {
                   icon={Bookmark}
                 />
               ))}
-              <DragTrayTarget id={DRAG_TRAY_NEW_GROUP} label="New group" icon={Plus} />
+              <DragTrayTarget id={DRAG_TRAY_NEW_TAG} label="New tag" icon={Plus} />
             </div>
           </div>
         )}
@@ -1053,41 +1053,41 @@ export default function DeckEditor() {
         </DragOverlay>
       </DndContext>
 
-      <Dialog open={newGroupDropOpen} onOpenChange={setNewGroupDropOpen}>
+      <Dialog open={newTagDropOpen} onOpenChange={setNewTagDropOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Create card group</DialogTitle>
+            <DialogTitle>Create tag</DialogTitle>
             <DialogDescription>
               Create a reusable tag and add the dropped cards to it.
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
-            value={newGroupName}
+            value={newTagName}
             placeholder="Ramp, removal, combo…"
-            onChange={(event) => setNewGroupName(event.target.value)}
+            onChange={(event) => setNewTagName(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key !== "Enter" || !newGroupName.trim()) return;
-              const tag = newGroupName.trim();
+              if (event.key !== "Enter" || !newTagName.trim()) return;
+              const tag = newTagName.trim();
               addCustomTag(tag);
-              for (const name of pendingGroupCards) tagCard(name, tag);
-              setNewGroupDropOpen(false);
+              for (const name of pendingTagCards) tagCard(name, tag);
+              setNewTagDropOpen(false);
             }}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewGroupDropOpen(false)}>
+            <Button variant="outline" onClick={() => setNewTagDropOpen(false)}>
               Cancel
             </Button>
             <Button
-              disabled={!newGroupName.trim()}
+              disabled={!newTagName.trim()}
               onClick={() => {
-                const tag = newGroupName.trim();
+                const tag = newTagName.trim();
                 addCustomTag(tag);
-                for (const name of pendingGroupCards) tagCard(name, tag);
-                setNewGroupDropOpen(false);
+                for (const name of pendingTagCards) tagCard(name, tag);
+                setNewTagDropOpen(false);
               }}
             >
-              Create group
+              Create tag
             </Button>
           </DialogFooter>
         </DialogContent>

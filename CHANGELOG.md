@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.12.2](https://github.com/witchesofthehill/manabrew/compare/v3.12.1...v3.12.2) (2026-08-10)
+
+### Fixes
+
+* **auth:** open the desktop oauth page in the system browser ([#677](https://github.com/witchesofthehill/manabrew/issues/677)) ([359dd7d](https://github.com/witchesofthehill/manabrew/commit/359dd7d8ad103da5e4ac39ec0423c67d9684a922))
+
 ## [3.12.1](https://github.com/witchesofthehill/manabrew/compare/v3.12.0...v3.12.1) (2026-08-10)
 
 ### Fixes

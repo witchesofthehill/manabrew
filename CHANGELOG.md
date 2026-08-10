@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.9.7](https://github.com/witchesofthehill/manabrew/compare/v3.9.6...v3.9.7) (2026-08-10)
+
+### Fixes
+
+* **hub:** allow the desktop asset-server origin through cors ([#670](https://github.com/witchesofthehill/manabrew/issues/670)) ([ad0ca51](https://github.com/witchesofthehill/manabrew/commit/ad0ca51fccf3f44c41054202b4ce3581c52b49d2))
+
 ## [3.9.6](https://github.com/witchesofthehill/manabrew/compare/v3.9.5...v3.9.6) (2026-08-09)
 
 ## [3.9.5](https://github.com/witchesofthehill/manabrew/compare/v3.9.4...v3.9.5) (2026-08-09)

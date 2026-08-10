@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.9.6"
+version = "3.9.7"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "aws-lc-rs",
  "axum",

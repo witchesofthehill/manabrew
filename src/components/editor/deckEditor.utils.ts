@@ -60,3 +60,14 @@ export function handleCardClick(
     onShowInfo();
   }
 }
+
+export function handleCardContextClick(
+  e: React.MouseEvent,
+  cardName: string,
+  onSelect?: (cardName: string, addToSelection: boolean) => void,
+) {
+  if (!e.ctrlKey || !onSelect) return;
+  e.preventDefault();
+  e.stopPropagation();
+  onSelect(cardName, false);
+}

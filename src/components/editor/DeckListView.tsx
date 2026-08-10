@@ -64,6 +64,7 @@ import {
   buildCardActions,
   commanderSlotFor,
   handleCardClick,
+  handleCardContextClick,
   DEFAULT_COMMANDER_SLOT,
   type CommanderSlot,
 } from "./deckEditor.utils";
@@ -518,6 +519,7 @@ function DraggableStackCard({
       onMouseEnter={() => onCardHover(index)}
       onMouseLeave={onCardLeave}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
+      onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
       <CardCountBadge count={group.count} className="border-white/30 shadow" />
@@ -760,6 +762,7 @@ function CardVisual({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
+      onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
       <CardCountBadge count={group.count} />
@@ -937,6 +940,7 @@ function CardRow({
           onShowInfo();
         }
       }}
+      onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <div
         className={cn(

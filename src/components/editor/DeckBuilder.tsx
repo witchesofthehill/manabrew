@@ -30,10 +30,7 @@ import {
   Share2,
   Palette,
   Bookmark,
-  BookmarkMinus,
   Group,
-  ArrowUpToLine,
-  ArrowDownToLine,
   EllipsisVertical,
   History,
   LibraryBig,
@@ -133,6 +130,7 @@ import {
   type EditableDeckZone,
 } from "./deckEditor.actions";
 import { DeckQuickAdd } from "./DeckQuickAdd";
+import { DeckSelectionTray } from "./DeckSelectionTray";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -1474,60 +1472,18 @@ export function DeckBuilder({
 
       <fieldset disabled={isReadOnly} className="contents">
         {selectedCards.size > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-selection/30 px-4 py-2 flex flex-wrap items-center gap-2 z-50">
-            <span className="text-sm font-medium text-selection">
-              {selectedCards.size} card{selectedCards.size !== 1 ? "s" : ""} selected
-            </span>
-            <div className="flex-1" />
-            <Button size="sm" variant="outline" onClick={handleMoveSelectedToMain}>
-              <ArrowUpToLine className="h-3 w-3 mr-1" /> To Main
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleMoveSelectedToSide}>
-              <ArrowDownToLine className="h-3 w-3 mr-1" /> To Sideboard
-            </Button>
-            {(currentDeck.customTags?.length ?? 0) > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <Bookmark className="h-3 w-3 mr-1" /> Tag
-                    <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {currentDeck.customTags!.map((tag) => (
-                    <DropdownMenuItem key={tag} onSelect={() => handleTagSelected(tag)}>
-                      <Bookmark className="h-3 w-3 mr-2 text-primary/60" />
-                      {tag}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {selectedCardTags.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <BookmarkMinus className="h-3 w-3 mr-1" /> Untag
-                    <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {selectedCardTags.map((tag) => (
-                    <DropdownMenuItem key={tag} onSelect={() => handleUntagSelected(tag)}>
-                      <BookmarkMinus className="h-3 w-3 mr-2 text-destructive" />
-                      {tag}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <Button size="sm" variant="destructive" onClick={handleRemoveSelected}>
-              <X className="h-3 w-3 mr-1" /> Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={clearSelection}>
-              Clear
-            </Button>
-          </div>
+          <DeckSelectionTray
+            count={selectedCards.size}
+            tags={currentDeck.customTags ?? []}
+            appliedTags={selectedCardTags}
+            onMoveToMain={handleMoveSelectedToMain}
+            onMoveToSide={handleMoveSelectedToSide}
+            onTag={handleTagSelected}
+            onUntag={handleUntagSelected}
+            onPrinting={() => setBatchPrintingOpen(true)}
+            onRemove={handleRemoveSelected}
+            onClear={clearSelection}
+          />
         )}
 
         <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />

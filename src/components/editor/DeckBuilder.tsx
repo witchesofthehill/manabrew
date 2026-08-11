@@ -133,6 +133,7 @@ import {
 import { DeckQuickAdd } from "./DeckQuickAdd";
 import { DeckSelectionTray } from "./DeckSelectionTray";
 import { DeckHealthPanel } from "./DeckHealthPanel";
+import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -1510,6 +1511,7 @@ export function DeckBuilder({
                     onOpenSearch={onToggleSearch}
                   />
                   <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
+                  <ManaProbabilityPanel deck={currentDeck} />
                   <CombosPanel />
                   <DeckBracketPanel />
                 </div>

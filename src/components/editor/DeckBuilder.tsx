@@ -38,7 +38,6 @@ import {
   Command as CommandIcon,
   Images,
 } from "lucide-react";
-import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
@@ -132,15 +131,10 @@ import {
 } from "./deckEditor.actions";
 import { DeckQuickAdd } from "./DeckQuickAdd";
 import { DeckSelectionTray } from "./DeckSelectionTray";
-import { DeckHealthPanel } from "./DeckHealthPanel";
-import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
 import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
 import { SideboardPlansDialog } from "./SideboardPlansDialog";
-import { DeckBudgetPanel } from "./DeckBudgetPanel";
-import { DeckIntentPanel } from "./DeckIntentPanel";
-import { ReplacementSuggestionsPanel } from "./ReplacementSuggestionsPanel";
-import { DeckCollectionPanel } from "./DeckCollectionPanel";
 import { useCardCollection } from "@/hooks/useCardCollection";
+import { DeckInsightsPanel } from "./DeckInsightsPanel";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -1519,19 +1513,15 @@ export function DeckBuilder({
                       onLeave={preview.handleMouseLeave}
                     />
                   )}
-                  <DeckHealthPanel
+                  <DeckInsightsPanel
                     deck={currentDeck}
                     unsupportedNames={unsupportedNames}
                     validationErrors={deckValidation.errors}
+                    activeBucket={cmcFilter}
+                    onBucketClick={setCmcFilter}
                     onShowUnsupported={() => setDeckFilter("is:unsupported")}
                     onOpenSearch={onToggleSearch}
                   />
-                  <DeckIntentPanel deck={currentDeck} />
-                  <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
-                  <ManaProbabilityPanel deck={currentDeck} />
-                  <DeckBudgetPanel />
-                  <DeckCollectionPanel />
-                  <ReplacementSuggestionsPanel />
                   <CombosPanel />
                   <DeckBracketPanel />
                 </div>

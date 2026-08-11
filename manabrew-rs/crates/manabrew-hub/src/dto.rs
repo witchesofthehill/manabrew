@@ -16,6 +16,21 @@ pub struct HubCapabilities {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]
+pub struct CardCollectionEntry {
+    pub card_key: String,
+    pub quantity: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct CardCollection {
+    pub cards: Vec<CardCollectionEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct DeckPlayReportRequest {
     pub report_id: String,
     pub deckhub_entry_id: String,

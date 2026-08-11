@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { getTopBarNav, isNavDestinationActive, type NavDestination } from "./navDestinations";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface NavSheetProps {
   disabled?: boolean;
@@ -15,7 +16,8 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { direct, menus } = getTopBarNav();
+  const signedIn = useAuthStore((state) => state.status === "signedIn");
+  const { direct, menus } = getTopBarNav(signedIn);
 
   function isActive(to: string) {
     return isNavDestinationActive(to, location.pathname);

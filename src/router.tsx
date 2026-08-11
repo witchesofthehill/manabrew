@@ -24,6 +24,7 @@ import About from "@/views/About";
 import Search from "@/views/Search";
 import DeckHub from "@/views/DeckHub";
 import AuthCallback from "@/views/AuthCallback";
+import MyCollection from "@/views/MyCollection";
 
 export const router = createBrowserRouter([
   {
@@ -77,6 +78,18 @@ export const router = createBrowserRouter([
           </ErrorBoundary>
         ),
       },
+      ...(isFeatureEnabled("accounts")
+        ? [
+            {
+              path: "mycollection",
+              element: (
+                <ErrorBoundary context="My Collection">
+                  <MyCollection />
+                </ErrorBoundary>
+              ),
+            },
+          ]
+        : []),
       ...(isFeatureEnabled("deckHub")
         ? [
             {

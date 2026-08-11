@@ -10,9 +10,9 @@ use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use manabrew_hub::dto::{
-    AccountDeckList, AdminTopDeckSnapshotRequest, CreateAccountDeckRequest, DeckHubEntryList,
-    DeckPlayReportRequest, HubCapabilities, PublishDeckHubEntryRequest, SaveDeckVersionRequest,
-    UpdateDeckHubEntryRequest,
+    AccountDeckList, AdminTopDeckSnapshotRequest, CardCollection, CardCollectionEntry,
+    CreateAccountDeckRequest, DeckHubEntryList, DeckPlayReportRequest, HubCapabilities,
+    PublishDeckHubEntryRequest, SaveDeckVersionRequest, UpdateDeckHubEntryRequest,
 };
 use rand::RngCore;
 use serde::Deserialize;
@@ -84,6 +84,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/health", get(health_handler))
         .route("/api/hub/capabilities", get(capabilities_handler))
         .route(
+            "/api/collection",
+            get(card_collection_handler).put(replace_card_collection_handler),
+        )
+        .route(
             "/api/decks",
             get(account_decks_handler).post(create_account_deck_handler),
         )
@@ -152,6 +156,51 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(cors)
         .with_state(state)
+}
+
+async fn card_collection_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+) -> Response {
+    match state.storage.lock().unwrap().card_collection(&account.id) {
+        Ok(cards) => Json(CardCollection {
+            cards: cards
+                .into_iter()
+                .map(|(card_key, quantity)| CardCollectionEntry { card_key, quantity })
+                .collect(),
+        })
+        .into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+async fn replace_card_collection_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(account): auth::SessionAccount,
+    Json(collection): Json<CardCollection>,
+) -> Response {
+    if collection.cards.len() > 100_000
+        || collection
+            .cards
+            .iter()
+            .any(|card| card.card_key.is_empty() || card.card_key.len() > 200)
+    {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    let cards = collection
+        .cards
+        .into_iter()
+        .map(|card| (card.card_key, card.quantity))
+        .collect::<Vec<_>>();
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .replace_card_collection(&account.id, &cards)
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
 }
 
 async fn health_handler() -> &'static str {

@@ -55,7 +55,7 @@ export function isNavDestinationActive(to: string, pathname: string): boolean {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
-export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
+export function getTopBarNav(signedIn = false): { direct: NavDestination[]; menus: NavMenu[] } {
   const direct: NavDestination[] = [
     { to: ROUTES.PLAY_OFFLINE_CONSTRUCTED, label: "Play Offline", icon: Swords },
     { to: ROUTES.LOBBY, label: "Multiplayer", icon: Users },
@@ -65,6 +65,10 @@ export function getTopBarNav(): { direct: NavDestination[]; menus: NavMenu[] } {
 
   if (isFeatureEnabled("deckHub")) {
     direct.push({ to: ROUTES.HUB, label: "Community", icon: LibraryBig });
+  }
+
+  if (signedIn && isFeatureEnabled("accounts")) {
+    direct.push({ to: ROUTES.MY_COLLECTION, label: "My Collection", icon: LibraryBig });
   }
 
   direct.push(

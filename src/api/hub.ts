@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import type {
   AccountDeckDetail,
   AccountDeckList,
+  CardCollection,
   CreateAccountDeckRequest,
   DeckHubEntryDetail,
   DeckHubEntryList,
@@ -98,6 +99,18 @@ async function hubJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchHubCapabilities(): Promise<HubCapabilities> {
   return hubJson<HubCapabilities>("/api/hub/capabilities");
+}
+
+export function fetchAccountCollection(): Promise<CardCollection> {
+  return hubJson<CardCollection>("/api/collection");
+}
+
+export async function saveAccountCollection(collection: CardCollection): Promise<void> {
+  await hubRequest("/api/collection", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collection),
+  });
 }
 
 export function fetchAccountDecks(): Promise<AccountDeckList> {

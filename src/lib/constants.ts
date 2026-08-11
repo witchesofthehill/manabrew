@@ -14,6 +14,7 @@ export const ROUTES = {
   GAME: "/game",
   SEARCH: "/search",
   DECK_EDITOR: "/deck-editor",
+  MY_COLLECTION: "/mycollection",
   HUB: "/hub",
   HUB_TOP: "/hub/top",
   COMPANION: "/companion",

@@ -139,6 +139,8 @@ import { SideboardPlansDialog } from "./SideboardPlansDialog";
 import { DeckBudgetPanel } from "./DeckBudgetPanel";
 import { DeckIntentPanel } from "./DeckIntentPanel";
 import { ReplacementSuggestionsPanel } from "./ReplacementSuggestionsPanel";
+import { DeckCollectionPanel } from "./DeckCollectionPanel";
+import { useCardCollection } from "@/hooks/useCardCollection";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -313,6 +315,7 @@ export function DeckBuilder({
 
   useDeckAnalysis();
   useDeckRoles();
+  useCardCollection();
 
   const { setNodeRef: setMainDropRef, isOver: isOverMain } = useDroppable({ id: DROP_ZONE.MAIN });
   const { setNodeRef: setSideDropRef, isOver: isOverSide } = useDroppable({ id: DROP_ZONE.SIDE });
@@ -1527,6 +1530,7 @@ export function DeckBuilder({
                   <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
                   <ManaProbabilityPanel deck={currentDeck} />
                   <DeckBudgetPanel />
+                  <DeckCollectionPanel />
                   <ReplacementSuggestionsPanel />
                   <CombosPanel />
                   <DeckBracketPanel />

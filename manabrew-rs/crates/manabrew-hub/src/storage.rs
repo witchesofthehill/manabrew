@@ -199,6 +199,38 @@ pub struct Storage {
 }
 
 impl Storage {
+    pub fn card_collection(&self, account_id: &str) -> SqlResult<Vec<(String, u32)>> {
+        let mut statement = self.conn.prepare(
+            "SELECT card_key, quantity FROM card_collection WHERE account_id = ?1 ORDER BY card_key",
+        )?;
+        let cards = statement
+            .query_map(params![account_id], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect();
+        cards
+    }
+
+    pub fn replace_card_collection(
+        &self,
+        account_id: &str,
+        cards: &[(String, u32)],
+    ) -> SqlResult<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "DELETE FROM card_collection WHERE account_id = ?1",
+            params![account_id],
+        )?;
+        for (card_key, quantity) in cards {
+            if *quantity == 0 {
+                continue;
+            }
+            tx.execute(
+                "INSERT INTO card_collection (account_id, card_key, quantity) VALUES (?1, ?2, ?3)",
+                params![account_id, card_key, quantity],
+            )?;
+        }
+        tx.commit()
+    }
+
     pub fn open(path: &str) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
         conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))?;

@@ -135,6 +135,7 @@ import { DeckSelectionTray } from "./DeckSelectionTray";
 import { DeckHealthPanel } from "./DeckHealthPanel";
 import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
 import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
+import { SideboardPlansDialog } from "./SideboardPlansDialog";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -176,6 +177,7 @@ export function DeckBuilder({
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [checkpointsOpen, setCheckpointsOpen] = useState(false);
+  const [sideboardPlansOpen, setSideboardPlansOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
@@ -1292,6 +1294,9 @@ export function DeckBuilder({
                 <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
                   <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSideboardPlansOpen(true)}>
+                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
+                </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
                   <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
@@ -1538,6 +1543,7 @@ export function DeckBuilder({
             toast.success(`Restored "${checkpointName}"`);
           }}
         />
+        <SideboardPlansDialog open={sideboardPlansOpen} onOpenChange={setSideboardPlansOpen} />
         {setPreviewSlot && onTogglePreview && (
           <div className="hidden lg:contents">
             <PreviewRail

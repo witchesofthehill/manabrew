@@ -59,18 +59,20 @@ export function DeckLayoutMenu({
   useEffect(() => {
     if (!activeLayout || activeLayoutMatches) return;
     setEditorMetadata({
+      ...metadata,
       version: 1,
       tags: metadata?.tags ?? [],
       layouts,
       activeLayoutId: undefined,
     });
-  }, [activeLayout, activeLayoutMatches, layouts, metadata?.tags, setEditorMetadata]);
+  }, [activeLayout, activeLayoutMatches, layouts, metadata, setEditorMetadata]);
 
   function saveLayout() {
     const layoutName = name.trim();
     if (!layoutName) return;
     const id = crypto.randomUUID();
     setEditorMetadata({
+      ...metadata,
       version: 1,
       tags: metadata?.tags ?? [],
       layouts: [
@@ -87,6 +89,7 @@ export function DeckLayoutMenu({
     const layout = layouts.find((candidate) => candidate.id === id);
     if (!layout) return;
     setEditorMetadata({
+      ...metadata,
       version: 1,
       tags: metadata?.tags ?? [],
       layouts,
@@ -103,6 +106,7 @@ export function DeckLayoutMenu({
 
   function removeLayout(id: string) {
     setEditorMetadata({
+      ...metadata,
       version: 1,
       tags: metadata?.tags ?? [],
       layouts: layouts.filter((layout) => layout.id !== id),

@@ -67,6 +67,15 @@ export interface DeckEditorMetadata {
   tags: DeckEditorTag[];
   layouts: DeckEditorLayout[];
   activeLayoutId?: string;
+  sideboardPlans?: DeckSideboardPlan[];
+}
+
+export interface DeckSideboardPlan {
+  id: string;
+  matchup: string;
+  bringIn: string;
+  takeOut: string;
+  notes: string;
 }
 
 export interface User {

@@ -26,7 +26,7 @@ interface ImportDeckTextDialogProps {
     name: string,
     formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
-  ) => Promise<void>;
+  ) => Promise<boolean | void>;
 }
 
 const GUIDE_STEPS = [
@@ -85,8 +85,9 @@ export function ImportDeckTextDialog({
     setImporting(true);
     setProgress(0);
     try {
-      await onImport(entries, name, formatId || undefined, setProgress);
-      onOpenChange(false);
+      const applied = await onImport(entries, name, formatId || undefined, setProgress);
+      if (applied !== false) onOpenChange(false);
+      else setImporting(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import failed");
       setImporting(false);

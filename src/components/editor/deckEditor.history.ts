@@ -37,13 +37,18 @@ function publish() {
 
 export function executeDeckEdit(label: string, edit: () => void) {
   const before = cloneDeck(useDeckStore.getState().currentDeck);
+  let historyCleared = false;
   if (undoStack.length > 0 && !decksMatch(before, undoStack.at(-1)!.after)) {
     undoStack.length = 0;
     redoStack.length = 0;
+    historyCleared = true;
   }
   edit();
   const after = cloneDeck(useDeckStore.getState().currentDeck);
-  if (decksMatch(before, after)) return;
+  if (decksMatch(before, after)) {
+    if (historyCleared) publish();
+    return;
+  }
   undoStack.push({ label, before, after });
   if (undoStack.length > 100) undoStack.shift();
   redoStack.length = 0;

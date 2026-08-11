@@ -219,6 +219,7 @@ const deckStorage = createJSONStorage(() => ({
 interface DeckState {
   currentDeck: EditorDeck;
   currentDeckId: string | null;
+  editorSessionId: string;
   isReadOnly: boolean;
   readOnlySource: "preset" | "hub" | null;
   savedDecks: SavedDeck[];
@@ -297,6 +298,7 @@ export const useDeckStore = create<DeckState>()(
       (set, get) => ({
         currentDeck: initialDeck,
         currentDeckId: null,
+        editorSessionId: crypto.randomUUID(),
         isReadOnly: false,
         readOnlySource: null,
         savedDecks: [],
@@ -449,12 +451,14 @@ export const useDeckStore = create<DeckState>()(
           set({
             currentDeck: { ...initialDeck },
             currentDeckId: null,
+            editorSessionId: crypto.randomUUID(),
             isReadOnly: false,
             readOnlySource: null,
           }),
         loadDeck: (deck) =>
           set({
             currentDeck: normalizeDeck(migrateDeck(deck)),
+            editorSessionId: crypto.randomUUID(),
             isReadOnly: false,
             readOnlySource: null,
           }),
@@ -462,6 +466,7 @@ export const useDeckStore = create<DeckState>()(
           set({
             currentDeck: normalizeDeck(deck),
             currentDeckId: null,
+            editorSessionId: crypto.randomUUID(),
             isReadOnly: true,
             readOnlySource: "preset",
           }),
@@ -469,6 +474,7 @@ export const useDeckStore = create<DeckState>()(
           set({
             currentDeck: normalizeDeck(deck),
             currentDeckId: null,
+            editorSessionId: crypto.randomUUID(),
             isReadOnly: true,
             readOnlySource: "hub",
           }),
@@ -486,6 +492,7 @@ export const useDeckStore = create<DeckState>()(
           set((s) => ({
             currentDeck: imported,
             currentDeckId: id,
+            editorSessionId: crypto.randomUUID(),
             isReadOnly: false,
             readOnlySource: null,
             savedDecks: [...s.savedDecks, savedDeck],
@@ -763,6 +770,7 @@ export const useDeckStore = create<DeckState>()(
             return {
               currentDeck: normalizeDeck(migrateDeck(found.deck)),
               currentDeckId: id,
+              editorSessionId: crypto.randomUUID(),
               isReadOnly: false,
               readOnlySource: null,
             };
@@ -779,6 +787,7 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: normalized,
             currentDeckId: id,
+            editorSessionId: crypto.randomUUID(),
             isReadOnly: false,
             readOnlySource: null,
             savedDecks: [
@@ -1061,7 +1070,7 @@ export const useDeckStore = create<DeckState>()(
       {
         name: STORAGE_KEYS.DECK,
         storage: deckStorage,
-        partialize: (state) => ({
+        partialize: ({ editorSessionId: _editorSessionId, ...state }) => ({
           ...state,
           savedDecks: state.savedDecks.filter((saved) => !saved.accountDeckId),
         }),

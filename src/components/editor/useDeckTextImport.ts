@@ -151,17 +151,11 @@ export function useDeckTextImportIntoCurrent() {
       _name: string,
       _formatId: DeckFormat | undefined,
       onProgress: (fraction: number) => void,
-    ): Promise<void> => {
-      const startingState = useDeckStore.getState();
-      const startingDeckId = startingState.currentDeckId;
-      const startingDeck = startingState.currentDeck;
+    ): Promise<boolean> => {
+      const startingSessionId = useDeckStore.getState().editorSessionId;
       const result = await resolveDeckTextImport(entries, onProgress);
-      const currentState = useDeckStore.getState();
-      if (
-        currentState.currentDeckId !== startingDeckId ||
-        (startingDeckId === null && currentState.currentDeck !== startingDeck)
-      ) {
-        return;
+      if (useDeckStore.getState().editorSessionId !== startingSessionId) {
+        return false;
       }
       executeDeckEdit("Import card list", () =>
         useDeckStore.getState().mergeIntoCurrentDeck(result),
@@ -179,6 +173,7 @@ export function useDeckTextImportIntoCurrent() {
       } else {
         toast.success(`Added ${count} cards to this deck`);
       }
+      return true;
     },
     [],
   );

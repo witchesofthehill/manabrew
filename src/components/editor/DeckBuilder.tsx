@@ -354,6 +354,7 @@ export function DeckBuilder({
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
+  const editorSessionId = useDeckStore((s) => s.editorSessionId);
   const {
     currentDeck,
     savedDecks,
@@ -459,20 +460,13 @@ export function DeckBuilder({
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
   }, [lastSavedSnapshot, currentSnapshot, isReadOnly]);
 
-  // Reset snapshot when a different deck is loaded (or cleared).
-  const [prevDeckId, setPrevDeckId] = useState(currentDeckId);
-  if (prevDeckId !== currentDeckId) {
-    setPrevDeckId(currentDeckId);
-    const snapshot = buildDeckSnapshot(currentDeck);
+  useEffect(() => {
+    const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
     resetDeckHistory();
-  }
-
-  useEffect(() => {
-    resetDeckHistory();
     return resetDeckHistory;
-  }, []);
+  }, [editorSessionId]);
 
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {

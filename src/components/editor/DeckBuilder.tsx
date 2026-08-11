@@ -134,6 +134,7 @@ import { DeckQuickAdd } from "./DeckQuickAdd";
 import { DeckSelectionTray } from "./DeckSelectionTray";
 import { DeckHealthPanel } from "./DeckHealthPanel";
 import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
+import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -174,6 +175,7 @@ export function DeckBuilder({
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [checkpointsOpen, setCheckpointsOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
@@ -1287,6 +1289,9 @@ export function DeckBuilder({
                 <DropdownMenuItem onSelect={handleSaveDraft}>
                   <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
+                  <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
+                </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
                   <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
@@ -1519,6 +1524,20 @@ export function DeckBuilder({
             </div>
           </fieldset>
         </div>
+
+        <DeckCheckpointsDialog
+          open={checkpointsOpen}
+          onOpenChange={setCheckpointsOpen}
+          deck={currentDeck}
+          deckKey={currentDeckId ?? currentDeck.name.toLowerCase()}
+          onRestore={(deck, checkpointName) => {
+            executeDeckEdit(`Restore ${checkpointName}`, () =>
+              useDeckStore.setState({ currentDeck: deck }),
+            );
+            setCheckpointsOpen(false);
+            toast.success(`Restored "${checkpointName}"`);
+          }}
+        />
         {setPreviewSlot && onTogglePreview && (
           <div className="hidden lg:contents">
             <PreviewRail

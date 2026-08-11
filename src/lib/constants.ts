@@ -44,6 +44,7 @@ export const STORAGE_KEYS = {
   STATUS_BANNER: "manabrew-status-banner",
   PUBLISHED_DECKS: "manabrew-published-decks",
   DECK_PLAY_REPORTS: "manabrew-deck-play-reports",
+  DECK_CHECKPOINTS: "manabrew-deck-checkpoints",
 } as const;
 
 // ─── Deck Defaults ───────────────────────────────────────────────────────────

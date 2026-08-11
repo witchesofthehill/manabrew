@@ -985,10 +985,15 @@ export const useDeckStore = create<DeckState>()(
         tagCard: (cardName, tag) =>
           set((state) => {
             const key = cardName.toLowerCase();
+            const normalizedTag =
+              (state.currentDeck.customTags ?? []).find(
+                (candidate) => candidate.toLowerCase() === tag.trim().toLowerCase(),
+              ) ?? tag.trim();
+            if (!normalizedTag) return state;
             const cardTags = { ...state.currentDeck.cardTags };
             const tags = cardTags[key] ?? [];
-            if (tags.includes(tag)) return state;
-            cardTags[key] = [...tags, tag];
+            if (tags.includes(normalizedTag)) return state;
+            cardTags[key] = [...tags, normalizedTag];
             return {
               currentDeck: { ...state.currentDeck, cardTags },
             };

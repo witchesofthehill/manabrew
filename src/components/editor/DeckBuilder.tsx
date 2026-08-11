@@ -23,7 +23,6 @@ import {
   List,
   Layers,
   Plus,
-  Minus,
   Loader2,
   ChevronDown,
   FileBox,
@@ -42,14 +41,13 @@ import {
   Command as CommandIcon,
   Images,
 } from "lucide-react";
-import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-import { fetchCardCollection, searchCards } from "@/api/scryfall";
+import { fetchCardCollection } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
 import { frontFaceName, needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
@@ -134,182 +132,7 @@ import {
   type DeckSourceZone,
   type EditableDeckZone,
 } from "./deckEditor.actions";
-
-// ─── Quick Search ─────────────────────────────────────────────────────────────
-
-function QuickCardSearch({
-  onAdd,
-  onRemove,
-  getCount,
-}: {
-  onAdd: (card: ScryfallCard, destination: "main" | "side" | "maybe") => void;
-  onRemove: (cardName: string) => void;
-  getCount: (cardName: string) => number;
-}) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useKeybindings({
-    "deck-editor-focus-quick-add": () => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    },
-  });
-
-  const doSearch = useCallback((q: string) => {
-    if (q.trim().length < 2) {
-      setResults([]);
-      setIsOpen(false);
-      return;
-    }
-    setIsLoading(true);
-    const fullQuery = `${q} -is:digital -is:funny`;
-    searchCards(fullQuery, 1)
-      .then((res) => {
-        setResults(res.data.slice(0, 20));
-        setActiveIndex(0);
-        setIsOpen(true);
-      })
-      .catch(() => setResults([]))
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  function handleChange(value: string) {
-    setQuery(value);
-    if (debounceRef.current !== null) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => doSearch(value), 400);
-  }
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <div className="relative">
-        <Plus className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-        <Input
-          ref={inputRef}
-          className="h-7 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
-          placeholder="Quick add card…"
-          value={query}
-          onChange={(e) => handleChange(e.target.value)}
-          onFocus={() => {
-            if (results.length > 0) setIsOpen(true);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setActiveIndex((index) => Math.min(index + 1, results.length - 1));
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setActiveIndex((index) => Math.max(index - 1, 0));
-            } else if (event.key === "Enter" && results[activeIndex]) {
-              event.preventDefault();
-              onAdd(
-                results[activeIndex],
-                event.shiftKey ? "side" : event.altKey ? "maybe" : "main",
-              );
-            }
-          }}
-        />
-        {isLoading && (
-          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
-        )}
-        {!isLoading && query && (
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setQuery("");
-              setResults([]);
-              setIsOpen(false);
-            }}
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-
-      {isOpen && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-80 overflow-y-auto min-w-[280px]">
-          {results.map((sc, index) => {
-            const count = getCount(sc.name);
-            const thumb = sc.image_uris?.small ?? sc.card_faces?.[0]?.image_uris?.small;
-            return (
-              <div
-                key={sc.id}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 border-b border-border/30 px-2 py-1 last:border-0 hover:bg-muted",
-                  activeIndex === index && "bg-muted",
-                )}
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => onAdd(sc, "main")}
-                title={`Add ${sc.name}`}
-              >
-                {thumb && (
-                  <ScryfallImg
-                    src={thumb}
-                    alt=""
-                    className="w-8 h-11 rounded object-cover object-top shrink-0"
-                  />
-                )}
-                <span className="text-xs font-medium flex-1 min-w-0 truncate">{sc.name}</span>
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <button
-                    type="button"
-                    className="h-6 w-6 rounded hover:bg-background flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30"
-                    title="Remove one"
-                    disabled={count === 0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemove(sc.name);
-                    }}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span
-                    className={cn(
-                      "text-xs font-mono w-4 text-center tabular-nums",
-                      count > 0 ? "text-foreground" : "text-muted-foreground/40",
-                    )}
-                  >
-                    {count}
-                  </span>
-                  <button
-                    type="button"
-                    className="h-6 w-6 rounded hover:bg-background flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
-                    title="Add one"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdd(sc, "main");
-                    }}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
+import { DeckQuickAdd } from "./DeckQuickAdd";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -1218,36 +1041,64 @@ export function DeckBuilder({
               />
             )}
             <div className="flex-1 min-w-40">
-              <QuickCardSearch
-                onAdd={(sc, destination) => {
-                  if (destination === "main" && isAtCopyLimit(sc.name)) {
-                    const format = getFormat(currentDeck.format ?? "standard");
+              <DeckQuickAdd
+                onAdd={(sc, request) => {
+                  const card = scryfallToDeckCard(sc);
+                  const format = getFormat(currentDeck.format ?? "standard");
+                  const existingCount = currentDeck.cards.filter(
+                    (candidate) => candidate.identity.name === card.identity.name,
+                  ).length;
+                  const copyLimit =
+                    request.destination === "main" &&
+                    !allowIllegalDecks &&
+                    !canHaveAnyNumberOf(card)
+                      ? (copyLimitFromText(card.text) ?? format?.deckRules.maxCopies)
+                      : undefined;
+                  const quantity = copyLimit
+                    ? Math.min(request.quantity, Math.max(0, copyLimit - existingCount))
+                    : request.quantity;
+                  if (quantity === 0) {
                     toast.error(
-                      `Max ${format?.deckRules.maxCopies} copies of "${sc.name}" allowed in ${format?.name}`,
+                      `Max ${copyLimit} copies of "${sc.name}" allowed in ${format?.name}`,
                     );
                     return;
                   }
-                  const card = scryfallToDeckCard(sc);
-                  executeDeckEdit(`Add ${sc.name} to ${destination}`, () => {
-                    if (destination === "side") addToSide(card);
-                    else if (destination === "maybe") addToMaybe(card);
-                    else addToMain(card);
+                  executeDeckEdit(`Add ${quantity} ${sc.name} to ${request.destination}`, () => {
+                    for (let index = 0; index < quantity; index += 1) {
+                      const copy = {
+                        ...card,
+                        identity: { ...card.identity, id: crypto.randomUUID() },
+                      };
+                      if (request.destination === "side") addToSide(copy);
+                      else if (request.destination === "maybe") addToMaybe(copy);
+                      else addToMain(copy);
+                    }
+                    for (const tag of request.tags) {
+                      addCustomTag(tag);
+                      tagCard(card.identity.name, tag);
+                    }
                   });
-                  toast.success(
-                    `Added ${sc.name} to ${
-                      destination === "side"
-                        ? "sideboard"
-                        : destination === "maybe"
-                          ? "maybeboard"
-                          : "main deck"
-                    }`,
-                  );
+                  if (quantity < request.quantity) {
+                    toast.warning(
+                      `Added ${quantity} of ${request.quantity} ${sc.name}; ${format?.name} allows ${copyLimit}`,
+                    );
+                  } else {
+                    toast.success(
+                      `Added ${quantity} ${sc.name} to ${
+                        request.destination === "side"
+                          ? "sideboard"
+                          : request.destination === "maybe"
+                            ? "maybeboard"
+                            : "main deck"
+                      }`,
+                    );
+                  }
                 }}
                 onRemove={(name) => {
-                  handleRemoveOneFromMain(name);
+                  handleRemoveOneFromMain(frontFaceName(name));
                 }}
                 getCount={(name) =>
-                  currentDeck.cards.filter((c) => c.identity.name === name).length
+                  currentDeck.cards.filter((c) => c.identity.name === frontFaceName(name)).length
                 }
               />
             </div>

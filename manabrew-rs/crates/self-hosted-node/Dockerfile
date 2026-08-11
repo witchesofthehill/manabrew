@@ -102,8 +102,6 @@ RUN cargo chef cook --release --recipe-path recipe.json -p self-hosted-node --fe
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
 COPY public/preset_decks/ public/preset_decks/
-# host.rs include_str!s TypeLists.txt at compile time.
-COPY forge/forge-gui/res/lists/ forge/forge-gui/res/lists/
 # Stub the non-engine workspace members cargo metadata validates (mirrors
 # manabrew-server's Dockerfile).
 COPY src-tauri/Cargo.toml src-tauri/Cargo.toml

@@ -124,6 +124,14 @@ import { matchesDeckQuery } from "./deckEditor.query";
 import { DeckChangeSummary } from "./DeckChangeSummary";
 import { DeckTagManagerDialog } from "./DeckTagManagerDialog";
 import { BatchPrintingDialog } from "./BatchPrintingDialog";
+import {
+  moveCardCopies,
+  moveSelectedCards,
+  removeCardCopies,
+  removeSelectedCards,
+  type DeckSourceZone,
+  type EditableDeckZone,
+} from "./deckEditor.actions";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -347,15 +355,12 @@ export function DeckBuilder({
   const {
     currentDeck,
     savedDecks,
-    removeFromMain,
-    removeFromSide,
     addToMain,
     addToSide,
     clearDeck,
     saveCurrentDeck,
     saveDraft,
     addToMaybe,
-    removeFromMaybe,
     deleteSavedDeck,
     enrichDeckCards,
     setCommander,
@@ -366,6 +371,7 @@ export function DeckBuilder({
     untagCard,
     setCoverCard,
     setStackPositions,
+    updatePrint,
     updateTokenPrint,
     toggleFoil,
     resetTokenPrint,
@@ -530,51 +536,30 @@ export function DeckBuilder({
   }, [clearSelection]);
 
   // Bulk selection actions
-  function bulkAction(action: (name: string) => void, message: string) {
-    executeDeckEdit(message, () => {
-      for (const name of selectedCards) action(name);
-    });
+  function bulkAction(message: string, edit: () => void) {
+    executeDeckEdit(message, edit);
     clearSelection();
     toast.success(message);
   }
 
   const handleRemoveSelected = () =>
-    bulkAction(
-      (name) =>
-        currentDeck.cards
-          .filter((c) => c.identity.name.toLowerCase() === name)
-          .forEach((c) => removeFromMain(c.identity.id)),
-      `Removed ${selectedCards.size} cards`,
-    );
+    bulkAction(`Removed ${selectedCards.size} cards`, () => removeSelectedCards(selectedCards));
   const handleMoveSelectedToSide = () =>
-    bulkAction(
-      (name) =>
-        currentDeck.cards
-          .filter((c) => c.identity.name.toLowerCase() === name)
-          .forEach((c) => {
-            removeFromMain(c.identity.id);
-            addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-          }),
-      `Moved ${selectedCards.size} cards to sideboard`,
+    bulkAction(`Moved ${selectedCards.size} cards to sideboard`, () =>
+      moveSelectedCards(selectedCards, "side"),
     );
   const handleMoveSelectedToMain = () =>
-    bulkAction(
-      (name) =>
-        supplementaryCards
-          .filter((c) => c.identity.name.toLowerCase() === name)
-          .forEach((c) => {
-            removeFromSide(c.identity.id);
-            addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-          }),
-      `Moved ${selectedCards.size} cards to main`,
+    bulkAction(`Moved ${selectedCards.size} cards to main`, () =>
+      moveSelectedCards(selectedCards, "main"),
     );
   const handleTagSelected = (tag: string) =>
-    bulkAction((name) => tagCard(name, tag), `Tagged ${selectedCards.size} cards with "${tag}"`);
+    bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
+      for (const name of selectedCards) tagCard(name, tag);
+    });
   const handleUntagSelected = (tag: string) =>
-    bulkAction(
-      (name) => untagCard(name, tag),
-      `Untagged ${selectedCards.size} cards from "${tag}"`,
-    );
+    bulkAction(`Untagged ${selectedCards.size} cards from "${tag}"`, () => {
+      for (const name of selectedCards) untagCard(name, tag);
+    });
   const handleCreateAndTagSelected = (tag: string) => {
     executeDeckEdit(`Create ${tag} and tag ${selectedCards.size} cards`, () => {
       addCustomTag(tag);
@@ -685,58 +670,54 @@ export function DeckBuilder({
 
   // ── Handlers ──
 
+  function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
+    executeDeckEdit(`Remove ${quantity === "one" ? "1" : "all"} ${cardName}`, () =>
+      removeCardCopies(cardName, source, quantity),
+    );
+  }
+
+  function moveCopies(
+    cardName: string,
+    source: EditableDeckZone,
+    destination: EditableDeckZone,
+    quantity: "one" | "all",
+  ) {
+    let moved = 0;
+    executeDeckEdit(`Move ${cardName} to ${destination}`, () => {
+      moved = moveCardCopies(cardName, source, destination, quantity);
+    });
+    if (moved > 0) {
+      const label = destination === "main" ? "main" : `${destination}board`;
+      toast.success(`Moved ${moved} ${cardName} to ${label}`);
+    }
+  }
+
   function handleRemoveOneFromMain(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
-    if (card) removeFromMain(card.identity.id);
+    removeCopies(cardName, "main", "one");
   }
 
   function handleRemoveAllFromMain(cardName: string) {
-    currentDeck.cards
-      .filter((c) => c.identity.name === cardName)
-      .forEach((c) => removeFromMain(c.identity.id));
+    removeCopies(cardName, "main", "all");
   }
 
   function handleMoveOneToSide(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMain(card.identity.id);
-    addToSide({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to sideboard`);
+    moveCopies(cardName, "main", "side", "one");
   }
 
   function handleMoveAllToSide(cardName: string) {
-    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMain(c.identity.id);
-      addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to sideboard`);
+    moveCopies(cardName, "main", "side", "all");
   }
 
   function handleMoveOneToMaybe(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMain(card.identity.id);
-    addToMaybe({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to maybeboard`);
+    moveCopies(cardName, "main", "maybe", "one");
   }
 
   function handleMoveAllToMaybe(cardName: string) {
-    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMain(c.identity.id);
-      addToMaybe({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to maybeboard`);
+    moveCopies(cardName, "main", "maybe", "all");
   }
 
   function handleRemoveOneFromMaybe(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])]
-      .reverse()
-      .find((c) => c.identity.name === cardName);
-    if (card) removeFromMaybe(card.identity.id);
+    removeCopies(cardName, "maybe", "one");
   }
 
   function handleShowInfo(cardName: string) {
@@ -784,84 +765,42 @@ export function DeckBuilder({
   }
 
   function handleRemoveOneFromSide(cardName: string) {
-    const card = [...supplementaryCards].reverse().find((c) => c.identity.name === cardName);
-    if (card) removeFromSide(card.identity.id);
+    const source = currentDeck.sideboard.some((card) => card.identity.name === cardName)
+      ? "side"
+      : "special";
+    removeCopies(cardName, source, "one");
   }
 
   function handleMoveOneFromSideToMain(cardName: string) {
-    const card = [...currentDeck.sideboard].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromSide(card.identity.id);
-    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to main`);
+    moveCopies(cardName, "side", "main", "one");
   }
 
   function handleMoveAllFromSideToMain(cardName: string) {
-    const copies = currentDeck.sideboard.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromSide(c.identity.id);
-      addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to main`);
+    moveCopies(cardName, "side", "main", "all");
   }
 
   function handleMoveOneFromSideToMaybe(cardName: string) {
-    const card = [...currentDeck.sideboard].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromSide(card.identity.id);
-    addToMaybe({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to maybeboard`);
+    moveCopies(cardName, "side", "maybe", "one");
   }
 
   function handleMoveAllFromSideToMaybe(cardName: string) {
-    const copies = currentDeck.sideboard.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromSide(c.identity.id);
-      addToMaybe({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to maybeboard`);
+    moveCopies(cardName, "side", "maybe", "all");
   }
 
   function handleMoveOneFromMaybeToMain(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])]
-      .reverse()
-      .find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMaybe(card.identity.id);
-    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to main`);
+    moveCopies(cardName, "maybe", "main", "one");
   }
 
   function handleMoveAllFromMaybeToMain(cardName: string) {
-    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMaybe(c.identity.id);
-      addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to main`);
+    moveCopies(cardName, "maybe", "main", "all");
   }
 
   function handleMoveOneFromMaybeToSide(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])]
-      .reverse()
-      .find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMaybe(card.identity.id);
-    addToSide({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to sideboard`);
+    moveCopies(cardName, "maybe", "side", "one");
   }
 
   function handleMoveAllFromMaybeToSide(cardName: string) {
-    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMaybe(c.identity.id);
-      addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to sideboard`);
+    moveCopies(cardName, "maybe", "side", "all");
   }
 
   function handleSetCommander(card: DeckCard) {
@@ -933,7 +872,9 @@ export function DeckBuilder({
       );
       return;
     }
-    addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } });
+    executeDeckEdit(`Add ${group.card.identity.name}`, () =>
+      addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } }),
+    );
   }
 
   function handleAddOneToMainByName(cardName: string) {
@@ -945,8 +886,11 @@ export function DeckBuilder({
       return;
     }
     const existing = currentDeck.cards.find((c) => c.identity.name === cardName);
-    if (existing)
-      addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } });
+    if (existing) {
+      executeDeckEdit(`Add ${cardName}`, () =>
+        addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } }),
+      );
+    }
   }
 
   function handleExport() {
@@ -1147,6 +1091,7 @@ export function DeckBuilder({
           />
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
+            {!isReadOnly && <DeckHistoryControls />}
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
@@ -1183,11 +1128,13 @@ export function DeckBuilder({
               sortBy={sortBy}
               cardSize={cardSize}
               filter={deckFilter}
-              onApply={(nextGroupBy, nextSortBy, nextCardSize, nextFilter) => {
+              viewMode={viewMode}
+              onApply={(nextGroupBy, nextSortBy, nextCardSize, nextFilter, nextViewMode) => {
                 setGroupBy(nextGroupBy);
                 setSortBy(nextSortBy);
                 setCardSize(nextCardSize);
                 setDeckFilter(nextFilter);
+                setViewMode(nextViewMode);
               }}
             />
             <DropdownMenu>
@@ -1330,8 +1277,6 @@ export function DeckBuilder({
               </span>
             )}
 
-            {!isReadOnly && <DeckHistoryControls />}
-
             {!isReadOnly && (
               <DeckChangeSummary currentDeck={currentDeck} savedSnapshot={lastSavedSnapshot} />
             )}
@@ -1466,7 +1411,7 @@ export function DeckBuilder({
                           variant="ghost"
                           className="h-5 w-5 text-destructive shrink-0"
                           onClick={() => {
-                            removeCustomTag(tag);
+                            executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
                             toast.success(`Tag "${tag}" removed`);
                           }}
                         >
@@ -1485,7 +1430,9 @@ export function DeckBuilder({
                     onKeyDown={(e) => {
                       e.stopPropagation();
                       if (e.key === "Enter" && newTagInput.trim()) {
-                        addCustomTag(newTagInput.trim());
+                        executeDeckEdit(`Create ${newTagInput.trim()} tag`, () =>
+                          addCustomTag(newTagInput.trim()),
+                        );
                         toast.success(`Tag "${newTagInput.trim()}" added`);
                         setNewTagInput("");
                       }
@@ -1558,23 +1505,39 @@ export function DeckBuilder({
                   onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                   onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
                   onPickPrint={(name) => setPrintPickerCard(name)}
-                  onToggleFoil={toggleFoil}
+                  onToggleFoil={(name) =>
+                    executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
+                  }
                   onHover={(card, e) =>
                     preview.handleMouseEnter(card as unknown as CardDto, e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
-                  onAddToSide={(card) => addToSide(card)}
+                  onAddToSide={(card) =>
+                    executeDeckEdit(`Add ${card.identity.name} to sideboard`, () => addToSide(card))
+                  }
                   onRemoveFromSide={handleRemoveOneFromSide}
-                  onAddToMaybe={(card) => addToMaybe(card)}
+                  onAddToMaybe={(card) =>
+                    executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
+                      addToMaybe(card),
+                    )
+                  }
                   onRemoveFromMaybe={handleRemoveOneFromMaybe}
                   totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
                   customTags={currentDeck.customTags}
                   cardTags={currentDeck.cardTags}
                   allMainCards={currentDeck.cards}
-                  onUntagCard={untagCard}
-                  onTagCard={tagCard}
-                  onAddCustomTag={addCustomTag}
-                  onRemoveTag={removeCustomTag}
+                  onUntagCard={(name, tag) =>
+                    executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
+                  }
+                  onTagCard={(name, tag) =>
+                    executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
+                  }
+                  onAddCustomTag={(tag) =>
+                    executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
+                  }
+                  onRemoveTag={(tag) =>
+                    executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
+                  }
                   selectedCards={selectedCards}
                   onSelectCard={handleSelectCard}
                   onSelectAll={(names) => selectCards(names, true)}
@@ -1585,7 +1548,9 @@ export function DeckBuilder({
                     const isSameFront =
                       currentDeck.coverCardName === card.identity.name &&
                       (currentDeck.coverCardFace ?? 0) === 0;
-                    setCoverCard(isSameFront ? undefined : card.identity.name, 0);
+                    executeDeckEdit(`Change deck cover`, () =>
+                      setCoverCard(isSameFront ? undefined : card.identity.name, 0),
+                    );
                     if (!isSameFront)
                       useScryfallStore.getState().invalidateCard(card.identity.name);
                   }}
@@ -1593,7 +1558,9 @@ export function DeckBuilder({
                     const isSameBack =
                       currentDeck.coverCardName === card.identity.name &&
                       currentDeck.coverCardFace === 1;
-                    setCoverCard(isSameBack ? undefined : card.identity.name, 1);
+                    executeDeckEdit(`Change deck cover`, () =>
+                      setCoverCard(isSameBack ? undefined : card.identity.name, 1),
+                    );
                     if (!isSameBack) useScryfallStore.getState().invalidateCard(card.identity.name);
                   }}
                   stackPositions={currentDeck.stackPositions}
@@ -1616,7 +1583,11 @@ export function DeckBuilder({
                       cardSize={cardSize}
                       onShowInfo={handleShowTokenInfo}
                       onPickPrint={setTokenPrintPicker}
-                      onResetPrint={resetTokenPrint}
+                      onResetPrint={(token) =>
+                        executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
+                          resetTokenPrint(token),
+                        )
+                      }
                       onHover={(token, e) =>
                         preview.handleMouseEnter(token as unknown as CardDto, e, {
                           useDelay: true,
@@ -1704,13 +1675,27 @@ export function DeckBuilder({
         )}
 
         <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
-        <PrintPickerModal cardName={printPickerCard} onClose={() => setPrintPickerCard(null)} />
+        <PrintPickerModal
+          cardName={printPickerCard}
+          onClose={() => setPrintPickerCard(null)}
+          onSelect={(print) => {
+            if (printPickerCard) {
+              executeDeckEdit(`Change ${printPickerCard} printing`, () =>
+                updatePrint(printPickerCard, print),
+              );
+            }
+          }}
+        />
         <PrintPickerModal
           cardName={tokenPrintPicker?.identity.name ?? null}
           token={tokenPrintPicker ?? undefined}
           onClose={() => setTokenPrintPicker(null)}
           onSelect={(sc) => {
-            if (tokenPrintPicker) updateTokenPrint(tokenPrintPicker, sc);
+            if (tokenPrintPicker) {
+              executeDeckEdit(`Change ${tokenPrintPicker.identity.name} token printing`, () =>
+                updateTokenPrint(tokenPrintPicker, sc),
+              );
+            }
           }}
         />
         {detailCard && (
@@ -1745,11 +1730,16 @@ export function DeckBuilder({
               ),
               deckFormat: currentDeck.format ?? "standard",
               customTags: currentDeck.customTags,
-              onTagCard: tagCard,
-              onAddTag: addCustomTag,
+              onTagCard: (name, tag) =>
+                executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag)),
+              onAddTag: (tag) => executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag)),
               token: detailToken ?? undefined,
               onUpdateTokenPrint: (_name, print) => {
-                if (detailToken) updateTokenPrint(detailToken, print);
+                if (detailToken) {
+                  executeDeckEdit(`Change ${detailToken.identity.name} token printing`, () =>
+                    updateTokenPrint(detailToken, print),
+                  );
+                }
               },
             }}
           />

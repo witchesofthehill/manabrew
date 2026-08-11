@@ -59,6 +59,12 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
+import { executeDeckEdit } from "@/components/editor/deckEditor.history";
+import {
+  moveCardCopies,
+  moveSelectedCards,
+  type DeckSourceZone,
+} from "@/components/editor/deckEditor.actions";
 
 const DRAG_TRAY_MAIN = "drag-tray-main";
 const DRAG_TRAY_SIDE = "drag-tray-side";
@@ -92,10 +98,6 @@ function DragTrayTarget({
 
 export default function DeckEditor() {
   const {
-    addToMain,
-    addToSide,
-    addToMaybe,
-    removeFromMain,
     removeFromSide,
     removeFromMaybe,
     currentDeck,
@@ -547,9 +549,11 @@ export default function DeckEditor() {
         toast.error(`${card.identity.name} is not eligible for the command zone`);
         return;
       }
-      setCommander(card);
-      if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
-      else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
+      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => {
+        setCommander(card);
+        if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
+        else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
+      });
       return;
     }
 
@@ -566,12 +570,14 @@ export default function DeckEditor() {
 
     if (overId.startsWith(DROP_ZONE.TAG_PREFIX) || trayTag) {
       const destTag = trayTag ?? overId.slice(DROP_ZONE.TAG_PREFIX.length);
-      for (const name of draggedNames) {
-        if (sourceTag && sourceTag !== destTag) {
-          untagCard(name, sourceTag);
+      executeDeckEdit(`Tag ${draggedNames.length} cards with ${destTag}`, () => {
+        for (const name of draggedNames) {
+          if (sourceTag && sourceTag !== destTag) {
+            untagCard(name, sourceTag);
+          }
+          tagCard(name, destTag);
         }
-        tagCard(name, destTag);
-      }
+      });
     } else if (
       overId === DROP_ZONE.MAIN ||
       overId === DROP_ZONE.SIDE ||
@@ -602,86 +608,38 @@ export default function DeckEditor() {
       const sourceZone = source === "side" || source === "special" ? "side" : source;
       if (sourceZone === dest) return;
       if (source === "commander") {
-        if (dest === "main") removeCommander(card);
-        return;
-      }
-
-      if (draggedNames.length > 1) {
-        for (const name of draggedNames) {
-          const matchingCards = [
-            ...(dest !== "main"
-              ? currentDeck.cards.filter(
-                  (candidate) => candidate.identity.name.toLowerCase() === name,
-                )
-              : []),
-            ...(dest !== "side"
-              ? currentDeck.sideboard.filter(
-                  (candidate) => candidate.identity.name.toLowerCase() === name,
-                )
-              : []),
-            ...(dest !== "maybe"
-              ? (currentDeck.maybeboard ?? []).filter(
-                  (candidate) => candidate.identity.name.toLowerCase() === name,
-                )
-              : []),
-          ];
-
-          for (const matchingCard of matchingCards) {
-            if (
-              currentDeck.cards.some(
-                (candidate) => candidate.identity.id === matchingCard.identity.id,
-              )
-            )
-              removeFromMain(matchingCard.identity.id);
-            else if (
-              currentDeck.sideboard.some(
-                (candidate) => candidate.identity.id === matchingCard.identity.id,
-              )
-            )
-              removeFromSide(matchingCard.identity.id);
-            else removeFromMaybe(matchingCard.identity.id);
-
-            const fresh = {
-              ...matchingCard,
-              identity: { ...matchingCard.identity, id: crypto.randomUUID() },
-            };
-            if (dest === "main") addToMain(fresh);
-            else if (dest === "side") addToSide(fresh);
-            else addToMaybe(fresh);
-          }
+        if (dest === "main") {
+          executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));
         }
         return;
       }
 
-      if (sourceTag) untagCard(cardName, sourceTag);
+      if (draggedNames.length > 1) {
+        executeDeckEdit(`Move ${draggedNames.length} cards to ${dest}`, () => {
+          if (sourceTag) {
+            for (const name of draggedNames) untagCard(name, sourceTag);
+          }
+          moveSelectedCards(draggedNames, dest);
+        });
+        return;
+      }
 
-      const sourceList: DeckCard[] =
-        source === "main"
-          ? currentDeck.cards
-          : source === "side"
-            ? currentDeck.sideboard
-            : source === "maybe"
-              ? (currentDeck.maybeboard ?? [])
-              : source === "special"
-                ? [
-                    ...(currentDeck.attractions ?? []),
-                    ...(currentDeck.contraptions ?? []),
-                    ...(currentDeck.schemes ?? []),
-                    ...(currentDeck.planes ?? []),
-                  ]
-                : [];
-      const one = [...sourceList].reverse().find((c) => c.identity.name === cardName);
-      if (!one) return;
-
-      if (source === "main") removeFromMain(one.identity.id);
-      else if (source === "side" || source === "special") removeFromSide(one.identity.id);
-      else if (source === "maybe") removeFromMaybe(one.identity.id);
-
-      const fresh = { ...one, identity: { ...one.identity, id: crypto.randomUUID() } };
-      if (dest === "main") addToMain(fresh);
-      else if (dest === "side") addToSide(fresh);
-      else if (dest === "maybe") addToMaybe(fresh);
+      executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
+        if (sourceTag) untagCard(cardName, sourceTag);
+        moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
+      });
     }
+  }
+
+  function createDroppedTag() {
+    const tag = newTagName.trim();
+    if (!tag) return;
+    executeDeckEdit(`Create ${tag} and tag ${pendingTagCards.length} cards`, () => {
+      addCustomTag(tag);
+      for (const name of pendingTagCards) tagCard(name, tag);
+    });
+    setNewTagDropOpen(false);
+    setPendingTagCards([]);
   }
 
   if (view === "list") {
@@ -1090,25 +1048,14 @@ export default function DeckEditor() {
             onChange={(event) => setNewTagName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key !== "Enter" || !newTagName.trim()) return;
-              const tag = newTagName.trim();
-              addCustomTag(tag);
-              for (const name of pendingTagCards) tagCard(name, tag);
-              setNewTagDropOpen(false);
+              createDroppedTag();
             }}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewTagDropOpen(false)}>
               Cancel
             </Button>
-            <Button
-              disabled={!newTagName.trim()}
-              onClick={() => {
-                const tag = newTagName.trim();
-                addCustomTag(tag);
-                for (const name of pendingTagCards) tagCard(name, tag);
-                setNewTagDropOpen(false);
-              }}
-            >
+            <Button disabled={!newTagName.trim()} onClick={createDroppedTag}>
               Create tag
             </Button>
           </DialogFooter>

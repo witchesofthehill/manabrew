@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +28,7 @@ export function BatchPrintingDialog({
   const [query, setQuery] = useState("");
   const [loadingSets, setLoadingSets] = useState(false);
   const [applyingSet, setApplyingSet] = useState<string | null>(null);
+  const operationRef = useRef(0);
 
   useEffect(() => {
     if (!open || sets.length > 0) return;
@@ -50,9 +51,21 @@ export function BatchPrintingDialog({
   }, [query, sets]);
 
   async function applySet(set: ScryfallSet) {
+    const operation = ++operationRef.current;
+    const startingState = useDeckStore.getState();
+    const startingDeckId = startingState.currentDeckId;
+    const startingDeck = startingState.currentDeck;
     setApplyingSet(set.code);
     try {
       const prints = await fetchCardsBySet(set.code);
+      const currentState = useDeckStore.getState();
+      if (
+        operation !== operationRef.current ||
+        currentState.currentDeckId !== startingDeckId ||
+        (startingDeckId === null && currentState.currentDeck !== startingDeck)
+      ) {
+        return;
+      }
       const printsByName = new Map<string, (typeof prints)[number]>();
       for (const print of prints) {
         printsByName.set(print.name.toLowerCase(), print);
@@ -94,14 +107,22 @@ export function BatchPrintingDialog({
       );
       onOpenChange(false);
     } catch {
-      toast.error(`Could not load printings from ${set.name}`);
+      if (operation === operationRef.current) {
+        toast.error(`Could not load printings from ${set.name}`);
+      }
     } finally {
-      setApplyingSet(null);
+      if (operation === operationRef.current) setApplyingSet(null);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) operationRef.current += 1;
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Change deck printings</DialogTitle>

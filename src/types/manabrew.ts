@@ -58,6 +58,7 @@ export interface DeckEditorLayout {
   groups: DeckEditorGroup[];
   filter?: string;
   cardSize?: number;
+  viewMode?: "list" | "visual" | "stack";
   defaultDestination?: "main" | "side" | "maybe";
 }
 

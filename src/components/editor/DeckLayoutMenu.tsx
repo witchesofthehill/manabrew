@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, LayoutTemplate, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
-import type { GroupByMode, SortMode } from "./deckBuilder.utils";
+import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
 
 interface DeckLayoutMenuProps {
   groupBy: GroupByMode;
   sortBy: SortMode;
   cardSize: number;
   filter: string;
-  onApply: (groupBy: GroupByMode, sortBy: SortMode, cardSize: number, filter: string) => void;
+  viewMode: ViewMode;
+  onApply: (
+    groupBy: GroupByMode,
+    sortBy: SortMode,
+    cardSize: number,
+    filter: string,
+    viewMode: ViewMode,
+  ) => void;
 }
 
 export function DeckLayoutMenu({
@@ -33,14 +40,31 @@ export function DeckLayoutMenu({
   sortBy,
   cardSize,
   filter,
+  viewMode,
   onApply,
 }: DeckLayoutMenuProps) {
   const metadata = useDeckStore((state) => state.currentDeck.editor);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
-  const layouts = metadata?.layouts ?? [];
+  const layouts = useMemo(() => metadata?.layouts ?? [], [metadata?.layouts]);
   const activeLayout = layouts.find((layout) => layout.id === metadata?.activeLayoutId);
+  const activeLayoutMatches =
+    activeLayout?.groupBy === groupBy &&
+    activeLayout.sortBy === sortBy &&
+    (activeLayout.cardSize ?? cardSize) === cardSize &&
+    (activeLayout.filter ?? "") === filter &&
+    (activeLayout.viewMode ?? viewMode) === viewMode;
+
+  useEffect(() => {
+    if (!activeLayout || activeLayoutMatches) return;
+    setEditorMetadata({
+      version: 1,
+      tags: metadata?.tags ?? [],
+      layouts,
+      activeLayoutId: undefined,
+    });
+  }, [activeLayout, activeLayoutMatches, layouts, metadata?.tags, setEditorMetadata]);
 
   function saveLayout() {
     const layoutName = name.trim();
@@ -51,7 +75,7 @@ export function DeckLayoutMenu({
       tags: metadata?.tags ?? [],
       layouts: [
         ...layouts,
-        { id, name: layoutName, groupBy, sortBy, cardSize, filter, groups: [] },
+        { id, name: layoutName, groupBy, sortBy, cardSize, filter, viewMode, groups: [] },
       ],
       activeLayoutId: id,
     });
@@ -68,7 +92,13 @@ export function DeckLayoutMenu({
       layouts,
       activeLayoutId: id,
     });
-    onApply(layout.groupBy, layout.sortBy, layout.cardSize ?? cardSize, layout.filter ?? "");
+    onApply(
+      layout.groupBy,
+      layout.sortBy,
+      layout.cardSize ?? cardSize,
+      layout.filter ?? "",
+      layout.viewMode ?? viewMode,
+    );
   }
 
   function removeLayout(id: string) {

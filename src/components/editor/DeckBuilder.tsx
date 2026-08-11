@@ -132,6 +132,7 @@ import {
 } from "./deckEditor.actions";
 import { DeckQuickAdd } from "./DeckQuickAdd";
 import { DeckSelectionTray } from "./DeckSelectionTray";
+import { DeckHealthPanel } from "./DeckHealthPanel";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -1501,6 +1502,13 @@ export function DeckBuilder({
                       onLeave={preview.handleMouseLeave}
                     />
                   )}
+                  <DeckHealthPanel
+                    deck={currentDeck}
+                    unsupportedNames={unsupportedNames}
+                    validationErrors={deckValidation.errors}
+                    onShowUnsupported={() => setDeckFilter("is:unsupported")}
+                    onOpenSearch={onToggleSearch}
+                  />
                   <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
                   <CombosPanel />
                   <DeckBracketPanel />

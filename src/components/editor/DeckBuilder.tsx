@@ -1042,6 +1042,11 @@ export function DeckBuilder({
             )}
             <div className="flex-1 min-w-40">
               <DeckQuickAdd
+                customTags={currentDeck.customTags ?? []}
+                getCount={(name) =>
+                  currentDeck.cards.filter((card) => card.identity.name === frontFaceName(name))
+                    .length
+                }
                 onAdd={(sc, request) => {
                   const card = scryfallToDeckCard(sc);
                   const format = getFormat(currentDeck.format ?? "standard");
@@ -1061,7 +1066,7 @@ export function DeckBuilder({
                     toast.error(
                       `Max ${copyLimit} copies of "${sc.name}" allowed in ${format?.name}`,
                     );
-                    return;
+                    return false;
                   }
                   executeDeckEdit(`Add ${quantity} ${sc.name} to ${request.destination}`, () => {
                     for (let index = 0; index < quantity; index += 1) {
@@ -1093,13 +1098,8 @@ export function DeckBuilder({
                       }`,
                     );
                   }
+                  return true;
                 }}
-                onRemove={(name) => {
-                  handleRemoveOneFromMain(frontFaceName(name));
-                }}
-                getCount={(name) =>
-                  currentDeck.cards.filter((c) => c.identity.name === frontFaceName(name)).length
-                }
               />
             </div>
             {onToggleSearch && (

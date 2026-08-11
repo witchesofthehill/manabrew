@@ -469,6 +469,11 @@ export function DeckBuilder({
     resetDeckHistory();
   }
 
+  useEffect(() => {
+    resetDeckHistory();
+    return resetDeckHistory;
+  }, []);
+
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -969,12 +974,16 @@ export function DeckBuilder({
    */
   function handleSelectCard(cardName: string, shiftKey: boolean) {
     if (shiftKey) {
-      const orderedNames: string[] = [];
-      for (const c of currentDeck.commanders ?? []) orderedNames.push(c.identity.name);
+      const orderedNames = new Set<string>();
+      for (const c of currentDeck.commanders ?? []) orderedNames.add(c.identity.name);
       for (const s of sectionGroups)
-        for (const g of s.groups) orderedNames.push(g.card.identity.name);
-      for (const g of otherGroups) orderedNames.push(g.card.identity.name);
-      rangeSelect(cardName, orderedNames);
+        for (const g of s.groups) orderedNames.add(g.card.identity.name);
+      for (const g of otherGroups) orderedNames.add(g.card.identity.name);
+      for (const g of sideGroups) orderedNames.add(g.card.identity.name);
+      for (const g of maybeGroups) orderedNames.add(g.card.identity.name);
+      for (const section of specialSections)
+        for (const g of section.groups) orderedNames.add(g.card.identity.name);
+      rangeSelect(cardName, [...orderedNames]);
     } else {
       toggleCard(cardName);
     }
@@ -1798,6 +1807,7 @@ export function DeckBuilder({
               hasUnsavedChanges={hasUnsavedChanges}
               onRestore={(deck, versionNo) => {
                 useDeckStore.getState().loadDeck(deck);
+                resetDeckHistory();
                 toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
               }}
             />
@@ -1824,6 +1834,7 @@ export function DeckBuilder({
                     const deckId = useDeckStore.getState().currentDeckId;
                     if (deckId) deleteSavedDeck(deckId);
                     clearDeck();
+                    resetDeckHistory();
                     setConfirmClear(false);
                     const snapshot = buildDeckSnapshot({
                       format: "standard",

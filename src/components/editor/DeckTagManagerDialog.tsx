@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Check, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,15 @@ function TagRow({ tag, first, last }: { tag: string; first: boolean; last: boole
 
   function finishRename() {
     const nextName = name.trim();
+    const duplicate = (useDeckStore.getState().currentDeck.customTags ?? []).some(
+      (candidate) => candidate !== tag && candidate.toLowerCase() === nextName.toLowerCase(),
+    );
+    if (duplicate) {
+      setName(tag);
+      setEditing(false);
+      toast.error(`A tag named "${nextName}" already exists`);
+      return;
+    }
     if (nextName && nextName !== tag) {
       executeDeckEdit(`Rename ${tag} to ${nextName}`, () => renameCustomTag(tag, nextName));
     }

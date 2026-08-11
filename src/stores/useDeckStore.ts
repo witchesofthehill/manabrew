@@ -922,6 +922,14 @@ export const useDeckStore = create<DeckState>()(
           set((state) => {
             const nextName = name.trim();
             if (!nextName || tag === nextName) return state;
+            if (
+              (state.currentDeck.customTags ?? []).some(
+                (candidate) =>
+                  candidate !== tag && candidate.toLowerCase() === nextName.toLowerCase(),
+              )
+            ) {
+              return state;
+            }
             const customTags = (state.currentDeck.customTags ?? []).map((candidate) =>
               candidate === tag ? nextName : candidate,
             );

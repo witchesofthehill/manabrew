@@ -472,6 +472,7 @@ function DraggableStackCard({
   onCardLeave,
   contextLocation,
   contextActions,
+  sourceTag,
 }: {
   group: CardGroup;
   dragId: string;
@@ -489,11 +490,12 @@ function DraggableStackCard({
   onCardLeave: () => void;
   contextLocation?: CardLocation;
   contextActions?: CardContextActions;
+  sourceTag?: string;
 }) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    data: { type: "deck-card", card: group.card, name },
+    data: { type: "deck-card", card: group.card, name, sourceTag },
   });
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
@@ -604,6 +606,7 @@ interface StackColumnProps {
   onShowInfo?: (cardName: string) => void;
   dragHandleProps?: DragHandleProps;
   contextMenuFor?: (g: CardGroup) => { location: CardLocation; actions: CardContextActions } | null;
+  sourceTag?: string;
 }
 
 function StackColumn({
@@ -620,6 +623,7 @@ function StackColumn({
   onShowInfo,
   dragHandleProps,
   contextMenuFor,
+  sourceTag,
 }: StackColumnProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const cardHeight = Math.round(cardWidth * 1.4);
@@ -681,6 +685,7 @@ function StackColumn({
               onCardLeave={() => setHoveredIdx(null)}
               contextLocation={cm?.location}
               contextActions={cm?.actions}
+              sourceTag={sourceTag}
             />
           );
         })}
@@ -712,6 +717,7 @@ interface CardVisualProps {
   onSetCoverBack?: () => void;
   contextLocation?: CardLocation;
   contextActions?: CardContextActions;
+  sourceTag?: string;
 }
 
 function CardVisual({
@@ -735,11 +741,12 @@ function CardVisual({
   onSetCoverBack,
   contextLocation,
   contextActions,
+  sourceTag,
 }: CardVisualProps) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    data: { type: "deck-card", card: group.card, name },
+    data: { type: "deck-card", card: group.card, name, sourceTag },
   });
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
@@ -898,6 +905,7 @@ interface CardRowProps {
   onSelect?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: () => void;
   contextActions?: CardContextActions;
+  sourceTag?: string;
 }
 
 function CardRow({
@@ -907,11 +915,12 @@ function CardRow({
   onSelect,
   onShowInfo,
   contextActions,
+  sourceTag,
 }: CardRowProps) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    data: { type: "deck-card", card: group.card, name },
+    data: { type: "deck-card", card: group.card, name, sourceTag },
   });
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
@@ -1124,6 +1133,7 @@ function CardSection({
                   <CardRow
                     group={g}
                     dragId={`${dragPrefix}-${name}`}
+                    sourceTag={isTagSection ? tag : undefined}
                     isSelected={selectedCards?.has(name.toLowerCase())}
                     onSelect={onSelectCard}
                     onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
@@ -1188,6 +1198,7 @@ function CardSection({
                 <CardVisual
                   group={g}
                   dragId={`${dragPrefix}-${name}`}
+                  sourceTag={isTagSection ? tag : undefined}
                   onAddOne={() => onAddOne(g)}
                   onRemoveOne={() => effectiveRemoveOne(name)}
                   onUntag={isTagSection && onUntagCard ? () => onUntagCard(name) : undefined}
@@ -1281,6 +1292,7 @@ function DroppableStackTag({
         <StackColumn
           label={tag}
           sectionId={`tag-${tag}`}
+          sourceTag={tag}
           groups={groups}
           cardWidth={cardWidth}
           onAddOne={onAddOne}

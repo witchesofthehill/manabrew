@@ -59,7 +59,7 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
-import { executeDeckEdit } from "@/components/editor/deckEditor.history";
+import { executeDeckEdit, resetDeckHistory } from "@/components/editor/deckEditor.history";
 import {
   moveCardCopies,
   moveSelectedCards,
@@ -240,6 +240,7 @@ export default function DeckEditor() {
   useEffect(() => {
     return () => {
       useDeckStore.getState().clearDeck();
+      resetDeckHistory();
     };
   }, []);
 
@@ -252,6 +253,7 @@ export default function DeckEditor() {
       restoredParamRef.current = null;
       if (closedQueryEditor) {
         clearDeck();
+        resetDeckHistory();
         setStateView("list");
         return;
       }
@@ -276,6 +278,7 @@ export default function DeckEditor() {
       const preset = presetDecks.find((d) => (d.id ?? d.name) === presetId);
       if (!preset) return;
       loadPresetDeck(preset);
+      resetDeckHistory();
       setStateView("editor");
       restoredParamRef.current = deckParam;
       return;
@@ -284,6 +287,7 @@ export default function DeckEditor() {
     const saved = savedDecks.find((s) => s.id === deckParam);
     if (!saved) return;
     loadSavedDeck(deckParam);
+    resetDeckHistory();
     setStateView("editor");
     restoredParamRef.current = deckParam;
   }, [
@@ -348,6 +352,7 @@ export default function DeckEditor() {
   function handleSelectAccountDeck(saved: SavedDeck) {
     if (!saved.accountDeckId || !saved.accountVersionNo) return;
     const id = loadAccountDeck(saved.accountDeckId, saved.accountVersionNo, saved.deck);
+    resetDeckHistory();
     setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
   }
 
@@ -374,6 +379,7 @@ export default function DeckEditor() {
   function handleNewDeck() {
     setSearchParams({}, { replace: true, state: null });
     clearDeck();
+    resetDeckHistory();
     setDeckName(DEFAULT_DECK_NAME);
     setView("editor");
   }
@@ -405,6 +411,7 @@ export default function DeckEditor() {
   function handleBack() {
     if (isReadOnly) {
       useDeckStore.getState().clearDeck();
+      resetDeckHistory();
       returnToDeckList();
       return;
     }
@@ -536,8 +543,7 @@ export default function DeckEditor() {
       ? [...selectedCards]
       : [cardName.toLowerCase()];
 
-    const sourceTagMatch = activeId.match(/^deck-tag-(.+?)-(?:.+)$/);
-    const sourceTag = sourceTagMatch?.[1] ?? null;
+    const sourceTag = typeof dragData.sourceTag === "string" ? dragData.sourceTag : null;
 
     if (overId === DROP_ZONE.COMMAND) {
       if (activeId.startsWith("deck-commander-")) return;

@@ -152,7 +152,17 @@ export function useDeckTextImportIntoCurrent() {
       _formatId: DeckFormat | undefined,
       onProgress: (fraction: number) => void,
     ): Promise<void> => {
+      const startingState = useDeckStore.getState();
+      const startingDeckId = startingState.currentDeckId;
+      const startingDeck = startingState.currentDeck;
       const result = await resolveDeckTextImport(entries, onProgress);
+      const currentState = useDeckStore.getState();
+      if (
+        currentState.currentDeckId !== startingDeckId ||
+        (startingDeckId === null && currentState.currentDeck !== startingDeck)
+      ) {
+        return;
+      }
       executeDeckEdit("Import card list", () =>
         useDeckStore.getState().mergeIntoCurrentDeck(result),
       );

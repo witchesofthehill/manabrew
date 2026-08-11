@@ -15,6 +15,7 @@ export function DeckBudgetPanel() {
         name: card.identity.name,
         setCode: card.identity.setCode,
         collectorNumber: card.identity.cardNumber,
+        foil: card.identity.foil ?? false,
       })),
     [deck.cards, deck.commanders, deck.sideboard],
   );
@@ -26,8 +27,13 @@ export function DeckBudgetPanel() {
       .then((cards) => {
         if (!active) return;
         const next: Record<string, number> = {};
-        for (const [key, card] of cards) {
-          const value = Number(card.prices.usd_foil ?? card.prices.usd);
+        for (const printing of printings) {
+          const key = scryfallCardKey(printing.name, printing.setCode, printing.collectorNumber);
+          const card = cards.get(key);
+          if (!card) continue;
+          const value = Number(
+            printing.foil ? (card.prices.usd_foil ?? card.prices.usd) : card.prices.usd,
+          );
           if (Number.isFinite(value)) next[key] = value;
         }
         setPrices(next);

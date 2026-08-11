@@ -836,6 +836,55 @@ export function DeckBuilder({
     { id: "group-mana", label: "Group cards by mana value", run: () => setGroupBy("cmc") },
     { id: "group-color", label: "Group cards by color", run: () => setGroupBy("color") },
     { id: "group-tags", label: "Group cards by custom tags", run: () => setGroupBy("custom") },
+    { id: "sort-name", label: "Sort cards by name", run: () => setSortBy("name") },
+    { id: "sort-mana", label: "Sort cards by mana value", run: () => setSortBy("mana-value") },
+    { id: "sort-quantity", label: "Sort cards by quantity", run: () => setSortBy("quantity") },
+    {
+      id: "clear-filter",
+      label: "Clear card filters",
+      keywords: ["show all", "reset search"],
+      disabled: !deckFilter && cmcFilter === null,
+      disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
+      run: () => {
+        setDeckFilter("");
+        setCmcFilter(null);
+      },
+    },
+    {
+      id: "select-all",
+      label: "Select all cards",
+      keywords: ["bulk", "multi select"],
+      disabled: currentDeck.cards.length === 0,
+      disabledReason: currentDeck.cards.length === 0 ? "Deck is empty" : undefined,
+      run: () =>
+        selectCards(
+          currentDeck.cards.map((card) => card.identity.name),
+          true,
+        ),
+    },
+    {
+      id: "toggle-search",
+      label: "Toggle card search panel",
+      keywords: ["find", "scryfall"],
+      disabled: !onToggleSearch,
+      run: () => onToggleSearch?.(),
+    },
+    {
+      id: "toggle-preview",
+      label: "Toggle card preview panel",
+      keywords: ["inspector", "details"],
+      disabled: !onTogglePreview,
+      run: () => onTogglePreview?.(),
+    },
+    { id: "export", label: "Copy deck list", keywords: ["export", "clipboard"], run: handleExport },
+    {
+      id: "labels",
+      label: "Manage deck labels",
+      keywords: ["organize", "collection"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setLabelsOpen(true),
+    },
     {
       id: "remove-selection",
       label: "Remove selected cards",

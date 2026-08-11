@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { fetchAccountCollection, saveAccountCollection } from "@/api/hub";
 
 const LOCAL_COLLECTION_KEY = "manabrew-card-collection";
+let accountSaveQueue = Promise.resolve();
 
 function readLocalCollection(): Record<string, number> {
   try {
@@ -17,6 +18,13 @@ function toPayload(quantities: Record<string, number>) {
   return {
     cards: Object.entries(quantities).map(([cardKey, quantity]) => ({ cardKey, quantity })),
   };
+}
+
+function queueAccountSave(quantities: Record<string, number>): Promise<void> {
+  accountSaveQueue = accountSaveQueue
+    .catch(() => undefined)
+    .then(() => saveAccountCollection(toPayload(quantities)));
+  return accountSaveQueue.catch(() => undefined);
 }
 
 interface CollectionState {
@@ -65,7 +73,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     if (quantity > 0) quantities[normalized] = Math.floor(quantity);
     else delete quantities[normalized];
     set({ quantities });
-    if (get().accountId) await saveAccountCollection(toPayload(quantities));
+    if (get().accountId) await queueAccountSave(quantities);
     else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
   },
   replaceQuantities: async (quantities) => {
@@ -78,7 +86,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         .filter(([, quantity]) => quantity > 0),
     );
     set({ quantities: normalized });
-    if (get().accountId) await saveAccountCollection(toPayload(normalized));
+    if (get().accountId) await queueAccountSave(normalized);
     else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
   },
 }));

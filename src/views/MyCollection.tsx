@@ -98,7 +98,11 @@ export default function MyCollection() {
           <Button variant="outline" onClick={() => fileInput.current?.click()}>
             <Upload className="mr-1.5 h-4 w-4" /> Import
           </Button>
-          <Button variant="outline" disabled={rows.length === 0} onClick={exportCollection}>
+          <Button
+            variant="outline"
+            disabled={Object.keys(quantities).length === 0}
+            onClick={exportCollection}
+          >
             <Download className="mr-1.5 h-4 w-4" /> Export CSV
           </Button>
         </div>

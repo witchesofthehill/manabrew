@@ -68,6 +68,7 @@ export interface DeckEditorMetadata {
   layouts: DeckEditorLayout[];
   activeLayoutId?: string;
   sideboardPlans?: DeckSideboardPlan[];
+  budgetUsd?: number;
 }
 
 export interface DeckSideboardPlan {

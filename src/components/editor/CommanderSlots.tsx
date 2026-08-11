@@ -19,7 +19,7 @@ import {
   isCommanderEligible,
 } from "@/lib/formats";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
-import { CARD_WIDTH_MAP } from "./deckBuilder.utils";
+import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { CardThumbnail } from "./deckEditor.primitives";
 import { DROP_ZONE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -170,7 +170,7 @@ export function CommanderSlots({
       : commanders.length > 0
         ? "Choose partner"
         : "Choose commander";
-  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
+  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
 
   return (
     <section

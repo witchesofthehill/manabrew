@@ -95,6 +95,8 @@ import {
   computeGroupedSections,
   computeGroupedStackColumns,
   sortCardGroups,
+  DEFAULT_CARD_SIZE,
+  MAX_CARD_SIZE,
 } from "./deckBuilder.utils";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
@@ -397,7 +399,7 @@ export function DeckBuilder({
   const [newTagInput, setNewTagInput] = useState("");
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [cardSize, setCardSize] = useState(3);
+  const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
@@ -1204,7 +1206,7 @@ export function DeckBuilder({
               <input
                 type="range"
                 min={1}
-                max={6}
+                max={MAX_CARD_SIZE}
                 step={1}
                 value={cardSize}
                 onChange={(e) => setCardSize(Number(e.target.value))}

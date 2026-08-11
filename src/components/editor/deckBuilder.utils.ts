@@ -108,7 +108,12 @@ export const CARD_WIDTH_MAP: Record<number, number> = {
   4: 140,
   5: 170,
   6: 200,
+  7: 240,
+  8: 280,
 };
+
+export const DEFAULT_CARD_SIZE = 6;
+export const MAX_CARD_SIZE = 8;
 
 // ─── Pure Functions ───────────────────────────────────────────────────────────
 

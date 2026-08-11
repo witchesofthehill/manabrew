@@ -47,7 +47,7 @@ import { cn } from "@/lib/utils";
 import { formatRequiresCommander } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
-import { CARD_WIDTH_MAP, getTaggedGroups } from "./deckBuilder.utils";
+import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE, getTaggedGroups } from "./deckBuilder.utils";
 import { CARD_RING } from "@/components/game/game.styles";
 import { DROP_ZONE } from "@/lib/constants";
 import { useMarquee } from "@/hooks/useMarqueeSelection";
@@ -1446,7 +1446,7 @@ export function DeckListView({
   onHover,
   onLeave,
 }: DeckListViewProps) {
-  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
+  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
 

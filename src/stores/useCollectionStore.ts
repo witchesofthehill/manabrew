@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { fetchAccountCollection, saveAccountCollection } from "@/api/hub";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const LOCAL_COLLECTION_KEY = "manabrew-card-collection";
 let accountSaveQueue = Promise.resolve();
@@ -20,10 +21,13 @@ function toPayload(quantities: Record<string, number>) {
   };
 }
 
-function queueAccountSave(quantities: Record<string, number>): Promise<void> {
+function queueAccountSave(accountId: string, quantities: Record<string, number>): Promise<void> {
   accountSaveQueue = accountSaveQueue
     .catch(() => undefined)
-    .then(() => saveAccountCollection(toPayload(quantities)));
+    .then(() => {
+      if (useAuthStore.getState().account?.id !== accountId) return;
+      return saveAccountCollection(toPayload(quantities));
+    });
   return accountSaveQueue.catch(() => undefined);
 }
 
@@ -49,6 +53,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     set({ accountId, loading: true });
     try {
       const remote = await fetchAccountCollection();
+      if (useAuthStore.getState().account?.id !== accountId) return;
       const quantities = Object.fromEntries(
         remote.cards.map((card) => [card.cardKey, card.quantity]),
       );
@@ -73,7 +78,8 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     if (quantity > 0) quantities[normalized] = Math.floor(quantity);
     else delete quantities[normalized];
     set({ quantities });
-    if (get().accountId) await queueAccountSave(quantities);
+    const accountId = get().accountId;
+    if (accountId) await queueAccountSave(accountId, quantities);
     else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
   },
   replaceQuantities: async (quantities) => {
@@ -86,7 +92,8 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         .filter(([, quantity]) => quantity > 0),
     );
     set({ quantities: normalized });
-    if (get().accountId) await queueAccountSave(normalized);
+    const accountId = get().accountId;
+    if (accountId) await queueAccountSave(accountId, normalized);
     else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
   },
 }));

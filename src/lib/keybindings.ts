@@ -12,6 +12,7 @@ export interface KeybindingDef {
   label: string;
   category: string;
   defaultCombo: KeyCombo;
+  allowInEditable?: boolean;
 }
 
 export const KEYBINDINGS: KeybindingDef[] = [
@@ -85,7 +86,8 @@ export const KEYBINDINGS: KeybindingDef[] = [
     id: "deck-editor-command-palette",
     label: "Open deck command palette",
     category: "Deck editor",
-    defaultCombo: { key: "k", mod: true },
+    defaultCombo: { key: "p", mod: true },
+    allowInEditable: true,
   },
   {
     id: "deck-editor-tag-selection",

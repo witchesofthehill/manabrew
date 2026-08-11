@@ -1382,7 +1382,7 @@ export function DeckBuilder({
                 </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
-                  <Palette className="h-3.5 w-3.5 mr-2" /> Labels
+                  <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
                   {(currentDeck.labels?.length ?? 0) > 0 && (
                     <span className="ml-auto text-[10px] text-muted-foreground">
                       {currentDeck.labels!.length}

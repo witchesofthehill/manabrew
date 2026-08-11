@@ -164,3 +164,13 @@ pub fn has_card(name: &str) -> bool {
         .map(|db| db.get_by_card_name(name).is_some())
         .unwrap_or(false)
 }
+
+#[wasm_bindgen]
+pub fn card_roles(name: &str) -> Result<JsValue, JsError> {
+    let roles = CARD_DB
+        .get()
+        .and_then(|db| db.get_by_card_name(name))
+        .map(manabrew_engine::deck_analysis::classify_card_roles)
+        .unwrap_or_default();
+    serde_wasm_bindgen::to_value(&roles).map_err(|error| JsError::new(&error.to_string()))
+}

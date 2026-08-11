@@ -3,6 +3,7 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
+import { CARD_ROLE_LABELS, useCardRoles } from "@/stores/useCardRolesStore";
 
 export type PreviewCard = {
   identity: { name: string };
@@ -20,6 +21,7 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
   const { name } = card.identity;
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
+  const roles = useCardRoles(name);
 
   const mainCopies =
     currentDeck.cards.filter((c) => c.identity.name === name).length +
@@ -92,6 +94,14 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
             className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary"
           >
             <Bookmark className="h-3 w-3" /> {tag}
+          </span>
+        ))}
+        {roles.map((role) => (
+          <span
+            key={role}
+            className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+          >
+            {CARD_ROLE_LABELS[role] ?? role}
           </span>
         ))}
       </div>

@@ -74,6 +74,7 @@ import { DeckValidationPanel } from "./DeckValidationPanel";
 import { DeckBracketPanel } from "./DeckBracketPanel";
 import { CombosPanel } from "./CombosPanel";
 import { useDeckAnalysis } from "@/hooks/useDeckAnalysis";
+import { useDeckRoles } from "@/hooks/useDeckRoles";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useDeckSelection } from "./useDeckSelection";
 import {
@@ -302,6 +303,7 @@ export function DeckBuilder({
   const preview = useCardPreview();
 
   useDeckAnalysis();
+  useDeckRoles();
 
   const { setNodeRef: setMainDropRef, isOver: isOverMain } = useDroppable({ id: DROP_ZONE.MAIN });
   const { setNodeRef: setSideDropRef, isOver: isOverSide } = useDroppable({ id: DROP_ZONE.SIDE });

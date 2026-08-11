@@ -24,6 +24,7 @@ pub mod card_trait_base;
 pub mod combat;
 pub mod core;
 pub mod cost;
+pub mod deck_analysis;
 pub mod event;
 pub mod game;
 pub mod game_entity_counter_table;

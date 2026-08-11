@@ -13,6 +13,7 @@ import init, {
   test_foundation,
   load_card_archive,
   has_card,
+  card_roles,
   run_interactive_game,
   run_multiplayer_game,
   limited_list_sealed_templates,
@@ -473,6 +474,9 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
       if (idx > 0) return has_card(name.slice(0, idx));
       return false;
     }
+
+    case "card_roles":
+      return card_roles((args?.name as string) ?? "") as string[];
 
     case "limited_list_sealed_templates":
       return limited_list_sealed_templates();

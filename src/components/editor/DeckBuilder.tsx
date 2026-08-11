@@ -138,6 +138,7 @@ import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
 import { SideboardPlansDialog } from "./SideboardPlansDialog";
 import { DeckBudgetPanel } from "./DeckBudgetPanel";
 import { DeckIntentPanel } from "./DeckIntentPanel";
+import { ReplacementSuggestionsPanel } from "./ReplacementSuggestionsPanel";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -1526,6 +1527,7 @@ export function DeckBuilder({
                   <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
                   <ManaProbabilityPanel deck={currentDeck} />
                   <DeckBudgetPanel />
+                  <ReplacementSuggestionsPanel />
                   <CombosPanel />
                   <DeckBracketPanel />
                 </div>

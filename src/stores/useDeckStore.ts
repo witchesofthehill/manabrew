@@ -883,16 +883,22 @@ export const useDeckStore = create<DeckState>()(
           })),
         addCustomTag: (tag) =>
           set((state) => {
+            const nextTag = tag.trim();
             const existing = state.currentDeck.customTags ?? [];
-            if (existing.includes(tag)) return state;
+            if (
+              !nextTag ||
+              existing.some((candidate) => candidate.toLowerCase() === nextTag.toLowerCase())
+            ) {
+              return state;
+            }
             const editor = normalizeEditorMetadata(state.currentDeck);
             return {
               currentDeck: {
                 ...state.currentDeck,
-                customTags: [...existing, tag],
+                customTags: [...existing, nextTag],
                 editor: {
                   ...editor,
-                  tags: [...editor.tags, { id: crypto.randomUUID(), name: tag }],
+                  tags: [...editor.tags, { id: crypto.randomUUID(), name: nextTag }],
                 },
               },
             };

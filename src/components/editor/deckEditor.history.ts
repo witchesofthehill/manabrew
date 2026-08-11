@@ -23,6 +23,10 @@ function cloneDeck(deck: EditorDeck): EditorDeck {
   return structuredClone(deck);
 }
 
+function decksMatch(left: EditorDeck, right: EditorDeck): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function publish() {
   snapshot = {
     undoLabel: undoStack.at(-1)?.label ?? null,
@@ -33,9 +37,13 @@ function publish() {
 
 export function executeDeckEdit(label: string, edit: () => void) {
   const before = cloneDeck(useDeckStore.getState().currentDeck);
+  if (undoStack.length > 0 && !decksMatch(before, undoStack.at(-1)!.after)) {
+    undoStack.length = 0;
+    redoStack.length = 0;
+  }
   edit();
   const after = cloneDeck(useDeckStore.getState().currentDeck);
-  if (JSON.stringify(before) === JSON.stringify(after)) return;
+  if (decksMatch(before, after)) return;
   undoStack.push({ label, before, after });
   if (undoStack.length > 100) undoStack.shift();
   redoStack.length = 0;
@@ -45,6 +53,12 @@ export function executeDeckEdit(label: string, edit: () => void) {
 export function undoDeckEdit() {
   const entry = undoStack.pop();
   if (!entry) return;
+  if (!decksMatch(useDeckStore.getState().currentDeck, entry.after)) {
+    undoStack.length = 0;
+    redoStack.length = 0;
+    publish();
+    return;
+  }
   useDeckStore.setState({ currentDeck: cloneDeck(entry.before) });
   redoStack.push(entry);
   publish();
@@ -53,6 +67,12 @@ export function undoDeckEdit() {
 export function redoDeckEdit() {
   const entry = redoStack.pop();
   if (!entry) return;
+  if (!decksMatch(useDeckStore.getState().currentDeck, entry.before)) {
+    undoStack.length = 0;
+    redoStack.length = 0;
+    publish();
+    return;
+  }
   useDeckStore.setState({ currentDeck: cloneDeck(entry.after) });
   undoStack.push(entry);
   publish();

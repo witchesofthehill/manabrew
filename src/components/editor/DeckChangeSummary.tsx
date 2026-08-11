@@ -20,6 +20,10 @@ function cardCounts(deck: EditorDeck): Map<string, number> {
     ...deck.sideboard,
     ...(deck.maybeboard ?? []),
     ...(deck.commanders ?? []),
+    ...(deck.attractions ?? []),
+    ...(deck.contraptions ?? []),
+    ...(deck.schemes ?? []),
+    ...(deck.planes ?? []),
   ];
   for (const card of cards) {
     counts.set(card.identity.name, (counts.get(card.identity.name) ?? 0) + 1);

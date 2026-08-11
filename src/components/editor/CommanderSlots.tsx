@@ -1,4 +1,4 @@
-import { Crown, Palette, Plus, X } from "lucide-react";
+import { AlertTriangle, Crown, Palette, Plus, X } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
@@ -23,6 +23,7 @@ import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { CardThumbnail } from "./deckEditor.primitives";
 import { DROP_ZONE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useIsUnsupported } from "@/stores/useCardSupportStore";
 
 function CommandZoneCard({
   card,
@@ -43,6 +44,7 @@ function CommandZoneCard({
   onLeave?: () => void;
   onPickPrint?: (cardName: string) => void;
 }) {
+  const unsupported = useIsUnsupported(card.identity.name);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `deck-commander-${card.identity.name}`,
     data: { type: "deck-card", card, name: card.identity.name },
@@ -58,6 +60,7 @@ function CommandZoneCard({
         "group relative shrink-0 touch-none",
         !readOnly && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
+        unsupported && "rounded-lg ring-2 ring-warning/70",
       )}
       style={{ width: cardWidth }}
       onPointerEnter={(event) => {
@@ -68,6 +71,14 @@ function CommandZoneCard({
       }}
     >
       <CardThumbnail card={card} />
+      {unsupported && (
+        <div
+          className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-white shadow"
+          title="Unsupported by the Manabrew and Forge engines"
+        >
+          <AlertTriangle className="h-3 w-3" />
+        </div>
+      )}
       <div className="absolute left-1 top-1 z-20 rounded bg-overlay/75 px-1.5 py-0.5 text-[10px] font-semibold text-foreground shadow">
         {label}
       </div>

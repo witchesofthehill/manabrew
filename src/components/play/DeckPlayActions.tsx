@@ -6,16 +6,14 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
 import { getFormat } from "@/lib/formats";
-import { useDeckStore } from "@/stores/useDeckStore";
+import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 
 interface DeckPlayActionsProps {
   savedDeckId: string;
 }
 
 export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
-  const savedDeck = useDeckStore((state) =>
-    state.savedDecks.find((entry) => entry.id === savedDeckId),
-  );
+  const savedDeck = useOwnedDecks().find((entry) => entry.id === savedDeckId);
 
   if (!savedDeck) {
     return (

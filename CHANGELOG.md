@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.12.3](https://github.com/witchesofthehill/manabrew/compare/v3.12.2...v3.12.3) (2026-08-10)
+
+### Fixes
+
+* **ui:** list account decks in the lobby and vs-AI pickers ([#680](https://github.com/witchesofthehill/manabrew/issues/680)) ([b3e4dfa](https://github.com/witchesofthehill/manabrew/commit/b3e4dfa0f4e83ee125c326c0561617a4458adec8))
+
 ## [3.12.2](https://github.com/witchesofthehill/manabrew/compare/v3.12.1...v3.12.2) (2026-08-10)
 
 ### Fixes

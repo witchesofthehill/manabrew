@@ -262,7 +262,9 @@ export function DeckBuilder({
       if (selectedCards.size > 0) setTagDialogOpen(true);
     },
     "deck-editor-select-all": () => selectAllDeckCards(),
-    "deck-editor-copy-selection": () => void copySelectedCards(),
+    ...(selectedCards.size > 0
+      ? { "deck-editor-copy-selection": () => void copySelectedCards() }
+      : {}),
     "deck-editor-paste-cards": () => void pasteCards(),
     "deck-editor-remove-selection": () => {
       if (selectedCards.size > 0 && !isReadOnly) handleRemoveSelected();
@@ -408,7 +410,6 @@ export function DeckBuilder({
       ...currentDeck.cards,
       ...currentDeck.sideboard,
       ...(currentDeck.maybeboard ?? []),
-      ...(currentDeck.commanders ?? []),
       ...(currentDeck.attractions ?? []),
       ...(currentDeck.contraptions ?? []),
       ...(currentDeck.schemes ?? []),
@@ -419,6 +420,14 @@ export function DeckBuilder({
   function selectAllDeckCards() {
     selectCards(
       allDeckCards().map((card) => card.identity.name),
+      true,
+    );
+  }
+
+  function selectEditableCards(cardNames: Iterable<string>) {
+    const editableNames = new Set(allDeckCards().map((card) => card.identity.name.toLowerCase()));
+    selectCards(
+      [...cardNames].filter((name) => editableNames.has(name.toLowerCase())),
       true,
     );
   }
@@ -1020,7 +1029,7 @@ export function DeckBuilder({
       keywords: ["engine", "warning", "bulk"],
       disabled: unsupportedNames.size === 0,
       disabledReason: unsupportedNames.size === 0 ? "No unsupported cards" : undefined,
-      run: () => selectCards([...unsupportedNames], true),
+      run: () => selectEditableCards(unsupportedNames),
     },
     ...(currentDeck.customTags ?? []).map(
       (tag): DeckEditorCommand => ({
@@ -1028,11 +1037,10 @@ export function DeckBuilder({
         label: `Select cards tagged ${tag}`,
         keywords: ["group", "role", "bulk"],
         run: () =>
-          selectCards(
+          selectEditableCards(
             Object.entries(currentDeck.cardTags ?? {})
               .filter(([, tags]) => tags.includes(tag))
               .map(([name]) => name),
-            true,
           ),
       }),
     ),

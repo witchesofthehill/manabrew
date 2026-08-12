@@ -48,12 +48,20 @@ export function exportWithPrintings(deck: {
   sideboard: DeckCard[];
   maybeboard?: DeckCard[];
   commanders?: DeckCard[];
+  attractions?: DeckCard[];
+  contraptions?: DeckCard[];
+  schemes?: DeckCard[];
+  planes?: DeckCard[];
 }): string {
   const sections = [
     ["Commander", deck.commanders ?? []],
     ["Mainboard", deck.cards],
     ["Sideboard", deck.sideboard],
     ["Maybeboard", deck.maybeboard ?? []],
+    ["Attractions", deck.attractions ?? []],
+    ["Contraptions", deck.contraptions ?? []],
+    ["Schemes", deck.schemes ?? []],
+    ["Planes", deck.planes ?? []],
   ] as const;
   const lines: string[] = [];
   for (const [label, cards] of sections) {

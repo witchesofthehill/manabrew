@@ -106,13 +106,15 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     await pending;
   },
   setQuantity: async (cardKey, quantity) => {
+    const intendedAccountId = get().accountId;
     await collectionInitialization;
+    if (get().accountId !== intendedAccountId) return;
     const normalized = cardKey.toLowerCase();
     const quantities = { ...get().quantities };
     if (quantity > 0) quantities[normalized] = Math.floor(quantity);
     else delete quantities[normalized];
     set({ quantities });
-    const accountId = get().accountId;
+    const accountId = intendedAccountId;
     if (accountId) {
       try {
         await queueAccountSave(accountId, quantities);
@@ -130,7 +132,9 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
   },
   replaceQuantities: async (quantities) => {
+    const intendedAccountId = get().accountId;
     await collectionInitialization;
+    if (get().accountId !== intendedAccountId) return;
     const normalized = Object.fromEntries(
       Object.entries(quantities)
         .map(
@@ -140,7 +144,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         .filter(([, quantity]) => quantity > 0),
     );
     set({ quantities: normalized });
-    const accountId = get().accountId;
+    const accountId = intendedAccountId;
     if (accountId) {
       try {
         await queueAccountSave(accountId, normalized);

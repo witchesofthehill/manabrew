@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clock3, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +31,17 @@ function readCheckpoints(): DeckCheckpoint[] {
   }
 }
 
-function writeCheckpoints(checkpoints: DeckCheckpoint[]): void {
-  localStorage.setItem(STORAGE_KEYS.DECK_CHECKPOINTS, JSON.stringify(checkpoints.slice(0, 50)));
+function writeCheckpoints(checkpoints: DeckCheckpoint[]): DeckCheckpoint[] | null {
+  const persisted = checkpoints.slice(0, 50);
+  while (true) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.DECK_CHECKPOINTS, JSON.stringify(persisted));
+      return persisted;
+    } catch {
+      if (persisted.length === 0) return null;
+      persisted.pop();
+    }
+  }
 }
 
 export function DeckCheckpointsDialog({
@@ -60,18 +70,29 @@ export function DeckCheckpointsDialog({
       deckKey,
       name: name.trim() || `Checkpoint ${deckCheckpoints.length + 1}`,
       createdAt: Date.now(),
-      deck: structuredClone(deck),
+      deck: { ...structuredClone(deck), playmat: undefined },
     };
     const next = [checkpoint, ...checkpoints];
-    setCheckpoints(next);
-    writeCheckpoints(next);
+    const persisted = writeCheckpoints(next);
+    if (!persisted?.some((candidate) => candidate.id === checkpoint.id)) {
+      toast.error("This checkpoint is too large to save on this device");
+      return;
+    }
+    setCheckpoints(persisted);
+    if (persisted.length < next.length) {
+      toast.warning("Older checkpoints were removed to free device storage");
+    }
     setName("");
   }
 
   function removeCheckpoint(id: string) {
     const next = checkpoints.filter((checkpoint) => checkpoint.id !== id);
-    setCheckpoints(next);
-    writeCheckpoints(next);
+    const persisted = writeCheckpoints(next);
+    if (!persisted) {
+      toast.error("Could not update checkpoints on this device");
+      return;
+    }
+    setCheckpoints(persisted);
   }
 
   return (
@@ -111,7 +132,12 @@ export function DeckCheckpointsDialog({
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
-                onClick={() => onRestore(structuredClone(checkpoint.deck), checkpoint.name)}
+                onClick={() =>
+                  onRestore(
+                    { ...structuredClone(checkpoint.deck), playmat: deck.playmat },
+                    checkpoint.name,
+                  )
+                }
               >
                 <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Restore
               </Button>

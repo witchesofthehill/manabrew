@@ -12,6 +12,7 @@ export interface KeybindingDef {
   label: string;
   category: string;
   defaultCombo: KeyCombo;
+  allowInEditable?: boolean;
 }
 
 export const KEYBINDINGS: KeybindingDef[] = [
@@ -68,6 +69,31 @@ export const KEYBINDINGS: KeybindingDef[] = [
     label: "Export deck",
     category: "Deck editor",
     defaultCombo: { key: "e", mod: true },
+  },
+  {
+    id: "deck-editor-undo",
+    label: "Undo deck edit",
+    category: "Deck editor",
+    defaultCombo: { key: "z", mod: true },
+  },
+  {
+    id: "deck-editor-redo",
+    label: "Redo deck edit",
+    category: "Deck editor",
+    defaultCombo: { key: "z", mod: true, shift: true },
+  },
+  {
+    id: "deck-editor-command-palette",
+    label: "Open deck command palette",
+    category: "Deck editor",
+    defaultCombo: { key: "p", mod: true },
+    allowInEditable: true,
+  },
+  {
+    id: "deck-editor-tag-selection",
+    label: "Tag selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "t" },
   },
   {
     id: "open-settings",

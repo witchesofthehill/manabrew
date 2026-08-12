@@ -22,7 +22,7 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
   const compatibilityErrors =
     unsupportedList.length > 0
       ? [
-          `${unsupportedList.length} card${unsupportedList.length === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines: ${unsupportedList.join(", ")}`,
+          `${unsupportedList.length} card${unsupportedList.length === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines: ${unsupportedList.join(", ")}`,
         ]
       : [];
   const errors = [...compatibilityErrors, ...validation.errors];

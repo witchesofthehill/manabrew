@@ -8,6 +8,88 @@ import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import { executeDeckEdit } from "./deckEditor.history";
+
+export interface ResolvedDeckTextImport {
+  cards: DeckCard[];
+  sideboard: DeckCard[];
+  maybeboard: DeckCard[];
+  commanders: DeckCard[];
+  notFound: string[];
+}
+
+async function resolveDeckTextImport(
+  entries: ParsedDeckEntry[],
+  onProgress: (fraction: number) => void,
+): Promise<ResolvedDeckTextImport> {
+  onProgress(0.05);
+  const scryfallMap = await fetchCardCollection(
+    entries.map((e) => ({
+      name: e.name,
+      setCode: e.setCode,
+      collectorNumber: e.collectorNumber,
+    })),
+  );
+  const lookup = (e: ParsedDeckEntry) =>
+    scryfallMap.get(scryfallCardKey(e.name, e.setCode, e.collectorNumber)) ??
+    scryfallMap.get(scryfallCardKey(e.name, e.setCode)) ??
+    scryfallMap.get(scryfallCardKey(e.name));
+  onProgress(0.5);
+  const setRetries = entries.filter((e) => e.collectorNumber && !lookup(e));
+  if (setRetries.length > 0) {
+    const retried = await fetchCardCollection(
+      setRetries.map((e) => ({ name: e.name, setCode: e.setCode })),
+    );
+    retried.forEach((card, key) => {
+      if (!scryfallMap.has(key)) scryfallMap.set(key, card);
+    });
+  }
+  onProgress(0.55);
+  const stragglers = [...new Set(entries.filter((e) => !lookup(e)).map((e) => e.name))];
+  let resolved = 0;
+  await Promise.all(
+    stragglers.map((n) =>
+      fetchCardByFuzzyName(n)
+        .then((sc) => scryfallMap.set(n.toLowerCase(), sc))
+        .catch((err) => console.warn(`[import] fuzzy "${n}" failed`, err))
+        .finally(() => {
+          resolved += 1;
+          onProgress(0.55 + 0.35 * (resolved / stragglers.length));
+        }),
+    ),
+  );
+  onProgress(0.9);
+  const cards: DeckCard[] = [];
+  const sideboard: DeckCard[] = [];
+  const maybeboard: DeckCard[] = [];
+  const commanders: DeckCard[] = [];
+  const notFound: string[] = [];
+  for (const entry of entries) {
+    const { count, side, maybe, commander } = entry;
+    const sc = lookup(entry);
+    if (!sc) {
+      notFound.push(entry.name);
+      continue;
+    }
+    const target = commander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
+    for (let i = 0; i < count; i++) {
+      const base = scryfallToDeckCard(sc);
+      target.push({
+        ...base,
+        identity: { ...base.identity, id: crypto.randomUUID(), foil: entry.foil },
+      });
+    }
+  }
+  if (
+    cards.length === 0 &&
+    sideboard.length === 0 &&
+    maybeboard.length === 0 &&
+    commanders.length === 0
+  ) {
+    throw new Error("None of the cards could be found on Scryfall");
+  }
+  return { cards, sideboard, maybeboard, commanders, notFound };
+}
 
 export function useDeckTextImport() {
   return useCallback(
@@ -18,75 +100,10 @@ export function useDeckTextImport() {
       onProgress: (fraction: number) => void,
     ): Promise<string> => {
       const customName = name.trim();
-      onProgress(0.05);
-      const scryfallMap = await fetchCardCollection(
-        entries.map((e) => ({
-          name: e.name,
-          setCode: e.setCode,
-          collectorNumber: e.collectorNumber,
-        })),
+      const { cards, sideboard, maybeboard, commanders, notFound } = await resolveDeckTextImport(
+        entries,
+        onProgress,
       );
-      const lookup = (e: ParsedDeckEntry) =>
-        scryfallMap.get(scryfallCardKey(e.name, e.setCode, e.collectorNumber)) ??
-        scryfallMap.get(scryfallCardKey(e.name, e.setCode)) ??
-        scryfallMap.get(scryfallCardKey(e.name));
-      onProgress(0.5);
-      // A bad collector number shouldn't lose the whole set label; retry those
-      // entries by name+set before falling back to the default printing.
-      const setRetries = entries.filter((e) => e.collectorNumber && !lookup(e));
-      if (setRetries.length > 0) {
-        const retried = await fetchCardCollection(
-          setRetries.map((e) => ({ name: e.name, setCode: e.setCode })),
-        );
-        retried.forEach((card, key) => {
-          if (!scryfallMap.has(key)) scryfallMap.set(key, card);
-        });
-      }
-      onProgress(0.55);
-      // Cards with name variants miss the exact lookup; retry them with fuzzy search.
-      const stragglers = [...new Set(entries.filter((e) => !lookup(e)).map((e) => e.name))];
-      let resolved = 0;
-      await Promise.all(
-        stragglers.map((n) =>
-          fetchCardByFuzzyName(n)
-            .then((sc) => scryfallMap.set(n.toLowerCase(), sc))
-            .catch((err) => console.warn(`[import] fuzzy "${n}" failed`, err))
-            .finally(() => {
-              resolved += 1;
-              onProgress(0.55 + 0.35 * (resolved / stragglers.length));
-            }),
-        ),
-      );
-      onProgress(0.9);
-      const cards: DeckCard[] = [];
-      const sideboard: DeckCard[] = [];
-      const maybeboard: DeckCard[] = [];
-      const commanders: DeckCard[] = [];
-      const notFound: string[] = [];
-      for (const entry of entries) {
-        const { count, side, maybe, commander } = entry;
-        const sc = lookup(entry);
-        if (!sc) {
-          notFound.push(entry.name);
-          continue;
-        }
-        const target = commander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
-        for (let i = 0; i < count; i++) {
-          const base = scryfallToDeckCard(sc);
-          target.push({
-            ...base,
-            identity: { ...base.identity, id: crypto.randomUUID(), foil: entry.foil },
-          });
-        }
-      }
-      if (
-        cards.length === 0 &&
-        sideboard.length === 0 &&
-        maybeboard.length === 0 &&
-        commanders.length === 0
-      ) {
-        throw new Error("None of the cards could be found on Scryfall");
-      }
       const commanderName = commanders.map((c) => c.identity.name).join(" / ");
       const deckName = customName || commanderName || DEFAULT_IMPORT_NAME;
       const importedFormat =
@@ -122,6 +139,41 @@ export function useDeckTextImport() {
         toast.success(`Imported "${deckName}"`);
       }
       return id;
+    },
+    [],
+  );
+}
+
+export function useDeckTextImportIntoCurrent() {
+  return useCallback(
+    async (
+      entries: ParsedDeckEntry[],
+      _name: string,
+      _formatId: DeckFormat | undefined,
+      onProgress: (fraction: number) => void,
+    ): Promise<boolean> => {
+      const startingSessionId = useDeckStore.getState().editorSessionId;
+      const result = await resolveDeckTextImport(entries, onProgress);
+      if (useDeckStore.getState().editorSessionId !== startingSessionId) {
+        return false;
+      }
+      executeDeckEdit("Import card list", () =>
+        useDeckStore.getState().mergeIntoCurrentDeck(result),
+      );
+      onProgress(1);
+      const count =
+        result.cards.length +
+        result.sideboard.length +
+        result.maybeboard.length +
+        result.commanders.length;
+      if (result.notFound.length > 0) {
+        const shown = result.notFound.slice(0, 3).join(", ");
+        const extra = result.notFound.length > 3 ? ` +${result.notFound.length - 3} more` : "";
+        toast.warning(`Added ${count} cards — couldn't find: ${shown}${extra}`);
+      } else {
+        toast.success(`Added ${count} cards to this deck`);
+      }
+      return true;
     },
     [],
   );

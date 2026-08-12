@@ -19,6 +19,7 @@ import { PartnerBadge } from "@/components/deck/PartnerBadge";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";
 import { useIsShortScreen, useIsTouch } from "@/hooks/useBreakpoints";
+import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import {
@@ -63,7 +64,8 @@ export function CreateGameDialog({
   target = "player",
   onStart,
 }: CreateGameDialogProps) {
-  const { savedDecks, currentDeck } = useDeckStore();
+  const currentDeck = useDeckStore((state) => state.currentDeck);
+  const ownedDecks = useOwnedDecks();
   const accountDeckDetails = useAccountDecksStore((state) => state.details);
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const isLobbyMode = mode === "lobby";
@@ -158,7 +160,7 @@ export function CreateGameDialog({
   ]);
 
   const currentDeckFingerprint = getDeckFingerprint(currentDeck);
-  const distinctSavedDecks = savedDecks.filter(
+  const distinctSavedDecks = ownedDecks.filter(
     (saved) =>
       saved.id === preSelectedDeckId || getDeckFingerprint(saved.deck) !== currentDeckFingerprint,
   );
@@ -388,7 +390,7 @@ export function CreateGameDialog({
     }
     setStarting(true);
     let publishedDeckId = entry.id.startsWith("hub:") ? entry.id.slice(4) : undefined;
-    const savedEntry = savedDecks.find((saved) => saved.id === entry.id);
+    const savedEntry = ownedDecks.find((saved) => saved.id === entry.id);
     const rankingPresetKey = entry.isPreset
       ? entry.sourceDeck.id
       : savedEntry?.accountDeckId

@@ -21,6 +21,8 @@
     {
       "identifier": "http:default",
       "allow": [
+        { "url": "https://api.manabrew.app/*" },
+        { "url": "https://play.manabrew.app/*" },
         { "url": "https://archidekt.com/*" },
         { "url": "https://api2.moxfield.com/*" },
         { "url": "https://backend.commanderspellbook.com/*" },

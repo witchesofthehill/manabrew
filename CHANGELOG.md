@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.12.3](https://github.com/witchesofthehill/manabrew/compare/v3.12.2...v3.12.3) (2026-08-10)
+
+### Fixes
+
+* **ui:** list account decks in the lobby and vs-AI pickers ([#680](https://github.com/witchesofthehill/manabrew/issues/680)) ([b3e4dfa](https://github.com/witchesofthehill/manabrew/commit/b3e4dfa0f4e83ee125c326c0561617a4458adec8))
+
+## [3.12.2](https://github.com/witchesofthehill/manabrew/compare/v3.12.1...v3.12.2) (2026-08-10)
+
+### Fixes
+
+* **auth:** open the desktop oauth page in the system browser ([#677](https://github.com/witchesofthehill/manabrew/issues/677)) ([359dd7d](https://github.com/witchesofthehill/manabrew/commit/359dd7d8ad103da5e4ac39ec0423c67d9684a922))
+
+## [3.12.1](https://github.com/witchesofthehill/manabrew/compare/v3.12.0...v3.12.1) (2026-08-10)
+
+### Fixes
+
+* **ui:** load deck cover art through ScryfallImg on desktop ([#676](https://github.com/witchesofthehill/manabrew/issues/676)) ([4c0c0cd](https://github.com/witchesofthehill/manabrew/commit/4c0c0cd4197f0d1a7677e6de97674ef68e0d2bcf))
+
+## [3.12.0](https://github.com/witchesofthehill/manabrew/compare/v3.11.1...v3.12.0) (2026-08-10)
+
+### Features
+
+* **ui:** restore the update callout on the play home ([#675](https://github.com/witchesofthehill/manabrew/issues/675)) ([fae1f56](https://github.com/witchesofthehill/manabrew/commit/fae1f56495c2c78524a33cca06dca6873ae71ac2))
+
+## [3.11.1](https://github.com/witchesofthehill/manabrew/compare/v3.11.0...v3.11.1) (2026-08-10)
+
+### Fixes
+
+* **tauri:** allow manabrew hosts through the http plugin scope ([#674](https://github.com/witchesofthehill/manabrew/issues/674)) ([d0135c2](https://github.com/witchesofthehill/manabrew/commit/d0135c2bfd2e3da9f92b97625d29437ab5e8905e))
+
 ## [3.11.0](https://github.com/witchesofthehill/manabrew/compare/v3.10.0...v3.11.0) (2026-08-10)
 
 ### Features

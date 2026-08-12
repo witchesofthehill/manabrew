@@ -24,6 +24,7 @@ import { resolveOfflineEngine } from "@/lib/offlineEngine";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
+import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { Deck } from "@/protocol/deck";
@@ -67,7 +68,8 @@ export function DeckVsSelector({
 }: DeckVsSelectorProps) {
   const denseDecks = useIsShortScreen();
   const isTouch = useIsTouch();
-  const { savedDecks, currentDeck } = useDeckStore();
+  const currentDeck = useDeckStore((state) => state.currentDeck);
+  const savedDecks = useOwnedDecks();
   const preSelectedSavedDeck = savedDecks.find((saved) => saved.id === preSelectedDeckId);
   const preSelectedFormatId = preSelectedSavedDeck?.deck.format ?? "standard";
   const preSelectedFormat = getFormat(preSelectedFormatId);

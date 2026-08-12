@@ -1,5 +1,6 @@
 import { LibraryBig, Swords, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import { UpdateCallout } from "@/components/layout/UpdateCallout";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { PlayDeckShelf } from "@/components/play/PlayDeckShelf";
 import { PlayHomeLinks } from "@/components/play/PlayHomeLinks";
@@ -92,6 +93,8 @@ export function PlayHome() {
               Start a match your way, or open a deck from your collection.
             </p>
           </header>
+
+          <UpdateCallout />
 
           {resumeSession && (
             <RejoinMatchCard session={resumeSession} onAbandoned={() => setResumeSession(null)} />

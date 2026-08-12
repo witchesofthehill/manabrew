@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.12.5](https://github.com/witchesofthehill/manabrew/compare/v3.12.4...v3.12.5) (2026-08-12)
+
+### Fixes
+
+* prompt for triggers order and show presentation on choose_board_targets ([#663](https://github.com/witchesofthehill/manabrew/issues/663)) ([277982e](https://github.com/witchesofthehill/manabrew/commit/277982ec5636916e598d008688ffe246f58459fa))
+
 ## [3.12.4](https://github.com/witchesofthehill/manabrew/compare/v3.12.3...v3.12.4) (2026-08-12)
 
 ### Fixes

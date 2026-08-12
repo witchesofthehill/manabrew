@@ -12,11 +12,9 @@ import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils
 import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
-import { useGameStore } from "@/stores/useGameStore";
 import { deriveCardRailState } from "@/components/game/cardRailState";
-import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { useCardFaces } from "@/hooks/useCardFaces";
+import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 
 const TOKEN_LABELS: Record<string, string> = {
@@ -66,18 +64,11 @@ function CardComponent({
   resolution = "border_crop",
 }: CardProps) {
   const [hasError, setHasError] = useState(false);
-  const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
-  const deckCard = asDeckCard(deck, card);
-  const cardFaces = useCardFaces({
-    name: card.identity.name,
-    setCode: card.identity.setCode || undefined,
-    cardNumber: card.identity.cardNumber || undefined,
-  });
+  const { deckCard, imageUrl: resolveImageUrl } = useResolvedGameCard(card);
   const faceIndex = showBackFace ? 1 : 0;
-  const faceImageUrl = cardFaces.faces[faceIndex]?.imageUris?.[resolution];
 
   const faceless = isFacelessCard(card);
-  const imageUrl = faceless ? CARD_BACK_IMAGE_URL : (faceImageUrl ?? deckCard.uris[resolution]);
+  const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(faceIndex, resolution);
   const displayName = faceless ? "Face-down card" : card.identity.name;
   const themeColors = useTheme().gameTheme;
 

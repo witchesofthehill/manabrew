@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "3.9.6",
+  "version": "3.12.4",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -94,6 +94,7 @@
     "@tailwindcss/vite": "^4.2.0",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-http": "^2.5.9",
+    "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "class-variance-authority": "^0.7.1",

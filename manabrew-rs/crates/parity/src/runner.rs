@@ -996,26 +996,14 @@ pub fn load_data(cards_dir: Option<&str>, verbose: bool) -> Result<LoadedData, S
         token_templates.push((script_name, template));
     }
 
-    // Load creature types from TypeLists.txt into the engine's global registry.
-    // Mirrors Java's FModel.loadDynamicGamedata() → CardType.Constant.CREATURE_TYPES.
+    // Load creature types from the archive's copy of TypeLists.txt into the
+    // engine's global registry. Mirrors Java's FModel.loadDynamicGamedata() →
+    // CardType.Constant.CREATURE_TYPES.
     {
-        let type_list_path = cards_path
-            .parent()
-            .map(|p| p.join("lists").join("TypeLists.txt"))
-            .unwrap_or_default();
-        if !type_list_path.exists() {
-            return Err(format!(
-                "TypeLists.txt not found at {type_list_path:?}. This file is required for creature type data."
-            ));
-        }
-        if verbose {
-            eprintln!("[parity] Loading type lists from {type_list_path:?} ...");
-        }
-        let _t_types_read = Instant::now();
-        let content = std::fs::read_to_string(&type_list_path)
-            .map_err(|e| format!("Failed to read TypeLists.txt at {type_list_path:?}: {e}"))?;
-        let _t_types_parse = Instant::now();
-        manabrew_engine::game::TypeRegistry::load(&content);
+        let archive = db
+            .archive()
+            .ok_or_else(|| "cardset archive missing type lists".to_string())?;
+        manabrew_engine::game::TypeRegistry::load(archive.type_lists.as_str());
         if verbose {
             eprintln!(
                 "[parity] Loaded {} creature types",

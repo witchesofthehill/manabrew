@@ -12,16 +12,16 @@ export const featureFlags = {
   // in via Settings (`ironsmithRuntimeEnabled`) — the experimental engine ships
   // dark in prod by default.
   ironsmithRuntime: true,
-  // Deck Hub (browse/publish shared decks + top decks). Ships dark until the
-  // api.manabrew.app service is deployed and the flow has had a manual pass.
-  deckHub: false,
-  // Hub accounts (OAuth + email sign-in, deck ownership). Ships dark until the
-  // prod OAuth apps and the Resend domain are registered. Hub publishing
-  // requires a session once the hub enforces auth, so flip this before deckHub.
-  accounts: false,
-  // Email (magic-link) sign-in inside the accounts dialog. Hidden until the
-  // Resend domain is registered; OAuth sign-in is unaffected.
-  emailSignIn: false,
+  // Deck Hub (browse/publish shared decks + top decks). Public browse, play and
+  // copy need no session; publishing and favorites also need `accounts`.
+  deckHub: true,
+  // Hub accounts (OAuth + email sign-in, deck ownership). Desktop never uses the
+  // `WEB_APP_URL` redirect: an OAuth start with `client: "desktop"` ends on the
+  // hub's own code page and the app exchanges the pasted code at
+  // `/api/auth/exchange`, and the login email carries a code alongside its link.
+  accounts: true,
+  // Email sign-in inside the accounts dialog. Code entry, so desktop-safe.
+  emailSignIn: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

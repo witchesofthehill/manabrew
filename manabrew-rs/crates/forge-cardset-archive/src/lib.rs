@@ -14,7 +14,7 @@ mod build;
 #[cfg(feature = "build")]
 pub use build::{build_archive_from_sources, ArchiveSources, BuildStats};
 
-pub const ARCHIVE_FORMAT_VERSION: u32 = 4;
+pub const ARCHIVE_FORMAT_VERSION: u32 = 5;
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[archive(check_bytes)]
@@ -50,6 +50,9 @@ pub struct CardArchive {
     pub tokens: Vec<Card>,
     pub editions: Vec<Edition>,
     pub block_data: Vec<BlockData>,
+    /// Raw `res/lists/TypeLists.txt`. The web build has no filesystem, so this
+    /// is the only channel by which `TypeRegistry::load` gets its data there.
+    pub type_lists: String,
 }
 
 impl ArchivedCardArchive {
@@ -99,6 +102,7 @@ pub fn build_test_archive(scripts: &[(&str, &str)]) -> Vec<u8> {
         tokens: Vec::new(),
         editions: Vec::new(),
         block_data: Vec::new(),
+        type_lists: String::new(),
     };
     to_bytes(&archive)
         .expect("test archive serialization")

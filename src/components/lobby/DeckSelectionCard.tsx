@@ -12,6 +12,7 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { DeckCard, DeckLabel } from "@/protocol/deck";
+import { ScryfallImg } from "@/components/ScryfallImg";
 
 interface DeckSelectionCardProps {
   name: string;
@@ -147,7 +148,7 @@ export function DeckSelectionCard({
       supportingText={!isLegal ? validationError : !dense ? breakdown : undefined}
       cover={
         coverImageUrl ? (
-          <img
+          <ScryfallImg
             src={coverImageUrl}
             alt=""
             loading="lazy"

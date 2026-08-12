@@ -162,9 +162,10 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         ) {
           return;
         }
-        const quantities = Object.fromEntries(
+        const remoteQuantities = Object.fromEntries(
           remote.cards.map((card) => [card.cardKey, card.quantity]),
         );
+        let quantities = { ...remoteQuantities };
         if (pendingAccountCollection) {
           for (const cardKey of Object.keys(quantities)) delete quantities[cardKey];
           Object.assign(quantities, pendingAccountCollection);
@@ -174,8 +175,24 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
           }
         }
         if (pendingAccountCollection || Object.keys(local).length > 0) {
-          const saved = await saveAccountCollection(toPayload(quantities, remote.version ?? 0));
-          remote.version = saved.version ?? (remote.version ?? 0) + 1;
+          let version = remote.version ?? 0;
+          try {
+            const saved = await saveAccountCollection(toPayload(quantities, version));
+            version = saved.version ?? version + 1;
+          } catch (error) {
+            if (!(error instanceof HubRequestError) || error.status !== 409) throw error;
+            const latest = await fetchAccountCollection();
+            const latestQuantities = Object.fromEntries(
+              latest.cards.map((card) => [card.cardKey, card.quantity]),
+            );
+            if (!pendingAccountCollection) {
+              quantities = applyCollectionDelta(remoteQuantities, quantities, latestQuantities);
+            }
+            version = latest.version ?? 0;
+            const saved = await saveAccountCollection(toPayload(quantities, version));
+            version = saved.version ?? version + 1;
+          }
+          remote.version = version;
           if (
             initializationId !== collectionInitializationId ||
             useAuthStore.getState().account?.id !== accountId

@@ -88,6 +88,46 @@ describe("collection account saves", () => {
     });
   });
 
+  it("retries a pending snapshot when initialization conflicts", async () => {
+    localStorage.setItem(
+      "manabrew-pending-account-collection",
+      JSON.stringify({ accountId: "acct-1", quantities: { "lightning bolt": 3 } }),
+    );
+    fetchAccountCollection
+      .mockResolvedValueOnce({
+        version: 2,
+        cards: [{ cardKey: "lightning bolt", quantity: 1 }],
+      })
+      .mockResolvedValueOnce({
+        version: 3,
+        cards: [
+          { cardKey: "lightning bolt", quantity: 1 },
+          { cardKey: "sol ring", quantity: 1 },
+        ],
+      });
+    saveAccountCollection
+      .mockRejectedValueOnce(new HubRequestError(409, "conflict"))
+      .mockResolvedValueOnce({
+        version: 4,
+        cards: [{ cardKey: "lightning bolt", quantity: 3 }],
+      });
+
+    await useCollectionStore.getState().initialize("acct-1");
+
+    expect(saveAccountCollection).toHaveBeenNthCalledWith(2, {
+      version: 3,
+      cards: [{ cardKey: "lightning bolt", quantity: 3 }],
+    });
+    expect(useCollectionStore.getState()).toMatchObject({
+      version: 4,
+      quantities: { "lightning bolt": 3 },
+      syncedQuantities: { "lightning bolt": 3 },
+      loading: false,
+      error: null,
+    });
+    expect(localStorage.getItem("manabrew-pending-account-collection")).toBeNull();
+  });
+
   it("reports a failed save and preserves the snapshot locally", async () => {
     saveAccountCollection.mockRejectedValue(new Error("offline"));
 

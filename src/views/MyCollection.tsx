@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download, LayoutGrid, LibraryBig, List, Search, Upload } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { toast } from "sonner";
 import { CollectionCard } from "@/components/collection/CollectionCard";
 import { CollectionQuickAdd } from "@/components/collection/CollectionQuickAdd";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export default function MyCollection() {
   const setQuantity = useCollectionStore((state) => state.setQuantity);
   const replaceQuantities = useCollectionStore((state) => state.replaceQuantities);
   const loading = useCollectionStore((state) => state.loading);
+  const syncError = useCollectionStore((state) => state.error);
   const [query, setQuery] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [view, setView] = useState<"text" | "grid">("grid");
@@ -64,6 +66,12 @@ export default function MyCollection() {
     URL.revokeObjectURL(url);
   }
 
+  function updateQuantity(cardKey: string, quantity: number) {
+    void setQuantity(cardKey, quantity).catch(() => {
+      toast.error("Account sync failed. This change is preserved locally.");
+    });
+  }
+
   return (
     <div className="flex h-full min-h-0 w-full">
       <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -79,6 +87,12 @@ export default function MyCollection() {
                   ? "Syncing with your account…"
                   : `${Object.keys(quantities).length} collection entries`}
               </p>
+              {syncError && (
+                <p className="mt-1 text-sm text-destructive">
+                  Account sync failed. Changes are preserved locally and will retry on the next
+                  edit.
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setImportOpen(true)}>
@@ -108,7 +122,7 @@ export default function MyCollection() {
               getCount={(name) => collectionQuantityForName(quantities, name)}
               onAdd={(name, quantity, setCode, collectorNumber, foil) => {
                 const cardKey = collectionCardKey(name, setCode, collectorNumber, foil);
-                void setQuantity(cardKey, (quantities[cardKey] ?? 0) + quantity);
+                updateQuantity(cardKey, (quantities[cardKey] ?? 0) + quantity);
               }}
               onHover={(card, event) =>
                 preview.handleMouseEnter(deckCardToPreviewDto(scryfallToDeckCard(card)), event, {
@@ -168,7 +182,7 @@ export default function MyCollection() {
                 foil={foil}
                 quantity={quantity}
                 view={view}
-                onQuantityChange={(nextQuantity) => void setQuantity(cardKey, nextQuantity)}
+                onQuantityChange={(nextQuantity) => updateQuantity(cardKey, nextQuantity)}
                 onHover={(card, event) =>
                   preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
                     placement: "pinned",

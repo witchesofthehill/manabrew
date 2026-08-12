@@ -18,7 +18,7 @@ export interface ResolvedDeckTextImport {
   notFound: string[];
 }
 
-async function resolveDeckTextImport(
+export async function resolveDeckTextImport(
   entries: ParsedDeckEntry[],
   onProgress: (fraction: number) => void,
 ): Promise<ResolvedDeckTextImport> {
@@ -30,22 +30,24 @@ async function resolveDeckTextImport(
       collectorNumber: e.collectorNumber,
     })),
   );
-  const lookup = (e: ParsedDeckEntry) =>
-    scryfallMap.get(scryfallCardKey(e.name, e.setCode, e.collectorNumber)) ??
-    scryfallMap.get(scryfallCardKey(e.name, e.setCode)) ??
-    scryfallMap.get(scryfallCardKey(e.name));
-  onProgress(0.5);
-  const setRetries = entries.filter((e) => e.collectorNumber && !lookup(e));
-  if (setRetries.length > 0) {
-    const retried = await fetchCardCollection(
-      setRetries.map((e) => ({ name: e.name, setCode: e.setCode })),
+  const lookup = (entry: ParsedDeckEntry) => {
+    if (entry.setCode && entry.collectorNumber) {
+      return scryfallMap.get(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber));
+    }
+    return (
+      scryfallMap.get(scryfallCardKey(entry.name, entry.setCode)) ??
+      scryfallMap.get(scryfallCardKey(entry.name))
     );
-    retried.forEach((card, key) => {
-      if (!scryfallMap.has(key)) scryfallMap.set(key, card);
-    });
-  }
+  };
+  onProgress(0.5);
   onProgress(0.55);
-  const stragglers = [...new Set(entries.filter((e) => !lookup(e)).map((e) => e.name))];
+  const stragglers = [
+    ...new Set(
+      entries
+        .filter((entry) => !entry.collectorNumber && !lookup(entry))
+        .map((entry) => entry.name),
+    ),
+  ];
   let resolved = 0;
   await Promise.all(
     stragglers.map((n) =>

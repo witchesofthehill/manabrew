@@ -22,19 +22,21 @@ function toPayload(quantities: Record<string, number>) {
 }
 
 function queueAccountSave(accountId: string, quantities: Record<string, number>): Promise<void> {
-  accountSaveQueue = accountSaveQueue
+  const request = accountSaveQueue
     .catch(() => undefined)
     .then(() => {
       if (useAuthStore.getState().account?.id !== accountId) return;
       return saveAccountCollection(toPayload(quantities));
     });
-  return accountSaveQueue.catch(() => undefined);
+  accountSaveQueue = request;
+  return request;
 }
 
 interface CollectionState {
   accountId: string | null;
   quantities: Record<string, number>;
   loading: boolean;
+  error: string | null;
   initialize: (accountId: string | null) => Promise<void>;
   setQuantity: (cardKey: string, quantity: number) => Promise<void>;
   replaceQuantities: (quantities: Record<string, number>) => Promise<void>;
@@ -44,13 +46,16 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
   accountId: null,
   quantities: {},
   loading: false,
+  error: null,
   initialize: async (accountId) => {
-    if (get().accountId === accountId && Object.keys(get().quantities).length > 0) return;
-    if (!accountId) {
-      set({ accountId: null, quantities: readLocalCollection(), loading: false });
+    if (get().accountId === accountId && !get().error && Object.keys(get().quantities).length > 0) {
       return;
     }
-    set({ accountId, loading: true });
+    if (!accountId) {
+      set({ accountId: null, quantities: readLocalCollection(), loading: false, error: null });
+      return;
+    }
+    set({ accountId, loading: true, error: null });
     try {
       const remote = await fetchAccountCollection();
       if (useAuthStore.getState().account?.id !== accountId) return;
@@ -65,10 +70,14 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         await saveAccountCollection(toPayload(quantities));
         localStorage.removeItem(LOCAL_COLLECTION_KEY);
       }
-      if (get().accountId === accountId) set({ quantities, loading: false });
-    } catch {
+      if (get().accountId === accountId) set({ quantities, loading: false, error: null });
+    } catch (error) {
       if (get().accountId === accountId) {
-        set({ accountId: null, quantities: readLocalCollection(), loading: false });
+        set({
+          quantities: readLocalCollection(),
+          loading: false,
+          error: error instanceof Error ? error.message : "Collection sync failed",
+        });
       }
     }
   },
@@ -79,8 +88,21 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     else delete quantities[normalized];
     set({ quantities });
     const accountId = get().accountId;
-    if (accountId) await queueAccountSave(accountId, quantities);
-    else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
+    if (accountId) {
+      try {
+        await queueAccountSave(accountId, quantities);
+        if (get().accountId === accountId) {
+          localStorage.removeItem(LOCAL_COLLECTION_KEY);
+          set({ error: null });
+        }
+      } catch (error) {
+        if (get().accountId === accountId) {
+          localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
+          set({ error: error instanceof Error ? error.message : "Collection sync failed" });
+        }
+        throw error;
+      }
+    } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
   },
   replaceQuantities: async (quantities) => {
     const normalized = Object.fromEntries(
@@ -93,7 +115,20 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     );
     set({ quantities: normalized });
     const accountId = get().accountId;
-    if (accountId) await queueAccountSave(accountId, normalized);
-    else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
+    if (accountId) {
+      try {
+        await queueAccountSave(accountId, normalized);
+        if (get().accountId === accountId) {
+          localStorage.removeItem(LOCAL_COLLECTION_KEY);
+          set({ error: null });
+        }
+      } catch (error) {
+        if (get().accountId === accountId) {
+          localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
+          set({ error: error instanceof Error ? error.message : "Collection sync failed" });
+        }
+        throw error;
+      }
+    } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
   },
 }));

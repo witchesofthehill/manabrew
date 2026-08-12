@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useRef, useState, type MouseEvent } from "react";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +44,7 @@ export function ReplacementSuggestionsPanel({
   const [targetActiveIndex, setTargetActiveIndex] = useState(0);
   const [suggestions, setSuggestions] = useState<ScryfallCard[]>([]);
   const [loading, setLoading] = useState(false);
+  const requestIdRef = useRef(0);
   const filteredCandidates = candidates
     .filter((card) => card.identity.name.toLowerCase().includes(targetQuery.trim().toLowerCase()))
     .slice(0, 8);
@@ -51,6 +52,8 @@ export function ReplacementSuggestionsPanel({
     candidates.find((card) => card.identity.name === targetName) ??
     filteredCandidates[0] ??
     candidates[0];
+  const currentTargetRef = useRef(target?.identity.name);
+  currentTargetRef.current = target?.identity.name;
   const suggestionCards = useMemo(
     () => suggestions.map((suggestion) => ({ suggestion, card: scryfallToDeckCard(suggestion) })),
     [suggestions],
@@ -59,6 +62,8 @@ export function ReplacementSuggestionsPanel({
 
   async function findSuggestions() {
     if (!target) return;
+    const requestId = ++requestIdRef.current;
+    const requestedTarget = target.identity.name;
     setTargetName(target.identity.name);
     setTargetQuery(target.identity.name);
     setTargetMenuOpen(false);
@@ -73,12 +78,16 @@ export function ReplacementSuggestionsPanel({
         "edhrec",
       );
       const nextSuggestions = response.data.slice(0, 4);
+      if (requestId !== requestIdRef.current || currentTargetRef.current !== requestedTarget)
+        return;
       setSuggestions(nextSuggestions);
       void useCardRolesStore.getState().ensureAnalyzed(nextSuggestions.map(scryfallToDeckCard));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not find replacements");
+      if (requestId === requestIdRef.current) {
+        toast.error(error instanceof Error ? error.message : "Could not find replacements");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }
 
@@ -113,6 +122,8 @@ export function ReplacementSuggestionsPanel({
               }}
               onBlur={() => setTargetMenuOpen(false)}
               onChange={(event) => {
+                requestIdRef.current += 1;
+                setLoading(false);
                 setTargetQuery(event.target.value);
                 setTargetName("");
                 setSuggestions([]);
@@ -132,6 +143,8 @@ export function ReplacementSuggestionsPanel({
                   setTargetActiveIndex((index) => Math.max(index - 1, 0));
                 } else if (event.key === "Enter" && filteredCandidates[targetActiveIndex]) {
                   event.preventDefault();
+                  requestIdRef.current += 1;
+                  setLoading(false);
                   setTargetName(filteredCandidates[targetActiveIndex].identity.name);
                   setTargetQuery(filteredCandidates[targetActiveIndex].identity.name);
                   setSuggestions([]);
@@ -165,6 +178,8 @@ export function ReplacementSuggestionsPanel({
                     onMouseLeave={onLeave}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
+                      requestIdRef.current += 1;
+                      setLoading(false);
                       setTargetName(card.identity.name);
                       setTargetQuery(card.identity.name);
                       setSuggestions([]);

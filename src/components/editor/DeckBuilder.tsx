@@ -430,10 +430,14 @@ export function DeckBuilder({
       if (!selectedCards.has(card.identity.name.toLowerCase())) continue;
       counts.set(card.identity.name, (counts.get(card.identity.name) ?? 0) + 1);
     }
-    await navigator.clipboard.writeText(
-      [...counts].map(([name, count]) => `${count} ${name}`).join("\n"),
-    );
-    toast.success(`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`);
+    try {
+      await navigator.clipboard.writeText(
+        [...counts].map(([name, count]) => `${count} ${name}`).join("\n"),
+      );
+      toast.success(`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`);
+    } catch {
+      toast.error("Could not write selected cards to the clipboard");
+    }
   }
 
   async function pasteCards() {
@@ -452,18 +456,29 @@ export function DeckBuilder({
 
   function addOneEachSelected() {
     const store = useDeckStore.getState();
-    const cards = allDeckCards();
-    executeDeckEdit(`Added one copy of ${selectedCards.size} cards`, () => {
+    const editableCards = [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+    ];
+    let added = 0;
+    executeDeckEdit(`Add one copy of selected cards`, () => {
       for (const name of selectedCards) {
-        const card = cards.find((candidate) => candidate.identity.name.toLowerCase() === name);
+        const card = editableCards.find(
+          (candidate) => candidate.identity.name.toLowerCase() === name,
+        );
         if (!card) continue;
         const copy = { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
         if (currentDeck.sideboard.includes(card)) store.addToSide(copy);
         else if ((currentDeck.maybeboard ?? []).includes(card)) store.addToMaybe(copy);
         else store.addToMain(copy);
+        added += 1;
       }
     });
-    toast.success(`Added one copy of ${selectedCards.size} cards`);
+    if (added > 0) toast.success(`Added one copy of ${added} cards`);
+    if (added < selectedCards.size) {
+      toast.warning("Command-zone and special-section cards were not duplicated");
+    }
   }
 
   function removeOneEachSelected() {

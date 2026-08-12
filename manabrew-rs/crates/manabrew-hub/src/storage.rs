@@ -2843,6 +2843,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn card_collections_are_isolated_by_account_and_cascade_on_delete() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute_batch(
+                "INSERT INTO accounts (id, handle, handle_set, created_at) VALUES
+                 ('acct-1', 'first', 1, '2026-08-01T00:00:00Z'),
+                 ('acct-2', 'second', 1, '2026-08-01T00:00:00Z');",
+            )
+            .unwrap();
+
+        storage
+            .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)])
+            .unwrap();
+        storage
+            .replace_card_collection("acct-2", &[("lightning bolt".to_string(), 1)])
+            .unwrap();
+
+        assert_eq!(
+            storage.card_collection("acct-1").unwrap(),
+            vec![("lightning bolt".to_string(), 4)]
+        );
+        assert_eq!(
+            storage.card_collection("acct-2").unwrap(),
+            vec![("lightning bolt".to_string(), 1)]
+        );
+
+        storage
+            .conn
+            .execute("DELETE FROM accounts WHERE id = 'acct-1'", [])
+            .unwrap();
+        assert!(storage.card_collection("acct-1").unwrap().is_empty());
+        assert_eq!(
+            storage.card_collection("acct-2").unwrap(),
+            vec![("lightning bolt".to_string(), 1)]
+        );
+    }
+
+    #[test]
     fn legacy_publication_migrates_to_normalized_domain() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys=ON").unwrap();

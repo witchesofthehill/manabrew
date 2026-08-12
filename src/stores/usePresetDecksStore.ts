@@ -30,7 +30,6 @@ export const usePresetDecksStore = create<PresetDecksState>((set) => ({
         if (import.meta.env?.DEV) {
           console.warn("[usePresetDecks] prefetch failed:", err);
         }
-        prefetchPromise = null;
       }
     })();
     return prefetchPromise;

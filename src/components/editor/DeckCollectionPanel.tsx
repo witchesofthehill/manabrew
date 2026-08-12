@@ -1,5 +1,6 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { LayoutGrid, LibraryBig, List } from "lucide-react";
+import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,9 @@ export function DeckCollectionPanel({
   function setOwnedQuantity(key: string, name: string, quantity: number) {
     const currentTotal = collectionQuantityForName(quantities, name);
     const printingTotal = currentTotal - (quantities[key] ?? 0);
-    void setQuantity(key, Math.max(0, quantity - printingTotal));
+    void setQuantity(key, Math.max(0, quantity - printingTotal)).catch(() => {
+      toast.error("Account sync failed. This change is preserved locally.");
+    });
   }
 
   return (

@@ -48,7 +48,7 @@ import type { ParsedDeckEntry } from "@/lib/deckImport";
 import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
 import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/views/myDecks.utils";
 import type { SortBy } from "@/views/myDecks.utils";
-import { usePresetDecks } from "@/stores/usePresetDecksStore";
+import { usePresetDecks, usePresetDecksResolved } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
@@ -118,6 +118,7 @@ export default function DeckEditor() {
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
+  const presetDecksResolved = usePresetDecksResolved();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const {
     entries: publishedDecks,
@@ -323,6 +324,7 @@ export default function DeckEditor() {
   const collectionPending =
     (isFeatureEnabled("accounts") && authStatus === "unknown") ||
     (accountDecksSignedIn && !accountDecksResolved);
+  const deckCatalogPending = collectionPending || !presetDecksResolved;
   const collectionDecks = collectionPending
     ? []
     : accountDecksAvailable && accountDecksSignedIn
@@ -687,14 +689,25 @@ export default function DeckEditor() {
               {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
                 <p className="mb-3 text-sm text-destructive">{accountDecksError}</p>
               )}
-              {(collectionPending ||
+              {(deckCatalogPending ||
                 (accountDecksAvailable &&
                   accountDecksSignedIn &&
                   accountDecksLoading &&
                   collectionDecks.length === 0)) && (
-                <p className="mb-3 text-sm text-muted-foreground">Loading your decks…</p>
+                <div
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  aria-label="Loading your decks"
+                  aria-busy="true"
+                >
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <div
+                      key={index}
+                      className="aspect-[4/3] animate-pulse rounded-lg border border-border/60 bg-muted/40"
+                    />
+                  ))}
+                </div>
               )}
-              {!collectionPending && (
+              {!deckCatalogPending && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   <div className="group relative">
                     <button
@@ -716,7 +729,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {filteredCollectionDrafts.length > 0 && (
+              {!deckCatalogPending && filteredCollectionDrafts.length > 0 && (
                 <div className={cn("mt-4", filteredCollectionDecks.length > 0 && "border-t pt-4")}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -732,7 +745,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {publishEnabled && signedIn && (
+              {!deckCatalogPending && publishEnabled && signedIn && (
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -784,7 +797,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {presetSavedDecks.length > 0 && (
+              {!deckCatalogPending && presetSavedDecks.length > 0 && (
                 <div
                   className={cn(
                     "mt-4",
@@ -824,7 +837,8 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {filteredCollectionDecks.length === 0 &&
+              {!deckCatalogPending &&
+                filteredCollectionDecks.length === 0 &&
                 filteredCollectionDrafts.length === 0 &&
                 presetSavedDecks.length === 0 &&
                 collectionDecks.length > 0 && (

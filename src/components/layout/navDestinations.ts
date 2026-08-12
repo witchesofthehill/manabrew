@@ -6,6 +6,7 @@ import {
   Layers,
   LibraryBig,
   MoreHorizontal,
+  PackageOpen,
   Palette,
   Search,
   Swords,
@@ -68,7 +69,7 @@ export function getTopBarNav(signedIn = false): { direct: NavDestination[]; menu
   }
 
   if (signedIn && isFeatureEnabled("accounts")) {
-    direct.push({ to: ROUTES.MY_COLLECTION, label: "My Collection", icon: LibraryBig });
+    direct.push({ to: ROUTES.MY_COLLECTION, label: "My Collection", icon: PackageOpen });
   }
 
   direct.push(

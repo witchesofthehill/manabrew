@@ -407,6 +407,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .deck-editor-root *,
+  .deck-editor-root *::before,
+  .deck-editor-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .animate-companion-tap-flash,
   .animate-companion-die-tumble,
   .animate-card-flash,

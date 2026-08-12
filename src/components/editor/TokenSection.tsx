@@ -1,9 +1,10 @@
-import type { MouseEvent } from "react";
-import { Palette, X } from "lucide-react";
+import { useState, type MouseEvent } from "react";
+import { ChevronDown, Palette, X } from "lucide-react";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { DeckCard } from "@/protocol/deck";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
+import { cn } from "@/lib/utils";
 
 export interface TokenSectionProps {
   tokens: DeckCard[];
@@ -26,39 +27,48 @@ export function TokenSection({
   onHover,
   onLeave,
 }: TokenSectionProps) {
+  const [open, setOpen] = useState(true);
   if (tokens.length === 0) return null;
 
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
 
   return (
     <section className="rounded-xl border bg-card/40 p-6">
-      <div className="mb-4 flex items-baseline gap-2.5">
+      <button
+        type="button"
+        className="mb-4 flex items-center gap-2.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <ChevronDown className={cn("h-4 w-4 transition-transform", !open && "-rotate-90")} />
         <h3 className="text-base font-semibold">Tokens</h3>
         <span className="text-xs text-muted-foreground/70">
           {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
         </span>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        {tokens.map((t) => (
-          <div
-            key={`${t.identity.name}-${t.identity.setCode}-${t.identity.cardNumber}`}
-            className="shrink-0"
-            style={{ width: cardWidth }}
-          >
-            <TokenGridCard
-              token={t}
-              customized={customizedTokens?.some(
-                (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(t),
-              )}
-              onShowInfo={onShowInfo}
-              onPickPrint={onPickPrint}
-              onReset={onResetPrint}
-              onHover={onHover}
-              onLeave={onLeave}
-            />
-          </div>
-        ))}
-      </div>
+      </button>
+      {open && (
+        <div className="flex flex-wrap gap-3">
+          {tokens.map((t) => (
+            <div
+              key={`${t.identity.name}-${t.identity.setCode}-${t.identity.cardNumber}`}
+              className="shrink-0"
+              style={{ width: cardWidth }}
+            >
+              <TokenGridCard
+                token={t}
+                customized={customizedTokens?.some(
+                  (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(t),
+                )}
+                onShowInfo={onShowInfo}
+                onPickPrint={onPickPrint}
+                onReset={onResetPrint}
+                onHover={onHover}
+                onLeave={onLeave}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

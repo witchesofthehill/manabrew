@@ -69,6 +69,8 @@ export interface DeckEditorMetadata {
   activeLayoutId?: string;
   sideboardPlans?: DeckSideboardPlan[];
   budgetUsd?: number;
+  budgetAmount?: number;
+  priceProvider?: "tcgplayer" | "cardmarket" | "cardhoarder";
 }
 
 export interface DeckSideboardPlan {

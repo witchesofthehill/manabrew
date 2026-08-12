@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { useDraggable } from "@dnd-kit/core";
 import { toast } from "sonner";
@@ -24,7 +23,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { SetSelect } from "@/components/editor/SetSelect";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -1112,7 +1111,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                     onAdd={standalone ? undefined : () => addCard(card)}
                     standalone={standalone}
                     onHover={(c, e) =>
-                      preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
+                      preview.handleMouseEnter(deckCardToPreviewDto(c), e, { useDelay: true })
                     }
                     onLeave={preview.handleMouseLeave}
                   />
@@ -1129,7 +1128,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   onAdd={standalone ? undefined : () => addCard(card)}
                   standalone={standalone}
                   onHover={(c, e) =>
-                    preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
+                    preview.handleMouseEnter(deckCardToPreviewDto(c), e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
                 />

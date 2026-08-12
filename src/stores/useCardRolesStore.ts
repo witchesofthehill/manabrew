@@ -24,6 +24,8 @@ interface CardRolesState {
   ensureAnalyzed: (cards: DeckCard[]) => Promise<void>;
 }
 
+const EMPTY_ROLES: string[] = [];
+
 function normalize(name: string): string {
   return name.toLowerCase();
 }
@@ -80,5 +82,5 @@ export const useCardRolesStore = create<CardRolesState>((set, get) => ({
 }));
 
 export function useCardRoles(name: string): string[] {
-  return useCardRolesStore((state) => state.roles[normalize(name)] ?? []);
+  return useCardRolesStore((state) => state.roles[normalize(name)] ?? EMPTY_ROLES);
 }

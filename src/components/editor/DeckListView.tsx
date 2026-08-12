@@ -40,6 +40,7 @@ import {
   AlertTriangle,
   Ellipsis,
   Palette,
+  ChevronDown,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -119,6 +120,36 @@ function CardPrintingButton({ onPickPrint }: { onPickPrint: () => void }) {
       }}
     >
       <Palette className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function CardSelectionButton({
+  name,
+  selected,
+  onSelect,
+}: {
+  name: string;
+  selected?: boolean;
+  onSelect?: (cardName: string, addToSelection: boolean) => void;
+}) {
+  if (!onSelect) return null;
+  return (
+    <button
+      type="button"
+      className={cn(
+        "absolute bottom-1 left-1 z-40 flex h-7 w-7 items-center justify-center rounded-full border bg-background/90 opacity-0 shadow transition-opacity group-hover:opacity-100 pointer-coarse:h-9 pointer-coarse:w-9 pointer-coarse:opacity-100",
+        selected && "border-selection bg-selection text-white opacity-100",
+      )}
+      aria-label={`${selected ? "Deselect" : "Select"} ${name}`}
+      aria-pressed={selected}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(name, false);
+      }}
+    >
+      <Check className="h-4 w-4" />
     </button>
   );
 }
@@ -516,9 +547,20 @@ function DraggableStackCard({
       style={{ top: topOffset, width: cardWidth, zIndex: index + 1 }}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
+      aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
+      aria-pressed={isSelected}
       onMouseEnter={() => onCardHover(index)}
       onMouseLeave={onCardLeave}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
+      onKeyDown={(event) => {
+        if (event.key === " ") {
+          event.preventDefault();
+          onSelect?.(name, event.shiftKey);
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          onShowInfo?.();
+        }
+      }}
       onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
@@ -536,6 +578,7 @@ function DraggableStackCard({
         actions={buildCardActions(onAddOne, onRemoveOne, onUntag ? () => onUntag(name) : undefined)}
         rounded="rounded-[4%]"
       />
+      <CardSelectionButton name={name} selected={isSelected} onSelect={onSelect} />
       {(contextActions?.onPickPrint || onPickPrint) && (
         <CardPrintingButton
           onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(name))}
@@ -625,6 +668,7 @@ function StackColumn({
   contextMenuFor,
   sourceTag,
 }: StackColumnProps) {
+  const [open, setOpen] = useState(true);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const cardHeight = Math.round(cardWidth * 1.4);
   const peek = Math.round(cardHeight * 0.22);
@@ -656,40 +700,52 @@ function StackColumn({
             <GripVertical className="h-3.5 w-3.5" />
           </div>
         )}
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
-          {label} <span className="font-normal opacity-60">({count})</span>
-        </span>
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 shrink-0 transition-transform", !open && "-rotate-90")}
+          />
+          <span className="truncate">
+            {label} <span className="font-normal opacity-60">({count})</span>
+          </span>
+        </button>
       </div>
-      <div
-        className="relative transition-[height] duration-200 ease-out"
-        style={{ height: totalHeight }}
-      >
-        {groups.map((g, i) => {
-          const cm = contextMenuFor?.(g);
-          return (
-            <DraggableStackCard
-              key={g.card.identity.name}
-              group={g}
-              dragId={`deck-${sectionId}-${g.card.identity.name}`}
-              cardWidth={cardWidth}
-              index={i}
-              onAddOne={() => onAddOne(g)}
-              onRemoveOne={() => onRemoveOne(g.card.identity.name)}
-              onPickPrint={onPickPrint}
-              onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
-              isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
-              onSelect={onSelectCard}
-              onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
-              topOffset={getTop(i)}
-              onCardHover={setHoveredIdx}
-              onCardLeave={() => setHoveredIdx(null)}
-              contextLocation={cm?.location}
-              contextActions={cm?.actions}
-              sourceTag={sourceTag}
-            />
-          );
-        })}
-      </div>
+      {open && (
+        <div
+          className="relative transition-[height] duration-200 ease-out"
+          style={{ height: totalHeight }}
+        >
+          {groups.map((g, i) => {
+            const cm = contextMenuFor?.(g);
+            return (
+              <DraggableStackCard
+                key={g.card.identity.name}
+                group={g}
+                dragId={`deck-${sectionId}-${g.card.identity.name}`}
+                cardWidth={cardWidth}
+                index={i}
+                onAddOne={() => onAddOne(g)}
+                onRemoveOne={() => onRemoveOne(g.card.identity.name)}
+                onPickPrint={onPickPrint}
+                onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
+                isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
+                onSelect={onSelectCard}
+                onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
+                topOffset={getTop(i)}
+                onCardHover={setHoveredIdx}
+                onCardLeave={() => setHoveredIdx(null)}
+                contextLocation={cm?.location}
+                contextActions={cm?.actions}
+                sourceTag={sourceTag}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -766,7 +822,18 @@ function CardVisual({
       )}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
+      aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
+      aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
+      onKeyDown={(event) => {
+        if (event.key === " ") {
+          event.preventDefault();
+          onSelect?.(name, event.shiftKey);
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          onShowInfo?.();
+        }
+      }}
       onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
@@ -845,7 +912,8 @@ function CardVisual({
         )}
       </div>
       <CardHoverOverlay actions={buildCardActions(onAddOne, onRemoveOne, onUntag)} />
-      {contextActions && <CardMenuButton className="absolute bottom-1 left-1 z-40" />}
+      <CardSelectionButton name={name} selected={isSelected} onSelect={onSelect} />
+      {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
     </div>
   );
 
@@ -939,6 +1007,8 @@ function CardRow({
       )}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
+      aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
+      aria-pressed={isSelected}
       onClick={(e) => {
         e.stopPropagation();
         if ((e.shiftKey || e.ctrlKey || e.metaKey) && onSelect) {
@@ -948,6 +1018,15 @@ function CardRow({
         }
       }}
       onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
+      onKeyDown={(event) => {
+        if (event.key === " ") {
+          event.preventDefault();
+          onSelect?.(name, event.shiftKey);
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          onShowInfo?.();
+        }
+      }}
     >
       <div
         className={cn(
@@ -1079,6 +1158,7 @@ function CardSection({
   onCreateAndApplyTag,
   onRemoveCustomTag,
 }: CardSectionProps) {
+  const [open, setOpen] = useState(true);
   const isTagSection = !!tag;
   const { setNodeRef, isOver } = useDroppable({
     id: isTagSection ? `${DROP_ZONE.TAG_PREFIX}${tag}` : `section-${sectionId}`,
@@ -1112,9 +1192,15 @@ function CardSection({
         isOver && "bg-primary/10",
       )}
     >
-      <SectionHeader label={label} count={count} extraContent={headerExtra} />
+      <SectionHeader
+        label={label}
+        count={count}
+        extraContent={headerExtra}
+        open={open}
+        onToggle={() => setOpen((value) => !value)}
+      />
 
-      {groups.length === 0 ? (
+      {!open ? null : groups.length === 0 ? (
         <EmptyDropZone message="Drag cards here" />
       ) : viewMode === "list" ? (
         <div className="space-y-0.5">
@@ -1454,6 +1540,11 @@ export function DeckListView({
   onHover,
   onLeave,
 }: DeckListViewProps) {
+  const [sideboardOpen, setSideboardOpen] = useState(true);
+  const [maybeboardOpen, setMaybeboardOpen] = useState(true);
+  const [collapsedSpecialSections, setCollapsedSpecialSections] = useState<Set<string>>(
+    () => new Set(),
+  );
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
@@ -2138,12 +2229,13 @@ export function DeckListView({
           )}
         >
           <div className="px-2 pt-2 pb-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Sideboard ({sideboardCount})
-              </span>
-            </div>
-            {sideboardGroups.length === 0 ? (
+            <SectionHeader
+              label="Sideboard"
+              count={sideboardCount}
+              open={sideboardOpen}
+              onToggle={() => setSideboardOpen((value) => !value)}
+            />
+            {!sideboardOpen ? null : sideboardGroups.length === 0 ? (
               <div className="py-3 text-center">
                 <p className="text-xs text-muted-foreground/40">Drop cards here</p>
               </div>
@@ -2251,13 +2343,16 @@ export function DeckListView({
           )}
         >
           <div className="px-2 pt-2 pb-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Maybeboard ({maybeboardCount})
-              </span>
-              <span className="text-xs text-muted-foreground/40 italic">not in deck</span>
-            </div>
-            {maybeboardGroups.length === 0 ? (
+            <SectionHeader
+              label="Maybeboard"
+              count={maybeboardCount}
+              open={maybeboardOpen}
+              onToggle={() => setMaybeboardOpen((value) => !value)}
+              extraContent={
+                <span className="text-xs italic text-muted-foreground/40">not in deck</span>
+              }
+            />
+            {!maybeboardOpen ? null : maybeboardGroups.length === 0 ? (
               <div className="py-3 text-center">
                 <p className="text-xs text-muted-foreground/40">Cards you&apos;re considering</p>
               </div>
@@ -2363,18 +2458,27 @@ export function DeckListView({
         {/* ── Special sections (Attractions, Contraptions, Schemes, Planes) ── */}
         {specialSections.map((section) => {
           const count = section.groups.reduce((s, g) => s + g.count, 0);
+          const open = !collapsedSpecialSections.has(section.id);
           return (
             <div
               key={section.id}
               className="mt-2 rounded-lg border-2 border-dashed border-border/40 hover:border-border/60 transition-colors"
             >
               <div className="px-2 pt-2 pb-1">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {section.label} ({count})
-                  </span>
-                </div>
-                {viewMode === "list" ? (
+                <SectionHeader
+                  label={section.label}
+                  count={count}
+                  open={open}
+                  onToggle={() =>
+                    setCollapsedSpecialSections((current) => {
+                      const next = new Set(current);
+                      if (next.has(section.id)) next.delete(section.id);
+                      else next.add(section.id);
+                      return next;
+                    })
+                  }
+                />
+                {!open ? null : viewMode === "list" ? (
                   <div className="space-y-0.5 pb-1">
                     {section.groups.map((g) => (
                       <div

@@ -1,9 +1,19 @@
-import { Github, Globe, HeartPulse, Info, Palette, Search, Settings } from "lucide-react";
+import {
+  Github,
+  Globe,
+  HeartPulse,
+  Info,
+  PackageOpen,
+  Palette,
+  Search,
+  Settings,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { FeatureTile } from "@/components/play/FeatureTile";
 import { Button } from "@/components/ui/button";
 import { DESIGN_SYSTEM_ENABLED } from "@/config/designSystem";
+import { isFeatureEnabled } from "@/featureFlags";
 import {
   APP_VERSION,
   DISCORD_INVITE_URL,
@@ -12,6 +22,7 @@ import {
   WEBSITE_URL,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 const TOOL_GRID_BY_COUNT: Record<number, string> = {
   2: "sm:grid-cols-2",
@@ -40,11 +51,26 @@ const TOOLS = [
 ];
 
 export function PlayHomeLinks() {
+  const signedIn = useAuthStore((state) => state.status === "signedIn");
+  const tools =
+    signedIn && isFeatureEnabled("accounts")
+      ? [
+          {
+            to: ROUTES.MY_COLLECTION,
+            label: "My Collection",
+            desc: "Track the cards you own and import or export your collection.",
+            icon: PackageOpen,
+            tone: "amber",
+          },
+          ...TOOLS,
+        ]
+      : TOOLS;
+
   return (
     <>
       <section aria-label="More ways to play and tools">
-        <div className={cn("grid gap-4", TOOL_GRID_BY_COUNT[TOOLS.length] ?? "sm:grid-cols-3")}>
-          {TOOLS.map(({ to, label, desc, icon, tone }, index) => (
+        <div className={cn("grid gap-4", TOOL_GRID_BY_COUNT[tools.length] ?? "sm:grid-cols-3")}>
+          {tools.map(({ to, label, desc, icon, tone }, index) => (
             <FeatureTile
               key={to}
               to={to}
@@ -53,7 +79,7 @@ export function PlayHomeLinks() {
               icon={icon}
               tone={tone}
               className={cn(
-                TOOLS.length % 2 === 1 && index === TOOLS.length - 1 && "max-sm:col-span-2",
+                tools.length % 2 === 1 && index === tools.length - 1 && "max-sm:col-span-2",
               )}
             />
           ))}

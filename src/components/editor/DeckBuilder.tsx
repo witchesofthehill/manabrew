@@ -41,12 +41,16 @@ import {
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
-import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
-import { frontFaceName, needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
+import {
+  deckCardToPreviewDto,
+  frontFaceName,
+  needsScryfallEnrichment,
+  scryfallToDeckCard,
+} from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
@@ -225,9 +229,11 @@ export function DeckBuilder({
   const [deckFilter, setDeckFilter] = useState("");
   const [cmcFilter, setCmcFilter] = useState<number | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
+  const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
+  const [analysisOpen, setAnalysisOpen] = useState(true);
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
@@ -290,6 +296,7 @@ export function DeckBuilder({
   useEffect(() => {
     const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
     setLastSavedSnapshot(snapshot);
+    setAnalysisOpen(true);
     setUnsavedState(snapshot, snapshot);
     resetDeckHistory();
     return resetDeckHistory;
@@ -369,6 +376,7 @@ export function DeckBuilder({
   function bulkAction(message: string, edit: () => void) {
     executeDeckEdit(message, edit);
     clearSelection();
+    setAnnouncement((current) => ({ id: current.id + 1, message }));
     toast.success(message);
   }
 
@@ -927,7 +935,15 @@ export function DeckBuilder({
   ];
 
   return (
-    <div className="flex flex-col h-full w-full relative">
+    <div className="deck-editor-root flex flex-col h-full w-full relative">
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {selectedCards.size > 0
+          ? `${selectedCards.size} card${selectedCards.size === 1 ? "" : "s"} selected`
+          : "Selection cleared"}
+      </div>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        <span key={announcement.id}>{announcement.message}</span>
+      </div>
       {isReadOnly && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2">
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
@@ -1372,6 +1388,7 @@ export function DeckBuilder({
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
               <DeckValidationPanel unsupportedNames={unsupportedNames} />
               <CommanderSlots
+                key={`command-zone-${editorSessionId}`}
                 cards={currentDeck.cards}
                 commanders={currentDeck.commanders ?? []}
                 format={currentDeck.format ?? "standard"}
@@ -1380,7 +1397,7 @@ export function DeckBuilder({
                 onSetCommander={handleSetCommander}
                 onRemoveCommander={handleRemoveCommander}
                 onHover={(card, event) =>
-                  preview.handleMouseEnter(card as unknown as CardDto, event, { useDelay: true })
+                  preview.handleMouseEnter(deckCardToPreviewDto(card), event, { useDelay: true })
                 }
                 onLeave={preview.handleMouseLeave}
                 onPickPrint={(name) => setPrintPickerCard(name)}
@@ -1390,6 +1407,7 @@ export function DeckBuilder({
                 className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
               >
                 <DeckListView
+                  key={`deck-sections-${editorSessionId}`}
                   viewMode={viewMode}
                   cardSize={cardSize}
                   commanders={currentDeck.commanders ?? []}
@@ -1426,7 +1444,7 @@ export function DeckBuilder({
                     executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
                   }
                   onHover={(card, e) =>
-                    preview.handleMouseEnter(card as unknown as CardDto, e, { useDelay: true })
+                    preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
                   onAddToSide={(card) =>
@@ -1486,45 +1504,67 @@ export function DeckBuilder({
               </div>
 
               <div className="px-4 pb-10 pt-4">
-                <div className="mb-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  className="mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-expanded={analysisOpen}
+                  onClick={() => setAnalysisOpen((value) => !value)}
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform",
+                      !analysisOpen && "-rotate-90",
+                    )}
+                  />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Deck Analysis
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
-                </div>
-                <div className="space-y-5">
-                  {mergedTokens.length > 0 && (
-                    <TokenSection
-                      tokens={mergedTokens}
-                      customizedTokens={currentDeck.tokens}
+                </button>
+                {analysisOpen && (
+                  <div className="space-y-5">
+                    {mergedTokens.length > 0 && (
+                      <TokenSection
+                        key={`tokens-${editorSessionId}`}
+                        tokens={mergedTokens}
+                        customizedTokens={currentDeck.tokens}
+                        cardSize={cardSize}
+                        onShowInfo={handleShowTokenInfo}
+                        onPickPrint={setTokenPrintPicker}
+                        onResetPrint={(token) =>
+                          executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
+                            resetTokenPrint(token),
+                          )
+                        }
+                        onHover={(token, e) =>
+                          preview.handleMouseEnter(deckCardToPreviewDto(token), e, {
+                            useDelay: true,
+                          })
+                        }
+                        onLeave={preview.handleMouseLeave}
+                      />
+                    )}
+                    <DeckInsightsPanel
+                      key={`insights-${editorSessionId}`}
+                      deck={currentDeck}
+                      unsupportedNames={unsupportedNames}
+                      validationErrors={deckValidation.errors}
+                      activeBucket={cmcFilter}
+                      onBucketClick={setCmcFilter}
+                      onShowUnsupported={() => setDeckFilter("is:unsupported")}
+                      onOpenSearch={onToggleSearch}
                       cardSize={cardSize}
-                      onShowInfo={handleShowTokenInfo}
-                      onPickPrint={setTokenPrintPicker}
-                      onResetPrint={(token) =>
-                        executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
-                          resetTokenPrint(token),
-                        )
-                      }
-                      onHover={(token, e) =>
-                        preview.handleMouseEnter(token as unknown as CardDto, e, {
+                      onCardHover={(card, event) =>
+                        preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
                           useDelay: true,
                         })
                       }
-                      onLeave={preview.handleMouseLeave}
+                      onCardLeave={preview.handleMouseLeave}
                     />
-                  )}
-                  <DeckInsightsPanel
-                    deck={currentDeck}
-                    unsupportedNames={unsupportedNames}
-                    validationErrors={deckValidation.errors}
-                    activeBucket={cmcFilter}
-                    onBucketClick={setCmcFilter}
-                    onShowUnsupported={() => setDeckFilter("is:unsupported")}
-                    onOpenSearch={onToggleSearch}
-                  />
-                  <CombosPanel />
-                  <DeckBracketPanel />
-                </div>
+                    <CombosPanel />
+                    <DeckBracketPanel />
+                  </div>
+                )}
               </div>
             </div>
           </fieldset>

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 import { cn } from "@/lib/utils";
+import type { DeckCard } from "@/protocol/deck";
 import type { EditorDeck } from "@/types/manabrew";
 import { DeckBudgetPanel } from "./DeckBudgetPanel";
 import { DeckCollectionPanel } from "./DeckCollectionPanel";
@@ -28,6 +29,9 @@ export function DeckInsightsPanel({
   onBucketClick,
   onShowUnsupported,
   onOpenSearch,
+  cardSize,
+  onCardHover,
+  onCardLeave,
 }: {
   deck: EditorDeck;
   unsupportedNames: Set<string>;
@@ -36,6 +40,9 @@ export function DeckInsightsPanel({
   onBucketClick: (bucket: number | null) => void;
   onShowUnsupported: () => void;
   onOpenSearch?: () => void;
+  cardSize: number;
+  onCardHover?: (card: DeckCard, event: MouseEvent) => void;
+  onCardLeave?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<InsightTab>("overview");
 
@@ -103,9 +110,17 @@ export function DeckInsightsPanel({
             <ManaProbabilityPanel deck={deck} />
           </>
         )}
-        {activeTab === "collection" && <DeckCollectionPanel />}
+        {activeTab === "collection" && (
+          <DeckCollectionPanel cardSize={cardSize} onHover={onCardHover} onLeave={onCardLeave} />
+        )}
         {activeTab === "budget" && <DeckBudgetPanel />}
-        {activeTab === "replacements" && <ReplacementSuggestionsPanel />}
+        {activeTab === "replacements" && (
+          <ReplacementSuggestionsPanel
+            cardSize={cardSize}
+            onHover={onCardHover}
+            onLeave={onCardLeave}
+          />
+        )}
       </div>
     </section>
   );

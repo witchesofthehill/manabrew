@@ -1,4 +1,5 @@
 import type { CardBackFaceSummary, DeckCard } from "@/protocol/deck";
+import type { CardDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
@@ -113,4 +114,8 @@ export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
     layout: sc.layout || undefined,
     allParts: sc.all_parts?.map((p) => ({ name: p.name, component: p.component })) ?? [],
   };
+}
+
+export function deckCardToPreviewDto(card: DeckCard): CardDto {
+  return { ...card, foil: card.identity.foil ?? false } as unknown as CardDto;
 }

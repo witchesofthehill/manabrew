@@ -1,5 +1,5 @@
-import { AlertTriangle, Crown, Palette, Plus, X } from "lucide-react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import { AlertTriangle, ChevronDown, Crown, Palette, Plus, X } from "lucide-react";
+import { useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 import { Button } from "@/components/ui/button";
@@ -142,6 +142,7 @@ export function CommanderSlots({
   onLeave,
   onPickPrint,
 }: CommanderSlotsProps) {
+  const [open, setOpen] = useState(true);
   const { setNodeRef, isOver } = useDroppable({
     id: DROP_ZONE.COMMAND,
     disabled: readOnly || !formatRequiresCommander(format),
@@ -191,61 +192,69 @@ export function CommanderSlots({
         isOver && "bg-primary/10 ring-2 ring-inset ring-primary/50",
       )}
     >
-      <div className="mb-1.5 flex items-center gap-2">
+      <button
+        type="button"
+        className="mb-1.5 flex items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
         <Crown className="h-3.5 w-3.5 text-primary" />
         <h3 className="text-xs font-semibold uppercase tracking-wide">Command zone</h3>
         <span className="text-xs text-muted-foreground">Set your deck identity</span>
-      </div>
-      <div className="flex flex-wrap items-start gap-2">
-        {commanders.map((card, index) => (
-          <CommandZoneCard
-            key={card.identity.id}
-            card={card}
-            label={
-              commanderSlotBadge(commanders, format, index)?.label ??
-              (format === "oathbreaker" ? "Oathbreaker" : "Commander")
-            }
-            cardWidth={cardWidth}
-            readOnly={readOnly}
-            onRemove={() => onRemoveCommander(card)}
-            onHover={onHover}
-            onLeave={onLeave}
-            onPickPrint={onPickPrint}
-          />
-        ))}
-        {!readOnly && canAddAnother && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" className="min-h-10 gap-2 border-dashed">
-                <Plus className="h-3.5 w-3.5" />
-                {emptyLabel}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-y-auto">
-              {candidates.length > 0 ? (
-                candidates.map((card) => (
-                  <DropdownMenuItem
-                    key={card.identity.id}
-                    onSelect={() => onSetCommander(card)}
-                    onPointerEnter={(event) => {
-                      if (event.pointerType !== "touch") onHover?.(card, event);
-                    }}
-                    onPointerLeave={(event) => {
-                      if (event.pointerType !== "touch") onLeave?.();
-                    }}
-                  >
-                    <span className="truncate">{card.identity.name}</span>
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <div className="px-2 py-3 text-xs text-muted-foreground">
-                  Add an eligible card to the deck first.
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      </button>
+      {open && (
+        <div className="flex flex-wrap items-start gap-2">
+          {commanders.map((card, index) => (
+            <CommandZoneCard
+              key={card.identity.id}
+              card={card}
+              label={
+                commanderSlotBadge(commanders, format, index)?.label ??
+                (format === "oathbreaker" ? "Oathbreaker" : "Commander")
+              }
+              cardWidth={cardWidth}
+              readOnly={readOnly}
+              onRemove={() => onRemoveCommander(card)}
+              onHover={onHover}
+              onLeave={onLeave}
+              onPickPrint={onPickPrint}
+            />
+          ))}
+          {!readOnly && canAddAnother && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" className="min-h-10 gap-2 border-dashed">
+                  <Plus className="h-3.5 w-3.5" />
+                  {emptyLabel}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-y-auto">
+                {candidates.length > 0 ? (
+                  candidates.map((card) => (
+                    <DropdownMenuItem
+                      key={card.identity.id}
+                      onSelect={() => onSetCommander(card)}
+                      onPointerEnter={(event) => {
+                        if (event.pointerType !== "touch") onHover?.(card, event);
+                      }}
+                      onPointerLeave={(event) => {
+                        if (event.pointerType !== "touch") onLeave?.();
+                      }}
+                    >
+                      <span className="truncate">{card.identity.name}</span>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <div className="px-2 py-3 text-xs text-muted-foreground">
+                    Add an eligible card to the deck first.
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
     </section>
   );
 }

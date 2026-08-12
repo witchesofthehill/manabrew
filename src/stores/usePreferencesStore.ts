@@ -85,6 +85,9 @@ interface PreferencesState {
   inGameAnimations: boolean;
   setInGameAnimations: (value: boolean) => void;
 
+  chooseOrderOnMultipleTriggers: boolean;
+  setChooseOrderOnMultipleTriggers: (value: boolean) => void;
+
   // Opt-in for the experimental Ironsmith trusted engine. Off by default so the
   // engine ships dark in prod; the runtime registry and lobby tile also gate on
   // the compile flag + `IRONSMITH_WASM_AVAILABLE`, so this only surfaces it
@@ -146,6 +149,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "lockZoneTiles",
   "battlefieldCardStyle",
   "inGameAnimations",
+  "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "askEngineOnAiPlay",
   "hideAccountSaveNudge",
@@ -252,6 +256,10 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
+
+          chooseOrderOnMultipleTriggers: true,
+          setChooseOrderOnMultipleTriggers: (chooseOrderOnMultipleTriggers) =>
+            set({ chooseOrderOnMultipleTriggers }),
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),

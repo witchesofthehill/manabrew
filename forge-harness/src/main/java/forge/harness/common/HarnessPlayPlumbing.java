@@ -483,7 +483,11 @@ public final class HarnessPlayPlumbing {
 
     public void orderAndPlaySimultaneousSa(List<SpellAbility> activePlayerSAs, final Game game) {
         orderSimultaneousSa(activePlayerSAs);
-        for (final SpellAbility sa : activePlayerSAs) {
+        playSimultaneousSaInOrder(activePlayerSAs, game);
+    }
+
+    public void playSimultaneousSaInOrder(final List<SpellAbility> orderedSAs, final Game game) {
+        for (final SpellAbility sa : orderedSAs) {
             if (sa.isTrigger() && !sa.isCopied()) {
                 boolean prepared = prepareSingleSa(sa.getHostCard(), sa, true);
                 if (prepared) {

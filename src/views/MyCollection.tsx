@@ -36,15 +36,19 @@ export default function MyCollection() {
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const preview = useCardPreview();
-  const rows = useMemo(
+  const collectionRows = useMemo(
     () =>
       Object.entries(quantities)
         .map(([cardKey, quantity]) => ({ cardKey, quantity, ...parseCollectionCardKey(cardKey) }))
-        .filter(({ name, setCode }) =>
-          `${name} ${setCode ?? ""}`.includes(query.trim().toLowerCase()),
-        )
         .sort((a, b) => a.name.localeCompare(b.name) || a.cardKey.localeCompare(b.cardKey)),
-    [quantities, query],
+    [quantities],
+  );
+  const rows = useMemo(
+    () =>
+      collectionRows.filter(({ name, setCode }) =>
+        `${name} ${setCode ?? ""}`.includes(query.trim().toLowerCase()),
+      ),
+    [collectionRows, query],
   );
 
   if (authStatus === "unknown") return null;
@@ -53,7 +57,7 @@ export default function MyCollection() {
   function exportCollection() {
     const csv = [
       "Quantity,Card Name,Set Code,Collector Number,Foil",
-      ...rows.map(
+      ...collectionRows.map(
         ({ name, setCode, collectorNumber, foil, quantity }) =>
           `${quantity},"${name.replaceAll('"', '""')}",${setCode ?? ""},${collectorNumber ?? ""},${foil === undefined ? "" : foil}`,
       ),

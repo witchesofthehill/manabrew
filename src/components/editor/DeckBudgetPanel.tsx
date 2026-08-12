@@ -21,12 +21,12 @@ const PRICE_PROVIDERS: Record<
   tcgplayer: {
     label: "TCGplayer",
     unit: "$",
-    getPrice: (prices, foil) => (foil ? (prices.usd_foil ?? prices.usd) : prices.usd),
+    getPrice: (prices, foil) => (foil ? prices.usd_foil : prices.usd),
   },
   cardmarket: {
     label: "Cardmarket",
     unit: "€",
-    getPrice: (prices, foil) => (foil ? (prices.eur_foil ?? prices.eur) : prices.eur),
+    getPrice: (prices, foil) => (foil ? prices.eur_foil : prices.eur),
   },
   cardhoarder: {
     label: "Cardhoarder",

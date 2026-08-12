@@ -38,6 +38,7 @@ export function DeckHealthPanel({
   const roleCounts = new Map<string, number>();
 
   for (const card of deck.cards) {
+    if (isLand(card.types)) continue;
     for (const role of roles[card.identity.name.toLowerCase()] ?? []) {
       roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
     }

@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardPaste, FileUp, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
+import { fetchCardCollection, scryfallCardKey } from "@/api/scryfall";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,14 +51,81 @@ export function CollectionImportDialog({
   });
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [saving, setSaving] = useState(false);
+  const [printingValidation, setPrintingValidation] = useState<Record<string, boolean>>({});
+  const [validatingPrintings, setValidatingPrintings] = useState(false);
+  const [printingValidationError, setPrintingValidationError] = useState(false);
+  const [printingValidationAttempt, setPrintingValidationAttempt] = useState(0);
   const parsed = useMemo(() => (text.trim() ? parseCollectionFile(text) : null), [text]);
   const preview = useMemo(
     () => (parsed ? previewCollectionImport(parsed, mapping) : []),
     [mapping, parsed],
   );
-  const validRows = preview.filter((row) => row.valid);
-  const invalidRows = preview.length - validRows.length;
-  const imported = useMemo(() => collectionQuantitiesFromPreview(preview), [preview]);
+  const exactRows = useMemo(
+    () => preview.filter((row) => row.valid && row.setCode && row.collectorNumber),
+    [preview],
+  );
+
+  useEffect(() => {
+    let active = true;
+    if (exactRows.length === 0) {
+      setPrintingValidation({});
+      setValidatingPrintings(false);
+      setPrintingValidationError(false);
+      return;
+    }
+    setPrintingValidation({});
+    setValidatingPrintings(true);
+    setPrintingValidationError(false);
+    void fetchCardCollection(exactRows)
+      .then((cards) => {
+        if (!active) return;
+        setPrintingValidation(
+          Object.fromEntries(
+            exactRows.map((row) => {
+              const key = scryfallCardKey(row.name, row.setCode, row.collectorNumber);
+              return [key, cards.has(key)];
+            }),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!active) return;
+        setPrintingValidationError(true);
+      })
+      .finally(() => {
+        if (active) setValidatingPrintings(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [exactRows, printingValidationAttempt]);
+
+  const validatedPreview = useMemo(
+    () =>
+      preview.map((row) => {
+        if (!row.valid || !row.setCode || !row.collectorNumber) return row;
+        const validation =
+          printingValidation[scryfallCardKey(row.name, row.setCode, row.collectorNumber)];
+        if (validation === true) return row;
+        return {
+          ...row,
+          valid: false,
+          reason:
+            validation === false
+              ? "Printing not found"
+              : printingValidationError
+                ? "Verification failed"
+                : "Checking printing…",
+        };
+      }),
+    [preview, printingValidation, printingValidationError],
+  );
+  const validRows = validatedPreview.filter((row) => row.valid);
+  const invalidRows = validatedPreview.length - validRows.length;
+  const imported = useMemo(
+    () => collectionQuantitiesFromPreview(validatedPreview),
+    [validatedPreview],
+  );
 
   function loadText(nextText: string, nextFileName = "Pasted data") {
     const nextParsed = parseCollectionFile(nextText);
@@ -223,6 +291,16 @@ export function CollectionImportDialog({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold">Import preview</h3>
                 <div className="flex items-center gap-3 text-xs">
+                  {printingValidationError && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setPrintingValidationAttempt((attempt) => attempt + 1)}
+                    >
+                      Retry verification
+                    </Button>
+                  )}
                   <span className="flex items-center gap-1 text-legality-legal">
                     <CheckCircle2 className="h-3.5 w-3.5" /> {validRows.length} ready
                   </span>
@@ -246,7 +324,7 @@ export function CollectionImportDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.slice(0, 100).map((row) => (
+                    {validatedPreview.slice(0, 100).map((row) => (
                       <tr key={row.rowNumber} className="border-b last:border-0">
                         <td className="px-3 py-2 text-muted-foreground">{row.rowNumber}</td>
                         <td className="max-w-80 truncate px-3 py-2">{row.name || "—"}</td>
@@ -309,9 +387,18 @@ export function CollectionImportDialog({
           {parsed && (
             <Button
               onClick={() => void applyImport()}
-              disabled={saving || mapping.nameColumn === null || validRows.length === 0}
+              disabled={
+                saving ||
+                validatingPrintings ||
+                mapping.nameColumn === null ||
+                validRows.length === 0
+              }
             >
-              {saving ? "Importing…" : `Import ${Object.keys(imported).length} entries`}
+              {saving
+                ? "Importing…"
+                : validatingPrintings
+                  ? "Checking printings…"
+                  : `Import ${Object.keys(imported).length} entries`}
             </Button>
           )}
         </DialogFooter>

@@ -121,6 +121,7 @@ run(
     "forge/forge-gui/res/tokenscripts",
     "forge/forge-gui/res/editions",
     "forge/forge-gui/res/blockdata",
+    "forge/forge-gui/res/lists/TypeLists.txt",
     tmpArchive,
   ],
   { shell: false },

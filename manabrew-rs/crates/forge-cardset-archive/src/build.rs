@@ -19,6 +19,7 @@ pub struct ArchiveSources<'a> {
     pub tokenscripts: Option<&'a Path>,
     pub editions: Option<&'a Path>,
     pub block_data: Option<&'a Path>,
+    pub type_lists: &'a Path,
 }
 
 pub fn build_archive_from_sources(
@@ -71,12 +72,19 @@ pub fn build_archive_from_sources(
         }
     }
 
+    // Unlike editions/block_data, a missing TypeLists.txt is a hard error: the
+    // engine panics on the first changeling or ChooseType card rather than
+    // degrading, so shipping an archive without it is never valid.
+    let type_lists = std::fs::read_to_string(sources.type_lists)
+        .map_err(|e| format!("read type lists {}: {e}", sources.type_lists.display()))?;
+
     let archive = CardArchive {
         format_version: ARCHIVE_FORMAT_VERSION,
         cards,
         tokens,
         editions,
         block_data,
+        type_lists,
     };
     let bytes = to_bytes(&archive)?;
     stats.bytes_written = bytes.len();

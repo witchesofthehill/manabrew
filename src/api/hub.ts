@@ -106,10 +106,15 @@ export function fetchAccountCollection(): Promise<CardCollection> {
 }
 
 export function saveAccountCollection(collection: CardCollection): Promise<CardCollection> {
-  return hubJson<CardCollection>("/api/collection", {
+  return hubRequest("/api/collection", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(collection),
+  }).then(async (response) => {
+    if (response.status === 204) {
+      return { ...collection, version: (collection.version ?? 0) + 1 };
+    }
+    return (await response.json()) as CardCollection;
   });
 }
 

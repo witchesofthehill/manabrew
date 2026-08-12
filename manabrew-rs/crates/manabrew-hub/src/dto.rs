@@ -25,7 +25,9 @@ pub struct CardCollectionEntry {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]
 pub struct CardCollection {
-    pub version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub version: Option<u32>,
     pub cards: Vec<CardCollectionEntry>,
 }
 

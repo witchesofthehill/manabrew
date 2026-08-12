@@ -164,7 +164,7 @@ async fn card_collection_handler(
 ) -> Response {
     match state.storage.lock().unwrap().card_collection(&account.id) {
         Ok((version, cards)) => Json(CardCollection {
-            version,
+            version: Some(version),
             cards: cards
                 .into_iter()
                 .map(|(card_key, quantity)| CardCollectionEntry { card_key, quantity })
@@ -198,15 +198,15 @@ async fn replace_card_collection_handler(
         &cards,
         collection.version,
     ) {
-        Ok(true) => Json(CardCollection {
-            version: collection.version + 1,
+        Ok(Some(version)) => Json(CardCollection {
+            version: Some(version),
             cards: cards
                 .into_iter()
                 .map(|(card_key, quantity)| CardCollectionEntry { card_key, quantity })
                 .collect(),
         })
         .into_response(),
-        Ok(false) => (
+        Ok(None) => (
             StatusCode::CONFLICT,
             "This collection changed on another device. Reload it and try again.",
         )

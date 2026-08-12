@@ -2,20 +2,31 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { account, saveAccountCollection } = vi.hoisted(() => ({
+const { account, fetchAccountCollection, saveAccountCollection } = vi.hoisted(() => ({
   account: { id: "acct-1" as string | null },
+  fetchAccountCollection: vi.fn(),
   saveAccountCollection: vi.fn(),
 }));
 
-vi.mock("@/api/hub", () => ({
-  fetchAccountCollection: vi.fn(),
-  saveAccountCollection,
-}));
+vi.mock("@/api/hub", () => {
+  class HubRequestError extends Error {
+    status: number;
+
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+    }
+  }
+
+  return { fetchAccountCollection, HubRequestError, saveAccountCollection };
+});
 vi.mock("@/stores/useAuthStore", () => ({
   useAuthStore: {
     getState: () => ({ account: account.id ? { id: account.id } : null }),
   },
 }));
+
+import { HubRequestError } from "@/api/hub";
 
 import { useCollectionStore } from "./useCollectionStore";
 
@@ -23,12 +34,56 @@ describe("collection account saves", () => {
   beforeEach(() => {
     localStorage.clear();
     account.id = "acct-1";
+    fetchAccountCollection.mockReset();
     saveAccountCollection.mockReset();
     useCollectionStore.setState({
       accountId: "acct-1",
       version: 0,
       quantities: {},
+      syncedQuantities: {},
       loading: false,
+      error: null,
+    });
+  });
+
+  it("rebases a local edit and retries after a version conflict", async () => {
+    useCollectionStore.setState({
+      version: 2,
+      quantities: { "lightning bolt": 4 },
+      syncedQuantities: { "lightning bolt": 4 },
+    });
+    saveAccountCollection
+      .mockRejectedValueOnce(new HubRequestError(409, "conflict"))
+      .mockResolvedValueOnce({
+        version: 4,
+        cards: [
+          { cardKey: "lightning bolt", quantity: 4 },
+          { cardKey: "counterspell", quantity: 2 },
+          { cardKey: "sol ring", quantity: 1 },
+        ],
+      });
+    fetchAccountCollection.mockResolvedValue({
+      version: 3,
+      cards: [
+        { cardKey: "lightning bolt", quantity: 4 },
+        { cardKey: "sol ring", quantity: 1 },
+      ],
+    });
+
+    await useCollectionStore.getState().setQuantity("counterspell", 2);
+
+    expect(saveAccountCollection).toHaveBeenNthCalledWith(2, {
+      version: 3,
+      cards: [
+        { cardKey: "lightning bolt", quantity: 4 },
+        { cardKey: "sol ring", quantity: 1 },
+        { cardKey: "counterspell", quantity: 2 },
+      ],
+    });
+    expect(useCollectionStore.getState()).toMatchObject({
+      version: 4,
+      quantities: { "lightning bolt": 4, "sol ring": 1, counterspell: 2 },
+      syncedQuantities: { "lightning bolt": 4, "sol ring": 1, counterspell: 2 },
       error: null,
     });
   });
@@ -45,6 +100,12 @@ describe("collection account saves", () => {
     expect(JSON.parse(localStorage.getItem("manabrew-pending-account-collection") ?? "{}")).toEqual(
       { accountId: "acct-1", quantities: { "lightning bolt": 4 } },
     );
+
+    saveAccountCollection.mockResolvedValue({ version: 1, cards: [] });
+    await useCollectionStore.getState().setQuantity("counterspell", 2);
+
+    expect(useCollectionStore.getState().error).toBeNull();
+    expect(localStorage.getItem("manabrew-pending-account-collection")).toBeNull();
   });
 
   it("rejects and preserves a queued snapshot when the account changes", async () => {

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { fetchAccountCollection, saveAccountCollection } from "@/api/hub";
+import { fetchAccountCollection, HubRequestError, saveAccountCollection } from "@/api/hub";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const LOCAL_COLLECTION_KEY = "manabrew-card-collection";
@@ -41,6 +41,20 @@ function readPendingAccountCollection(accountId: string): Record<string, number>
   }
 }
 
+function applyCollectionDelta(
+  base: Record<string, number>,
+  desired: Record<string, number>,
+  remote: Record<string, number>,
+): Record<string, number> {
+  const merged = { ...remote };
+  for (const cardKey of new Set([...Object.keys(base), ...Object.keys(desired)])) {
+    if ((base[cardKey] ?? 0) === (desired[cardKey] ?? 0)) continue;
+    if ((desired[cardKey] ?? 0) > 0) merged[cardKey] = desired[cardKey];
+    else delete merged[cardKey];
+  }
+  return merged;
+}
+
 function queueAccountSave(accountId: string, quantities: Record<string, number>): Promise<void> {
   const request = accountSaveQueue
     .catch(() => undefined)
@@ -49,11 +63,39 @@ function queueAccountSave(accountId: string, quantities: Record<string, number>)
         writePendingAccountCollection(accountId, quantities);
         throw new Error("Collection account changed before this edit could sync");
       }
-      const version = useCollectionStore.getState().version;
-      return saveAccountCollection(toPayload(quantities, version)).then((saved) => {
-        if (useCollectionStore.getState().accountId === accountId) {
-          useCollectionStore.setState({ version: saved.version });
+      const state = useCollectionStore.getState();
+      let pending = quantities;
+      const save = async () => {
+        let desired = pending;
+        let version = state.version;
+        try {
+          const saved = await saveAccountCollection(toPayload(desired, version));
+          version = saved.version ?? version + 1;
+        } catch (error) {
+          if (!(error instanceof HubRequestError) || error.status !== 409) throw error;
+          const remote = await fetchAccountCollection();
+          const remoteQuantities = Object.fromEntries(
+            remote.cards.map((card) => [card.cardKey, card.quantity]),
+          );
+          desired = applyCollectionDelta(state.syncedQuantities, desired, remoteQuantities);
+          pending = desired;
+          version = remote.version ?? 0;
+          const saved = await saveAccountCollection(toPayload(desired, version));
+          version = saved.version ?? version + 1;
         }
+        if (useCollectionStore.getState().accountId === accountId) {
+          localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
+          useCollectionStore.setState({
+            version,
+            quantities: desired,
+            syncedQuantities: desired,
+            error: null,
+          });
+        }
+      };
+      return save().catch((error) => {
+        writePendingAccountCollection(accountId, pending);
+        throw error;
       });
     });
   accountSaveQueue = request;
@@ -64,6 +106,7 @@ interface CollectionState {
   accountId: string | null;
   version: number;
   quantities: Record<string, number>;
+  syncedQuantities: Record<string, number>;
   loading: boolean;
   error: string | null;
   initialize: (accountId: string | null) => Promise<void>;
@@ -75,6 +118,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
   accountId: null,
   version: 0,
   quantities: {},
+  syncedQuantities: {},
   loading: false,
   error: null,
   initialize: async (accountId) => {
@@ -91,6 +135,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         accountId: null,
         version: 0,
         quantities: readLocalCollection(),
+        syncedQuantities: {},
         loading: false,
         error: null,
       });
@@ -100,7 +145,14 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     const local = readLocalCollection();
     const pendingAccountCollection = readPendingAccountCollection(accountId);
     const quantitiesWhileLoading = get().accountId === null ? local : {};
-    set({ accountId, version: 0, quantities: quantitiesWhileLoading, loading: true, error: null });
+    set({
+      accountId,
+      version: 0,
+      quantities: quantitiesWhileLoading,
+      syncedQuantities: {},
+      loading: true,
+      error: null,
+    });
     const initialize = async () => {
       try {
         const remote = await fetchAccountCollection();
@@ -122,8 +174,8 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
           }
         }
         if (pendingAccountCollection || Object.keys(local).length > 0) {
-          const saved = await saveAccountCollection(toPayload(quantities, remote.version));
-          remote.version = saved.version;
+          const saved = await saveAccountCollection(toPayload(quantities, remote.version ?? 0));
+          remote.version = saved.version ?? (remote.version ?? 0) + 1;
           if (
             initializationId !== collectionInitializationId ||
             useAuthStore.getState().account?.id !== accountId
@@ -134,7 +186,13 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
           localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
         }
         if (get().accountId === accountId) {
-          set({ version: remote.version, quantities, loading: false, error: null });
+          set({
+            version: remote.version ?? 0,
+            quantities,
+            syncedQuantities: quantities,
+            loading: false,
+            error: null,
+          });
         }
       } catch (error) {
         if (initializationId === collectionInitializationId && get().accountId === accountId) {
@@ -173,7 +231,6 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         }
       } catch (error) {
         if (get().accountId === accountId) {
-          writePendingAccountCollection(accountId, quantities);
           set({ error: error instanceof Error ? error.message : "Collection sync failed" });
         }
         throw error;
@@ -208,7 +265,6 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         }
       } catch (error) {
         if (get().accountId === accountId) {
-          writePendingAccountCollection(accountId, normalized);
           set({ error: error instanceof Error ? error.message : "Collection sync failed" });
         }
         throw error;

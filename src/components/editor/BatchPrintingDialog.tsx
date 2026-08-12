@@ -20,9 +20,11 @@ import { executeDeckEdit } from "./deckEditor.history";
 export function BatchPrintingDialog({
   open,
   onOpenChange,
+  cardNames,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  cardNames?: ReadonlySet<string>;
 }) {
   const [sets, setSets] = useState<ScryfallSet[]>([]);
   const [query, setQuery] = useState("");
@@ -87,7 +89,9 @@ export function BatchPrintingDialog({
           ...(deck.contraptions ?? []),
           ...(deck.schemes ?? []),
           ...(deck.planes ?? []),
-        ].map((card) => card.identity.name),
+        ]
+          .map((card) => card.identity.name)
+          .filter((name) => !cardNames || cardNames.has(name.toLowerCase())),
       );
       const matches = [...names]
         .map((name) => ({ name, print: printsByName.get(name.toLowerCase()) }))
@@ -125,7 +129,7 @@ export function BatchPrintingDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Change deck printings</DialogTitle>
+          <DialogTitle>Change {cardNames ? "selected" : "deck"} printings</DialogTitle>
           <DialogDescription>
             Choose a set to update every matching card. Cards without a printing in that set stay
             unchanged.

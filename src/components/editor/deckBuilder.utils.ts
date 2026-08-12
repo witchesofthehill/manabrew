@@ -149,51 +149,6 @@ export function sortCardGroups(groups: CardGroup[], mode: SortMode): CardGroup[]
 /**
  * Exports deck to Arena format (main deck + supplementary sections).
  */
-export function exportToArena(deck: {
-  name: string;
-  cards: DeckCard[];
-  sideboard: DeckCard[];
-  attractions?: DeckCard[];
-  contraptions?: DeckCard[];
-  schemes?: DeckCard[];
-  planes?: DeckCard[];
-}): string {
-  const mainGroups = groupCards(deck.cards);
-  const sideGroups = groupCards(deck.sideboard);
-  const attractionGroups = groupCards(deck.attractions ?? []);
-  const contraptionGroups = groupCards(deck.contraptions ?? []);
-  const schemeGroups = groupCards(deck.schemes ?? []);
-  const planeGroups = groupCards(deck.planes ?? []);
-  const lines: string[] = [];
-  for (const g of mainGroups) lines.push(`${g.count} ${g.card.identity.name}`);
-  if (sideGroups.length > 0) {
-    lines.push("");
-    lines.push("Sideboard");
-    for (const g of sideGroups) lines.push(`${g.count} ${g.card.identity.name}`);
-  }
-  if (attractionGroups.length > 0) {
-    lines.push("");
-    lines.push("Attractions");
-    for (const g of attractionGroups) lines.push(`${g.count} ${g.card.identity.name}`);
-  }
-  if (contraptionGroups.length > 0) {
-    lines.push("");
-    lines.push("Contraptions");
-    for (const g of contraptionGroups) lines.push(`${g.count} ${g.card.identity.name}`);
-  }
-  if (schemeGroups.length > 0) {
-    lines.push("");
-    lines.push("Schemes");
-    for (const g of schemeGroups) lines.push(`${g.count} ${g.card.identity.name}`);
-  }
-  if (planeGroups.length > 0) {
-    lines.push("");
-    lines.push("Planes");
-    for (const g of planeGroups) lines.push(`${g.count} ${g.card.identity.name}`);
-  }
-  return lines.join("\n");
-}
-
 /**
  * Computes section groups for the main deck by filtering cards into type sections.
  */

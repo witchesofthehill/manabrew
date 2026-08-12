@@ -4,7 +4,11 @@ import {
   Bookmark,
   BookmarkMinus,
   ChevronDown,
+  ClipboardCopy,
   Images,
+  Minus,
+  Plus,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -22,6 +26,11 @@ interface DeckSelectionTrayProps {
   appliedTags: string[];
   onMoveToMain: () => void;
   onMoveToSide: () => void;
+  onMoveToMaybe: () => void;
+  onAddCopy: () => void;
+  onRemoveCopy: () => void;
+  onToggleFoil: () => void;
+  onCopy: () => void;
   onTag: (tag: string) => void;
   onUntag: (tag: string) => void;
   onPrinting: () => void;
@@ -35,6 +44,11 @@ export function DeckSelectionTray({
   appliedTags,
   onMoveToMain,
   onMoveToSide,
+  onMoveToMaybe,
+  onAddCopy,
+  onRemoveCopy,
+  onToggleFoil,
+  onCopy,
   onTag,
   onUntag,
   onPrinting,
@@ -66,6 +80,20 @@ export function DeckSelectionTray({
         </Button>
         <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onMoveToSide}>
           <ArrowDownToLine className="mr-1 h-3 w-3" /> Sideboard
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-10 shrink-0 sm:h-8"
+          onClick={onMoveToMaybe}
+        >
+          Maybeboard
+        </Button>
+        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onAddCopy}>
+          <Plus className="mr-1 h-3 w-3" /> One each
+        </Button>
+        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onRemoveCopy}>
+          <Minus className="mr-1 h-3 w-3" /> One each
         </Button>
         {tags.length > 0 && (
           <DropdownMenu>
@@ -103,6 +131,12 @@ export function DeckSelectionTray({
         )}
         <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onPrinting}>
           <Images className="mr-1 h-3 w-3" /> Printing
+        </Button>
+        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onToggleFoil}>
+          <Sparkles className="mr-1 h-3 w-3" /> Foil
+        </Button>
+        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onCopy}>
+          <ClipboardCopy className="mr-1 h-3 w-3" /> Copy
         </Button>
         <div className="flex-1" />
         <Button size="sm" variant="destructive" className="h-10 shrink-0 sm:h-8" onClick={onRemove}>

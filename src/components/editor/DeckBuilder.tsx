@@ -52,6 +52,7 @@ import {
   scryfallToDeckCard,
 } from "@/lib/scryfall.utils";
 import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
+import { parseDeckListText } from "@/lib/deckImport";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
@@ -90,13 +91,13 @@ import {
   CMC_BUCKET_LABELS,
   cmcBucketIndex,
   groupCards,
-  exportToArena,
   computeGroupedSections,
   computeGroupedStackColumns,
   sortCardGroups,
   DEFAULT_CARD_SIZE,
   MAX_CARD_SIZE,
 } from "./deckBuilder.utils";
+import { exportToArena, exportWithPrintings } from "./deckExport";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
 
@@ -176,6 +177,7 @@ export function DeckBuilder({
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [batchPrintingOpen, setBatchPrintingOpen] = useState(false);
+  const [batchPrintingSelectionOnly, setBatchPrintingSelectionOnly] = useState(false);
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -258,6 +260,12 @@ export function DeckBuilder({
     "deck-editor-command-palette": () => setCommandPaletteOpen(true),
     "deck-editor-tag-selection": () => {
       if (selectedCards.size > 0) setTagDialogOpen(true);
+    },
+    "deck-editor-select-all": () => selectAllDeckCards(),
+    "deck-editor-copy-selection": () => void copySelectedCards(),
+    "deck-editor-paste-cards": () => void pasteCards(),
+    "deck-editor-remove-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleRemoveSelected();
     },
   });
 
@@ -390,6 +398,90 @@ export function DeckBuilder({
     bulkAction(`Moved ${selectedCards.size} cards to main`, () =>
       moveSelectedCards(selectedCards, "main"),
     );
+  const handleMoveSelectedToMaybe = () =>
+    bulkAction(`Moved ${selectedCards.size} cards to maybeboard`, () =>
+      moveSelectedCards(selectedCards, "maybe"),
+    );
+
+  function allDeckCards() {
+    return [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+      ...(currentDeck.commanders ?? []),
+      ...(currentDeck.attractions ?? []),
+      ...(currentDeck.contraptions ?? []),
+      ...(currentDeck.schemes ?? []),
+      ...(currentDeck.planes ?? []),
+    ];
+  }
+
+  function selectAllDeckCards() {
+    selectCards(
+      allDeckCards().map((card) => card.identity.name),
+      true,
+    );
+  }
+
+  async function copySelectedCards() {
+    if (selectedCards.size === 0) return;
+    const counts = new Map<string, number>();
+    for (const card of allDeckCards()) {
+      if (!selectedCards.has(card.identity.name.toLowerCase())) continue;
+      counts.set(card.identity.name, (counts.get(card.identity.name) ?? 0) + 1);
+    }
+    await navigator.clipboard.writeText(
+      [...counts].map(([name, count]) => `${count} ${name}`).join("\n"),
+    );
+    toast.success(`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`);
+  }
+
+  async function pasteCards() {
+    if (isReadOnly) return;
+    try {
+      const entries = parseDeckListText(await navigator.clipboard.readText());
+      if (entries.length === 0) {
+        toast.error("Clipboard does not contain a recognized card list");
+        return;
+      }
+      await importIntoCurrentDeck(entries, "", undefined, () => undefined);
+    } catch {
+      toast.error("Could not read cards from the clipboard");
+    }
+  }
+
+  function addOneEachSelected() {
+    const store = useDeckStore.getState();
+    const cards = allDeckCards();
+    executeDeckEdit(`Added one copy of ${selectedCards.size} cards`, () => {
+      for (const name of selectedCards) {
+        const card = cards.find((candidate) => candidate.identity.name.toLowerCase() === name);
+        if (!card) continue;
+        const copy = { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
+        if (currentDeck.sideboard.includes(card)) store.addToSide(copy);
+        else if ((currentDeck.maybeboard ?? []).includes(card)) store.addToMaybe(copy);
+        else store.addToMain(copy);
+      }
+    });
+    toast.success(`Added one copy of ${selectedCards.size} cards`);
+  }
+
+  function removeOneEachSelected() {
+    executeDeckEdit(`Removed one copy of ${selectedCards.size} cards`, () => {
+      for (const name of selectedCards) {
+        for (const zone of ["main", "side", "maybe", "special"] as const) {
+          if (removeCardCopies(name, zone, "one") > 0) break;
+        }
+      }
+    });
+    toast.success(`Removed one copy of ${selectedCards.size} cards`);
+  }
+
+  function toggleSelectedFoil() {
+    bulkAction(`Toggled foil for ${selectedCards.size} cards`, () => {
+      for (const name of selectedCards) toggleFoil(name);
+    });
+  }
   const handleTagSelected = (tag: string) =>
     bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
       for (const name of selectedCards) tagCard(name, tag);
@@ -463,38 +555,52 @@ export function DeckBuilder({
     [applyFilters, currentDeck.cards],
   );
   // Compute groups
-  const groupedMain = computeGroupedSections(
+  const { sectionGroups, otherGroups, sideGroups, maybeGroups, specialSections } = useMemo(() => {
+    const groupedMain = computeGroupedSections(
+      filteredMain,
+      groupBy,
+      currentDeck.customTags,
+      currentDeck.cardTags,
+    );
+    const groupZone = (cards: DeckCard[]) =>
+      sortCardGroups(groupCards(applyFilters(cards)), sortBy);
+    return {
+      sectionGroups: groupedMain.sections.map((section) => ({
+        ...section,
+        groups: sortCardGroups(section.groups, sortBy),
+      })),
+      otherGroups: sortCardGroups(groupedMain.otherGroups, sortBy),
+      sideGroups: groupZone(currentDeck.sideboard),
+      maybeGroups: groupZone(currentDeck.maybeboard ?? []),
+      specialSections: [
+        {
+          id: "attractions",
+          label: "Attractions",
+          groups: groupZone(currentDeck.attractions ?? []),
+        },
+        {
+          id: "contraptions",
+          label: "Contraptions",
+          groups: groupZone(currentDeck.contraptions ?? []),
+        },
+        { id: "schemes", label: "Schemes", groups: groupZone(currentDeck.schemes ?? []) },
+        { id: "planes", label: "Planes", groups: groupZone(currentDeck.planes ?? []) },
+      ].filter((section) => section.groups.length > 0),
+    };
+  }, [
+    applyFilters,
+    currentDeck.attractions,
+    currentDeck.cardTags,
+    currentDeck.contraptions,
+    currentDeck.customTags,
+    currentDeck.maybeboard,
+    currentDeck.planes,
+    currentDeck.schemes,
+    currentDeck.sideboard,
     filteredMain,
     groupBy,
-    currentDeck.customTags,
-    currentDeck.cardTags,
-  );
-  const sectionGroups = groupedMain.sections.map((section) => ({
-    ...section,
-    groups: sortCardGroups(section.groups, sortBy),
-  }));
-  const otherGroups = sortCardGroups(groupedMain.otherGroups, sortBy);
-  const sideGroups = sortCardGroups(groupCards(applyFilters(currentDeck.sideboard)), sortBy);
-  const attractionGroups = sortCardGroups(
-    groupCards(applyFilters(currentDeck.attractions ?? [])),
     sortBy,
-  );
-  const contraptionGroups = sortCardGroups(
-    groupCards(applyFilters(currentDeck.contraptions ?? [])),
-    sortBy,
-  );
-  const schemeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.schemes ?? [])), sortBy);
-  const planeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.planes ?? [])), sortBy);
-  const maybeGroups = sortCardGroups(
-    groupCards(applyFilters(currentDeck.maybeboard ?? [])),
-    sortBy,
-  );
-  const specialSections = [
-    { id: "attractions", label: "Attractions", groups: attractionGroups },
-    { id: "contraptions", label: "Contraptions", groups: contraptionGroups },
-    { id: "schemes", label: "Schemes", groups: schemeGroups },
-    { id: "planes", label: "Planes", groups: planeGroups },
-  ].filter((section) => section.groups.length > 0);
+  ]);
   const stackColsData = useMemo(
     () =>
       computeGroupedStackColumns(
@@ -736,6 +842,13 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
+  function handleExactExport() {
+    navigator.clipboard
+      .writeText(exportWithPrintings(currentDeck))
+      .then(() => toast.success("Exact printings copied to clipboard"))
+      .catch(() => toast.error("Could not write to the clipboard"));
+  }
+
   async function handleSave(deckOverride?: EditorDeck) {
     if (saveInFlightRef.current) return;
     const sourceDeck = deckOverride ?? currentDeck;
@@ -872,12 +985,42 @@ export function DeckBuilder({
       keywords: ["bulk", "multi select"],
       disabled: currentDeck.cards.length === 0,
       disabledReason: currentDeck.cards.length === 0 ? "Deck is empty" : undefined,
+      run: selectAllDeckCards,
+    },
+    {
+      id: "select-filtered",
+      label: "Select cards matching current filters",
+      keywords: ["visible", "search", "bulk"],
+      disabled: !deckFilter && cmcFilter === null,
+      disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
       run: () =>
         selectCards(
-          currentDeck.cards.map((card) => card.identity.name),
+          currentDeck.cards.filter(matchesFilters).map((card) => card.identity.name),
           true,
         ),
     },
+    {
+      id: "select-unsupported",
+      label: "Select unsupported cards",
+      keywords: ["engine", "warning", "bulk"],
+      disabled: unsupportedNames.size === 0,
+      disabledReason: unsupportedNames.size === 0 ? "No unsupported cards" : undefined,
+      run: () => selectCards([...unsupportedNames], true),
+    },
+    ...(currentDeck.customTags ?? []).map(
+      (tag): DeckEditorCommand => ({
+        id: `select-tag-${tag}`,
+        label: `Select cards tagged ${tag}`,
+        keywords: ["group", "role", "bulk"],
+        run: () =>
+          selectCards(
+            Object.entries(currentDeck.cardTags ?? {})
+              .filter(([, tags]) => tags.includes(tag))
+              .map(([name]) => name),
+            true,
+          ),
+      }),
+    ),
     {
       id: "toggle-search",
       label: "Toggle card search panel",
@@ -893,6 +1036,28 @@ export function DeckBuilder({
       run: () => onTogglePreview?.(),
     },
     { id: "export", label: "Copy deck list", keywords: ["export", "clipboard"], run: handleExport },
+    {
+      id: "export-printings",
+      label: "Copy deck with exact printings",
+      keywords: ["export", "moxfield", "archidekt", "foil", "sets"],
+      run: handleExactExport,
+    },
+    {
+      id: "copy-selection",
+      label: "Copy selected cards",
+      keywords: ["clipboard", "duplicate"],
+      disabled: selectedCards.size === 0,
+      disabledReason: selectedCards.size === 0 ? "No selection" : undefined,
+      run: () => void copySelectedCards(),
+    },
+    {
+      id: "paste-cards",
+      label: "Paste cards into deck",
+      keywords: ["clipboard", "import"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => void pasteCards(),
+    },
     {
       id: "labels",
       label: "Manage deck labels",
@@ -917,6 +1082,48 @@ export function DeckBuilder({
       run: () => setTagDialogOpen(true),
     },
     {
+      id: "move-selection-main",
+      label: "Move selected cards to main deck",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleMoveSelectedToMain,
+    },
+    {
+      id: "move-selection-side",
+      label: "Move selected cards to sideboard",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleMoveSelectedToSide,
+    },
+    {
+      id: "move-selection-maybe",
+      label: "Move selected cards to maybeboard",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleMoveSelectedToMaybe,
+    },
+    {
+      id: "add-selection-copy",
+      label: "Add one copy of each selected card",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: addOneEachSelected,
+    },
+    {
+      id: "remove-selection-copy",
+      label: "Remove one copy of each selected card",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: removeOneEachSelected,
+    },
+    {
+      id: "foil-selection",
+      label: "Toggle foil for selected cards",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: toggleSelectedFoil,
+    },
+    {
       id: "manage-tags",
       label: "Manage deck tags",
       keywords: ["rename", "reorder", "delete", "groups"],
@@ -930,7 +1137,10 @@ export function DeckBuilder({
       keywords: ["art", "edition", "set"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
-      run: () => setBatchPrintingOpen(true),
+      run: () => {
+        setBatchPrintingSelectionOnly(false);
+        setBatchPrintingOpen(true);
+      },
     },
   ];
 
@@ -1286,7 +1496,15 @@ export function DeckBuilder({
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setBatchPrintingOpen(true)}>
+                <DropdownMenuItem onSelect={handleExactExport}>
+                  <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setBatchPrintingSelectionOnly(false);
+                    setBatchPrintingOpen(true);
+                  }}
+                >
                   <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
                 </DropdownMenuItem>
                 {publishEnabled && (
@@ -1604,9 +1822,17 @@ export function DeckBuilder({
             appliedTags={selectedCardTags}
             onMoveToMain={handleMoveSelectedToMain}
             onMoveToSide={handleMoveSelectedToSide}
+            onMoveToMaybe={handleMoveSelectedToMaybe}
+            onAddCopy={addOneEachSelected}
+            onRemoveCopy={removeOneEachSelected}
+            onToggleFoil={toggleSelectedFoil}
+            onCopy={() => void copySelectedCards()}
             onTag={handleTagSelected}
             onUntag={handleUntagSelected}
-            onPrinting={() => setBatchPrintingOpen(true)}
+            onPrinting={() => {
+              setBatchPrintingSelectionOnly(true);
+              setBatchPrintingOpen(true);
+            }}
             onRemove={handleRemoveSelected}
             onClear={clearSelection}
           />
@@ -1703,7 +1929,11 @@ export function DeckBuilder({
           onCreateAndApply={handleCreateAndTagSelected}
         />
         <DeckTagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} />
-        <BatchPrintingDialog open={batchPrintingOpen} onOpenChange={setBatchPrintingOpen} />
+        <BatchPrintingDialog
+          open={batchPrintingOpen}
+          onOpenChange={setBatchPrintingOpen}
+          cardNames={batchPrintingSelectionOnly ? selectedCards : undefined}
+        />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open

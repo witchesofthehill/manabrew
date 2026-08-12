@@ -96,6 +96,30 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "t" },
   },
   {
+    id: "deck-editor-select-all",
+    label: "Select all deck cards",
+    category: "Deck editor",
+    defaultCombo: { key: "a", mod: true },
+  },
+  {
+    id: "deck-editor-copy-selection",
+    label: "Copy selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "c", mod: true },
+  },
+  {
+    id: "deck-editor-paste-cards",
+    label: "Paste cards into deck",
+    category: "Deck editor",
+    defaultCombo: { key: "v", mod: true },
+  },
+  {
+    id: "deck-editor-remove-selection",
+    label: "Remove selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "delete" },
+  },
+  {
     id: "open-settings",
     label: "Open preferences",
     category: "Navigation",

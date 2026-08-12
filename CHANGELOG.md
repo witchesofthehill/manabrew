@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.12.4](https://github.com/witchesofthehill/manabrew/compare/v3.12.3...v3.12.4) (2026-08-12)
+
+### Fixes
+
+* **wasm:** crash on select creature type on WASM builds ([#681](https://github.com/witchesofthehill/manabrew/issues/681)) ([e51ba2d](https://github.com/witchesofthehill/manabrew/commit/e51ba2d691967947f202497df5055b8f7dba2f81))
+
 ## [3.12.3](https://github.com/witchesofthehill/manabrew/compare/v3.12.2...v3.12.3) (2026-08-10)
 
 ### Fixes

@@ -1,6 +1,6 @@
 import type { MouseEvent } from "react";
 import { Palette, X } from "lucide-react";
-import { CARD_WIDTH_MAP } from "./deckBuilder.utils";
+import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { DeckCard } from "@/protocol/deck";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
@@ -28,7 +28,7 @@ export function TokenSection({
 }: TokenSectionProps) {
   if (tokens.length === 0) return null;
 
-  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
+  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
 
   return (
     <section className="rounded-xl border bg-card/40 p-6">

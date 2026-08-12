@@ -6,6 +6,7 @@ use std::sync::OnceLock;
 use forge_carddb::CardDatabase;
 use forge_foundation::edition::EditionsRegistry;
 use forge_limited::bootstrap::build_registry;
+use manabrew_engine::game::TypeRegistry;
 use wasm_bindgen::prelude::*;
 
 /// The global card database, populated by `load_card_archive`.
@@ -68,6 +69,8 @@ pub fn load_card_archive(bytes: &[u8]) -> Result<u64, JsError> {
         .map_err(|_| JsError::new("Token database already initialized"))?;
 
     if let Some(archive) = CARD_DB.get().and_then(|db| db.archive()) {
+        TypeRegistry::load(archive.type_lists.as_str());
+
         let editions: Vec<(&str, &str)> = archive
             .editions
             .iter()

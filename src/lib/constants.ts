@@ -80,6 +80,7 @@ export const DROP_ZONE = {
   MAIN: "drop-main",
   SIDE: "drop-side",
   MAYBE: "drop-maybe",
+  COMMAND: "drop-command",
   TAG_PREFIX: "drop-tag-",
 } as const;
 

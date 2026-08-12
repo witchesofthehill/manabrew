@@ -9,6 +9,7 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { startOAuth, unlinkIdentity, AuthRequestError, type OAuthProvider } from "@/api/auth";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { getPlatformType } from "@/platform";
+import { openExternal } from "@/lib/openExternal";
 
 const PROVIDER_LABELS: Record<string, string> = {
   github: "GitHub",
@@ -57,7 +58,7 @@ export function AccountSection() {
       const desktop = getPlatformType() === "tauri";
       const url = await startOAuth(provider, "link", desktop ? "desktop" : "web", token);
       if (desktop) {
-        window.open(url, "_blank", "noopener");
+        await openExternal(url);
         const onFocus = () => {
           window.removeEventListener("focus", onFocus);
           void refresh();

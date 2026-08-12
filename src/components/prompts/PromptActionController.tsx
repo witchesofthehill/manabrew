@@ -15,6 +15,7 @@ import type { DeckCard } from "@/protocol/deck";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { usePromptSourceCard } from "./internal/usePromptSourceCard";
 import { PromptRequired } from "./PromptRequired";
 
 function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
@@ -151,6 +152,7 @@ export function PromptActionController({
   const promptModalHidden = useGameUIStore((s) => s.promptModalHidden);
   const showPromptModal = useGameUIStore((s) => s.showPromptModal);
   const currentPromptInput = useGameStore((s) => s.currentPrompt?.input);
+  const boardTargetSourceCard = usePromptSourceCard();
   const boardTargetLabel =
     currentPromptInput?.type === "chooseBoardTargets"
       ? currentPromptInput.presentation.title
@@ -237,6 +239,7 @@ export function PromptActionController({
       return (
         <PromptLabel
           label={boardTargetLabel || (promptType && labels[promptType]) || "Waiting..."}
+          sourceCard={boardTargetSourceCard}
           isWaitingForResponse={isWaitingForResponse}
           completionLabel={targetCompletionLabel ?? undefined}
           completionKind={targetCompletionKind ?? undefined}

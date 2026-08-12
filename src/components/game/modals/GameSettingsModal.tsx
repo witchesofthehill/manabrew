@@ -181,6 +181,28 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         </SettingRow>
 
         <SettingRow
+          label="Order triggers"
+          hint="Prompt to choose the order when several of your triggers happen at once. Off orders them randomly."
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant={prefs.chooseOrderOnMultipleTriggers ? "default" : "outline"}
+              size="sm"
+              onClick={() => prefs.setChooseOrderOnMultipleTriggers(true)}
+            >
+              On
+            </Button>
+            <Button
+              variant={!prefs.chooseOrderOnMultipleTriggers ? "default" : "outline"}
+              size="sm"
+              onClick={() => prefs.setChooseOrderOnMultipleTriggers(false)}
+            >
+              Off
+            </Button>
+          </div>
+        </SettingRow>
+
+        <SettingRow
           label="Card preview trigger"
           hint='When the big card preview appears. "Hover" shows on mouse over; the others need the modifier key held.'
         >

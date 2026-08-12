@@ -199,22 +199,48 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn card_collection(&self, account_id: &str) -> SqlResult<Vec<(String, u32)>> {
+    pub fn card_collection(&self, account_id: &str) -> SqlResult<(u32, Vec<(String, u32)>)> {
+        let version = self
+            .conn
+            .query_row(
+                "SELECT version FROM card_collection_versions WHERE account_id = ?1",
+                params![account_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .unwrap_or_default();
         let mut statement = self.conn.prepare(
             "SELECT card_key, quantity FROM card_collection WHERE account_id = ?1 ORDER BY card_key",
         )?;
         let cards = statement
-            .query_map(params![account_id], |row| Ok((row.get(0)?, row.get(1)?)))?
-            .collect();
-        cards
+            .query_map(params![account_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)?))
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok((version, cards))
     }
 
     pub fn replace_card_collection(
         &self,
         account_id: &str,
         cards: &[(String, u32)],
-    ) -> SqlResult<()> {
+        expected_version: u32,
+    ) -> SqlResult<bool> {
         let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO card_collection_versions (account_id, version) VALUES (?1, 0)
+             ON CONFLICT (account_id) DO NOTHING",
+            params![account_id],
+        )?;
+        if tx.execute(
+            "UPDATE card_collection_versions SET version = version + 1
+             WHERE account_id = ?1 AND version = ?2",
+            params![account_id, expected_version],
+        )? == 0
+        {
+            tx.rollback()?;
+            return Ok(false);
+        }
         tx.execute(
             "DELETE FROM card_collection WHERE account_id = ?1",
             params![account_id],
@@ -228,7 +254,8 @@ impl Storage {
                 params![account_id, card_key, quantity],
             )?;
         }
-        tx.commit()
+        tx.commit()?;
+        Ok(true)
     }
 
     pub fn open(path: &str) -> SqlResult<Self> {
@@ -2855,29 +2882,53 @@ mod tests {
             .unwrap();
 
         storage
-            .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)])
+            .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)], 0)
             .unwrap();
         storage
-            .replace_card_collection("acct-2", &[("lightning bolt".to_string(), 1)])
+            .replace_card_collection("acct-2", &[("lightning bolt".to_string(), 1)], 0)
             .unwrap();
 
         assert_eq!(
             storage.card_collection("acct-1").unwrap(),
-            vec![("lightning bolt".to_string(), 4)]
+            (1, vec![("lightning bolt".to_string(), 4)])
         );
         assert_eq!(
             storage.card_collection("acct-2").unwrap(),
-            vec![("lightning bolt".to_string(), 1)]
+            (1, vec![("lightning bolt".to_string(), 1)])
         );
 
         storage
             .conn
             .execute("DELETE FROM accounts WHERE id = 'acct-1'", [])
             .unwrap();
-        assert!(storage.card_collection("acct-1").unwrap().is_empty());
+        assert_eq!(storage.card_collection("acct-1").unwrap(), (0, Vec::new()));
         assert_eq!(
             storage.card_collection("acct-2").unwrap(),
-            vec![("lightning bolt".to_string(), 1)]
+            (1, vec![("lightning bolt".to_string(), 1)])
+        );
+    }
+
+    #[test]
+    fn card_collection_rejects_stale_versions() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT INTO accounts (id, handle, handle_set, created_at)
+                 VALUES ('acct-1', 'first', 1, '2026-08-01T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+
+        assert!(storage
+            .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)], 0)
+            .unwrap());
+        assert!(!storage
+            .replace_card_collection("acct-1", &[("counterspell".to_string(), 2)], 0)
+            .unwrap());
+        assert_eq!(
+            storage.card_collection("acct-1").unwrap(),
+            (1, vec![("lightning bolt".to_string(), 4)])
         );
     }
 

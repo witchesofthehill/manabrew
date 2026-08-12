@@ -105,8 +105,8 @@ export function fetchAccountCollection(): Promise<CardCollection> {
   return hubJson<CardCollection>("/api/collection");
 }
 
-export async function saveAccountCollection(collection: CardCollection): Promise<void> {
-  await hubRequest("/api/collection", {
+export function saveAccountCollection(collection: CardCollection): Promise<CardCollection> {
+  return hubJson<CardCollection>("/api/collection", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(collection),

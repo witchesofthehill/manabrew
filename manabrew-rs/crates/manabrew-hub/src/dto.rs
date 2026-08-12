@@ -25,6 +25,7 @@ pub struct CardCollectionEntry {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]
 pub struct CardCollection {
+    pub version: u32,
     pub cards: Vec<CardCollectionEntry>,
 }
 

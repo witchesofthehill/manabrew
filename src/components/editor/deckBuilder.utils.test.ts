@@ -37,4 +37,16 @@ describe("deck exports", () => {
     expect(result).toContain("1 Cast Down (CLB) 119\n");
     expect(result).toContain("1 Cast Down (CLB) 119 *F*");
   });
+
+  it("includes special sections in exact printing exports", () => {
+    const result = exportWithPrintings({
+      cards: [],
+      sideboard: [],
+      attractions: [card("Pick-a-Beeble", "unf", "190")],
+      schemes: [card("All in Good Time", "oe01", "1")],
+    });
+
+    expect(result).toContain("Attractions\n1 Pick-a-Beeble (UNF) 190");
+    expect(result).toContain("Schemes\n1 All in Good Time (OE01) 1");
+  });
 });

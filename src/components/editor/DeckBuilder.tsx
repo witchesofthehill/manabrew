@@ -536,6 +536,11 @@ export function DeckBuilder({
 
   // Filter
   const unsupportedNames = useUnsupportedCards(currentDeck);
+  const editableUnsupportedNames = new Set(
+    [...unsupportedNames].filter((name) =>
+      allDeckCards().some((card) => card.identity.name.toLowerCase() === name.toLowerCase()),
+    ),
+  );
   const hasUnsupportedCards = unsupportedNames.size > 0;
 
   const deckFormat = getFormat(currentDeck.format ?? "standard");
@@ -1007,8 +1012,8 @@ export function DeckBuilder({
       id: "select-all",
       label: "Select all cards",
       keywords: ["bulk", "multi select"],
-      disabled: currentDeck.cards.length === 0,
-      disabledReason: currentDeck.cards.length === 0 ? "Deck is empty" : undefined,
+      disabled: allDeckCards().length === 0,
+      disabledReason: allDeckCards().length === 0 ? "Deck is empty" : undefined,
       run: selectAllDeckCards,
     },
     {
@@ -1027,9 +1032,10 @@ export function DeckBuilder({
       id: "select-unsupported",
       label: "Select unsupported cards",
       keywords: ["engine", "warning", "bulk"],
-      disabled: unsupportedNames.size === 0,
-      disabledReason: unsupportedNames.size === 0 ? "No unsupported cards" : undefined,
-      run: () => selectEditableCards(unsupportedNames),
+      disabled: editableUnsupportedNames.size === 0,
+      disabledReason:
+        editableUnsupportedNames.size === 0 ? "No editable unsupported cards" : undefined,
+      run: () => selectEditableCards(editableUnsupportedNames),
     },
     ...(currentDeck.customTags ?? []).map(
       (tag): DeckEditorCommand => ({

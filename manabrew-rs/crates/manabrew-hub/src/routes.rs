@@ -163,7 +163,8 @@ async fn card_collection_handler(
     auth::SessionAccount(account): auth::SessionAccount,
 ) -> Response {
     match state.storage.lock().unwrap().card_collection(&account.id) {
-        Ok(cards) => Json(CardCollection {
+        Ok((version, cards)) => Json(CardCollection {
+            version,
             cards: cards
                 .into_iter()
                 .map(|(card_key, quantity)| CardCollectionEntry { card_key, quantity })
@@ -192,13 +193,24 @@ async fn replace_card_collection_handler(
         .into_iter()
         .map(|card| (card.card_key, card.quantity))
         .collect::<Vec<_>>();
-    match state
-        .storage
-        .lock()
-        .unwrap()
-        .replace_card_collection(&account.id, &cards)
-    {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+    match state.storage.lock().unwrap().replace_card_collection(
+        &account.id,
+        &cards,
+        collection.version,
+    ) {
+        Ok(true) => Json(CardCollection {
+            version: collection.version + 1,
+            cards: cards
+                .into_iter()
+                .map(|(card_key, quantity)| CardCollectionEntry { card_key, quantity })
+                .collect(),
+        })
+        .into_response(),
+        Ok(false) => (
+            StatusCode::CONFLICT,
+            "This collection changed on another device. Reload it and try again.",
+        )
+            .into_response(),
         Err(error) => internal_error(error),
     }
 }

@@ -49,6 +49,16 @@
 		header Cross-Origin-Resource-Policy "same-origin"
 	}
 
+	@scryapi path_regexp scryapi ^/scryfall-api/(.*)$
+	handle @scryapi {
+		rewrite * /{re.scryapi.1}
+		reverse_proxy https://api.scryfall.com {
+			header_up Host api.scryfall.com
+			header_down -Access-Control-Allow-Origin
+		}
+		header Cross-Origin-Resource-Policy "same-origin"
+	}
+
 	@cubecobra path_regexp cubecobra ^/cubecobra-download/cube/download/forge/([A-Za-z0-9-]+)$
 	handle @cubecobra {
 		rewrite * /cube/download/forge/{re.cubecobra.1}

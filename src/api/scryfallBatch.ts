@@ -99,13 +99,17 @@ async function flushScryfallBatch(): Promise<void> {
 }
 
 export function enqueueCardLookup(identifier: CardIdentifier): Promise<ScryfallCard> {
+  const key = identifierKey(identifier);
+  const pending = pendingBatch.get(key);
+  if (pending) return pending.promise;
+
   let resolve!: (card: ScryfallCard) => void;
   let reject!: (err: unknown) => void;
   const promise = new Promise<ScryfallCard>((res, rej) => {
     resolve = res;
     reject = rej;
   });
-  pendingBatch.set(identifierKey(identifier), { identifier, promise, resolve, reject });
+  pendingBatch.set(key, { identifier, promise, resolve, reject });
   if (!batchFlushTimer) {
     batchFlushTimer = setTimeout(() => {
       void flushScryfallBatch();

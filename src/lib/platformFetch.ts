@@ -13,5 +13,8 @@ export function platformFetch(input: string, init?: RequestInit): Promise<Respon
   if (getPlatformType() === "tauri") {
     return tauriFetch(input, { ...merged, maxRedirections: 10 }) as Promise<Response>;
   }
-  return fetch(input, merged);
+  const browserInput = input.startsWith("https://api.scryfall.com/")
+    ? input.replace("https://api.scryfall.com", "/scryfall-api")
+    : input;
+  return fetch(browserInput, merged);
 }

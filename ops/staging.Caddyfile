@@ -68,6 +68,16 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    @scryapi path_regexp scryapi ^/scryfall-api/(.*)$
+    handle @scryapi {
+        rewrite * /{re.scryapi.1}
+        reverse_proxy https://api.scryfall.com {
+            header_up Host api.scryfall.com
+            header_down -Access-Control-Allow-Origin
+        }
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
     @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
     handle @spellbook {
         rewrite * /{re.spellbook.1}

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ClipboardPaste, FileUp, TriangleAlert } from "lucide-react";
+import { CheckCircle2, ClipboardPaste, FileUp, Loader2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
-import { fetchCardCollection, scryfallCardKey } from "@/api/scryfall";
+import { COLLECTION_BATCH_SIZE, fetchCardCollection, scryfallCardKey } from "@/api/scryfall";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,8 +50,11 @@ export function CollectionImportDialog({
     foilColumn: null,
   });
   const [mode, setMode] = useState<"merge" | "replace">("merge");
+  const [previewFilter, setPreviewFilter] = useState<"all" | "ready" | "skipped">("all");
   const [saving, setSaving] = useState(false);
-  const [printingValidation, setPrintingValidation] = useState<Record<string, boolean>>({});
+  const [printingValidation, setPrintingValidation] = useState<Record<string, boolean | "error">>(
+    {},
+  );
   const [validatingPrintings, setValidatingPrintings] = useState(false);
   const [printingValidationError, setPrintingValidationError] = useState(false);
   const [printingValidationAttempt, setPrintingValidationAttempt] = useState(0);
@@ -76,25 +79,36 @@ export function CollectionImportDialog({
     setPrintingValidation({});
     setValidatingPrintings(true);
     setPrintingValidationError(false);
-    void fetchCardCollection(exactRows)
-      .then((cards) => {
-        if (!active) return;
-        setPrintingValidation(
-          Object.fromEntries(
-            exactRows.map((row) => {
+    const validate = async () => {
+      let failed = false;
+      for (let index = 0; index < exactRows.length; index += COLLECTION_BATCH_SIZE) {
+        const batch = exactRows.slice(index, index + COLLECTION_BATCH_SIZE);
+        let next: Record<string, boolean | "error">;
+        try {
+          const cards = await fetchCardCollection(batch);
+          next = Object.fromEntries(
+            batch.map((row) => {
               const key = scryfallCardKey(row.name, row.setCode, row.collectorNumber);
               return [key, cards.has(key)];
             }),
-          ),
-        );
-      })
-      .catch(() => {
+          );
+        } catch {
+          failed = true;
+          next = Object.fromEntries(
+            batch.map((row) => [
+              scryfallCardKey(row.name, row.setCode, row.collectorNumber),
+              "error",
+            ]),
+          );
+        }
         if (!active) return;
-        setPrintingValidationError(true);
-      })
-      .finally(() => {
-        if (active) setValidatingPrintings(false);
-      });
+        setPrintingValidation((current) => ({ ...current, ...next }));
+      }
+      if (!active) return;
+      setPrintingValidationError(failed);
+      setValidatingPrintings(false);
+    };
+    void validate();
     return () => {
       active = false;
     };
@@ -113,15 +127,20 @@ export function CollectionImportDialog({
           reason:
             validation === false
               ? "Printing not found"
-              : printingValidationError
+              : validation === "error"
                 ? "Verification failed"
                 : "Checking printing…",
         };
       }),
-    [preview, printingValidation, printingValidationError],
+    [preview, printingValidation],
   );
   const validRows = validatedPreview.filter((row) => row.valid);
   const invalidRows = validatedPreview.length - validRows.length;
+  const filteredPreview = validatedPreview.filter((row) => {
+    if (previewFilter === "ready") return row.valid;
+    if (previewFilter === "skipped") return !row.valid;
+    return true;
+  });
   const imported = useMemo(
     () => collectionQuantitiesFromPreview(validatedPreview),
     [validatedPreview],
@@ -132,6 +151,7 @@ export function CollectionImportDialog({
     setText(nextText);
     setFileName(nextFileName);
     setMapping(nextParsed.mapping);
+    setPreviewFilter("all");
   }
 
   async function pasteFromClipboard() {
@@ -177,6 +197,7 @@ export function CollectionImportDialog({
       foilColumn: null,
     });
     setMode("merge");
+    setPreviewFilter("all");
     onOpenChange(false);
   }
 
@@ -311,6 +332,38 @@ export function CollectionImportDialog({
                   )}
                 </div>
               </div>
+              {exactRows.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Exact printings are verified with Scryfall before import. Large collections may
+                  take a while to finish checking.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1" aria-label="Filter import preview">
+                <Button
+                  size="sm"
+                  variant={previewFilter === "all" ? "secondary" : "ghost"}
+                  className="h-7 px-2.5 text-xs"
+                  onClick={() => setPreviewFilter("all")}
+                >
+                  All {validatedPreview.length}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={previewFilter === "ready" ? "secondary" : "ghost"}
+                  className="h-7 px-2.5 text-xs text-legality-legal"
+                  onClick={() => setPreviewFilter("ready")}
+                >
+                  Ready {validRows.length}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={previewFilter === "skipped" ? "secondary" : "ghost"}
+                  className="h-7 px-2.5 text-xs text-destructive"
+                  onClick={() => setPreviewFilter("skipped")}
+                >
+                  Skipped {invalidRows}
+                </Button>
+              </div>
               <div className="max-h-64 overflow-auto rounded-lg border">
                 <table className="w-full text-left text-xs">
                   <thead className="sticky top-0 bg-background">
@@ -324,7 +377,7 @@ export function CollectionImportDialog({
                     </tr>
                   </thead>
                   <tbody>
-                    {validatedPreview.slice(0, 100).map((row) => (
+                    {filteredPreview.slice(0, 100).map((row) => (
                       <tr key={row.rowNumber} className="border-b last:border-0">
                         <td className="px-3 py-2 text-muted-foreground">{row.rowNumber}</td>
                         <td className="max-w-80 truncate px-3 py-2">{row.name || "—"}</td>
@@ -350,12 +403,20 @@ export function CollectionImportDialog({
                         </td>
                       </tr>
                     ))}
+                    {filteredPreview.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                          No {previewFilter === "all" ? "" : `${previewFilter} `}rows to show.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
-              {preview.length > 100 && (
+              {filteredPreview.length > 100 && (
                 <p className="text-xs text-muted-foreground">
-                  Showing the first 100 of {preview.length} rows. All valid rows will be imported.
+                  Showing the first 100 of {filteredPreview.length} {previewFilter} rows. All valid
+                  rows will be imported.
                 </p>
               )}
             </div>
@@ -394,6 +455,7 @@ export function CollectionImportDialog({
                 validRows.length === 0
               }
             >
+              {(saving || validatingPrintings) && <Loader2 className="h-4 w-4 animate-spin" />}
               {saving
                 ? "Importing…"
                 : validatingPrintings

@@ -78,8 +78,8 @@ export default function MyCollection() {
 
   return (
     <div className="flex h-full min-h-0 w-full">
-      <main className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl">
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="w-full">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export default function MyCollection() {
             )}
           </div>
         </div>
-      </main>
+      </div>
       <div className="hidden lg:contents">
         <PreviewRail
           setSlot={setPreviewSlot}

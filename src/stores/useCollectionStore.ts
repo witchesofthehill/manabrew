@@ -25,19 +25,54 @@ function toPayload(quantities: Record<string, number>, version: number) {
   };
 }
 
-function writePendingAccountCollection(accountId: string, quantities: Record<string, number>) {
-  localStorage.setItem(PENDING_ACCOUNT_COLLECTION_KEY, JSON.stringify({ accountId, quantities }));
+interface PendingAccountCollection {
+  quantities: Record<string, number>;
+  syncedQuantities?: Record<string, number>;
 }
 
-function readPendingAccountCollection(accountId: string): Record<string, number> | null {
+function readPendingAccountCollections(): Record<string, PendingAccountCollection> {
   try {
-    const parsed = JSON.parse(localStorage.getItem(PENDING_ACCOUNT_COLLECTION_KEY) ?? "null") as {
+    const parsed = JSON.parse(localStorage.getItem(PENDING_ACCOUNT_COLLECTION_KEY) ?? "{}") as {
       accountId?: string;
       quantities?: Record<string, number>;
-    } | null;
-    return parsed?.accountId === accountId && parsed.quantities ? parsed.quantities : null;
+      syncedQuantities?: Record<string, number>;
+      [accountId: string]: unknown;
+    };
+    if (parsed.accountId && parsed.quantities) {
+      return {
+        [parsed.accountId]: {
+          quantities: parsed.quantities,
+          syncedQuantities: parsed.syncedQuantities,
+        },
+      };
+    }
+    return parsed as Record<string, PendingAccountCollection>;
   } catch {
-    return null;
+    return {};
+  }
+}
+
+function writePendingAccountCollection(
+  accountId: string,
+  quantities: Record<string, number>,
+  syncedQuantities?: Record<string, number>,
+) {
+  const pending = readPendingAccountCollections();
+  pending[accountId] = { quantities, syncedQuantities };
+  localStorage.setItem(PENDING_ACCOUNT_COLLECTION_KEY, JSON.stringify(pending));
+}
+
+function readPendingAccountCollection(accountId: string): PendingAccountCollection | null {
+  return readPendingAccountCollections()[accountId] ?? null;
+}
+
+function clearPendingAccountCollection(accountId: string) {
+  const pending = readPendingAccountCollections();
+  delete pending[accountId];
+  if (Object.keys(pending).length > 0) {
+    localStorage.setItem(PENDING_ACCOUNT_COLLECTION_KEY, JSON.stringify(pending));
+  } else {
+    localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
   }
 }
 
@@ -55,12 +90,16 @@ function applyCollectionDelta(
   return merged;
 }
 
-function queueAccountSave(accountId: string, quantities: Record<string, number>): Promise<void> {
+function queueAccountSave(
+  accountId: string,
+  quantities: Record<string, number>,
+  baseQuantities: Record<string, number>,
+): Promise<void> {
   const request = accountSaveQueue
     .catch(() => undefined)
     .then(() => {
       if (useAuthStore.getState().account?.id !== accountId) {
-        writePendingAccountCollection(accountId, quantities);
+        writePendingAccountCollection(accountId, quantities, baseQuantities);
         throw new Error("Collection account changed before this edit could sync");
       }
       const state = useCollectionStore.getState();
@@ -84,7 +123,7 @@ function queueAccountSave(accountId: string, quantities: Record<string, number>)
           version = saved.version ?? version + 1;
         }
         if (useCollectionStore.getState().accountId === accountId) {
-          localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
+          clearPendingAccountCollection(accountId);
           useCollectionStore.setState({
             version,
             quantities: desired,
@@ -94,7 +133,7 @@ function queueAccountSave(accountId: string, quantities: Record<string, number>)
         }
       };
       return save().catch((error) => {
-        writePendingAccountCollection(accountId, pending);
+        writePendingAccountCollection(accountId, pending, state.syncedQuantities);
         throw error;
       });
     });
@@ -168,7 +207,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         let quantities = { ...remoteQuantities };
         if (pendingAccountCollection) {
           for (const cardKey of Object.keys(quantities)) delete quantities[cardKey];
-          Object.assign(quantities, pendingAccountCollection);
+          Object.assign(quantities, pendingAccountCollection.quantities);
         } else {
           for (const [cardKey, quantity] of Object.entries(local)) {
             quantities[cardKey] = Math.max(quantities[cardKey] ?? 0, quantity);
@@ -185,7 +224,13 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
             const latestQuantities = Object.fromEntries(
               latest.cards.map((card) => [card.cardKey, card.quantity]),
             );
-            if (!pendingAccountCollection) {
+            if (pendingAccountCollection?.syncedQuantities) {
+              quantities = applyCollectionDelta(
+                pendingAccountCollection.syncedQuantities,
+                quantities,
+                latestQuantities,
+              );
+            } else if (!pendingAccountCollection) {
               quantities = applyCollectionDelta(remoteQuantities, quantities, latestQuantities);
             }
             version = latest.version ?? 0;
@@ -200,7 +245,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
             return;
           }
           localStorage.removeItem(LOCAL_COLLECTION_KEY);
-          localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
+          clearPendingAccountCollection(accountId);
         }
         if (get().accountId === accountId) {
           set({
@@ -226,24 +271,26 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
   },
   setQuantity: async (cardKey, quantity) => {
     const intendedAccountId = get().accountId;
+    const baseQuantities = get().syncedQuantities;
     const normalized = cardKey.toLowerCase();
     const quantities = { ...get().quantities };
     if (quantity > 0) quantities[normalized] = Math.floor(quantity);
     else delete quantities[normalized];
     await collectionInitialization;
     if (get().accountId !== intendedAccountId) {
-      if (intendedAccountId) writePendingAccountCollection(intendedAccountId, quantities);
-      else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
+      if (intendedAccountId) {
+        writePendingAccountCollection(intendedAccountId, quantities, baseQuantities);
+      } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
       throw new Error("Collection account changed before this edit could be applied");
     }
     set({ quantities });
     const accountId = intendedAccountId;
     if (accountId) {
       try {
-        await queueAccountSave(accountId, quantities);
+        await queueAccountSave(accountId, quantities, baseQuantities);
         if (get().accountId === accountId) {
           localStorage.removeItem(LOCAL_COLLECTION_KEY);
-          localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
+          clearPendingAccountCollection(accountId);
           set({ error: null });
         }
       } catch (error) {
@@ -256,6 +303,7 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
   },
   replaceQuantities: async (quantities) => {
     const intendedAccountId = get().accountId;
+    const baseQuantities = get().syncedQuantities;
     const normalized = Object.fromEntries(
       Object.entries(quantities)
         .map(
@@ -266,18 +314,19 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
     );
     await collectionInitialization;
     if (get().accountId !== intendedAccountId) {
-      if (intendedAccountId) writePendingAccountCollection(intendedAccountId, normalized);
-      else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
+      if (intendedAccountId) {
+        writePendingAccountCollection(intendedAccountId, normalized, baseQuantities);
+      } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(normalized));
       throw new Error("Collection account changed before this import could be applied");
     }
     set({ quantities: normalized });
     const accountId = intendedAccountId;
     if (accountId) {
       try {
-        await queueAccountSave(accountId, normalized);
+        await queueAccountSave(accountId, normalized, baseQuantities);
         if (get().accountId === accountId) {
           localStorage.removeItem(LOCAL_COLLECTION_KEY);
-          localStorage.removeItem(PENDING_ACCOUNT_COLLECTION_KEY);
+          clearPendingAccountCollection(accountId);
           set({ error: null });
         }
       } catch (error) {

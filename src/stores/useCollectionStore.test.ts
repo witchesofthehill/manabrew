@@ -91,7 +91,12 @@ describe("collection account saves", () => {
   it("retries a pending snapshot when initialization conflicts", async () => {
     localStorage.setItem(
       "manabrew-pending-account-collection",
-      JSON.stringify({ accountId: "acct-1", quantities: { "lightning bolt": 3 } }),
+      JSON.stringify({
+        "acct-1": {
+          quantities: { "lightning bolt": 3 },
+          syncedQuantities: { "lightning bolt": 1 },
+        },
+      }),
     );
     fetchAccountCollection
       .mockResolvedValueOnce({
@@ -116,12 +121,15 @@ describe("collection account saves", () => {
 
     expect(saveAccountCollection).toHaveBeenNthCalledWith(2, {
       version: 3,
-      cards: [{ cardKey: "lightning bolt", quantity: 3 }],
+      cards: [
+        { cardKey: "lightning bolt", quantity: 3 },
+        { cardKey: "sol ring", quantity: 1 },
+      ],
     });
     expect(useCollectionStore.getState()).toMatchObject({
       version: 4,
-      quantities: { "lightning bolt": 3 },
-      syncedQuantities: { "lightning bolt": 3 },
+      quantities: { "lightning bolt": 3, "sol ring": 1 },
+      syncedQuantities: { "lightning bolt": 3, "sol ring": 1 },
       loading: false,
       error: null,
     });
@@ -138,7 +146,12 @@ describe("collection account saves", () => {
     expect(useCollectionStore.getState().accountId).toBe("acct-1");
     expect(useCollectionStore.getState().error).toBe("offline");
     expect(JSON.parse(localStorage.getItem("manabrew-pending-account-collection") ?? "{}")).toEqual(
-      { accountId: "acct-1", quantities: { "lightning bolt": 4 } },
+      {
+        "acct-1": {
+          quantities: { "lightning bolt": 4 },
+          syncedQuantities: {},
+        },
+      },
     );
 
     saveAccountCollection.mockResolvedValue({ version: 1, cards: [] });
@@ -146,6 +159,30 @@ describe("collection account saves", () => {
 
     expect(useCollectionStore.getState().error).toBeNull();
     expect(localStorage.getItem("manabrew-pending-account-collection")).toBeNull();
+  });
+
+  it("keeps another account's pending snapshot after a successful save", async () => {
+    localStorage.setItem(
+      "manabrew-pending-account-collection",
+      JSON.stringify({
+        "acct-2": {
+          quantities: { counterspell: 2 },
+          syncedQuantities: { counterspell: 1 },
+        },
+      }),
+    );
+    saveAccountCollection.mockResolvedValue({ version: 1, cards: [] });
+
+    await useCollectionStore.getState().setQuantity("lightning bolt", 4);
+
+    expect(JSON.parse(localStorage.getItem("manabrew-pending-account-collection") ?? "{}")).toEqual(
+      {
+        "acct-2": {
+          quantities: { counterspell: 2 },
+          syncedQuantities: { counterspell: 1 },
+        },
+      },
+    );
   });
 
   it("rejects and preserves a queued snapshot when the account changes", async () => {
@@ -168,8 +205,10 @@ describe("collection account saves", () => {
     await expect(second).rejects.toThrow("account changed");
     expect(JSON.parse(localStorage.getItem("manabrew-pending-account-collection") ?? "{}")).toEqual(
       {
-        accountId: "acct-1",
-        quantities: { "lightning bolt": 4, counterspell: 2 },
+        "acct-1": {
+          quantities: { "lightning bolt": 4, counterspell: 2 },
+          syncedQuantities: {},
+        },
       },
     );
   });

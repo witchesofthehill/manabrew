@@ -811,6 +811,7 @@ export function GameBoard({
             experience: dev.experience ?? player.experienceCounters,
             ticket: dev.ticket ?? player.ticketCounters,
             cityBlessing: dev.forceCityBlessing ? true : player.hasCityBlessing,
+            enduringStory: dev.forceEnduringStory ? true : player.hasEnduringStory,
             ringLevel: dev.ringLevel ?? player.ringLevel,
             speed: dev.speed ?? player.speed,
             handCount: dev.handCount ?? player.handCount,

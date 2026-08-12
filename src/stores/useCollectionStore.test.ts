@@ -185,6 +185,61 @@ describe("collection account saves", () => {
     );
   });
 
+  it("recovers a rebased snapshot after the conflict retry fails", async () => {
+    useCollectionStore.setState({
+      version: 2,
+      quantities: { "lightning bolt": 1 },
+      syncedQuantities: { "lightning bolt": 1 },
+    });
+    saveAccountCollection
+      .mockRejectedValueOnce(new HubRequestError(409, "conflict"))
+      .mockRejectedValueOnce(new Error("offline"));
+    fetchAccountCollection.mockResolvedValueOnce({
+      version: 3,
+      cards: [
+        { cardKey: "lightning bolt", quantity: 1 },
+        { cardKey: "sol ring", quantity: 1 },
+      ],
+    });
+
+    await expect(useCollectionStore.getState().setQuantity("lightning bolt", 3)).rejects.toThrow(
+      "offline",
+    );
+
+    expect(JSON.parse(localStorage.getItem("manabrew-pending-account-collection") ?? "{}")).toEqual(
+      {
+        "acct-1": {
+          quantities: { "lightning bolt": 3, "sol ring": 1 },
+          syncedQuantities: { "lightning bolt": 1, "sol ring": 1 },
+        },
+      },
+    );
+
+    useCollectionStore.setState({ accountId: null, quantities: {}, syncedQuantities: {} });
+    fetchAccountCollection.mockReset();
+    saveAccountCollection.mockReset();
+    fetchAccountCollection.mockResolvedValueOnce({
+      version: 4,
+      cards: [
+        { cardKey: "lightning bolt", quantity: 1 },
+        { cardKey: "sol ring", quantity: 2 },
+        { cardKey: "counterspell", quantity: 1 },
+      ],
+    });
+    saveAccountCollection.mockResolvedValueOnce({ version: 5, cards: [] });
+
+    await useCollectionStore.getState().initialize("acct-1");
+
+    expect(saveAccountCollection).toHaveBeenCalledWith({
+      version: 4,
+      cards: [
+        { cardKey: "lightning bolt", quantity: 3 },
+        { cardKey: "sol ring", quantity: 2 },
+        { cardKey: "counterspell", quantity: 1 },
+      ],
+    });
+  });
+
   it("rejects and preserves a queued snapshot when the account changes", async () => {
     let finishFirstSave: ((value: { version: number; cards: never[] }) => void) | undefined;
     saveAccountCollection.mockImplementationOnce(

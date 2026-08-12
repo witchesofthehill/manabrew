@@ -104,6 +104,7 @@ function queueAccountSave(
       }
       const state = useCollectionStore.getState();
       let pending = quantities;
+      let pendingBase = baseQuantities;
       const save = async () => {
         let desired = pending;
         let version = state.version;
@@ -118,6 +119,7 @@ function queueAccountSave(
           );
           desired = applyCollectionDelta(state.syncedQuantities, desired, remoteQuantities);
           pending = desired;
+          pendingBase = remoteQuantities;
           version = remote.version ?? 0;
           const saved = await saveAccountCollection(toPayload(desired, version));
           version = saved.version ?? version + 1;
@@ -133,7 +135,7 @@ function queueAccountSave(
         }
       };
       return save().catch((error) => {
-        writePendingAccountCollection(accountId, pending, state.syncedQuantities);
+        writePendingAccountCollection(accountId, pending, pendingBase);
         throw error;
       });
     });
@@ -206,8 +208,13 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
         );
         let quantities = { ...remoteQuantities };
         if (pendingAccountCollection) {
-          for (const cardKey of Object.keys(quantities)) delete quantities[cardKey];
-          Object.assign(quantities, pendingAccountCollection.quantities);
+          quantities = pendingAccountCollection.syncedQuantities
+            ? applyCollectionDelta(
+                pendingAccountCollection.syncedQuantities,
+                pendingAccountCollection.quantities,
+                remoteQuantities,
+              )
+            : { ...pendingAccountCollection.quantities };
         } else {
           for (const [cardKey, quantity] of Object.entries(local)) {
             quantities[cardKey] = Math.max(quantities[cardKey] ?? 0, quantity);

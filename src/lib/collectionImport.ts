@@ -1,3 +1,5 @@
+import { collectionCardKey } from "@/lib/collection";
+
 export type CollectionImportSource = "manabox" | "moxfield" | "archidekt" | "generic";
 
 export interface CollectionImportMapping {
@@ -169,6 +171,24 @@ export function previewCollectionImport(
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return { rowNumber: index + 2, name, quantity: 0, valid: false, reason: "Invalid quantity" };
     }
+    if (Boolean(setCode) !== Boolean(collectorNumber)) {
+      return {
+        rowNumber: index + 2,
+        name,
+        quantity: Math.floor(quantity),
+        valid: false,
+        reason: "Set and collector number must be provided together",
+      };
+    }
+    if (foil !== undefined && !setCode) {
+      return {
+        rowNumber: index + 2,
+        name,
+        quantity: Math.floor(quantity),
+        valid: false,
+        reason: "Set and collector number are required for card finish",
+      };
+    }
     return {
       rowNumber: index + 2,
       name,
@@ -192,4 +212,3 @@ export function collectionQuantitiesFromPreview(
   }
   return quantities;
 }
-import { collectionCardKey } from "@/lib/collection";

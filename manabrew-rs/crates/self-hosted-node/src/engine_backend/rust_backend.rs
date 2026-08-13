@@ -12,6 +12,7 @@ use crate::config::DeckSelection;
 use forge_carddb::CardDatabase;
 use manabot::BotResponder;
 use manabrew_engine::agent::PlayerAgent;
+use manabrew_engine::game::TypeRegistry;
 use manabrew_engine::ids::PlayerId;
 use manabrew_game_runtime::deck::prepare_players;
 use manabrew_game_runtime::host_runtime::{
@@ -182,6 +183,9 @@ fn ensure_dbs_loaded() {
         );
         for (file, error) in bundle.tokens_result.errors.iter().take(10) {
             warn!(file, %error, "token parse error");
+        }
+        if let Some(archive) = bundle.cards.archive() {
+            TypeRegistry::load(archive.type_lists.as_str());
         }
         let _ = CARD_DB.set(bundle.cards);
         let _ = TOKEN_DB.set(bundle.tokens);

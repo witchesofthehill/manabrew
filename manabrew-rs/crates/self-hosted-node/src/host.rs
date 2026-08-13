@@ -17,7 +17,6 @@ use manabrew_agent_interface::protocol::{
     ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
     ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
-use manabrew_engine::game::TypeRegistry;
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::transport::DirectiveInput;
 use serde::Deserialize;
@@ -30,10 +29,6 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-
-// Embedded at compile time so packaged builds (and any run outside the source
-// tree) don't depend on a `workspace_root()` path baked from the build machine.
-const TYPE_LISTS: &str = include_str!("../../../../forge/forge-gui/res/lists/TypeLists.txt");
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsWrite = SplitSink<WsStream, Message>;
@@ -267,7 +262,6 @@ pub async fn cli_entry() {
 pub type RoomCancel = Arc<tokio::sync::Notify>;
 
 fn ensure_engine_ready(config: &Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    load_type_registry();
     if config.engine_enabled
         && config.backend.is_supported()
         && matches!(config.backend, EngineBackendKind::Forge)
@@ -868,10 +862,6 @@ fn stop_bots(bot_state: &SharedBotState) {
         }
         Err(error) => warn!(%error, "bot state lock poisoned"),
     }
-}
-
-fn load_type_registry() {
-    TypeRegistry::load(TYPE_LISTS);
 }
 
 async fn wait_for_host_room(

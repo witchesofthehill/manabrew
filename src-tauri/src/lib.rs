@@ -11,12 +11,7 @@ mod limited_manager;
 mod local_relay;
 
 use limited_manager::LimitedManager;
-use manabrew_engine::game::TypeRegistry;
 use tauri::Manager;
-
-// Embedded at compile time so packaged builds don't depend on the build
-// machine's source tree layout.
-const TYPE_LISTS: &str = include_str!("../../forge/forge-gui/res/lists/TypeLists.txt");
 
 // Tauri copies these resources into the app's resource_dir at install
 // time (see tauri.conf.json bundle.resources). The card/token/edition
@@ -45,8 +40,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            TypeRegistry::load(TYPE_LISTS);
-
             if let Ok(resource_dir) = app.path().resource_dir() {
                 for (key, subdir) in RESOURCE_ENV_MAP {
                     let path = resource_dir.join(subdir);

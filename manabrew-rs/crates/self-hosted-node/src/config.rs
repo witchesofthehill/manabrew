@@ -142,6 +142,7 @@ impl Config {
         format: GameFormat,
         max_players: u8,
         room_password: Option<String>,
+        reconnect_timeout_s: Option<u32>,
     ) -> Self {
         let username = format!("forge-host-{}", uuid::Uuid::new_v4());
         let bot_username = format!("{username}-bot");
@@ -163,7 +164,7 @@ impl Config {
             bot_enabled: false,
             bot_username,
             forge_ai: false,
-            reconnect_timeout_s: None,
+            reconnect_timeout_s,
             host_deck: synthetic_deck("forge-host", None),
             bot_deck: synthetic_deck("forge-bot", None),
         }

@@ -75,6 +75,23 @@ impl ScryfallBulkIndex {
             .map(|index| identifiers.iter().map(|item| index.matches(item)).collect())
     }
 
+    #[cfg(test)]
+    pub fn from_test_cards(cards: &[(&str, &str, &str)]) -> Self {
+        let mut index = CardIndex::default();
+        for (name, set, collector_number) in cards {
+            index.insert(BulkCard {
+                name: (*name).into(),
+                set: (*set).into(),
+                collector_number: (*collector_number).into(),
+                card_faces: Vec::new(),
+            });
+        }
+        Self {
+            path: PathBuf::new(),
+            index: RwLock::new(Some(index)),
+        }
+    }
+
     pub async fn refresh_if_needed(&self, client: &reqwest::Client) -> Result<(), String> {
         if self.index.read().unwrap().is_some() && file_is_fresh(&self.path) {
             return Ok(());
@@ -212,4 +229,54 @@ async fn download_file(client: &reqwest::Client, url: &str, path: &Path) -> Resu
             .map_err(|error| error.to_string())?;
     }
     file.flush().await.map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+
+    use super::*;
+
+    fn identifier(name: &str, set_code: &str, collector_number: &str) -> CardPrintingIdentifier {
+        CardPrintingIdentifier {
+            name: name.into(),
+            set_code: set_code.into(),
+            collector_number: collector_number.into(),
+        }
+    }
+
+    #[test]
+    fn loads_printings_and_card_faces_from_jsonl() {
+        let path = std::env::temp_dir().join(format!(
+            "manabrew-bulk-index-{}-{}.json.gz",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let file = File::create(&path).unwrap();
+        let mut encoder = GzEncoder::new(file, Compression::default());
+        writeln!(
+            encoder,
+            "{}",
+            serde_json::json!({
+                "name": "Delver of Secrets // Insectile Aberration",
+                "set": "isd",
+                "collector_number": "51",
+                "card_faces": [{"name": "Delver of Secrets"}, {"name": "Insectile Aberration"}]
+            })
+        )
+        .unwrap();
+        encoder.finish().unwrap();
+
+        let index = load_index(&path).unwrap();
+        assert!(index.matches(&identifier("Delver of Secrets", "ISD", "51")));
+        assert!(index.matches(&identifier("Insectile Aberration", "isd", "51")));
+        assert!(!index.matches(&identifier("Delver of Secrets", "ISD", "52")));
+        std::fs::remove_file(path).unwrap();
+    }
 }

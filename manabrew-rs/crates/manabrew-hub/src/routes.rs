@@ -1003,10 +1003,10 @@ mod tests {
             auth_email_limiter: RateLimiter::new(100),
             auth_code_limiter: RateLimiter::new(100),
             http: reqwest::Client::new(),
-            scryfall_bulk: Arc::new(ScryfallBulkIndex::new(
-                std::env::temp_dir()
-                    .join(format!("manabrew-test-bulk-{}.json", uuid::Uuid::new_v4())),
-            )),
+            scryfall_bulk: Arc::new(ScryfallBulkIndex::from_test_cards(&[
+                ("Blind Obedience", "rvr", "303"),
+                ("Delver of Secrets", "isd", "51"),
+            ])),
             scryfall_api: ScryfallApi::new(),
             identity: auth::token_tests::ephemeral(),
         })
@@ -1065,6 +1065,34 @@ mod tests {
             .await
             .unwrap();
         serde_json::from_slice(&bytes).unwrap()
+    }
+
+    #[tokio::test]
+    async fn card_printing_verification_requires_auth_and_matches_bulk_index() {
+        let state = test_state(100, 100);
+        let token = sign_up(&state, "verifier", "verifier@example.com");
+        let router = build_router(state);
+        let payload = serde_json::json!({
+            "identifiers": [
+                {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "303"},
+                {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "304"}
+            ]
+        });
+
+        let response = router
+            .clone()
+            .oneshot(json_post("/api/cards/verify", None, payload.clone()))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let response = router
+            .oneshot(json_post("/api/cards/verify", Some(&token), payload))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let verified: VerifyCardPrintingsResponse = body_json(response).await;
+        assert_eq!(verified.matched, vec![true, false]);
     }
 
     #[tokio::test]

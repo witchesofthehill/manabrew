@@ -54,7 +54,20 @@ export function handleCardClick(
   e.stopPropagation();
   if (e.shiftKey && onSelect) {
     onSelect(cardName, true);
+  } else if ((e.ctrlKey || e.metaKey) && onSelect) {
+    onSelect(cardName, false);
   } else if (onShowInfo) {
     onShowInfo();
   }
+}
+
+export function handleCardContextClick(
+  e: React.MouseEvent,
+  cardName: string,
+  onSelect?: (cardName: string, addToSelection: boolean) => void,
+) {
+  if (!e.ctrlKey || !onSelect) return;
+  e.preventDefault();
+  e.stopPropagation();
+  onSelect(cardName, false);
 }

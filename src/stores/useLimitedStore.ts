@@ -38,7 +38,7 @@ interface LimitedStore {
   fetchSealedTemplates: () => Promise<void>;
 
   startBoosterDraft: (setup: BoosterDraftSetup) => Promise<DraftState>;
-  pickDraftCard: (sessionId: string, cardName: string) => Promise<DraftState>;
+  pickDraftCard: (sessionId: string, card: DraftCard) => Promise<DraftState>;
   undoDraftPick: (sessionId: string) => Promise<DraftState>;
   refreshDraftState: (sessionId: string) => Promise<void>;
 
@@ -135,11 +135,13 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
     }
   },
 
-  pickDraftCard: async (sessionId, cardName) => {
+  pickDraftCard: async (sessionId, card) => {
     try {
       const state = await invoke<DraftState>("limited_pick_card", {
         sessionId,
-        cardName,
+        cardName: card.name,
+        setCode: card.setCode,
+        cardNumber: card.cardNumber,
       });
       set({ activeDraft: state, lastError: null });
       return state;

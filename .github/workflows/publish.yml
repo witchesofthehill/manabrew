@@ -96,6 +96,7 @@ jobs:
       # changes). The forge gitlink stands in for the card-data dirs.
       - name: Compute wasm output key
         id: wasm-key
+        shell: bash
         run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
 
       - name: Wasm output cache
@@ -258,6 +259,7 @@ jobs:
       # changes). The forge gitlink stands in for the card-data dirs.
       - name: Compute wasm output key
         id: wasm-key
+        shell: bash
         run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
 
       - name: Wasm output cache
@@ -419,6 +421,7 @@ jobs:
       # changes). The forge gitlink stands in for the card-data dirs.
       - name: Compute wasm output key
         id: wasm-key
+        shell: bash
         run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
 
       - name: Wasm output cache
@@ -507,6 +510,7 @@ jobs:
       # changes). The forge gitlink stands in for the card-data dirs.
       - name: Compute wasm output key
         id: wasm-key
+        shell: bash
         run: echo "key=wasm-output-$(git rev-parse HEAD:forge)-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'manabrew-rs/**/*.rs', 'manabrew-rs/**/Cargo.toml', 'scripts/build-wasm.mjs') }}" >> "$GITHUB_OUTPUT"
 
       - name: Wasm output cache

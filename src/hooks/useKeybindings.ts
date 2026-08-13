@@ -18,12 +18,13 @@ export function useKeybindings(handlers: Record<string, () => void>) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (isEditableTarget(e.target)) return;
+      const editableTarget = isEditableTarget(e.target);
       const pressed = comboFromEvent(e);
       if (!pressed) return;
       for (const def of KEYBINDINGS) {
         const handler = handlersRef.current[def.id];
         if (!handler) continue;
+        if (editableTarget && !def.allowInEditable) continue;
         const combo = resolveCombo(def.id, overrides);
         if (combo && combosMatch(pressed, combo)) {
           e.preventDefault();

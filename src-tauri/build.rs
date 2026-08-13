@@ -53,12 +53,14 @@ fn build_cardset_archive_if_stale() {
     let tokenscripts = manifest_dir.join("../forge/forge-gui/res/tokenscripts");
     let editions = manifest_dir.join("../forge/forge-gui/res/editions");
     let block_data = manifest_dir.join("../forge/forge-gui/res/blockdata");
+    let type_lists = manifest_dir.join("../forge/forge-gui/res/lists/TypeLists.txt");
     let archive_path = manifest_dir.join("resources/cardset.rkyv");
 
     println!("cargo:rerun-if-changed={}", cardsfolder.display());
     println!("cargo:rerun-if-changed={}", tokenscripts.display());
     println!("cargo:rerun-if-changed={}", editions.display());
     println!("cargo:rerun-if-changed={}", block_data.display());
+    println!("cargo:rerun-if-changed={}", type_lists.display());
     println!("cargo:rerun-if-env-changed=FORCE_CARDSET_REBUILD");
 
     if !cardsfolder.exists() {
@@ -69,7 +71,21 @@ fn build_cardset_archive_if_stale() {
         return;
     }
 
-    let inputs = [&cardsfolder, &tokenscripts, &editions, &block_data];
+    if !type_lists.exists() {
+        println!(
+            "cargo:warning=TypeLists.txt not found at {}, skipping cardset archive build",
+            type_lists.display()
+        );
+        return;
+    }
+
+    let inputs = [
+        &cardsfolder,
+        &tokenscripts,
+        &editions,
+        &block_data,
+        &type_lists,
+    ];
     if !needs_rebuild(&inputs, &archive_path) {
         return;
     }
@@ -79,6 +95,7 @@ fn build_cardset_archive_if_stale() {
         tokenscripts: tokenscripts.exists().then_some(tokenscripts.as_path()),
         editions: editions.exists().then_some(editions.as_path()),
         block_data: block_data.exists().then_some(block_data.as_path()),
+        type_lists: &type_lists,
     };
     match forge_cardset_archive::build_archive_from_sources(sources, &archive_path) {
         Ok(stats) => {

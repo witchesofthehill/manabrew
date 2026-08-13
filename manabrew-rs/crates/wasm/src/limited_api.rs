@@ -7,8 +7,8 @@ use forge_foundation::ColorSet;
 use forge_limited::{
     BoosterDraft, CardRanker, CubeImporter, DraftPack, DraftRankCache, GauntletKind, GauntletMini,
     GauntletOutcome, IBoosterDraft, LimitedDeck, LimitedPoolType, LimitedWinLoseController,
-    SealedCardPoolGenerator, SealedDeckGroup, ThemedChaosDraft, TickOutcome, WinstonDraft,
-    WinstonOutcome, CONSPIRACY_HOOKS,
+    PassDirection, SealedCardPoolGenerator, SealedDeckGroup, ThemedChaosDraft, TickOutcome,
+    WinstonDraft, WinstonOutcome, CONSPIRACY_HOOKS,
 };
 use manabrew_protocol::deck_dto::DeckCardIdentity;
 use rand::rngs::StdRng;
@@ -36,6 +36,7 @@ fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
     DeckCardIdentity {
         id: String::new(),
         oracle_id: None,
+        token_script: None,
         name: c.name.clone(),
         set_code: c.set_code.clone(),
         card_number: c.collector_number.clone(),
@@ -175,6 +176,8 @@ pub struct BoosterDraftSetupDto {
     pub seed: Option<u64>,
     #[serde(default)]
     pub picks_per_pass: Option<u32>,
+    #[serde(default)]
+    pub custom_pool: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,6 +188,9 @@ pub struct DraftSeatDto {
     pub is_human: bool,
     pub picks_made: u32,
     pub last_pick_name: Option<String>,
+    pub current_pack_size: u32,
+    pub packs_waiting: u32,
+    pub awaiting_pick: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +210,7 @@ pub struct DraftStateDto {
     pub human_conspiracies: Vec<String>,
     pub picks_per_pass: u32,
     pub picks_remaining_in_pack: u32,
+    pub pass_direction: String,
 }
 
 impl DraftStateDto {
@@ -231,6 +238,16 @@ impl DraftStateDto {
                 is_human: p.is_human,
                 picks_made: p.picked.len() as u32,
                 last_pick_name: p.last_pick.as_ref().map(|c| c.name.clone()),
+                current_pack_size: p.current_pack().map(|pack| pack.len()).unwrap_or(0) as u32,
+                packs_waiting: p
+                    .pack_queue
+                    .len()
+                    .saturating_sub(usize::from(p.current_pack().is_some()))
+                    as u32,
+                awaiting_pick: p
+                    .current_pack()
+                    .map(|pack| !pack.is_empty())
+                    .unwrap_or(false),
             })
             .collect();
         seat_summaries.sort_by_key(|s| s.seat);
@@ -265,6 +282,11 @@ impl DraftStateDto {
             human_conspiracies,
             picks_per_pass: draft.picks_per_pass(),
             picks_remaining_in_pack,
+            pass_direction: match draft.current_direction() {
+                PassDirection::Left => "left",
+                PassDirection::Right => "right",
+            }
+            .to_string(),
         }
     }
 }
@@ -317,6 +339,8 @@ pub struct WinstonSetupDto {
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
+    #[serde(default)]
+    pub custom_pool: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -450,7 +474,6 @@ struct WasmLimitedState {
     winston: HashMap<String, WinstonDraft>,
     gauntlets: HashMap<String, GauntletMini>,
     rank_cache: Arc<DraftRankCache>,
-    name_index: std::collections::HashSet<String>,
     next_id: u64,
 }
 
@@ -462,7 +485,6 @@ impl WasmLimitedState {
             winston: HashMap::new(),
             gauntlets: HashMap::new(),
             rank_cache: Arc::new(DraftRankCache::new()),
-            name_index: std::collections::HashSet::new(),
             next_id: 0,
         }
     }
@@ -471,27 +493,10 @@ impl WasmLimitedState {
         self.next_id += 1;
         format!("{prefix}-{:x}", self.next_id)
     }
-
-    fn card_name_known(&self, name: &str) -> bool {
-        self.name_index.contains(&name.to_lowercase())
-    }
 }
 
 thread_local! {
     static STATE: RefCell<WasmLimitedState> = RefCell::new(WasmLimitedState::new());
-}
-
-fn rebuild_name_index(state: &mut WasmLimitedState) {
-    let Some(db) = get_card_db() else {
-        return;
-    };
-    state.name_index.clear();
-    // Walk the archive index directly — name validation doesn't require the
-    // cards to be parsed, and a freshly-loaded archive-backed DB has none
-    // parsed yet.
-    for key in db.iter_card_keys() {
-        state.name_index.insert(key);
-    }
 }
 
 /// the same shape `limited_start_sealed` / `limited_start_booster_draft`
@@ -512,6 +517,7 @@ pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
         .map(|entry| DeckCardIdentity {
             id: String::new(),
             oracle_id: None,
+            token_script: None,
             name: entry.name.clone(),
             set_code: edition.code.clone(),
             card_number: entry.collector_number.clone(),
@@ -573,31 +579,15 @@ pub fn limited_list_conspiracy_hooks() -> Result<JsValue, JsError> {
     serde_wasm_bindgen::to_value(&out).map_err(|e| JsError::new(&format!("serialize: {e}")))
 }
 
-fn filter_playable(state: &mut WasmLimitedState, pool: &[DeckCardIdentity]) -> Vec<PaperCard> {
-    if state.name_index.is_empty() {
-        rebuild_name_index(state);
-    }
-    pool.iter()
-        .filter(|c| state.card_name_known(&c.name))
-        .map(identity_to_paper_card)
-        .collect()
-}
-
-fn empty_pool_error(supplied: usize) -> String {
-    format!(
-        "no playable cards in pool — supplied {supplied} cards but the engine can't script any of them yet"
-    )
-}
-
 #[wasm_bindgen]
 pub fn limited_start_sealed(setup_json: JsValue) -> Result<JsValue, JsError> {
     let setup: SealedSetupDto =
         serde_wasm_bindgen::from_value(setup_json).map_err(|e| JsError::new(&e.to_string()))?;
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        let card_pool = filter_playable(&mut state, &setup.pool);
+        let card_pool: Vec<PaperCard> = setup.pool.iter().map(identity_to_paper_card).collect();
         if card_pool.is_empty() {
-            return Err(JsError::new(&empty_pool_error(setup.pool.len())));
+            return Err(JsError::new("card pool is empty"));
         }
         let pool_type = match setup.pool_type.as_str() {
             "Full" => LimitedPoolType::Full,
@@ -666,17 +656,29 @@ pub fn limited_start_booster_draft(setup_json: JsValue) -> Result<JsValue, JsErr
         serde_wasm_bindgen::from_value(setup_json).map_err(|e| JsError::new(&e.to_string()))?;
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        let card_pool = filter_playable(&mut state, &setup.pool);
+        let card_pool: Vec<PaperCard> = setup.pool.iter().map(identity_to_paper_card).collect();
         if card_pool.is_empty() {
-            return Err(JsError::new(&empty_pool_error(setup.pool.len())));
+            return Err(JsError::new("card pool is empty"));
         }
         let pod_size = setup.pod_size.clamp(2, 8) as usize;
         let rounds = setup.rounds.clamp(1, 6);
+        let required_cards = pod_size * rounds as usize * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "cube has {} cards but {required_cards} are required for {pod_size} players and {rounds} rounds",
+                card_pool.len()
+            )));
+        }
         let ranker = Arc::new(CardRanker::new(state.rank_cache.clone()));
         let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
             Arc::new(|c: &PaperCard| c.colors);
-        let template = template_for_pool(&card_pool, setup.variant.as_deref());
+        let template = if setup.custom_pool {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            template_for_pool(&card_pool, setup.variant.as_deref())
+        };
         let mut draft = BoosterDraft::new(pod_size, rounds, template, card_pool, ranker, color_of);
+        draft.set_limited_pool(setup.custom_pool);
         if let Some(n) = setup.picks_per_pass {
             draft.set_picks_per_pass(n);
         }
@@ -691,7 +693,12 @@ pub fn limited_start_booster_draft(setup_json: JsValue) -> Result<JsValue, JsErr
 }
 
 #[wasm_bindgen]
-pub fn limited_pick_card(session_id: String, card_name: String) -> Result<JsValue, JsError> {
+pub fn limited_pick_card(
+    session_id: String,
+    card_name: String,
+    set_code: String,
+    card_number: String,
+) -> Result<JsValue, JsError> {
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
         let draft = state
@@ -700,7 +707,12 @@ pub fn limited_pick_card(session_id: String, card_name: String) -> Result<JsValu
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
         let pack_card = draft
             .current_pack_for_human()
-            .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .and_then(|p: &DraftPack| {
+                p.cards()
+                    .iter()
+                    .find(|c| card_identity_matches(c, &card_name, &set_code, &card_number))
+                    .cloned()
+            })
             .ok_or_else(|| JsError::new(&format!("card {card_name:?} not in current pack")))?;
         draft
             .submit_human_pick(pack_card)
@@ -755,12 +767,19 @@ pub fn limited_start_multiplayer_draft(
         serde_wasm_bindgen::from_value(humans_json).map_err(|e| JsError::new(&e.to_string()))?;
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        let card_pool = filter_playable(&mut state, &setup.pool);
+        let card_pool: Vec<PaperCard> = setup.pool.iter().map(identity_to_paper_card).collect();
         if card_pool.is_empty() {
-            return Err(JsError::new(&empty_pool_error(setup.pool.len())));
+            return Err(JsError::new("card pool is empty"));
         }
         let pod_size = setup.pod_size.clamp(2, 8) as usize;
         let rounds = setup.rounds.clamp(1, 6);
+        let required_cards = pod_size * rounds as usize * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "cube has {} cards but {required_cards} are required for {pod_size} players and {rounds} rounds",
+                card_pool.len()
+            )));
+        }
         if humans.is_empty() || humans.len() > pod_size {
             return Err(JsError::new(&format!(
                 "multiplayer draft needs 1..={pod_size} humans, got {}",
@@ -774,10 +793,15 @@ pub fn limited_start_multiplayer_draft(
         let ranker = Arc::new(CardRanker::new(state.rank_cache.clone()));
         let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
             Arc::new(|c: &PaperCard| c.colors);
-        let template = template_for_pool(&card_pool, setup.variant.as_deref());
+        let template = if setup.custom_pool {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            template_for_pool(&card_pool, setup.variant.as_deref())
+        };
         let mut draft = BoosterDraft::with_human_seats(
             pod_size, rounds, template, card_pool, ranker, color_of, &humans,
         );
+        draft.set_limited_pool(setup.custom_pool);
         if let Some(n) = setup.picks_per_pass {
             draft.set_picks_per_pass(n);
         }
@@ -796,6 +820,8 @@ pub fn limited_submit_pick(
     session_id: String,
     seat_idx: u32,
     card_name: String,
+    set_code: String,
+    card_number: String,
 ) -> Result<JsValue, JsError> {
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
@@ -812,7 +838,12 @@ pub fn limited_submit_pick(
         }
         let pack_card = draft
             .current_pack_for_seat(seat)
-            .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .and_then(|p: &DraftPack| {
+                p.cards()
+                    .iter()
+                    .find(|c| card_identity_matches(c, &card_name, &set_code, &card_number))
+                    .cloned()
+            })
             .ok_or_else(|| {
                 JsError::new(&format!("card {card_name:?} not in seat {seat}'s pack"))
             })?;
@@ -879,18 +910,40 @@ pub fn limited_start_winston(setup_json: JsValue) -> Result<JsValue, JsError> {
         serde_wasm_bindgen::from_value(setup_json).map_err(|e| JsError::new(&e.to_string()))?;
     STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        let card_pool = filter_playable(&mut state, &setup.pool);
+        let card_pool: Vec<PaperCard> = setup.pool.iter().map(identity_to_paper_card).collect();
         if card_pool.is_empty() {
-            return Err(JsError::new(&empty_pool_error(setup.pool.len())));
+            return Err(JsError::new("card pool is empty"));
         }
         let pool_packs = setup.pool_packs.clamp(2, 12) as usize;
-        let template = template_for_pool(&card_pool, setup.variant.as_deref());
-        let draft = WinstonDraft::new(template, card_pool, pool_packs);
+        let template = if setup.custom_pool {
+            SealedTemplate::generic_no_slot_booster()
+        } else {
+            template_for_pool(&card_pool, setup.variant.as_deref())
+        };
+        let required_cards = pool_packs * 2 * 15;
+        if setup.custom_pool && card_pool.len() < required_cards {
+            return Err(JsError::new(&format!(
+                "cube has {} cards but {required_cards} are required for {pool_packs} packs per player",
+                card_pool.len()
+            )));
+        }
+        let draft = WinstonDraft::new_with_pool_limit(
+            template,
+            card_pool,
+            pool_packs,
+            setup.custom_pool,
+        );
         let session_id = state.fresh_id("winston");
         let dto = WinstonStateDto::from_engine(session_id.clone(), &draft);
         state.winston.insert(session_id, draft);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
+}
+
+fn card_identity_matches(card: &PaperCard, name: &str, set_code: &str, card_number: &str) -> bool {
+    card.name == name
+        && (set_code.is_empty() || card.set_code.eq_ignore_ascii_case(set_code))
+        && (card_number.is_empty() || card.collector_number == card_number)
 }
 
 fn template_for_pool(pool: &[PaperCard], variant: Option<&str>) -> SealedTemplate {
@@ -1142,6 +1195,7 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
             pool.push(DeckCardIdentity {
                 id: String::new(),
                 oracle_id: None,
+                token_script: None,
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
                 card_number: String::new(),

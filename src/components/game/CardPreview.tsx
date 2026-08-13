@@ -22,11 +22,9 @@ import { PREVIEW_TIMING } from "@/lib/cardPreview";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { useGameStore } from "@/stores/useGameStore";
 import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
-import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { useCardFaces } from "@/hooks/useCardFaces";
+import { useResolvedGameCard } from "@/hooks/useResolvedGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { deriveCardRailEffects, deriveCardRailState } from "@/components/game/cardRailState";
 
@@ -172,24 +170,16 @@ export function CardPreview({
       : [];
   const hasMainActions = mainActions.length > 0;
   const showSidePanel = hasMainActions || Boolean(rail || extraClassActions.length);
-  const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   const isDebugCard = card.id === DEBUG_KEYWORD_CARD_ID;
+  const resolvedGameCard = useResolvedGameCard(card);
   const deckCard: DeckCard = isDebugCard
     ? ({
         identity: { id: "", name: card.identity.name, setCode: "", cardNumber: "" },
         uris: {},
       } as DeckCard)
-    : asDeckCard(deck, card);
-  const { setCode, cardNumber } = deckCard.identity;
-  const cardFaces = useCardFaces(
-    isDebugCard
-      ? { name: card.identity.name }
-      : {
-          name: card.identity.name,
-          setCode: setCode || undefined,
-          cardNumber: cardNumber || undefined,
-        },
-  );
+    : resolvedGameCard.deckCard;
+  const cardFaces = resolvedGameCard.cardFaces;
+  const resolveImageUrl = resolvedGameCard.imageUrl;
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
   const railEffects = rail ? deriveCardRailEffects(card, rail) : [];
@@ -230,17 +220,16 @@ export function CardPreview({
   }, [showSidePanel, card.id]);
 
   const faceless = isFacelessCard(card);
-  const imageUrl = faceless
-    ? CARD_BACK_IMAGE_URL
-    : deckCard.uris[imageSize] || front?.imageUris?.[imageSize];
-  const hasFlippableFaces =
-    cardFaces.isFlippable && !!front?.imageUris?.[imageSize] && !!back?.imageUris?.[imageSize];
+  const imageUrl = faceless ? CARD_BACK_IMAGE_URL : resolveImageUrl(0, imageSize);
+  const frontImageUrl = resolveImageUrl(0, imageSize);
+  const backImageUrl = resolveImageUrl(1, imageSize);
+  const hasFlippableFaces = cardFaces.isFlippable && !!frontImageUrl && !!backImageUrl;
   const doubleFacedData = hasFlippableFaces
     ? {
-        frontImageUrl: front!.imageUris![imageSize],
-        backImageUrl: back!.imageUris![imageSize],
-        frontImageUrlLow: front!.imageUris!.normal,
-        backImageUrlLow: back!.imageUris!.normal,
+        frontImageUrl: frontImageUrl!,
+        backImageUrl: backImageUrl!,
+        frontImageUrlLow: resolveImageUrl(0, "normal")!,
+        backImageUrlLow: resolveImageUrl(1, "normal")!,
         frontName: front!.name,
         backName: back!.name,
       }
@@ -354,7 +343,7 @@ export function CardPreview({
         ? showBackFace
           ? doubleFacedData.backImageUrlLow
           : doubleFacedData.frontImageUrlLow
-        : deckCard.uris.normal;
+        : resolveImageUrl(0, "normal");
   const cardLookupPending = !isDebugCard && cardFaces.faces.length === 0;
 
   return createPortal(

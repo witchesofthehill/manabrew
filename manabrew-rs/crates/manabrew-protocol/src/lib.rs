@@ -6,4 +6,7 @@ pub mod display;
 pub mod game;
 pub mod prompts;
 pub mod protocol;
+pub mod token;
 pub mod transport;
+
+pub use token::TokenScript;

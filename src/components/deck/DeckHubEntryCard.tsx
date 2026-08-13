@@ -6,6 +6,7 @@ import { FormatBadge } from "@/components/game/FormatBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { cn } from "@/lib/utils";
 import type { DeckHubEntrySummary } from "@/api/hubTypes";
+import { ScryfallImg } from "@/components/ScryfallImg";
 
 interface DeckHubEntryCardProps {
   entry: DeckHubEntrySummary;
@@ -137,7 +138,7 @@ export function DeckHubEntryCard({
       variant={variant}
       cover={
         entry.coverImageUrl ? (
-          <img
+          <ScryfallImg
             src={entry.coverImageUrl}
             alt=""
             loading="lazy"

@@ -38,15 +38,16 @@ import {
   Bookmark,
   Check,
   AlertTriangle,
+  Ellipsis,
+  Palette,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
-import { PartnerBadge } from "@/components/deck/PartnerBadge";
-import { commanderSlotBadge, formatRequiresCommander } from "@/lib/formats";
+import { formatRequiresCommander } from "@/lib/formats";
 import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
-import { CARD_WIDTH_MAP, getTaggedGroups } from "./deckBuilder.utils";
+import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE, getTaggedGroups } from "./deckBuilder.utils";
 import { CARD_RING } from "@/components/game/game.styles";
 import { DROP_ZONE } from "@/lib/constants";
 import { useMarquee } from "@/hooks/useMarqueeSelection";
@@ -62,6 +63,7 @@ import {
   buildCardActions,
   commanderSlotFor,
   handleCardClick,
+  handleCardContextClick,
   DEFAULT_COMMANDER_SLOT,
   type CommanderSlot,
 } from "./deckEditor.utils";
@@ -70,8 +72,58 @@ import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisSt
 
 type CardLocation = "main" | "side" | "maybe";
 
+function openCardContextMenu(event: React.MouseEvent<HTMLButtonElement>) {
+  event.preventDefault();
+  event.stopPropagation();
+  const bounds = event.currentTarget.getBoundingClientRect();
+  const clientX = event.clientX || bounds.left + bounds.width / 2;
+  const clientY = event.clientY || bounds.top + bounds.height / 2;
+  event.currentTarget.parentElement?.dispatchEvent(
+    new MouseEvent("contextmenu", {
+      bubbles: true,
+      clientX,
+      clientY,
+    }),
+  );
+}
+
+function CardMenuButton({ className }: { className?: string }) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100",
+        className,
+      )}
+      title="Card actions"
+      aria-label="Card actions"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={openCardContextMenu}
+    >
+      <Ellipsis className="h-4 w-4" />
+    </button>
+  );
+}
+
+function CardPrintingButton({ onPickPrint }: { onPickPrint: () => void }) {
+  return (
+    <button
+      type="button"
+      className="absolute right-1 top-1 z-40 rounded-full bg-overlay/70 p-0.5 text-muted-foreground opacity-0 shadow transition-colors hover:text-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
+      title="Change printing"
+      aria-label="Change printing"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onPickPrint();
+      }}
+    >
+      <Palette className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
 // Persisted in deck stackPositions — values must stay stable.
-const STACK_SECTION_COMMANDER = "__commander__";
 const STACK_SECTION_SIDEBOARD = "__sideboard__";
 const STACK_SECTION_MAYBEBOARD = "__maybeboard__";
 const STACK_SECTION_TAG_PREFIX = "__tag__";
@@ -410,6 +462,7 @@ function DraggableStackCard({
   index,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   onUntag,
   isSelected,
   onSelect,
@@ -419,6 +472,7 @@ function DraggableStackCard({
   onCardLeave,
   contextLocation,
   contextActions,
+  sourceTag,
 }: {
   group: CardGroup;
   dragId: string;
@@ -426,6 +480,7 @@ function DraggableStackCard({
   index: number;
   onAddOne: () => void;
   onRemoveOne: () => void;
+  onPickPrint?: (cardName: string) => void;
   onUntag?: (cardName: string) => void;
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
@@ -435,11 +490,12 @@ function DraggableStackCard({
   onCardLeave: () => void;
   contextLocation?: CardLocation;
   contextActions?: CardContextActions;
+  sourceTag?: string;
 }) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    data: { type: "deck-card", card: group.card, name },
+    data: { type: "deck-card", card: group.card, name, sourceTag },
   });
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
@@ -463,13 +519,14 @@ function DraggableStackCard({
       onMouseEnter={() => onCardHover(index)}
       onMouseLeave={onCardLeave}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
+      onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
       <CardCountBadge count={group.count} className="border-white/30 shadow" />
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
-          title="Not implemented by the engine - deck can only be saved as draft"
+          title="Unsupported by the Manabrew and Forge engines"
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
@@ -479,6 +536,12 @@ function DraggableStackCard({
         actions={buildCardActions(onAddOne, onRemoveOne, onUntag ? () => onUntag(name) : undefined)}
         rounded="rounded-[4%]"
       />
+      {(contextActions?.onPickPrint || onPickPrint) && (
+        <CardPrintingButton
+          onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(name))}
+        />
+      )}
+      {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
     </div>
   );
 
@@ -536,12 +599,14 @@ interface StackColumnProps {
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
+  onPickPrint?: (cardName: string) => void;
   onUntag?: (cardName: string) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: (cardName: string) => void;
   dragHandleProps?: DragHandleProps;
   contextMenuFor?: (g: CardGroup) => { location: CardLocation; actions: CardContextActions } | null;
+  sourceTag?: string;
 }
 
 function StackColumn({
@@ -551,12 +616,14 @@ function StackColumn({
   cardWidth,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   onUntag,
   selectedCards,
   onSelectCard,
   onShowInfo,
   dragHandleProps,
   contextMenuFor,
+  sourceTag,
 }: StackColumnProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const cardHeight = Math.round(cardWidth * 1.4);
@@ -608,6 +675,7 @@ function StackColumn({
               index={i}
               onAddOne={() => onAddOne(g)}
               onRemoveOne={() => onRemoveOne(g.card.identity.name)}
+              onPickPrint={onPickPrint}
               onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
               isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
               onSelect={onSelectCard}
@@ -617,6 +685,7 @@ function StackColumn({
               onCardLeave={() => setHoveredIdx(null)}
               contextLocation={cm?.location}
               contextActions={cm?.actions}
+              sourceTag={sourceTag}
             />
           );
         })}
@@ -648,6 +717,7 @@ interface CardVisualProps {
   onSetCoverBack?: () => void;
   contextLocation?: CardLocation;
   contextActions?: CardContextActions;
+  sourceTag?: string;
 }
 
 function CardVisual({
@@ -655,6 +725,7 @@ function CardVisual({
   dragId,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   isSelected,
   onSelect,
   onShowInfo,
@@ -670,11 +741,12 @@ function CardVisual({
   onSetCoverBack,
   contextLocation,
   contextActions,
+  sourceTag,
 }: CardVisualProps) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    data: { type: "deck-card", card: group.card, name },
+    data: { type: "deck-card", card: group.card, name, sourceTag },
   });
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
@@ -695,18 +767,20 @@ function CardVisual({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
+      onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
       <CardCountBadge count={group.count} />
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
-          title="Not implemented by the engine - deck can only be saved as draft"
+          title="Unsupported by the Manabrew and Forge engines"
         >
           <AlertTriangle className="h-3 w-3" />
         </div>
       )}
       <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
+      <CardPrintingButton onPickPrint={onPickPrint} />
       <div className="absolute top-1 left-1 z-20 flex gap-0.5">
         {showCommander && (
           <button
@@ -771,6 +845,7 @@ function CardVisual({
         )}
       </div>
       <CardHoverOverlay actions={buildCardActions(onAddOne, onRemoveOne, onUntag)} />
+      {contextActions && <CardMenuButton className="absolute bottom-1 left-1 z-40" />}
     </div>
   );
 
@@ -816,6 +891,7 @@ const DraggableMiniRow = forwardRef<
       data-card-name={card.identity.name}
     >
       {children}
+      <CardMenuButton />
     </div>
   );
 });
@@ -829,6 +905,7 @@ interface CardRowProps {
   onSelect?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: () => void;
   contextActions?: CardContextActions;
+  sourceTag?: string;
 }
 
 function CardRow({
@@ -838,11 +915,12 @@ function CardRow({
   onSelect,
   onShowInfo,
   contextActions,
+  sourceTag,
 }: CardRowProps) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    data: { type: "deck-card", card: group.card, name },
+    data: { type: "deck-card", card: group.card, name, sourceTag },
   });
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
@@ -863,12 +941,13 @@ function CardRow({
       data-card-supported={unsupported ? "false" : undefined}
       onClick={(e) => {
         e.stopPropagation();
-        if (e.shiftKey && onSelect) {
-          onSelect(name, true);
+        if ((e.shiftKey || e.ctrlKey || e.metaKey) && onSelect) {
+          onSelect(name, e.shiftKey);
         } else if (onShowInfo) {
           onShowInfo();
         }
       }}
+      onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <div
         className={cn(
@@ -888,16 +967,12 @@ function CardRow({
       {unsupported && (
         <AlertTriangle
           className="h-3 w-3 text-warning shrink-0"
-          aria-label="Card not supported by the engine"
+          aria-label="Card unsupported by the Manabrew and Forge engines"
         />
       )}
       <span
         className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
-        title={
-          unsupported
-            ? `${name} - not implemented by the engine; deck can only be saved as draft`
-            : name
-        }
+        title={unsupported ? `${name} - unsupported by the Manabrew and Forge engines` : name}
       >
         {name}
       </span>
@@ -918,6 +993,7 @@ function CardRow({
           {group.card.power}/{group.card.toughness}
         </span>
       )}
+      {contextActions && <CardMenuButton />}
     </div>
   );
 
@@ -1053,6 +1129,7 @@ function CardSection({
                   <CardRow
                     group={g}
                     dragId={`${dragPrefix}-${name}`}
+                    sourceTag={isTagSection ? tag : undefined}
                     isSelected={selectedCards?.has(name.toLowerCase())}
                     onSelect={onSelectCard}
                     onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
@@ -1117,6 +1194,7 @@ function CardSection({
                 <CardVisual
                   group={g}
                   dragId={`${dragPrefix}-${name}`}
+                  sourceTag={isTagSection ? tag : undefined}
                   onAddOne={() => onAddOne(g)}
                   onRemoveOne={() => effectiveRemoveOne(name)}
                   onUntag={isTagSection && onUntagCard ? () => onUntagCard(name) : undefined}
@@ -1176,6 +1254,7 @@ function DroppableStackTag({
   cardWidth,
   onAddOne,
   onRemoveOne,
+  onPickPrint,
   onRemoveTag,
   onUntagCard,
   selectedCards,
@@ -1187,6 +1266,7 @@ function DroppableStackTag({
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
+  onPickPrint: (cardName: string) => void;
   onRemoveTag: () => void;
   onUntagCard?: (cardName: string, tag: string) => void;
   selectedCards?: Set<string>;
@@ -1208,10 +1288,12 @@ function DroppableStackTag({
         <StackColumn
           label={tag}
           sectionId={`tag-${tag}`}
+          sourceTag={tag}
           groups={groups}
           cardWidth={cardWidth}
           onAddOne={onAddOne}
           onRemoveOne={onRemoveOne}
+          onPickPrint={onPickPrint}
           onUntag={onUntagCard ? (cardName) => onUntagCard(cardName, tag) : undefined}
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
@@ -1372,10 +1454,9 @@ export function DeckListView({
   onHover,
   onLeave,
 }: DeckListViewProps) {
-  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
+  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);
-  const slotBadges = commanders.map((_, i) => commanderSlotBadge(commanders, deckFormat, i));
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1429,6 +1510,7 @@ export function DeckListView({
   const COLUMN_MIN_PX = 18 * 16;
   const COLUMNS_PADDING_PX = 24;
   const GAP = 20;
+  const STACK_COLUMN_EXTRA_PX = 8;
   const [containerWidth, setContainerWidth] = useState(0);
   const measureContainer = useCallback(() => {
     const el = containerRef.current;
@@ -1452,7 +1534,9 @@ export function DeckListView({
   );
   const stackColumnCount = Math.max(
     1,
-    Math.floor((containerWidth - COLUMNS_PADDING_PX + GAP) / (cardWidth + GAP)),
+    Math.floor(
+      (containerWidth - COLUMNS_PADDING_PX + GAP) / (cardWidth + STACK_COLUMN_EXTRA_PX + GAP),
+    ),
   );
 
   const handleMarqueeComplete = useCallback(
@@ -1571,7 +1655,6 @@ export function DeckListView({
   // Build natural section IDs
   const naturalSectionIds = useMemo(() => {
     const ids: string[] = [];
-    if (commanders.length > 0) ids.push(STACK_SECTION_COMMANDER);
     for (const col of stackColumns) ids.push(col.id);
     if (customTags && allMainCards) {
       for (const tag of customTags) ids.push(`${STACK_SECTION_TAG_PREFIX}${tag}`);
@@ -1580,7 +1663,7 @@ export function DeckListView({
     ids.push(STACK_SECTION_MAYBEBOARD);
     for (const s of specialSections) ids.push(`${STACK_SECTION_SPECIAL_PREFIX}${s.id}`);
     return ids;
-  }, [commanders.length, stackColumns, customTags, allMainCards, specialSections]);
+  }, [stackColumns, customTags, allMainCards, specialSections]);
 
   // ─── Order-based layout: sections flow into CSS columns; drag reorders. ─────
   // Persisted through stackPositions as {x: index, y: 0}; legacy free-position
@@ -1691,25 +1774,6 @@ export function DeckListView({
       dropTarget === id && !isDragging && "ring-2 ring-selection rounded-lg",
     );
 
-    if (id === STACK_SECTION_COMMANDER) {
-      return (
-        <div key={id} data-stack-id={id} className={wrapperClass}>
-          <StackColumn
-            label={deckFormat === "oathbreaker" ? "Oathbreaker" : "Commander"}
-            sectionId="commander"
-            groups={commanders.map((c) => ({ card: c, count: 1 }))}
-            cardWidth={cardWidth}
-            onAddOne={() => {}}
-            onRemoveOne={(name) => {
-              const c = commanders.find((cmd) => cmd.identity.name === name);
-              if (c) onRemoveCommander(c);
-            }}
-            dragHandleProps={dhProps}
-          />
-        </div>
-      );
-    }
-
     if (id === STACK_SECTION_SIDEBOARD) {
       return (
         <div
@@ -1737,6 +1801,7 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromSide}
+              onPickPrint={onPickPrint}
               onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
@@ -1798,6 +1863,7 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromMaybe}
+              onPickPrint={onPickPrint}
               onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
               contextMenuFor={(g) => ({
@@ -1843,6 +1909,7 @@ export function DeckListView({
             cardWidth={cardWidth}
             onAddOne={onAddOne}
             onRemoveOne={onRemoveOne}
+            onPickPrint={onPickPrint}
             onRemoveTag={() => onRemoveTag?.(tag)}
             onUntagCard={onUntagCard ?? undefined}
             selectedCards={selectedCards}
@@ -1868,6 +1935,7 @@ export function DeckListView({
               onAddToSide({ ...g.card, identity: { ...g.card.identity, id: crypto.randomUUID() } })
             }
             onRemoveOne={onRemoveFromSide}
+            onPickPrint={onPickPrint}
             dragHandleProps={dhProps}
           />
         </div>
@@ -1886,6 +1954,7 @@ export function DeckListView({
           cardWidth={cardWidth}
           onAddOne={onAddOne}
           onRemoveOne={onRemoveOne}
+          onPickPrint={onPickPrint}
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
           onShowInfo={onShowInfo}
@@ -1907,7 +1976,13 @@ export function DeckListView({
           onPointerOver={handleContainerPointerOver}
           onPointerOut={handleContainerPointerOut}
         >
-          <div style={{ columnCount: stackColumnCount, columnGap: GAP }}>
+          <div
+            className="grid items-start"
+            style={{
+              gridTemplateColumns: `repeat(${stackColumnCount}, minmax(${cardWidth + STACK_COLUMN_EXTRA_PX}px, 1fr))`,
+              gap: GAP,
+            }}
+          >
             {orderedSectionIds.map((id) => renderStackSection(id))}
           </div>
 
@@ -1950,111 +2025,6 @@ export function DeckListView({
         onPointerOver={handleContainerPointerOver}
         onPointerOut={handleContainerPointerOut}
       >
-        {commanders.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center gap-1 mb-1.5">
-              <GameIcon name="overlord-helm" className="h-3 w-3 text-commander shrink-0" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {deckFormat === "oathbreaker"
-                  ? "Oathbreaker"
-                  : `Commander${commanders.length > 1 ? "s" : ""}`}
-              </span>
-            </div>
-            {viewMode === "list" ? (
-              <div className="space-y-0.5">
-                {commanders.map((cmd, commanderIndex) => {
-                  const { id, name, foil } = cmd.identity;
-                  return (
-                    <CardContextMenu
-                      key={id}
-                      count={1}
-                      location="main"
-                      onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
-                      onPickPrint={() => onPickPrint(name)}
-                      onToggleFoil={onToggleFoil ? () => onToggleFoil(name) : undefined}
-                      isFoil={!!foil}
-                      isCommander
-                      commanderSlot={commanderSlotFor(cmd, deckFormat)}
-                      onRemoveCommander={() => onRemoveCommander(cmd)}
-                      isCover={coverCardName === name && (coverCardFace ?? 0) === 0}
-                      onSetCover={onSetCover ? () => onSetCover(cmd) : undefined}
-                      isCoverBack={coverCardName === name && coverCardFace === 1}
-                      onSetCoverBack={
-                        cmd.isDoubleFaced && onSetCoverBack ? () => onSetCoverBack(cmd) : undefined
-                      }
-                    >
-                      <div
-                        className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5 cursor-pointer"
-                        data-card-name={name}
-                        onClick={() => onShowInfo?.(name)}
-                      >
-                        <GameIcon
-                          name={commanderSlotFor(cmd, deckFormat).icon}
-                          className="h-3 w-3 text-commander shrink-0"
-                        />
-                        <span className="text-sm flex-1 truncate">{name}</span>
-                        {slotBadges[commanderIndex] && (
-                          <PartnerBadge label={slotBadges[commanderIndex]!.label} />
-                        )}
-                        {cmd.manaCost && (
-                          <ManaSymbols cost={cmd.manaCost} size="sm" className="shrink-0" />
-                        )}
-                      </div>
-                    </CardContextMenu>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {commanders.map((cmd, commanderIndex) => {
-                  const { id, name, foil } = cmd.identity;
-                  return (
-                    <div key={id} className="relative shrink-0" style={{ width: cardWidth }}>
-                      <div className="absolute top-1 right-1 z-20 bg-overlay/70 rounded-full p-0.5 shadow">
-                        <GameIcon
-                          name={commanderSlotFor(cmd, deckFormat).icon}
-                          className="h-3.5 w-3.5 text-commander"
-                        />
-                      </div>
-                      {slotBadges[commanderIndex] && (
-                        <div className="absolute top-1 left-1 z-20 max-w-[calc(100%-0.5rem)]">
-                          <PartnerBadge
-                            label={slotBadges[commanderIndex]!.label}
-                            className="bg-overlay/70"
-                          />
-                        </div>
-                      )}
-                      <CardVisual
-                        group={{ card: cmd, count: 1 }}
-                        dragId={`deck-commander-${name}`}
-                        onAddOne={() => {}}
-                        onRemoveOne={() => onRemoveCommander(cmd)}
-                        onPickPrint={() => onPickPrint(name)}
-                        onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
-                        isCover={coverCardName === name && (coverCardFace ?? 0) === 0}
-                        isCoverBack={coverCardName === name && coverCardFace === 1}
-                        onSetCover={onSetCover ? () => onSetCover(cmd) : undefined}
-                        onSetCoverBack={
-                          cmd.isDoubleFaced && onSetCoverBack
-                            ? () => onSetCoverBack(cmd)
-                            : undefined
-                        }
-                        contextLocation="main"
-                        contextActions={{
-                          onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
-                          onPickPrint: () => onPickPrint(name),
-                          onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
-                          isFoil: !!foil,
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
         {totalCards === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="text-4xl mb-3 opacity-20">🃏</div>

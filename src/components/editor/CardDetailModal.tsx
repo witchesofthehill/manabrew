@@ -33,6 +33,7 @@ import { formatRequiresCommander } from "@/lib/formats";
 import { DEFAULT_COMMANDER_SLOT, type CommanderSlot } from "@/components/editor/deckEditor.utils";
 import { toast } from "sonner";
 import type { ScryfallCard } from "@/types/scryfall";
+import type { DeckCard } from "@/protocol/deck";
 
 interface DeckEditorActions {
   onAddOne: (cardName: string) => void;
@@ -45,7 +46,7 @@ interface DeckEditorActions {
   customTags?: string[];
   onTagCard?: (cardName: string, tag: string) => void;
   onAddTag?: (tag: string) => void;
-  isToken?: boolean;
+  token?: DeckCard;
   onUpdateTokenPrint?: (tokenName: string, print: ScryfallCard) => void;
 }
 
@@ -139,7 +140,7 @@ export function CardDetailModal({
       collectorNumber: print.collector_number,
       imageUrl: newEntry.uris.png,
     });
-    if (deckEditorActions && deckEditorActions.isToken && deckEditorActions.onUpdateTokenPrint) {
+    if (deckEditorActions?.token && deckEditorActions.onUpdateTokenPrint) {
       deckEditorActions.onUpdateTokenPrint(deckCardName, print);
     } else if (deckEditorActions) {
       updatePrint(deckCardName, print);
@@ -557,7 +558,7 @@ export function CardDetailModal({
           cardName={card.name}
           onClose={() => setShowPrints(false)}
           onSelect={handleSelectPrint}
-          isToken={deckEditorActions?.isToken}
+          token={deckEditorActions?.token}
         />
       )}
     </>

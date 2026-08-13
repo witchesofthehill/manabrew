@@ -27,6 +27,7 @@ pub fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
     DeckCardIdentity {
         id: String::new(),
         oracle_id: None,
+        token_script: None,
         name: c.name.clone(),
         set_code: c.set_code.clone(),
         card_number: c.collector_number.clone(),

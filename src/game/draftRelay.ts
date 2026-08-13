@@ -39,6 +39,8 @@ export interface DraftPickMessage {
   type: "pick";
   sessionId: string;
   cardName: string;
+  setCode?: string;
+  cardNumber?: string;
   round?: number;
   pickNumber?: number;
 }

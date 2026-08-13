@@ -13,9 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { DraftCardTile } from "@/components/limited/DraftCardTile";
+import { DraftPoolPanel } from "@/components/limited/DraftPoolPanel";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
 import { LimitedModeToggle, type LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
+import {
+  LimitedWorkspaceTabs,
+  type LimitedWorkspaceTab,
+} from "@/components/limited/LimitedWorkspaceTabs";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { cn } from "@/lib/utils";
 import { useLimitedStore } from "@/stores/useLimitedStore";
@@ -89,9 +94,12 @@ export default function Winston() {
 
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-2">
+      <header className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border/70 bg-background/95 px-3 py-2 shadow-sm backdrop-blur">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Deck: {activeWinston.deckSize} cards left</span>
+          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
+            AI: {activeWinston.aiPickCount} picks
+          </span>
           {activeWinston.isComplete ? (
             <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
               Complete
@@ -189,118 +197,117 @@ function DraftingView({
   onJumpToBuild,
 }: DraftingViewProps) {
   const preview = useCardPreview();
+  const [mobileTab, setMobileTab] = useState<LimitedWorkspaceTab>("pack");
   const activePileEmpty =
     activeWinston.piles.length === 0 || activeWinston.piles[activeIdx].length === 0;
+  const activePile = activeWinston.piles[activeIdx] ?? [];
+
+  const activePilePanel = (
+    <section className="flex min-h-0 flex-1 flex-col rounded-md border border-primary/50 bg-primary/5 motion-safe:animate-draft-pack-arrive">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-3 py-2">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-primary">
+            Active pile {activeIdx + 1}
+          </h2>
+          <p className="text-[11px] text-muted-foreground">
+            {activePile.length} card{activePile.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        {activeWinston.awaitingHuman && (
+          <div className="flex gap-2">
+            <Button onClick={onTake} disabled={activePileEmpty} size="sm">
+              Take pile
+            </Button>
+            <Button variant="outline" onClick={onPass} size="sm">
+              Pass
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {activePile.length === 0 ? (
+          <div className="flex h-full min-h-48 items-center justify-center text-sm text-muted-foreground">
+            This pile is empty.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {activePile.map((card, index) => (
+              <DraftCardTile
+                key={`${card.name}:${card.setCode}:${card.cardNumber}:${index}`}
+                card={card}
+                index={index}
+                preview={preview}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const inactivePiles = (
+    <section className="flex min-h-0 flex-col rounded-md border border-border/70 bg-card/20 p-3">
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Other piles
+      </h2>
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+        {activeWinston.piles.map((pile, index) =>
+          index === activeIdx ? null : (
+            <div key={index} className="rounded border border-border/40 bg-card/40 p-2">
+              <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+                Pile {index + 1} · {pile.length}
+              </div>
+              <FaceDownStack count={pile.length} compact />
+            </div>
+          ),
+        )}
+      </div>
+    </section>
+  );
 
   return (
-    <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_minmax(0,340px)]">
-      <div className="flex min-h-0 flex-col rounded-md border border-border/70 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Piles
-          </h2>
-          {activeWinston.awaitingHuman && (
-            <div className="flex gap-2">
-              <Button onClick={onTake} disabled={activePileEmpty} size="sm">
-                Take Pile {activeIdx + 1}
-              </Button>
-              <Button variant="outline" onClick={onPass} size="sm">
-                Pass
-              </Button>
-            </div>
-          )}
-        </div>
-        <div className="grid flex-1 grid-cols-3 gap-3 overflow-y-auto">
-          {activeWinston.piles.map((pile, i) => {
-            const isActive = i === activeIdx && activeWinston.awaitingHuman;
-            return (
-              <div
-                key={i}
-                className={cn(
-                  "flex flex-col gap-2 rounded border p-2",
-                  isActive ? "border-primary bg-primary/5" : "border-border/40 bg-card/40",
-                )}
-              >
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-                  Pile {i + 1} ({pile.length})
-                </h3>
-                {isActive ? (
-                  pile.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">(empty)</p>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-1.5">
-                      {pile.map((c, j) => (
-                        <DraftCardTile
-                          key={`pile-${i}-${j}`}
-                          card={c}
-                          index={j}
-                          preview={preview}
-                        />
-                      ))}
-                    </div>
-                  )
-                ) : (
-                  <FaceDownStack count={pile.length} />
-                )}
-              </div>
-            );
-          })}
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <LimitedWorkspaceTabs value={mobileTab} onChange={setMobileTab} packLabel="Piles" />
+
+      <div className="hidden min-h-0 flex-1 grid-cols-[minmax(0,1fr)_180px_340px] gap-3 overflow-hidden lg:grid">
+        {activePilePanel}
+        {inactivePiles}
+        <aside className="flex min-h-0 flex-col gap-3">
+          <LimitedHoverPreviewPane preview={preview} />
+          <DraftPoolPanel
+            cards={activeWinston.pickedPile}
+            preview={preview}
+            onBuild={canBuild ? onJumpToBuild : undefined}
+          />
+        </aside>
       </div>
 
-      <aside className="flex min-h-0 flex-col gap-4">
-        <LimitedHoverPreviewPane preview={preview} className="hidden lg:block" />
-        <section className="flex min-h-0 flex-1 flex-col rounded-md border border-border/70">
-          <div className="flex items-center justify-between border-b border-border/40 px-4 py-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Your Pile ({activeWinston.pickedPile.length})
-            </h2>
-            {canBuild && (
-              <Button size="sm" variant="outline" onClick={onJumpToBuild} className="h-7 text-xs">
-                Build
-              </Button>
-            )}
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            {activeWinston.pickedPile.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No picks yet.</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-1.5">
-                {activeWinston.pickedPile.map((c, i) => (
-                  <DraftCardTile
-                    key={`picked-${i}`}
-                    card={c}
-                    index={i}
-                    preview={preview}
-                    overlay={
-                      <span
-                        className="pointer-events-none absolute right-1 top-1 rounded-full border border-white/20 bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white/90"
-                        title={`Pick #${i + 1}`}
-                      >
-                        #{i + 1}
-                      </span>
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="shrink-0 rounded-md border border-border/70 p-4 text-sm">
-          <p className="text-muted-foreground">AI picks: {activeWinston.aiPickCount}</p>
-        </section>
-      </aside>
+      <div className="min-h-0 flex-1 overflow-hidden lg:hidden">
+        <div className={cn("flex h-full flex-col gap-3", mobileTab !== "pack" && "hidden")}>
+          {activePilePanel}
+          {inactivePiles}
+        </div>
+        <div className={cn("flex h-full", mobileTab !== "picks" && "hidden")}>
+          <DraftPoolPanel
+            cards={activeWinston.pickedPile}
+            preview={preview}
+            onBuild={canBuild ? onJumpToBuild : undefined}
+          />
+        </div>
+        <div className={cn("h-full", mobileTab !== "preview" && "hidden")}>
+          <LimitedHoverPreviewPane preview={preview} className="h-full" />
+        </div>
+      </div>
     </div>
   );
 }
 
-function FaceDownStack({ count }: { count: number }) {
+function FaceDownStack({ count, compact = false }: { count: number; compact?: boolean }) {
   if (count === 0) {
     return <p className="text-xs text-muted-foreground">(empty)</p>;
   }
   return (
-    <div className="relative aspect-[5/7] w-full">
+    <div className={cn("relative aspect-[5/7] w-full", compact && "mx-auto max-w-24")}>
       <ScryfallImg
         src={CARD_BACK_IMAGE_URL}
         alt={`Face-down pile of ${count} card${count === 1 ? "" : "s"}`}

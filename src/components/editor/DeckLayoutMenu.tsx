@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
+import type { DeckOwnershipStatus } from "@/lib/collection";
 
 interface DeckLayoutMenuProps {
   groupBy: GroupByMode;
@@ -26,12 +27,14 @@ interface DeckLayoutMenuProps {
   cardSize: number;
   filter: string;
   viewMode: ViewMode;
+  collectionFilter: "all" | DeckOwnershipStatus;
   onApply: (
     groupBy: GroupByMode,
     sortBy: SortMode,
     cardSize: number,
     filter: string,
     viewMode: ViewMode,
+    collectionFilter: "all" | DeckOwnershipStatus,
   ) => void;
 }
 
@@ -41,6 +44,7 @@ export function DeckLayoutMenu({
   cardSize,
   filter,
   viewMode,
+  collectionFilter,
   onApply,
 }: DeckLayoutMenuProps) {
   const metadata = useDeckStore((state) => state.currentDeck.editor);
@@ -55,9 +59,11 @@ export function DeckLayoutMenu({
     (activeLayout.cardSize ?? cardSize) === cardSize &&
     (activeLayout.filter ?? "") === filter &&
     (activeLayout.viewMode ?? viewMode) === viewMode;
+  const activeCollectionFilterMatches =
+    (activeLayout?.collectionFilter ?? "all") === collectionFilter;
 
   useEffect(() => {
-    if (!activeLayout || activeLayoutMatches) return;
+    if (!activeLayout || (activeLayoutMatches && activeCollectionFilterMatches)) return;
     setEditorMetadata({
       ...metadata,
       version: 1,
@@ -65,7 +71,14 @@ export function DeckLayoutMenu({
       layouts,
       activeLayoutId: undefined,
     });
-  }, [activeLayout, activeLayoutMatches, layouts, metadata, setEditorMetadata]);
+  }, [
+    activeLayout,
+    activeLayoutMatches,
+    activeCollectionFilterMatches,
+    layouts,
+    metadata,
+    setEditorMetadata,
+  ]);
 
   function saveLayout() {
     const layoutName = name.trim();
@@ -77,7 +90,17 @@ export function DeckLayoutMenu({
       tags: metadata?.tags ?? [],
       layouts: [
         ...layouts,
-        { id, name: layoutName, groupBy, sortBy, cardSize, filter, viewMode, groups: [] },
+        {
+          id,
+          name: layoutName,
+          groupBy,
+          sortBy,
+          cardSize,
+          filter,
+          viewMode,
+          collectionFilter,
+          groups: [],
+        },
       ],
       activeLayoutId: id,
     });
@@ -101,6 +124,7 @@ export function DeckLayoutMenu({
       layout.cardSize ?? cardSize,
       layout.filter ?? "",
       layout.viewMode ?? viewMode,
+      layout.collectionFilter ?? "all",
     );
   }
 
@@ -125,6 +149,21 @@ export function DeckLayoutMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuItem
+            onSelect={() => onApply("type", "not-owned", cardSize, "", viewMode, "missing")}
+          >
+            Collection gaps
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onApply("custom", "name", cardSize, "", viewMode, "all")}
+          >
+            Tags workspace
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onApply("cmc", "mana-value", cardSize, "", "stack", "all")}
+          >
+            Mana review
+          </DropdownMenuItem>
           {layouts.map((layout) => (
             <DropdownMenuItem
               key={layout.id}

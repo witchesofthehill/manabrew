@@ -120,6 +120,42 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "delete" },
   },
   {
+    id: "deck-editor-move-main",
+    label: "Move selected cards to main deck",
+    category: "Deck editor",
+    defaultCombo: { key: "m" },
+  },
+  {
+    id: "deck-editor-move-side",
+    label: "Move selected cards to sideboard",
+    category: "Deck editor",
+    defaultCombo: { key: "s" },
+  },
+  {
+    id: "deck-editor-move-maybe",
+    label: "Move selected cards to maybeboard",
+    category: "Deck editor",
+    defaultCombo: { key: "b" },
+  },
+  {
+    id: "deck-editor-toggle-foil-selection",
+    label: "Toggle foil for selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "f" },
+  },
+  {
+    id: "deck-editor-remove-one-selection",
+    label: "Remove one copy of selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "-" },
+  },
+  {
+    id: "deck-editor-add-one-selection",
+    label: "Add one copy of selected cards",
+    category: "Deck editor",
+    defaultCombo: { key: "=" },
+  },
+  {
     id: "open-settings",
     label: "Open preferences",
     category: "Navigation",

@@ -139,9 +139,18 @@ import { DeckSelectionTray } from "./DeckSelectionTray";
 import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
 import { SideboardPlansDialog } from "./SideboardPlansDialog";
 import { useCardCollection } from "@/hooks/useCardCollection";
-import { collectionQuantityForName } from "@/lib/collection";
+import {
+  collectionQuantityForName,
+  deckOwnershipByName,
+  type DeckOwnershipStatus,
+} from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { normalizeCardName } from "@/lib/gameChangers";
+import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { DeckInsightsPanel } from "./DeckInsightsPanel";
+import { DeckEditorWelcome } from "./DeckEditorWelcome";
+import { openDeckEditorWelcome } from "./deckEditorWelcome.actions";
+import { setCardCollectionOwnershipSnapshot } from "./useCardCollectionOwnership";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -240,6 +249,7 @@ export function DeckBuilder({
   const [analysisOpen, setAnalysisOpen] = useState(true);
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
+  const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
     const snap = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshotRef(snap);
@@ -270,6 +280,24 @@ export function DeckBuilder({
     "deck-editor-paste-cards": () => void pasteCards(),
     "deck-editor-remove-selection": () => {
       if (selectedCards.size > 0 && !isReadOnly) handleRemoveSelected();
+    },
+    "deck-editor-move-main": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToMain();
+    },
+    "deck-editor-move-side": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToSide();
+    },
+    "deck-editor-move-maybe": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToMaybe();
+    },
+    "deck-editor-toggle-foil-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) toggleSelectedFoil();
+    },
+    "deck-editor-remove-one-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) removeOneEachSelected();
+    },
+    "deck-editor-add-one-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) addOneEachSelected();
     },
   });
 
@@ -330,6 +358,18 @@ export function DeckBuilder({
   useDeckRoles();
   useCardCollection();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
+  const comboCardNames = useDeckAnalysisStore((state) => state.comboCardNames);
+  const gameChangerNames = useDeckAnalysisStore((state) => state.gameChangerNames);
+  const ownershipByName = useMemo(
+    () =>
+      deckOwnershipByName(collectionQuantities, [
+        ...currentDeck.cards,
+        ...(currentDeck.commanders ?? []),
+        ...currentDeck.sideboard,
+      ]),
+    [collectionQuantities, currentDeck.cards, currentDeck.commanders, currentDeck.sideboard],
+  );
+  setCardCollectionOwnershipSnapshot(collectionQuantities, ownershipByName);
   const isCardOwned = useCallback(
     (card: DeckCard) => collectionQuantityForName(collectionQuantities, card.identity.name) > 0,
     [collectionQuantities],
@@ -567,23 +607,40 @@ export function DeckBuilder({
   const isDeckLegal = deckValidation.legal;
 
   const matchesFilters = useCallback(
-    (c: DeckCard) => {
+    (c: DeckCard, section: "main" | "sideboard" | "maybeboard" | "special" = "main") => {
       const tags = currentDeck.cardTags?.[c.identity.name.toLowerCase()] ?? [];
+      const ownership = ownershipByName.get(c.identity.name.toLowerCase())?.status ?? "missing";
+      if (collectionFilter !== "all" && ownership !== collectionFilter) return false;
       if (
         !matchesDeckQuery(c, deckFilter, {
           tags,
           unsupported: unsupportedNames.has(c.identity.name),
+          ownership,
+          combo: comboCardNames.has(normalizeCardName(c.identity.name)),
+          gameChanger: gameChangerNames.has(normalizeCardName(c.identity.name)),
+          section,
         })
       )
         return false;
       if (cmcFilter !== null && cmcBucketIndex(c) !== cmcFilter) return false;
       return true;
     },
-    [currentDeck.cardTags, deckFilter, unsupportedNames, cmcFilter],
+    [
+      currentDeck.cardTags,
+      deckFilter,
+      unsupportedNames,
+      cmcFilter,
+      ownershipByName,
+      collectionFilter,
+      comboCardNames,
+      gameChangerNames,
+    ],
   );
-  const hasActiveFilter = deckFilter.trim().length > 0 || cmcFilter !== null;
+  const hasActiveFilter =
+    deckFilter.trim().length > 0 || cmcFilter !== null || collectionFilter !== "all";
   const applyFilters = useCallback(
-    (cards: DeckCard[]) => (hasActiveFilter ? cards.filter(matchesFilters) : cards),
+    (cards: DeckCard[], section: "main" | "sideboard" | "maybeboard" | "special" = "main") =>
+      hasActiveFilter ? cards.filter((card) => matchesFilters(card, section)) : cards,
     [hasActiveFilter, matchesFilters],
   );
   const filteredMain = useMemo(
@@ -598,29 +655,37 @@ export function DeckBuilder({
       currentDeck.customTags,
       currentDeck.cardTags,
     );
-    const groupZone = (cards: DeckCard[]) =>
-      sortCardGroups(groupCards(applyFilters(cards)), sortBy, isCardOwned);
+    const groupZone = (cards: DeckCard[], section: "sideboard" | "maybeboard" | "special") =>
+      sortCardGroups(groupCards(applyFilters(cards, section)), sortBy, isCardOwned);
     return {
       sectionGroups: groupedMain.sections.map((section) => ({
         ...section,
         groups: sortCardGroups(section.groups, sortBy, isCardOwned),
       })),
       otherGroups: sortCardGroups(groupedMain.otherGroups, sortBy, isCardOwned),
-      sideGroups: groupZone(currentDeck.sideboard),
-      maybeGroups: groupZone(currentDeck.maybeboard ?? []),
+      sideGroups: groupZone(currentDeck.sideboard, "sideboard"),
+      maybeGroups: groupZone(currentDeck.maybeboard ?? [], "maybeboard"),
       specialSections: [
         {
           id: "attractions",
           label: "Attractions",
-          groups: groupZone(currentDeck.attractions ?? []),
+          groups: groupZone(currentDeck.attractions ?? [], "special"),
         },
         {
           id: "contraptions",
           label: "Contraptions",
-          groups: groupZone(currentDeck.contraptions ?? []),
+          groups: groupZone(currentDeck.contraptions ?? [], "special"),
         },
-        { id: "schemes", label: "Schemes", groups: groupZone(currentDeck.schemes ?? []) },
-        { id: "planes", label: "Planes", groups: groupZone(currentDeck.planes ?? []) },
+        {
+          id: "schemes",
+          label: "Schemes",
+          groups: groupZone(currentDeck.schemes ?? [], "special"),
+        },
+        {
+          id: "planes",
+          label: "Planes",
+          groups: groupZone(currentDeck.planes ?? [], "special"),
+        },
       ].filter((section) => section.groups.length > 0),
     };
   }, [
@@ -1015,6 +1080,30 @@ export function DeckBuilder({
       run: () => setSortBy("not-owned"),
     },
     {
+      id: "view-collection-gaps",
+      label: "Show collection gaps",
+      keywords: ["missing", "owned", "filter"],
+      run: () => setCollectionFilter("missing"),
+    },
+    {
+      id: "filter-partial-owned",
+      label: "Show partially owned cards",
+      keywords: ["collection", "shortage", "filter"],
+      run: () => setCollectionFilter("partial"),
+    },
+    {
+      id: "filter-exact-printings",
+      label: "Show exact printings owned",
+      keywords: ["collection", "printing", "filter"],
+      run: () => setCollectionFilter("exact"),
+    },
+    {
+      id: "editor-tour",
+      label: "Show deck editor tour",
+      keywords: ["help", "learn", "what can I do", "onboarding"],
+      run: openDeckEditorWelcome,
+    },
+    {
       id: "clear-filter",
       label: "Clear card filters",
       keywords: ["show all", "reset search"],
@@ -1041,7 +1130,9 @@ export function DeckBuilder({
       disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
       run: () =>
         selectCards(
-          currentDeck.cards.filter(matchesFilters).map((card) => card.identity.name),
+          currentDeck.cards
+            .filter((card) => matchesFilters(card))
+            .map((card) => card.identity.name),
           true,
         ),
     },
@@ -1253,7 +1344,7 @@ export function DeckBuilder({
                 ref={filterInputRef}
                 className="h-6 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
                 placeholder="Filter…"
-                title="Filter cards by name — comma-separate to match several, e.g. bolt, elves"
+                title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
                 value={deckFilter}
                 onChange={(e) => setDeckFilter(e.target.value)}
               />
@@ -1284,12 +1375,21 @@ export function DeckBuilder({
               cardSize={cardSize}
               filter={deckFilter}
               viewMode={viewMode}
-              onApply={(nextGroupBy, nextSortBy, nextCardSize, nextFilter, nextViewMode) => {
+              collectionFilter={collectionFilter}
+              onApply={(
+                nextGroupBy,
+                nextSortBy,
+                nextCardSize,
+                nextFilter,
+                nextViewMode,
+                nextCollectionFilter,
+              ) => {
                 setGroupBy(nextGroupBy);
                 setSortBy(nextSortBy);
                 setCardSize(nextCardSize);
                 setDeckFilter(nextFilter);
                 setViewMode(nextViewMode);
+                setCollectionFilter(nextCollectionFilter);
               }}
             />
             <DropdownMenu>
@@ -1308,6 +1408,30 @@ export function DeckBuilder({
                     className={cn(groupBy === opt.value && "bg-muted font-medium")}
                   >
                     {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                  <LibraryBig className="h-3 w-3" />
+                  <span>
+                    {collectionFilter === "all"
+                      ? "Collection: All"
+                      : `Collection: ${collectionFilter.replace("-", " ")}`}
+                  </span>
+                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {(["all", "exact", "other", "partial", "missing"] as const).map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onSelect={() => setCollectionFilter(status)}
+                    className={cn(collectionFilter === status && "bg-muted font-medium")}
+                  >
+                    {status === "all" ? "All cards" : status.replace("-", " ")}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -1661,7 +1785,9 @@ export function DeckBuilder({
                 onSetCommander={handleSetCommander}
                 onRemoveCommander={handleRemoveCommander}
                 onHover={(card, event) =>
-                  preview.handleMouseEnter(deckCardToPreviewDto(card), event, { useDelay: true })
+                  preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
+                    useDelay: true,
+                  })
                 }
                 onLeave={preview.handleMouseLeave}
                 onPickPrint={(name) => setPrintPickerCard(name)}
@@ -2062,6 +2188,7 @@ export function DeckBuilder({
           </div>
         )}
       </fieldset>
+      <DeckEditorWelcome readOnly={isReadOnly} />
     </div>
   );
 }

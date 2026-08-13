@@ -7,6 +7,7 @@ import type { EditorDeck } from "@/types/manabrew";
 import { DeckBudgetPanel } from "./DeckBudgetPanel";
 import { DeckCollectionPanel } from "./DeckCollectionPanel";
 import { DeckHealthPanel } from "./DeckHealthPanel";
+import { DeckGoalsPanel } from "./DeckGoalsPanel";
 import { DeckIntentPanel } from "./DeckIntentPanel";
 import { DeckStats } from "./DeckStats";
 import { ManaProbabilityPanel } from "./ManaProbabilityPanel";
@@ -77,6 +78,7 @@ export function DeckInsightsPanel({
                 onOpenSearch={onOpenSearch}
               />
               <DeckIntentPanel deck={deck} />
+              <DeckGoalsPanel />
             </>
           )}
           {id === "mana" && (

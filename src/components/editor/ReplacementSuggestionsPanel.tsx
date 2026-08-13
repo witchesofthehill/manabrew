@@ -14,6 +14,8 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import type { ScryfallCard } from "@/types/scryfall";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { executeDeckEdit } from "./deckEditor.history";
+import { collectionQuantityForName } from "@/lib/collection";
+import { useCollectionStore } from "@/stores/useCollectionStore";
 
 export function ReplacementSuggestionsPanel({
   cardSize,
@@ -27,6 +29,9 @@ export function ReplacementSuggestionsPanel({
   const deck = useDeckStore((state) => state.currentDeck);
   const addToMain = useDeckStore((state) => state.addToMain);
   const removeFromMain = useDeckStore((state) => state.removeFromMain);
+  const tagCard = useDeckStore((state) => state.tagCard);
+  const quantities = useCollectionStore((state) => state.quantities);
+  const [ownedOnly, setOwnedOnly] = useState(false);
   const candidates = useMemo(
     () =>
       [
@@ -77,7 +82,11 @@ export function ReplacementSuggestionsPanel({
         1,
         "edhrec",
       );
-      const nextSuggestions = response.data.slice(0, 4);
+      const nextSuggestions = response.data
+        .filter(
+          (candidate) => !ownedOnly || collectionQuantityForName(quantities, candidate.name) > 0,
+        )
+        .slice(0, 4);
       if (requestId !== requestIdRef.current || currentTargetRef.current !== requestedTarget)
         return;
       setSuggestions(nextSuggestions);
@@ -106,6 +115,17 @@ export function ReplacementSuggestionsPanel({
           </div>
         </div>
         <div className="flex gap-2">
+          <label className="flex h-8 items-center gap-1.5 rounded-md border px-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={ownedOnly}
+              onChange={(event) => {
+                setOwnedOnly(event.target.checked);
+                setSuggestions([]);
+              }}
+            />
+            Owned only
+          </label>
           <div className="relative">
             <input
               type="text"
@@ -237,15 +257,23 @@ export function ReplacementSuggestionsPanel({
                 className="w-full rounded-lg border border-border/50 shadow-sm"
                 draggable={false}
               />
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                Same {target.types[0]?.toLowerCase() ?? "card type"} · MV {suggestion.cmc}
+                {collectionQuantityForName(quantities, suggestion.name) > 0
+                  ? ` · ${collectionQuantityForName(quantities, suggestion.name)} owned`
+                  : " · not owned"}
+              </div>
               <button
                 type="button"
                 className="absolute right-1 top-1 z-20 rounded-full bg-overlay/80 p-1 text-foreground opacity-0 shadow transition-opacity hover:bg-primary hover:text-primary-foreground group-hover:opacity-100 pointer-coarse:opacity-100"
                 title={`Replace one ${target.identity.name} with ${suggestion.name}`}
                 aria-label={`Replace one ${target.identity.name} with ${suggestion.name}`}
                 onClick={() => {
+                  const tags = deck.cardTags?.[target.identity.name.toLowerCase()] ?? [];
                   executeDeckEdit(`Replace ${target.identity.name} with ${suggestion.name}`, () => {
                     removeFromMain(target.identity.id);
                     addToMain(card);
+                    for (const tag of tags) tagCard(card.identity.name, tag);
                   });
                   toast.success(`Replaced ${target.identity.name} with ${suggestion.name}`);
                 }}

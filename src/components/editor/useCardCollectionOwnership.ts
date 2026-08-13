@@ -1,20 +1,31 @@
-import { useMemo } from "react";
-
-import { collectionOwnership, type CollectionOwnership } from "@/lib/collection";
+import {
+  collectionOwnership,
+  type CollectionOwnership,
+  type DeckOwnershipSummary,
+} from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
-import { useCollectionStore } from "@/stores/useCollectionStore";
+
+let collectionQuantities: Record<string, number> = {};
+let deckOwnership = new Map<string, DeckOwnershipSummary>();
+
+export function setCardCollectionOwnershipSnapshot(
+  quantities: Record<string, number>,
+  ownership: Map<string, DeckOwnershipSummary>,
+) {
+  collectionQuantities = quantities;
+  deckOwnership = ownership;
+}
 
 export function useCardCollectionOwnership(card: DeckCard): CollectionOwnership {
-  const quantities = useCollectionStore((state) => state.quantities);
-  return useMemo(
-    () =>
-      collectionOwnership(
-        quantities,
-        card.identity.name,
-        card.identity.setCode,
-        card.identity.cardNumber,
-        card.identity.foil,
-      ),
-    [card, quantities],
+  return collectionOwnership(
+    collectionQuantities,
+    card.identity.name,
+    card.identity.setCode,
+    card.identity.cardNumber,
+    card.identity.foil,
   );
+}
+
+export function useDeckCardOwnership(card: DeckCard): DeckOwnershipSummary | undefined {
+  return deckOwnership.get(card.identity.name.toLowerCase());
 }

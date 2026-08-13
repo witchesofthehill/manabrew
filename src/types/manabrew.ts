@@ -59,6 +59,7 @@ export interface DeckEditorLayout {
   filter?: string;
   cardSize?: number;
   viewMode?: "list" | "visual" | "stack";
+  collectionFilter?: "all" | "exact" | "other" | "partial" | "missing";
   defaultDestination?: "main" | "side" | "maybe";
 }
 
@@ -71,6 +72,16 @@ export interface DeckEditorMetadata {
   budgetUsd?: number;
   budgetAmount?: number;
   priceProvider?: "tcgplayer" | "cardmarket" | "cardhoarder";
+  goals?: DeckEditorGoals;
+  dismissedHints?: string[];
+}
+
+export interface DeckEditorGoals {
+  minLands?: number;
+  maxLands?: number;
+  maxMissingCards?: number;
+  maxAverageManaValue?: number;
+  tagTargets?: Record<string, number>;
 }
 
 export interface DeckSideboardPlan {

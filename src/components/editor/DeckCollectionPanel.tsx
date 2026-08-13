@@ -1,8 +1,9 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
-import { LayoutGrid, LibraryBig, List } from "lucide-react";
+import { Download, LayoutGrid, LibraryBig, List } from "lucide-react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { collectionQuantityForName } from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
@@ -47,6 +48,22 @@ export function DeckCollectionPanel({
     });
   }
 
+  function exportMissing() {
+    const csv = [
+      "Quantity,Card Name",
+      ...missing.map(([, entry]) => {
+        const shortage = entry.quantity - collectionQuantityForName(quantities, entry.name);
+        return `${shortage},"${entry.name.replaceAll('"', '""')}"`;
+      }),
+    ].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${deck.name || "deck"}-missing-cards.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="rounded-xl border bg-card/40 p-5">
       <div className="flex items-center justify-between gap-3">
@@ -69,6 +86,11 @@ export function DeckCollectionPanel({
                 ? "Deck complete"
                 : `${missing.length} cards missing`}
           </span>
+          {missing.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={exportMissing}>
+              <Download className="h-3.5 w-3.5" /> Missing CSV
+            </Button>
+          )}
           <div className="flex overflow-hidden rounded-md border">
             <ViewButton label="Grid view" active={view === "grid"} onClick={() => setView("grid")}>
               <LayoutGrid className="h-3.5 w-3.5" />

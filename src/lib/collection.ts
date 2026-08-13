@@ -6,6 +6,15 @@ export interface CollectionCardIdentity {
 }
 
 export type CollectionOwnership = "exact" | "other" | "none";
+export type DeckOwnershipStatus = "exact" | "other" | "partial" | "missing";
+
+export interface DeckOwnershipSummary {
+  required: number;
+  owned: number;
+  exactOwned: number;
+  shortage: number;
+  status: DeckOwnershipStatus;
+}
 
 const collectionTotals = new WeakMap<Record<string, number>, Map<string, number>>();
 
@@ -73,4 +82,46 @@ export function collectionOwnership(
     if (exactKeys.some((key) => (quantities[key] ?? 0) > 0)) return "exact";
   }
   return (totalsByName(quantities).get(name.trim().toLowerCase()) ?? 0) > 0 ? "other" : "none";
+}
+
+export function deckOwnershipByName(
+  quantities: Record<string, number>,
+  cards: Array<{
+    identity: { name: string; setCode: string; cardNumber: string; foil?: boolean };
+  }>,
+): Map<string, DeckOwnershipSummary> {
+  const required = new Map<string, typeof cards>();
+  for (const card of cards) {
+    const key = card.identity.name.toLowerCase();
+    required.set(key, [...(required.get(key) ?? []), card]);
+  }
+  const summaries = new Map<string, DeckOwnershipSummary>();
+  for (const [name, copies] of required) {
+    const exactKeys = new Set(
+      copies.flatMap((card) => {
+        const { setCode, cardNumber, foil } = card.identity;
+        if (!setCode || !cardNumber) return [];
+        return foil
+          ? [collectionCardKey(name, setCode, cardNumber, true)]
+          : [
+              collectionCardKey(name, setCode, cardNumber, false),
+              collectionCardKey(name, setCode, cardNumber),
+            ];
+      }),
+    );
+    const owned = totalsByName(quantities).get(name) ?? 0;
+    const exactOwned = [...exactKeys].reduce((sum, key) => sum + (quantities[key] ?? 0), 0);
+    const allocated = Math.min(owned, copies.length);
+    const shortage = copies.length - allocated;
+    const status: DeckOwnershipStatus =
+      shortage > 0
+        ? owned > 0
+          ? "partial"
+          : "missing"
+        : exactOwned >= copies.length
+          ? "exact"
+          : "other";
+    summaries.set(name, { required: copies.length, owned, exactOwned, shortage, status });
+  }
+  return summaries;
 }

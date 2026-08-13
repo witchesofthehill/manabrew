@@ -24,7 +24,7 @@ import { CardThumbnail } from "./deckEditor.primitives";
 import { DROP_ZONE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
-import { useCardCollectionOwnership } from "./useCardCollectionOwnership";
+import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 
 function CommandZoneCard({
   card,
@@ -47,6 +47,7 @@ function CommandZoneCard({
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
   const ownership = useCardCollectionOwnership(card);
+  const ownershipSummary = useDeckCardOwnership(card);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `deck-commander-${card.identity.name}`,
     data: { type: "deck-card", card, name: card.identity.name },
@@ -65,15 +66,18 @@ function CommandZoneCard({
         unsupported && "rounded-lg ring-2 ring-warning/70",
         ownership === "exact" && "rounded-lg outline outline-2 outline-legality-legal/60",
         ownership === "other" && "rounded-lg outline-dashed outline outline-1 outline-primary/60",
+        ownershipSummary?.status === "partial" && "rounded-lg outline outline-2 outline-warning/70",
       )}
       style={{ width: cardWidth }}
       data-card-ownership={ownership}
       title={
-        ownership === "exact"
-          ? "Exact printing owned"
-          : ownership === "other"
-            ? "Owned in another printing"
-            : undefined
+        ownershipSummary
+          ? `Own ${Math.min(ownershipSummary.owned, ownershipSummary.required)}/${ownershipSummary.required}${ownershipSummary.shortage ? ` · missing ${ownershipSummary.shortage}` : ""}`
+          : ownership === "exact"
+            ? "Exact printing owned"
+            : ownership === "other"
+              ? "Owned in another printing"
+              : undefined
       }
       onPointerEnter={(event) => {
         if (event.pointerType !== "touch") onHover?.(card, event);

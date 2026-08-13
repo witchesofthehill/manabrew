@@ -70,7 +70,7 @@ import {
 } from "./deckEditor.utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
-import { useCardCollectionOwnership } from "./useCardCollectionOwnership";
+import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
 
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
@@ -84,6 +84,11 @@ function ownershipLabel(ownership: "exact" | "other" | "none") {
   if (ownership === "exact") return "Exact printing owned";
   if (ownership === "other") return "Owned in another printing";
   return undefined;
+}
+
+function ownershipQuantityLabel(summary: ReturnType<typeof useDeckCardOwnership>) {
+  if (!summary) return undefined;
+  return `Own ${Math.min(summary.owned, summary.required)}/${summary.required}${summary.shortage ? ` · missing ${summary.shortage}` : summary.status === "exact" ? " · exact printing" : " · another printing"}`;
 }
 
 type CardLocation = "main" | "side" | "maybe";
@@ -547,6 +552,7 @@ function DraggableStackCard({
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
   const ownership = useCardCollectionOwnership(group.card);
+  const ownershipSummary = useDeckCardOwnership(group.card);
 
   const content = (
     <div
@@ -560,12 +566,14 @@ function DraggableStackCard({
         unsupported && "ring-2 ring-warning/70 rounded-[4%]",
         isCombo && !isSelected && !unsupported && "ring-2 ring-counter-charge/70 rounded-[4%]",
         ownershipHighlight(ownership, "stack"),
+        ownershipSummary?.status === "partial" &&
+          "rounded-[4%] outline outline-2 outline-warning/70",
       )}
       style={{ top: topOffset, width: cardWidth, zIndex: index + 1 }}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      title={ownershipLabel(ownership)}
+      title={ownershipQuantityLabel(ownershipSummary) ?? ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onMouseEnter={() => onCardHover(index)}
@@ -827,6 +835,7 @@ function CardVisual({
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
   const ownership = useCardCollectionOwnership(group.card);
+  const ownershipSummary = useDeckCardOwnership(group.card);
 
   const visualContent = (
     <div
@@ -840,11 +849,12 @@ function CardVisual({
         unsupported && "ring-2 ring-warning/70 rounded-lg",
         isCombo && !isSelected && !unsupported && "ring-2 ring-counter-charge/70 rounded-lg",
         ownershipHighlight(ownership, "grid"),
+        ownershipSummary?.status === "partial" && "rounded-lg outline outline-2 outline-warning/70",
       )}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      title={ownershipLabel(ownership)}
+      title={ownershipQuantityLabel(ownershipSummary) ?? ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
@@ -1017,6 +1027,7 @@ function CardRow({
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
   const ownership = useCardCollectionOwnership(group.card);
+  const ownershipSummary = useDeckCardOwnership(group.card);
 
   const rowContent = (
     <div
@@ -1030,11 +1041,12 @@ function CardRow({
         unsupported && "bg-warning/10 ring-1 ring-warning/40",
         ownership === "exact" && "border-l-2 border-legality-legal bg-legality-legal/10",
         ownership === "other" && "border-l-2 border-dashed border-primary/70 bg-primary/5",
+        ownershipSummary?.status === "partial" && "border-l-2 border-warning bg-warning/10",
       )}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      title={ownershipLabel(ownership)}
+      title={ownershipQuantityLabel(ownershipSummary) ?? ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onClick={(e) => {

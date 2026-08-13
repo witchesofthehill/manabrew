@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ClipboardPaste, FileUp, Loader2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
-import { COLLECTION_BATCH_SIZE, fetchCardCollection, scryfallCardKey } from "@/api/scryfall";
+import { verifyCardPrintings } from "@/api/hub";
+import { scryfallCardKey } from "@/api/scryfall";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -80,32 +81,34 @@ export function CollectionImportDialog({
     setValidatingPrintings(true);
     setPrintingValidationError(false);
     const validate = async () => {
-      let failed = false;
-      for (let index = 0; index < exactRows.length; index += COLLECTION_BATCH_SIZE) {
-        const batch = exactRows.slice(index, index + COLLECTION_BATCH_SIZE);
-        let next: Record<string, boolean | "error">;
-        try {
-          const cards = await fetchCardCollection(batch);
-          next = Object.fromEntries(
-            batch.map((row) => {
-              const key = scryfallCardKey(row.name, row.setCode, row.collectorNumber);
-              return [key, cards.has(key)];
-            }),
-          );
-        } catch {
-          failed = true;
-          next = Object.fromEntries(
-            batch.map((row) => [
-              scryfallCardKey(row.name, row.setCode, row.collectorNumber),
-              "error",
-            ]),
-          );
-        }
+      const uniqueRows = Array.from(
+        new Map(
+          exactRows.map((row) => [
+            scryfallCardKey(row.name, row.setCode, row.collectorNumber),
+            row,
+          ]),
+        ).entries(),
+      );
+      try {
+        const response = await verifyCardPrintings({
+          identifiers: uniqueRows.map(([, row]) => ({
+            name: row.name,
+            setCode: row.setCode!,
+            collectorNumber: row.collectorNumber!,
+          })),
+        });
         if (!active) return;
-        setPrintingValidation((current) => ({ ...current, ...next }));
+        setPrintingValidation(
+          Object.fromEntries(
+            uniqueRows.map(([key], index) => [key, response.matched[index] === true]),
+          ),
+        );
+        setPrintingValidationError(false);
+      } catch {
+        if (!active) return;
+        setPrintingValidation(Object.fromEntries(uniqueRows.map(([key]) => [key, "error"])));
+        setPrintingValidationError(true);
       }
-      if (!active) return;
-      setPrintingValidationError(failed);
       setValidatingPrintings(false);
     };
     void validate();

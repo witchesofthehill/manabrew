@@ -21,6 +21,8 @@ import type {
   TopDeckBucket,
   TopDeckSnapshot,
   UpdateDeckHubEntryRequest,
+  VerifyCardPrintingsRequest,
+  VerifyCardPrintingsResponse,
 } from "@/api/hubTypes";
 import type { EngineKind } from "@/protocol";
 
@@ -103,6 +105,16 @@ export function fetchHubCapabilities(): Promise<HubCapabilities> {
 
 export function fetchAccountCollection(): Promise<CardCollection> {
   return hubJson<CardCollection>("/api/collection");
+}
+
+export function verifyCardPrintings(
+  request: VerifyCardPrintingsRequest,
+): Promise<VerifyCardPrintingsResponse> {
+  return hubJson<VerifyCardPrintingsResponse>("/api/cards/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }
 
 export function saveAccountCollection(collection: CardCollection): Promise<CardCollection> {

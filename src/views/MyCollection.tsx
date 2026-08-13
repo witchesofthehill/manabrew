@@ -35,6 +35,7 @@ export default function MyCollection() {
   const [view, setView] = useState<"text" | "grid">("grid");
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
+  const [visibleRowCount, setVisibleRowCount] = useState(100);
   const preview = useCardPreview();
   const collectionRows = useMemo(
     () =>
@@ -50,6 +51,7 @@ export default function MyCollection() {
       ),
     [collectionRows, query],
   );
+  const visibleRows = rows.slice(0, visibleRowCount);
 
   if (authStatus === "unknown") return null;
   if (authStatus !== "signedIn") return <Navigate to={ROUTES.SETTINGS} replace />;
@@ -119,7 +121,10 @@ export default function MyCollection() {
                 className="pl-9"
                 value={query}
                 placeholder="Search your collection"
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setVisibleRowCount(100);
+                }}
               />
             </div>
             <CollectionQuickAdd
@@ -141,7 +146,10 @@ export default function MyCollection() {
                 title="Grid view"
                 aria-label="Grid view"
                 aria-pressed={view === "grid"}
-                onClick={() => setView("grid")}
+                onClick={() => {
+                  setView("grid");
+                  setVisibleRowCount(100);
+                }}
                 className={cn(
                   "px-2.5 py-2 transition-colors",
                   view === "grid"
@@ -156,7 +164,10 @@ export default function MyCollection() {
                 title="Text view"
                 aria-label="Text view"
                 aria-pressed={view === "text"}
-                onClick={() => setView("text")}
+                onClick={() => {
+                  setView("text");
+                  setVisibleRowCount(100);
+                }}
                 className={cn(
                   "border-l px-2.5 py-2 transition-colors",
                   view === "text"
@@ -177,7 +188,7 @@ export default function MyCollection() {
                 : "grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4",
             )}
           >
-            {rows.map(({ cardKey, name, setCode, collectorNumber, foil, quantity }) => (
+            {visibleRows.map(({ cardKey, name, setCode, collectorNumber, foil, quantity }) => (
               <CollectionCard
                 key={cardKey}
                 name={name}
@@ -208,6 +219,13 @@ export default function MyCollection() {
               </div>
             )}
           </div>
+          {visibleRows.length < rows.length && (
+            <div className="mt-6 flex justify-center">
+              <Button variant="outline" onClick={() => setVisibleRowCount((count) => count + 100)}>
+                Show 100 more · {rows.length - visibleRows.length} remaining
+              </Button>
+            </div>
+          )}
         </div>
       </div>
       <div className="hidden lg:contents">

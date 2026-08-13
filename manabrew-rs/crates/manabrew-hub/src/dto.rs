@@ -34,6 +34,29 @@ pub struct CardCollection {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]
+pub struct CardPrintingIdentifier {
+    pub name: String,
+    pub set_code: String,
+    pub collector_number: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct VerifyCardPrintingsRequest {
+    pub identifiers: Vec<CardPrintingIdentifier>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct VerifyCardPrintingsResponse {
+    pub matched: Vec<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
 pub struct DeckPlayReportRequest {
     pub report_id: String,
     pub deckhub_entry_id: String,

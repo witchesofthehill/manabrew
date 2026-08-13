@@ -15,6 +15,7 @@ use manabrew_hub::dto::{
     ExchangeCodeRequest, FavoriteResponse, HubCapabilities, MagicLinkRequest, MeResponse,
     OAuthStartRequest, OAuthStartResponse, PublishDeckHubEntryRequest, SaveDeckVersionRequest,
     TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
+    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
 };
 use ts_rs::TS;
 
@@ -44,6 +45,9 @@ pub fn generate(root: &Path) -> Result<()> {
     let out = root.join(HUB_OUT);
     HubCapabilities::export_all_to(&out).context("export HubCapabilities")?;
     CardCollection::export_all_to(&out).context("export CardCollection")?;
+    VerifyCardPrintingsRequest::export_all_to(&out).context("export VerifyCardPrintingsRequest")?;
+    VerifyCardPrintingsResponse::export_all_to(&out)
+        .context("export VerifyCardPrintingsResponse")?;
     DeckPlayReportRequest::export_all_to(&out).context("export DeckPlayReportRequest")?;
     CreateAccountDeckRequest::export_all_to(&out).context("export CreateAccountDeckRequest")?;
     SaveDeckVersionRequest::export_all_to(&out).context("export SaveDeckVersionRequest")?;

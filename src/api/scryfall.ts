@@ -19,7 +19,6 @@ import {
 
 export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
-const SCRYFALL_MAX_RETRIES = 3;
 const SCRYFALL_REQUEST_INTERVAL_MS = 300;
 const SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60_000;
 
@@ -68,7 +67,9 @@ async function queuedScryfallFetch(url: string, init?: RequestInit): Promise<Res
   const scheduled = scryfallQueue.then(waitForScryfallSlot, waitForScryfallSlot);
   scryfallQueue = scheduled.catch(() => undefined);
   await scheduled;
-  return platformFetch(url, init);
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json;q=0.9,*/*;q=0.8");
+  return platformFetch(url, { ...init, headers });
 }
 
 export async function scryfallFetch<T>(
@@ -76,36 +77,32 @@ export async function scryfallFetch<T>(
   errorMsg: string,
   init?: RequestInit,
 ): Promise<T> {
-  for (let attempt = 0; attempt <= SCRYFALL_MAX_RETRIES; attempt += 1) {
-    const t0 = performance.now();
-    let response: Response;
-    try {
-      response = await queuedScryfallFetch(url, init);
-    } catch (err) {
-      console.error(`[scryfall] fetch threw after ${Math.round(performance.now() - t0)}ms`, {
-        url,
-        method: init?.method ?? "GET",
-        attempt,
-        err,
-      });
-      throw err;
-    }
-    console.log(
-      `[scryfall] ${init?.method ?? "GET"} ${response.status} in ${Math.round(performance.now() - t0)}ms`,
+  const t0 = performance.now();
+  let response: Response;
+  try {
+    response = await queuedScryfallFetch(url, init);
+  } catch (err) {
+    console.error(`[scryfall] fetch threw after ${Math.round(performance.now() - t0)}ms`, {
       url,
-    );
-    if (response.status === 429 && attempt < SCRYFALL_MAX_RETRIES) {
-      const retryAfterMs = applyScryfallCooldown(response);
-      console.warn(`SCRYFALL 429; pausing queue for ${Math.ceil(retryAfterMs / 1000)}s`);
-      await sleep(retryAfterMs);
-      continue;
-    }
-    if (!response.ok) {
-      throw new Error(`${errorMsg} (HTTP ${response.status})`);
-    }
-    return response.json();
+      method: init?.method ?? "GET",
+      err,
+    });
+    throw err;
   }
-  throw new Error(errorMsg);
+  console.log(
+    `[scryfall] ${init?.method ?? "GET"} ${response.status} in ${Math.round(performance.now() - t0)}ms`,
+    url,
+  );
+  if (response.status === 429) {
+    const retryAfterMs = applyScryfallCooldown(response);
+    throw new Error(
+      `Scryfall is rate limited. Try again in ${Math.ceil(retryAfterMs / 1000)} seconds.`,
+    );
+  }
+  if (!response.ok) {
+    throw new Error(`${errorMsg} (HTTP ${response.status})`);
+  }
+  return response.json();
 }
 
 export async function searchCards(

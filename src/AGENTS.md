@@ -72,6 +72,8 @@ Author names on Community Explore cards filter the continuous feed to that autho
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.
 
+Large collection imports are the exception: exact-printing verification goes through `POST /api/cards/verify`, backed by the Hub's daily Scryfall `default_cards` bulk index. Never verify a collection by issuing live Scryfall requests per row or per 75-row batch.
+
 Use the exported hook helpers, not the raw store:
 
 | Need                                       | Use                                                |

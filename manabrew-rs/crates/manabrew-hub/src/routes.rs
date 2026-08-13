@@ -13,6 +13,7 @@ use manabrew_hub::dto::{
     AccountDeckList, AdminTopDeckSnapshotRequest, CardCollection, CardCollectionEntry,
     CreateAccountDeckRequest, DeckHubEntryList, DeckPlayReportRequest, HubCapabilities,
     PublishDeckHubEntryRequest, SaveDeckVersionRequest, UpdateDeckHubEntryRequest,
+    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
 };
 use rand::RngCore;
 use serde::Deserialize;
@@ -22,6 +23,8 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use crate::auth;
 use crate::config::AuthConfig;
 use crate::rate_limit::RateLimiter;
+use crate::scryfall_api::ScryfallApi;
+use crate::scryfall_bulk::ScryfallBulkIndex;
 use crate::storage::{
     DeckHubColorMatch, DeckHubEntryUpdate, DeckHubListParams, DeckHubSortOrder, DeckHubTagMatch,
     DeleteOutcome, NewDeckHubEntry, RecordDeckPlayOutcome, RelayDeckPlay, ReplaceSnapshotOutcome,
@@ -46,6 +49,8 @@ pub struct AppState {
     pub auth_email_limiter: RateLimiter,
     pub auth_code_limiter: RateLimiter,
     pub http: reqwest::Client,
+    pub scryfall_bulk: Arc<ScryfallBulkIndex>,
+    pub scryfall_api: ScryfallApi,
     pub identity: auth::IdentityKeys,
 }
 
@@ -86,6 +91,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route(
             "/api/collection",
             get(card_collection_handler).put(replace_card_collection_handler),
+        )
+        .route("/api/cards/verify", post(verify_card_printings_handler))
+        .route(
+            "/api/scryfall/*path",
+            get(crate::scryfall_api::handler).post(crate::scryfall_api::handler),
         )
         .route(
             "/api/decks",
@@ -156,6 +166,33 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(cors)
         .with_state(state)
+}
+
+async fn verify_card_printings_handler(
+    State(state): State<Arc<AppState>>,
+    auth::SessionAccount(_account): auth::SessionAccount,
+    Json(request): Json<VerifyCardPrintingsRequest>,
+) -> Response {
+    if request.identifiers.len() > 100_000
+        || request.identifiers.iter().any(|identifier| {
+            identifier.name.is_empty()
+                || identifier.name.len() > 300
+                || identifier.set_code.is_empty()
+                || identifier.set_code.len() > 20
+                || identifier.collector_number.is_empty()
+                || identifier.collector_number.len() > 30
+        })
+    {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    match state.scryfall_bulk.verify(&request.identifiers) {
+        Some(matched) => Json(VerifyCardPrintingsResponse { matched }).into_response(),
+        None => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Card verification data is still loading. Try again shortly.",
+        )
+            .into_response(),
+    }
 }
 
 async fn card_collection_handler(
@@ -966,6 +1003,11 @@ mod tests {
             auth_email_limiter: RateLimiter::new(100),
             auth_code_limiter: RateLimiter::new(100),
             http: reqwest::Client::new(),
+            scryfall_bulk: Arc::new(ScryfallBulkIndex::new(
+                std::env::temp_dir()
+                    .join(format!("manabrew-test-bulk-{}.json", uuid::Uuid::new_v4())),
+            )),
+            scryfall_api: ScryfallApi::new(),
             identity: auth::token_tests::ephemeral(),
         })
     }

@@ -109,11 +109,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/scryfall-img/, ""),
       },
-      "/scryfall-api": {
-        target: "https://api.scryfall.com",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/scryfall-api/, ""),
-      },
     },
   },
   worker: {

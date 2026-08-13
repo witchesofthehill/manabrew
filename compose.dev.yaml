@@ -96,6 +96,8 @@ services:
       HUB_RANKING_REFRESH_SECONDS: "5"
       HUB_PUBLIC_URL: "http://localhost:9500"
       WEB_APP_URL: "http://localhost:1420"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      AUTH_EMAIL_FROM: "${AUTH_EMAIL_FROM:-Manabrew <onboarding@resend.dev>}"
       DECK_HUB: "1"
       RUST_LOG: "manabrew_hub=info"
     ports:

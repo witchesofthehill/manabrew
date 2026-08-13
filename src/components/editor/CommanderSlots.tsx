@@ -24,6 +24,7 @@ import { CardThumbnail } from "./deckEditor.primitives";
 import { DROP_ZONE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
+import { useCardCollectionOwnership } from "./useCardCollectionOwnership";
 
 function CommandZoneCard({
   card,
@@ -45,6 +46,7 @@ function CommandZoneCard({
   onPickPrint?: (cardName: string) => void;
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
+  const ownership = useCardCollectionOwnership(card);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `deck-commander-${card.identity.name}`,
     data: { type: "deck-card", card, name: card.identity.name },
@@ -61,8 +63,18 @@ function CommandZoneCard({
         !readOnly && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
         unsupported && "rounded-lg ring-2 ring-warning/70",
+        ownership === "exact" && "rounded-lg outline outline-2 outline-legality-legal/60",
+        ownership === "other" && "rounded-lg outline-dashed outline outline-1 outline-primary/60",
       )}
       style={{ width: cardWidth }}
+      data-card-ownership={ownership}
+      title={
+        ownership === "exact"
+          ? "Exact printing owned"
+          : ownership === "other"
+            ? "Owned in another printing"
+            : undefined
+      }
       onPointerEnter={(event) => {
         if (event.pointerType !== "touch") onHover?.(card, event);
       }}

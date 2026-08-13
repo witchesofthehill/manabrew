@@ -139,6 +139,8 @@ import { DeckSelectionTray } from "./DeckSelectionTray";
 import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
 import { SideboardPlansDialog } from "./SideboardPlansDialog";
 import { useCardCollection } from "@/hooks/useCardCollection";
+import { collectionQuantityForName } from "@/lib/collection";
+import { useCollectionStore } from "@/stores/useCollectionStore";
 import { DeckInsightsPanel } from "./DeckInsightsPanel";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
@@ -327,6 +329,11 @@ export function DeckBuilder({
   useDeckAnalysis();
   useDeckRoles();
   useCardCollection();
+  const collectionQuantities = useCollectionStore((state) => state.quantities);
+  const isCardOwned = useCallback(
+    (card: DeckCard) => collectionQuantityForName(collectionQuantities, card.identity.name) > 0,
+    [collectionQuantities],
+  );
 
   const { setNodeRef: setMainDropRef, isOver: isOverMain } = useDroppable({ id: DROP_ZONE.MAIN });
   const { setNodeRef: setSideDropRef, isOver: isOverSide } = useDroppable({ id: DROP_ZONE.SIDE });
@@ -592,13 +599,13 @@ export function DeckBuilder({
       currentDeck.cardTags,
     );
     const groupZone = (cards: DeckCard[]) =>
-      sortCardGroups(groupCards(applyFilters(cards)), sortBy);
+      sortCardGroups(groupCards(applyFilters(cards)), sortBy, isCardOwned);
     return {
       sectionGroups: groupedMain.sections.map((section) => ({
         ...section,
-        groups: sortCardGroups(section.groups, sortBy),
+        groups: sortCardGroups(section.groups, sortBy, isCardOwned),
       })),
-      otherGroups: sortCardGroups(groupedMain.otherGroups, sortBy),
+      otherGroups: sortCardGroups(groupedMain.otherGroups, sortBy, isCardOwned),
       sideGroups: groupZone(currentDeck.sideboard),
       maybeGroups: groupZone(currentDeck.maybeboard ?? []),
       specialSections: [
@@ -628,6 +635,7 @@ export function DeckBuilder({
     currentDeck.sideboard,
     filteredMain,
     groupBy,
+    isCardOwned,
     sortBy,
   ]);
   const stackColsData = useMemo(
@@ -637,8 +645,11 @@ export function DeckBuilder({
         groupBy,
         currentDeck.customTags,
         currentDeck.cardTags,
-      ).map((section) => ({ ...section, groups: sortCardGroups(section.groups, sortBy) })),
-    [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags],
+      ).map((section) => ({
+        ...section,
+        groups: sortCardGroups(section.groups, sortBy, isCardOwned),
+      })),
+    [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags, isCardOwned],
   );
 
   // ── Handlers ──
@@ -997,6 +1008,12 @@ export function DeckBuilder({
     { id: "sort-name", label: "Sort cards by name", run: () => setSortBy("name") },
     { id: "sort-mana", label: "Sort cards by mana value", run: () => setSortBy("mana-value") },
     { id: "sort-quantity", label: "Sort cards by quantity", run: () => setSortBy("quantity") },
+    { id: "sort-owned", label: "Sort owned cards first", run: () => setSortBy("owned") },
+    {
+      id: "sort-not-owned",
+      label: "Sort not owned cards first",
+      run: () => setSortBy("not-owned"),
+    },
     {
       id: "clear-filter",
       label: "Clear card filters",

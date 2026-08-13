@@ -116,6 +116,12 @@ export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
   };
 }
 
+const previewDtoByDeckCard = new WeakMap<DeckCard, CardDto>();
+
 export function deckCardToPreviewDto(card: DeckCard): CardDto {
-  return { ...card, foil: card.identity.foil ?? false } as unknown as CardDto;
+  const cached = previewDtoByDeckCard.get(card);
+  if (cached) return cached;
+  const preview = { ...card, foil: card.identity.foil ?? false } as unknown as CardDto;
+  previewDtoByDeckCard.set(card, preview);
+  return preview;
 }

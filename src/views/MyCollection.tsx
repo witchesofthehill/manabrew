@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Download, LayoutGrid, LibraryBig, List, Search, Upload } from "lucide-react";
+import { Download, LayoutGrid, LibraryBig, List, Search, Trash2, Upload } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CollectionCard } from "@/components/collection/CollectionCard";
+import { CollectionDeleteDialog } from "@/components/collection/CollectionDeleteDialog";
 import { CollectionQuickAdd } from "@/components/collection/CollectionQuickAdd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ export default function MyCollection() {
   const syncError = useCollectionStore((state) => state.error);
   const [query, setQuery] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [view, setView] = useState<"text" | "grid">("grid");
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
@@ -78,6 +80,17 @@ export default function MyCollection() {
     });
   }
 
+  async function deleteCollection() {
+    try {
+      await replaceQuantities({});
+      setQuery("");
+      toast.success("Collection deleted");
+    } catch (error) {
+      toast.error("Account sync failed. The deletion is preserved locally and will retry.");
+      throw error;
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 w-full">
       <div className="min-w-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -110,6 +123,13 @@ export default function MyCollection() {
                 onClick={exportCollection}
               >
                 <Download className="mr-1.5 h-4 w-4" /> Export CSV
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={loading || collectionRows.length === 0}
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" /> Delete collection
               </Button>
             </div>
           </div>
@@ -242,6 +262,12 @@ export default function MyCollection() {
         onOpenChange={setImportOpen}
         currentQuantities={quantities}
         onImport={replaceQuantities}
+      />
+      <CollectionDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        entryCount={collectionRows.length}
+        onDelete={deleteCollection}
       />
     </div>
   );

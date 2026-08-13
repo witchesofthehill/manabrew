@@ -5,6 +5,22 @@ export interface CollectionCardIdentity {
   foil?: boolean;
 }
 
+export type CollectionOwnership = "exact" | "other" | "none";
+
+const collectionTotals = new WeakMap<Record<string, number>, Map<string, number>>();
+
+function totalsByName(quantities: Record<string, number>): Map<string, number> {
+  const cached = collectionTotals.get(quantities);
+  if (cached) return cached;
+  const totals = new Map<string, number>();
+  for (const [cardKey, quantity] of Object.entries(quantities)) {
+    const name = parseCollectionCardKey(cardKey).name.toLowerCase();
+    totals.set(name, (totals.get(name) ?? 0) + quantity);
+  }
+  collectionTotals.set(quantities, totals);
+  return totals;
+}
+
 export function collectionCardKey(
   name: string,
   setCode?: string,
@@ -38,4 +54,23 @@ export function collectionQuantityForName(
       parseCollectionCardKey(cardKey).name.toLowerCase() === normalized ? total + quantity : total,
     0,
   );
+}
+
+export function collectionOwnership(
+  quantities: Record<string, number>,
+  name: string,
+  setCode?: string,
+  collectorNumber?: string,
+  foil?: boolean,
+): CollectionOwnership {
+  if (setCode && collectorNumber) {
+    const exactKeys = foil
+      ? [collectionCardKey(name, setCode, collectorNumber, true)]
+      : [
+          collectionCardKey(name, setCode, collectorNumber, false),
+          collectionCardKey(name, setCode, collectorNumber),
+        ];
+    if (exactKeys.some((key) => (quantities[key] ?? 0) > 0)) return "exact";
+  }
+  return (totalsByName(quantities).get(name.trim().toLowerCase()) ?? 0) > 0 ? "other" : "none";
 }

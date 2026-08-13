@@ -70,6 +70,21 @@ import {
 } from "./deckEditor.utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
+import { useCardCollectionOwnership } from "./useCardCollectionOwnership";
+
+function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
+  return cn(
+    ownership === "exact" && "outline outline-2 outline-legality-legal/60",
+    ownership === "other" && "outline-dashed outline outline-1 outline-primary/60",
+    surface === "stack" ? "rounded-[4%]" : "rounded-lg",
+  );
+}
+
+function ownershipLabel(ownership: "exact" | "other" | "none") {
+  if (ownership === "exact") return "Exact printing owned";
+  if (ownership === "other") return "Owned in another printing";
+  return undefined;
+}
 
 type CardLocation = "main" | "side" | "maybe";
 
@@ -531,6 +546,7 @@ function DraggableStackCard({
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
+  const ownership = useCardCollectionOwnership(group.card);
 
   const content = (
     <div
@@ -543,10 +559,13 @@ function DraggableStackCard({
         isSelected && cn(CARD_RING.selected, "z-50"),
         unsupported && "ring-2 ring-warning/70 rounded-[4%]",
         isCombo && !isSelected && !unsupported && "ring-2 ring-counter-charge/70 rounded-[4%]",
+        ownershipHighlight(ownership, "stack"),
       )}
       style={{ top: topOffset, width: cardWidth, zIndex: index + 1 }}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
+      data-card-ownership={ownership}
+      title={ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onMouseEnter={() => onCardHover(index)}
@@ -807,6 +826,7 @@ function CardVisual({
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
+  const ownership = useCardCollectionOwnership(group.card);
 
   const visualContent = (
     <div
@@ -819,9 +839,12 @@ function CardVisual({
         isSelected && cn(CARD_RING.selected, "rounded-lg"),
         unsupported && "ring-2 ring-warning/70 rounded-lg",
         isCombo && !isSelected && !unsupported && "ring-2 ring-counter-charge/70 rounded-lg",
+        ownershipHighlight(ownership, "grid"),
       )}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
+      data-card-ownership={ownership}
+      title={ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
@@ -993,6 +1016,7 @@ function CardRow({
   const unsupported = useIsUnsupported(name);
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
+  const ownership = useCardCollectionOwnership(group.card);
 
   const rowContent = (
     <div
@@ -1004,9 +1028,13 @@ function CardRow({
         isDragging && "opacity-30",
         isSelected && "bg-selection/20",
         unsupported && "bg-warning/10 ring-1 ring-warning/40",
+        ownership === "exact" && "border-l-2 border-legality-legal bg-legality-legal/10",
+        ownership === "other" && "border-l-2 border-dashed border-primary/70 bg-primary/5",
       )}
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
+      data-card-ownership={ownership}
+      title={ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onClick={(e) => {
@@ -1580,6 +1608,8 @@ export function DeckListView({
       if (!onHover || e.pointerType === "touch") return;
       const el = (e.target as HTMLElement).closest("[data-card-name]");
       if (!el) return;
+      const previous = (e.relatedTarget as HTMLElement | null)?.closest?.("[data-card-name]");
+      if (previous === el) return;
       const name = el.getAttribute("data-card-name");
       if (!name) return;
       const card = cardsByName.get(name);

@@ -54,7 +54,7 @@ export interface DeckEditorLayout {
   id: string;
   name: string;
   groupBy: "type" | "cmc" | "color" | "custom";
-  sortBy: "name" | "mana-value" | "quantity";
+  sortBy: "name" | "mana-value" | "quantity" | "owned" | "not-owned";
   groups: DeckEditorGroup[];
   filter?: string;
   cardSize?: number;

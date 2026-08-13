@@ -13,7 +13,7 @@ export type ViewMode = "list" | "visual" | "stack";
 
 export type GroupByMode = "type" | "cmc" | "color" | "custom";
 
-export type SortMode = "name" | "mana-value" | "quantity";
+export type SortMode = "name" | "mana-value" | "quantity" | "owned" | "not-owned";
 
 export const GROUP_BY_OPTIONS: { value: GroupByMode; label: string }[] = [
   { value: "type", label: "Type" },
@@ -26,6 +26,8 @@ export const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "name", label: "Name" },
   { value: "mana-value", label: "Mana Value" },
   { value: "quantity", label: "Quantity" },
+  { value: "owned", label: "Owned First" },
+  { value: "not-owned", label: "Not Owned First" },
 ];
 
 export interface SectionDefinition {
@@ -135,8 +137,18 @@ export function groupCards(cards: DeckCard[]): CardGroup[] {
   });
 }
 
-export function sortCardGroups(groups: CardGroup[], mode: SortMode): CardGroup[] {
+export function sortCardGroups(
+  groups: CardGroup[],
+  mode: SortMode,
+  isOwned: (card: DeckCard) => boolean = () => false,
+): CardGroup[] {
   return [...groups].sort((a, b) => {
+    if (mode === "owned" || mode === "not-owned") {
+      const ownershipDifference = Number(isOwned(b.card)) - Number(isOwned(a.card));
+      if (ownershipDifference !== 0) {
+        return mode === "owned" ? ownershipDifference : -ownershipDifference;
+      }
+    }
     if (mode === "quantity" && a.count !== b.count) return b.count - a.count;
     if (mode === "mana-value") {
       const difference = (a.card.cmc ?? 0) - (b.card.cmc ?? 0);

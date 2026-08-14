@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.13.1](https://github.com/witchesofthehill/manabrew/compare/v3.13.0...v3.13.1) (2026-08-14)
+
+### Fixes
+
+* **web:** stop gating the app on the manabrew card archive ([#687](https://github.com/witchesofthehill/manabrew/issues/687)) ([fab7dfc](https://github.com/witchesofthehill/manabrew/commit/fab7dfc2e564d4f16ab0950adc77772ad8f416d5))
+
 ## [3.13.0](https://github.com/witchesofthehill/manabrew/compare/v3.12.5...v3.13.0) (2026-08-12)
 
 ### Features

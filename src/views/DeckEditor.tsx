@@ -59,7 +59,11 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
-import { executeDeckEdit, resetDeckHistory } from "@/components/editor/deckEditor.history";
+import {
+  executeDeckEdit,
+  resetDeckHistory,
+  undoDeckEdit,
+} from "@/components/editor/deckEditor.history";
 import {
   moveCardCopies,
   moveSelectedCards,
@@ -562,6 +566,9 @@ export default function DeckEditor() {
         if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
         else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
       });
+      toast.success(`Set ${card.identity.name} in the command zone`, {
+        action: { label: "Undo", onClick: undoDeckEdit },
+      });
       return;
     }
 
@@ -585,6 +592,9 @@ export default function DeckEditor() {
           }
           tagCard(name, destTag);
         }
+      });
+      toast.success(`Tagged ${draggedNames.length} cards with ${destTag}`, {
+        action: { label: "Undo", onClick: undoDeckEdit },
       });
     } else if (
       overId === DROP_ZONE.MAIN ||
@@ -629,12 +639,18 @@ export default function DeckEditor() {
           }
           moveSelectedCards(draggedNames, dest);
         });
+        toast.success(`Moved ${draggedNames.length} cards to ${dest}`, {
+          action: { label: "Undo", onClick: undoDeckEdit },
+        });
         return;
       }
 
       executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
         if (sourceTag) untagCard(cardName, sourceTag);
         moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
+      });
+      toast.success(`Moved ${cardName} to ${dest}`, {
+        action: { label: "Undo", onClick: undoDeckEdit },
       });
     }
   }
@@ -1033,7 +1049,7 @@ export default function DeckEditor() {
                 return (
                   <div
                     key={card.identity.id}
-                    className="absolute left-5 top-1 w-24 origin-bottom shadow-2xl transition-transform"
+                    className="absolute left-5 top-1 w-24 origin-bottom shadow-2xl transition-transform motion-reduce:transition-none"
                     style={{
                       transform: `translateX(${(index - center) * 13}px) translateY(${Math.abs(index - center) * 3}px) rotate(${(index - center) * 7}deg)`,
                       zIndex: index + 1,
@@ -1048,6 +1064,9 @@ export default function DeckEditor() {
                   {draggedCards.length}
                 </div>
               )}
+              <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-[10px] font-medium shadow">
+                Moving {draggedCards.length} card{draggedCards.length === 1 ? "" : "s"}
+              </div>
             </div>
           )}
         </DragOverlay>

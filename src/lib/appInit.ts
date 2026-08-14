@@ -5,9 +5,14 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { prefetchPresetDecks, usePresetDecksStore } from "@/stores/usePresetDecksStore";
 import type { DeckCard } from "@/protocol/deck";
 import { initializeForgeRoomAvailability } from "@/stores/useForgeRoomAvailabilityStore";
-import { getPlatform } from "@/platform";
+import { getEventBus, getPlatform } from "@/platform";
+import type { AppInitStage } from "@/stores/useAppInitStore";
 
 let initPromise: Promise<void> | null = null;
+
+function postStage(stage: AppInitStage): void {
+  getEventBus().emit("app:init", { stage });
+}
 
 async function initScryfallSets(): Promise<void> {
   if (useScryfallStore.getState().sets?.length) return;
@@ -48,18 +53,30 @@ export function initApp(): Promise<void> {
   console.log("[appInit] initializing...");
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    await Promise.all([
-      getPlatform()
-        .init()
-        .catch((e) => console.error("[appInit] engine init failed:", e)),
-      initializeForgeRoomAvailability(),
-      initScryfallSets().catch((e) => console.error("[appInit] sets failed:", e)),
-      prefetchPresetDecks().catch((e) => console.error("[appInit] preset enrichment failed:", e)),
-      prefetchTokenArchive().catch((e) => console.error("[appInit] token archive failed:", e)),
-    ]);
-    await prefetchDeckCovers().catch((e) =>
-      console.error("[appInit] deck cover prefetch failed:", e),
-    );
+    // The engine worker boots alongside the app, never in front of it: a
+    // player on the Forge engine needs none of it, and a browser without
+    // cross-origin isolation never gets it at all.
+    void getPlatform()
+      .init()
+      .catch((e) => console.error("[appInit] engine init failed:", e));
+
+    // `ready` releases the init gate, so it has to survive anything thrown
+    // above it — the app degrades without its warm caches, it does not close.
+    try {
+      postStage("assets");
+      await Promise.all([
+        initializeForgeRoomAvailability(),
+        initScryfallSets().catch((e) => console.error("[appInit] sets failed:", e)),
+        prefetchPresetDecks().catch((e) => console.error("[appInit] preset enrichment failed:", e)),
+        prefetchTokenArchive().catch((e) => console.error("[appInit] token archive failed:", e)),
+      ]);
+      postStage("decks");
+      await prefetchDeckCovers().catch((e) =>
+        console.error("[appInit] deck cover prefetch failed:", e),
+      );
+    } finally {
+      postStage("ready");
+    }
   })();
   return initPromise;
 }

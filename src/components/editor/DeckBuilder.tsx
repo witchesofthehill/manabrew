@@ -53,7 +53,7 @@ import {
   needsScryfallEnrichment,
   scryfallToDeckCard,
 } from "@/lib/scryfall.utils";
-import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
+import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES, STORAGE_KEYS } from "@/lib/constants";
 import { parseDeckListText } from "@/lib/deckImport";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
@@ -264,6 +264,67 @@ export function DeckBuilder({
   const [confirmClear, setConfirmClear] = useState(false);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const enrichedCardsRef = useRef(new Set<string>());
+  const skipPresentationSaveRef = useRef(true);
+  const presentationKey = currentDeckId ?? currentDeck.name.toLowerCase();
+
+  useEffect(() => {
+    skipPresentationSaveRef.current = true;
+    try {
+      const all = JSON.parse(
+        localStorage.getItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION) ?? "{}",
+      ) as Record<
+        string,
+        Partial<{
+          workspace: "build" | "analyze" | "improve";
+          viewMode: ViewMode;
+          cardSize: number;
+          groupBy: GroupByMode;
+          sortBy: SortMode;
+          collectionFilter: "all" | DeckOwnershipStatus;
+          analysisOpen: boolean;
+        }>
+      >;
+      const saved = all[presentationKey];
+      if (saved?.workspace) setWorkspace(saved.workspace);
+      if (saved?.viewMode) setViewMode(saved.viewMode);
+      if (saved?.cardSize) setCardSize(saved.cardSize);
+      if (saved?.groupBy) setGroupBy(saved.groupBy);
+      if (saved?.sortBy) setSortBy(saved.sortBy);
+      if (saved?.collectionFilter) setCollectionFilter(saved.collectionFilter);
+      if (saved?.analysisOpen !== undefined) setAnalysisOpen(saved.analysisOpen);
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION);
+    }
+  }, [editorSessionId, presentationKey, setAnalysisOpen]);
+
+  useEffect(() => {
+    if (skipPresentationSaveRef.current) {
+      skipPresentationSaveRef.current = false;
+      return;
+    }
+    const all = JSON.parse(
+      localStorage.getItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION) ?? "{}",
+    ) as Record<string, unknown>;
+    all[presentationKey] = {
+      workspace,
+      viewMode,
+      cardSize,
+      groupBy,
+      sortBy,
+      collectionFilter,
+      analysisOpen,
+    };
+    localStorage.setItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION, JSON.stringify(all));
+  }, [
+    analysisOpen,
+    cardSize,
+    collectionFilter,
+    groupBy,
+    presentationKey,
+    sortBy,
+    viewMode,
+    workspace,
+  ]);
 
   useKeybindings({
     "deck-editor-focus-filter": () => {

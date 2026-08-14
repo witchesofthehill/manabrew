@@ -35,6 +35,7 @@ export function DeckInsightsPanel({
   cardSize,
   onCardHover,
   onCardLeave,
+  onOptimizeOwnedPrintings,
 }: {
   mode?: "all" | "analyze" | "improve";
   deck: EditorDeck;
@@ -47,6 +48,7 @@ export function DeckInsightsPanel({
   cardSize: number;
   onCardHover?: (card: DeckCard, event: MouseEvent) => void;
   onCardLeave?: () => void;
+  onOptimizeOwnedPrintings?: () => void;
 }) {
   const [openSections, setOpenSections] = useState<Record<InsightSection, boolean>>({
     overview: true,
@@ -96,7 +98,12 @@ export function DeckInsightsPanel({
             </>
           )}
           {id === "collection" && (
-            <DeckCollectionPanel cardSize={cardSize} onHover={onCardHover} onLeave={onCardLeave} />
+            <DeckCollectionPanel
+              cardSize={cardSize}
+              onHover={onCardHover}
+              onLeave={onCardLeave}
+              onOptimizeOwnedPrintings={onOptimizeOwnedPrintings}
+            />
           )}
           {id === "budget" && <DeckBudgetPanel />}
           {id === "replacements" && (
@@ -126,7 +133,7 @@ function InsightSectionPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border bg-muted/10 p-3">
+    <section data-editor-insight={id} className="scroll-mt-14 rounded-xl border bg-muted/10 p-3">
       <button
         type="button"
         className="flex min-h-9 w-full items-center gap-2 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

@@ -57,6 +57,13 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="deck-command-results"
+            aria-expanded={filtered.length > 0}
+            aria-activedescendant={
+              filtered[activeIndex] ? `deck-command-${filtered[activeIndex].id}` : undefined
+            }
             value={query}
             className="h-11 pl-9"
             placeholder="Type a deck command…"
@@ -81,12 +88,15 @@ export function DeckCommandPalette({ open, onOpenChange, commands }: DeckCommand
             }}
           />
         </div>
-        <div className="max-h-80 overflow-y-auto py-1">
+        <div id="deck-command-results" role="listbox" className="max-h-80 overflow-y-auto py-1">
           {filtered.length > 0 ? (
             filtered.map((command, index) => (
               <button
                 key={command.id}
+                id={`deck-command-${command.id}`}
                 type="button"
+                role="option"
+                aria-selected={activeIndex === index}
                 disabled={command.disabled}
                 className={cn(
                   "flex min-h-10 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",

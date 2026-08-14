@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardPaste, Download } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardPaste, Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ export function ImportDeckTextDialog({
   const [formatId, setFormatId] = useState<DeckFormat | "">("");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [reviewing, setReviewing] = useState(false);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -57,6 +58,7 @@ export function ImportDeckTextDialog({
     setFormatId("");
     setImporting(false);
     setProgress(0);
+    setReviewing(false);
   }, [open]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -70,6 +72,14 @@ export function ImportDeckTextDialog({
   const commanderCount = entries.reduce((s, e) => (e.commander ? s + e.count : s), 0);
   const valid = entries.length > 0;
   const dirty = text.trim().length > 0;
+  const unrecognizedLines = useMemo(() => {
+    const parsedNames = new Set(entries.map((entry) => entry.name.toLowerCase()));
+    return text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => /^\d+x?\s+/i.test(line))
+      .filter((line) => ![...parsedNames].some((name) => line.toLowerCase().includes(name)));
+  }, [entries, text]);
 
   const pasteFromClipboard = useCallback(async () => {
     try {
@@ -128,6 +138,83 @@ export function ImportDeckTextDialog({
               {Math.round(progress * 100)}%
             </div>
           </div>
+        ) : reviewing ? (
+          <>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setReviewing(false)}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Edit list
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {mainCount + sideCount + maybeCount + commanderCount} cards · {entries.length}{" "}
+                  entries
+                </span>
+              </div>
+              <div className="max-h-[45dvh] overflow-y-auto rounded-lg border">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-background text-left text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Qty</th>
+                      <th className="px-3 py-2 font-medium">Card</th>
+                      <th className="px-3 py-2 font-medium">Destination</th>
+                      <th className="px-3 py-2 font-medium">Printing</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {entries.map((entry, index) => (
+                      <tr
+                        key={`${entry.name}-${entry.setCode ?? ""}-${entry.collectorNumber ?? ""}-${index}`}
+                      >
+                        <td className="px-3 py-2 font-mono">{entry.count}</td>
+                        <td className="px-3 py-2 font-medium">{entry.name}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {entry.commander
+                            ? "Command zone"
+                            : entry.side
+                              ? "Sideboard"
+                              : entry.maybe
+                                ? "Maybeboard"
+                                : "Main deck"}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {entry.setCode
+                            ? `${entry.setCode.toUpperCase()}${entry.collectorNumber ? ` #${entry.collectorNumber}` : ""}${entry.foil ? " · foil" : ""}`
+                            : entry.foil
+                              ? "Foil · default printing"
+                              : "Default printing"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {unrecognizedLines.length > 0 && (
+                <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  {unrecognizedLines.length} card line
+                  {unrecognizedLines.length === 1 ? " was" : "s were"} not recognized and will be
+                  skipped.
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Exact set, collector number, and foil finish are preserved when supplied.
+                Unavailable printings are reported after verification.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t pt-2">
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" className="gap-1" onClick={() => void handleImportClick()}>
+                <Download className="h-3.5 w-3.5" />
+                Confirm {mode === "add" ? "addition" : "import"}
+              </Button>
+            </div>
+          </>
         ) : (
           <>
             <div className="space-y-4">
@@ -191,7 +278,10 @@ export function ImportDeckTextDialog({
                 <textarea
                   autoFocus
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setReviewing(false);
+                  }}
                   placeholder={"4 Lightning Bolt\n2 Counterspell\n…"}
                   className={cn(
                     "flex min-h-[176px] w-full resize-none rounded-md border bg-transparent px-3 py-2 font-mono text-xs shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
@@ -231,12 +321,12 @@ export function ImportDeckTextDialog({
               </Button>
               <Button
                 size="sm"
-                onClick={handleImportClick}
+                onClick={() => setReviewing(true)}
                 disabled={!valid}
                 className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
               >
                 <Download className="h-3.5 w-3.5" />
-                {mode === "add" ? "Add" : "Import"}
+                Review {mode === "add" ? "addition" : "import"}
                 {valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
               </Button>
             </div>

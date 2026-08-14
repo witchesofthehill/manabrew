@@ -1,6 +1,7 @@
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useNavigate } from "react-router-dom";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
+import { fetchAccountDeck, HubRequestError } from "@/api/hub";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
@@ -40,6 +41,7 @@ import {
   FoldVertical,
   UnfoldVertical,
   ArrowUp,
+  Sparkles,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
@@ -155,6 +157,11 @@ import { DeckInsightsPanel } from "./DeckInsightsPanel";
 import { DeckEditorWelcome } from "./DeckEditorWelcome";
 import { openDeckEditorWelcome } from "./deckEditorWelcome.actions";
 import { setCardCollectionOwnershipSnapshot } from "./useCardCollectionOwnership";
+import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
+import { DeckStatusSummary } from "./DeckStatusSummary";
+import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
+
+type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 
 // ─── Main DeckBuilder Component ───────────────────────────────────────────────
 
@@ -188,12 +195,19 @@ export function DeckBuilder({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [syncState, setSyncState] = useState<DeckSyncState>("saved");
+  const [saveConflict, setSaveConflict] = useState<Awaited<
+    ReturnType<typeof fetchAccountDeck>
+  > | null>(null);
+  const conflictDeckRef = useRef<EditorDeck | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [batchPrintingOpen, setBatchPrintingOpen] = useState(false);
   const [batchPrintingSelectionOnly, setBatchPrintingSelectionOnly] = useState(false);
+  const [printingOptimizerOpen, setPrintingOptimizerOpen] = useState(false);
   const saveInFlightRef = useRef(false);
+  const autoSaveRef = useRef<(deck?: EditorDeck, quiet?: boolean) => Promise<void>>(async () => {});
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [checkpointsOpen, setCheckpointsOpen] = useState(false);
@@ -227,6 +241,8 @@ export function DeckBuilder({
     toggleFoil,
     resetTokenPrint,
     updateAccountDeckVersion,
+    linkSavedDeckToAccount,
+    loadAccountDeck,
   } = useDeckStore();
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
@@ -371,6 +387,19 @@ export function DeckBuilder({
     (next ?? sections[0]).scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function navigateToDeckStatus(target: "validation" | "collection" | "budget") {
+    if (target !== "validation") setAnalysisOpen(true);
+    window.setTimeout(() => {
+      const selector =
+        target === "validation"
+          ? "[data-editor-validation], [data-editor-section='build']"
+          : `[data-editor-insight='${target}']`;
+      editorScrollRef.current
+        ?.querySelector<HTMLElement>(selector)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   const supplementaryCards = useMemo(
     () => [
       ...(currentDeck.commanders ?? []),
@@ -406,6 +435,9 @@ export function DeckBuilder({
   useEffect(() => {
     const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
     setLastSavedSnapshot(snapshot);
+    setSyncState("saved");
+    setSaveConflict(null);
+    conflictDeckRef.current = null;
     setAnalysisOpen(true);
     setUnsavedState(snapshot, snapshot);
     resetDeckHistory();
@@ -421,6 +453,12 @@ export function DeckBuilder({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (isReadOnly || isSaving || !hasUnsavedChanges || !currentDeckId || saveConflict) return;
+    const timeout = window.setTimeout(() => void autoSaveRef.current(undefined, true), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [currentSnapshot, currentDeckId, hasUnsavedChanges, isReadOnly, isSaving, saveConflict]);
 
   const preview = useCardPreview();
 
@@ -438,6 +476,13 @@ export function DeckBuilder({
         ...currentDeck.sideboard,
       ]),
     [collectionQuantities, currentDeck.cards, currentDeck.commanders, currentDeck.sideboard],
+  );
+  const collectionGapCount = useMemo(
+    () =>
+      [...ownershipByName.values()].filter(
+        (ownership) => ownership.status === "missing" || ownership.status === "partial",
+      ).length,
+    [ownershipByName],
   );
   setCardCollectionOwnershipSnapshot(collectionQuantities, ownershipByName);
   const isCardOwned = useCallback(
@@ -503,6 +548,7 @@ export function DeckBuilder({
   function bulkAction(message: string, edit: () => void) {
     executeDeckEdit(message, edit);
     clearSelection();
+    window.setTimeout(() => editorScrollRef.current?.focus({ preventScroll: true }));
     setAnnouncement((current) => ({ id: current.id + 1, message }));
     toast.success(message);
   }
@@ -1022,7 +1068,7 @@ export function DeckBuilder({
       .catch(() => toast.error("Could not write to the clipboard"));
   }
 
-  async function handleSave(deckOverride?: EditorDeck) {
+  async function handleSave(deckOverride?: EditorDeck, quiet = false) {
     if (saveInFlightRef.current) return;
     const sourceDeck = deckOverride ?? currentDeck;
     const normalizedName = sourceDeck.name.trim();
@@ -1034,6 +1080,7 @@ export function DeckBuilder({
     if (normalizedName !== sourceDeck.name) useDeckStore.getState().setDeckName(normalizedName);
     saveInFlightRef.current = true;
     setIsSaving(true);
+    setSyncState("saving");
     try {
       const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
       saveCurrentDeck();
@@ -1044,28 +1091,96 @@ export function DeckBuilder({
         const detail = await useAccountDecksStore
           .getState()
           .save(saved.accountDeckId, saved.accountVersionNo, deckToSave);
+        const latestDeck = useDeckStore.getState().currentDeck;
+        const changedDuringSave = buildDeckSnapshot(latestDeck) !== snapshot;
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
-        toast.success(`Saved version ${detail.currentVersionNo} to your account`);
+        if (changedDuringSave) useDeckStore.setState({ currentDeck: latestDeck });
+        setSyncState("synced");
+        if (!quiet) toast.success(`Saved version ${detail.currentVersionNo} to your account`);
       } else {
-        showAccountSaveNudge();
+        setSyncState("local");
+        if (!quiet) showAccountSaveNudge();
       }
-      if (hasUnsupportedCards) {
+      if (!quiet && hasUnsupportedCards) {
         toast.warning(
           `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`,
         );
-      } else if (!deckValidation.legal) {
+      } else if (!quiet && !deckValidation.legal) {
         toast.warning(
           `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
         );
       }
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? `${error.message} Your local copy is still saved.`
-          : "Account save failed. Your local copy is still saved.",
-      );
+      if (
+        error instanceof HubRequestError &&
+        error.status === 409 &&
+        accountSavedDeck?.accountDeckId
+      ) {
+        conflictDeckRef.current = deckToSave;
+        try {
+          setSaveConflict(await fetchAccountDeck(accountSavedDeck.accountDeckId));
+        } catch {
+          setSyncState("failed");
+          toast.error("The account version could not be loaded. Your local copy is still saved.");
+        }
+      } else {
+        setSyncState("failed");
+        if (!quiet) {
+          toast.error(
+            error instanceof Error
+              ? `${error.message} Your local copy is still saved.`
+              : "Account save failed. Your local copy is still saved.",
+          );
+        }
+      }
     } finally {
       saveInFlightRef.current = false;
+      setIsSaving(false);
+    }
+  }
+  autoSaveRef.current = handleSave;
+
+  async function resolveSaveConflict(action: "mine" | "account" | "copy") {
+    if (!saveConflict || !conflictDeckRef.current) return;
+    setIsSaving(true);
+    setSyncState("saving");
+    try {
+      if (action === "mine") {
+        const detail = await useAccountDecksStore
+          .getState()
+          .save(saveConflict.id, saveConflict.currentVersionNo, conflictDeckRef.current);
+        updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
+      } else if (action === "account") {
+        loadAccountDeck(
+          saveConflict.id,
+          saveConflict.currentVersionNo,
+          saveConflict.deck as EditorDeck,
+        );
+      } else {
+        const copy = await useAccountDecksStore.getState().create({
+          ...conflictDeckRef.current,
+          name: `${conflictDeckRef.current.name} copy`,
+        });
+        linkSavedDeckToAccount(
+          currentDeckId,
+          copy.id,
+          copy.currentVersionNo,
+          copy.deck as EditorDeck,
+        );
+      }
+      const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
+      setLastSavedSnapshot(snapshot);
+      setUnsavedState(snapshot, snapshot);
+      setSyncState("synced");
+      setSaveConflict(null);
+      conflictDeckRef.current = null;
+      toast.success(
+        action === "copy" ? "Saved as a separate account deck" : "Deck conflict resolved",
+      );
+    } catch (error) {
+      setSyncState("failed");
+      toast.error(error instanceof Error ? error.message : "Could not resolve the deck conflict");
+    } finally {
       setIsSaving(false);
     }
   }
@@ -1365,6 +1480,14 @@ export function DeckBuilder({
         setBatchPrintingOpen(true);
       },
     },
+    {
+      id: "optimize-printings",
+      label: "Optimize deck printings",
+      keywords: ["owned", "cheapest", "non-foil", "collection", "price"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setPrintingOptimizerOpen(true),
+    },
   ];
 
   return (
@@ -1417,6 +1540,8 @@ export function DeckBuilder({
       <div className="flex flex-1 min-h-0">
         <div
           ref={editorScrollRef}
+          tabIndex={-1}
+          aria-label="Deck editor workspace"
           className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
           onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
         >
@@ -1428,6 +1553,13 @@ export function DeckBuilder({
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto">
             {!isReadOnly && <DeckHistoryControls />}
+            <DeckStatusSummary
+              legalityErrors={deckValidation.errors.length}
+              unsupportedCards={unsupportedNames.size}
+              collectionGaps={collectionGapCount}
+              budgetTracked={currentDeck.editor?.budgetAmount !== undefined}
+              onNavigate={navigateToDeckStatus}
+            />
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
@@ -1704,7 +1836,17 @@ export function DeckBuilder({
 
             {!isReadOnly && (
               <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
-                {isSaving ? "Saving…" : hasUnsavedChanges ? "Unsaved" : "Saved"}
+                {isSaving || syncState === "saving"
+                  ? "Saving…"
+                  : hasUnsavedChanges
+                    ? "Unsaved"
+                    : syncState === "local"
+                      ? "Saved locally"
+                      : syncState === "synced"
+                        ? "Synced"
+                        : syncState === "failed"
+                          ? "Sync failed"
+                          : "Saved"}
               </span>
             )}
 
@@ -1800,6 +1942,9 @@ export function DeckBuilder({
                   }}
                 >
                   <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPrintingOptimizerOpen(true)}>
+                  <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
                 </DropdownMenuItem>
                 {publishEnabled && (
                   <DropdownMenuItem
@@ -2124,6 +2269,7 @@ export function DeckBuilder({
                         })
                       }
                       onCardLeave={preview.handleMouseLeave}
+                      onOptimizeOwnedPrintings={() => setPrintingOptimizerOpen(true)}
                     />
                     <CombosPanel />
                     <DeckBracketPanel />
@@ -2197,7 +2343,10 @@ export function DeckBuilder({
               setBatchPrintingOpen(true);
             }}
             onRemove={handleRemoveSelected}
-            onClear={clearSelection}
+            onClear={() => {
+              clearSelection();
+              window.setTimeout(() => editorScrollRef.current?.focus({ preventScroll: true }));
+            }}
           />
         )}
 
@@ -2309,6 +2458,10 @@ export function DeckBuilder({
           onOpenChange={setBatchPrintingOpen}
           cardNames={batchPrintingSelectionOnly ? selectedCards : undefined}
         />
+        <PrintingOptimizerDialog
+          open={printingOptimizerOpen}
+          onOpenChange={setPrintingOptimizerOpen}
+        />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open
@@ -2344,6 +2497,18 @@ export function DeckBuilder({
               }}
             />
           )}
+        <DeckSaveConflictDialog
+          conflict={saveConflict}
+          busy={isSaving}
+          onKeepMine={() => void resolveSaveConflict("mine")}
+          onUseAccount={() => void resolveSaveConflict("account")}
+          onSaveCopy={() => void resolveSaveConflict("copy")}
+          onCancel={() => {
+            setSaveConflict(null);
+            conflictDeckRef.current = null;
+            setSyncState("failed");
+          }}
+        />
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

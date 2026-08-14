@@ -74,6 +74,7 @@ export interface DeckEditorMetadata {
   priceProvider?: "tcgplayer" | "cardmarket" | "cardhoarder";
   goals?: DeckEditorGoals;
   dismissedHints?: string[];
+  acquisition?: Record<string, "ordered" | "proxy">;
 }
 
 export interface DeckEditorGoals {

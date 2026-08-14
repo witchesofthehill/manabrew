@@ -166,8 +166,8 @@ export function HubDeckPreviewDialog({
   function handleOpen() {
     if (!detail) return;
     loadHubDeck(detail.deck as EditorDeck);
-    onClose();
     if (onViewSnapshot) {
+      onClose();
       onViewSnapshot();
     } else {
       navigate(ROUTES.DECK_EDITOR, { state: { directToEditor: true } });
@@ -184,7 +184,7 @@ export function HubDeckPreviewDialog({
       linkedAccountDeck.currentVersionNo,
       linkedAccountDeck.deck as EditorDeck,
     );
-    onClose();
+    if (onViewSnapshot) onClose();
     navigate(
       { pathname: ROUTES.DECK_EDITOR, search: `?deck=${encodeURIComponent(id)}` },
       { state: { deckEditorFromList: true } },

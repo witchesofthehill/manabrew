@@ -1662,7 +1662,7 @@ export function DeckListView({
   }, []);
   useLayoutEffect(() => {
     measureContainer();
-  });
+  }, [cardSize, measureContainer, viewMode]);
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;

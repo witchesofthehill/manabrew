@@ -191,7 +191,12 @@ export function CardDetailModal({
 
   return (
     <>
-      <Modal onClose={onClose} maxWidth="max-w-4xl" maxHeight="max-h-[90dvh]">
+      <Modal
+        onClose={onClose}
+        maxWidth="max-w-4xl"
+        maxHeight="max-h-[90dvh] max-sm:max-h-[calc(100dvh-var(--safe-area-inset-top)-0.5rem)]"
+        className="max-sm:mt-auto max-sm:mx-0 max-sm:rounded-b-none"
+      >
         <Modal.Header onClose={onClose}>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold truncate">{displayName}</h2>

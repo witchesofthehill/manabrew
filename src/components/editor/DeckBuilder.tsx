@@ -1427,7 +1427,7 @@ export function DeckBuilder({
           />
 
           <nav
-            className="sticky top-0 z-40 flex border-b bg-background/90 px-3 pt-2 backdrop-blur-md"
+            className="sticky top-0 z-40 flex border-b bg-background/90 px-3 pt-2 backdrop-blur-md max-sm:px-1"
             aria-label="Deck editor workspace"
           >
             {(["build", "analyze", "improve"] as const).map((item) => (
@@ -1435,7 +1435,7 @@ export function DeckBuilder({
                 key={item}
                 type="button"
                 className={cn(
-                  "min-h-9 border-b-2 px-4 text-xs font-semibold capitalize transition-colors",
+                  "min-h-9 flex-1 border-b-2 px-4 text-xs font-semibold capitalize transition-colors sm:flex-none",
                   workspace === item
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",
@@ -1450,7 +1450,7 @@ export function DeckBuilder({
 
           <div
             className={cn(
-              "sticky top-9 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md",
+              "sticky top-9 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto",
               workspace !== "build" && "hidden",
             )}
           >

@@ -744,6 +744,9 @@ impl GameViewDtoExt for GameViewDto {
                 mana_pool: mana_pool_to_map(&pool),
                 commander_damage,
                 has_city_blessing: ps.has_city_blessing,
+                // Storied is scripted in the Forge card pool only; the Rust engine
+                // has no keyword for it yet.
+                has_enduring_story: false,
                 ring_level: ps.ring_level,
                 speed: ps.speed,
             });

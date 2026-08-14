@@ -13,6 +13,7 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
+  useDroppable,
   pointerWithin,
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
@@ -39,7 +40,7 @@ import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { DeckListControls } from "@/components/deck/DeckListControls";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Bookmark, HelpCircle, Layers, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
 import { NewDeckChoiceDialog } from "@/components/editor/NewDeckChoiceDialog";
@@ -57,18 +58,54 @@ import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
+import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
+import { executeDeckEdit, resetDeckHistory } from "@/components/editor/deckEditor.history";
+import {
+  moveCardCopies,
+  moveSelectedCards,
+  type DeckSourceZone,
+} from "@/components/editor/deckEditor.actions";
+
+const DRAG_TRAY_MAIN = "drag-tray-main";
+const DRAG_TRAY_SIDE = "drag-tray-side";
+const DRAG_TRAY_MAYBE = "drag-tray-maybe";
+const DRAG_TRAY_TAG_PREFIX = "drag-tray-tag:";
+const DRAG_TRAY_NEW_TAG = "drag-tray-new-tag";
+
+function DragTrayTarget({
+  id,
+  label,
+  icon: Icon,
+}: {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex min-h-14 min-w-28 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed bg-background/90 px-3 py-2 text-xs font-medium shadow-sm transition-all",
+        isOver ? "scale-105 border-primary bg-primary/15 text-primary" : "border-border",
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
 
 export default function DeckEditor() {
   const {
-    addToMain,
-    addToSide,
-    addToMaybe,
-    removeFromMain,
     removeFromSide,
     removeFromMaybe,
     currentDeck,
     tagCard,
     untagCard,
+    addCustomTag,
+    setCommander,
+    removeCommander,
     savedDecks,
     loadSavedDeck,
     clearDeck,
@@ -103,6 +140,7 @@ export default function DeckEditor() {
   const hubEnabled = isFeatureEnabled("deckHub");
   const publishEnabled = hubEnabled && isFeatureEnabled("accounts");
   const location = useLocation();
+  const selectedCardsRef = useRef<ReadonlySet<string>>(new Set());
   const routeState = location.state as {
     directToEditor?: boolean;
     deckEditorFromList?: boolean;
@@ -130,7 +168,10 @@ export default function DeckEditor() {
   const presetEnginesBySavedId = new Map(
     presetDecks.map((deck) => [presetDeckParamId(deck), deck.engines]),
   );
-  const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
+  const [draggedCards, setDraggedCards] = useState<DeckCard[]>([]);
+  const [newTagDropOpen, setNewTagDropOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [pendingTagCards, setPendingTagCards] = useState<string[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(() =>
@@ -199,6 +240,7 @@ export default function DeckEditor() {
   useEffect(() => {
     return () => {
       useDeckStore.getState().clearDeck();
+      resetDeckHistory();
     };
   }, []);
 
@@ -211,6 +253,7 @@ export default function DeckEditor() {
       restoredParamRef.current = null;
       if (closedQueryEditor) {
         clearDeck();
+        resetDeckHistory();
         setStateView("list");
         return;
       }
@@ -235,6 +278,7 @@ export default function DeckEditor() {
       const preset = presetDecks.find((d) => (d.id ?? d.name) === presetId);
       if (!preset) return;
       loadPresetDeck(preset);
+      resetDeckHistory();
       setStateView("editor");
       restoredParamRef.current = deckParam;
       return;
@@ -243,6 +287,7 @@ export default function DeckEditor() {
     const saved = savedDecks.find((s) => s.id === deckParam);
     if (!saved) return;
     loadSavedDeck(deckParam);
+    resetDeckHistory();
     setStateView("editor");
     restoredParamRef.current = deckParam;
   }, [
@@ -307,6 +352,7 @@ export default function DeckEditor() {
   function handleSelectAccountDeck(saved: SavedDeck) {
     if (!saved.accountDeckId || !saved.accountVersionNo) return;
     const id = loadAccountDeck(saved.accountDeckId, saved.accountVersionNo, saved.deck);
+    resetDeckHistory();
     setSearchParams({ deck: id }, { state: { deckEditorFromList: true } });
   }
 
@@ -333,6 +379,7 @@ export default function DeckEditor() {
   function handleNewDeck() {
     setSearchParams({}, { replace: true, state: null });
     clearDeck();
+    resetDeckHistory();
     setDeckName(DEFAULT_DECK_NAME);
     setView("editor");
   }
@@ -364,6 +411,7 @@ export default function DeckEditor() {
   function handleBack() {
     if (isReadOnly) {
       useDeckStore.getState().clearDeck();
+      resetDeckHistory();
       returnToDeckList();
       return;
     }
@@ -453,11 +501,32 @@ export default function DeckEditor() {
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
-    if (data?.card) setDraggedCard(data.card as DeckCard);
+    if (!data?.card) return;
+    const card = data.card as DeckCard;
+    const selectedCards = selectedCardsRef.current;
+    if (!selectedCards.has(card.identity.name.toLowerCase())) {
+      setDraggedCards([card]);
+      return;
+    }
+
+    const allCards = [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+    ];
+    const seen = new Set<string>();
+    setDraggedCards(
+      allCards.filter((candidate) => {
+        const name = candidate.identity.name.toLowerCase();
+        if (!selectedCards.has(name) || seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      }),
+    );
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    setDraggedCard(null);
+    setDraggedCards([]);
     if (isReadOnly) return;
     const { active, over } = event;
     if (!over) return;
@@ -469,20 +538,59 @@ export default function DeckEditor() {
     const overId = String(over.id);
     const activeId = String(active.id);
     const cardName = (dragData.name as string) ?? card.identity.name;
+    const selectedCards = selectedCardsRef.current;
+    const draggedNames = selectedCards.has(cardName.toLowerCase())
+      ? [...selectedCards]
+      : [cardName.toLowerCase()];
 
-    const sourceTagMatch = activeId.match(/^deck-tag-(.+?)-(?:.+)$/);
-    const sourceTag = sourceTagMatch?.[1] ?? null;
+    const sourceTag = typeof dragData.sourceTag === "string" ? dragData.sourceTag : null;
 
-    if (overId.startsWith(DROP_ZONE.TAG_PREFIX)) {
-      const destTag = overId.slice(DROP_ZONE.TAG_PREFIX.length);
-      if (sourceTag && sourceTag !== destTag) {
-        untagCard(cardName, sourceTag);
+    if (overId === DROP_ZONE.COMMAND) {
+      if (activeId.startsWith("deck-commander-")) return;
+      const eligible =
+        currentDeck.format === "oathbreaker"
+          ? canBeOathbreaker(card) || canBeSignatureSpell(card)
+          : isCommanderEligible(card);
+      if (!eligible) {
+        toast.error(`${card.identity.name} is not eligible for the command zone`);
+        return;
       }
-      tagCard(cardName, destTag);
+      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => {
+        setCommander(card);
+        if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
+        else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
+      });
+      return;
+    }
+
+    if (overId === DRAG_TRAY_NEW_TAG) {
+      setPendingTagCards(draggedNames);
+      setNewTagName("");
+      setNewTagDropOpen(true);
+      return;
+    }
+
+    const trayTag = overId.startsWith(DRAG_TRAY_TAG_PREFIX)
+      ? overId.slice(DRAG_TRAY_TAG_PREFIX.length)
+      : null;
+
+    if (overId.startsWith(DROP_ZONE.TAG_PREFIX) || trayTag) {
+      const destTag = trayTag ?? overId.slice(DROP_ZONE.TAG_PREFIX.length);
+      executeDeckEdit(`Tag ${draggedNames.length} cards with ${destTag}`, () => {
+        for (const name of draggedNames) {
+          if (sourceTag && sourceTag !== destTag) {
+            untagCard(name, sourceTag);
+          }
+          tagCard(name, destTag);
+        }
+      });
     } else if (
       overId === DROP_ZONE.MAIN ||
       overId === DROP_ZONE.SIDE ||
-      overId === DROP_ZONE.MAYBE
+      overId === DROP_ZONE.MAYBE ||
+      overId === DRAG_TRAY_MAIN ||
+      overId === DRAG_TRAY_SIDE ||
+      overId === DRAG_TRAY_MAYBE
     ) {
       let source: "main" | "side" | "maybe" | "special" | "commander" = "main";
       if (activeId.startsWith("deck-sideboard-")) source = "side";
@@ -497,41 +605,47 @@ export default function DeckEditor() {
         source = "special";
 
       const dest: "main" | "side" | "maybe" =
-        overId === DROP_ZONE.MAIN ? "main" : overId === DROP_ZONE.SIDE ? "side" : "maybe";
+        overId === DROP_ZONE.MAIN || overId === DRAG_TRAY_MAIN
+          ? "main"
+          : overId === DROP_ZONE.SIDE || overId === DRAG_TRAY_SIDE
+            ? "side"
+            : "maybe";
 
       const sourceZone = source === "side" || source === "special" ? "side" : source;
       if (sourceZone === dest) return;
-      if (source === "commander") return;
+      if (source === "commander") {
+        if (dest === "main") {
+          executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));
+        }
+        return;
+      }
 
-      if (sourceTag) untagCard(cardName, sourceTag);
+      if (draggedNames.length > 1) {
+        executeDeckEdit(`Move ${draggedNames.length} cards to ${dest}`, () => {
+          if (sourceTag) {
+            for (const name of draggedNames) untagCard(name, sourceTag);
+          }
+          moveSelectedCards(draggedNames, dest);
+        });
+        return;
+      }
 
-      const sourceList: DeckCard[] =
-        source === "main"
-          ? currentDeck.cards
-          : source === "side"
-            ? currentDeck.sideboard
-            : source === "maybe"
-              ? (currentDeck.maybeboard ?? [])
-              : source === "special"
-                ? [
-                    ...(currentDeck.attractions ?? []),
-                    ...(currentDeck.contraptions ?? []),
-                    ...(currentDeck.schemes ?? []),
-                    ...(currentDeck.planes ?? []),
-                  ]
-                : [];
-      const one = [...sourceList].reverse().find((c) => c.identity.name === cardName);
-      if (!one) return;
-
-      if (source === "main") removeFromMain(one.identity.id);
-      else if (source === "side" || source === "special") removeFromSide(one.identity.id);
-      else if (source === "maybe") removeFromMaybe(one.identity.id);
-
-      const fresh = { ...one, identity: { ...one.identity, id: crypto.randomUUID() } };
-      if (dest === "main") addToMain(fresh);
-      else if (dest === "side") addToSide(fresh);
-      else if (dest === "maybe") addToMaybe(fresh);
+      executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
+        if (sourceTag) untagCard(cardName, sourceTag);
+        moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
+      });
     }
+  }
+
+  function createDroppedTag() {
+    const tag = newTagName.trim();
+    if (!tag) return;
+    executeDeckEdit(`Create ${tag} and tag ${pendingTagCards.length} cards`, () => {
+      addCustomTag(tag);
+      for (const name of pendingTagCards) tagCard(name, tag);
+    });
+    setNewTagDropOpen(false);
+    setPendingTagCards([]);
   }
 
   if (view === "list") {
@@ -842,10 +956,14 @@ export default function DeckEditor() {
         collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setDraggedCards([])}
       >
         <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
           <div className="overflow-hidden flex-1 min-h-0 min-w-0">
             <DeckBuilder
+              onSelectionChange={(selectedCards) => {
+                selectedCardsRef.current = selectedCards;
+              }}
               onToggleSearch={() => setShowSearch((v) => !v)}
               previewSlot={previewSlot}
               setPreviewSlot={setPreviewSlot}
@@ -873,14 +991,82 @@ export default function DeckEditor() {
           )}
         </div>
 
-        <DragOverlay dropAnimation={null}>
-          {draggedCard && (
-            <div className="w-24 opacity-90 rotate-3 shadow-2xl pointer-events-none">
-              <CardThumbnail card={draggedCard} />
+        {draggedCards.length > 0 && (
+          <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--safe-area-inset-top)+4rem)] z-[80] flex justify-center px-4">
+            <div className="pointer-events-auto flex max-w-5xl flex-wrap gap-2 rounded-xl border bg-popover/95 p-3 shadow-2xl backdrop-blur-md">
+              <DragTrayTarget id={DRAG_TRAY_MAIN} label="Main deck" icon={Layers} />
+              <DragTrayTarget id={DRAG_TRAY_SIDE} label="Sideboard" icon={Layers} />
+              <DragTrayTarget id={DRAG_TRAY_MAYBE} label="Maybeboard" icon={HelpCircle} />
+              {(currentDeck.customTags ?? []).map((tag) => (
+                <DragTrayTarget
+                  key={tag}
+                  id={`${DRAG_TRAY_TAG_PREFIX}${tag}`}
+                  label={tag}
+                  icon={Bookmark}
+                />
+              ))}
+              <DragTrayTarget id={DRAG_TRAY_NEW_TAG} label="New tag" icon={Plus} />
+            </div>
+          </div>
+        )}
+
+        <DragOverlay>
+          {draggedCards.length > 0 && (
+            <div className="relative h-36 w-36 pointer-events-none">
+              {draggedCards.slice(0, 5).map((card, index) => {
+                const visibleCards = Math.min(draggedCards.length, 5);
+                const center = (visibleCards - 1) / 2;
+                return (
+                  <div
+                    key={card.identity.id}
+                    className="absolute left-5 top-1 w-24 origin-bottom shadow-2xl transition-transform"
+                    style={{
+                      transform: `translateX(${(index - center) * 13}px) translateY(${Math.abs(index - center) * 3}px) rotate(${(index - center) * 7}deg)`,
+                      zIndex: index + 1,
+                    }}
+                  >
+                    <CardThumbnail card={card} />
+                  </div>
+                );
+              })}
+              {draggedCards.length > 1 && (
+                <div className="absolute right-0 top-0 z-20 flex h-7 min-w-7 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground shadow-lg">
+                  {draggedCards.length}
+                </div>
+              )}
             </div>
           )}
         </DragOverlay>
       </DndContext>
+
+      <Dialog open={newTagDropOpen} onOpenChange={setNewTagDropOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Create tag</DialogTitle>
+            <DialogDescription>
+              Create a reusable tag and add the dropped cards to it.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={newTagName}
+            placeholder="Ramp, removal, combo…"
+            onChange={(event) => setNewTagName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || !newTagName.trim()) return;
+              createDroppedTag();
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewTagDropOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={!newTagName.trim()} onClick={createDroppedTag}>
+              Create tag
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showBackConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">

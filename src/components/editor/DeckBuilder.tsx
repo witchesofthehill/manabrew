@@ -38,6 +38,9 @@ import {
   EllipsisVertical,
   History,
   LibraryBig,
+  ListPlus,
+  Command as CommandIcon,
+  Images,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -82,14 +85,18 @@ import {
   type CardGroup,
   type ViewMode,
   type GroupByMode,
+  type SortMode,
   GROUP_BY_OPTIONS,
+  SORT_OPTIONS,
   CMC_BUCKET_LABELS,
   cmcBucketIndex,
-  parseFilterTerms,
   groupCards,
   exportToArena,
   computeGroupedSections,
   computeGroupedStackColumns,
+  sortCardGroups,
+  DEFAULT_CARD_SIZE,
+  MAX_CARD_SIZE,
 } from "./deckBuilder.utils";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
@@ -101,6 +108,32 @@ import {
 } from "./deckBuilder.unsavedChanges";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
+import { CommanderSlots } from "./CommanderSlots";
+import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
+import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
+import {
+  executeDeckEdit,
+  redoDeckEdit,
+  resetDeckHistory,
+  undoDeckEdit,
+} from "./deckEditor.history";
+import { DeckHistoryControls } from "./DeckHistoryControls";
+import { DeckLayoutMenu } from "./DeckLayoutMenu";
+import { DeckCommandPalette } from "./DeckCommandPalette";
+import type { DeckEditorCommand } from "./deckEditor.commands";
+import { DeckTagDialog } from "./DeckTagDialog";
+import { matchesDeckQuery } from "./deckEditor.query";
+import { DeckChangeSummary } from "./DeckChangeSummary";
+import { DeckTagManagerDialog } from "./DeckTagManagerDialog";
+import { BatchPrintingDialog } from "./BatchPrintingDialog";
+import {
+  moveCardCopies,
+  moveSelectedCards,
+  removeCardCopies,
+  removeSelectedCards,
+  type DeckSourceZone,
+  type EditableDeckZone,
+} from "./deckEditor.actions";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -109,7 +142,7 @@ function QuickCardSearch({
   onRemove,
   getCount,
 }: {
-  onAdd: (card: ScryfallCard) => void;
+  onAdd: (card: ScryfallCard, destination: "main" | "side" | "maybe") => void;
   onRemove: (cardName: string) => void;
   getCount: (cardName: string) => number;
 }) {
@@ -117,6 +150,7 @@ function QuickCardSearch({
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +173,7 @@ function QuickCardSearch({
     searchCards(fullQuery, 1)
       .then((res) => {
         setResults(res.data.slice(0, 20));
+        setActiveIndex(0);
         setIsOpen(true);
       })
       .catch(() => setResults([]))
@@ -176,6 +211,21 @@ function QuickCardSearch({
           onFocus={() => {
             if (results.length > 0) setIsOpen(true);
           }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setActiveIndex((index) => Math.min(index + 1, results.length - 1));
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActiveIndex((index) => Math.max(index - 1, 0));
+            } else if (event.key === "Enter" && results[activeIndex]) {
+              event.preventDefault();
+              onAdd(
+                results[activeIndex],
+                event.shiftKey ? "side" : event.altKey ? "maybe" : "main",
+              );
+            }
+          }}
         />
         {isLoading && (
           <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
@@ -197,14 +247,18 @@ function QuickCardSearch({
 
       {isOpen && results.length > 0 && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-80 overflow-y-auto min-w-[280px]">
-          {results.map((sc) => {
+          {results.map((sc, index) => {
             const count = getCount(sc.name);
             const thumb = sc.image_uris?.small ?? sc.card_faces?.[0]?.image_uris?.small;
             return (
               <div
                 key={sc.id}
-                className="flex items-center gap-2 px-2 py-1 hover:bg-muted border-b border-border/30 last:border-0 cursor-pointer"
-                onClick={() => onAdd(sc)}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 border-b border-border/30 px-2 py-1 last:border-0 hover:bg-muted",
+                  activeIndex === index && "bg-muted",
+                )}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => onAdd(sc, "main")}
                 title={`Add ${sc.name}`}
               >
                 {thumb && (
@@ -242,7 +296,7 @@ function QuickCardSearch({
                     title="Add one"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onAdd(sc);
+                      onAdd(sc, "main");
                     }}
                   >
                     <Plus className="h-3 w-3" />
@@ -267,6 +321,7 @@ export function DeckBuilder({
   onTogglePreview,
   resumedPublication,
   onResumedPublicationClose,
+  onSelectionChange,
 }: {
   onToggleSearch?: () => void;
   previewSlot?: HTMLElement | null;
@@ -275,6 +330,7 @@ export function DeckBuilder({
   onTogglePreview?: () => void;
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
+  onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
 } = {}) {
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
@@ -285,6 +341,12 @@ export function DeckBuilder({
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [tagManagerOpen, setTagManagerOpen] = useState(false);
+  const [batchPrintingOpen, setBatchPrintingOpen] = useState(false);
   const saveInFlightRef = useRef(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -292,18 +354,16 @@ export function DeckBuilder({
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
+  const editorSessionId = useDeckStore((s) => s.editorSessionId);
   const {
     currentDeck,
     savedDecks,
-    removeFromMain,
-    removeFromSide,
     addToMain,
     addToSide,
     clearDeck,
     saveCurrentDeck,
     saveDraft,
     addToMaybe,
-    removeFromMaybe,
     deleteSavedDeck,
     enrichDeckCards,
     setCommander,
@@ -314,12 +374,20 @@ export function DeckBuilder({
     untagCard,
     setCoverCard,
     setStackPositions,
+    updatePrint,
     updateTokenPrint,
     toggleFoil,
     resetTokenPrint,
     updateAccountDeckVersion,
   } = useDeckStore();
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
+  const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
+  const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
+    useDeckSelection();
+
+  useEffect(() => {
+    onSelectionChange?.(selectedCards);
+  }, [onSelectionChange, selectedCards]);
 
   const derivedTokens = useDerivedTokens(currentDeck);
   const mergedTokens = useMemo(
@@ -332,8 +400,9 @@ export function DeckBuilder({
   const [newTagInput, setNewTagInput] = useState("");
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [cardSize, setCardSize] = useState(3);
+  const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
+  const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
     const snap = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshotRef(snap);
@@ -351,6 +420,12 @@ export function DeckBuilder({
     "deck-editor-toggle-search": () => onToggleSearch?.(),
     "deck-editor-save": () => void handleSave(),
     "deck-editor-export": () => handleExport(),
+    "deck-editor-undo": undoDeckEdit,
+    "deck-editor-redo": redoDeckEdit,
+    "deck-editor-command-palette": () => setCommandPaletteOpen(true),
+    "deck-editor-tag-selection": () => {
+      if (selectedCards.size > 0) setTagDialogOpen(true);
+    },
   });
 
   const supplementaryCards = useMemo(
@@ -385,14 +460,13 @@ export function DeckBuilder({
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
   }, [lastSavedSnapshot, currentSnapshot, isReadOnly]);
 
-  // Reset snapshot when a different deck is loaded (or cleared).
-  const [prevDeckId, setPrevDeckId] = useState(currentDeckId);
-  if (prevDeckId !== currentDeckId) {
-    setPrevDeckId(currentDeckId);
-    const snapshot = buildDeckSnapshot(currentDeck);
+  useEffect(() => {
+    const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
-  }
+    resetDeckHistory();
+    return resetDeckHistory;
+  }, [editorSessionId]);
 
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {
@@ -403,9 +477,6 @@ export function DeckBuilder({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
-
-  const { selectedCards, toggleCard, rangeSelect, clearSelection, selectCards } =
-    useDeckSelection();
 
   const preview = useCardPreview();
 
@@ -466,49 +537,38 @@ export function DeckBuilder({
   }, [clearSelection]);
 
   // Bulk selection actions
-  function bulkAction(action: (name: string) => void, message: string) {
-    for (const name of selectedCards) action(name);
+  function bulkAction(message: string, edit: () => void) {
+    executeDeckEdit(message, edit);
     clearSelection();
     toast.success(message);
   }
 
   const handleRemoveSelected = () =>
-    bulkAction(
-      (name) =>
-        currentDeck.cards
-          .filter((c) => c.identity.name.toLowerCase() === name)
-          .forEach((c) => removeFromMain(c.identity.id)),
-      `Removed ${selectedCards.size} cards`,
-    );
+    bulkAction(`Removed ${selectedCards.size} cards`, () => removeSelectedCards(selectedCards));
   const handleMoveSelectedToSide = () =>
-    bulkAction(
-      (name) =>
-        currentDeck.cards
-          .filter((c) => c.identity.name.toLowerCase() === name)
-          .forEach((c) => {
-            removeFromMain(c.identity.id);
-            addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-          }),
-      `Moved ${selectedCards.size} cards to sideboard`,
+    bulkAction(`Moved ${selectedCards.size} cards to sideboard`, () =>
+      moveSelectedCards(selectedCards, "side"),
     );
   const handleMoveSelectedToMain = () =>
-    bulkAction(
-      (name) =>
-        supplementaryCards
-          .filter((c) => c.identity.name.toLowerCase() === name)
-          .forEach((c) => {
-            removeFromSide(c.identity.id);
-            addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-          }),
-      `Moved ${selectedCards.size} cards to main`,
+    bulkAction(`Moved ${selectedCards.size} cards to main`, () =>
+      moveSelectedCards(selectedCards, "main"),
     );
   const handleTagSelected = (tag: string) =>
-    bulkAction((name) => tagCard(name, tag), `Tagged ${selectedCards.size} cards with "${tag}"`);
+    bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
+      for (const name of selectedCards) tagCard(name, tag);
+    });
   const handleUntagSelected = (tag: string) =>
-    bulkAction(
-      (name) => untagCard(name, tag),
-      `Untagged ${selectedCards.size} cards from "${tag}"`,
-    );
+    bulkAction(`Untagged ${selectedCards.size} cards from "${tag}"`, () => {
+      for (const name of selectedCards) untagCard(name, tag);
+    });
+  const handleCreateAndTagSelected = (tag: string) => {
+    executeDeckEdit(`Create ${tag} and tag ${selectedCards.size} cards`, () => {
+      addCustomTag(tag);
+      for (const name of selectedCards) tagCard(name, tag);
+    });
+    clearSelection();
+    toast.success(`Tagged cards with "${tag}"`);
+  };
 
   // Tags that any of the selected cards belong to
   const selectedCardTags = (() => {
@@ -541,21 +601,22 @@ export function DeckBuilder({
   );
   const isDeckLegal = deckValidation.legal;
 
-  const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
   const matchesFilters = useCallback(
     (c: DeckCard) => {
+      const tags = currentDeck.cardTags?.[c.identity.name.toLowerCase()] ?? [];
       if (
-        filterTerms.length > 0 &&
-        !filterTerms.some((t) => c.identity.name.toLowerCase().includes(t))
-      ) {
+        !matchesDeckQuery(c, deckFilter, {
+          tags,
+          unsupported: unsupportedNames.has(c.identity.name),
+        })
+      )
         return false;
-      }
       if (cmcFilter !== null && cmcBucketIndex(c) !== cmcFilter) return false;
       return true;
     },
-    [filterTerms, cmcFilter],
+    [currentDeck.cardTags, deckFilter, unsupportedNames, cmcFilter],
   );
-  const hasActiveFilter = filterTerms.length > 0 || cmcFilter !== null;
+  const hasActiveFilter = deckFilter.trim().length > 0 || cmcFilter !== null;
   const applyFilters = useCallback(
     (cards: DeckCard[]) => (hasActiveFilter ? cards.filter(matchesFilters) : cards),
     [hasActiveFilter, matchesFilters],
@@ -565,18 +626,32 @@ export function DeckBuilder({
     [applyFilters, currentDeck.cards],
   );
   // Compute groups
-  const { sections: sectionGroups, otherGroups } = computeGroupedSections(
+  const groupedMain = computeGroupedSections(
     filteredMain,
     groupBy,
     currentDeck.customTags,
     currentDeck.cardTags,
   );
-  const sideGroups = groupCards(applyFilters(currentDeck.sideboard));
-  const attractionGroups = groupCards(applyFilters(currentDeck.attractions ?? []));
-  const contraptionGroups = groupCards(applyFilters(currentDeck.contraptions ?? []));
-  const schemeGroups = groupCards(applyFilters(currentDeck.schemes ?? []));
-  const planeGroups = groupCards(applyFilters(currentDeck.planes ?? []));
-  const maybeGroups = groupCards(applyFilters(currentDeck.maybeboard ?? []));
+  const sectionGroups = groupedMain.sections.map((section) => ({
+    ...section,
+    groups: sortCardGroups(section.groups, sortBy),
+  }));
+  const otherGroups = sortCardGroups(groupedMain.otherGroups, sortBy);
+  const sideGroups = sortCardGroups(groupCards(applyFilters(currentDeck.sideboard)), sortBy);
+  const attractionGroups = sortCardGroups(
+    groupCards(applyFilters(currentDeck.attractions ?? [])),
+    sortBy,
+  );
+  const contraptionGroups = sortCardGroups(
+    groupCards(applyFilters(currentDeck.contraptions ?? [])),
+    sortBy,
+  );
+  const schemeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.schemes ?? [])), sortBy);
+  const planeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.planes ?? [])), sortBy);
+  const maybeGroups = sortCardGroups(
+    groupCards(applyFilters(currentDeck.maybeboard ?? [])),
+    sortBy,
+  );
   const specialSections = [
     { id: "attractions", label: "Attractions", groups: attractionGroups },
     { id: "contraptions", label: "Contraptions", groups: contraptionGroups },
@@ -590,64 +665,60 @@ export function DeckBuilder({
         groupBy,
         currentDeck.customTags,
         currentDeck.cardTags,
-      ),
-    [filteredMain, groupBy, currentDeck.customTags, currentDeck.cardTags],
+      ).map((section) => ({ ...section, groups: sortCardGroups(section.groups, sortBy) })),
+    [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags],
   );
 
   // ── Handlers ──
 
+  function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
+    executeDeckEdit(`Remove ${quantity === "one" ? "1" : "all"} ${cardName}`, () =>
+      removeCardCopies(cardName, source, quantity),
+    );
+  }
+
+  function moveCopies(
+    cardName: string,
+    source: EditableDeckZone,
+    destination: EditableDeckZone,
+    quantity: "one" | "all",
+  ) {
+    let moved = 0;
+    executeDeckEdit(`Move ${cardName} to ${destination}`, () => {
+      moved = moveCardCopies(cardName, source, destination, quantity);
+    });
+    if (moved > 0) {
+      const label = destination === "main" ? "main" : `${destination}board`;
+      toast.success(`Moved ${moved} ${cardName} to ${label}`);
+    }
+  }
+
   function handleRemoveOneFromMain(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
-    if (card) removeFromMain(card.identity.id);
+    removeCopies(cardName, "main", "one");
   }
 
   function handleRemoveAllFromMain(cardName: string) {
-    currentDeck.cards
-      .filter((c) => c.identity.name === cardName)
-      .forEach((c) => removeFromMain(c.identity.id));
+    removeCopies(cardName, "main", "all");
   }
 
   function handleMoveOneToSide(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMain(card.identity.id);
-    addToSide({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to sideboard`);
+    moveCopies(cardName, "main", "side", "one");
   }
 
   function handleMoveAllToSide(cardName: string) {
-    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMain(c.identity.id);
-      addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to sideboard`);
+    moveCopies(cardName, "main", "side", "all");
   }
 
   function handleMoveOneToMaybe(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMain(card.identity.id);
-    addToMaybe({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to maybeboard`);
+    moveCopies(cardName, "main", "maybe", "one");
   }
 
   function handleMoveAllToMaybe(cardName: string) {
-    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMain(c.identity.id);
-      addToMaybe({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to maybeboard`);
+    moveCopies(cardName, "main", "maybe", "all");
   }
 
   function handleRemoveOneFromMaybe(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])]
-      .reverse()
-      .find((c) => c.identity.name === cardName);
-    if (card) removeFromMaybe(card.identity.id);
+    removeCopies(cardName, "maybe", "one");
   }
 
   function handleShowInfo(cardName: string) {
@@ -695,84 +766,42 @@ export function DeckBuilder({
   }
 
   function handleRemoveOneFromSide(cardName: string) {
-    const card = [...supplementaryCards].reverse().find((c) => c.identity.name === cardName);
-    if (card) removeFromSide(card.identity.id);
+    const source = currentDeck.sideboard.some((card) => card.identity.name === cardName)
+      ? "side"
+      : "special";
+    removeCopies(cardName, source, "one");
   }
 
   function handleMoveOneFromSideToMain(cardName: string) {
-    const card = [...currentDeck.sideboard].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromSide(card.identity.id);
-    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to main`);
+    moveCopies(cardName, "side", "main", "one");
   }
 
   function handleMoveAllFromSideToMain(cardName: string) {
-    const copies = currentDeck.sideboard.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromSide(c.identity.id);
-      addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to main`);
+    moveCopies(cardName, "side", "main", "all");
   }
 
   function handleMoveOneFromSideToMaybe(cardName: string) {
-    const card = [...currentDeck.sideboard].reverse().find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromSide(card.identity.id);
-    addToMaybe({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to maybeboard`);
+    moveCopies(cardName, "side", "maybe", "one");
   }
 
   function handleMoveAllFromSideToMaybe(cardName: string) {
-    const copies = currentDeck.sideboard.filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromSide(c.identity.id);
-      addToMaybe({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to maybeboard`);
+    moveCopies(cardName, "side", "maybe", "all");
   }
 
   function handleMoveOneFromMaybeToMain(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])]
-      .reverse()
-      .find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMaybe(card.identity.id);
-    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to main`);
+    moveCopies(cardName, "maybe", "main", "one");
   }
 
   function handleMoveAllFromMaybeToMain(cardName: string) {
-    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMaybe(c.identity.id);
-      addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to main`);
+    moveCopies(cardName, "maybe", "main", "all");
   }
 
   function handleMoveOneFromMaybeToSide(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])]
-      .reverse()
-      .find((c) => c.identity.name === cardName);
-    if (!card) return;
-    removeFromMaybe(card.identity.id);
-    addToSide({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
-    toast.success(`Moved 1 ${cardName} to sideboard`);
+    moveCopies(cardName, "maybe", "side", "one");
   }
 
   function handleMoveAllFromMaybeToSide(cardName: string) {
-    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.identity.name === cardName);
-    if (copies.length === 0) return;
-    for (const c of copies) {
-      removeFromMaybe(c.identity.id);
-      addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
-    }
-    toast.success(`Moved ${copies.length} ${cardName} to sideboard`);
+    moveCopies(cardName, "maybe", "side", "all");
   }
 
   function handleSetCommander(card: DeckCard) {
@@ -783,7 +812,7 @@ export function DeckBuilder({
         );
         return;
       }
-      setCommander(card);
+      executeDeckEdit(`Set ${card.identity.name} in the command zone`, () => setCommander(card));
       return;
     }
 
@@ -815,7 +844,14 @@ export function DeckBuilder({
       }
     }
 
-    setCommander(card);
+    executeDeckEdit(`Set ${card.identity.name} as commander`, () => setCommander(card));
+  }
+
+  function handleRemoveCommander(card?: DeckCard) {
+    executeDeckEdit(
+      card ? `Remove ${card.identity.name} from the command zone` : "Remove commander",
+      () => removeCommander(card),
+    );
   }
 
   function isAtCopyLimit(cardName: string): boolean {
@@ -837,7 +873,9 @@ export function DeckBuilder({
       );
       return;
     }
-    addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } });
+    executeDeckEdit(`Add ${group.card.identity.name}`, () =>
+      addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } }),
+    );
   }
 
   function handleAddOneToMainByName(cardName: string) {
@@ -849,8 +887,11 @@ export function DeckBuilder({
       return;
     }
     const existing = currentDeck.cards.find((c) => c.identity.name === cardName);
-    if (existing)
-      addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } });
+    if (existing) {
+      executeDeckEdit(`Add ${cardName}`, () =>
+        addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } }),
+      );
+    }
   }
 
   function handleExport() {
@@ -858,41 +899,51 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
-  async function handleSave() {
+  async function handleSave(deckOverride?: EditorDeck) {
     if (saveInFlightRef.current) return;
-    const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
-    saveCurrentDeck();
-    const snapshot = buildDeckSnapshot({ ...currentDeck, draft: undefined });
-    setLastSavedSnapshot(snapshot);
-    setUnsavedState(snapshot, snapshot);
-    if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
-      saveInFlightRef.current = true;
-      try {
+    const sourceDeck = deckOverride ?? currentDeck;
+    const normalizedName = sourceDeck.name.trim();
+    if (!normalizedName) {
+      toast.error("Give this deck a name before saving");
+      return;
+    }
+    const deckToSave = { ...sourceDeck, name: normalizedName };
+    if (normalizedName !== sourceDeck.name) useDeckStore.getState().setDeckName(normalizedName);
+    saveInFlightRef.current = true;
+    setIsSaving(true);
+    try {
+      const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
+      saveCurrentDeck();
+      const snapshot = buildDeckSnapshot({ ...deckToSave, draft: undefined });
+      setLastSavedSnapshot(snapshot);
+      setUnsavedState(snapshot, snapshot);
+      if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
         const detail = await useAccountDecksStore
           .getState()
-          .save(saved.accountDeckId, saved.accountVersionNo, currentDeck);
+          .save(saved.accountDeckId, saved.accountVersionNo, deckToSave);
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
         toast.success(`Saved version ${detail.currentVersionNo} to your account`);
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? `${error.message} Your local copy is still saved.`
-            : "Account save failed. Your local copy is still saved.",
-        );
-      } finally {
-        saveInFlightRef.current = false;
+      } else {
+        showAccountSaveNudge();
       }
-    } else {
-      showAccountSaveNudge();
-    }
-    if (hasUnsupportedCards) {
-      toast.warning(
-        `Saved "${currentDeck.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine; export remains available for other engines`,
+      if (hasUnsupportedCards) {
+        toast.warning(
+          `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`,
+        );
+      } else if (!deckValidation.legal) {
+        toast.warning(
+          `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
+        );
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? `${error.message} Your local copy is still saved.`
+          : "Account save failed. Your local copy is still saved.",
       );
-    } else if (!deckValidation.legal) {
-      toast.warning(
-        `Saved "${currentDeck.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
-      );
+    } finally {
+      saveInFlightRef.current = false;
+      setIsSaving(false);
     }
   }
 
@@ -903,7 +954,7 @@ export function DeckBuilder({
     setUnsavedState(snapshot, snapshot);
     if (hasUnsupportedCards) {
       toast.warning(
-        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine`,
+        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`,
       );
     } else {
       toast.success(`Draft "${currentDeck.name}" saved`);
@@ -917,12 +968,16 @@ export function DeckBuilder({
    */
   function handleSelectCard(cardName: string, shiftKey: boolean) {
     if (shiftKey) {
-      const orderedNames: string[] = [];
-      for (const c of currentDeck.commanders ?? []) orderedNames.push(c.identity.name);
+      const orderedNames = new Set<string>();
+      for (const c of currentDeck.commanders ?? []) orderedNames.add(c.identity.name);
       for (const s of sectionGroups)
-        for (const g of s.groups) orderedNames.push(g.card.identity.name);
-      for (const g of otherGroups) orderedNames.push(g.card.identity.name);
-      rangeSelect(cardName, orderedNames);
+        for (const g of s.groups) orderedNames.add(g.card.identity.name);
+      for (const g of otherGroups) orderedNames.add(g.card.identity.name);
+      for (const g of sideGroups) orderedNames.add(g.card.identity.name);
+      for (const g of maybeGroups) orderedNames.add(g.card.identity.name);
+      for (const section of specialSections)
+        for (const g of section.groups) orderedNames.add(g.card.identity.name);
+      rangeSelect(cardName, [...orderedNames]);
     } else {
       toggleCard(cardName);
     }
@@ -933,6 +988,65 @@ export function DeckBuilder({
     importReadOnlyDeck();
     toast.success(`Copied "${importedName}" to My Decks`);
   }
+
+  const editorCommands: DeckEditorCommand[] = [
+    {
+      id: "save",
+      label: "Save deck",
+      keywords: ["persist", "version"],
+      disabled: isReadOnly || isSaving,
+      disabledReason: isReadOnly ? "Read only" : isSaving ? "Saving" : undefined,
+      run: () => void handleSave(),
+    },
+    {
+      id: "import",
+      label: "Import a card list",
+      keywords: ["paste", "add cards"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setImportOpen(true),
+    },
+    { id: "undo", label: "Undo last deck edit", run: undoDeckEdit },
+    { id: "redo", label: "Redo last deck edit", run: redoDeckEdit },
+    { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
+    { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
+    { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
+    { id: "group-type", label: "Group cards by type", run: () => setGroupBy("type") },
+    { id: "group-mana", label: "Group cards by mana value", run: () => setGroupBy("cmc") },
+    { id: "group-color", label: "Group cards by color", run: () => setGroupBy("color") },
+    { id: "group-tags", label: "Group cards by custom tags", run: () => setGroupBy("custom") },
+    {
+      id: "remove-selection",
+      label: "Remove selected cards",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleRemoveSelected,
+    },
+    {
+      id: "tag-selection",
+      label: "Tag selected cards",
+      keywords: ["group", "role", "organize"],
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: () => setTagDialogOpen(true),
+    },
+    {
+      id: "manage-tags",
+      label: "Manage deck tags",
+      keywords: ["rename", "reorder", "delete", "groups"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setTagManagerOpen(true),
+    },
+    {
+      id: "batch-printings",
+      label: "Change deck printings",
+      keywords: ["art", "edition", "set"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setBatchPrintingOpen(true),
+    },
+  ];
 
   return (
     <div className="flex flex-col h-full w-full relative">
@@ -975,9 +1089,14 @@ export function DeckBuilder({
       )}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-          <DeckHero />
+          <DeckHero
+            onNameCommit={(name) =>
+              void handleSave({ ...useDeckStore.getState().currentDeck, name })
+            }
+          />
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
+            {!isReadOnly && <DeckHistoryControls />}
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
@@ -1009,6 +1128,20 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
+            <DeckLayoutMenu
+              groupBy={groupBy}
+              sortBy={sortBy}
+              cardSize={cardSize}
+              filter={deckFilter}
+              viewMode={viewMode}
+              onApply={(nextGroupBy, nextSortBy, nextCardSize, nextFilter, nextViewMode) => {
+                setGroupBy(nextGroupBy);
+                setSortBy(nextSortBy);
+                setCardSize(nextCardSize);
+                setDeckFilter(nextFilter);
+                setViewMode(nextViewMode);
+              }}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
@@ -1025,6 +1158,25 @@ export function DeckBuilder({
                     className={cn(groupBy === opt.value && "bg-muted font-medium")}
                   >
                     {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                  <span>Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
+                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {SORT_OPTIONS.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onSelect={() => setSortBy(option.value)}
+                    className={cn(sortBy === option.value && "bg-muted font-medium")}
+                  >
+                    {option.label}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -1057,7 +1209,7 @@ export function DeckBuilder({
               <input
                 type="range"
                 min={1}
-                max={6}
+                max={MAX_CARD_SIZE}
                 step={1}
                 value={cardSize}
                 onChange={(e) => setCardSize(Number(e.target.value))}
@@ -1067,16 +1219,29 @@ export function DeckBuilder({
             )}
             <div className="flex-1 min-w-40">
               <QuickCardSearch
-                onAdd={(sc) => {
-                  if (isAtCopyLimit(sc.name)) {
+                onAdd={(sc, destination) => {
+                  if (destination === "main" && isAtCopyLimit(sc.name)) {
                     const format = getFormat(currentDeck.format ?? "standard");
                     toast.error(
                       `Max ${format?.deckRules.maxCopies} copies of "${sc.name}" allowed in ${format?.name}`,
                     );
                     return;
                   }
-                  addToMain(scryfallToDeckCard(sc));
-                  toast.success(`Added ${sc.name}`);
+                  const card = scryfallToDeckCard(sc);
+                  executeDeckEdit(`Add ${sc.name} to ${destination}`, () => {
+                    if (destination === "side") addToSide(card);
+                    else if (destination === "maybe") addToMaybe(card);
+                    else addToMain(card);
+                  });
+                  toast.success(
+                    `Added ${sc.name} to ${
+                      destination === "side"
+                        ? "sideboard"
+                        : destination === "maybe"
+                          ? "maybeboard"
+                          : "main deck"
+                    }`,
+                  );
                 }}
                 onRemove={(name) => {
                   handleRemoveOneFromMain(name);
@@ -1097,6 +1262,40 @@ export function DeckBuilder({
                 <Search className="h-3.5 w-3.5" />
               </Button>
             )}
+
+            {!isReadOnly && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 gap-1 text-xs"
+                onClick={() => setImportOpen(true)}
+              >
+                <ListPlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Import list</span>
+                <span className="sm:hidden">Import</span>
+              </Button>
+            )}
+
+            {!isReadOnly && (
+              <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
+                {isSaving ? "Saving…" : hasUnsavedChanges ? "Unsaved" : "Saved"}
+              </span>
+            )}
+
+            {!isReadOnly && (
+              <DeckChangeSummary currentDeck={currentDeck} savedSnapshot={lastSavedSnapshot} />
+            )}
+
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 shrink-0"
+              title="Deck commands"
+              aria-label="Deck commands"
+              onClick={() => setCommandPaletteOpen(true)}
+            >
+              <CommandIcon className="h-3.5 w-3.5" />
+            </Button>
 
             {isReadOnly ? (
               <Button
@@ -1119,14 +1318,14 @@ export function DeckBuilder({
                       : "secondary"
                     : "outline"
                 }
-                disabled={!allowIllegalDecks && !hasUnsavedChanges && !currentDeck.draft}
+                disabled={isSaving || (!hasUnsavedChanges && !currentDeck.draft)}
                 className={cn(
                   "h-7 shrink-0 gap-1 text-xs",
                   !isDeckLegal && "border-warning/50 text-warning hover:bg-warning/10",
                 )}
                 title={
                   hasUnsupportedCards
-                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew engine — export remains available`
+                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`
                     : !isDeckLegal
                       ? `${deckValidation.errors[0] ?? "Deck is not legal in this format"} — saves with a warning`
                       : hasUnsavedChanges
@@ -1137,8 +1336,12 @@ export function DeckBuilder({
                 }
                 onClick={() => void handleSave()}
               >
-                <Save className="h-3.5 w-3.5" />
-                Save
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {isSaving ? "Saving" : "Save"}
               </Button>
             )}
 
@@ -1161,6 +1364,9 @@ export function DeckBuilder({
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setBatchPrintingOpen(true)}>
+                  <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
+                </DropdownMenuItem>
                 {publishEnabled && (
                   <DropdownMenuItem
                     onSelect={() => setPublishOpen(true)}
@@ -1181,7 +1387,7 @@ export function DeckBuilder({
                 </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
-                  <Palette className="h-3.5 w-3.5 mr-2" /> Labels
+                  <Palette className="h-3.5 w-3.5 mr-2" /> Deck labels
                   {(currentDeck.labels?.length ?? 0) > 0 && (
                     <span className="ml-auto text-[10px] text-muted-foreground">
                       {currentDeck.labels!.length}
@@ -1210,7 +1416,7 @@ export function DeckBuilder({
                           variant="ghost"
                           className="h-5 w-5 text-destructive shrink-0"
                           onClick={() => {
-                            removeCustomTag(tag);
+                            executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag));
                             toast.success(`Tag "${tag}" removed`);
                           }}
                         >
@@ -1229,7 +1435,9 @@ export function DeckBuilder({
                     onKeyDown={(e) => {
                       e.stopPropagation();
                       if (e.key === "Enter" && newTagInput.trim()) {
-                        addCustomTag(newTagInput.trim());
+                        executeDeckEdit(`Create ${newTagInput.trim()} tag`, () =>
+                          addCustomTag(newTagInput.trim()),
+                        );
                         toast.success(`Tag "${newTagInput.trim()}" added`);
                         setNewTagInput("");
                       }
@@ -1251,6 +1459,20 @@ export function DeckBuilder({
           <fieldset disabled={isReadOnly} className="contents">
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
               <DeckValidationPanel unsupportedNames={unsupportedNames} />
+              <CommanderSlots
+                cards={currentDeck.cards}
+                commanders={currentDeck.commanders ?? []}
+                format={currentDeck.format ?? "standard"}
+                cardSize={cardSize}
+                readOnly={isReadOnly}
+                onSetCommander={handleSetCommander}
+                onRemoveCommander={handleRemoveCommander}
+                onHover={(card, event) =>
+                  preview.handleMouseEnter(card as unknown as CardDto, event, { useDelay: true })
+                }
+                onLeave={preview.handleMouseLeave}
+                onPickPrint={(name) => setPrintPickerCard(name)}
+              />
               <div
                 ref={setMainDropRef}
                 className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
@@ -1274,7 +1496,7 @@ export function DeckBuilder({
                   onRemoveOne={handleRemoveOneFromMain}
                   onRemoveAll={handleRemoveAllFromMain}
                   onSetCommander={handleSetCommander}
-                  onRemoveCommander={removeCommander}
+                  onRemoveCommander={handleRemoveCommander}
                   onMoveOneToSide={handleMoveOneToSide}
                   onMoveAllToSide={handleMoveAllToSide}
                   onMoveOneToMaybe={handleMoveOneToMaybe}
@@ -1288,23 +1510,39 @@ export function DeckBuilder({
                   onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                   onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
                   onPickPrint={(name) => setPrintPickerCard(name)}
-                  onToggleFoil={toggleFoil}
+                  onToggleFoil={(name) =>
+                    executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
+                  }
                   onHover={(card, e) =>
                     preview.handleMouseEnter(card as unknown as CardDto, e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
-                  onAddToSide={(card) => addToSide(card)}
+                  onAddToSide={(card) =>
+                    executeDeckEdit(`Add ${card.identity.name} to sideboard`, () => addToSide(card))
+                  }
                   onRemoveFromSide={handleRemoveOneFromSide}
-                  onAddToMaybe={(card) => addToMaybe(card)}
+                  onAddToMaybe={(card) =>
+                    executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
+                      addToMaybe(card),
+                    )
+                  }
                   onRemoveFromMaybe={handleRemoveOneFromMaybe}
                   totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
                   customTags={currentDeck.customTags}
                   cardTags={currentDeck.cardTags}
                   allMainCards={currentDeck.cards}
-                  onUntagCard={untagCard}
-                  onTagCard={tagCard}
-                  onAddCustomTag={addCustomTag}
-                  onRemoveTag={removeCustomTag}
+                  onUntagCard={(name, tag) =>
+                    executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
+                  }
+                  onTagCard={(name, tag) =>
+                    executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
+                  }
+                  onAddCustomTag={(tag) =>
+                    executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
+                  }
+                  onRemoveTag={(tag) =>
+                    executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
+                  }
                   selectedCards={selectedCards}
                   onSelectCard={handleSelectCard}
                   onSelectAll={(names) => selectCards(names, true)}
@@ -1315,7 +1553,9 @@ export function DeckBuilder({
                     const isSameFront =
                       currentDeck.coverCardName === card.identity.name &&
                       (currentDeck.coverCardFace ?? 0) === 0;
-                    setCoverCard(isSameFront ? undefined : card.identity.name, 0);
+                    executeDeckEdit(`Change deck cover`, () =>
+                      setCoverCard(isSameFront ? undefined : card.identity.name, 0),
+                    );
                     if (!isSameFront)
                       useScryfallStore.getState().invalidateCard(card.identity.name);
                   }}
@@ -1323,7 +1563,9 @@ export function DeckBuilder({
                     const isSameBack =
                       currentDeck.coverCardName === card.identity.name &&
                       currentDeck.coverCardFace === 1;
-                    setCoverCard(isSameBack ? undefined : card.identity.name, 1);
+                    executeDeckEdit(`Change deck cover`, () =>
+                      setCoverCard(isSameBack ? undefined : card.identity.name, 1),
+                    );
                     if (!isSameBack) useScryfallStore.getState().invalidateCard(card.identity.name);
                   }}
                   stackPositions={currentDeck.stackPositions}
@@ -1346,7 +1588,11 @@ export function DeckBuilder({
                       cardSize={cardSize}
                       onShowInfo={handleShowTokenInfo}
                       onPickPrint={setTokenPrintPicker}
-                      onResetPrint={resetTokenPrint}
+                      onResetPrint={(token) =>
+                        executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
+                          resetTokenPrint(token),
+                        )
+                      }
                       onHover={(token, e) =>
                         preview.handleMouseEnter(token as unknown as CardDto, e, {
                           useDelay: true,
@@ -1434,13 +1680,27 @@ export function DeckBuilder({
         )}
 
         <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
-        <PrintPickerModal cardName={printPickerCard} onClose={() => setPrintPickerCard(null)} />
+        <PrintPickerModal
+          cardName={printPickerCard}
+          onClose={() => setPrintPickerCard(null)}
+          onSelect={(print) => {
+            if (printPickerCard) {
+              executeDeckEdit(`Change ${printPickerCard} printing`, () =>
+                updatePrint(printPickerCard, print),
+              );
+            }
+          }}
+        />
         <PrintPickerModal
           cardName={tokenPrintPicker?.identity.name ?? null}
           token={tokenPrintPicker ?? undefined}
           onClose={() => setTokenPrintPicker(null)}
           onSelect={(sc) => {
-            if (tokenPrintPicker) updateTokenPrint(tokenPrintPicker, sc);
+            if (tokenPrintPicker) {
+              executeDeckEdit(`Change ${tokenPrintPicker.identity.name} token printing`, () =>
+                updateTokenPrint(tokenPrintPicker, sc),
+              );
+            }
           }}
         />
         {detailCard && (
@@ -1457,7 +1717,7 @@ export function DeckBuilder({
               onSetCommander: (name) => {
                 const existing = currentDeck.commanders?.find((c) => c.identity.name === name);
                 if (existing) {
-                  removeCommander(existing);
+                  handleRemoveCommander(existing);
                 } else {
                   const card = currentDeck.cards.find((c) => c.identity.name === name);
                   if (card) handleSetCommander(card);
@@ -1475,16 +1735,42 @@ export function DeckBuilder({
               ),
               deckFormat: currentDeck.format ?? "standard",
               customTags: currentDeck.customTags,
-              onTagCard: tagCard,
-              onAddTag: addCustomTag,
+              onTagCard: (name, tag) =>
+                executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag)),
+              onAddTag: (tag) => executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag)),
               token: detailToken ?? undefined,
               onUpdateTokenPrint: (_name, print) => {
-                if (detailToken) updateTokenPrint(detailToken, print);
+                if (detailToken) {
+                  executeDeckEdit(`Change ${detailToken.identity.name} token printing`, () =>
+                    updateTokenPrint(detailToken, print),
+                  );
+                }
               },
             }}
           />
         )}
         <DeckLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} />
+        <ImportDeckTextDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          mode="add"
+          onImport={importIntoCurrentDeck}
+        />
+        <DeckCommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          commands={editorCommands}
+        />
+        <DeckTagDialog
+          open={tagDialogOpen}
+          onOpenChange={setTagDialogOpen}
+          tags={currentDeck.customTags ?? []}
+          selectedCount={selectedCards.size}
+          onApply={handleTagSelected}
+          onCreateAndApply={handleCreateAndTagSelected}
+        />
+        <DeckTagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} />
+        <BatchPrintingDialog open={batchPrintingOpen} onOpenChange={setBatchPrintingOpen} />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open
@@ -1515,6 +1801,7 @@ export function DeckBuilder({
               hasUnsavedChanges={hasUnsavedChanges}
               onRestore={(deck, versionNo) => {
                 useDeckStore.getState().loadDeck(deck);
+                resetDeckHistory();
                 toast.info(`Version ${versionNo} loaded. Save to create a new version.`);
               }}
             />
@@ -1541,6 +1828,7 @@ export function DeckBuilder({
                     const deckId = useDeckStore.getState().currentDeckId;
                     if (deckId) deleteSavedDeck(deckId);
                     clearDeck();
+                    resetDeckHistory();
                     setConfirmClear(false);
                     const snapshot = buildDeckSnapshot({
                       format: "standard",

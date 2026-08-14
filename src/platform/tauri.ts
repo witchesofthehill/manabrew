@@ -60,6 +60,7 @@ class TauriServerApi implements IServerApi {
         format: params.format,
         maxPlayers: params.maxPlayers,
         password: params.password ?? null,
+        reconnectTimeoutS: params.reconnectTimeoutS ?? null,
       });
     }
     return this.inner.createRoom(params);

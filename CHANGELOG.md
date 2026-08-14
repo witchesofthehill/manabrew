@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.13.0](https://github.com/witchesofthehill/manabrew/compare/v3.12.5...v3.13.0) (2026-08-12)
+
+### Features
+
+* **ui:** improve deck editor workflows ([#678](https://github.com/witchesofthehill/manabrew/issues/678)) ([f812a0e](https://github.com/witchesofthehill/manabrew/commit/f812a0e66dea245756ca35123a2babc8f03712b0))
+
+### Fixes
+
+* **ui:** unify live card art resolution ([#686](https://github.com/witchesofthehill/manabrew/issues/686)) ([416c65f](https://github.com/witchesofthehill/manabrew/commit/416c65fda4e614b98ccbcf5d15056fc188d8a243))
+* **tauri:** forward reconnect timeout to the forge room host ([#667](https://github.com/witchesofthehill/manabrew/issues/667)) ([5c6cad7](https://github.com/witchesofthehill/manabrew/commit/5c6cad7aa868f226a251678441366e32b64d4710))
+
+## [3.12.5](https://github.com/witchesofthehill/manabrew/compare/v3.12.4...v3.12.5) (2026-08-12)
+
+### Fixes
+
+* prompt for triggers order and show presentation on choose_board_targets ([#663](https://github.com/witchesofthehill/manabrew/issues/663)) ([277982e](https://github.com/witchesofthehill/manabrew/commit/277982ec5636916e598d008688ffe246f58459fa))
+
+## [3.12.4](https://github.com/witchesofthehill/manabrew/compare/v3.12.3...v3.12.4) (2026-08-12)
+
+### Fixes
+
+* **wasm:** crash on select creature type on WASM builds ([#681](https://github.com/witchesofthehill/manabrew/issues/681)) ([e51ba2d](https://github.com/witchesofthehill/manabrew/commit/e51ba2d691967947f202497df5055b8f7dba2f81))
+
 ## [3.12.3](https://github.com/witchesofthehill/manabrew/compare/v3.12.2...v3.12.3) (2026-08-10)
 
 ### Fixes

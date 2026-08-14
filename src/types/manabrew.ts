@@ -32,7 +32,42 @@ export interface CardRulesSummary {
 export type EditorDeck = DeckDto & {
   customTags?: string[];
   cardTags?: Record<string, string[]>;
+  editor?: DeckEditorMetadata;
 };
+
+export interface DeckEditorTag {
+  id: string;
+  name: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface DeckEditorGroup {
+  id: string;
+  name: string;
+  cardNames: string[];
+  collapsed?: boolean;
+  pinned?: boolean;
+}
+
+export interface DeckEditorLayout {
+  id: string;
+  name: string;
+  groupBy: "type" | "cmc" | "color" | "custom";
+  sortBy: "name" | "mana-value" | "quantity";
+  groups: DeckEditorGroup[];
+  filter?: string;
+  cardSize?: number;
+  viewMode?: "list" | "visual" | "stack";
+  defaultDestination?: "main" | "side" | "maybe";
+}
+
+export interface DeckEditorMetadata {
+  version: 1;
+  tags: DeckEditorTag[];
+  layouts: DeckEditorLayout[];
+  activeLayoutId?: string;
+}
 
 export interface User {
   username: string;

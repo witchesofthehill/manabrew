@@ -179,6 +179,10 @@ public final class InteractiveSnapshotExtractor {
         out.put("hasCityBlessing", player.hasBlessing());
         out.put("ringLevel", player.getNumRingTemptedYou());
         out.put("speed", player.getSpeed());
+        // Storied is the only mechanic through Forge 2.0.14 carrying player-level state beyond the
+        // designations above, which is why the list stops here: Recruit resolves through
+        // chooseCardsToDiscardFrom and FacesDilemma is trigger-side, so neither reaches a snapshot.
+        out.put("hasEnduringStory", player.hasEnduringStory());
         return out;
     }
 

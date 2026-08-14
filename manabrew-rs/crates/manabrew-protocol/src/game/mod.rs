@@ -161,6 +161,7 @@ pub struct PlayerDto {
     #[ts(type = "Record<string, number>")]
     pub commander_damage: HashMap<String, i32>,
     pub has_city_blessing: bool,
+    pub has_enduring_story: bool,
     pub ring_level: i32,
     pub speed: i32,
 }

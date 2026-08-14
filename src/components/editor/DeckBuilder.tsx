@@ -254,6 +254,8 @@ export function DeckBuilder({
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
+  const activeFilterCount =
+    Number(Boolean(deckFilter)) + Number(cmcFilter !== null) + Number(collectionFilter !== "all");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
     const snap = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshotRef(snap);
@@ -1434,6 +1436,32 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
+            <div
+              className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
+              aria-live="polite"
+            >
+              <span>
+                Grouped by {GROUP_BY_OPTIONS.find((option) => option.value === groupBy)?.label}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>Sorted by {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
+              {activeFilterCount > 0 && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <button
+                    type="button"
+                    className="rounded-sm text-primary hover:underline"
+                    onClick={() => {
+                      setDeckFilter("");
+                      setCmcFilter(null);
+                      setCollectionFilter("all");
+                    }}
+                  >
+                    Clear {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}
+                  </button>
+                </>
+              )}
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">

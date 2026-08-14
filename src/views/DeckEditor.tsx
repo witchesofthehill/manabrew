@@ -448,10 +448,7 @@ export default function DeckEditor() {
           draft
             ? undefined
             : () => {
-                const id = accountDeck
-                  ? loadAccountDeck(accountDeckId, saved.accountVersionNo ?? 1, saved.deck)
-                  : saved.id;
-                navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
+                navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(saved.id)}`);
               }
         }
         badge={
@@ -836,6 +833,7 @@ export default function DeckEditor() {
                         deck={s}
                         readOnly
                         onOpen={() => handleOpenPreset(s.deck)}
+                        onPlay={() => quickPlaytest(s.deck)}
                         onPlaytest={() => quickPlaytest(s.deck)}
                         onViewInHub={
                           hubEnabled

@@ -1,4 +1,4 @@
-import { ArrowLeft, Bot, Pencil, Users } from "lucide-react";
+import { ArrowLeft, Bot, Loader2, Pencil, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DeckCoverImage } from "@/components/deck/deckCover";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
 import { getFormat } from "@/lib/formats";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
+import { useAccountDecks } from "@/hooks/useAccountDecks";
 
 interface DeckPlayActionsProps {
   savedDeckId: string;
@@ -14,6 +15,15 @@ interface DeckPlayActionsProps {
 
 export function DeckPlayActions({ savedDeckId }: DeckPlayActionsProps) {
   const savedDeck = useOwnedDecks().find((entry) => entry.id === savedDeckId);
+  const { resolved: accountDecksResolved } = useAccountDecks();
+
+  if (!savedDeck && !accountDecksResolved) {
+    return (
+      <div className="flex h-full items-center justify-center" aria-label="Loading deck">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!savedDeck) {
     return (

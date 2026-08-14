@@ -24,6 +24,7 @@ const SECTIONS: { id: InsightSection; label: string }[] = [
 ];
 
 export function DeckInsightsPanel({
+  mode = "all",
   deck,
   unsupportedNames,
   validationErrors,
@@ -35,6 +36,7 @@ export function DeckInsightsPanel({
   onCardHover,
   onCardLeave,
 }: {
+  mode?: "all" | "analyze" | "improve";
   deck: EditorDeck;
   unsupportedNames: Set<string>;
   validationErrors: string[];
@@ -60,7 +62,13 @@ export function DeckInsightsPanel({
 
   return (
     <section aria-label="Deck insights" className="min-w-0 space-y-3">
-      {SECTIONS.map(({ id, label }) => (
+      {SECTIONS.filter(({ id }) =>
+        mode === "all"
+          ? true
+          : mode === "analyze"
+            ? id === "mana" || id === "collection" || id === "budget"
+            : id === "overview" || id === "replacements",
+      ).map(({ id, label }) => (
         <InsightSectionPanel
           key={id}
           id={id}

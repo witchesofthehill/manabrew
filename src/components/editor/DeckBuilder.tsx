@@ -248,6 +248,7 @@ export function DeckBuilder({
   const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [workspace, setWorkspace] = useState<"build" | "analyze" | "improve">("build");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
   const [analysisOpen, setAnalysisOpen] = useDeckSectionOpen();
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
@@ -1069,6 +1070,17 @@ export function DeckBuilder({
     { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
     { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
     { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
+    { id: "workspace-build", label: "Open Build workspace", run: () => setWorkspace("build") },
+    {
+      id: "workspace-analyze",
+      label: "Open Analyze workspace",
+      run: () => setWorkspace("analyze"),
+    },
+    {
+      id: "workspace-improve",
+      label: "Open Improve workspace",
+      run: () => setWorkspace("improve"),
+    },
     {
       id: "collapse-sections",
       label: "Collapse all deck sections",
@@ -1351,7 +1363,34 @@ export function DeckBuilder({
             }
           />
 
-          <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
+          <nav
+            className="sticky top-0 z-40 flex border-b bg-background/90 px-3 pt-2 backdrop-blur-md"
+            aria-label="Deck editor workspace"
+          >
+            {(["build", "analyze", "improve"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={cn(
+                  "min-h-9 border-b-2 px-4 text-xs font-semibold capitalize transition-colors",
+                  workspace === item
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+                aria-current={workspace === item ? "page" : undefined}
+                onClick={() => setWorkspace(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </nav>
+
+          <div
+            className={cn(
+              "sticky top-9 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md",
+              workspace !== "build" && "hidden",
+            )}
+          >
             {!isReadOnly && <DeckHistoryControls />}
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
@@ -1797,171 +1836,176 @@ export function DeckBuilder({
 
           <fieldset disabled={isReadOnly} className="contents">
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
-              <DeckValidationPanel unsupportedNames={unsupportedNames} />
-              <CommanderSlots
-                key={`command-zone-${editorSessionId}`}
-                cards={currentDeck.cards}
-                commanders={currentDeck.commanders ?? []}
-                format={currentDeck.format ?? "standard"}
-                cardSize={cardSize}
-                readOnly={isReadOnly}
-                onSetCommander={handleSetCommander}
-                onRemoveCommander={handleRemoveCommander}
-                onHover={(card, event) =>
-                  preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
-                    useDelay: true,
-                  })
-                }
-                onLeave={preview.handleMouseLeave}
-                onPickPrint={(name) => setPrintPickerCard(name)}
-                contextMenuFor={(card, label) => {
-                  const name = card.identity.name;
-                  const isCover =
-                    currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
-                  const isCoverBack =
-                    currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
-                  return {
-                    commanderLabel: label,
-                    customTags: currentDeck.customTags ?? [],
-                    appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
-                    isFoil: !!card.identity.foil,
-                    isCover,
-                    isCoverBack,
-                    hasBackFace: !!card.backFace,
-                    onShowInfo: () => handleShowInfo(name),
-                    onRemoveCommander: () => handleRemoveCommander(card),
-                    onPickPrint: () => setPrintPickerCard(name),
-                    onToggleFoil: () =>
-                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
-                    onSetCover: () => {
-                      executeDeckEdit(`Change deck cover`, () =>
-                        setCoverCard(isCover ? undefined : name, 0),
-                      );
-                      if (!isCover) useScryfallStore.getState().invalidateCard(name);
-                    },
-                    onSetCoverBack: () => {
-                      executeDeckEdit(`Change deck cover`, () =>
-                        setCoverCard(isCoverBack ? undefined : name, 1),
-                      );
-                      if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
-                    },
-                    onApplyTag: (tag) => {
-                      const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
-                      executeDeckEdit(`${isApplied ? "Remove" : "Apply"} ${tag}`, () => {
-                        if (isApplied) untagCard(name, tag);
-                        else tagCard(name, tag);
-                      });
-                    },
-                    onCreateTag: (tag) =>
-                      executeDeckEdit(`Create ${tag} tag`, () => {
-                        addCustomTag(tag);
-                        tagCard(name, tag);
-                      }),
-                  };
-                }}
-              />
-              <div
-                ref={setMainDropRef}
-                className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
-              >
-                <DeckListView
-                  key={`deck-sections-${editorSessionId}`}
-                  viewMode={viewMode}
-                  cardSize={cardSize}
+              <div className={cn(workspace !== "build" && "hidden")}>
+                <DeckValidationPanel unsupportedNames={unsupportedNames} />
+                <CommanderSlots
+                  key={`command-zone-${editorSessionId}`}
+                  cards={currentDeck.cards}
                   commanders={currentDeck.commanders ?? []}
-                  deckFormat={currentDeck.format ?? "standard"}
-                  mainSections={sectionGroups}
-                  otherGroups={otherGroups}
-                  sideboardGroups={sideGroups}
-                  maybeboardGroups={maybeGroups}
-                  specialSections={specialSections}
-                  stackColumns={stackColsData}
-                  isOverSide={isOverSide}
-                  setSideDropRef={setSideDropRef}
-                  isOverMaybe={isOverMaybe}
-                  setMaybeDropRef={setMaybeDropRef}
-                  onAddOne={handleAddOneToMain}
-                  onRemoveOne={handleRemoveOneFromMain}
-                  onRemoveAll={handleRemoveAllFromMain}
+                  format={currentDeck.format ?? "standard"}
+                  cardSize={cardSize}
+                  readOnly={isReadOnly}
                   onSetCommander={handleSetCommander}
                   onRemoveCommander={handleRemoveCommander}
-                  onMoveOneToSide={handleMoveOneToSide}
-                  onMoveAllToSide={handleMoveAllToSide}
-                  onMoveOneToMaybe={handleMoveOneToMaybe}
-                  onMoveAllToMaybe={handleMoveAllToMaybe}
-                  onMoveOneFromSideToMain={handleMoveOneFromSideToMain}
-                  onMoveAllFromSideToMain={handleMoveAllFromSideToMain}
-                  onMoveOneFromSideToMaybe={handleMoveOneFromSideToMaybe}
-                  onMoveAllFromSideToMaybe={handleMoveAllFromSideToMaybe}
-                  onMoveOneFromMaybeToMain={handleMoveOneFromMaybeToMain}
-                  onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
-                  onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
-                  onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
-                  onPickPrint={(name) => setPrintPickerCard(name)}
-                  onToggleFoil={(name) =>
-                    executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
-                  }
-                  onHover={(card, e) =>
-                    preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
+                  onHover={(card, event) =>
+                    preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
+                      useDelay: true,
+                    })
                   }
                   onLeave={preview.handleMouseLeave}
-                  onAddToSide={(card) =>
-                    executeDeckEdit(`Add ${card.identity.name} to sideboard`, () => addToSide(card))
-                  }
-                  onRemoveFromSide={handleRemoveOneFromSide}
-                  onAddToMaybe={(card) =>
-                    executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
-                      addToMaybe(card),
-                    )
-                  }
-                  onRemoveFromMaybe={handleRemoveOneFromMaybe}
-                  totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
-                  customTags={currentDeck.customTags}
-                  cardTags={currentDeck.cardTags}
-                  allMainCards={currentDeck.cards}
-                  onUntagCard={(name, tag) =>
-                    executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
-                  }
-                  onTagCard={(name, tag) =>
-                    executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
-                  }
-                  onAddCustomTag={(tag) =>
-                    executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
-                  }
-                  onRemoveTag={(tag) =>
-                    executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
-                  }
-                  selectedCards={selectedCards}
-                  onSelectCard={handleSelectCard}
-                  onSelectAll={(names) => selectCards(names, true)}
-                  onShowInfo={handleShowInfo}
-                  coverCardName={currentDeck.coverCardName}
-                  coverCardFace={currentDeck.coverCardFace}
-                  onSetCover={(card) => {
-                    const isSameFront =
-                      currentDeck.coverCardName === card.identity.name &&
-                      (currentDeck.coverCardFace ?? 0) === 0;
-                    executeDeckEdit(`Change deck cover`, () =>
-                      setCoverCard(isSameFront ? undefined : card.identity.name, 0),
-                    );
-                    if (!isSameFront)
-                      useScryfallStore.getState().invalidateCard(card.identity.name);
+                  onPickPrint={(name) => setPrintPickerCard(name)}
+                  contextMenuFor={(card, label) => {
+                    const name = card.identity.name;
+                    const isCover =
+                      currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
+                    const isCoverBack =
+                      currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
+                    return {
+                      commanderLabel: label,
+                      customTags: currentDeck.customTags ?? [],
+                      appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
+                      isFoil: !!card.identity.foil,
+                      isCover,
+                      isCoverBack,
+                      hasBackFace: !!card.backFace,
+                      onShowInfo: () => handleShowInfo(name),
+                      onRemoveCommander: () => handleRemoveCommander(card),
+                      onPickPrint: () => setPrintPickerCard(name),
+                      onToggleFoil: () =>
+                        executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
+                      onSetCover: () => {
+                        executeDeckEdit(`Change deck cover`, () =>
+                          setCoverCard(isCover ? undefined : name, 0),
+                        );
+                        if (!isCover) useScryfallStore.getState().invalidateCard(name);
+                      },
+                      onSetCoverBack: () => {
+                        executeDeckEdit(`Change deck cover`, () =>
+                          setCoverCard(isCoverBack ? undefined : name, 1),
+                        );
+                        if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
+                      },
+                      onApplyTag: (tag) => {
+                        const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
+                        executeDeckEdit(`${isApplied ? "Remove" : "Apply"} ${tag}`, () => {
+                          if (isApplied) untagCard(name, tag);
+                          else tagCard(name, tag);
+                        });
+                      },
+                      onCreateTag: (tag) =>
+                        executeDeckEdit(`Create ${tag} tag`, () => {
+                          addCustomTag(tag);
+                          tagCard(name, tag);
+                        }),
+                    };
                   }}
-                  onSetCoverBack={(card) => {
-                    const isSameBack =
-                      currentDeck.coverCardName === card.identity.name &&
-                      currentDeck.coverCardFace === 1;
-                    executeDeckEdit(`Change deck cover`, () =>
-                      setCoverCard(isSameBack ? undefined : card.identity.name, 1),
-                    );
-                    if (!isSameBack) useScryfallStore.getState().invalidateCard(card.identity.name);
-                  }}
-                  stackPositions={currentDeck.stackPositions}
-                  onStackPositionsChange={setStackPositions}
                 />
+                <div
+                  ref={setMainDropRef}
+                  className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
+                >
+                  <DeckListView
+                    key={`deck-sections-${editorSessionId}`}
+                    viewMode={viewMode}
+                    cardSize={cardSize}
+                    commanders={currentDeck.commanders ?? []}
+                    deckFormat={currentDeck.format ?? "standard"}
+                    mainSections={sectionGroups}
+                    otherGroups={otherGroups}
+                    sideboardGroups={sideGroups}
+                    maybeboardGroups={maybeGroups}
+                    specialSections={specialSections}
+                    stackColumns={stackColsData}
+                    isOverSide={isOverSide}
+                    setSideDropRef={setSideDropRef}
+                    isOverMaybe={isOverMaybe}
+                    setMaybeDropRef={setMaybeDropRef}
+                    onAddOne={handleAddOneToMain}
+                    onRemoveOne={handleRemoveOneFromMain}
+                    onRemoveAll={handleRemoveAllFromMain}
+                    onSetCommander={handleSetCommander}
+                    onRemoveCommander={handleRemoveCommander}
+                    onMoveOneToSide={handleMoveOneToSide}
+                    onMoveAllToSide={handleMoveAllToSide}
+                    onMoveOneToMaybe={handleMoveOneToMaybe}
+                    onMoveAllToMaybe={handleMoveAllToMaybe}
+                    onMoveOneFromSideToMain={handleMoveOneFromSideToMain}
+                    onMoveAllFromSideToMain={handleMoveAllFromSideToMain}
+                    onMoveOneFromSideToMaybe={handleMoveOneFromSideToMaybe}
+                    onMoveAllFromSideToMaybe={handleMoveAllFromSideToMaybe}
+                    onMoveOneFromMaybeToMain={handleMoveOneFromMaybeToMain}
+                    onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
+                    onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
+                    onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
+                    onPickPrint={(name) => setPrintPickerCard(name)}
+                    onToggleFoil={(name) =>
+                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
+                    }
+                    onHover={(card, e) =>
+                      preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
+                    }
+                    onLeave={preview.handleMouseLeave}
+                    onAddToSide={(card) =>
+                      executeDeckEdit(`Add ${card.identity.name} to sideboard`, () =>
+                        addToSide(card),
+                      )
+                    }
+                    onRemoveFromSide={handleRemoveOneFromSide}
+                    onAddToMaybe={(card) =>
+                      executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
+                        addToMaybe(card),
+                      )
+                    }
+                    onRemoveFromMaybe={handleRemoveOneFromMaybe}
+                    totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
+                    customTags={currentDeck.customTags}
+                    cardTags={currentDeck.cardTags}
+                    allMainCards={currentDeck.cards}
+                    onUntagCard={(name, tag) =>
+                      executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
+                    }
+                    onTagCard={(name, tag) =>
+                      executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
+                    }
+                    onAddCustomTag={(tag) =>
+                      executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
+                    }
+                    onRemoveTag={(tag) =>
+                      executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
+                    }
+                    selectedCards={selectedCards}
+                    onSelectCard={handleSelectCard}
+                    onSelectAll={(names) => selectCards(names, true)}
+                    onShowInfo={handleShowInfo}
+                    coverCardName={currentDeck.coverCardName}
+                    coverCardFace={currentDeck.coverCardFace}
+                    onSetCover={(card) => {
+                      const isSameFront =
+                        currentDeck.coverCardName === card.identity.name &&
+                        (currentDeck.coverCardFace ?? 0) === 0;
+                      executeDeckEdit(`Change deck cover`, () =>
+                        setCoverCard(isSameFront ? undefined : card.identity.name, 0),
+                      );
+                      if (!isSameFront)
+                        useScryfallStore.getState().invalidateCard(card.identity.name);
+                    }}
+                    onSetCoverBack={(card) => {
+                      const isSameBack =
+                        currentDeck.coverCardName === card.identity.name &&
+                        currentDeck.coverCardFace === 1;
+                      executeDeckEdit(`Change deck cover`, () =>
+                        setCoverCard(isSameBack ? undefined : card.identity.name, 1),
+                      );
+                      if (!isSameBack)
+                        useScryfallStore.getState().invalidateCard(card.identity.name);
+                    }}
+                    stackPositions={currentDeck.stackPositions}
+                    onStackPositionsChange={setStackPositions}
+                  />
+                </div>
               </div>
 
-              <div className="px-4 pb-10 pt-4">
+              <div className={cn("px-4 pb-10 pt-4", workspace === "build" && "hidden")}>
                 <button
                   type="button"
                   className="mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -1981,7 +2025,7 @@ export function DeckBuilder({
                 </button>
                 {analysisOpen && (
                   <div className="space-y-5">
-                    {mergedTokens.length > 0 && (
+                    {workspace === "analyze" && mergedTokens.length > 0 && (
                       <TokenSection
                         key={`tokens-${editorSessionId}`}
                         tokens={mergedTokens}
@@ -2005,6 +2049,7 @@ export function DeckBuilder({
                     <DeckInsightsPanel
                       key={`insights-${editorSessionId}`}
                       deck={currentDeck}
+                      mode={workspace === "improve" ? "improve" : "analyze"}
                       unsupportedNames={unsupportedNames}
                       validationErrors={deckValidation.errors}
                       activeBucket={cmcFilter}
@@ -2019,8 +2064,8 @@ export function DeckBuilder({
                       }
                       onCardLeave={preview.handleMouseLeave}
                     />
-                    <CombosPanel />
-                    <DeckBracketPanel />
+                    {workspace === "analyze" && <CombosPanel />}
+                    {workspace === "analyze" && <DeckBracketPanel />}
                   </div>
                 )}
               </div>

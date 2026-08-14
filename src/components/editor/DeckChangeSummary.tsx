@@ -110,17 +110,13 @@ export function DeckChangeSummary({
     changes.printings.length +
     Number(changes.coverageDelta !== 0);
 
+  if (changeCount === 0) return null;
+
   return (
     <>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 gap-1 text-xs"
-        disabled={changeCount === 0}
-        onClick={() => setOpen(true)}
-      >
+      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setOpen(true)}>
         <GitCompareArrows className="h-3.5 w-3.5" />
-        {changeCount > 0 ? `${changeCount} changes` : "No changes"}
+        {changeCount} changes
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">

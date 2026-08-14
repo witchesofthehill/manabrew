@@ -211,6 +211,12 @@ export default function DeckEditor() {
       return next;
     });
   }
+  function setPreviewCollapsedValue(collapsed: boolean) {
+    setPreviewCollapsed(collapsed);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("deckEditor.previewRailCollapsed", String(collapsed));
+    }
+  }
   const hasUnsavedChanges = useDeckUnsavedChanges();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
@@ -993,10 +999,9 @@ export default function DeckEditor() {
                 selectedCardsRef.current = selectedCards;
               }}
               onToggleSearch={() => setShowSearch((v) => !v)}
-              previewSlot={previewSlot}
               setPreviewSlot={setPreviewSlot}
               previewCollapsed={previewCollapsed}
-              onTogglePreview={togglePreview}
+              onPreviewCollapsedChange={setPreviewCollapsedValue}
               resumedPublication={
                 publishEnabled && routeState?.resumeCurrentPublish ? routePublishingDeck : null
               }

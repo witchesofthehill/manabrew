@@ -74,8 +74,7 @@ import {
 import { commanderSlotFor } from "./deckEditor.utils";
 import { DeckListView } from "./DeckListView";
 import { DeckHero } from "./DeckHero";
-import { PreviewRail } from "./PreviewRail";
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
+import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
@@ -160,6 +159,7 @@ import { setCardCollectionOwnershipSnapshot } from "./useCardCollectionOwnership
 import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
 import { DeckStatusSummary } from "./DeckStatusSummary";
 import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
+import { PreviewCardInfo } from "./PreviewCardInfo";
 
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 
@@ -167,19 +167,17 @@ type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 
 export function DeckBuilder({
   onToggleSearch,
-  previewSlot,
   setPreviewSlot,
   previewCollapsed,
-  onTogglePreview,
+  onPreviewCollapsedChange,
   resumedPublication,
   onResumedPublicationClose,
   onSelectionChange,
 }: {
   onToggleSearch?: () => void;
-  previewSlot?: HTMLElement | null;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
   previewCollapsed?: boolean;
-  onTogglePreview?: () => void;
+  onPreviewCollapsedChange?: (collapsed: boolean) => void;
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
   onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
@@ -272,8 +270,6 @@ export function DeckBuilder({
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
-  const activeFilterCount =
-    Number(Boolean(deckFilter)) + Number(cmcFilter !== null) + Number(collectionFilter !== "all");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
     const snap = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshotRef(snap);
@@ -1370,8 +1366,8 @@ export function DeckBuilder({
       id: "toggle-preview",
       label: "Toggle card preview panel",
       keywords: ["inspector", "details"],
-      disabled: !onTogglePreview,
-      run: () => onTogglePreview?.(),
+      disabled: !onPreviewCollapsedChange,
+      run: () => onPreviewCollapsedChange?.(!(previewCollapsed ?? false)),
     },
     { id: "export", label: "Copy deck list", keywords: ["export", "clipboard"], run: handleExport },
     {
@@ -1602,32 +1598,6 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
-            <div
-              className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
-              aria-live="polite"
-            >
-              <span>
-                Grouped by {GROUP_BY_OPTIONS.find((option) => option.value === groupBy)?.label}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>Sorted by {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
-              {activeFilterCount > 0 && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <button
-                    type="button"
-                    className="rounded-sm text-primary hover:underline"
-                    onClick={() => {
-                      setDeckFilter("");
-                      setCmcFilter(null);
-                      setCollectionFilter("all");
-                    }}
-                  >
-                    Clear {activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}
-                  </button>
-                </>
-              )}
-            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
@@ -1667,26 +1637,6 @@ export function DeckBuilder({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <div className="flex shrink-0 overflow-hidden rounded-md border">
-              <button
-                type="button"
-                className="p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Collapse all sections (Shift+Alt+-)"
-                aria-label="Collapse all sections"
-                onClick={() => setAllDeckSectionsExpanded(false)}
-              >
-                <FoldVertical className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                className="border-l p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title="Expand all sections (Shift+Alt+=)"
-                aria-label="Expand all sections"
-                onClick={() => setAllDeckSectionsExpanded(true)}
-              >
-                <UnfoldVertical className="h-3.5 w-3.5" />
-              </button>
-            </div>
             <DeckLayoutMenu
               compact
               groupBy={groupBy}
@@ -1809,31 +1759,6 @@ export function DeckBuilder({
                 }}
               />
             </div>
-            {onToggleSearch && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0"
-                title="Toggle card search"
-                onClick={onToggleSearch}
-              >
-                <Search className="h-3.5 w-3.5" />
-              </Button>
-            )}
-
-            {!isReadOnly && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 shrink-0 gap-1 text-xs"
-                onClick={() => setImportOpen(true)}
-              >
-                <ListPlus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Import list</span>
-                <span className="sm:hidden">Import</span>
-              </Button>
-            )}
-
             {!isReadOnly && (
               <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
                 {isSaving || syncState === "saving"
@@ -1853,17 +1778,6 @@ export function DeckBuilder({
             {!isReadOnly && (
               <DeckChangeSummary currentDeck={currentDeck} savedSnapshot={lastSavedSnapshot} />
             )}
-
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 shrink-0"
-              title="Deck commands"
-              aria-label="Deck commands"
-              onClick={() => setCommandPaletteOpen(true)}
-            >
-              <CommandIcon className="h-3.5 w-3.5" />
-            </Button>
 
             {isReadOnly ? (
               <Button
@@ -1925,7 +1839,25 @@ export function DeckBuilder({
                   <EllipsisVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
+                  <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
+                </DropdownMenuItem>
+                {onToggleSearch && (
+                  <DropdownMenuItem onSelect={onToggleSearch}>
+                    <Search className="mr-2 h-3.5 w-3.5" /> Card search
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
+                  <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
+                  <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
+                </DropdownMenuItem>
+                <div className="my-1 border-t" />
+                <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={handleExport}
                   disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
@@ -2294,13 +2226,14 @@ export function DeckBuilder({
           }}
         />
         <SideboardPlansDialog open={sideboardPlansOpen} onOpenChange={setSideboardPlansOpen} />
-        {setPreviewSlot && onTogglePreview && (
+        {setPreviewSlot && onPreviewCollapsedChange && (
           <div className="hidden lg:contents">
-            <PreviewRail
-              setSlot={setPreviewSlot}
+            <CardPreviewRail
+              preview={preview}
+              onSlotChange={setPreviewSlot}
               collapsed={previewCollapsed ?? false}
-              onCollapse={onTogglePreview}
-              previewCard={preview.hoveredCard}
+              onCollapsedChange={onPreviewCollapsedChange}
+              renderDetails={(card) => <PreviewCardInfo card={card} />}
             />
           </div>
         )}
@@ -2350,7 +2283,6 @@ export function DeckBuilder({
           />
         )}
 
-        <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
         <PrintPickerModal
           cardName={printPickerCard}
           onClose={() => setPrintPickerCard(null)}

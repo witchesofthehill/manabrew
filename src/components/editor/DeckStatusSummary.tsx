@@ -25,7 +25,7 @@ export function DeckStatusSummary({
   budgetTracked,
   onNavigate,
 }: DeckStatusSummaryProps) {
-  const issueCount = legalityErrors + unsupportedCards + collectionGaps;
+  const issueCount = legalityErrors + unsupportedCards;
 
   return (
     <DropdownMenu>
@@ -65,7 +65,6 @@ export function DeckStatusSummary({
           icon={<LibraryBig className="h-3.5 w-3.5" />}
           label="Collection"
           value={collectionGaps > 0 ? `${collectionGaps} gaps` : "Complete"}
-          warning={collectionGaps > 0}
           onSelect={() => onNavigate("collection")}
         />
         <StatusItem

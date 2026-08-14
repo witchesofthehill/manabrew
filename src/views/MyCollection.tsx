@@ -8,8 +8,8 @@ import { CollectionQuickAdd } from "@/components/collection/CollectionQuickAdd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CollectionImportDialog } from "@/components/collection/CollectionImportDialog";
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
-import { PreviewRail } from "@/components/editor/PreviewRail";
+import { CardPreviewDetails } from "@/components/game/CardPreviewDetails";
+import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { useCardCollection } from "@/hooks/useCardCollection";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { ROUTES } from "@/lib/constants";
@@ -36,7 +36,6 @@ export default function MyCollection() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [view, setView] = useState<"text" | "grid">("grid");
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
-  const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [visibleRowCount, setVisibleRowCount] = useState(100);
   const preview = useCardPreview();
   const collectionRows = useMemo(
@@ -249,14 +248,13 @@ export default function MyCollection() {
         </div>
       </div>
       <div className="hidden lg:contents">
-        <PreviewRail
-          setSlot={setPreviewSlot}
+        <CardPreviewRail
+          preview={preview}
           collapsed={previewCollapsed}
-          onCollapse={() => setPreviewCollapsed((collapsed) => !collapsed)}
-          previewCard={preview.hoveredCard}
+          onCollapsedChange={setPreviewCollapsed}
+          renderDetails={(card) => <CardPreviewDetails card={card} />}
         />
       </div>
-      <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
       <CollectionImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}

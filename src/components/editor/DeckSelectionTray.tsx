@@ -75,26 +75,38 @@ export function DeckSelectionTray({
           </div>
           <div className="text-[10px] text-muted-foreground">Bulk editor</div>
         </div>
-        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onMoveToMain}>
-          <ArrowUpToLine className="mr-1 h-3 w-3" /> Main
-        </Button>
-        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onMoveToSide}>
-          <ArrowDownToLine className="mr-1 h-3 w-3" /> Sideboard
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-10 shrink-0 sm:h-8"
-          onClick={onMoveToMaybe}
-        >
-          Maybeboard
-        </Button>
-        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onAddCopy}>
-          <Plus className="mr-1 h-3 w-3" /> One each
-        </Button>
-        <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8" onClick={onRemoveCopy}>
-          <Minus className="mr-1 h-3 w-3" /> One each
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8">
+              <ArrowUpToLine className="mr-1 h-3 w-3" /> Move
+              <ChevronDown className="ml-1 h-3 w-3 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={onMoveToMain}>
+              <ArrowUpToLine className="mr-2 h-3.5 w-3.5" /> Main deck
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMoveToSide}>
+              <ArrowDownToLine className="mr-2 h-3.5 w-3.5" /> Sideboard
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMoveToMaybe}>Maybeboard</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-10 shrink-0 sm:h-8">
+              Quantity <ChevronDown className="ml-1 h-3 w-3 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={onAddCopy}>
+              <Plus className="mr-2 h-3.5 w-3.5" /> Add one each
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onRemoveCopy}>
+              <Minus className="mr-2 h-3.5 w-3.5" /> Remove one each
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {tags.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

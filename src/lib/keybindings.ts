@@ -102,20 +102,8 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "=", alt: true, shift: true },
   },
   {
-    id: "deck-editor-workspace-build",
-    label: "Open Build workspace",
-    category: "Deck editor",
-    defaultCombo: { key: "1", alt: true },
-  },
-  {
-    id: "deck-editor-workspace-analyze",
-    label: "Open Analyze workspace",
-    category: "Deck editor",
-    defaultCombo: { key: "2", alt: true },
-  },
-  {
-    id: "deck-editor-workspace-improve",
-    label: "Open Improve workspace",
+    id: "deck-editor-next-section",
+    label: "Jump to next editor section",
     category: "Deck editor",
     defaultCombo: { key: "3", alt: true },
   },

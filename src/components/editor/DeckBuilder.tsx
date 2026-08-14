@@ -39,6 +39,7 @@ import {
   Images,
   FoldVertical,
   UnfoldVertical,
+  ArrowUp,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
@@ -247,9 +248,9 @@ export function DeckBuilder({
   const [cmcFilter, setCmcFilter] = useState<number | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
   const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [workspace, setWorkspace] = useState<"build" | "analyze" | "improve">("build");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
   const [analysisOpen, setAnalysisOpen] = useDeckSectionOpen();
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
@@ -264,6 +265,7 @@ export function DeckBuilder({
   });
   const [confirmClear, setConfirmClear] = useState(false);
   const filterInputRef = useRef<HTMLInputElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement>(null);
   const enrichedCardsRef = useRef(new Set<string>());
   const skipPresentationSaveRef = useRef(true);
   const presentationKey = currentDeckId ?? currentDeck.name.toLowerCase();
@@ -276,7 +278,6 @@ export function DeckBuilder({
       ) as Record<
         string,
         Partial<{
-          workspace: "build" | "analyze" | "improve";
           viewMode: ViewMode;
           cardSize: number;
           groupBy: GroupByMode;
@@ -286,7 +287,6 @@ export function DeckBuilder({
         }>
       >;
       const saved = all[presentationKey];
-      if (saved?.workspace) setWorkspace(saved.workspace);
       if (saved?.viewMode) setViewMode(saved.viewMode);
       if (saved?.cardSize) setCardSize(saved.cardSize);
       if (saved?.groupBy) setGroupBy(saved.groupBy);
@@ -307,7 +307,6 @@ export function DeckBuilder({
       localStorage.getItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION) ?? "{}",
     ) as Record<string, unknown>;
     all[presentationKey] = {
-      workspace,
       viewMode,
       cardSize,
       groupBy,
@@ -316,16 +315,7 @@ export function DeckBuilder({
       analysisOpen,
     };
     localStorage.setItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION, JSON.stringify(all));
-  }, [
-    analysisOpen,
-    cardSize,
-    collectionFilter,
-    groupBy,
-    presentationKey,
-    sortBy,
-    viewMode,
-    workspace,
-  ]);
+  }, [analysisOpen, cardSize, collectionFilter, groupBy, presentationKey, sortBy, viewMode]);
 
   useKeybindings({
     "deck-editor-focus-filter": () => {
@@ -340,9 +330,7 @@ export function DeckBuilder({
     "deck-editor-command-palette": () => setCommandPaletteOpen(true),
     "deck-editor-collapse-sections": () => setAllDeckSectionsExpanded(false),
     "deck-editor-expand-sections": () => setAllDeckSectionsExpanded(true),
-    "deck-editor-workspace-build": () => setWorkspace("build"),
-    "deck-editor-workspace-analyze": () => setWorkspace("analyze"),
-    "deck-editor-workspace-improve": () => setWorkspace("improve"),
+    "deck-editor-next-section": () => jumpToNextEditorSection(),
     "deck-editor-tag-selection": () => {
       if (selectedCards.size > 0) setTagDialogOpen(true);
     },
@@ -373,6 +361,15 @@ export function DeckBuilder({
       if (selectedCards.size > 0 && !isReadOnly) addOneEachSelected();
     },
   });
+
+  function jumpToNextEditorSection() {
+    const sections =
+      editorScrollRef.current?.querySelectorAll<HTMLElement>("[data-editor-section]");
+    if (!sections?.length) return;
+    const top = editorScrollRef.current!.getBoundingClientRect().top;
+    const next = [...sections].find((section) => section.getBoundingClientRect().top > top + 48);
+    (next ?? sections[0]).scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const supplementaryCards = useMemo(
     () => [
@@ -1137,16 +1134,11 @@ export function DeckBuilder({
     { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
     { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
     { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
-    { id: "workspace-build", label: "Open Build workspace", run: () => setWorkspace("build") },
     {
-      id: "workspace-analyze",
-      label: "Open Analyze workspace",
-      run: () => setWorkspace("analyze"),
-    },
-    {
-      id: "workspace-improve",
-      label: "Open Improve workspace",
-      run: () => setWorkspace("improve"),
+      id: "next-editor-section",
+      label: "Jump to next editor section",
+      keywords: ["cycle", "scroll", "navigate"],
+      run: () => jumpToNextEditorSection(),
     },
     {
       id: "collapse-sections",
@@ -1423,41 +1415,18 @@ export function DeckBuilder({
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
+        <div
+          ref={editorScrollRef}
+          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
+          onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
+        >
           <DeckHero
             onNameCommit={(name) =>
               void handleSave({ ...useDeckStore.getState().currentDeck, name })
             }
           />
 
-          <nav
-            className="sticky top-0 z-40 flex border-b bg-background/90 px-3 pt-2 backdrop-blur-md max-sm:px-1"
-            aria-label="Deck editor workspace"
-          >
-            {(["build", "analyze", "improve"] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={cn(
-                  "min-h-9 flex-1 border-b-2 px-4 text-xs font-semibold capitalize transition-colors sm:flex-none",
-                  workspace === item
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-                aria-current={workspace === item ? "page" : undefined}
-                onClick={() => setWorkspace(item)}
-              >
-                {item}
-              </button>
-            ))}
-          </nav>
-
-          <div
-            className={cn(
-              "sticky top-9 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto",
-              workspace !== "build" && "hidden",
-            )}
-          >
+          <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto">
             {!isReadOnly && <DeckHistoryControls />}
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
@@ -1929,7 +1898,7 @@ export function DeckBuilder({
 
           <fieldset disabled={isReadOnly} className="contents">
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
-              <div className={cn(workspace !== "build" && "hidden")}>
+              <div data-editor-section="build" className="scroll-mt-12">
                 <DeckValidationPanel unsupportedNames={unsupportedNames} />
                 <CommanderSlots
                   key={`command-zone-${editorSessionId}`}
@@ -2098,7 +2067,7 @@ export function DeckBuilder({
                 </div>
               </div>
 
-              <div className={cn("px-4 pb-10 pt-4", workspace === "build" && "hidden")}>
+              <div data-editor-section="analysis" className="scroll-mt-12 px-4 pb-10 pt-4">
                 <button
                   type="button"
                   className="mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -2116,9 +2085,9 @@ export function DeckBuilder({
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </button>
-                {analysisOpen && workspace !== "build" && (
+                {analysisOpen && (
                   <div className="space-y-5">
-                    {workspace === "analyze" && mergedTokens.length > 0 && (
+                    {mergedTokens.length > 0 && (
                       <TokenSection
                         key={`tokens-${editorSessionId}`}
                         tokens={mergedTokens}
@@ -2142,7 +2111,6 @@ export function DeckBuilder({
                     <DeckInsightsPanel
                       key={`insights-${editorSessionId}`}
                       deck={currentDeck}
-                      mode={workspace === "improve" ? "improve" : "analyze"}
                       unsupportedNames={unsupportedNames}
                       validationErrors={deckValidation.errors}
                       activeBucket={cmcFilter}
@@ -2157,8 +2125,8 @@ export function DeckBuilder({
                       }
                       onCardLeave={preview.handleMouseLeave}
                     />
-                    {workspace === "analyze" && <CombosPanel />}
-                    {workspace === "analyze" && <DeckBracketPanel />}
+                    <CombosPanel />
+                    <DeckBracketPanel />
                   </div>
                 )}
               </div>
@@ -2191,6 +2159,23 @@ export function DeckBuilder({
           </div>
         )}
       </div>
+
+      {showBackToTop && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className={cn(
+            "absolute bottom-4 right-4 z-50 h-10 w-10 rounded-full border shadow-lg",
+            selectedCards.size > 0 && "bottom-20",
+          )}
+          title="Back to top"
+          aria-label="Back to top"
+          onClick={() => editorScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
 
       <fieldset disabled={isReadOnly} className="contents">
         {selectedCards.size > 0 && (

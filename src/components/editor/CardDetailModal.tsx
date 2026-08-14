@@ -482,35 +482,6 @@ export function CardDetailModal({
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
-                  {deckEditorActions.onToggleFoil && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={cn("h-7 w-7", matchingDeckCard?.identity.foil && "text-warning")}
-                      title={matchingDeckCard?.identity.foil ? "Remove foil" : "Make foil"}
-                      onClick={() => deckEditorActions.onToggleFoil?.(deckCardName)}
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {deckEditorActions.onSetCover && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className={cn(
-                        "h-7 w-7",
-                        currentDeck.coverCardName === deckCardName && "text-primary",
-                      )}
-                      title={
-                        currentDeck.coverCardName === deckCardName
-                          ? "Remove deck cover"
-                          : "Set as deck cover"
-                      }
-                      onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
-                    >
-                      <GameIcon name="book-cover" className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
                   <span className="min-w-6 px-1 text-center text-xs font-semibold tabular-nums">
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
@@ -573,6 +544,35 @@ export function CardDetailModal({
                       }}
                     >
                       <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {deckEditorActions.onToggleFoil && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={cn("h-7 w-7", matchingDeckCard?.identity.foil && "text-warning")}
+                      title={matchingDeckCard?.identity.foil ? "Remove foil" : "Make foil"}
+                      onClick={() => deckEditorActions.onToggleFoil?.(deckCardName)}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {deckEditorActions.onSetCover && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={cn(
+                        "h-7 w-7",
+                        currentDeck.coverCardName === deckCardName && "text-primary",
+                      )}
+                      title={
+                        currentDeck.coverCardName === deckCardName
+                          ? "Remove deck cover"
+                          : "Set as deck cover"
+                      }
+                      onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
+                    >
+                      <GameIcon name="book-cover" className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>

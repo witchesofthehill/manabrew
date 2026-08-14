@@ -1726,6 +1726,20 @@ export function DeckListView({
     },
     [handleContainerMouseDown],
   );
+  const handleCardKeyboardNavigation = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    const current = (event.target as HTMLElement).closest<HTMLElement>("[data-card-name]");
+    if (!current || !containerRef.current) return;
+    const cards = [...containerRef.current.querySelectorAll<HTMLElement>("[data-card-name]")];
+    const index = cards.indexOf(current);
+    if (index < 0) return;
+    const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+    const next = cards[index + direction];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+    next.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, []);
 
   const applyCardTag = useCallback(
     (cardName: string, tagName: string) => {
@@ -2117,6 +2131,7 @@ export function DeckListView({
           onMouseDown={wrappedHandleMouseDown}
           onPointerOver={handleContainerPointerOver}
           onPointerOut={handleContainerPointerOut}
+          onKeyDown={handleCardKeyboardNavigation}
         >
           <div
             className="grid items-start"
@@ -2166,6 +2181,7 @@ export function DeckListView({
         onMouseDown={wrappedHandleMouseDown}
         onPointerOver={handleContainerPointerOver}
         onPointerOut={handleContainerPointerOut}
+        onKeyDown={handleCardKeyboardNavigation}
       >
         {totalCards === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">

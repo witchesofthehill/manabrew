@@ -339,6 +339,9 @@ export function DeckBuilder({
     "deck-editor-command-palette": () => setCommandPaletteOpen(true),
     "deck-editor-collapse-sections": () => setAllDeckSectionsExpanded(false),
     "deck-editor-expand-sections": () => setAllDeckSectionsExpanded(true),
+    "deck-editor-workspace-build": () => setWorkspace("build"),
+    "deck-editor-workspace-analyze": () => setWorkspace("analyze"),
+    "deck-editor-workspace-improve": () => setWorkspace("improve"),
     "deck-editor-tag-selection": () => {
       if (selectedCards.size > 0) setTagDialogOpen(true);
     },

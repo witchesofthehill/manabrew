@@ -1228,7 +1228,7 @@ function CardSection({
     <div
       ref={isTagSection ? setNodeRef : undefined}
       className={cn(
-        "mb-3",
+        "mb-3 [content-visibility:auto] [contain-intrinsic-size:auto_240px]",
         isTagSection && "rounded-lg transition-colors p-1 -mx-1",
         isOver && "bg-primary/10",
       )}

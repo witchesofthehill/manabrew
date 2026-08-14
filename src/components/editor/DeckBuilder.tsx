@@ -40,7 +40,7 @@ import {
   FoldVertical,
   UnfoldVertical,
 } from "lucide-react";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard } from "@/protocol/deck";
@@ -243,6 +243,7 @@ export function DeckBuilder({
   );
 
   const [deckFilter, setDeckFilter] = useState("");
+  const deferredDeckFilter = useDeferredValue(deckFilter);
   const [cmcFilter, setCmcFilter] = useState<number | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
   const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
@@ -684,7 +685,7 @@ export function DeckBuilder({
       const ownership = ownershipByName.get(c.identity.name.toLowerCase())?.status ?? "missing";
       if (collectionFilter !== "all" && ownership !== collectionFilter) return false;
       if (
-        !matchesDeckQuery(c, deckFilter, {
+        !matchesDeckQuery(c, deferredDeckFilter, {
           tags,
           unsupported: unsupportedNames.has(c.identity.name),
           ownership,
@@ -699,7 +700,7 @@ export function DeckBuilder({
     },
     [
       currentDeck.cardTags,
-      deckFilter,
+      deferredDeckFilter,
       unsupportedNames,
       cmcFilter,
       ownershipByName,
@@ -2115,7 +2116,7 @@ export function DeckBuilder({
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </button>
-                {analysisOpen && (
+                {analysisOpen && workspace !== "build" && (
                   <div className="space-y-5">
                     {workspace === "analyze" && mergedTokens.length > 0 && (
                       <TokenSection

@@ -40,6 +40,7 @@ function createPlayer(
     energyCounters: 0,
     radiationCounters: 0,
     hasCityBlessing: false,
+    hasEnduringStory: false,
     ringLevel: 0,
     speed: 0,
     experienceCounters: 0,

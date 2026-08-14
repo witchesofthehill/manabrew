@@ -12,6 +12,7 @@ export interface PlayerHudBadgeFlags {
   experience: number;
   ticket: number;
   cityBlessing: boolean;
+  enduringStory: boolean;
   ringLevel: number;
   speed: number;
   handCount: number;
@@ -87,6 +88,13 @@ export function buildPlayerHudBadges(
       icon: "stone-tower",
       color: badges.cityBlessing,
       label: "City's Blessing",
+    });
+  if (f.enduringStory)
+    out.push({
+      id: "enduring-story",
+      icon: "scroll-unfurled",
+      color: badges.enduringStory,
+      label: "An Enduring Story",
     });
   if (f.ringLevel > 0)
     out.push({

@@ -775,7 +775,6 @@ export function DeckBuilder({
   }
 
   function handleShowInfo(cardName: string) {
-    if (isReadOnly) return;
     setDetailToken(null);
     // Find the card in the deck to pass its stored setCode for accurate printing
     const allCards = [
@@ -804,7 +803,6 @@ export function DeckBuilder({
   }
 
   function handleShowTokenInfo(token: DeckCard) {
-    if (isReadOnly) return;
     useScryfallStore
       .getState()
       .getCard({
@@ -2107,6 +2105,7 @@ export function DeckBuilder({
         {detailCard && (
           <CardDetailModal
             card={detailCard}
+            readOnly={isReadOnly}
             onClose={() => {
               setDetailCard(null);
               setDetailToken(null);
@@ -2138,7 +2137,18 @@ export function DeckBuilder({
               customTags: currentDeck.customTags,
               onTagCard: (name, tag) =>
                 executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag)),
+              onUntagCard: (name, tag) =>
+                executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag)),
               onAddTag: (tag) => executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag)),
+              onToggleFoil: (name) =>
+                executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
+              onSetCover: (name, face) => {
+                const isCurrent =
+                  currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === face;
+                executeDeckEdit(`Change deck cover`, () =>
+                  setCoverCard(isCurrent ? undefined : name, face),
+                );
+              },
               token: detailToken ?? undefined,
               onUpdateTokenPrint: (_name, print) => {
                 if (detailToken) {

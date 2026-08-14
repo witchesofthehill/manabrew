@@ -14,6 +14,9 @@ import {
   Tag,
   Check,
   RotateCcw,
+  Sparkles,
+  AlertTriangle,
+  LibraryBig,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { Input } from "@/components/ui/input";
@@ -34,6 +37,9 @@ import { DEFAULT_COMMANDER_SLOT, type CommanderSlot } from "@/components/editor/
 import { toast } from "sonner";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { DeckCard } from "@/protocol/deck";
+import { useCollectionStore } from "@/stores/useCollectionStore";
+import { collectionOwnership, collectionQuantityForName } from "@/lib/collection";
+import { useIsUnsupported } from "@/stores/useCardSupportStore";
 
 interface DeckEditorActions {
   onAddOne: (cardName: string) => void;
@@ -45,7 +51,10 @@ interface DeckEditorActions {
   deckFormat?: string;
   customTags?: string[];
   onTagCard?: (cardName: string, tag: string) => void;
+  onUntagCard?: (cardName: string, tag: string) => void;
   onAddTag?: (tag: string) => void;
+  onToggleFoil?: (cardName: string) => void;
+  onSetCover?: (cardName: string, face: 0 | 1) => void;
   token?: DeckCard;
   onUpdateTokenPrint?: (tokenName: string, print: ScryfallCard) => void;
 }
@@ -54,12 +63,14 @@ interface CardDetailModalProps {
   card: ScryfallCard;
   onClose: () => void;
   deckEditorActions?: DeckEditorActions;
+  readOnly?: boolean;
 }
 
 export function CardDetailModal({
   card: initialCard,
   onClose,
   deckEditorActions,
+  readOnly = false,
 }: CardDetailModalProps) {
   const [showPrints, setShowPrints] = useState(false);
   const [showDeckPicker, setShowDeckPicker] = useState(false);
@@ -72,6 +83,7 @@ export function CardDetailModal({
   const { setPreferredPrint } = usePreferredPrintsStore();
   const setLookup = useSetLookup();
   const { savedDecks, currentDeck, addToMain, addCardToSavedDeck, updatePrint } = useDeckStore();
+  const collectionQuantities = useCollectionStore((state) => state.quantities);
 
   const cardId = initialCard?.id;
   const [prevCardId, setPrevCardId] = useState(cardId);
@@ -85,6 +97,36 @@ export function CardDetailModal({
 
   const card = selectedPrint ?? initialCard;
   const deckCardName = frontFaceName(card.name);
+  const deckCards = [
+    ...currentDeck.cards,
+    ...currentDeck.sideboard,
+    ...(currentDeck.maybeboard ?? []),
+    ...(currentDeck.commanders ?? []),
+  ];
+  const matchingDeckCard = deckCards.find((candidate) => candidate.identity.name === deckCardName);
+  const unsupported = useIsUnsupported(deckCardName);
+  const owned = collectionQuantityForName(collectionQuantities, deckCardName);
+  const exactOwnership = matchingDeckCard
+    ? collectionOwnership(
+        collectionQuantities,
+        deckCardName,
+        matchingDeckCard.identity.setCode,
+        matchingDeckCard.identity.cardNumber,
+        matchingDeckCard.identity.foil,
+      )
+    : "none";
+  const zoneCounts = {
+    main: currentDeck.cards.filter((candidate) => candidate.identity.name === deckCardName).length,
+    side: currentDeck.sideboard.filter((candidate) => candidate.identity.name === deckCardName)
+      .length,
+    maybe: (currentDeck.maybeboard ?? []).filter(
+      (candidate) => candidate.identity.name === deckCardName,
+    ).length,
+    command: (currentDeck.commanders ?? []).filter(
+      (candidate) => candidate.identity.name === deckCardName,
+    ).length,
+  };
+  const appliedTags = currentDeck.cardTags?.[deckCardName.toLowerCase()] ?? [];
   const commanderSlot = deckEditorActions?.commanderSlot ?? DEFAULT_COMMANDER_SLOT;
   const storeCard = useCard({
     id: card.id,
@@ -230,6 +272,68 @@ export function CardDetailModal({
                     <div className="text-sm">{typeLine}</div>
                   </div>
 
+                  {deckEditorActions && matchingDeckCard && (
+                    <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                      <div className="text-sm font-semibold">Deck inspector</div>
+                      <div className="flex flex-wrap gap-1.5 text-xs">
+                        {zoneCounts.main > 0 && (
+                          <Badge variant="outline">Main {zoneCounts.main}</Badge>
+                        )}
+                        {zoneCounts.side > 0 && (
+                          <Badge variant="outline">Side {zoneCounts.side}</Badge>
+                        )}
+                        {zoneCounts.maybe > 0 && (
+                          <Badge variant="outline">Maybe {zoneCounts.maybe}</Badge>
+                        )}
+                        {zoneCounts.command > 0 && (
+                          <Badge variant="outline">Command {zoneCounts.command}</Badge>
+                        )}
+                        <Badge variant="outline">
+                          {matchingDeckCard.identity.foil ? "Foil" : "Non-foil"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <LibraryBig className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>
+                          {exactOwnership === "exact"
+                            ? `Exact printing owned · ${owned} total`
+                            : exactOwnership === "other"
+                              ? `Owned in another printing · ${owned} total`
+                              : "Not in collection"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        {unsupported ? (
+                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5 text-legality-legal" />
+                        )}
+                        <span>
+                          {unsupported
+                            ? "Unsupported by the Manabrew and Forge engines"
+                            : "Supported by the Manabrew and Forge engines"}
+                        </span>
+                      </div>
+                      {!readOnly && appliedTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {appliedTags.map((tag) => (
+                            <Button
+                              key={tag}
+                              variant="outline"
+                              size="sm"
+                              className="h-6 gap-1 px-2 text-xs"
+                              onClick={() => deckEditorActions.onUntagCard?.(deckCardName, tag)}
+                            >
+                              <Tag className="h-3 w-3" />
+                              {tag}
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {oracleText && (
                     <div>
                       <div className="text-sm font-semibold text-muted-foreground">Oracle Text</div>
@@ -358,7 +462,7 @@ export function CardDetailModal({
 
         <Modal.Footer>
           <div className="flex w-full flex-wrap items-center justify-between gap-2">
-            {deckEditorActions ? (
+            {deckEditorActions && !readOnly ? (
               <div className="flex items-center gap-1">
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
@@ -373,6 +477,35 @@ export function CardDetailModal({
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
+                  {deckEditorActions.onToggleFoil && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={cn("h-7 w-7", matchingDeckCard?.identity.foil && "text-warning")}
+                      title={matchingDeckCard?.identity.foil ? "Remove foil" : "Make foil"}
+                      onClick={() => deckEditorActions.onToggleFoil?.(deckCardName)}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {deckEditorActions.onSetCover && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={cn(
+                        "h-7 w-7",
+                        currentDeck.coverCardName === deckCardName && "text-primary",
+                      )}
+                      title={
+                        currentDeck.coverCardName === deckCardName
+                          ? "Remove deck cover"
+                          : "Set as deck cover"
+                      }
+                      onClick={() => deckEditorActions.onSetCover?.(deckCardName, faceIndex)}
+                    >
+                      <GameIcon name="book-cover" className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <span className="min-w-6 px-1 text-center text-xs font-semibold tabular-nums">
                     {currentDeck.cards.filter((c) => c.identity.name === deckCardName).length}
                   </span>
@@ -496,7 +629,7 @@ export function CardDetailModal({
                   </div>
                 )}
               </div>
-            ) : (
+            ) : !readOnly ? (
               <div className="relative">
                 <Button size="sm" className="gap-1" onClick={() => setShowDeckPicker((v) => !v)}>
                   <Plus className="h-3.5 w-3.5" />
@@ -545,7 +678,7 @@ export function CardDetailModal({
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
             <Button size="sm" variant="ghost" onClick={onClose}>
               Close
             </Button>

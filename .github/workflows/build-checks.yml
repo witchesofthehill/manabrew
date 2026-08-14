@@ -525,7 +525,7 @@ jobs:
   # any PR that didn't opt in and violations only surfaced on the release tag.
   # Checkstyle binds to `validate`: no compile, no codegen, no Rust.
   forge-harness-compile:
-    name: Forge harness (compile)
+    name: Forge harness (build and test)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.run_forge_room == 'true'
@@ -560,17 +560,8 @@ jobs:
           java-version: "21"
           cache: maven
 
-      # The generated forge.harness.protocol.* sources are gitignored, so the
-      # harness cannot compile without regenerating them first. Skipping this is
-      # what let a protocol change land that broke every desktop and node build.
-      - name: Generate protocol sources
-        run: |
-          cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol
-          node scripts/gen-harness-prompts.mjs forge-harness/src/main/java
-
-      # `compile` runs the validate phase first, so this covers checkstyle too.
-      - name: Compile forge-harness
-        run: mvn -B -pl forge-harness -am -DskipTests compile
+      - name: Build and test forge-harness
+        run: node scripts/harness.mjs test
 
   forge-room-graalvm-windows:
     name: GraalVM build (Windows)

@@ -19,18 +19,29 @@ public final class HarnessPlayPlumbingTest {
         final Trigger trigger = TriggerHandler.parseTrigger("Mode$ Always", host, true);
         final SpellAbility template = AbilityFactory.getAbility("DB$ Destroy | ValidTgts$ Artifact", host);
         trigger.setOverridingAbility(template);
-        final WrappedAbility wrapper = new WrappedAbility(trigger, template, null);
+        final WrappedAbility firstFiring = new WrappedAbility(trigger, template, null);
 
-        HarnessPlayPlumbing.detachTriggerTemplate(wrapper);
+        HarnessPlayPlumbing.detachTriggerTemplate(firstFiring);
 
-        if (wrapper.getWrappedAbility() != template) {
+        if (firstFiring.getWrappedAbility() != template) {
             throw new AssertionError("live wrapped ability changed");
         }
-        if (trigger.getOverridingAbility() == template) {
-            throw new AssertionError("trigger template was not detached");
+        final Card firstTarget = new Card(2, null);
+        firstFiring.getTargets().add(firstTarget);
+
+        final SpellAbility secondAbility = trigger.getOverridingAbility().copy(host, null, false, true);
+        final WrappedAbility secondFiring = new WrappedAbility(trigger, secondAbility, null);
+        if (!secondFiring.getTargets().isEmpty()) {
+            throw new AssertionError("second firing inherited the first firing's target");
         }
-        if (trigger.getOverridingAbility().getTargets() == template.getTargets()) {
-            throw new AssertionError("trigger template shares target choices");
+
+        final Card secondTarget = new Card(3, null);
+        secondFiring.getTargets().add(secondTarget);
+        if (firstFiring.getTargets().getFirstTargetedCard() != firstTarget) {
+            throw new AssertionError("first firing target changed");
+        }
+        if (secondFiring.getTargets().getFirstTargetedCard() != secondTarget) {
+            throw new AssertionError("second firing target was not independent");
         }
     }
 }

@@ -384,6 +384,9 @@ switch (mode) {
     rebuild();
     stageRuntime({ force: true });
     break;
+  case "test":
+    rebuild();
+    break;
   case "ensure":
     if (isStale()) {
       rebuild();
@@ -409,7 +412,7 @@ switch (mode) {
     break;
   default:
     console.error(
-      "Usage: node scripts/harness.mjs <build|ensure|stage|check|update-checksum|checksum|native-checksum>",
+      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum>",
     );
     process.exit(1);
 }

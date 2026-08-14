@@ -1,10 +1,11 @@
-import { useState, type MouseEvent } from "react";
+import { type MouseEvent } from "react";
 import { ChevronDown, Palette, X } from "lucide-react";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { DeckCard } from "@/protocol/deck";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
+import { useDeckSectionOpen } from "./deckSectionExpansion";
 
 export interface TokenSectionProps {
   tokens: DeckCard[];
@@ -27,7 +28,7 @@ export function TokenSection({
   onHover,
   onLeave,
 }: TokenSectionProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useDeckSectionOpen();
   if (tokens.length === 0) return null;
 
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];

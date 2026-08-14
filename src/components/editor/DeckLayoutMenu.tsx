@@ -22,6 +22,7 @@ import type { GroupByMode, SortMode, ViewMode } from "./deckBuilder.utils";
 import type { DeckOwnershipStatus } from "@/lib/collection";
 
 interface DeckLayoutMenuProps {
+  compact?: boolean;
   groupBy: GroupByMode;
   sortBy: SortMode;
   cardSize: number;
@@ -39,6 +40,7 @@ interface DeckLayoutMenuProps {
 }
 
 export function DeckLayoutMenu({
+  compact = false,
   groupBy,
   sortBy,
   cardSize,
@@ -142,10 +144,21 @@ export function DeckLayoutMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            title={compact ? "Saved views" : undefined}
+          >
             <LayoutTemplate className="h-3.5 w-3.5" />
-            {activeLayout?.name ?? "View"}
-            <ChevronDown className="h-3 w-3 opacity-60" />
+            {compact ? (
+              <span className="sr-only">Saved views</span>
+            ) : (
+              <>
+                {activeLayout?.name ?? "View"}
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </>
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">

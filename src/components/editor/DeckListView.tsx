@@ -8,6 +8,7 @@ import {
   useMemo,
 } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { useDeckSectionExpansionEffect, useDeckSectionOpen } from "./deckSectionExpansion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -695,7 +696,7 @@ function StackColumn({
   contextMenuFor,
   sourceTag,
 }: StackColumnProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useDeckSectionOpen();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const cardHeight = Math.round(cardWidth * 1.4);
   const peek = Math.round(cardHeight * 0.22);
@@ -1198,7 +1199,7 @@ function CardSection({
   onCreateAndApplyTag,
   onRemoveCustomTag,
 }: CardSectionProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useDeckSectionOpen();
   const isTagSection = !!tag;
   const { setNodeRef, isOver } = useDroppable({
     id: isTagSection ? `${DROP_ZONE.TAG_PREFIX}${tag}` : `section-${sectionId}`,
@@ -1580,11 +1581,19 @@ export function DeckListView({
   onHover,
   onLeave,
 }: DeckListViewProps) {
-  const [sideboardOpen, setSideboardOpen] = useState(true);
-  const [maybeboardOpen, setMaybeboardOpen] = useState(true);
+  const [sideboardOpen, setSideboardOpen] = useDeckSectionOpen();
+  const [maybeboardOpen, setMaybeboardOpen] = useDeckSectionOpen();
   const [collapsedSpecialSections, setCollapsedSpecialSections] = useState<Set<string>>(
     () => new Set(),
   );
+  const setSpecialSectionsExpanded = useCallback(
+    (expanded: boolean) =>
+      setCollapsedSpecialSections(
+        expanded ? new Set() : new Set(specialSections.map((section) => section.id)),
+      ),
+    [specialSections],
+  );
+  useDeckSectionExpansionEffect(setSpecialSectionsExpanded);
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
   const sideboardCount = sideboardGroups.reduce((s, g) => s + g.count, 0);
   const maybeboardCount = maybeboardGroups.reduce((s, g) => s + g.count, 0);

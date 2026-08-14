@@ -37,6 +37,8 @@ import {
   ListPlus,
   Command as CommandIcon,
   Images,
+  FoldVertical,
+  UnfoldVertical,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
@@ -119,6 +121,7 @@ import {
 } from "./deckEditor.history";
 import { DeckHistoryControls } from "./DeckHistoryControls";
 import { DeckLayoutMenu } from "./DeckLayoutMenu";
+import { setAllDeckSectionsExpanded, useDeckSectionOpen } from "./deckSectionExpansion";
 import { DeckCommandPalette } from "./DeckCommandPalette";
 import type { DeckEditorCommand } from "./deckEditor.commands";
 import { DeckTagDialog } from "./DeckTagDialog";
@@ -246,7 +249,7 @@ export function DeckBuilder({
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
-  const [analysisOpen, setAnalysisOpen] = useState(true);
+  const [analysisOpen, setAnalysisOpen] = useDeckSectionOpen();
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
@@ -270,6 +273,8 @@ export function DeckBuilder({
     "deck-editor-undo": undoDeckEdit,
     "deck-editor-redo": redoDeckEdit,
     "deck-editor-command-palette": () => setCommandPaletteOpen(true),
+    "deck-editor-collapse-sections": () => setAllDeckSectionsExpanded(false),
+    "deck-editor-expand-sections": () => setAllDeckSectionsExpanded(true),
     "deck-editor-tag-selection": () => {
       if (selectedCards.size > 0) setTagDialogOpen(true);
     },
@@ -340,7 +345,7 @@ export function DeckBuilder({
     setUnsavedState(snapshot, snapshot);
     resetDeckHistory();
     return resetDeckHistory;
-  }, [editorSessionId]);
+  }, [editorSessionId, setAnalysisOpen]);
 
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {
@@ -1066,6 +1071,18 @@ export function DeckBuilder({
     { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
     { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
     { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
+    {
+      id: "collapse-sections",
+      label: "Collapse all deck sections",
+      keywords: ["fold", "close", "hide"],
+      run: () => setAllDeckSectionsExpanded(false),
+    },
+    {
+      id: "expand-sections",
+      label: "Expand all deck sections",
+      keywords: ["unfold", "open", "show"],
+      run: () => setAllDeckSectionsExpanded(true),
+    },
     { id: "group-type", label: "Group cards by type", run: () => setGroupBy("type") },
     { id: "group-mana", label: "Group cards by mana value", run: () => setGroupBy("cmc") },
     { id: "group-color", label: "Group cards by color", run: () => setGroupBy("color") },
@@ -1369,29 +1386,17 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
-            <DeckLayoutMenu
-              groupBy={groupBy}
-              sortBy={sortBy}
-              cardSize={cardSize}
-              filter={deckFilter}
-              viewMode={viewMode}
-              collectionFilter={collectionFilter}
-              onApply={(
-                nextGroupBy,
-                nextSortBy,
-                nextCardSize,
-                nextFilter,
-                nextViewMode,
-                nextCollectionFilter,
-              ) => {
-                setGroupBy(nextGroupBy);
-                setSortBy(nextSortBy);
-                setCardSize(nextCardSize);
-                setDeckFilter(nextFilter);
-                setViewMode(nextViewMode);
-                setCollectionFilter(nextCollectionFilter);
-              }}
-            />
+            {collectionFilter !== "all" && (
+              <button
+                type="button"
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium capitalize text-primary transition-colors hover:bg-primary/25"
+                title="Clear collection filter"
+                onClick={() => setCollectionFilter("all")}
+              >
+                Collection: {collectionFilter.replace("-", " ")}
+                <X className="h-3 w-3" />
+              </button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
@@ -1415,30 +1420,6 @@ export function DeckBuilder({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
-                  <LibraryBig className="h-3 w-3" />
-                  <span>
-                    {collectionFilter === "all"
-                      ? "Collection: All"
-                      : `Collection: ${collectionFilter.replace("-", " ")}`}
-                  </span>
-                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {(["all", "exact", "other", "partial", "missing"] as const).map((status) => (
-                  <DropdownMenuItem
-                    key={status}
-                    onSelect={() => setCollectionFilter(status)}
-                    className={cn(collectionFilter === status && "bg-muted font-medium")}
-                  >
-                    {status === "all" ? "All cards" : status.replace("-", " ")}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
                   <span>Sort: {SORT_OPTIONS.find((option) => option.value === sortBy)?.label}</span>
                   <ChevronDown className="h-2.5 w-2.5 opacity-60" />
                 </button>
@@ -1455,6 +1436,50 @@ export function DeckBuilder({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <div className="flex shrink-0 overflow-hidden rounded-md border">
+              <button
+                type="button"
+                className="p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Collapse all sections (Shift+Alt+-)"
+                aria-label="Collapse all sections"
+                onClick={() => setAllDeckSectionsExpanded(false)}
+              >
+                <FoldVertical className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                className="border-l p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Expand all sections (Shift+Alt+=)"
+                aria-label="Expand all sections"
+                onClick={() => setAllDeckSectionsExpanded(true)}
+              >
+                <UnfoldVertical className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <DeckLayoutMenu
+              compact
+              groupBy={groupBy}
+              sortBy={sortBy}
+              cardSize={cardSize}
+              filter={deckFilter}
+              viewMode={viewMode}
+              collectionFilter={collectionFilter}
+              onApply={(
+                nextGroupBy,
+                nextSortBy,
+                nextCardSize,
+                nextFilter,
+                nextViewMode,
+                nextCollectionFilter,
+              ) => {
+                setGroupBy(nextGroupBy);
+                setSortBy(nextSortBy);
+                setCardSize(nextCardSize);
+                setDeckFilter(nextFilter);
+                setViewMode(nextViewMode);
+                setCollectionFilter(nextCollectionFilter);
+              }}
+            />
             <div className="flex rounded-md border overflow-hidden shrink-0">
               {(
                 [
@@ -1791,6 +1816,51 @@ export function DeckBuilder({
                 }
                 onLeave={preview.handleMouseLeave}
                 onPickPrint={(name) => setPrintPickerCard(name)}
+                contextMenuFor={(card, label) => {
+                  const name = card.identity.name;
+                  const isCover =
+                    currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
+                  const isCoverBack =
+                    currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
+                  return {
+                    commanderLabel: label,
+                    customTags: currentDeck.customTags ?? [],
+                    appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
+                    isFoil: !!card.identity.foil,
+                    isCover,
+                    isCoverBack,
+                    hasBackFace: !!card.backFace,
+                    onShowInfo: () => handleShowInfo(name),
+                    onRemoveCommander: () => handleRemoveCommander(card),
+                    onPickPrint: () => setPrintPickerCard(name),
+                    onToggleFoil: () =>
+                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
+                    onSetCover: () => {
+                      executeDeckEdit(`Change deck cover`, () =>
+                        setCoverCard(isCover ? undefined : name, 0),
+                      );
+                      if (!isCover) useScryfallStore.getState().invalidateCard(name);
+                    },
+                    onSetCoverBack: () => {
+                      executeDeckEdit(`Change deck cover`, () =>
+                        setCoverCard(isCoverBack ? undefined : name, 1),
+                      );
+                      if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
+                    },
+                    onApplyTag: (tag) => {
+                      const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
+                      executeDeckEdit(`${isApplied ? "Remove" : "Apply"} ${tag}`, () => {
+                        if (isApplied) untagCard(name, tag);
+                        else tagCard(name, tag);
+                      });
+                    },
+                    onCreateTag: (tag) =>
+                      executeDeckEdit(`Create ${tag} tag`, () => {
+                        addCustomTag(tag);
+                        tagCard(name, tag);
+                      }),
+                  };
+                }}
               />
               <div
                 ref={setMainDropRef}

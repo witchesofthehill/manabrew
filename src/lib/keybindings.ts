@@ -90,6 +90,18 @@ export const KEYBINDINGS: KeybindingDef[] = [
     allowInEditable: true,
   },
   {
+    id: "deck-editor-collapse-sections",
+    label: "Collapse all deck sections",
+    category: "Deck editor",
+    defaultCombo: { key: "-", alt: true, shift: true },
+  },
+  {
+    id: "deck-editor-expand-sections",
+    label: "Expand all deck sections",
+    category: "Deck editor",
+    defaultCombo: { key: "=", alt: true, shift: true },
+  },
+  {
     id: "deck-editor-tag-selection",
     label: "Tag selected cards",
     category: "Deck editor",

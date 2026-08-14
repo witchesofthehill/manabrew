@@ -1,5 +1,5 @@
 import { AlertTriangle, ChevronDown, Crown, Palette, Plus, X } from "lucide-react";
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { type PointerEvent as ReactPointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ import { DROP_ZONE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
+import { CommandZoneCardMenu, type CommandZoneCardMenuActions } from "./CommandZoneCardMenu";
+import { useDeckSectionOpen } from "./deckSectionExpansion";
 
 function CommandZoneCard({
   card,
@@ -35,6 +37,7 @@ function CommandZoneCard({
   onHover,
   onLeave,
   onPickPrint,
+  menuActions,
 }: {
   card: DeckCard;
   label: string;
@@ -44,6 +47,7 @@ function CommandZoneCard({
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
   onPickPrint?: (cardName: string) => void;
+  menuActions?: CommandZoneCardMenuActions;
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
   const ownership = useCardCollectionOwnership(card);
@@ -54,7 +58,7 @@ function CommandZoneCard({
     disabled: readOnly,
   });
 
-  return (
+  const content = (
     <div
       ref={setNodeRef}
       {...listeners}
@@ -131,6 +135,11 @@ function CommandZoneCard({
       )}
     </div>
   );
+  return menuActions ? (
+    <CommandZoneCardMenu actions={menuActions}>{content}</CommandZoneCardMenu>
+  ) : (
+    content
+  );
 }
 
 interface CommanderSlotsProps {
@@ -144,6 +153,7 @@ interface CommanderSlotsProps {
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
   onPickPrint?: (cardName: string) => void;
+  contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
 }
 
 export function CommanderSlots({
@@ -157,8 +167,9 @@ export function CommanderSlots({
   onHover,
   onLeave,
   onPickPrint,
+  contextMenuFor,
 }: CommanderSlotsProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useDeckSectionOpen();
   const { setNodeRef, isOver } = useDroppable({
     id: DROP_ZONE.COMMAND,
     disabled: readOnly || !formatRequiresCommander(format),
@@ -235,6 +246,15 @@ export function CommanderSlots({
               onHover={onHover}
               onLeave={onLeave}
               onPickPrint={onPickPrint}
+              menuActions={
+                readOnly
+                  ? undefined
+                  : contextMenuFor?.(
+                      card,
+                      commanderSlotBadge(commanders, format, index)?.label?.toLowerCase() ??
+                        "commander",
+                    )
+              }
             />
           ))}
           {!readOnly && canAddAnother && (

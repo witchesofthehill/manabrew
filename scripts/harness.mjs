@@ -243,7 +243,7 @@ function generateProtocolSources() {
   }
 }
 
-function rebuild() {
+function rebuild({ clean = false } = {}) {
   generateProtocolSources();
   assertPrereqs();
   const maven = resolveMaven();
@@ -252,7 +252,8 @@ function rebuild() {
   // Build from the repo root via the aggregator pom so forge-harness and the
   // engine modules it depends on share one reactor (resolves the engine's
   // ${revision} version without cross-reactor install/flatten).
-  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", "package", "-DskipTests"], {
+  const goals = clean ? ["clean", "package"] : ["package"];
+  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", ...goals, "-DskipTests"], {
     cwd: root,
     stdio: "inherit",
     shell: process.platform === "win32" && maven.toLowerCase().endsWith(".cmd"),
@@ -377,19 +378,21 @@ function stageRuntime({ force = false } = {}) {
   console.log(`harness: staged Tauri runtime at ${relative(root, runtimeDir)}`);
 }
 
-const mode = process.argv[2] ?? "ensure";
+const args = process.argv.slice(2);
+const clean = args.includes("--clean");
+const mode = args.find((arg) => !arg.startsWith("--")) ?? "ensure";
 
 switch (mode) {
   case "build":
-    rebuild();
+    rebuild({ clean });
     stageRuntime({ force: true });
     break;
   case "test":
-    rebuild();
+    rebuild({ clean });
     break;
   case "ensure":
     if (isStale()) {
-      rebuild();
+      rebuild({ clean });
     } else {
       console.log("harness: JAR is up-to-date");
     }
@@ -412,7 +415,7 @@ switch (mode) {
     break;
   default:
     console.error(
-      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum>",
+      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum> [--clean]",
     );
     process.exit(1);
 }

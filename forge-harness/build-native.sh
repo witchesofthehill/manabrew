@@ -10,7 +10,14 @@ set -euo pipefail
 HARNESS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$HARNESS_DIR/.." && pwd)"
 
-GRAALVM_HOME="${GRAALVM_HOME:-$HOME/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1/Contents/Home}"
+GRAALVM_DIR="$HOME/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1"
+if [ -z "${GRAALVM_HOME:-}" ]; then
+  if [ -d "$GRAALVM_DIR/Contents/Home" ]; then
+    GRAALVM_HOME="$GRAALVM_DIR/Contents/Home"
+  else
+    GRAALVM_HOME="$GRAALVM_DIR"
+  fi
+fi
 JAVAC="$GRAALVM_HOME/bin/javac"
 NATIVE_IMAGE="$GRAALVM_HOME/bin/native-image"
 
@@ -26,7 +33,11 @@ CFG="$HARNESS_DIR/native/frozen-config"
 OUT="$HARNESS_DIR/native/build"
 LANGS="$REPO_ROOT/forge/forge-gui/res/languages"
 
-[ -x "$NATIVE_IMAGE" ] || { echo "native-image not found at $NATIVE_IMAGE"; exit 1; }
+[ -x "$NATIVE_IMAGE" ] || {
+  echo "native-image not found at $NATIVE_IMAGE"
+  echo "set GRAALVM_HOME to your GraalVM install (macOS: <dir>/Contents/Home, Linux: <dir>)"
+  exit 1
+}
 [ -f "$JAR" ] || { echo "fat jar missing — run: yarn build:harness"; exit 1; }
 
 echo "==> compiling ForgeNative with GraalVM javac"

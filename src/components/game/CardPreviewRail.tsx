@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon } from "lucide-react";
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -41,6 +41,17 @@ export function CardPreviewRail({
   maxWidth = DEFAULT_MAX_WIDTH,
   className,
 }: CardPreviewRailProps) {
+  const snapshot = useSyncExternalStore(preview.subscribe, preview.getSnapshot);
+  const currentPreview = {
+    ...preview,
+    hoveredCard: snapshot.card,
+    phase: snapshot.phase,
+    mousePos: snapshot.mousePos,
+    anchorRect: snapshot.anchorRect,
+    placement: snapshot.placement,
+    showBackFace: snapshot.showBackFace,
+    isSticky: snapshot.sticky,
+  };
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
   const [width, setWidth] = useState(() => clampWidth(defaultWidth, minWidth, maxWidth));
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
@@ -158,10 +169,10 @@ export function CardPreviewRail({
             <span className="text-xs text-muted-foreground/70">{emptyMessage}</span>
           </div>
         </div>
-        {preview.hoveredCard && renderDetails?.(preview.hoveredCard)}
+        {currentPreview.hoveredCard && renderDetails?.(currentPreview.hoveredCard)}
       </div>
 
-      <HoverCardPreview preview={preview} slot={slot} pinned imageSize="normal" />
+      <HoverCardPreview preview={currentPreview} slot={slot} pinned imageSize="normal" />
     </aside>
   );
 }

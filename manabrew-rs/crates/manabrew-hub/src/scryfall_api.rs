@@ -192,10 +192,33 @@ fn allowed(method: &Method, path: &str) -> bool {
     if method != Method::GET {
         return false;
     }
+    let segments = path.split('/').collect::<Vec<_>>();
+    let exact_card = match segments.as_slice() {
+        ["cards", id] => is_scryfall_id(id),
+        ["cards", set, collector_number] => {
+            !set.is_empty()
+                && set.len() <= 20
+                && !collector_number.is_empty()
+                && collector_number.len() <= 30
+        }
+        _ => false,
+    };
     path == "sets"
         || path == "cards/search"
         || path == "cards/named"
+        || exact_card
         || (path.starts_with("cards/") && path.ends_with("/rulings"))
+}
+
+fn is_scryfall_id(value: &str) -> bool {
+    value.len() == 36
+        && value
+            .chars()
+            .enumerate()
+            .all(|(index, character)| match index {
+                8 | 13 | 18 | 23 => character == '-',
+                _ => character.is_ascii_hexdigit(),
+            })
 }
 
 #[cfg(test)]
@@ -206,7 +229,13 @@ mod tests {
     fn restricts_methods_and_paths() {
         assert!(allowed(&Method::GET, "cards/search"));
         assert!(allowed(&Method::POST, "cards/collection"));
+        assert!(allowed(
+            &Method::GET,
+            "cards/e3426d58-ff4d-482d-bc78-99b67c55c6d1"
+        ));
+        assert!(allowed(&Method::GET, "cards/rvr/127"));
         assert!(!allowed(&Method::POST, "cards/search"));
+        assert!(!allowed(&Method::GET, "cards/random"));
         assert!(!allowed(&Method::GET, "bulk-data"));
     }
 

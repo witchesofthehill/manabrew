@@ -77,22 +77,7 @@ export async function scryfallFetch<T>(
   errorMsg: string,
   init?: RequestInit,
 ): Promise<T> {
-  const t0 = performance.now();
-  let response: Response;
-  try {
-    response = await queuedScryfallFetch(url, init);
-  } catch (err) {
-    console.error(`[scryfall] fetch threw after ${Math.round(performance.now() - t0)}ms`, {
-      url,
-      method: init?.method ?? "GET",
-      err,
-    });
-    throw err;
-  }
-  console.log(
-    `[scryfall] ${init?.method ?? "GET"} ${response.status} in ${Math.round(performance.now() - t0)}ms`,
-    url,
-  );
+  const response = await queuedScryfallFetch(url, init);
   if (response.status === 429) {
     const retryAfterMs = applyScryfallCooldown(response);
     throw new Error(

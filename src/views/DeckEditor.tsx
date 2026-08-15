@@ -295,6 +295,21 @@ export default function DeckEditor() {
       return;
     }
 
+    if (deckParam.startsWith("account:")) {
+      const accountDeckId = deckParam.slice("account:".length);
+      const detail = accountDeckDetails[accountDeckId];
+      if (!detail) return;
+      const id = loadAccountDeck(
+        detail.id,
+        detail.currentVersionNo,
+        detail.deck as SavedDeck["deck"],
+      );
+      resetDeckHistory();
+      setStateView("editor");
+      restoredParamRef.current = id;
+      return;
+    }
+
     const saved = savedDecks.find((s) => s.id === deckParam);
     if (!saved) return;
     loadSavedDeck(deckParam);
@@ -304,7 +319,9 @@ export default function DeckEditor() {
   }, [
     searchParams,
     presetDecks,
+    accountDeckDetails,
     savedDecks,
+    loadAccountDeck,
     loadPresetDeck,
     loadSavedDeck,
     clearDeck,

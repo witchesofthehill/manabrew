@@ -155,7 +155,7 @@ import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { DeckInsightsPanel } from "./DeckInsightsPanel";
 import { DeckEditorWelcome } from "./DeckEditorWelcome";
 import { openDeckEditorWelcome } from "./deckEditorWelcome.actions";
-import { setCardCollectionOwnershipSnapshot } from "./useCardCollectionOwnership";
+import { CardCollectionOwnershipScope } from "./useCardCollectionOwnership";
 import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
 import { DeckStatusSummary } from "./DeckStatusSummary";
 import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
@@ -416,7 +416,7 @@ export function DeckBuilder({
       currentDeck.planes,
     ],
   );
-  const currentSnapshot = buildDeckSnapshot(currentDeck);
+  const currentSnapshot = useMemo(() => buildDeckSnapshot(currentDeck), [currentDeck]);
   const accountSavedDeck = savedDecks.find((saved) => saved.id === currentDeckId);
   // Read-only presets can't be edited; background Scryfall enrichment mutates the
   // deck after the baseline snapshot, so never treat a preset as dirty.
@@ -456,7 +456,7 @@ export function DeckBuilder({
     return () => window.clearTimeout(timeout);
   }, [currentSnapshot, currentDeckId, hasUnsavedChanges, isReadOnly, isSaving, saveConflict]);
 
-  const preview = useCardPreview();
+  const preview = useCardPreview([], { subscribe: false });
 
   useDeckAnalysis();
   useDeckRoles();
@@ -480,7 +480,6 @@ export function DeckBuilder({
       ).length,
     [ownershipByName],
   );
-  setCardCollectionOwnershipSnapshot(collectionQuantities, ownershipByName);
   const isCardOwned = useCallback(
     (card: DeckCard) => collectionQuantityForName(collectionQuantities, card.identity.name) > 0,
     [collectionQuantities],
@@ -1973,7 +1972,11 @@ export function DeckBuilder({
             </DropdownMenu>
           </div>
 
-          <fieldset disabled={isReadOnly} className="contents">
+          <CardCollectionOwnershipScope
+            disabled={isReadOnly}
+            quantities={collectionQuantities}
+            deckOwnership={ownershipByName}
+          >
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
               <div data-editor-section="build" className="scroll-mt-12">
                 <DeckValidationPanel unsupportedNames={unsupportedNames} />
@@ -2209,7 +2212,7 @@ export function DeckBuilder({
                 )}
               </div>
             </div>
-          </fieldset>
+          </CardCollectionOwnershipScope>
         </div>
 
         <DeckCheckpointsDialog

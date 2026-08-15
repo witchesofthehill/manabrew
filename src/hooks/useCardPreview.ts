@@ -23,6 +23,8 @@ const MODIFIER_KEYS: Record<string, CardPreviewMode[]> = {
   Meta: ["ctrl"],
 };
 
+const ignorePreviewUpdates = () => () => undefined;
+
 export interface HoverOptions {
   useAnchor?: boolean;
   placement?: "auto" | "top-center" | "pinned";
@@ -30,12 +32,15 @@ export interface HoverOptions {
   useDelay?: boolean;
 }
 
-export function useCardPreview(dismissDeps: unknown[] = []) {
+export function useCardPreview(dismissDeps: unknown[] = [], options: { subscribe?: boolean } = {}) {
   const machineRef = useRef<CardPreviewMachine | null>(null);
   machineRef.current ??= new CardPreviewMachine();
   const machine = machineRef.current;
 
-  const snapshot = useSyncExternalStore(machine.subscribe, machine.getSnapshot);
+  const snapshot = useSyncExternalStore(
+    options.subscribe === false ? ignorePreviewUpdates : machine.subscribe,
+    machine.getSnapshot,
+  );
 
   const cardPreviewMode = usePreferencesStore((s) => s.cardPreviewMode);
   const cardHoverDelayMs = usePreferencesStore((s) => s.cardHoverDelayMs);
@@ -106,6 +111,8 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
   useEffect(() => () => machine.destroy(), [machine]);
 
   return {
+    subscribe: machine.subscribe,
+    getSnapshot: machine.getSnapshot,
     hoveredCard: snapshot.card,
     phase: snapshot.phase,
     mousePos: snapshot.mousePos,

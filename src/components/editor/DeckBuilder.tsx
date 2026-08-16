@@ -117,6 +117,7 @@ import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
 import {
   executeDeckEdit,
   redoDeckEdit,
+  rebaseDeckHistory,
   resetDeckHistory,
   undoDeckEdit,
 } from "./deckEditor.history";
@@ -206,7 +207,6 @@ export function DeckBuilder({
   const [batchPrintingSelectionOnly, setBatchPrintingSelectionOnly] = useState(false);
   const [printingOptimizerOpen, setPrintingOptimizerOpen] = useState(false);
   const saveInFlightRef = useRef(false);
-  const autoSaveRef = useRef<(deck?: EditorDeck, quiet?: boolean) => Promise<void>>(async () => {});
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [checkpointsOpen, setCheckpointsOpen] = useState(false);
@@ -457,12 +457,6 @@ export function DeckBuilder({
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
 
-  useEffect(() => {
-    if (isReadOnly || isSaving || !hasUnsavedChanges || !currentDeckId || saveConflict) return;
-    const timeout = window.setTimeout(() => void autoSaveRef.current(undefined, true), 1200);
-    return () => window.clearTimeout(timeout);
-  }, [currentSnapshot, currentDeckId, hasUnsavedChanges, isReadOnly, isSaving, saveConflict]);
-
   const preview = useCardPreview([], { subscribe: false });
 
   useDeckAnalysis();
@@ -532,7 +526,9 @@ export function DeckBuilder({
       .then((scryfallMap) => {
         const updates = new Map<string, Partial<DeckCard>>();
         for (const [key, sc] of scryfallMap) updates.set(key, scryfallToDeckCard(sc));
+        const before = useDeckStore.getState().currentDeck;
         enrichDeckCards(updates);
+        rebaseDeckHistory(before, useDeckStore.getState().currentDeck);
       })
       .catch((err) => {
         console.warn("[DeckBuilder] Failed to enrich card images:", err);
@@ -1097,8 +1093,10 @@ export function DeckBuilder({
           .save(saved.accountDeckId, saved.accountVersionNo, deckToSave);
         const latestDeck = useDeckStore.getState().currentDeck;
         const changedDuringSave = buildDeckSnapshot(latestDeck) !== snapshot;
+        const beforeAccountUpdate = useDeckStore.getState().currentDeck;
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
         if (changedDuringSave) useDeckStore.setState({ currentDeck: latestDeck });
+        else rebaseDeckHistory(beforeAccountUpdate, useDeckStore.getState().currentDeck);
         setSyncState("synced");
         if (!quiet) toast.success(`Saved version ${detail.currentVersionNo} to your account`);
       } else {
@@ -1142,8 +1140,6 @@ export function DeckBuilder({
       setIsSaving(false);
     }
   }
-  autoSaveRef.current = handleSave;
-
   async function resolveSaveConflict(action: "mine" | "account" | "copy") {
     if (!saveConflict || !conflictDeckRef.current) return;
     setIsSaving(true);
@@ -1153,7 +1149,9 @@ export function DeckBuilder({
         const detail = await useAccountDecksStore
           .getState()
           .save(saveConflict.id, saveConflict.currentVersionNo, conflictDeckRef.current);
+        const beforeAccountUpdate = useDeckStore.getState().currentDeck;
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
+        rebaseDeckHistory(beforeAccountUpdate, useDeckStore.getState().currentDeck);
       } else if (action === "account") {
         loadAccountDeck(
           saveConflict.id,

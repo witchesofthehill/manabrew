@@ -92,7 +92,7 @@ function ownershipQuantityLabel(summary: ReturnType<typeof useDeckCardOwnership>
   return `Own ${Math.min(summary.owned, summary.required)}/${summary.required}${summary.shortage ? ` · missing ${summary.shortage}` : summary.status === "exact" ? " · exact printing" : " · another printing"}`;
 }
 
-type CardLocation = "main" | "side" | "maybe";
+export type CardLocation = "main" | "side" | "maybe";
 
 function openCardContextMenu(event: React.MouseEvent<HTMLButtonElement>) {
   event.preventDefault();
@@ -181,7 +181,7 @@ const STACK_SECTION_MAYBEBOARD = "__maybeboard__";
 const STACK_SECTION_TAG_PREFIX = "__tag__";
 const STACK_SECTION_SPECIAL_PREFIX = "__special__";
 
-interface CardContextActions {
+export interface CardContextActions {
   onAddOne?: () => void;
   onRemoveOne?: () => void;
   onRemoveAll?: () => void;
@@ -343,7 +343,7 @@ function TagsSubmenu({
   );
 }
 
-function CardContextMenu({
+export function CardContextMenu({
   children,
   count,
   location,
@@ -1210,6 +1210,42 @@ function CardSection({
   const count = groups.reduce((s, g) => s + g.count, 0);
   const dragPrefix = isTagSection ? `deck-tag-${tag}` : `deck-${sectionId}`;
   const effectiveRemoveOne = isTagSection && onUntagCard ? onUntagCard : onRemoveOne;
+  const contextActionsFor = (group: CardGroup): CardContextActions => {
+    const { name } = group.card.identity;
+    return {
+      onAddOne: () => onAddOne(group),
+      onRemoveOne: () => effectiveRemoveOne(name),
+      onRemoveAll: () => onRemoveAll(name),
+      onMoveOneToSide: () => onMoveOneToSide(name),
+      onMoveAllToSide: () => onMoveAllToSide(name),
+      onMoveOneToMaybe: () => onMoveOneToMaybe(name),
+      onMoveAllToMaybe: () => onMoveAllToMaybe(name),
+      onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
+      onPickPrint: () => onPickPrint(name),
+      onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
+      isFoil: !!group.card.identity.foil,
+      isCommander: commanderNames?.has(name) ?? false,
+      commanderSlot: commanderSlotFor(group.card, deckFormat),
+      onSetCommander: formatRequiresCommander(deckFormat)
+        ? () => onSetCommander(group.card)
+        : undefined,
+      onRemoveCommander: formatRequiresCommander(deckFormat)
+        ? () => onRemoveCommander(group.card)
+        : undefined,
+      isCover: coverCardName === name && (coverCardFace ?? 0) === 0,
+      onSetCover: onSetCover ? () => onSetCover(group.card) : undefined,
+      isCoverBack: coverCardName === name && coverCardFace === 1,
+      onSetCoverBack:
+        group.card.isDoubleFaced && onSetCoverBack ? () => onSetCoverBack(group.card) : undefined,
+      customTags,
+      appliedTags: cardTagsByName?.[name.toLowerCase()],
+      onApplyTag: onApplyCardTag ? (nextTag) => onApplyCardTag(name, nextTag) : undefined,
+      onRemoveCustomTag,
+      onCreateTag: onCreateAndApplyTag
+        ? (nextTag) => onCreateAndApplyTag(name, nextTag)
+        : undefined,
+    };
+  };
 
   const headerExtra =
     isTagSection && onRemoveTag ? (
@@ -1260,41 +1296,7 @@ function CardSection({
                     isSelected={selectedCards?.has(name.toLowerCase())}
                     onSelect={onSelectCard}
                     onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
-                    contextActions={{
-                      onAddOne: () => onAddOne(g),
-                      onRemoveOne: () => effectiveRemoveOne(name),
-                      onRemoveAll: () => onRemoveAll(name),
-                      onMoveOneToSide: () => onMoveOneToSide(name),
-                      onMoveAllToSide: () => onMoveAllToSide(name),
-                      onMoveOneToMaybe: () => onMoveOneToMaybe(name),
-                      onMoveAllToMaybe: () => onMoveAllToMaybe(name),
-                      onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
-                      onPickPrint: () => onPickPrint(name),
-                      onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
-                      isFoil: !!g.card.identity.foil,
-                      isCommander: commanderNames?.has(name) ?? false,
-                      commanderSlot: commanderSlotFor(g.card, deckFormat),
-                      onSetCommander: formatRequiresCommander(deckFormat)
-                        ? () => onSetCommander(g.card)
-                        : undefined,
-                      onRemoveCommander: formatRequiresCommander(deckFormat)
-                        ? () => onRemoveCommander(g.card)
-                        : undefined,
-                      isCover: coverCardName === name && (coverCardFace ?? 0) === 0,
-                      onSetCover: onSetCover ? () => onSetCover(g.card) : undefined,
-                      isCoverBack: coverCardName === name && coverCardFace === 1,
-                      onSetCoverBack:
-                        g.card.isDoubleFaced && onSetCoverBack
-                          ? () => onSetCoverBack(g.card)
-                          : undefined,
-                      customTags,
-                      appliedTags: cardTagsByName?.[name.toLowerCase()],
-                      onApplyTag: onApplyCardTag ? (t) => onApplyCardTag(name, t) : undefined,
-                      onRemoveCustomTag,
-                      onCreateTag: onCreateAndApplyTag
-                        ? (t) => onCreateAndApplyTag(name, t)
-                        : undefined,
-                    }}
+                    contextActions={contextActionsFor(g)}
                   />
                 </div>
                 {isTagSection && onUntagCard && (
@@ -1343,26 +1345,7 @@ function CardSection({
                       : undefined
                   }
                   contextLocation="main"
-                  contextActions={{
-                    onAddOne: () => onAddOne(g),
-                    onRemoveOne: () => effectiveRemoveOne(name),
-                    onRemoveAll: () => onRemoveAll(name),
-                    onMoveOneToSide: () => onMoveOneToSide(name),
-                    onMoveAllToSide: () => onMoveAllToSide(name),
-                    onMoveOneToMaybe: () => onMoveOneToMaybe(name),
-                    onMoveAllToMaybe: () => onMoveAllToMaybe(name),
-                    onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
-                    onPickPrint: () => onPickPrint(name),
-                    onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
-                    isFoil: !!g.card.identity.foil,
-                    customTags,
-                    appliedTags: cardTagsByName?.[name.toLowerCase()],
-                    onApplyTag: onApplyCardTag ? (t) => onApplyCardTag(name, t) : undefined,
-                    onRemoveCustomTag,
-                    onCreateTag: onCreateAndApplyTag
-                      ? (t) => onCreateAndApplyTag(name, t)
-                      : undefined,
-                  }}
+                  contextActions={contextActionsFor(g)}
                 />
               </div>
             );
@@ -1387,6 +1370,7 @@ function DroppableStackTag({
   selectedCards,
   onSelectCard,
   dragHandleProps,
+  contextMenuFor,
 }: {
   tag: string;
   groups: CardGroup[];
@@ -1399,6 +1383,7 @@ function DroppableStackTag({
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
   dragHandleProps?: DragHandleProps;
+  contextMenuFor?: (group: CardGroup) => { location: CardLocation; actions: CardContextActions };
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${DROP_ZONE.TAG_PREFIX}${tag}` });
 
@@ -1425,6 +1410,7 @@ function DroppableStackTag({
           selectedCards={selectedCards}
           onSelectCard={onSelectCard}
           dragHandleProps={dragHandleProps}
+          contextMenuFor={contextMenuFor}
         />
       ) : (
         <div className="flex flex-col h-full" style={{ width: cardWidth }}>
@@ -1930,6 +1916,46 @@ export function DeckListView({
       dropTarget === id && !isDragging && "ring-2 ring-selection rounded-lg",
     );
 
+    const mainContextMenuFor = (group: CardGroup) => {
+      const { name } = group.card.identity;
+      return {
+        location: "main" as const,
+        actions: {
+          onAddOne: () => onAddOne(group),
+          onRemoveOne: () => onRemoveOne(name),
+          onRemoveAll: () => onRemoveAll(name),
+          onMoveOneToSide: () => onMoveOneToSide(name),
+          onMoveAllToSide: () => onMoveAllToSide(name),
+          onMoveOneToMaybe: () => onMoveOneToMaybe(name),
+          onMoveAllToMaybe: () => onMoveAllToMaybe(name),
+          onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
+          onPickPrint: () => onPickPrint(name),
+          onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
+          isFoil: !!group.card.identity.foil,
+          isCommander: commanders.some((card) => card.identity.name === name),
+          commanderSlot: commanderSlotFor(group.card, deckFormat),
+          onSetCommander: formatRequiresCommander(deckFormat)
+            ? () => onSetCommander(group.card)
+            : undefined,
+          onRemoveCommander: formatRequiresCommander(deckFormat)
+            ? () => onRemoveCommander(group.card)
+            : undefined,
+          isCover: coverCardName === name && (coverCardFace ?? 0) === 0,
+          onSetCover: onSetCover ? () => onSetCover(group.card) : undefined,
+          isCoverBack: coverCardName === name && coverCardFace === 1,
+          onSetCoverBack:
+            group.card.isDoubleFaced && onSetCoverBack
+              ? () => onSetCoverBack(group.card)
+              : undefined,
+          customTags,
+          appliedTags: cardTags?.[name.toLowerCase()],
+          onApplyTag: (tag: string) => applyCardTag(name, tag),
+          onRemoveCustomTag: onRemoveTag,
+          onCreateTag: (tag: string) => createAndApplyTag(name, tag),
+        },
+      };
+    };
+
     if (id === STACK_SECTION_SIDEBOARD) {
       return (
         <div
@@ -2071,6 +2097,11 @@ export function DeckListView({
             selectedCards={selectedCards}
             onSelectCard={onSelectCard}
             dragHandleProps={dhProps}
+            contextMenuFor={(group) => {
+              const menu = mainContextMenuFor(group);
+              menu.actions.onRemoveOne = () => onUntagCard?.(group.card.identity.name, tag);
+              return menu;
+            }}
           />
         </div>
       );
@@ -2115,6 +2146,7 @@ export function DeckListView({
           onSelectCard={onSelectCard}
           onShowInfo={onShowInfo}
           dragHandleProps={dhProps}
+          contextMenuFor={mainContextMenuFor}
         />
       </div>
     );

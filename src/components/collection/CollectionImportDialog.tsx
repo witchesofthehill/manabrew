@@ -66,6 +66,10 @@ export function CollectionImportDialog({
   const [validatingPrintings, setValidatingPrintings] = useState(false);
   const [printingValidationError, setPrintingValidationError] = useState(false);
   const [printingValidationAttempt, setPrintingValidationAttempt] = useState(0);
+  const [printingValidationProgress, setPrintingValidationProgress] = useState({
+    completed: 0,
+    total: 0,
+  });
   const parsed = useMemo(() => (text.trim() ? parseCollectionFile(text) : null), [text]);
   const preview = useMemo(
     () => (parsed ? previewCollectionImport(parsed, mapping) : []),
@@ -82,11 +86,13 @@ export function CollectionImportDialog({
       setPrintingValidation({});
       setValidatingPrintings(false);
       setPrintingValidationError(false);
+      setPrintingValidationProgress({ completed: 0, total: 0 });
       return;
     }
     setPrintingValidation({});
     setValidatingPrintings(true);
     setPrintingValidationError(false);
+    setPrintingValidationProgress({ completed: 0, total: exactRows.length });
     const validate = async () => {
       const uniqueRows = Array.from(
         new Map(
@@ -96,25 +102,40 @@ export function CollectionImportDialog({
           ]),
         ).entries(),
       );
+      const verifiedKeys = new Set<string>();
       try {
-        const response = await verifyCardPrintings({
-          identifiers: uniqueRows.map(([, row]) => ({
-            name: row.name,
-            setCode: row.setCode!,
-            collectorNumber: row.collectorNumber!,
-            foil: row.foil,
-          })),
-        });
-        if (!active) return;
-        setPrintingValidation(
-          Object.fromEntries(
-            uniqueRows.map(([key], index) => [key, response.matched[index] === true]),
-          ),
+        await verifyCardPrintings(
+          {
+            identifiers: uniqueRows.map(([, row]) => ({
+              name: row.name,
+              setCode: row.setCode!,
+              collectorNumber: row.collectorNumber!,
+              foil: row.foil,
+            })),
+          },
+          (matched, offset, total) => {
+            if (!active) return;
+            const batch = Object.fromEntries(
+              matched.map((isMatch, index) => {
+                const key = uniqueRows[offset + index][0];
+                verifiedKeys.add(key);
+                return [key, isMatch];
+              }),
+            );
+            setPrintingValidation((current) => ({ ...current, ...batch }));
+            setPrintingValidationProgress({ completed: offset + matched.length, total });
+          },
         );
+        if (!active) return;
         setPrintingValidationError(false);
       } catch {
         if (!active) return;
-        setPrintingValidation(Object.fromEntries(uniqueRows.map(([key]) => [key, "error"])));
+        setPrintingValidation((current) => ({
+          ...current,
+          ...Object.fromEntries(
+            uniqueRows.filter(([key]) => !verifiedKeys.has(key)).map(([key]) => [key, "error"]),
+          ),
+        }));
         setPrintingValidationError(true);
       }
       setValidatingPrintings(false);
@@ -340,6 +361,9 @@ export function CollectionImportDialog({
                 <p className="text-xs text-muted-foreground">
                   Exact printings are verified with Scryfall before import. Large collections may
                   take a while to finish checking.
+                  {validatingPrintings && printingValidationProgress.total > 0
+                    ? ` ${printingValidationProgress.completed.toLocaleString()}/${printingValidationProgress.total.toLocaleString()} checked.`
+                    : ""}
                 </p>
               )}
               <div className="flex flex-wrap gap-1" aria-label="Filter import preview">

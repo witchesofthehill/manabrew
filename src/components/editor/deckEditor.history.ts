@@ -83,16 +83,13 @@ function publish() {
   listeners.forEach((listener) => listener());
 }
 
-export function executeDeckEdit(label: string, edit: () => void) {
-  const before = cloneDeck(useDeckStore.getState().currentDeck);
+function recordDeckEdit(label: string, before: EditorDeck, after: EditorDeck) {
   let historyCleared = false;
   if (undoStack.length > 0 && !decksMatch(before, undoStack.at(-1)!.after)) {
     undoStack.length = 0;
     redoStack.length = 0;
     historyCleared = true;
   }
-  edit();
-  const after = cloneDeck(useDeckStore.getState().currentDeck);
   if (decksMatch(before, after)) {
     if (historyCleared) publish();
     return;
@@ -101,6 +98,21 @@ export function executeDeckEdit(label: string, edit: () => void) {
   if (undoStack.length > 100) undoStack.shift();
   redoStack.length = 0;
   publish();
+}
+
+export function executeDeckEdit(label: string, edit: () => void) {
+  const before = cloneDeck(useDeckStore.getState().currentDeck);
+  edit();
+  const after = cloneDeck(useDeckStore.getState().currentDeck);
+  recordDeckEdit(label, before, after);
+}
+
+export function captureDeckEditSnapshot(): EditorDeck {
+  return cloneDeck(useDeckStore.getState().currentDeck);
+}
+
+export function commitDeckEdit(label: string, before: EditorDeck) {
+  recordDeckEdit(label, before, cloneDeck(useDeckStore.getState().currentDeck));
 }
 
 export function undoDeckEdit() {

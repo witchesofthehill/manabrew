@@ -4,7 +4,11 @@ import { act, createElement, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { collectionCardKey, type DeckOwnershipSummary } from "@/lib/collection";
+import {
+  collectionCardKey,
+  collectionPrintingsByName,
+  type DeckOwnershipSummary,
+} from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
 
 import {
@@ -90,6 +94,27 @@ describe("card collection ownership scope", () => {
       deck: "other",
       printingCount: "2",
       ownedQuantity: "3",
+    });
+  });
+});
+
+describe("collection printing index", () => {
+  it("groups every owned printing without changing its quantity", () => {
+    const quantities = Object.fromEntries(
+      Array.from({ length: 250 }, (_, index) => [
+        collectionCardKey("Lightning Bolt", `set${index}`, String(index), index % 2 === 0),
+        index + 1,
+      ]),
+    );
+
+    const printings = collectionPrintingsByName(quantities).get("lightning bolt");
+
+    expect(printings).toHaveLength(250);
+    expect(printings?.[249]).toMatchObject({
+      setCode: "set249",
+      collectorNumber: "249",
+      foil: false,
+      quantity: 250,
     });
   });
 });

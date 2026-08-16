@@ -30,7 +30,9 @@ export function collectionPrintingsByName(
     if (quantity <= 0) continue;
     const identity = parseCollectionCardKey(cardKey);
     const name = identity.name.toLowerCase();
-    printings.set(name, [...(printings.get(name) ?? []), { ...identity, quantity }]);
+    const owned = printings.get(name);
+    if (owned) owned.push({ ...identity, quantity });
+    else printings.set(name, [{ ...identity, quantity }]);
   }
   return printings;
 }

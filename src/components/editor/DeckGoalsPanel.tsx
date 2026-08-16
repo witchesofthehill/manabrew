@@ -8,12 +8,14 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import type { DeckEditorGoals } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
+import { useDeckEditTransaction } from "./useDeckEditTransaction";
 
 export function DeckGoalsPanel() {
   const deck = useDeckStore((state) => state.currentDeck);
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const quantities = useCollectionStore((state) => state.quantities);
   const goals = deck.editor?.goals ?? {};
+  const goalEdit = useDeckEditTransaction("Update deck goals");
   const lands = deck.cards.filter((card) => isLand(card.types)).length;
   const nonlands = deck.cards.filter((card) => !isLand(card.types));
   const averageManaValue = nonlands.length
@@ -105,7 +107,9 @@ export function DeckGoalsPanel() {
               min="0"
               step={row.step}
               value={goals[row.key] ?? ""}
+              onFocus={goalEdit.begin}
               onChange={(event) => update(row.key, event.target.value)}
+              onBlur={goalEdit.commit}
               placeholder="Any"
             />
           </label>
@@ -136,7 +140,9 @@ export function DeckGoalsPanel() {
                   type="number"
                   min="0"
                   value={target ?? ""}
+                  onFocus={goalEdit.begin}
                   onChange={(event) => updateTagTarget(tag, event.target.value)}
+                  onBlur={goalEdit.commit}
                   placeholder="Any"
                 />
               </label>

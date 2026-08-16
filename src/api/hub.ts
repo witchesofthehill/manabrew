@@ -109,15 +109,21 @@ export function fetchAccountCollection(): Promise<CardCollection> {
 
 export async function verifyCardPrintings(
   request: VerifyCardPrintingsRequest,
+  onBatch?: (matched: boolean[], offset: number, total: number) => void,
 ): Promise<VerifyCardPrintingsResponse> {
   const matched: boolean[] = [];
   for (let index = 0; index < request.identifiers.length; index += 5_000) {
+    const identifiers = request.identifiers.slice(index, index + 5_000);
     const response = await hubJson<VerifyCardPrintingsResponse>("/api/cards/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifiers: request.identifiers.slice(index, index + 5_000) }),
+      body: JSON.stringify({ identifiers }),
     });
+    if (response.matched.length !== identifiers.length) {
+      throw new Error("Card verification returned an incomplete response");
+    }
     matched.push(...response.matched);
+    onBatch?.(response.matched, index, request.identifiers.length);
   }
   return { matched };
 }

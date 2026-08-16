@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { scryfallCardKey } from "@/api/scryfall";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
+import { executeDeckEdit } from "./deckEditor.history";
+import { useDeckEditTransaction } from "./useDeckEditTransaction";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
@@ -43,6 +45,7 @@ export function DeckBudgetPanel() {
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [prices, setPrices] = useState<Record<string, CardPrices>>({});
   const provider: PriceProvider = deck.editor?.priceProvider ?? "tcgplayer";
+  const budgetEdit = useDeckEditTransaction("Update deck budget");
   const providerConfig = PRICE_PROVIDERS[provider];
   const printings = useMemo(
     () =>
@@ -122,7 +125,9 @@ export function DeckBudgetPanel() {
               value={provider}
               className="h-8 rounded-md border bg-background px-2 text-xs"
               onChange={(event) =>
-                updateEditorMetadata({ priceProvider: event.target.value as PriceProvider })
+                executeDeckEdit("Change price provider", () =>
+                  updateEditorMetadata({ priceProvider: event.target.value as PriceProvider }),
+                )
               }
             >
               {Object.entries(PRICE_PROVIDERS).map(([id, option]) => (
@@ -141,10 +146,12 @@ export function DeckBudgetPanel() {
               className="h-8 w-24 text-right font-mono"
               value={budget ?? ""}
               placeholder="None"
+              onFocus={budgetEdit.begin}
               onChange={(event) => {
                 const value = event.target.value ? Number(event.target.value) : undefined;
                 updateEditorMetadata({ budgetAmount: value });
               }}
+              onBlur={budgetEdit.commit}
             />
           </label>
           <div className="text-right">

@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { DeckSideboardPlan } from "@/types/manabrew";
+import { executeDeckEdit } from "./deckEditor.history";
+import { useDeckEditTransaction } from "./useDeckEditTransaction";
 
 export function SideboardPlansDialog({
   open,
@@ -24,6 +26,7 @@ export function SideboardPlansDialog({
   const setEditorMetadata = useDeckStore((state) => state.setEditorMetadata);
   const [matchup, setMatchup] = useState("");
   const plans = metadata?.sideboardPlans ?? [];
+  const planEdit = useDeckEditTransaction("Edit sideboard plan");
 
   function updatePlans(next: DeckSideboardPlan[]) {
     setEditorMetadata({
@@ -38,10 +41,12 @@ export function SideboardPlansDialog({
   function addPlan() {
     const name = matchup.trim();
     if (!name) return;
-    updatePlans([
-      ...plans,
-      { id: crypto.randomUUID(), matchup: name, bringIn: "", takeOut: "", notes: "" },
-    ]);
+    executeDeckEdit("Add sideboard plan", () =>
+      updatePlans([
+        ...plans,
+        { id: crypto.randomUUID(), matchup: name, bringIn: "", takeOut: "", notes: "" },
+      ]),
+    );
     setMatchup("");
   }
 
@@ -78,14 +83,20 @@ export function SideboardPlansDialog({
                 <Input
                   className="h-8 font-semibold"
                   value={plan.matchup}
+                  onFocus={planEdit.begin}
                   onChange={(event) => updatePlan(plan.id, { matchup: event.target.value })}
+                  onBlur={planEdit.commit}
                 />
                 <Button
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                   aria-label={`Delete ${plan.matchup}`}
-                  onClick={() => updatePlans(plans.filter((candidate) => candidate.id !== plan.id))}
+                  onClick={() =>
+                    executeDeckEdit("Delete sideboard plan", () =>
+                      updatePlans(plans.filter((candidate) => candidate.id !== plan.id)),
+                    )
+                  }
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -97,7 +108,9 @@ export function SideboardPlansDialog({
                     className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
                     value={plan.bringIn}
                     placeholder="2 Negate\n1 Rest in Peace"
+                    onFocus={planEdit.begin}
                     onChange={(event) => updatePlan(plan.id, { bringIn: event.target.value })}
+                    onBlur={planEdit.commit}
                   />
                 </label>
                 <label className="text-xs font-medium">
@@ -106,7 +119,9 @@ export function SideboardPlansDialog({
                     className="mt-1 min-h-24 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
                     value={plan.takeOut}
                     placeholder="2 slow removal\n1 top-end threat"
+                    onFocus={planEdit.begin}
                     onChange={(event) => updatePlan(plan.id, { takeOut: event.target.value })}
+                    onBlur={planEdit.commit}
                   />
                 </label>
               </div>
@@ -116,7 +131,9 @@ export function SideboardPlansDialog({
                   className="mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-xs"
                   value={plan.notes}
                   placeholder="What matters after boarding?"
+                  onFocus={planEdit.begin}
                   onChange={(event) => updatePlan(plan.id, { notes: event.target.value })}
+                  onBlur={planEdit.commit}
                 />
               </label>
             </section>

@@ -18,6 +18,8 @@ vi.mock("@/stores/useDeckStore", () => ({
 }));
 
 import {
+  captureDeckEditSnapshot,
+  commitDeckEdit,
   executeDeckEdit,
   redoDeckEdit,
   resetDeckHistory,
@@ -47,6 +49,18 @@ describe("deck editor history", () => {
     undoDeckEdit();
 
     expect(deckState.currentDeck.name).toBe("History test");
+  });
+
+  it("records direct edits as one transaction when they are committed", () => {
+    const before = captureDeckEditSnapshot();
+    deckState.currentDeck = { ...deckState.currentDeck, name: "C" };
+    deckState.currentDeck = { ...deckState.currentDeck, name: "Changed" };
+    commitDeckEdit("Edit field", before);
+
+    undoDeckEdit();
+    expect(deckState.currentDeck.name).toBe("History test");
+    redoDeckEdit();
+    expect(deckState.currentDeck.name).toBe("Changed");
   });
 
   it("drops stale history after an external deck replacement", () => {

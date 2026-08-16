@@ -88,11 +88,12 @@ function computeChecksum() {
     .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".java")))
     .sort();
 
-  const protocolFiles = walkFiles(
+  const protocolFiles = [
     join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
     join(root, "manabrew-rs", "crates", "manabrew-relay-protocol", "src"),
-    (filePath) => filePath.endsWith(".rs"),
-  ).sort();
+  ]
+    .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".rs")))
+    .sort();
 
   const hashedEntries = [
     ...javaFiles.map(

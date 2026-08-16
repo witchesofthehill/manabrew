@@ -28,6 +28,7 @@ export default function MyCollection() {
   const authStatus = useAuthStore((state) => state.status);
   const quantities = useCollectionStore((state) => state.quantities);
   const setQuantity = useCollectionStore((state) => state.setQuantity);
+  const mergeQuantities = useCollectionStore((state) => state.mergeQuantities);
   const replaceQuantities = useCollectionStore((state) => state.replaceQuantities);
   const loading = useCollectionStore((state) => state.loading);
   const syncError = useCollectionStore((state) => state.error);
@@ -113,7 +114,7 @@ export default function MyCollection() {
               )}
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Button variant="outline" disabled={loading} onClick={() => setImportOpen(true)}>
                 <Upload className="mr-1.5 h-4 w-4" /> Import
               </Button>
               <Button
@@ -147,6 +148,7 @@ export default function MyCollection() {
               />
             </div>
             <CollectionQuickAdd
+              disabled={loading}
               getCount={(name) => collectionQuantityForName(quantities, name)}
               onAdd={(name, quantity, setCode, collectorNumber, foil) => {
                 const cardKey = collectionCardKey(name, setCode, collectorNumber, foil);
@@ -258,8 +260,9 @@ export default function MyCollection() {
       <CollectionImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
-        currentQuantities={quantities}
-        onImport={replaceQuantities}
+        onImport={(imported, mode) =>
+          mode === "merge" ? mergeQuantities(imported) : replaceQuantities(imported)
+        }
       />
       <CollectionDeleteDialog
         open={deleteOpen}

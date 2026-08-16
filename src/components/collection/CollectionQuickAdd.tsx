@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
 
 interface CollectionQuickAddProps {
+  disabled?: boolean;
   getCount: (name: string) => number;
   onAdd: (
     name: string,
@@ -21,7 +22,13 @@ interface CollectionQuickAddProps {
   onLeave: () => void;
 }
 
-export function CollectionQuickAdd({ getCount, onAdd, onHover, onLeave }: CollectionQuickAddProps) {
+export function CollectionQuickAdd({
+  disabled = false,
+  getCount,
+  onAdd,
+  onHover,
+  onLeave,
+}: CollectionQuickAddProps) {
   const [value, setValue] = useState("");
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -95,6 +102,7 @@ export function CollectionQuickAdd({ getCount, onAdd, onHover, onLeave }: Collec
           value={value}
           className="pl-9 pr-8"
           placeholder="Quick add card…"
+          disabled={disabled}
           onChange={(event) => updateSearch(event.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           onKeyDown={(event) => {

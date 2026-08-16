@@ -23,8 +23,7 @@ import {
 interface CollectionImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentQuantities: Record<string, number>;
-  onImport: (quantities: Record<string, number>) => Promise<void>;
+  onImport: (quantities: Record<string, number>, mode: "merge" | "replace") => Promise<void>;
 }
 
 const SOURCE_LABELS = {
@@ -37,7 +36,6 @@ const SOURCE_LABELS = {
 export function CollectionImportDialog({
   open,
   onOpenChange,
-  currentQuantities,
   onImport,
 }: CollectionImportDialogProps) {
   const fileInput = useRef<HTMLInputElement>(null);
@@ -169,17 +167,8 @@ export function CollectionImportDialog({
   async function applyImport() {
     if (Object.keys(imported).length === 0 || saving) return;
     setSaving(true);
-    const quantities =
-      mode === "replace"
-        ? imported
-        : Object.fromEntries(
-            Array.from(
-              new Set([...Object.keys(currentQuantities), ...Object.keys(imported)]),
-              (key) => [key, (currentQuantities[key] ?? 0) + (imported[key] ?? 0)],
-            ),
-          );
     try {
-      await onImport(quantities);
+      await onImport(imported, mode);
       toast.success(`Imported ${Object.keys(imported).length} collection entries`);
       resetAndClose();
     } catch {

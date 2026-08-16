@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BadgeDollarSign, Check, Layers3, Loader2, Sparkles, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ import { cardKey, useScryfallStore } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
 import { executeDeckEdit } from "./deckEditor.history";
-import { allocateOwnedPrintings } from "./printingOptimizer";
+import { allocateOwnedPrintings, cheapestCompatiblePrinting } from "./printingOptimizer";
 
 type OptimizerPolicy = "owned" | "cheapest" | "nonfoil";
 
@@ -42,6 +42,7 @@ export function PrintingOptimizerDialog({
   const [progress, setProgress] = useState(0);
   const [proposalSessionId, setProposalSessionId] = useState<string | null>(null);
   const [selectedPolicy, setSelectedPolicy] = useState<OptimizerPolicy>("owned");
+  const abortControllerRef = useRef<AbortController | null>(null);
   const deck = useDeckStore((state) => state.currentDeck);
   const quantities = useCollectionStore((state) => state.quantities);
 
@@ -71,6 +72,8 @@ export function PrintingOptimizerDialog({
     setLoading(policy);
     setChanges([]);
     setProgress(0);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     try {
       let proposal: PrintingChange[] = [];
       if (policy === "nonfoil") {
@@ -85,7 +88,10 @@ export function PrintingOptimizerDialog({
           }));
       } else if (policy === "owned") {
         const assignments = allocateOwnedPrintings(allCards, quantities);
-        const cards = await useScryfallStore.getState().fetchCardCollection(assignments);
+        const cards = await useScryfallStore
+          .getState()
+          .fetchCardCollection(assignments, abortController.signal);
+        abortController.signal.throwIfAborted();
         proposal = assignments.flatMap((assignment) => {
           const card = allCards.find((candidate) => candidate.identity.id === assignment.cardId);
           if (!card) return [];
@@ -113,7 +119,9 @@ export function PrintingOptimizerDialog({
             collectorNumber: card.identity.cardNumber,
           })),
           (completed, total) => setProgress(completed / total),
+          abortController.signal,
         );
+        abortController.signal.throwIfAborted();
         for (const card of uniqueCards) {
           if (useDeckStore.getState().editorSessionId !== sessionId) {
             throw new Error("The open deck changed while printings were being checked");
@@ -126,16 +134,7 @@ export function PrintingOptimizerDialog({
                 collectorNumber: card.identity.cardNumber,
               }),
             ) ?? [];
-          const priceOf = (print: ScryfallCard) => {
-            if (provider === "cardhoarder") return Number(print.prices.tix);
-            if (provider === "cardmarket") {
-              return Number(card.identity.foil ? print.prices.eur_foil : print.prices.eur);
-            }
-            return Number(card.identity.foil ? print.prices.usd_foil : print.prices.usd);
-          };
-          const cheapest = prints
-            .filter((print) => Number.isFinite(priceOf(print)) && priceOf(print) > 0)
-            .sort((left, right) => priceOf(left) - priceOf(right))[0];
+          const cheapest = cheapestCompatiblePrinting(prints, provider, !!card.identity.foil);
           if (cheapest) {
             proposal.push(
               ...allCards
@@ -165,10 +164,15 @@ export function PrintingOptimizerDialog({
       setChanges(proposal);
       if (proposal.length === 0) toast.info("The selected policy would not change this deck");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not optimize deck printings");
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        toast.error(error instanceof Error ? error.message : "Could not optimize deck printings");
+      }
     } finally {
-      setLoading(null);
-      setProgress(0);
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+        setLoading(null);
+        setProgress(0);
+      }
     }
   }
 
@@ -198,8 +202,13 @@ export function PrintingOptimizerDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next && loading) return;
-        if (!next) setChanges([]);
+        if (!next) {
+          abortControllerRef.current?.abort();
+          abortControllerRef.current = null;
+          setLoading(null);
+          setProgress(0);
+          setChanges([]);
+        }
         onOpenChange(next);
       }}
     >
@@ -276,6 +285,18 @@ export function PrintingOptimizerDialog({
               Large decks can take a moment. Requests are grouped and safely paced through the
               shared card-data service.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                abortControllerRef.current?.abort();
+                abortControllerRef.current = null;
+                setLoading(null);
+                setProgress(0);
+              }}
+            >
+              Cancel scan
+            </Button>
           </div>
         )}
         {changes.length > 0 && (

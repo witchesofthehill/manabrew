@@ -1,5 +1,27 @@
 import { parseCollectionCardKey } from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
+import type { ScryfallCard } from "@/types/scryfall";
+
+export type PrintingPriceProvider = "tcgplayer" | "cardmarket" | "cardhoarder";
+
+export function cheapestCompatiblePrinting(
+  prints: ScryfallCard[],
+  provider: PrintingPriceProvider,
+  foil: boolean,
+): ScryfallCard | undefined {
+  const finish = foil ? "foil" : "nonfoil";
+  const priceOf = (print: ScryfallCard) => {
+    if (provider === "cardhoarder") return Number(print.prices.tix);
+    if (provider === "cardmarket") return Number(foil ? print.prices.eur_foil : print.prices.eur);
+    return Number(foil ? print.prices.usd_foil : print.prices.usd);
+  };
+  return prints
+    .filter(
+      (print) =>
+        print.finishes?.includes(finish) && Number.isFinite(priceOf(print)) && priceOf(print) > 0,
+    )
+    .sort((left, right) => priceOf(left) - priceOf(right))[0];
+}
 
 export interface OwnedPrintingAssignment {
   cardId: string;

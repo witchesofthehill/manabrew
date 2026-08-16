@@ -267,4 +267,67 @@ describe("collection account saves", () => {
       },
     );
   });
+
+  it("preserves remote cards when an edit waits for initialization", async () => {
+    let finishInitialization: ((value: unknown) => void) | undefined;
+    fetchAccountCollection.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishInitialization = resolve;
+        }),
+    );
+    saveAccountCollection.mockResolvedValue({ version: 4, cards: [] });
+    useCollectionStore.setState({ accountId: null, quantities: {}, syncedQuantities: {} });
+
+    const initialization = useCollectionStore.getState().initialize("acct-1");
+    const edit = useCollectionStore.getState().setQuantity("counterspell", 2);
+    finishInitialization?.({
+      version: 3,
+      cards: [{ cardKey: "sol ring", quantity: 1 }],
+    });
+
+    await initialization;
+    await edit;
+
+    expect(saveAccountCollection).toHaveBeenCalledWith({
+      version: 3,
+      cards: [
+        { cardKey: "sol ring", quantity: 1 },
+        { cardKey: "counterspell", quantity: 2 },
+      ],
+    });
+  });
+
+  it("merges imported quantities after initialization completes", async () => {
+    let finishInitialization: ((value: unknown) => void) | undefined;
+    fetchAccountCollection.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishInitialization = resolve;
+        }),
+    );
+    saveAccountCollection.mockResolvedValue({ version: 4, cards: [] });
+    useCollectionStore.setState({ accountId: null, quantities: {}, syncedQuantities: {} });
+
+    const initialization = useCollectionStore.getState().initialize("acct-1");
+    const merge = useCollectionStore.getState().mergeQuantities({ counterspell: 2 });
+    finishInitialization?.({
+      version: 3,
+      cards: [
+        { cardKey: "sol ring", quantity: 1 },
+        { cardKey: "counterspell", quantity: 1 },
+      ],
+    });
+
+    await initialization;
+    await merge;
+
+    expect(saveAccountCollection).toHaveBeenCalledWith({
+      version: 3,
+      cards: [
+        { cardKey: "sol ring", quantity: 1 },
+        { cardKey: "counterspell", quantity: 3 },
+      ],
+    });
+  });
 });

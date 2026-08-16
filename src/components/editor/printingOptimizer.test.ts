@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { collectionCardKey } from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
+import type { ScryfallCard } from "@/types/scryfall";
 
-import { allocateOwnedPrintings } from "./printingOptimizer";
+import { allocateOwnedPrintings, cheapestCompatiblePrinting } from "./printingOptimizer";
 
 function card(id: string, setCode: string, cardNumber: string, foil = false): DeckCard {
   return {
@@ -63,5 +64,27 @@ describe("allocateOwnedPrintings", () => {
         foil: true,
       },
     ]);
+  });
+});
+
+describe("cheapestCompatiblePrinting", () => {
+  function printing(id: string, finishes: string[], prices: ScryfallCard["prices"]): ScryfallCard {
+    return { id, finishes, prices } as ScryfallCard;
+  }
+
+  it("does not select a cheaper printing without the requested finish", () => {
+    const nonfoilOnly = printing("nonfoil", ["nonfoil"], { usd: "1", usd_foil: "0.25" });
+    const foil = printing("foil", ["foil"], { usd_foil: "2" });
+
+    expect(cheapestCompatiblePrinting([nonfoilOnly, foil], "tcgplayer", true)?.id).toBe("foil");
+  });
+
+  it("requires a nonfoil finish when optimizing nonfoil cards", () => {
+    const foilOnly = printing("foil", ["foil"], { tix: "0.01" });
+    const nonfoil = printing("nonfoil", ["nonfoil"], { tix: "0.5" });
+
+    expect(cheapestCompatiblePrinting([foilOnly, nonfoil], "cardhoarder", false)?.id).toBe(
+      "nonfoil",
+    );
   });
 });

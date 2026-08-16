@@ -152,6 +152,7 @@ interface CollectionState {
   error: string | null;
   initialize: (accountId: string | null) => Promise<void>;
   setQuantity: (cardKey: string, quantity: number) => Promise<void>;
+  mergeQuantities: (quantities: Record<string, number>) => Promise<void>;
   replaceQuantities: (quantities: Record<string, number>) => Promise<void>;
 }
 
@@ -278,17 +279,52 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
   },
   setQuantity: async (cardKey, quantity) => {
     const intendedAccountId = get().accountId;
-    const baseQuantities = get().syncedQuantities;
     const normalized = cardKey.toLowerCase();
-    const quantities = { ...get().quantities };
-    if (quantity > 0) quantities[normalized] = Math.floor(quantity);
-    else delete quantities[normalized];
+    const pendingQuantities = { ...get().quantities };
+    if (quantity > 0) pendingQuantities[normalized] = Math.floor(quantity);
+    else delete pendingQuantities[normalized];
+    const pendingBaseQuantities = get().syncedQuantities;
     await collectionInitialization;
     if (get().accountId !== intendedAccountId) {
       if (intendedAccountId) {
-        writePendingAccountCollection(intendedAccountId, quantities, baseQuantities);
-      } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
+        writePendingAccountCollection(intendedAccountId, pendingQuantities, pendingBaseQuantities);
+      } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(pendingQuantities));
       throw new Error("Collection account changed before this edit could be applied");
+    }
+    const baseQuantities = get().syncedQuantities;
+    const quantities = { ...get().quantities };
+    if (quantity > 0) quantities[normalized] = Math.floor(quantity);
+    else delete quantities[normalized];
+    set({ quantities });
+    const accountId = intendedAccountId;
+    if (accountId) {
+      try {
+        await queueAccountSave(accountId, quantities, baseQuantities);
+        if (get().accountId === accountId) {
+          localStorage.removeItem(LOCAL_COLLECTION_KEY);
+          clearPendingAccountCollection(accountId);
+          set({ error: null });
+        }
+      } catch (error) {
+        if (get().accountId === accountId) {
+          set({ error: error instanceof Error ? error.message : "Collection sync failed" });
+        }
+        throw error;
+      }
+    } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(quantities));
+  },
+  mergeQuantities: async (imported) => {
+    const intendedAccountId = get().accountId;
+    await collectionInitialization;
+    if (get().accountId !== intendedAccountId) {
+      throw new Error("Collection account changed before this import could be applied");
+    }
+    const baseQuantities = get().syncedQuantities;
+    const quantities = { ...get().quantities };
+    for (const [cardKey, quantity] of Object.entries(imported)) {
+      const normalized = cardKey.toLowerCase();
+      const amount = Math.max(0, Math.floor(quantity));
+      if (amount > 0) quantities[normalized] = (quantities[normalized] ?? 0) + amount;
     }
     set({ quantities });
     const accountId = intendedAccountId;

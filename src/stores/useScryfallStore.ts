@@ -81,9 +81,11 @@ interface ScryfallState {
   getPrintings: (
     lookups: ScryfallCardLookup[],
     onProgress?: (completed: number, total: number) => void,
+    signal?: AbortSignal,
   ) => Promise<Map<string, ScryfallCard[]>>;
   fetchCardCollection: (
     cards: { name: string; setCode?: string; collectorNumber?: string }[],
+    signal?: AbortSignal,
   ) => Promise<Map<string, ScryfallCard>>;
   fetchCardByFuzzyName: (name: string) => Promise<ScryfallCard>;
   searchCards: (
@@ -516,12 +518,12 @@ export const useScryfallStore = create<ScryfallState>()(
         const rulingsUri = c.rulings_uri;
         return getRulings(rulingsUri);
       },
-      getPrintings: async (lookups, onProgress) => {
+      getPrintings: async (lookups, onProgress, signal) => {
         const cards = await Promise.all(lookups.map((lookup) => get().getCard(lookup)));
         const oracleIds = [...new Set(cards.map((entry) => entry.info.oracle_id))];
         const missing = oracleIds.filter((id) => !printingsByOracleId.has(id));
         if (missing.length > 0) {
-          const fetched = await fetchPrintsByOracleIds(missing, onProgress);
+          const fetched = await fetchPrintsByOracleIds(missing, onProgress, signal);
           for (const [oracleId, printings] of fetched) {
             printingsByOracleId.set(oracleId, printings);
           }

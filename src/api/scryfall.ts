@@ -26,8 +26,19 @@ let nextScryfallRequestAt = 0;
 let scryfallCooldownUntil = 0;
 let scryfallQueue = Promise.resolve();
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 }
 
 function parseRetryAfterMs(retryAfter: string | null): number | null {
@@ -46,12 +57,12 @@ export function scryfallCardKey(name: string, setCode?: string, collectorNumber?
   return setCode && collectorNumber ? `${base}::${collectorNumber.toLowerCase()}` : base;
 }
 
-async function waitForScryfallSlot(): Promise<void> {
+async function waitForScryfallSlot(signal?: AbortSignal | null): Promise<void> {
   const now = Date.now();
   const earliestRequestAt = Math.max(nextScryfallRequestAt, scryfallCooldownUntil);
   const waitMs = Math.max(earliestRequestAt - now, 0);
   nextScryfallRequestAt = Math.max(now, earliestRequestAt) + SCRYFALL_REQUEST_INTERVAL_MS;
-  if (waitMs > 0) await sleep(waitMs);
+  if (waitMs > 0) await sleep(waitMs, signal);
 }
 
 function applyScryfallCooldown(response: Response): number {
@@ -64,7 +75,10 @@ function applyScryfallCooldown(response: Response): number {
 }
 
 async function queuedScryfallFetch(url: string, init?: RequestInit): Promise<Response> {
-  const scheduled = scryfallQueue.then(waitForScryfallSlot, waitForScryfallSlot);
+  const scheduled = scryfallQueue.then(
+    () => waitForScryfallSlot(init?.signal),
+    () => waitForScryfallSlot(init?.signal),
+  );
   scryfallQueue = scheduled.catch(() => undefined);
   await scheduled;
   const headers = new Headers(init?.headers);
@@ -119,6 +133,7 @@ const PRINT_SEARCH_ORACLE_BATCH_SIZE = 20;
 export async function fetchPrintsByOracleIds(
   oracleIds: string[],
   onProgress?: (completed: number, total: number) => void,
+  signal?: AbortSignal,
 ): Promise<Map<string, ScryfallCard[]>> {
   const unique = [...new Set(oracleIds)];
   const result = new Map<string, ScryfallCard[]>();
@@ -135,6 +150,7 @@ export async function fetchPrintsByOracleIds(
       const page: ScryfallListResponse = await scryfallFetch<ScryfallListResponse>(
         url,
         "Failed to fetch card printings from Scryfall",
+        { signal },
       );
       for (const card of page.data) {
         const prints = result.get(card.oracle_id) ?? [];
@@ -170,6 +186,7 @@ export async function getCardBySetAndNumber(
 }
 export async function fetchCardCollection(
   cards: { name: string; setCode?: string; collectorNumber?: string }[],
+  signal?: AbortSignal,
 ): Promise<Map<string, ScryfallCard>> {
   const result = new Map<string, ScryfallCard>();
   const unique = Array.from(
@@ -191,6 +208,7 @@ export async function fetchCardCollection(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifiers: ids.map(normalizeIdentifierForRequest) }),
+        signal,
       },
     );
     batch.forEach((c, idx) => {

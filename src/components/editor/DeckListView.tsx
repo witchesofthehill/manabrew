@@ -54,7 +54,6 @@ import { CARD_RING } from "@/components/game/game.styles";
 import { DROP_ZONE } from "@/lib/constants";
 import { useMarquee } from "@/hooks/useMarqueeSelection";
 import {
-  CardCountBadge,
   CardThumbnail,
   CardHoverOverlay,
   CardAnalysisBadges,
@@ -72,6 +71,7 @@ import {
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
+import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
 
 function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "stack" | "grid") {
   return cn(
@@ -79,17 +79,6 @@ function ownershipHighlight(ownership: "exact" | "other" | "none", surface: "sta
     ownership === "other" && "outline-dashed outline outline-1 outline-primary/60",
     surface === "stack" ? "rounded-[4%]" : "rounded-lg",
   );
-}
-
-function ownershipLabel(ownership: "exact" | "other" | "none") {
-  if (ownership === "exact") return "Exact printing owned";
-  if (ownership === "other") return "Owned in another printing";
-  return undefined;
-}
-
-function ownershipQuantityLabel(summary: ReturnType<typeof useDeckCardOwnership>) {
-  if (!summary) return undefined;
-  return `Own ${Math.min(summary.owned, summary.required)}/${summary.required}${summary.shortage ? ` · missing ${summary.shortage}` : summary.status === "exact" ? " · exact printing" : " · another printing"}`;
 }
 
 export type CardLocation = "main" | "side" | "maybe";
@@ -172,6 +161,101 @@ function CardSelectionButton({
     >
       <Check className="h-4 w-4" />
     </button>
+  );
+}
+
+function CardCornerActions({
+  card,
+  count,
+  isCommander,
+  commanderSlot = DEFAULT_COMMANDER_SLOT,
+  onSetCommander,
+  onRemoveCommander,
+  isCover,
+  onSetCover,
+  isCoverBack,
+  onSetCoverBack,
+}: {
+  card: DeckCard;
+  count: number;
+  isCommander?: boolean;
+  commanderSlot?: CommanderSlot;
+  onSetCommander?: () => void;
+  onRemoveCommander?: () => void;
+  isCover?: boolean;
+  onSetCover?: () => void;
+  isCoverBack?: boolean;
+  onSetCoverBack?: () => void;
+}) {
+  const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
+  return (
+    <div className="absolute left-1 top-1 z-40 flex items-center gap-0.5">
+      {count > 1 && (
+        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-overlay/80 text-[10px] font-bold text-white shadow">
+          {count}
+        </span>
+      )}
+      <CollectionOwnershipTooltip card={card} surface="visual" className="static" />
+      {commanderHandler && (
+        <button
+          type="button"
+          className={cn(
+            "rounded-full p-0.5 shadow transition-colors",
+            isCommander
+              ? "bg-commander/90 text-white"
+              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
+          )}
+          title={isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            commanderHandler();
+          }}
+        >
+          <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {onSetCover && (
+        <button
+          type="button"
+          className={cn(
+            "rounded-full p-0.5 shadow transition-colors",
+            isCover
+              ? "bg-primary/90 text-white"
+              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
+          )}
+          title={isCover ? "Remove as deck art cover" : "Set as deck art cover"}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSetCover();
+          }}
+        >
+          <GameIcon name="book-cover" className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {onSetCoverBack && (
+        <button
+          type="button"
+          className={cn(
+            "rounded-full p-0.5 shadow transition-colors",
+            isCoverBack
+              ? "bg-primary/90 text-white"
+              : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
+          )}
+          title={
+            isCoverBack ? "Remove back face as deck art cover" : "Set back face as deck art cover"
+          }
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSetCoverBack();
+          }}
+        >
+          <GameIcon name="book-cover" className="h-3.5 w-3.5" style={{ transform: "scaleX(-1)" }} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -574,7 +658,6 @@ function DraggableStackCard({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      title={ownershipQuantityLabel(ownershipSummary) ?? ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onMouseEnter={() => onCardHover(index)}
@@ -592,7 +675,18 @@ function DraggableStackCard({
       onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
-      <CardCountBadge count={group.count} className="border-white/30 shadow" />
+      <CardCornerActions
+        card={group.card}
+        count={group.count}
+        isCommander={contextActions?.isCommander}
+        commanderSlot={contextActions?.commanderSlot}
+        onSetCommander={contextActions?.onSetCommander}
+        onRemoveCommander={contextActions?.onRemoveCommander}
+        isCover={contextActions?.isCover}
+        onSetCover={contextActions?.onSetCover}
+        isCoverBack={contextActions?.isCoverBack}
+        onSetCoverBack={contextActions?.onSetCoverBack}
+      />
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
@@ -855,7 +949,6 @@ function CardVisual({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      title={ownershipQuantityLabel(ownershipSummary) ?? ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onClick={(e) => handleCardClick(e, name, onSelect, onShowInfo)}
@@ -871,7 +964,18 @@ function CardVisual({
       onContextMenu={(e) => handleCardContextClick(e, name, onSelect)}
     >
       <CardThumbnail card={group.card} />
-      <CardCountBadge count={group.count} />
+      <CardCornerActions
+        card={group.card}
+        count={group.count}
+        isCommander={isCommander}
+        commanderSlot={commanderSlot}
+        onSetCommander={showCommander ? onSetCommander : undefined}
+        onRemoveCommander={showCommander ? onRemoveCommander : undefined}
+        isCover={isCover}
+        onSetCover={onSetCover}
+        isCoverBack={isCoverBack}
+        onSetCoverBack={onSetCoverBack}
+      />
       {unsupported && (
         <div
           className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
@@ -882,69 +986,6 @@ function CardVisual({
       )}
       <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
       <CardPrintingButton onPickPrint={onPickPrint} />
-      <div className="absolute top-1 left-1 z-20 flex gap-0.5">
-        {showCommander && (
-          <button
-            type="button"
-            className={cn(
-              "rounded-full p-0.5 shadow transition-colors",
-              isCommander
-                ? "bg-commander/90 text-white"
-                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
-            )}
-            title={isCommander ? `Remove ${commanderSlot.noun}` : `Set as ${commanderSlot.noun}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isCommander) onRemoveCommander?.();
-              else onSetCommander?.();
-            }}
-          >
-            <GameIcon name={commanderSlot.icon} className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {onSetCover && (
-          <button
-            type="button"
-            className={cn(
-              "rounded-full p-0.5 shadow transition-colors",
-              isCover
-                ? "bg-primary/90 text-white"
-                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
-            )}
-            title={isCover ? "Remove as deck art cover" : "Set as deck art cover"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetCover();
-            }}
-          >
-            <GameIcon name="book-cover" className="h-3.5 w-3.5" />
-          </button>
-        )}
-        {onSetCoverBack && (
-          <button
-            type="button"
-            className={cn(
-              "rounded-full p-0.5 shadow transition-colors",
-              isCoverBack
-                ? "bg-primary/90 text-white"
-                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
-            )}
-            title={
-              isCoverBack ? "Remove back face as deck art cover" : "Set back face as deck art cover"
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetCoverBack();
-            }}
-          >
-            <GameIcon
-              name="book-cover"
-              className="h-3.5 w-3.5"
-              style={{ transform: "scaleX(-1)" }}
-            />
-          </button>
-        )}
-      </div>
       <CardHoverOverlay actions={buildCardActions(onAddOne, onRemoveOne, onUntag)} />
       <CardSelectionButton name={name} selected={isSelected} onSelect={onSelect} />
       {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
@@ -1047,7 +1088,6 @@ function CardRow({
       data-card-name={name}
       data-card-supported={unsupported ? "false" : undefined}
       data-card-ownership={ownership}
-      title={ownershipQuantityLabel(ownershipSummary) ?? ownershipLabel(ownership)}
       aria-label={`${name}, ${group.count} cop${group.count === 1 ? "y" : "ies"}`}
       aria-pressed={isSelected}
       onClick={(e) => {
@@ -1069,6 +1109,7 @@ function CardRow({
         }
       }}
     >
+      <CollectionOwnershipTooltip card={group.card} surface="text" />
       <div
         className={cn(
           "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer hover:border-selection",

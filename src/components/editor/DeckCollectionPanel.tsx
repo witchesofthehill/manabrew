@@ -17,6 +17,7 @@ import { scryfallCardKey } from "@/api/scryfall";
 import { collectionQuantityForName, deckOwnershipByName } from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { CardThumbnail } from "./deckEditor.primitives";
@@ -160,7 +161,7 @@ export function DeckCollectionPanel({
   }
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <LibraryBig className="h-4 w-4 text-primary" />
@@ -232,7 +233,7 @@ export function DeckCollectionPanel({
               key={key}
               className={cn(
                 view === "text"
-                  ? "flex items-center gap-2 rounded-lg border bg-background/30 p-2.5"
+                  ? cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)
                   : "block min-w-0",
               )}
               style={view === "grid" ? { width: cardWidth } : undefined}

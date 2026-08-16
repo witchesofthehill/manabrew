@@ -4,6 +4,7 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { isLand } from "@/lib/mana";
 import { probabilityAtLeast, probabilityAtLeastOne } from "@/lib/deckProbability";
 import type { EditorDeck } from "@/types/manabrew";
+import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 import { MANA_BG_CLASS } from "@/themes/gameTheme";
 
 const COLORS = ["W", "U", "B", "R", "G"] as const;
@@ -42,14 +43,14 @@ export function ManaProbabilityPanel({ deck }: { deck: EditorDeck }) {
   });
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center gap-2">
         <Gauge className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold">Mana consistency</h3>
         <span className="text-xs text-muted-foreground">on the play</span>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-[minmax(10rem,0.7fr)_minmax(0,2fr)]">
-        <div className="rounded-lg border border-border/60 bg-background/30 p-3">
+        <div className={EDITOR_SUBTLE_BLOCK_CLASS}>
           <p className="text-xs text-muted-foreground">Two or more lands in your opener</p>
           <p className="mt-1 font-mono text-2xl font-semibold tabular-nums">
             {percentage(openingTwoLands)}

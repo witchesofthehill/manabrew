@@ -10,6 +10,7 @@ import type { DeckCard } from "@/protocol/deck";
 import {
   CardCollectionOwnershipScope,
   useCardCollectionOwnership,
+  useCardCollectionPrintings,
   useDeckCardOwnership,
 } from "./useCardCollectionOwnership";
 
@@ -27,8 +28,14 @@ const card = {
 
 function Probe() {
   const printing = useCardCollectionOwnership(card);
+  const printings = useCardCollectionPrintings(card);
   const deck = useDeckCardOwnership(card);
-  return createElement("output", { "data-printing": printing, "data-deck": deck?.status });
+  return createElement("output", {
+    "data-printing": printing,
+    "data-deck": deck?.status,
+    "data-printing-count": printings.length,
+    "data-owned-quantity": printings.reduce((total, entry) => total + entry.quantity, 0),
+  });
 }
 
 describe("card collection ownership scope", () => {
@@ -67,12 +74,22 @@ describe("card collection ownership scope", () => {
     expect(container.querySelector("output")?.dataset).toMatchObject({
       printing: "exact",
       deck: "exact",
+      printingCount: "1",
+      ownedQuantity: "1",
     });
 
-    render({ [collectionCardKey("Lightning Bolt", "2xm", "117", false)]: 1 }, "other");
+    render(
+      {
+        [collectionCardKey("Lightning Bolt", "2xm", "117", false)]: 1,
+        [collectionCardKey("Lightning Bolt", "clb", "401", true)]: 2,
+      },
+      "other",
+    );
     expect(container.querySelector("output")?.dataset).toMatchObject({
       printing: "other",
       deck: "other",
+      printingCount: "2",
+      ownedQuantity: "3",
     });
   });
 });

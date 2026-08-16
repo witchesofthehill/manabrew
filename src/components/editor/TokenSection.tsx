@@ -6,6 +6,7 @@ import type { DeckCard } from "@/protocol/deck";
 import { tokenIdentityKey } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import { useDeckSectionOpen } from "./deckSectionExpansion";
+import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 
 export interface TokenSectionProps {
   tokens: DeckCard[];
@@ -34,7 +35,7 @@ export function TokenSection({
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
 
   return (
-    <section className="rounded-xl border bg-card/40 p-6">
+    <section className={EDITOR_PANEL_CLASS}>
       <button
         type="button"
         className="mb-4 flex items-center gap-2.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

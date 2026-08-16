@@ -7,6 +7,7 @@ import { useCollectionStore } from "@/stores/useCollectionStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { DeckEditorGoals } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
+import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 
 export function DeckGoalsPanel() {
   const deck = useDeckStore((state) => state.currentDeck);
@@ -79,7 +80,7 @@ export function DeckGoalsPanel() {
   ];
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-3 flex items-center gap-2">
         <Target className="h-4 w-4 text-primary" />
         <div>
@@ -91,7 +92,7 @@ export function DeckGoalsPanel() {
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {rows.map((row) => (
-          <label key={row.key} className="flex items-center gap-2 rounded-lg border p-2.5">
+          <label key={row.key} className={cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}>
             <span className="min-w-0 flex-1 text-xs">{row.label}</span>
             <span
               className={cn("text-xs font-mono", row.met ? "text-legality-legal" : "text-warning")}
@@ -118,7 +119,7 @@ export function DeckGoalsPanel() {
             ).length;
             const target = goals.tagTargets?.[tag];
             return (
-              <label key={tag} className="flex items-center gap-2 rounded-lg border p-2.5">
+              <label key={tag} className={cn("flex items-center gap-2", EDITOR_SUBTLE_BLOCK_CLASS)}>
                 <span className="min-w-0 flex-1 truncate text-xs">{tag} target</span>
                 <span
                   className={cn(

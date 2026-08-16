@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { isLand } from "@/lib/mana";
 import type { DeckCard } from "@/protocol/deck";
 import { CMC_BUCKET_LABELS, cmcBucketIndex } from "./deckBuilder.utils";
+import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 
 // CMC 1–7+ bucket bars — cool→warm progression using theme counter / signal
 // tokens so the curve retones with the active preset.
@@ -57,7 +58,7 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
   const hasAnything = spells.length > 0;
 
   return (
-    <section className="rounded-xl border bg-card/40 p-6">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="mb-5 flex items-baseline gap-2.5">
         <h3 className="text-base font-semibold">Mana Curve</h3>
         <span className="text-xs text-muted-foreground/70">

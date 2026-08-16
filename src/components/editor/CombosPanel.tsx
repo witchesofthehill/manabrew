@@ -9,6 +9,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToDeckCard, frontFaceName } from "@/lib/scryfall.utils";
 import { ComboDetailModal } from "./ComboDetailModal";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
+import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 
 const SUGGESTION_LIMIT = 12;
 
@@ -41,7 +42,7 @@ function ComboRow({
   addLabel?: string;
 }) {
   return (
-    <div className="group flex w-full min-w-0 items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10">
+    <div className="group flex w-full min-w-0 items-center gap-2 rounded-md bg-muted/25 px-2 py-1.5 transition-colors hover:bg-counter-charge/10">
       <button
         type="button"
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -130,7 +131,7 @@ export function CombosPanel() {
 
   return (
     <>
-      <section className="rounded-xl border bg-card/40 p-6">
+      <section className={EDITOR_PANEL_CLASS}>
         <div className="flex items-center gap-2.5">
           <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />
           <h3 className="text-base font-semibold">Combos</h3>

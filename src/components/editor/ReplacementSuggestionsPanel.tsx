@@ -16,6 +16,7 @@ import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { executeDeckEdit } from "./deckEditor.history";
 import { collectionQuantityForName } from "@/lib/collection";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 
 export function ReplacementSuggestionsPanel({
   cardSize,
@@ -105,7 +106,7 @@ export function ReplacementSuggestionsPanel({
   if (!target) return null;
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <ArrowRightLeft className="h-4 w-4 text-primary" />

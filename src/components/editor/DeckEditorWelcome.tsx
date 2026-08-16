@@ -6,7 +6,9 @@ import {
   Layers,
   LibraryBig,
   MousePointer2,
+  Save,
   Search,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 
@@ -48,11 +50,21 @@ const STEPS = [
   {
     title: "Organize your way",
     description:
-      "Choose list, grid, or stack view. Sort independently, group by card properties or your own tags, and save useful combinations as custom views.",
+      "Choose text, grid, or stack view. Sort cards, group by card properties or your own tags, and save useful combinations as custom views.",
     icon: Layers,
     tips: [
       "Collapse sections you do not need",
       "Use the command palette to fold or expand everything",
+    ],
+  },
+  {
+    title: "Use every action in every view",
+    description:
+      "Text, grid, and stack views expose the same card actions. Adjust quantities, set commanders, change printings and foil treatment, choose the deck cover, move cards, or open full card details.",
+    icon: MousePointer2,
+    tips: [
+      "Right-click a card to open the complete action menu",
+      "Command zone cards use the same actions as deck cards",
     ],
   },
   {
@@ -68,23 +80,58 @@ const STEPS = [
   {
     title: "Track cards and printings",
     description:
-      "Collection highlights distinguish an exact printing from another printing you own. Change individual printings or optimize the whole deck for collection, finish, or price.",
+      "Collection highlights distinguish an exact printing from another printing you own. Hover the ownership pill when you want printing and quantity details without covering the card during normal browsing.",
     icon: LibraryBig,
-    tips: ["Solid border: exact printing owned", "Dashed border: another printing owned"],
+    tips: [
+      "Solid border and check pill: exact printing owned",
+      "Dashed border and layers pill: another printing owned",
+      "The pill shows owned/required quantities, including partial ownership",
+      "Use View in My Collection inside the tooltip to inspect your copies",
+    ],
+  },
+  {
+    title: "Save deliberately",
+    description:
+      "Deck edits remain unsaved until you use Save. The editor marks pending changes so you can experiment, undo, or create a local checkpoint before committing a version.",
+    icon: Save,
+    tips: [
+      "Cmd/Ctrl+S saves the deck",
+      "Local checkpoints let you restore an earlier working state",
+      "Copy exact printings when exporting to preserve set, collector number, and foil",
+    ],
   },
   {
     title: "Review and refine",
     description:
-      "Deck Analysis brings legality, roles, mana, collection coverage, budget, tokens, and replacements together. Every section can be collapsed when you want a quieter workspace.",
+      "Deck Analysis brings legality, roles, goals, mana, collection coverage, budget, tokens, combos, and replacements together. Every section can be collapsed when you want a quieter workspace.",
     icon: BarChart3,
-    tips: ["Hover cards to inspect them in Preview", "Set your preferred budget price provider"],
+    tips: [
+      "Hover cards to inspect them in Preview",
+      "Set your preferred budget price provider",
+      "Build and save sideboard plans for common matchups",
+    ],
+  },
+  {
+    title: "Check engine support",
+    description:
+      "Validation checks legality and whether every card is supported by both the Manabrew and Forge engines. Warning markers identify unsupported cards and can be filtered or selected together.",
+    icon: ShieldCheck,
+    tips: [
+      "Collection gaps do not affect online deck legality",
+      "Use is:unsupported in the deck filter to find unsupported cards",
+    ],
   },
   {
     title: "Work from the keyboard",
     description:
       "Open the command palette with Cmd/Ctrl+Shift+P to find editor actions. Undo, redo, save, search, section navigation, and bulk edits all have shortcuts.",
     icon: Sparkles,
-    tips: ["Press ? to see every shortcut", "Shortcuts can be customized in Preferences"],
+    tips: [
+      "Alt+3 jumps to the next editor section",
+      "Bulk actions: T tags, F toggles foil, M/S/B moves, Delete removes",
+      "Cmd/Ctrl+C and Cmd/Ctrl+V copy and paste cards; - and = adjust quantities",
+      "Press ? to see every shortcut and customize them in Preferences",
+    ],
   },
 ];
 

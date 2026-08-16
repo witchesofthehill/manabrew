@@ -3,6 +3,7 @@ import { Compass } from "lucide-react";
 import { isLand } from "@/lib/mana";
 import { useCardRolesStore, CARD_ROLE_LABELS } from "@/stores/useCardRolesStore";
 import type { EditorDeck } from "@/types/manabrew";
+import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 
 export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
   const roles = useCardRolesStore((state) => state.roles);
@@ -38,7 +39,7 @@ export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
   ].filter(Boolean);
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="flex items-center gap-2">
         <Compass className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold">Deck intent</h3>
@@ -50,7 +51,7 @@ export function DeckIntentPanel({ deck }: { deck: EditorDeck }) {
       {leadingRoles.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {leadingRoles.map(([role, count]) => (
-            <span key={role} className="rounded-full border bg-background/40 px-2.5 py-1 text-xs">
+            <span key={role} className="rounded-full bg-background/60 px-2.5 py-1 text-xs">
               {CARD_ROLE_LABELS[role] ?? role} · {count}
             </span>
           ))}

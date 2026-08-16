@@ -16,7 +16,24 @@ export interface DeckOwnershipSummary {
   status: DeckOwnershipStatus;
 }
 
+export interface CollectionOwnedPrinting extends CollectionCardIdentity {
+  quantity: number;
+}
+
 const collectionTotals = new WeakMap<Record<string, number>, Map<string, number>>();
+
+export function collectionPrintingsByName(
+  quantities: Record<string, number>,
+): Map<string, CollectionOwnedPrinting[]> {
+  const printings = new Map<string, CollectionOwnedPrinting[]>();
+  for (const [cardKey, quantity] of Object.entries(quantities)) {
+    if (quantity <= 0) continue;
+    const identity = parseCollectionCardKey(cardKey);
+    const name = identity.name.toLowerCase();
+    printings.set(name, [...(printings.get(name) ?? []), { ...identity, quantity }]);
+  }
+  return printings;
+}
 
 function totalsByName(quantities: Record<string, number>): Map<string, number> {
   const cached = collectionTotals.get(quantities);

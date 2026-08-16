@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Download, LayoutGrid, LibraryBig, List, Search, Trash2, Upload } from "lucide-react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { CollectionCard } from "@/components/collection/CollectionCard";
 import { CollectionDeleteDialog } from "@/components/collection/CollectionDeleteDialog";
@@ -32,7 +32,8 @@ export default function MyCollection() {
   const replaceQuantities = useCollectionStore((state) => state.replaceQuantities);
   const loading = useCollectionStore((state) => state.loading);
   const syncError = useCollectionStore((state) => state.error);
-  const [query, setQuery] = useState("");
+  const [searchParams] = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [importOpen, setImportOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [view, setView] = useState<"text" | "grid">("grid");

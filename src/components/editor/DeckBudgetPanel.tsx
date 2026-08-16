@@ -4,6 +4,7 @@ import { CircleDollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { scryfallCardKey } from "@/api/scryfall";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { EDITOR_PANEL_CLASS } from "./deckEditor.styles";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
@@ -103,7 +104,7 @@ export function DeckBudgetPanel() {
   }
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <CircleDollarSign className="h-4 w-4 text-primary" />

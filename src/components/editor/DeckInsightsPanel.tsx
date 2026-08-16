@@ -63,7 +63,10 @@ export function DeckInsightsPanel({
   }
 
   return (
-    <section aria-label="Deck insights" className="min-w-0 space-y-3">
+    <section
+      aria-label="Deck insights"
+      className="min-w-0 overflow-hidden rounded-2xl bg-muted/10 px-4 sm:px-5"
+    >
       {SECTIONS.filter(({ id }) =>
         mode === "all"
           ? true
@@ -133,7 +136,10 @@ function InsightSectionPanel({
   children: ReactNode;
 }) {
   return (
-    <section data-editor-insight={id} className="scroll-mt-14 rounded-xl border bg-muted/10 p-3">
+    <section
+      data-editor-insight={id}
+      className="scroll-mt-14 border-b border-border/30 py-4 last:border-b-0"
+    >
       <button
         type="button"
         className="flex min-h-9 w-full items-center gap-2 text-left text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -150,7 +156,7 @@ function InsightSectionPanel({
         {label}
       </button>
       {open && (
-        <div id={`deck-insight-section-${id}`} className="mt-2 space-y-3">
+        <div id={`deck-insight-section-${id}`} className="mt-2 space-y-4">
           {children}
         </div>
       )}

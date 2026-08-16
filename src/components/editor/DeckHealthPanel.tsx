@@ -6,6 +6,7 @@ import { isLand } from "@/lib/mana";
 import { cn } from "@/lib/utils";
 import type { EditorDeck } from "@/types/manabrew";
 import { CARD_ROLE_LABELS, useCardRolesStore } from "@/stores/useCardRolesStore";
+import { EDITOR_PANEL_CLASS, EDITOR_SUBTLE_BLOCK_CLASS } from "./deckEditor.styles";
 
 interface DeckHealthPanelProps {
   deck: EditorDeck;
@@ -60,7 +61,7 @@ export function DeckHealthPanel({
   const issueCount = checks.filter((check) => !check.healthy).length + validationErrors.length;
 
   return (
-    <section className="rounded-xl border bg-card/40 p-5">
+    <section className={EDITOR_PANEL_CLASS}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -94,10 +95,10 @@ export function DeckHealthPanel({
           <div
             key={check.label}
             className={cn(
-              "rounded-lg border px-3 py-2",
+              EDITOR_SUBTLE_BLOCK_CLASS,
               check.healthy
-                ? "border-border/60 bg-background/30"
-                : "border-warning/40 bg-warning/5",
+                ? "bg-background/25"
+                : "bg-warning/10 ring-1 ring-inset ring-warning/25",
             )}
           >
             <div className="flex items-center justify-between gap-2">

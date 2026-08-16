@@ -55,7 +55,13 @@ export function SideboardPlansDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) planEdit.commit();
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Sideboard plans</DialogTitle>

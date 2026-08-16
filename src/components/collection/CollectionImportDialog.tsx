@@ -79,10 +79,22 @@ export function CollectionImportDialog({
     () => preview.filter((row) => row.valid && row.setCode && row.collectorNumber),
     [preview],
   );
+  const uniqueExactRows = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          exactRows.map((row) => [
+            printingValidationKey(row.name, row.setCode!, row.collectorNumber!, row.foil),
+            row,
+          ]),
+        ).entries(),
+      ),
+    [exactRows],
+  );
 
   useEffect(() => {
     let active = true;
-    if (exactRows.length === 0) {
+    if (uniqueExactRows.length === 0) {
       setPrintingValidation({});
       setValidatingPrintings(false);
       setPrintingValidationError(false);
@@ -92,21 +104,13 @@ export function CollectionImportDialog({
     setPrintingValidation({});
     setValidatingPrintings(true);
     setPrintingValidationError(false);
-    setPrintingValidationProgress({ completed: 0, total: exactRows.length });
+    setPrintingValidationProgress({ completed: 0, total: uniqueExactRows.length });
     const validate = async () => {
-      const uniqueRows = Array.from(
-        new Map(
-          exactRows.map((row) => [
-            printingValidationKey(row.name, row.setCode!, row.collectorNumber!, row.foil),
-            row,
-          ]),
-        ).entries(),
-      );
       const verifiedKeys = new Set<string>();
       try {
         await verifyCardPrintings(
           {
-            identifiers: uniqueRows.map(([, row]) => ({
+            identifiers: uniqueExactRows.map(([, row]) => ({
               name: row.name,
               setCode: row.setCode!,
               collectorNumber: row.collectorNumber!,
@@ -117,7 +121,7 @@ export function CollectionImportDialog({
             if (!active) return;
             const batch = Object.fromEntries(
               matched.map((isMatch, index) => {
-                const key = uniqueRows[offset + index][0];
+                const key = uniqueExactRows[offset + index][0];
                 verifiedKeys.add(key);
                 return [key, isMatch];
               }),
@@ -133,7 +137,9 @@ export function CollectionImportDialog({
         setPrintingValidation((current) => ({
           ...current,
           ...Object.fromEntries(
-            uniqueRows.filter(([key]) => !verifiedKeys.has(key)).map(([key]) => [key, "error"]),
+            uniqueExactRows
+              .filter(([key]) => !verifiedKeys.has(key))
+              .map(([key]) => [key, "error"]),
           ),
         }));
         setPrintingValidationError(true);
@@ -144,7 +150,7 @@ export function CollectionImportDialog({
     return () => {
       active = false;
     };
-  }, [exactRows, printingValidationAttempt]);
+  }, [printingValidationAttempt, uniqueExactRows]);
 
   const validatedPreview = useMemo(
     () =>

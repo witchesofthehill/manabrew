@@ -161,6 +161,7 @@ pub struct PlayerDto {
     #[ts(type = "Record<string, number>")]
     pub commander_damage: HashMap<String, i32>,
     pub has_city_blessing: bool,
+    pub has_enduring_story: bool,
     pub ring_level: i32,
     pub speed: i32,
 }
@@ -419,4 +420,30 @@ pub struct PlaymatSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum GameFormat {
+    Any,
+    Standard,
+    Pioneer,
+    Modern,
+    Legacy,
+    Vintage,
+    Pauper,
+    Commander,
+    Brawl,
+    Oathbreaker,
+    Draft,
+    Sealed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum EngineKind {
+    #[default]
+    Manabrew,
+    Forge,
+    Ironsmith,
 }

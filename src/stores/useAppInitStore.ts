@@ -2,51 +2,30 @@ import { create } from "zustand";
 import { getEventBus, getPlatformType } from "@/platform";
 
 /**
- * Stages the worker walks through on first init. Mirror of the `stage` values
- * the worker emits on the `worker:init` event channel (see
- * `src/workers/game-engine.worker.ts::loadCardData`).
+ * Stages the app walks through on boot. Mirror of the `stage` values emitted
+ * on the `app:init` event channel (see `src/lib/appInit.ts`).
+ *
+ * The game engine is deliberately absent: the wasm worker and its card archive
+ * load lazily behind the first Manabrew-engine game, so neither one can hold
+ * the app closed.
  *
  * - `idle`: not started yet
- * - `cached`: archive served from Cache API, no network
- * - `downloading`: cache miss, fetching from origin (loaded / total tracked)
- * - `parsing`: WASM is parsing the 32k card scripts into the database
- * - `ready`: fully initialized; gate releases the app
- * - `error`: init failed; gate shows the error and offers a retry
+ * - `assets`: set list, preset decks, and token archive in flight
+ * - `decks`: warming the deck-cover images
+ * - `ready`: boot complete; gate releases the app
  */
-export type AppInitStage = "idle" | "cached" | "downloading" | "parsing" | "ready" | "error";
+export type AppInitStage = "idle" | "assets" | "decks" | "ready";
 
 export interface AppInitState {
   stage: AppInitStage;
-  loaded: number;
-  total: number;
-  errorMessage?: string;
 }
 
-interface AppInitInternal extends AppInitState {
-  retry: () => void;
-}
-
-export const useAppInitStore = create<AppInitInternal>((set) => ({
+export const useAppInitStore = create<AppInitState>(() => ({
   stage: getPlatformType() === "web" ? "idle" : "ready",
-  loaded: 0,
-  total: 0,
-  retry: () => {
-    set({ stage: "idle", loaded: 0, total: 0, errorMessage: undefined });
-  },
 }));
 
 if (typeof window !== "undefined" && getPlatformType() === "web") {
-  getEventBus().on<{
-    stage: AppInitStage;
-    loaded?: number;
-    total?: number;
-    message?: string;
-  }>("worker:init", (payload) => {
-    useAppInitStore.setState({
-      stage: payload.stage,
-      loaded: payload.loaded ?? useAppInitStore.getState().loaded,
-      total: payload.total ?? useAppInitStore.getState().total,
-      errorMessage: payload.message,
-    });
+  getEventBus().on<{ stage: AppInitStage }>("app:init", (payload) => {
+    useAppInitStore.setState({ stage: payload.stage });
   });
 }

@@ -6,7 +6,7 @@ use manabrew_protocol::deck_dto::{
     CardBackFaceSummary, CardImageUris, CardPart, CardRulesSummary, Deck, DeckCard,
     DeckCardIdentity, DeckFormat,
 };
-use manabrew_protocol::protocol::EngineKind;
+use manabrew_protocol::game::EngineKind;
 use serde::Deserialize;
 
 pub struct PresetDeck {

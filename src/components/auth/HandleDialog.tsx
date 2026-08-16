@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateHandle, AuthRequestError } from "@/api/auth";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 
 interface HandleDialogProps {
   open: boolean;
@@ -35,13 +35,14 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
   }, [open, account]);
 
   async function handleSave() {
-    const token = useAuthStore.getState().token;
+    const refreshToken = useAuthStore.getState().refreshToken;
+    const token = await getAccessToken();
     if (!token) return;
     setBusy(true);
     setError(null);
     try {
       const updated = await updateHandle(token, handle.trim());
-      if (useAuthStore.getState().token !== token) return;
+      if (useAuthStore.getState().refreshToken !== refreshToken) return;
       setAccount(updated);
       toast.success(`Handle updated to @${updated.handle}`);
       onOpenChange(false);

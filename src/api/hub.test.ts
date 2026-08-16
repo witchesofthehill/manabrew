@@ -6,6 +6,7 @@ vi.mock("@/config/webRuntimeConfig", () => ({ getHubApiUrl: () => "https://hub.t
 vi.mock("@/featureFlags", () => ({ isFeatureEnabled: () => false }));
 vi.mock("@/lib/platformFetch", () => ({ platformFetch }));
 vi.mock("@/stores/useAuthStore", () => ({
+  getAccessToken: vi.fn().mockResolvedValue(null),
   useAuthStore: {
     getState: () => ({ token: null }),
     setState: vi.fn(),

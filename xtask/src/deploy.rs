@@ -65,7 +65,12 @@ const CONFIG_EXCLUDES: [&str; 5] = [
 const COMPOSE_FILE: &str = "compose.production.yml";
 const GHCR: &str = "ghcr.io/witchesofthehill";
 const RELAY_BIN: &str = "/usr/local/bin/manabrew-server";
-const GATE_CRATES: [&str; 3] = ["manabrew-protocol", "manabrew-server", "manabrew-hub"];
+const GATE_CRATES: [&str; 4] = [
+    "manabrew-protocol",
+    "manabrew-relay-protocol",
+    "manabrew-server",
+    "manabrew-hub",
+];
 const OBS_SERVICES: [&str; 6] = [
     "prometheus",
     "pushgateway",

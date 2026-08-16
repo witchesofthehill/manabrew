@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.14.0](https://github.com/witchesofthehill/manabrew/compare/v3.13.2...v3.14.0) (2026-08-16)
+
+### Features
+
+* relay session identity, hub oauth tokens, relay protocol crate ([#638](https://github.com/witchesofthehill/manabrew/issues/638)) ([92b944b](https://github.com/witchesofthehill/manabrew/commit/92b944b988a6fc1f99de584936bf1356f9a6d427))
+
+## [3.13.2](https://github.com/witchesofthehill/manabrew/compare/v3.13.1...v3.13.2) (2026-08-16)
+
+### Fixes
+
+* **harness:** isolate multiplied trigger targets ([#673](https://github.com/witchesofthehill/manabrew/issues/673)) ([7299956](https://github.com/witchesofthehill/manabrew/commit/729995678d785135e91df68e8f575e1d1c1a972f))
+
+## [3.13.1](https://github.com/witchesofthehill/manabrew/compare/v3.13.0...v3.13.1) (2026-08-14)
+
+### Fixes
+
+* **web:** stop gating the app on the manabrew card archive ([#687](https://github.com/witchesofthehill/manabrew/issues/687)) ([fab7dfc](https://github.com/witchesofthehill/manabrew/commit/fab7dfc2e564d4f16ab0950adc77772ad8f416d5))
+
 ## [3.13.0](https://github.com/witchesofthehill/manabrew/compare/v3.12.5...v3.13.0) (2026-08-12)
 
 ### Features

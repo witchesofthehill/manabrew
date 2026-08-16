@@ -88,6 +88,7 @@ impl BotState {
             username: self.config.username.clone(),
             password: self.config.password.clone(),
             service: true,
+            identity: None,
         }]
     }
 

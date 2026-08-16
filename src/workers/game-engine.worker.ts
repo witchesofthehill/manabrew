@@ -78,6 +78,7 @@ interface WorkerEvent {
 const SAB_SIZE = 256 * 1024;
 
 let wasmInitPromise: Promise<void> | null = null;
+let cardDataPromise: Promise<void> | null = null;
 let cardsLoaded = false;
 let gameSharedBuffer: SharedArrayBuffer | null = null;
 let remoteSharedBuffers: SharedArrayBuffer[] = [];
@@ -88,6 +89,14 @@ let gameRunning = false;
 const CARD_ARCHIVE_MANIFEST_URL = "/wasm/cardset.manifest.json";
 const CARD_ARCHIVE_CACHE = "manabrew-card-archive";
 const LEGACY_CARD_ARCHIVE_CACHES = ["manabrew-card-archive-v4"];
+
+// Matching in, not filtering out: `getPlatform().invoke` on web routes every
+// command to this worker, including Tauri-only ones that only reach the
+// unknown-command throw, and none of those may trigger a 29 MB download.
+// `start_game` / `start_multiplayer_game` ensure the archive themselves.
+function needsCardData(command: string): boolean {
+  return command.startsWith("limited_");
+}
 
 interface CardArchiveManifest {
   archive: string;
@@ -115,69 +124,71 @@ async function initWasm(): Promise<void> {
       await init();
       console.log("[GameWorker] initWasm: init() resolved, calling wasm_init()");
       wasm_init();
-      console.log("[GameWorker] initWasm: wasm_init() returned, calling loadCardData()");
-      await purgeLegacyArchiveCaches();
-      await loadCardData();
-      console.log("[GameWorker] initWasm: loadCardData() complete");
+      console.log("[GameWorker] initWasm: wasm_init() returned");
+      postEvent("worker:init", { stage: "ready" });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[GameWorker] Failed to initialize WASM:", error);
       // Clear the cached promise so a retry-via-reload starts fresh; the
       // worker is unrecoverable at this point but a parent reload re-spawns
       // the worker module and the cycle starts over.
       wasmInitPromise = null;
+      postEvent("worker:init", { stage: "error", message });
       throw error;
     }
   })();
   return wasmInitPromise;
 }
 
-async function loadCardData(): Promise<void> {
+async function ensureCardData(): Promise<void> {
   if (cardsLoaded) return;
+  if (cardDataPromise) return cardDataPromise;
+
+  cardDataPromise = (async () => {
+    await purgeLegacyArchiveCaches();
+    try {
+      await loadCardDataOnce({ reload: false });
+    } catch (firstErr) {
+      // Two stale-state failures share this path: a Cache API entry left over
+      // from a format bump, and an HTTP-cached manifest still naming an
+      // archive the current build has pruned. Clear the first and bypass the
+      // second before giving up.
+      console.warn(
+        "[GameWorker] First archive load failed, clearing caches and retrying once:",
+        firstErr,
+      );
+      await caches.delete(CARD_ARCHIVE_CACHE).catch(() => {
+        /* delete is best-effort */
+      });
+      await loadCardDataOnce({ reload: true });
+    }
+  })();
 
   try {
-    await loadCardDataOnce({ silent: false });
-  } catch (firstErr) {
-    // Almost every load failure here is a stale `manabrew-card-archive-v*`
-    // entry in the Cache API — left over from before a format bump or a
-    // codepath that produced subtly-different bytes. Wipe the cache, force
-    // a fresh fetch, and try one more time before bothering the user.
-    console.warn(
-      "[GameWorker] First archive load failed, clearing Cache API and retrying once:",
-      firstErr,
-    );
-    await caches.delete(CARD_ARCHIVE_CACHE).catch(() => {
-      /* delete is best-effort */
-    });
-    try {
-      // `silent: true` suppresses the downloading / cached stage events on
-      // the retry so the gate's progress bar doesn't visibly snap backwards
-      // mid-animation. The user perceives a brief pause, then resumes.
-      await loadCardDataOnce({ silent: true });
-    } catch (secondErr) {
-      const message = secondErr instanceof Error ? secondErr.message : String(secondErr);
-      console.error("[GameWorker] Retry failed:", secondErr);
-      postEvent("worker:init", { stage: "error", message });
-      throw secondErr;
-    }
+    await cardDataPromise;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[GameWorker] Card archive load failed:", error);
+    postEvent("engine:cards", { stage: "error", message });
+    cardDataPromise = null;
+    throw error;
   }
 }
 
 /**
- * One attempt at the full init pipeline. Hoisted out of `loadCardData` so
+ * One attempt at the card-database load. Hoisted out of `ensureCardData` so
  * the auto-retry path can call it twice without duplicating the body.
  *
- * `silent` suppresses the `cached` / `downloading` / `parsing` events that
- * would otherwise be emitted during a retry — on the retry the gate is
- * already past those stages visually, and re-emitting them would yank the
- * progress bar back to a lower percentage.
+ * `reload` bypasses the HTTP cache for the manifest, which is the only way to
+ * recover a client whose cached manifest names a pruned archive.
  */
-async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> {
-  const archiveBytes = await fetchCardArchive(silent);
+async function loadCardDataOnce({ reload }: { reload: boolean }): Promise<void> {
+  const archiveBytes = await fetchCardArchive(reload);
   console.log(
     `[GameWorker] Fetched card archive (${(archiveBytes.byteLength / 1024 / 1024).toFixed(2)} MiB)`,
   );
 
-  if (!silent) postEvent("worker:init", { stage: "parsing" });
+  postEvent("engine:cards", { stage: "parsing" });
   // load_card_archive packs (cards << 32 | tokens) into a single u64; on the
   // JS side wasm-bindgen surfaces u64 as bigint.
   const counts = load_card_archive(new Uint8Array(archiveBytes)) as unknown as bigint;
@@ -186,7 +197,7 @@ async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> 
   console.log(`[GameWorker] Loaded ${cardCount} cards + ${tokenCount} tokens into database`);
 
   cardsLoaded = true;
-  postEvent("worker:init", { stage: "ready" });
+  postEvent("engine:cards", { stage: "ready" });
 }
 
 /**
@@ -197,12 +208,17 @@ async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> 
  * bar; after the full body is in memory we synthesize a fresh Response and
  * store it in the Cache API, so the next session is a cache hit too.
  *
- * Each stage of the load emits a `worker:init` event so the React init gate
- * can pick the right UI: spinner-only for cached/parsing, progress bar for
- * downloading.
+ * Each stage of the load emits an `engine:cards` event so the caller can show
+ * a spinner for cached/parsing and a progress bar for downloading.
  */
-async function fetchCardArchive(silent: boolean): Promise<ArrayBuffer> {
-  const manifestResp = await fetch(CARD_ARCHIVE_MANIFEST_URL, { cache: "no-cache" });
+async function fetchCardArchive(reload: boolean): Promise<ArrayBuffer> {
+  // The query param is the load-bearing part of the reload path: a cache that
+  // ignores `no-cache` (or honours the `immutable` an older deployment served)
+  // still has to miss on a URL it has never seen.
+  const manifestUrl = reload
+    ? `${CARD_ARCHIVE_MANIFEST_URL}?reload=${Date.now()}`
+    : CARD_ARCHIVE_MANIFEST_URL;
+  const manifestResp = await fetch(manifestUrl, { cache: reload ? "reload" : "no-cache" });
   if (!manifestResp.ok) {
     throw new Error(`Failed to fetch card archive manifest: ${manifestResp.status}`);
   }
@@ -218,7 +234,7 @@ async function fetchCardArchive(silent: boolean): Promise<ArrayBuffer> {
 
   const cached = await cache.match(archiveUrl);
   if (cached) {
-    if (!silent) postEvent("worker:init", { stage: "cached" });
+    postEvent("engine:cards", { stage: "cached" });
     return cached.arrayBuffer();
   }
 
@@ -227,7 +243,7 @@ async function fetchCardArchive(silent: boolean): Promise<ArrayBuffer> {
     throw new Error(`Failed to fetch card archive: ${response.status}`);
   }
   const total = Number(response.headers.get("content-length")) || 0;
-  if (!silent) postEvent("worker:init", { stage: "downloading", loaded: 0, total });
+  postEvent("engine:cards", { stage: "downloading", loaded: 0, total });
 
   // Stream the body so we can report progress. Falls back to a plain
   // arrayBuffer() read when no reader is available (e.g. opaque responses).
@@ -250,8 +266,8 @@ async function fetchCardArchive(silent: boolean): Promise<ArrayBuffer> {
       chunks.push(value);
       received += value.length;
       // Throttle progress events — one per ~256 KB is plenty for a 27 MB blob.
-      if (!silent && (received - lastReport > 256 * 1024 || received === total)) {
-        postEvent("worker:init", { stage: "downloading", loaded: received, total });
+      if (received - lastReport > 256 * 1024 || received === total) {
+        postEvent("engine:cards", { stage: "downloading", loaded: received, total });
         lastReport = received;
       }
     }
@@ -418,6 +434,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
 
 async function handleCommand(command: string, args?: Record<string, unknown>): Promise<unknown> {
   await initWasm();
+  if (needsCardData(command)) await ensureCardData();
 
   switch (command) {
     case "ping":
@@ -467,6 +484,10 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
     }
 
     case "is_card_supported": {
+      // Answering this would cost the whole archive download, which a player
+      // on the Forge engine never otherwise pays. `null` means "no answer",
+      // and the caller leaves the card unmarked.
+      if (!cardsLoaded) return null;
       const name = (args?.name as string) ?? "";
       if (!name) return false;
       if (has_card(name)) return true;
@@ -594,8 +615,9 @@ function postEvent(event: string, payload: unknown): void {
   self.postMessage(message);
 }
 
-// Kick off WASM + card-database init as soon as the worker module loads, so
-// the AppInitGate sees progress before the first command is even sent.
+// Boot the wasm module as soon as the worker loads so the first command does
+// not pay for it. The card archive is NOT loaded here: it is a 29 MB download
+// that only the Manabrew engine needs, and most games run on Forge.
 // `initWasm` is idempotent; the eventual `handleCommand` call below awaits
 // the same promise.
 void initWasm().catch((err) => {
@@ -615,6 +637,7 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
   if (command === "start_game") {
     try {
       await initWasm();
+      await ensureCardData();
       runInteractiveGame(requestId, args);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -627,6 +650,7 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
   if (command === "start_multiplayer_game") {
     try {
       await initWasm();
+      await ensureCardData();
       runMultiplayerHostGame(requestId, args);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

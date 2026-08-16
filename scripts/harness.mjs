@@ -88,10 +88,12 @@ function computeChecksum() {
     .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".java")))
     .sort();
 
-  const protocolFiles = walkFiles(
+  const protocolFiles = [
     join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
-    (filePath) => filePath.endsWith(".rs"),
-  ).sort();
+    join(root, "manabrew-rs", "crates", "manabrew-relay-protocol", "src"),
+  ]
+    .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".rs")))
+    .sort();
 
   const hashedEntries = [
     ...javaFiles.map(
@@ -228,7 +230,7 @@ function generateProtocolSources() {
   const steps = [
     [
       "cargo",
-      ["run", "-q", "-p", "manabrew-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
+      ["run", "-q", "-p", "manabrew-relay-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
     ],
     [process.execPath, ["scripts/gen-harness-prompts.mjs", "forge-harness/src/main/java"]],
   ];
@@ -272,16 +274,20 @@ function rebuild() {
     delimiter,
   );
   console.log("harness: running regression tests...");
-  const regression = spawnSync(
-    "java",
-    ["-cp", regressionClasspath, "forge.harness.host.InteractiveSnapshotExtractorTest"],
-    { cwd: root, stdio: "inherit" },
-  );
-  if (regression.status !== 0) {
-    console.error(
-      `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
-    );
-    process.exit(regression.status ?? 1);
+  for (const regressionClass of [
+    "forge.harness.host.InteractiveSnapshotExtractorTest",
+    "forge.harness.common.HarnessPlayPlumbingTest",
+  ]) {
+    const regression = spawnSync("java", ["-cp", regressionClasspath, regressionClass], {
+      cwd: root,
+      stdio: "inherit",
+    });
+    if (regression.status !== 0) {
+      console.error(
+        `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
+      );
+      process.exit(regression.status ?? 1);
+    }
   }
 
   updateChecksum();
@@ -380,6 +386,9 @@ switch (mode) {
     rebuild();
     stageRuntime({ force: true });
     break;
+  case "test":
+    rebuild();
+    break;
   case "ensure":
     if (isStale()) {
       rebuild();
@@ -405,7 +414,7 @@ switch (mode) {
     break;
   default:
     console.error(
-      "Usage: node scripts/harness.mjs <build|ensure|stage|check|update-checksum|checksum|native-checksum>",
+      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum>",
     );
     process.exit(1);
 }

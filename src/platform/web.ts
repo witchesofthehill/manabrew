@@ -33,6 +33,7 @@ import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import { logComms } from "@/lib/commsLog";
+import { relayIdentityProof } from "@/lib/relayIdentity";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
@@ -788,7 +789,8 @@ class WebServerApi implements IServerApi {
     return this.openSocket(params);
   }
 
-  private openSocket(params: ServerConnectParams): Promise<void> {
+  private async openSocket(params: ServerConnectParams): Promise<void> {
+    const identity = await relayIdentityProof();
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
@@ -802,6 +804,7 @@ class WebServerApi implements IServerApi {
           type: "Authenticate",
           username: params.username,
           password: params.password,
+          identity,
         });
         this.startKeepalive();
         resolve();
@@ -1346,6 +1349,12 @@ class WebServerApi implements IServerApi {
       if (typeof msg.error === "string" && msg.error.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT)) {
         this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
       }
+    }
+
+    if (type === "SessionTakenOver") {
+      this.manualDisconnect = true;
+      this.eventBus.emit("server:session_taken_over", {});
+      return;
     }
 
     // Map server message type to event name and payload

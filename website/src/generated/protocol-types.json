@@ -48,6 +48,8 @@
     "ClassLevelDto",
     "CombatAssignmentDto",
     "DayTime",
+    "EngineKind",
+    "GameFormat",
     "GameViewDto",
     "Mana",
     "ManaColor",
@@ -350,6 +352,16 @@
       "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
       "refs": []
     },
+    "EngineKind": {
+      "ts": "type EngineKind = \"Manabrew\" | \"Forge\" | \"Ironsmith\";",
+      "rust": "pub enum EngineKind {\n    #[default]\n    Manabrew,\n    Forge,\n    Ironsmith,\n}",
+      "refs": []
+    },
+    "GameFormat": {
+      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Commander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
+      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
+      "refs": []
+    },
     "GameOverInput": {
       "ts": "type GameOverInput = Record<string, never>;",
       "rust": "pub struct GameOverInput {}",
@@ -413,8 +425,8 @@
       "refs": []
     },
     "PlayerDto": {
-      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  counters: { [key in PlayerCounterKind]?: number };\n  manaPool: { [key in ManaColor]?: number };\n  commanderDamage: Record<string, number>;\n  hasCityBlessing: boolean;\n  ringLevel: number;\n  speed: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    pub counters: BTreeMap<PlayerCounterKind, u32>,\n    pub mana_pool: BTreeMap<ManaColor, u32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub has_city_blessing: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
+      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  counters: { [key in PlayerCounterKind]?: number };\n  manaPool: { [key in ManaColor]?: number };\n  commanderDamage: Record<string, number>;\n  hasCityBlessing: boolean;\n  hasEnduringStory: boolean;\n  ringLevel: number;\n  speed: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    pub counters: BTreeMap<PlayerCounterKind, u32>,\n    pub mana_pool: BTreeMap<ManaColor, u32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub has_city_blessing: bool,\n    pub has_enduring_story: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
       "refs": ["ManaColor", "PlayerCounterKind", "PlayerStatus"]
     },
     "PlayerStatus": {

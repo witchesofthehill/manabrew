@@ -69,6 +69,11 @@ export function PlayerBadgeDevControls() {
           active={overrides.forceCityBlessing}
           onClick={() => toggleBool("forceCityBlessing")}
         />
+        <ToggleButton
+          label="Enduring Story"
+          active={overrides.forceEnduringStory}
+          onClick={() => toggleBool("forceEnduringStory")}
+        />
       </div>
 
       <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

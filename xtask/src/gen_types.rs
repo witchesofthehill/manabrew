@@ -1,6 +1,7 @@
 //! Regenerates every TypeScript type the frontend consumes from Rust:
-//! the wire protocol (via manabrew-protocol's own publishable gen-protocol
-//! bin, run as a subprocess) and the hub REST DTOs (in-process via ts-rs).
+//! the wire protocol (via manabrew-relay-protocol's own publishable
+//! gen-protocol bin, run as a subprocess) and the hub REST DTOs (in-process
+//! via ts-rs).
 
 use std::fs;
 use std::path::Path;
@@ -8,14 +9,15 @@ use std::process::Command;
 
 use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
-    AccountDeckDetail, AccountDeckList, AccountDeckSummary, AdminTopDeckSnapshotRequest,
-    AuthProviders, AuthSessionResponse, CardCollection, CreateAccountDeckRequest,
-    DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag,
-    DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary, EmailVerifyRequest,
-    ExchangeCodeRequest, FavoriteResponse, HubCapabilities, MagicLinkRequest, MeResponse,
-    OAuthStartRequest, OAuthStartResponse, PublishDeckHubEntryRequest, SaveDeckVersionRequest,
-    TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
-    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
+    AccessTokenResponse, AccountDeckDetail, AccountDeckList, AccountDeckSummary,
+    AdminTopDeckSnapshotRequest, AuthProviders, AuthSessionResponse, CardCollection,
+    CreateAccountDeckRequest, DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary,
+    DeckHubFacets, DeckHubTag, DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary,
+    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, HubCapabilities, MagicLinkRequest,
+    MeResponse, OAuthStartRequest, OAuthStartResponse, PublishDeckHubEntryRequest,
+    RevocationRequest, SaveDeckVersionRequest, TokenRequest, TopDeckBucket, TopDeckSnapshot,
+    UpdateDeckHubEntryRequest, UpdateHandleRequest, VerifyCardPrintingsRequest,
+    VerifyCardPrintingsResponse,
 };
 use ts_rs::TS;
 
@@ -31,7 +33,7 @@ pub fn generate(root: &Path) -> Result<()> {
             "run",
             "-q",
             "-p",
-            "manabrew-protocol",
+            "manabrew-relay-protocol",
             "--bin",
             "gen-protocol",
             "--",
@@ -78,6 +80,9 @@ pub fn generate(root: &Path) -> Result<()> {
     MagicLinkRequest::export_all_to(&out).context("export MagicLinkRequest")?;
     EmailVerifyRequest::export_all_to(&out).context("export EmailVerifyRequest")?;
     UpdateHandleRequest::export_all_to(&out).context("export UpdateHandleRequest")?;
+    AccessTokenResponse::export_all_to(&out).context("export AccessTokenResponse")?;
+    TokenRequest::export_all_to(&out).context("export TokenRequest")?;
+    RevocationRequest::export_all_to(&out).context("export RevocationRequest")?;
 
     let path = out.join("hubTypes.ts");
     let generated = fs::read_to_string(&path).context("read hubTypes.ts")?;

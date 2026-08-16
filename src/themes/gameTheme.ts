@@ -104,6 +104,7 @@ export interface GameThemeColors {
     hand: string;
     radiation: string;
     cityBlessing: string;
+    enduringStory: string;
     ring: string;
     speed: string;
     experience: string;

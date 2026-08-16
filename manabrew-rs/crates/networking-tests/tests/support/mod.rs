@@ -20,8 +20,8 @@ use manabot::{BotAgent, SimpleAi};
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, PlayerInfo, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope, PROTOCOL_VERSION,
+    ClientMessage, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo, RoomStatus,
+    ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -232,6 +232,14 @@ pub struct Client {
 
 impl Client {
     pub async fn connect(relay_url: &str, username: &str) -> Result<Client, String> {
+        Client::connect_as(relay_url, username, None).await
+    }
+
+    pub async fn connect_as(
+        relay_url: &str,
+        username: &str,
+        device: Option<&str>,
+    ) -> Result<Client, String> {
         let (socket, _) = connect_async(relay_url)
             .await
             .map_err(|error| format!("connect {relay_url}: {error}"))?;
@@ -242,6 +250,10 @@ impl Client {
                 username: username.to_string(),
                 password: "forge".to_string(),
                 service: false,
+                identity: device.map(|secret| IdentityProof {
+                    token: None,
+                    device: Some(secret.to_string()),
+                }),
             },
         )
         .await?;
@@ -511,6 +523,21 @@ impl Client {
         send(&mut self.write, &ClientMessage::LeaveRoom).await?;
         step(format!("'{}' left the room", self.username));
         Ok(())
+    }
+
+    pub async fn expect_session_taken_over(&mut self) -> Result<(), String> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+        while tokio::time::Instant::now() < deadline {
+            match recv(&mut self.write, &mut self.read).await {
+                Some(ServerMessage::SessionTakenOver) => {
+                    check(format!("'{}' was signed out by its owner", self.username));
+                    return Ok(());
+                }
+                Some(_) => continue,
+                None => return Err("socket closed before SessionTakenOver".into()),
+            }
+        }
+        Err("no SessionTakenOver".into())
     }
 
     /// Abrupt exit: the socket just dies (crash, killed tab, lost network).

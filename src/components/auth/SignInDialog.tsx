@@ -23,7 +23,7 @@ import {
   AuthRequestError,
   type OAuthProvider,
 } from "@/api/auth";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { getPlatformType } from "@/platform";
 import { clearAuthReturnIntent, storeAuthReturnIntent } from "@/lib/authReturn";
@@ -79,7 +79,7 @@ export function SignInDialog() {
 
   function completeSignIn(session: AuthSessionResponse) {
     clearAuthReturnIntent();
-    signIn(session.token, session.account);
+    signIn(session);
     if (session.account.handlePending) {
       setError(null);
       setBusy(false);
@@ -139,11 +139,12 @@ export function SignInDialog() {
 
   function handleClaimHandle() {
     void run(async () => {
-      const token = useAuthStore.getState().token;
+      const refreshToken = useAuthStore.getState().refreshToken;
+      const token = await getAccessToken();
       if (!token) return;
       try {
         const account = await updateHandle(token, handle.trim());
-        if (useAuthStore.getState().token !== token) return;
+        if (useAuthStore.getState().refreshToken !== refreshToken) return;
         setAccount(account);
         toast.success(`Signed in as @${account.handle}`);
         hide();

@@ -5,6 +5,7 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::analytics::AnalyticsHandle;
 use crate::deck_play_events::DeckPlayEventHandle;
+use crate::identity::{IdentityVerifier, SessionIdentity};
 use crate::room::Room;
 
 pub struct ConnectedPlayer {
@@ -17,6 +18,29 @@ pub struct ConnectedPlayer {
     pub last_seen: Instant,
     pub disconnected_at: Option<Instant>,
     pub is_service: bool,
+    pub identity: Vec<SessionIdentity>,
+}
+
+pub struct UsernameSession {
+    pub player_id: String,
+    pub room_id: Option<String>,
+    pub generation: u64,
+    pub connected: bool,
+    pub sender_closed: bool,
+    pub identity: Vec<SessionIdentity>,
+}
+
+impl From<&ConnectedPlayer> for UsernameSession {
+    fn from(player: &ConnectedPlayer) -> Self {
+        UsernameSession {
+            player_id: player.player_id.clone(),
+            room_id: player.room_id.clone(),
+            generation: player.generation,
+            connected: player.connected,
+            sender_closed: player.sender.is_closed(),
+            identity: player.identity.clone(),
+        }
+    }
 }
 
 pub struct ServerState {
@@ -27,6 +51,7 @@ pub struct ServerState {
     pub official_key: Option<String>,
     pub analytics: AnalyticsHandle,
     pub deck_play_events: DeckPlayEventHandle,
+    pub identity: IdentityVerifier,
 }
 
 impl ServerState {
@@ -36,6 +61,7 @@ impl ServerState {
         official_key: Option<String>,
         analytics: AnalyticsHandle,
         deck_play_events: DeckPlayEventHandle,
+        hub_jwks_url: Option<String>,
     ) -> Self {
         ServerState {
             players: DashMap::new(),
@@ -45,41 +71,22 @@ impl ServerState {
             official_key,
             analytics,
             deck_play_events,
+            identity: IdentityVerifier::new(hub_jwks_url),
         }
     }
 
-    pub fn username_taken_by_connected(&self, username: &str) -> bool {
-        self.players
-            .iter()
-            .any(|entry| entry.value().username == username && entry.value().connected)
-    }
-
-    pub fn find_disconnected_by_username(
-        &self,
-        username: &str,
-    ) -> Option<(String, Option<String>, u64)> {
-        self.players
-            .iter()
-            .find(|entry| entry.value().username == username && !entry.value().connected)
-            .map(|entry| {
-                (
-                    entry.value().player_id.clone(),
-                    entry.value().room_id.clone(),
-                    entry.value().generation,
-                )
-            })
-    }
-
-    pub fn find_connected_by_username(&self, username: &str) -> Option<(String, u64, bool)> {
-        self.players
-            .iter()
-            .find(|entry| entry.value().username == username && entry.value().connected)
-            .map(|entry| {
-                (
-                    entry.value().player_id.clone(),
-                    entry.value().generation,
-                    entry.value().sender.is_closed(),
-                )
-            })
+    pub fn session_by_username(&self, username: &str) -> Option<UsernameSession> {
+        let mut connected = None;
+        for entry in self.players.iter() {
+            let player = entry.value();
+            if player.username != username {
+                continue;
+            }
+            if !player.connected {
+                return Some(UsernameSession::from(player));
+            }
+            connected.get_or_insert_with(|| UsernameSession::from(player));
+        }
+        connected
     }
 }

@@ -14,6 +14,7 @@ pub struct ServerConfig {
     pub deck_hub_enabled: bool,
     pub hub_deck_plays_url: Option<String>,
     pub hub_deck_plays_token: Option<String>,
+    pub hub_jwks_url: Option<String>,
 }
 
 impl ServerConfig {
@@ -58,6 +59,9 @@ impl ServerConfig {
             hub_deck_plays_token: std::env::var("MANABREW_HUB_DECK_PLAYS_TOKEN")
                 .ok()
                 .filter(|token| !token.is_empty()),
+            hub_jwks_url: std::env::var("MANABREW_HUB_JWKS_URL")
+                .ok()
+                .filter(|url| !url.is_empty()),
         }
     }
 

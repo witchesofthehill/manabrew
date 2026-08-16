@@ -13,6 +13,7 @@ const GAMES_STARTED: &str = "manabrew_relay_games_started_total";
 const GAMES_ENDED: &str = "manabrew_relay_games_ended_total";
 const CLIENT_REJECTIONS: &str = "manabrew_relay_client_rejections_total";
 const RECONNECT_RESYNCS: &str = "manabrew_relay_reconnect_resyncs_total";
+const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 
@@ -65,6 +66,10 @@ pub fn record_rejection(reason: &'static str) {
 
 pub fn record_resync() {
     counter!(RECONNECT_RESYNCS).increment(1);
+}
+
+pub fn record_session_takeover(identity: &'static str) {
+    counter!(SESSION_TAKEOVERS, LABEL_KIND => identity).increment(1);
 }
 
 pub fn record_analytics_dropped() {

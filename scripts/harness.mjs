@@ -88,10 +88,12 @@ function computeChecksum() {
     .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".java")))
     .sort();
 
-  const protocolFiles = walkFiles(
+  const protocolFiles = [
     join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
-    (filePath) => filePath.endsWith(".rs"),
-  ).sort();
+    join(root, "manabrew-rs", "crates", "manabrew-relay-protocol", "src"),
+  ]
+    .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".rs")))
+    .sort();
 
   const hashedEntries = [
     ...javaFiles.map(
@@ -228,7 +230,7 @@ function generateProtocolSources() {
   const steps = [
     [
       "cargo",
-      ["run", "-q", "-p", "manabrew-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
+      ["run", "-q", "-p", "manabrew-relay-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
     ],
     [process.execPath, ["scripts/gen-harness-prompts.mjs", "forge-harness/src/main/java"]],
   ];

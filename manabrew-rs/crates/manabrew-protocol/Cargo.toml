@@ -6,11 +6,7 @@ license.workspace = true
 repository.workspace = true
 homepage = "https://docs.manabrew.app/protocol/"
 documentation = "https://docs.rs/manabrew-protocol"
-description = "Wire protocol for manabrew multiplayer"
-
-[[bin]]
-name = "gen-protocol"
-path = "src/bin/gen_protocol.rs"
+description = "Engine-free game DTOs shared by manabrew clients"
 
 [dependencies]
 serde = { workspace = true }

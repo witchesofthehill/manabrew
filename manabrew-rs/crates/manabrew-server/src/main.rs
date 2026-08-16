@@ -29,7 +29,12 @@ async fn main() {
         config.official_key.clone(),
         analytics,
         deck_play_events,
+        config.hub_jwks_url.clone(),
     ));
+
+    if !state.identity.hub_configured() {
+        tracing::info!("[auth] no hub jwks url -- account identity disabled, device proofs only");
+    }
 
     server::run_server(state, addr, health_addr, metrics_handle).await;
 }

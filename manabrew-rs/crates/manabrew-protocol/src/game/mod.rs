@@ -421,3 +421,29 @@ pub struct PlaymatSettings {
     #[ts(optional)]
     pub color: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum GameFormat {
+    Any,
+    Standard,
+    Pioneer,
+    Modern,
+    Legacy,
+    Vintage,
+    Pauper,
+    Commander,
+    Brawl,
+    Oathbreaker,
+    Draft,
+    Sealed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
+#[ts(export, export_to = "game/index.ts")]
+pub enum EngineKind {
+    #[default]
+    Manabrew,
+    Forge,
+    Ironsmith,
+}

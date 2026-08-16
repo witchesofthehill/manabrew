@@ -1,1 +1,1 @@
-pub use manabrew_protocol::protocol::*;
+pub use manabrew_relay_protocol::*;

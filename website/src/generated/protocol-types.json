@@ -38,7 +38,8 @@
     "ScryDestination",
     "SelectionOption",
     "TargetKind",
-    "TargetRef"
+    "TargetRef",
+    "TokenScript"
   ],
   "state": [
     "CardDto",
@@ -121,9 +122,9 @@
       "refs": ["CardIdentity", "ClassLevelDto", "SagaChapterDto"]
     },
     "CardIdentity": {
-      "ts": "interface CardIdentity {\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  isToken: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct CardIdentity {\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    pub is_token: bool,\n}",
-      "refs": []
+      "ts": "interface CardIdentity {\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  isToken: boolean;\n  tokenScript?: TokenScript;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct CardIdentity {\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    pub is_token: bool,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<TokenScript>,\n}",
+      "refs": ["TokenScript"]
     },
     "CardImageUris": {
       "ts": "interface CardImageUris {\n  small: string;\n  normal: string;\n  large: string;\n  png: string;\n  art_crop: string;\n  border_crop: string;\n}",
@@ -231,9 +232,9 @@
       ]
     },
     "DeckCardIdentity": {
-      "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  oracleId?: string;\n  foil?: boolean;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
-      "refs": []
+      "ts": "interface DeckCardIdentity {\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  oracleId?: string;\n  tokenScript?: TokenScript;\n  foil?: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<TokenScript>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
+      "refs": ["TokenScript"]
     },
     "DeckFormat": {
       "ts": "type DeckFormat =\n  | \"standard\"\n  | \"pioneer\"\n  | \"modern\"\n  | \"legacy\"\n  | \"vintage\"\n  | \"pauper\"\n  | \"commander\"\n  | \"brawl\"\n  | \"oathbreaker\"\n  | \"draft\"\n  | \"sealed\";",
@@ -333,8 +334,8 @@
       "refs": []
     },
     "PlayerDto": {
-      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  counters: { [key in PlayerCounterKind]?: number };\n  manaPool: { [key in ManaColor]?: number };\n  commanderDamage: Record<string, number>;\n  hasCityBlessing: boolean;\n  ringLevel: number;\n  speed: number;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    pub counters: BTreeMap<PlayerCounterKind, u32>,\n    pub mana_pool: BTreeMap<ManaColor, u32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub has_city_blessing: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
+      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  status: PlayerStatus;\n  isHuman: boolean;\n  life: number;\n  counters: { [key in PlayerCounterKind]?: number };\n  manaPool: { [key in ManaColor]?: number };\n  commanderDamage: Record<string, number>;\n  hasCityBlessing: boolean;\n  hasEnduringStory: boolean;\n  ringLevel: number;\n  speed: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub status: PlayerStatus,\n    pub is_human: bool,\n    pub life: i32,\n    pub counters: BTreeMap<PlayerCounterKind, u32>,\n    pub mana_pool: BTreeMap<ManaColor, u32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub has_city_blessing: bool,\n    pub has_enduring_story: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
       "refs": ["ManaColor", "PlayerCounterKind", "PlayerStatus"]
     },
     "PlayerStatus": {
@@ -410,6 +411,11 @@
     "TargetingIntent": {
       "ts": "type TargetingIntent =\n  | \"damage\"\n  | \"destroy\"\n  | \"sacrifice\"\n  | \"exile\"\n  | \"bounce\"\n  | \"mill\"\n  | \"discard\"\n  | \"counter\"\n  | \"tap\"\n  | \"untap\"\n  | \"copy\"\n  | \"buff\"\n  | \"debuff\"\n  | \"heal\"\n  | \"loseLife\"\n  | \"reveal\"\n  | \"draw\"\n  | \"fetch\"\n  | \"gainControl\"\n  | \"fight\"\n  | \"attach\"\n  | \"attack\"\n  | \"block\"\n  | \"hostile\"\n  | \"friendly\";",
       "rust": "    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,\n)]\n#[serde(rename_all = \"camelCase\")]\npub enum TargetingIntent {\n    #[default]\n    Damage,\n    Destroy,\n    Sacrifice,\n    Exile,\n    Bounce,\n    Mill,\n    Discard,\n    Counter,\n    Tap,\n    Untap,\n    Copy,\n    Buff,\n    Debuff,\n    Heal,\n    LoseLife,\n    Reveal,\n    Draw,\n    Fetch,\n    GainControl,\n    Fight,\n    Attach,\n    Attack,\n    Block,\n    Hostile,\n    Friendly,\n}",
+      "refs": []
+    },
+    "TokenScript": {
+      "ts": "type TokenScript = string;",
+      "rust": "#[serde(transparent)]\npub struct TokenScript(pub String);",
       "refs": []
     },
     "ZoneDto": {

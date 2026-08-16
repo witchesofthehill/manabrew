@@ -147,6 +147,8 @@ public final class ManaBrewInteractiveSession {
     private static final String TRACE_PATH =
             System.getenv().getOrDefault("MANABREW_HARNESS_TRACE", "/tmp/harness-trace.log");
 
+    static final String TRIGGER_ORDER_TITLE = "Order triggered abilities";
+
     private static synchronized void trace(final String line) {
         try (java.io.FileWriter writer = new java.io.FileWriter(TRACE_PATH, true)) {
             writer.write(line);
@@ -1388,6 +1390,56 @@ public final class ManaBrewInteractiveSession {
         return new CardCollection(cards);
     }
 
+    List<SpellAbility> awaitTriggerOrder(
+            final int playerId,
+            final List<SpellAbility> triggers,
+            final String sourceCardId
+    ) {
+        requireAttached();
+        final List<SpellAbility> original = new ArrayList<SpellAbility>(triggers);
+        final java.util.Map<String, SpellAbility> byId = new java.util.LinkedHashMap<>();
+        final List<ReorderItem> items = new ArrayList<ReorderItem>();
+        for (int i = 0; i < original.size(); i++) {
+            final SpellAbility sa = original.get(i);
+            final String id = "sa-" + i;
+            byId.put(id, sa);
+            final CardDto dto = InteractiveSnapshotExtractor.cardDto(game, sa.getHostCard(), false);
+            items.add(new ReorderItem(id, dto, sa.getStackDescription()));
+        }
+        publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderInput(
+                presentation(TRIGGER_ORDER_TITLE,
+                        "Choose trigger resolution order"),
+                items));
+        while (!closed && !game.isGameOver()) {
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                return original;
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                return original;
+            }
+            if (!"reorder_library_decision".equals(actionKind)) {
+                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+            }
+            final List<SpellAbility> resolveOrder = new ArrayList<SpellAbility>();
+            if (action.has("ordered_card_ids") && action.get("ordered_card_ids").isJsonArray()) {
+                for (JsonElement element : action.getAsJsonArray("ordered_card_ids")) {
+                    final SpellAbility sa = byId.get(element.getAsString());
+                    if (sa != null && !resolveOrder.contains(sa)) {
+                        resolveOrder.add(sa);
+                    }
+                }
+            }
+            if (resolveOrder.size() != original.size()) {
+                return original;
+            }
+            java.util.Collections.reverse(resolveOrder);
+            return resolveOrder;
+        }
+        return original;
+    }
+
     CardCollection awaitDamageAssignmentOrder(
             final int playerId,
             final Card attacker,
@@ -2046,7 +2098,7 @@ public final class ManaBrewInteractiveSession {
             } else {
                 final CardDto minimal = new CardDto();
                 minimal.id = "java-card-view-" + card.getId();
-                minimal.identity = new CardIdentity(card.getName(), "", "", false);
+                minimal.identity = new CardIdentity(card.getName(), "", "", false, null);
                 cardArray.add(minimal);
             }
         }

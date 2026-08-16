@@ -10,26 +10,29 @@ import { isHorizontalCard } from "@/lib/cardLayout";
 import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
+import type { DeckCard } from "@/protocol/deck";
 
 interface PrintPickerModalProps {
   cardName: string | null;
   onClose: () => void;
   onSelect?: (print: ScryfallCard) => void;
-  isToken?: boolean;
+  token?: DeckCard;
 }
 
-export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: PrintPickerModalProps) {
+export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPickerModalProps) {
   const [prints, setPrints] = useState<ScryfallCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const updatePrint = useDeckStore((s) => s.updatePrint);
   const setLookup = useSetLookup();
+  const resolvedName = token?.identity.name ?? cardName;
 
   useEffect(() => {
-    if (!cardName) {
+    if (!resolvedName) {
       setPrints([]);
       return;
     }
+    const name = resolvedName;
 
     let mounted = true;
 
@@ -37,12 +40,12 @@ export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: Print
       setIsLoading(true);
       setError(null);
       try {
-        if (isToken) {
-          const tokenPrints = await getArchivedTokenPrints(cardName!);
+        if (token) {
+          const tokenPrints = await getArchivedTokenPrints(token);
           if (mounted) setPrints(tokenPrints);
           return;
         }
-        const card = await useScryfallStore.getState().getCard({ name: cardName! });
+        const card = await useScryfallStore.getState().getCard({ name });
         const res = await getCardPrints(card.info.prints_search_uri);
         if (mounted) setPrints(res.data || []);
       } catch {
@@ -60,9 +63,9 @@ export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: Print
     return () => {
       mounted = false;
     };
-  }, [cardName, isToken]);
+  }, [resolvedName, token]);
 
-  if (!cardName) return null;
+  if (!resolvedName) return null;
 
   return (
     <Modal
@@ -72,7 +75,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: Print
       backdropClassName="z-[9100]"
     >
       <Modal.Header onClose={onClose}>
-        <h2 className="text-lg font-bold">Select Printing: {cardName}</h2>
+        <h2 className="text-lg font-bold">Select Printing: {resolvedName}</h2>
       </Modal.Header>
 
       <Modal.Body>
@@ -90,7 +93,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: Print
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {prints.map((p) => {
                 const face = p.card_faces
-                  ? p.card_faces.find((f) => f.name.toLowerCase() === cardName.toLowerCase()) ||
+                  ? p.card_faces.find((f) => f.name.toLowerCase() === resolvedName.toLowerCase()) ||
                     p.card_faces[0]
                   : null;
                 const imageUrl =
@@ -108,7 +111,7 @@ export function PrintPickerModal({ cardName, onClose, onSelect, isToken }: Print
                         onSelect(p);
                       } else {
                         useScryfallStore.getState().updatePrinting(p);
-                        updatePrint(cardName, p);
+                        updatePrint(resolvedName, p);
                       }
                       onClose();
                     }}

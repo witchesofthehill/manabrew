@@ -78,13 +78,7 @@ fn collect_deck_files(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
-// Currently fails on cards that simply aren't in Forge yet (e.g. unported
-// Universes Beyond entries like "Leonardo, Big Brother" and "Flow State").
-// Re-enable once the Forge cardsfolder is bumped to cover the affected
-// decks. Run locally with `cargo test -p parity --test
-// deck_card_lookup -- --ignored`.
 #[test]
-#[ignore = "blocked on Forge cardsfolder update — see test body for details"]
 fn every_deck_card_resolves_in_archive() {
     let db = load_card_db();
     let root = workspace_root();

@@ -20,12 +20,13 @@ import type { DeckFormat } from "@/protocol/deck";
 interface ImportDeckTextDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: "create" | "add";
   onImport: (
     entries: ParsedDeckEntry[],
     name: string,
     formatId: DeckFormat | undefined,
     onProgress: (fraction: number) => void,
-  ) => Promise<void>;
+  ) => Promise<boolean | void>;
 }
 
 const GUIDE_STEPS = [
@@ -36,7 +37,12 @@ const GUIDE_STEPS = [
 
 const IMPORT_FORMATS = GAME_FORMATS.filter((format) => format.id !== "oathbreaker");
 
-export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDeckTextDialogProps) {
+export function ImportDeckTextDialog({
+  open,
+  onOpenChange,
+  onImport,
+  mode = "create",
+}: ImportDeckTextDialogProps) {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
   const [formatId, setFormatId] = useState<DeckFormat | "">("");
@@ -79,8 +85,9 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
     setImporting(true);
     setProgress(0);
     try {
-      await onImport(entries, name, formatId || undefined, setProgress);
-      onOpenChange(false);
+      const applied = await onImport(entries, name, formatId || undefined, setProgress);
+      if (applied !== false) onOpenChange(false);
+      else setImporting(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import failed");
       setImporting(false);
@@ -97,11 +104,15 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Import a deck</DialogTitle>
+          <DialogTitle>{mode === "add" ? "Add cards from a list" : "Import a deck"}</DialogTitle>
           <DialogDescription>
             {importing
-              ? `Building "${name.trim() || DEFAULT_IMPORT_NAME}"…`
-              : "Copy your deck as text from Moxfield, then paste it below."}
+              ? mode === "add"
+                ? "Adding cards to this deck…"
+                : `Building "${name.trim() || DEFAULT_IMPORT_NAME}"…`
+              : mode === "add"
+                ? "Paste a deck list to merge its cards into this deck."
+                : "Copy your deck as text from Moxfield, then paste it below."}
           </DialogDescription>
         </DialogHeader>
 
@@ -120,46 +131,50 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
         ) : (
           <>
             <div className="space-y-4">
-              <ol className="space-y-1.5">
-                {GUIDE_STEPS.map((label, i) => (
-                  <li key={label} className="flex items-start gap-2.5">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
-                      {i + 1}
-                    </span>
-                    <span className="text-xs leading-5 text-muted-foreground">{label}</span>
-                  </li>
-                ))}
-              </ol>
+              {mode === "create" && (
+                <ol className="space-y-1.5">
+                  {GUIDE_STEPS.map((label, i) => (
+                    <li key={label} className="flex items-start gap-2.5">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
+                        {i + 1}
+                      </span>
+                      <span className="text-xs leading-5 text-muted-foreground">{label}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Deck name</label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={DEFAULT_IMPORT_NAME}
-                  />
+              {mode === "create" && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Deck name</label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={DEFAULT_IMPORT_NAME}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Format</label>
+                    <select
+                      value={formatId}
+                      onChange={(e) =>
+                        setFormatId(
+                          IMPORT_FORMATS.find((format) => format.id === e.target.value)?.id ?? "",
+                        )
+                      }
+                      className="h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-xs pointer-coarse:text-base"
+                    >
+                      <option value="">Auto-detect</option>
+                      {IMPORT_FORMATS.map((format) => (
+                        <option key={format.id} value={format.id}>
+                          {format.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Format</label>
-                  <select
-                    value={formatId}
-                    onChange={(e) =>
-                      setFormatId(
-                        IMPORT_FORMATS.find((format) => format.id === e.target.value)?.id ?? "",
-                      )
-                    }
-                    className="h-9 w-full cursor-pointer rounded-md border bg-background px-2 text-xs pointer-coarse:text-base"
-                  >
-                    <option value="">Auto-detect</option>
-                    {IMPORT_FORMATS.map((format) => (
-                      <option key={format.id} value={format.id}>
-                        {format.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -188,7 +203,7 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
               {valid ? (
                 <div
                   key={mainCount + sideCount + maybeCount + commanderCount}
-                  className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal duration-300 animate-in fade-in zoom-in-95"
+                  className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   <span className="text-sm font-medium">Looks good!</span>
@@ -200,8 +215,14 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
                   </span>
                 </div>
               ) : dirty ? (
-                <p className="text-xs text-destructive">Wrong format</p>
+                <p className="text-xs text-destructive">No recognizable card entries yet</p>
               ) : null}
+              {mode === "add" && commanderCount > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Commander entries fill an empty command zone. If it already has a commander, they
+                  are added to the main deck instead.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t">
@@ -215,7 +236,8 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
                 className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
               >
                 <Download className="h-3.5 w-3.5" />
-                Import{valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
+                {mode === "add" ? "Add" : "Import"}
+                {valid ? ` ${mainCount + sideCount + maybeCount + commanderCount} cards` : ""}
               </Button>
             </div>
           </>

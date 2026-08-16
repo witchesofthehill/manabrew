@@ -46,6 +46,19 @@ http://play.manabrew.app {
         file_server
     }
 
+    # The manifest is the one mutable file under /wasm/: it resolves the
+    # content-hashed archive name, and every build prunes the previous one.
+    # Served immutable it pins a client to an archive that 404s for a year.
+    handle /wasm/cardset.manifest.json {
+        header {
+            Cache-Control "no-cache"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        file_server
+    }
+
     @static path /assets/* /wasm/*
     handle @static {
         header {

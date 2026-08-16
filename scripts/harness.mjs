@@ -110,6 +110,31 @@ function computeChecksum() {
   return sha256Buffer(Buffer.from(hashedEntries.join("\n"), "utf8"));
 }
 
+// Everything build-native.{sh,ps1} reads that computeChecksum() does not: it
+// hashes what goes *into the jar*, while native-image also consumes the FFI
+// entrypoint, the reflection config and Forge's languages tree. A key missing
+// any of these would serve a stale libforgeharness to a release build.
+function computeNativeChecksum() {
+  const nativeRoot = join(harnessRoot, "native");
+  const nativeFiles = [
+    join(nativeRoot, "forge", "harness", "ffi", "ForgeNative.java"),
+    join(harnessRoot, "build-native.sh"),
+    join(harnessRoot, "build-native.ps1"),
+    ...walkFiles(join(nativeRoot, "frozen-config"), () => true).sort(),
+    ...walkFiles(join(nativeRoot, "extra-config"), () => true).sort(),
+    ...walkFiles(join(forgeRoot, "forge-gui", "res", "languages"), () => true).sort(),
+  ];
+
+  const hashedEntries = [
+    `jar:${computeChecksum()}`,
+    ...nativeFiles
+      .filter((filePath) => existsSync(filePath))
+      .map((filePath) => `${relative(root, filePath)}:${sha256Buffer(readFileSync(filePath))}`),
+  ];
+
+  return sha256Buffer(Buffer.from(hashedEntries.join("\n"), "utf8"));
+}
+
 function updateChecksum() {
   mkdirSync(join(harnessRoot, "target"), { recursive: true });
   writeFileSync(checksumPath, `${computeChecksum()}\n`);
@@ -248,16 +273,20 @@ function rebuild() {
     delimiter,
   );
   console.log("harness: running regression tests...");
-  const regression = spawnSync(
-    "java",
-    ["-cp", regressionClasspath, "forge.harness.host.InteractiveSnapshotExtractorTest"],
-    { cwd: root, stdio: "inherit" },
-  );
-  if (regression.status !== 0) {
-    console.error(
-      `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
-    );
-    process.exit(regression.status ?? 1);
+  for (const regressionClass of [
+    "forge.harness.host.InteractiveSnapshotExtractorTest",
+    "forge.harness.common.HarnessPlayPlumbingTest",
+  ]) {
+    const regression = spawnSync("java", ["-cp", regressionClasspath, regressionClass], {
+      cwd: root,
+      stdio: "inherit",
+    });
+    if (regression.status !== 0) {
+      console.error(
+        `harness: regression tests FAILED (exit code ${regression.status ?? regression.error})`,
+      );
+      process.exit(regression.status ?? 1);
+    }
   }
 
   updateChecksum();
@@ -356,6 +385,9 @@ switch (mode) {
     rebuild();
     stageRuntime({ force: true });
     break;
+  case "test":
+    rebuild();
+    break;
   case "ensure":
     if (isStale()) {
       rebuild();
@@ -373,7 +405,15 @@ switch (mode) {
   case "update-checksum":
     updateChecksum();
     break;
+  case "checksum":
+    process.stdout.write(`${computeChecksum()}\n`);
+    break;
+  case "native-checksum":
+    process.stdout.write(`${computeNativeChecksum()}\n`);
+    break;
   default:
-    console.error("Usage: node scripts/harness.mjs <build|ensure|stage|check|update-checksum>");
+    console.error(
+      "Usage: node scripts/harness.mjs <build|test|ensure|stage|check|update-checksum|checksum|native-checksum>",
+    );
     process.exit(1);
 }

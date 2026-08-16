@@ -36,7 +36,11 @@ export const useCardSupportStore = create<CardSupportState>((set, get) => ({
     const results = await Promise.all(
       toCheck.map(async (raw) => {
         try {
-          const ok = await platform.invoke<boolean>("is_card_supported", { name: raw });
+          // `null` means the engine has no card database loaded yet. Leave the
+          // card unmarked rather than claim it is missing, and drop the pending
+          // entry so a later check can answer it.
+          const ok = await platform.invoke<boolean | null>("is_card_supported", { name: raw });
+          if (ok === null) return [normalize(raw), null] as const;
           return [normalize(raw), ok ? "supported" : "unsupported"] as const;
         } catch (err) {
           console.warn("[card-support] check failed for", raw, err);
@@ -47,7 +51,10 @@ export const useCardSupportStore = create<CardSupportState>((set, get) => ({
 
     set((s) => {
       const next = { ...s.status };
-      for (const [key, value] of results) next[key] = value;
+      for (const [key, value] of results) {
+        if (value === null) delete next[key];
+        else next[key] = value;
+      }
       return { status: next };
     });
   },

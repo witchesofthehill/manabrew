@@ -49,6 +49,7 @@ export interface DevPlayerOverrides {
   forceMonarch: boolean;
   forceInitiative: boolean;
   forceCityBlessing: boolean;
+  forceEnduringStory: boolean;
   forceActiveTurn: boolean;
   forcePriority: boolean;
   forceTargetable: boolean;
@@ -72,6 +73,7 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   forceMonarch: false,
   forceInitiative: false,
   forceCityBlessing: false,
+  forceEnduringStory: false,
   forceActiveTurn: false,
   forcePriority: false,
   forceTargetable: false,

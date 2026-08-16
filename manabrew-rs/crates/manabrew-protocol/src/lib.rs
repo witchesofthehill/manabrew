@@ -5,4 +5,7 @@ pub mod deck_dto;
 pub mod display;
 pub mod game;
 pub mod prompts;
+pub mod token;
 pub mod transport;
+
+pub use token::TokenScript;

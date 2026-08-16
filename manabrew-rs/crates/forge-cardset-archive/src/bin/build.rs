@@ -21,6 +21,10 @@ fn main() {
         args.next()
             .unwrap_or_else(|| "forge/forge-gui/res/blockdata".to_string()),
     );
+    let type_lists = PathBuf::from(
+        args.next()
+            .unwrap_or_else(|| "forge/forge-gui/res/lists/TypeLists.txt".to_string()),
+    );
     let out_path = PathBuf::from(
         args.next()
             .unwrap_or_else(|| "src-tauri/resources/cardset.rkyv".to_string()),
@@ -32,6 +36,7 @@ fn main() {
         tokenscripts: Some(&tokens_dir),
         editions: Some(&editions_dir),
         block_data: Some(&block_data_dir),
+        type_lists: &type_lists,
     };
     match build_archive_from_sources(sources, &out_path) {
         Ok(stats) => {

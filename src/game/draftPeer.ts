@@ -8,6 +8,7 @@ import {
 import { getPlatform } from "@/platform";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useServerStore } from "@/stores/useServerStore";
+import type { DraftCard } from "@/types/limited";
 import type { RoomRelayEnvelope } from "@/types/server";
 
 let active: { unsubscribe: () => void; myPlayerSlot: string } | null = null;
@@ -117,7 +118,7 @@ function handleStateUpdate(msg: DraftStateBroadcastMessage): void {
   store.setLocalState(msg.state);
 }
 
-export async function submitPeerPick(cardName: string): Promise<void> {
+export async function submitPeerPick(card: DraftCard): Promise<void> {
   const store = useMultiplayerDraftStore.getState();
   if (!store.sessionId || store.mySeat == null || store.amHost) return;
   if (store.pickPending) return;
@@ -132,7 +133,9 @@ export async function submitPeerPick(cardName: string): Promise<void> {
   const msg: DraftPickMessage = {
     type: "pick",
     sessionId: store.sessionId,
-    cardName,
+    cardName: card.name,
+    setCode: card.setCode,
+    cardNumber: card.cardNumber,
     round: store.state?.round,
     pickNumber: store.state?.pickNumber,
   };

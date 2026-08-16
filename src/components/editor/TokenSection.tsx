@@ -1,31 +1,34 @@
 import type { MouseEvent } from "react";
 import { Palette, X } from "lucide-react";
-import { CARD_WIDTH_MAP } from "./deckBuilder.utils";
+import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { DeckCard } from "@/protocol/deck";
+import { tokenIdentityKey } from "@/stores/useScryfallStore";
 
 export interface TokenSectionProps {
   tokens: DeckCard[];
+  customizedTokens?: DeckCard[];
   cardSize: number;
-  onShowInfo?: (tokenName: string) => void;
-  onPickPrint?: (tokenName: string) => void;
-  onRemoveToken?: (tokenName: string) => void;
+  onShowInfo?: (token: DeckCard) => void;
+  onPickPrint?: (token: DeckCard) => void;
+  onResetPrint?: (token: DeckCard) => void;
   onHover?: (token: DeckCard, e: MouseEvent) => void;
   onLeave?: () => void;
 }
 
 export function TokenSection({
   tokens,
+  customizedTokens,
   cardSize,
   onShowInfo,
   onPickPrint,
-  onRemoveToken,
+  onResetPrint,
   onHover,
   onLeave,
 }: TokenSectionProps) {
   if (tokens.length === 0) return null;
 
-  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
+  const cardWidth = CARD_WIDTH_MAP[cardSize] ?? CARD_WIDTH_MAP[DEFAULT_CARD_SIZE];
 
   return (
     <section className="rounded-xl border bg-card/40 p-6">
@@ -44,9 +47,12 @@ export function TokenSection({
           >
             <TokenGridCard
               token={t}
+              customized={customizedTokens?.some(
+                (candidate) => tokenIdentityKey(candidate) === tokenIdentityKey(t),
+              )}
               onShowInfo={onShowInfo}
               onPickPrint={onPickPrint}
-              onRemove={onRemoveToken}
+              onReset={onResetPrint}
               onHover={onHover}
               onLeave={onLeave}
             />
@@ -61,16 +67,18 @@ export function TokenSection({
 
 function TokenGridCard({
   token,
+  customized,
   onShowInfo,
   onPickPrint,
-  onRemove,
+  onReset,
   onHover,
   onLeave,
 }: {
   token: DeckCard;
-  onShowInfo?: (name: string) => void;
-  onPickPrint?: (name: string) => void;
-  onRemove?: (name: string) => void;
+  customized?: boolean;
+  onShowInfo?: (token: DeckCard) => void;
+  onPickPrint?: (token: DeckCard) => void;
+  onReset?: (token: DeckCard) => void;
   onHover?: (token: DeckCard, e: MouseEvent) => void;
   onLeave?: () => void;
 }) {
@@ -78,7 +86,7 @@ function TokenGridCard({
   return (
     <div
       className="relative group cursor-pointer"
-      onClick={() => onShowInfo?.(name)}
+      onClick={() => onShowInfo?.(token)}
       onMouseEnter={(e) => onHover?.(token, e)}
       onMouseLeave={() => onLeave?.()}
     >
@@ -98,20 +106,20 @@ function TokenGridCard({
             title="Change printing"
             onClick={(e) => {
               e.stopPropagation();
-              onPickPrint(name);
+              onPickPrint(token);
             }}
           >
             <Palette className="h-3.5 w-3.5" />
           </button>
         )}
-        {onRemove && (
+        {customized && onReset && (
           <button
             type="button"
             className="rounded-full p-0.5 shadow bg-overlay/70 text-muted-foreground hover:text-destructive transition-colors"
-            title="Remove token"
+            title="Reset printing"
             onClick={(e) => {
               e.stopPropagation();
-              onRemove(name);
+              onReset(token);
             }}
           >
             <X className="h-3.5 w-3.5" />

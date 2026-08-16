@@ -9,6 +9,7 @@ import forge.harness.protocol.SagaChapterDto;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import forge.ImageKeys;
 import forge.card.ColorSet;
 import forge.card.CardStateName;
 import forge.card.MagicColor;
@@ -29,6 +30,7 @@ import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetChoices;
 import forge.game.zone.ZoneType;
 import forge.item.IPaperCard;
+import forge.item.PaperToken;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -177,6 +179,10 @@ public final class InteractiveSnapshotExtractor {
         out.put("hasCityBlessing", player.hasBlessing());
         out.put("ringLevel", player.getNumRingTemptedYou());
         out.put("speed", player.getSpeed());
+        // Storied is the only mechanic through Forge 2.0.14 carrying player-level state beyond the
+        // designations above, which is why the list stops here: Recruit resolves through
+        // chooseCardsToDiscardFrom and FacesDilemma is trigger-side, so neither reaches a snapshot.
+        out.put("hasEnduringStory", player.hasEnduringStory());
         return out;
     }
 
@@ -291,7 +297,7 @@ public final class InteractiveSnapshotExtractor {
         dto.classLevel = null;
         dto.classLevels = Collections.emptyList();
         dto.sagaChapters = Collections.emptyList();
-        dto.identity = new CardIdentity("", "", "", false);
+        dto.identity = new CardIdentity("", "", "", false, null);
         dto.text = "";
         dto.manaCost = "";
         dto.flashbackCost = null;
@@ -371,7 +377,8 @@ public final class InteractiveSnapshotExtractor {
                 normalizeCardName(name),
                 paper != null ? paper.getEdition() : card.getSetCode(),
                 paper != null ? paper.getCollectorNumber() : "",
-                card.isToken());
+                card.isToken(),
+                tokenScript(card, paper));
         dto.color = colorString(card.getColor());
         dto.manaCost = card.getManaCost() == null ? "" : card.getManaCost().toString();
         dto.cmc = card.getCMC();
@@ -838,7 +845,22 @@ public final class InteractiveSnapshotExtractor {
         identity.put("setCode", source == null ? "" : (paper != null ? paper.getEdition() : source.getSetCode()));
         identity.put("cardNumber", source == null ? "" : (paper != null ? paper.getCollectorNumber() : ""));
         identity.put("isToken", source != null && source.isToken());
+        final String tokenScript = source == null ? null : tokenScript(source, paper);
+        if (tokenScript != null) {
+            identity.put("tokenScript", tokenScript);
+        }
         return identity;
+    }
+
+    private static String tokenScript(final Card card, final IPaperCard paper) {
+        if (!card.isToken() || !(paper instanceof PaperToken token)) {
+            return null;
+        }
+        final String imageName = ImageKeys.getTokenImageName(token.getImageKey(0));
+        if (imageName == null || imageName.isBlank()) {
+            return null;
+        }
+        return imageName.split("\\|", 2)[0];
     }
 
     private static Map<String, Object> stackTarget(final String kind, final String id, final String oracle) {

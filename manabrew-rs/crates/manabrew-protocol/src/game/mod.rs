@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::TargetRef;
+use crate::{prompts::common::TargetRef, TokenScript};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "game/index.ts")]
@@ -161,6 +161,7 @@ pub struct PlayerDto {
     #[ts(type = "Record<string, number>")]
     pub commander_damage: HashMap<String, i32>,
     pub has_city_blessing: bool,
+    pub has_enduring_story: bool,
     pub ring_level: i32,
     pub speed: i32,
 }
@@ -173,6 +174,9 @@ pub struct CardIdentity {
     pub set_code: String,
     pub card_number: String,
     pub is_token: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub token_script: Option<TokenScript>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

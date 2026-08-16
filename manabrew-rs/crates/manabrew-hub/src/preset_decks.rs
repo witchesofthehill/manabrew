@@ -107,6 +107,7 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
                     set_code: entry.set.clone(),
                     card_number: entry.card_number.clone(),
                     oracle_id: None,
+                    token_script: None,
                     foil: Some(false),
                 },
                 rules: CardRulesSummary {

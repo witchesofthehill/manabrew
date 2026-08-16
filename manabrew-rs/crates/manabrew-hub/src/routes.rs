@@ -50,11 +50,14 @@ pub struct AppState {
 }
 
 // The Tauri shells load from fixed webview origins; the web app origin comes
-// from WEB_APP_URL per environment.
+// from WEB_APP_URL per environment. Keep the asset-server origin in sync with
+// ASSET_SERVER_PORT in src-tauri/src/asset_server.rs — macOS and Linux packaged
+// builds serve the frontend from there, not from a tauri:// scheme.
 fn cors_origins(web_app_url: &str) -> AllowOrigin {
     let mut origins = vec![
         HeaderValue::from_static("tauri://localhost"),
         HeaderValue::from_static("http://tauri.localhost"),
+        HeaderValue::from_static("http://localhost:9527"),
     ];
     if let Some(origin) = reqwest::Url::parse(web_app_url)
         .ok()

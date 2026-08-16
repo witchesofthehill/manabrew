@@ -1,5 +1,104 @@
 # Changelog
 
+## [3.13.2](https://github.com/witchesofthehill/manabrew/compare/v3.13.1...v3.13.2) (2026-08-16)
+
+### Fixes
+
+* **harness:** isolate multiplied trigger targets ([#673](https://github.com/witchesofthehill/manabrew/issues/673)) ([7299956](https://github.com/witchesofthehill/manabrew/commit/729995678d785135e91df68e8f575e1d1c1a972f))
+
+## [3.13.1](https://github.com/witchesofthehill/manabrew/compare/v3.13.0...v3.13.1) (2026-08-14)
+
+### Fixes
+
+* **web:** stop gating the app on the manabrew card archive ([#687](https://github.com/witchesofthehill/manabrew/issues/687)) ([fab7dfc](https://github.com/witchesofthehill/manabrew/commit/fab7dfc2e564d4f16ab0950adc77772ad8f416d5))
+
+## [3.13.0](https://github.com/witchesofthehill/manabrew/compare/v3.12.5...v3.13.0) (2026-08-12)
+
+### Features
+
+* **ui:** improve deck editor workflows ([#678](https://github.com/witchesofthehill/manabrew/issues/678)) ([f812a0e](https://github.com/witchesofthehill/manabrew/commit/f812a0e66dea245756ca35123a2babc8f03712b0))
+
+### Fixes
+
+* **ui:** unify live card art resolution ([#686](https://github.com/witchesofthehill/manabrew/issues/686)) ([416c65f](https://github.com/witchesofthehill/manabrew/commit/416c65fda4e614b98ccbcf5d15056fc188d8a243))
+* **tauri:** forward reconnect timeout to the forge room host ([#667](https://github.com/witchesofthehill/manabrew/issues/667)) ([5c6cad7](https://github.com/witchesofthehill/manabrew/commit/5c6cad7aa868f226a251678441366e32b64d4710))
+
+## [3.12.5](https://github.com/witchesofthehill/manabrew/compare/v3.12.4...v3.12.5) (2026-08-12)
+
+### Fixes
+
+* prompt for triggers order and show presentation on choose_board_targets ([#663](https://github.com/witchesofthehill/manabrew/issues/663)) ([277982e](https://github.com/witchesofthehill/manabrew/commit/277982ec5636916e598d008688ffe246f58459fa))
+
+## [3.12.4](https://github.com/witchesofthehill/manabrew/compare/v3.12.3...v3.12.4) (2026-08-12)
+
+### Fixes
+
+* **wasm:** crash on select creature type on WASM builds ([#681](https://github.com/witchesofthehill/manabrew/issues/681)) ([e51ba2d](https://github.com/witchesofthehill/manabrew/commit/e51ba2d691967947f202497df5055b8f7dba2f81))
+
+## [3.12.3](https://github.com/witchesofthehill/manabrew/compare/v3.12.2...v3.12.3) (2026-08-10)
+
+### Fixes
+
+* **ui:** list account decks in the lobby and vs-AI pickers ([#680](https://github.com/witchesofthehill/manabrew/issues/680)) ([b3e4dfa](https://github.com/witchesofthehill/manabrew/commit/b3e4dfa0f4e83ee125c326c0561617a4458adec8))
+
+## [3.12.2](https://github.com/witchesofthehill/manabrew/compare/v3.12.1...v3.12.2) (2026-08-10)
+
+### Fixes
+
+* **auth:** open the desktop oauth page in the system browser ([#677](https://github.com/witchesofthehill/manabrew/issues/677)) ([359dd7d](https://github.com/witchesofthehill/manabrew/commit/359dd7d8ad103da5e4ac39ec0423c67d9684a922))
+
+## [3.12.1](https://github.com/witchesofthehill/manabrew/compare/v3.12.0...v3.12.1) (2026-08-10)
+
+### Fixes
+
+* **ui:** load deck cover art through ScryfallImg on desktop ([#676](https://github.com/witchesofthehill/manabrew/issues/676)) ([4c0c0cd](https://github.com/witchesofthehill/manabrew/commit/4c0c0cd4197f0d1a7677e6de97674ef68e0d2bcf))
+
+## [3.12.0](https://github.com/witchesofthehill/manabrew/compare/v3.11.1...v3.12.0) (2026-08-10)
+
+### Features
+
+* **ui:** restore the update callout on the play home ([#675](https://github.com/witchesofthehill/manabrew/issues/675)) ([fae1f56](https://github.com/witchesofthehill/manabrew/commit/fae1f56495c2c78524a33cca06dca6873ae71ac2))
+
+## [3.11.1](https://github.com/witchesofthehill/manabrew/compare/v3.11.0...v3.11.1) (2026-08-10)
+
+### Fixes
+
+* **tauri:** allow manabrew hosts through the http plugin scope ([#674](https://github.com/witchesofthehill/manabrew/issues/674)) ([d0135c2](https://github.com/witchesofthehill/manabrew/commit/d0135c2bfd2e3da9f92b97625d29437ab5e8905e))
+
+## [3.11.0](https://github.com/witchesofthehill/manabrew/compare/v3.10.0...v3.11.0) (2026-08-10)
+
+### Features
+
+* **accounts:** enable hub accounts on desktop builds ([#672](https://github.com/witchesofthehill/manabrew/issues/672)) ([1ba9ae4](https://github.com/witchesofthehill/manabrew/commit/1ba9ae45bd03c20a315aaf6f54698e3701465828))
+
+## [3.10.0](https://github.com/witchesofthehill/manabrew/compare/v3.9.7...v3.10.0) (2026-08-10)
+
+### Features
+
+* **deckhub:** enable deck hub browse on desktop builds ([#671](https://github.com/witchesofthehill/manabrew/issues/671)) ([b62dcc2](https://github.com/witchesofthehill/manabrew/commit/b62dcc2619197e7225e1ba01db56df7d5d75ef19))
+
+## [3.9.7](https://github.com/witchesofthehill/manabrew/compare/v3.9.6...v3.9.7) (2026-08-10)
+
+### Fixes
+
+* **hub:** allow the desktop asset-server origin through cors ([#670](https://github.com/witchesofthehill/manabrew/issues/670)) ([ad0ca51](https://github.com/witchesofthehill/manabrew/commit/ad0ca51fccf3f44c41054202b4ce3581c52b49d2))
+
+## [3.9.6](https://github.com/witchesofthehill/manabrew/compare/v3.9.5...v3.9.6) (2026-08-09)
+
+## [3.9.5](https://github.com/witchesofthehill/manabrew/compare/v3.9.4...v3.9.5) (2026-08-09)
+
+### Fixes
+
+* **limited:** restore cube drafts and improve draft workspace ([#652](https://github.com/witchesofthehill/manabrew/issues/652)) ([5d5c80f](https://github.com/witchesofthehill/manabrew/commit/5d5c80fe9b15782a17fbdd82480127dc42683960))
+
+## [3.9.4](https://github.com/witchesofthehill/manabrew/compare/v3.9.3...v3.9.4) (2026-08-09)
+
+### Fixes
+
+* **ui:** preserve token printing identity ([#651](https://github.com/witchesofthehill/manabrew/issues/651)) ([e02a8d7](https://github.com/witchesofthehill/manabrew/commit/e02a8d7ab1475095c3cbac16254fa03f3e0d17e9))
+
+## [3.9.3](https://github.com/witchesofthehill/manabrew/compare/v3.9.2...v3.9.3) (2026-08-09)
+
 ## [3.9.2](https://github.com/witchesofthehill/manabrew/compare/v3.9.1...v3.9.2) (2026-08-08)
 
 ### Fixes

@@ -28,6 +28,7 @@ import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { getPlatformType } from "@/platform";
 import { clearAuthReturnIntent, storeAuthReturnIntent } from "@/lib/authReturn";
 import type { AuthProviders, AuthSessionResponse } from "@/api/authTypes";
+import { openExternal } from "@/lib/openExternal";
 
 type Step = "start" | "email-code" | "desktop-code" | "handle";
 
@@ -106,7 +107,7 @@ export function SignInDialog() {
       const desktop = getPlatformType() === "tauri";
       const url = await startOAuth(provider, "signin", desktop ? "desktop" : "web");
       if (desktop) {
-        window.open(url, "_blank", "noopener");
+        await openExternal(url);
         setStep("desktop-code");
       } else {
         storeAuthReturnIntent(prefill ?? undefined);

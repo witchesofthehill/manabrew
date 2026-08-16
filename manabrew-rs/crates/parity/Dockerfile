@@ -100,6 +100,7 @@ COPY forge/forge-gui/res/cardsfolder/   forge/forge-gui/res/cardsfolder/
 COPY forge/forge-gui/res/tokenscripts/  forge/forge-gui/res/tokenscripts/
 COPY forge/forge-gui/res/editions/      forge/forge-gui/res/editions/
 COPY forge/forge-gui/res/blockdata/     forge/forge-gui/res/blockdata/
+COPY forge/forge-gui/res/lists/TypeLists.txt forge/forge-gui/res/lists/TypeLists.txt
 
 # Build parity binary + the build-cardset-archive helper, then run
 # the helper to produce src-tauri/resources/cardset.rkyv at the path the

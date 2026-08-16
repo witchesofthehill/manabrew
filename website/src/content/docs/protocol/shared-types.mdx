@@ -84,3 +84,15 @@ An incoming attacker and how it may be blocked
 ([chooseBlockers](/protocol/choose-blockers/)).
 
 <ProtocolType type="BlockableAttackerDto" />
+
+## TokenScript
+
+The Forge token definition used to distinguish tokens with the same name but
+different rules, such as two 2/2 white Knight tokens with different abilities.
+It is an opaque string on the wire; values follow Forge's token-script names,
+typically `colors_power_toughness_type_abilities`, for example
+`w_2_2_knight_vigilance`. See Forge's
+[`tokenscripts`](https://github.com/Card-Forge/forge/tree/master/forge-gui/res/tokenscripts)
+directory for the canonical definitions.
+
+<ProtocolType type="TokenScript" />

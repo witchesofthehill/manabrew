@@ -16,6 +16,8 @@ pub struct CardRules {
     pub normalized_name: String,
     pub meld_with: Option<String>,
     pub partner_with: Option<String>,
+    #[serde(default)]
+    pub tokens: Vec<String>,
 }
 
 impl CardRules {

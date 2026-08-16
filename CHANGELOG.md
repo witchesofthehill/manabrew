@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.14.0](https://github.com/witchesofthehill/manabrew/compare/v3.13.2...v3.14.0) (2026-08-16)
+
+### Features
+
+* relay session identity, hub oauth tokens, relay protocol crate ([#638](https://github.com/witchesofthehill/manabrew/issues/638)) ([92b944b](https://github.com/witchesofthehill/manabrew/commit/92b944b988a6fc1f99de584936bf1356f9a6d427))
+
 ## [3.13.2](https://github.com/witchesofthehill/manabrew/compare/v3.13.1...v3.13.2) (2026-08-16)
 
 ### Fixes

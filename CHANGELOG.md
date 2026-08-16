@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.13.2](https://github.com/witchesofthehill/manabrew/compare/v3.13.1...v3.13.2) (2026-08-16)
+
+### Fixes
+
+* **harness:** isolate multiplied trigger targets ([#673](https://github.com/witchesofthehill/manabrew/issues/673)) ([7299956](https://github.com/witchesofthehill/manabrew/commit/729995678d785135e91df68e8f575e1d1c1a972f))
+
 ## [3.13.1](https://github.com/witchesofthehill/manabrew/compare/v3.13.0...v3.13.1) (2026-08-14)
 
 ### Fixes

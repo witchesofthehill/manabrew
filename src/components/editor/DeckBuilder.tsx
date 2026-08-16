@@ -42,6 +42,7 @@ import {
   UnfoldVertical,
   ArrowUp,
   Sparkles,
+  BookOpen,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
@@ -174,6 +175,8 @@ export function DeckBuilder({
   onResumedPublicationClose,
   onSelectionChange,
   onReadOnlyDeckImported,
+  previewController,
+  onDeckDeleted,
 }: {
   onToggleSearch?: () => void;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
@@ -183,6 +186,8 @@ export function DeckBuilder({
   onResumedPublicationClose?: () => void;
   onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
   onReadOnlyDeckImported?: (deckId: string) => void;
+  previewController?: ReturnType<typeof useCardPreview>;
+  onDeckDeleted?: () => void;
 } = {}) {
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
@@ -207,6 +212,7 @@ export function DeckBuilder({
   const [batchPrintingSelectionOnly, setBatchPrintingSelectionOnly] = useState(false);
   const [printingOptimizerOpen, setPrintingOptimizerOpen] = useState(false);
   const saveInFlightRef = useRef(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [checkpointsOpen, setCheckpointsOpen] = useState(false);
@@ -457,7 +463,8 @@ export function DeckBuilder({
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
 
-  const preview = useCardPreview([], { subscribe: false });
+  const internalPreview = useCardPreview([], { subscribe: false });
+  const preview = previewController ?? internalPreview;
 
   useDeckAnalysis();
   useDeckRoles();
@@ -1201,6 +1208,41 @@ export function DeckBuilder({
     }
   }
 
+  async function handleDeleteCurrentDeck() {
+    if (isDeleting) return;
+    const deckId = useDeckStore.getState().currentDeckId;
+    const saved = deckId ? savedDecks.find((candidate) => candidate.id === deckId) : undefined;
+    setIsDeleting(true);
+    try {
+      if (saved?.accountDeckId) {
+        await useAccountDecksStore.getState().remove(saved.accountDeckId);
+      }
+      if (deckId) deleteSavedDeck(deckId);
+      clearDeck();
+      resetDeckHistory();
+      setConfirmClear(false);
+      const snapshot = buildDeckSnapshot({
+        format: "standard",
+        cards: [],
+        sideboard: [],
+        commanders: [],
+        attractions: [],
+        contraptions: [],
+        schemes: [],
+        planes: [],
+        name: DEFAULT_DECK_NAME,
+      });
+      setLastSavedSnapshot(snapshot);
+      setUnsavedState(snapshot, snapshot);
+      toast.success("Deck deleted");
+      onDeckDeleted?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete deck");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   /**
    * Unified card-selection handler passed down to DeckListView.
    * Plain click → toggle individual card (others stay selected).
@@ -1304,7 +1346,7 @@ export function DeckBuilder({
     },
     {
       id: "editor-tour",
-      label: "Show deck editor tour",
+      label: "Open deck editor guide",
       keywords: ["help", "learn", "what can I do", "onboarding"],
       run: openDeckEditorWelcome,
     },
@@ -1850,6 +1892,9 @@ export function DeckBuilder({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
                   <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={openDeckEditorWelcome}>
+                  <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
                 </DropdownMenuItem>
                 {onToggleSearch && (
                   <DropdownMenuItem onSelect={onToggleSearch}>
@@ -2464,36 +2509,21 @@ export function DeckBuilder({
                 cards and delete the saved deck.
               </p>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setConfirmClear(false)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isDeleting}
+                  onClick={() => setConfirmClear(false)}
+                >
                   Cancel
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => {
-                    // Delete the saved deck if it exists
-                    const deckId = useDeckStore.getState().currentDeckId;
-                    if (deckId) deleteSavedDeck(deckId);
-                    clearDeck();
-                    resetDeckHistory();
-                    setConfirmClear(false);
-                    const snapshot = buildDeckSnapshot({
-                      format: "standard",
-                      cards: [],
-                      sideboard: [],
-                      commanders: [],
-                      attractions: [],
-                      contraptions: [],
-                      schemes: [],
-                      planes: [],
-                      name: DEFAULT_DECK_NAME,
-                    });
-                    setLastSavedSnapshot(snapshot);
-                    setUnsavedState(snapshot, snapshot);
-                    toast.success("Deck deleted");
-                  }}
+                  disabled={isDeleting}
+                  onClick={() => void handleDeleteCurrentDeck()}
                 >
-                  Delete
+                  {isDeleting ? "Deleting…" : "Delete"}
                 </Button>
               </div>
             </div>

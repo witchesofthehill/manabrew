@@ -6,6 +6,7 @@ import {
 import { CardSearch } from "@/components/editor/CardSearch";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { useCardPreview } from "@/hooks/useCardPreview";
 import {
   DndContext,
   DragOverlay,
@@ -101,6 +102,7 @@ function DragTrayTarget({
 }
 
 export default function DeckEditor() {
+  const previewController = useCardPreview([], { subscribe: false });
   const {
     removeFromSide,
     removeFromMaybe,
@@ -120,6 +122,7 @@ export default function DeckEditor() {
   } = useDeckStore();
   const importDeckText = useDeckTextImport();
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
+  const editorSessionId = useDeckStore((s) => s.editorSessionId);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
   const presetDecksResolved = usePresetDecksResolved();
@@ -1012,6 +1015,7 @@ export default function DeckEditor() {
         <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
           <div className="overflow-hidden flex-1 min-h-0 min-w-0">
             <DeckBuilder
+              key={editorSessionId}
               onSelectionChange={(selectedCards) => {
                 selectedCardsRef.current = selectedCards;
               }}
@@ -1022,6 +1026,12 @@ export default function DeckEditor() {
                 setSearchParams({ deck: id }, { replace: true, state: { directToEditor: true } });
               }}
               setPreviewSlot={setPreviewSlot}
+              previewController={previewController}
+              onDeckDeleted={() => {
+                setShowSearch(false);
+                setStateView("list");
+                navigate(ROUTES.DECK_EDITOR, { replace: true, state: null });
+              }}
               previewCollapsed={previewCollapsed}
               onPreviewCollapsedChange={setPreviewCollapsedValue}
               resumedPublication={
@@ -1040,6 +1050,7 @@ export default function DeckEditor() {
               <CardSearch
                 onClose={() => setShowSearch(false)}
                 previewSlot={previewSlot}
+                previewController={previewController}
                 focusSignal={searchFocusSignal}
               />
             </div>

@@ -543,6 +543,7 @@ function DraggableCardRow({
 interface CardSearchProps {
   standalone?: boolean;
   onClose?: () => void;
+  previewController?: ReturnType<typeof useCardPreview>;
   /** Shared rail slot — when provided, the hover preview portals into it
    *  (pinned). When absent, the search panel renders no preview of its own. */
   previewSlot?: HTMLElement | null;
@@ -550,8 +551,15 @@ interface CardSearchProps {
   focusSignal?: number;
 }
 
-export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
-  const preview = useCardPreview();
+export function CardSearch({
+  standalone,
+  onClose,
+  previewController,
+  previewSlot,
+  focusSignal,
+}: CardSearchProps) {
+  const internalPreview = useCardPreview();
+  const preview = previewController ?? internalPreview;
   const addToMain = useDeckStore((s) => s.addToMain);
   const addCard = (card: DeckCard) => {
     addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
@@ -1145,7 +1153,9 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
       </ScrollArea>
 
       {detailCard && <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />}
-      <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      {!previewController && (
+        <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      )}
     </div>
   );
 }

@@ -30,21 +30,6 @@ function normalize(name: string): string {
   return name.toLowerCase();
 }
 
-function fallbackRoles(card: DeckCard): string[] {
-  const text = card.text.toLowerCase();
-  const roles = new Set<string>();
-  if (card.types.includes("Land") || text.includes("add {")) roles.add("ramp");
-  if (/draw (?:a|two|three|\d+) cards?/.test(text)) roles.add("card-draw");
-  if (/destroy target|exile target|deals? \d+ damage to any target/.test(text)) {
-    roles.add("interaction");
-    roles.add("removal");
-  }
-  if (/search your library/.test(text)) roles.add("tutor");
-  if (/return target .* from your graveyard/.test(text)) roles.add("recursion");
-  if (/hexproof|indestructible|protection from/.test(text)) roles.add("protection");
-  return [...roles];
-}
-
 export const useCardRolesStore = create<CardRolesState>((set, get) => ({
   roles: {},
   pending: new Set(),
@@ -63,9 +48,9 @@ export const useCardRolesStore = create<CardRolesState>((set, get) => ({
           const engineRoles = await platform.invoke<string[]>("card_roles", {
             name: card.identity.name,
           });
-          return [key, engineRoles.length > 0 ? engineRoles : fallbackRoles(card)] as const;
+          return [key, engineRoles] as const;
         } catch {
-          return [key, fallbackRoles(card)] as const;
+          return [key, null] as const;
         }
       }),
     );
@@ -73,7 +58,7 @@ export const useCardRolesStore = create<CardRolesState>((set, get) => ({
       const roles = { ...state.roles };
       const pending = new Set(state.pending);
       for (const [key, cardRoles] of results) {
-        roles[key] = cardRoles;
+        if (cardRoles) roles[key] = cardRoles;
         pending.delete(key);
       }
       return { roles, pending };

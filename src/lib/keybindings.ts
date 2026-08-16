@@ -86,7 +86,7 @@ export const KEYBINDINGS: KeybindingDef[] = [
     id: "deck-editor-command-palette",
     label: "Open deck command palette",
     category: "Deck editor",
-    defaultCombo: { key: "p", mod: true },
+    defaultCombo: { key: "p", mod: true, shift: true },
     allowInEditable: true,
   },
   {

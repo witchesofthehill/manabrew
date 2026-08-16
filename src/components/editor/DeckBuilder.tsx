@@ -300,14 +300,20 @@ export function DeckBuilder({
         }>
       >;
       const saved = all[presentationKey];
-      if (saved?.viewMode) setViewMode(saved.viewMode);
-      if (saved?.cardSize) setCardSize(saved.cardSize);
-      if (saved?.groupBy) setGroupBy(saved.groupBy);
-      if (saved?.sortBy) setSortBy(saved.sortBy);
-      if (saved?.collectionFilter) setCollectionFilter(saved.collectionFilter);
-      if (saved?.analysisOpen !== undefined) setAnalysisOpen(saved.analysisOpen);
+      setViewMode(saved?.viewMode ?? "list");
+      setCardSize(saved?.cardSize ?? DEFAULT_CARD_SIZE);
+      setGroupBy(saved?.groupBy ?? "type");
+      setSortBy(saved?.sortBy ?? "mana-value");
+      setCollectionFilter(saved?.collectionFilter ?? "all");
+      setAnalysisOpen(saved?.analysisOpen ?? true);
     } catch {
       localStorage.removeItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION);
+      setViewMode("list");
+      setCardSize(DEFAULT_CARD_SIZE);
+      setGroupBy("type");
+      setSortBy("mana-value");
+      setCollectionFilter("all");
+      setAnalysisOpen(true);
     }
   }, [editorSessionId, presentationKey, setAnalysisOpen]);
 

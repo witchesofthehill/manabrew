@@ -33,6 +33,7 @@ use crate::storage::{
 use crate::validate;
 
 const MAX_BODY_BYTES: usize = 1024 * 1024;
+const MAX_COLLECTION_BODY_BYTES: usize = 48 * 1024 * 1024;
 const DEFAULT_PAGE_SIZE: u32 = 20;
 const MAX_PAGE_SIZE: u32 = 50;
 const FORWARDED_FOR_HEADER: &str = "x-forwarded-for";
@@ -90,9 +91,15 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/hub/capabilities", get(capabilities_handler))
         .route(
             "/api/collection",
-            get(card_collection_handler).put(replace_card_collection_handler),
+            get(card_collection_handler)
+                .put(replace_card_collection_handler)
+                .layer(DefaultBodyLimit::max(MAX_COLLECTION_BODY_BYTES)),
         )
-        .route("/api/cards/verify", post(verify_card_printings_handler))
+        .route(
+            "/api/cards/verify",
+            post(verify_card_printings_handler)
+                .layer(DefaultBodyLimit::max(MAX_COLLECTION_BODY_BYTES)),
+        )
         .route(
             "/api/scryfall/*path",
             get(crate::scryfall_api::handler).post(crate::scryfall_api::handler),
@@ -1093,6 +1100,56 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let verified: VerifyCardPrintingsResponse = body_json(response).await;
         assert_eq!(verified.matched, vec![true, false]);
+    }
+
+    #[tokio::test]
+    async fn collection_routes_accept_payloads_larger_than_the_default_limit() {
+        let state = test_state(100, 100);
+        let token = sign_up(&state, "collector", "collector@example.com");
+        let router = build_router(state);
+        let long_name = "x".repeat(300);
+        let identifiers = (0..5_000)
+            .map(|index| {
+                serde_json::json!({
+                    "name": long_name,
+                    "setCode": "tst",
+                    "collectorNumber": index.to_string()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/api/cards/verify",
+                Some(&token),
+                serde_json::json!({ "identifiers": identifiers }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let cards = (0..6_000)
+            .map(|index| {
+                serde_json::json!({
+                    "cardKey": format!("{}-{index}", "x".repeat(180)),
+                    "quantity": 1
+                })
+            })
+            .collect::<Vec<_>>();
+        let response = router
+            .oneshot(with_ip(
+                Request::put("/api/collection")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::from(
+                        serde_json::json!({ "version": 0, "cards": cards }).to_string(),
+                    ))
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]

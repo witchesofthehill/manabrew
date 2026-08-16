@@ -330,4 +330,32 @@ describe("collection account saves", () => {
       ],
     });
   });
+
+  it("preserves an import when the account changes during initialization", async () => {
+    let finishInitialization: ((value: unknown) => void) | undefined;
+    fetchAccountCollection.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishInitialization = resolve;
+        }),
+    );
+    useCollectionStore.setState({ accountId: null, quantities: {}, syncedQuantities: {} });
+
+    const initialization = useCollectionStore.getState().initialize("acct-1");
+    const merge = useCollectionStore.getState().mergeQuantities({ counterspell: 2 });
+    account.id = "acct-2";
+    useCollectionStore.setState({ accountId: "acct-2", quantities: {}, syncedQuantities: {} });
+    finishInitialization?.({ version: 3, cards: [{ cardKey: "sol ring", quantity: 1 }] });
+
+    await initialization;
+    await expect(merge).rejects.toThrow("account changed");
+    expect(JSON.parse(localStorage.getItem("manabrew-pending-account-collection") ?? "{}")).toEqual(
+      {
+        "acct-1": {
+          quantities: { counterspell: 2 },
+          syncedQuantities: {},
+        },
+      },
+    );
+  });
 });

@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { ChevronLeft, ChevronRight, GripVertical, Image as ImageIcon } from "lucide-react";
 
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -55,8 +62,24 @@ export function CardPreviewRail({
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
   const [width, setWidth] = useState(() => clampWidth(defaultWidth, minWidth, maxWidth));
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    cursor: string;
+    userSelect: string;
+  } | null>(null);
   const isCollapsed = collapsed ?? internalCollapsed;
+
+  useEffect(
+    () => () => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      document.body.style.cursor = drag.cursor;
+      document.body.style.userSelect = drag.userSelect;
+    },
+    [],
+  );
 
   const setSlotRef = useCallback(
     (element: HTMLDivElement | null) => {
@@ -73,9 +96,10 @@ export function CardPreviewRail({
 
   function finishResize(element: HTMLElement, pointerId: number) {
     if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+    const drag = dragRef.current;
     dragRef.current = null;
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
+    document.body.style.cursor = drag?.cursor ?? "";
+    document.body.style.userSelect = drag?.userSelect ?? "";
   }
 
   if (isCollapsed) {
@@ -119,6 +143,8 @@ export function CardPreviewRail({
             pointerId: event.pointerId,
             startX: event.clientX,
             startWidth: width,
+            cursor: document.body.style.cursor,
+            userSelect: document.body.style.userSelect,
           };
           document.body.style.cursor = "col-resize";
           document.body.style.userSelect = "none";

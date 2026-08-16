@@ -17,7 +17,11 @@ import { cardKey, useScryfallStore } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
 import { executeDeckEdit } from "./deckEditor.history";
-import { allocateOwnedPrintings, cheapestCompatiblePrinting } from "./printingOptimizer";
+import {
+  allocateOwnedPrintings,
+  cheapestCompatiblePrinting,
+  supportsPrintingFinish,
+} from "./printingOptimizer";
 
 type OptimizerPolicy = "owned" | "cheapest" | "nonfoil";
 
@@ -77,8 +81,24 @@ export function PrintingOptimizerDialog({
     try {
       let proposal: PrintingChange[] = [];
       if (policy === "nonfoil") {
+        const foilCards = allCards.filter((card) => card.identity.foil);
+        const currentPrintings = await useScryfallStore.getState().fetchCardCollection(
+          foilCards.map((card) => ({
+            name: card.identity.name,
+            setCode: card.identity.setCode,
+            collectorNumber: card.identity.cardNumber,
+          })),
+          abortController.signal,
+        );
+        abortController.signal.throwIfAborted();
         proposal = allCards
           .filter((card) => card.identity.foil)
+          .filter((card) => {
+            const print = currentPrintings.get(
+              scryfallCardKey(card.identity.name, card.identity.setCode, card.identity.cardNumber),
+            );
+            return print ? supportsPrintingFinish(print, false) : false;
+          })
           .map((card) => ({
             cardId: card.identity.id,
             name: card.identity.name,

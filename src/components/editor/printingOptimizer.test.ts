@@ -4,7 +4,11 @@ import { collectionCardKey } from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 
-import { allocateOwnedPrintings, cheapestCompatiblePrinting } from "./printingOptimizer";
+import {
+  allocateOwnedPrintings,
+  cheapestCompatiblePrinting,
+  supportsPrintingFinish,
+} from "./printingOptimizer";
 
 function card(id: string, setCode: string, cardNumber: string, foil = false): DeckCard {
   return {
@@ -86,5 +90,12 @@ describe("cheapestCompatiblePrinting", () => {
     expect(cheapestCompatiblePrinting([foilOnly, nonfoil], "cardhoarder", false)?.id).toBe(
       "nonfoil",
     );
+  });
+
+  it("rejects a nonfoil conversion for a foil-only printing", () => {
+    const foilOnly = printing("foil", ["foil"], { usd_foil: "1" });
+
+    expect(supportsPrintingFinish(foilOnly, false)).toBe(false);
+    expect(supportsPrintingFinish(foilOnly, true)).toBe(true);
   });
 });

@@ -315,8 +315,20 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
   },
   mergeQuantities: async (imported) => {
     const intendedAccountId = get().accountId;
+    const pendingBaseQuantities = get().syncedQuantities;
+    const pendingQuantities = { ...get().quantities };
+    for (const [cardKey, quantity] of Object.entries(imported)) {
+      const normalized = cardKey.toLowerCase();
+      const amount = Math.max(0, Math.floor(quantity));
+      if (amount > 0) {
+        pendingQuantities[normalized] = (pendingQuantities[normalized] ?? 0) + amount;
+      }
+    }
     await collectionInitialization;
     if (get().accountId !== intendedAccountId) {
+      if (intendedAccountId) {
+        writePendingAccountCollection(intendedAccountId, pendingQuantities, pendingBaseQuantities);
+      } else localStorage.setItem(LOCAL_COLLECTION_KEY, JSON.stringify(pendingQuantities));
       throw new Error("Collection account changed before this import could be applied");
     }
     const baseQuantities = get().syncedQuantities;

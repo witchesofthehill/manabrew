@@ -644,7 +644,7 @@ export default function DeckEditor() {
             : "maybe";
 
       const sourceZone = source === "side" || source === "special" ? "side" : source;
-      if (sourceZone === dest) return;
+      if (draggedNames.length === 1 && sourceZone === dest) return;
       if (source === "commander") {
         if (dest === "main") {
           executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));

@@ -4,12 +4,15 @@ import type { ScryfallCard } from "@/types/scryfall";
 
 export type PrintingPriceProvider = "tcgplayer" | "cardmarket" | "cardhoarder";
 
+export function supportsPrintingFinish(print: ScryfallCard, foil: boolean): boolean {
+  return print.finishes?.includes(foil ? "foil" : "nonfoil") ?? false;
+}
+
 export function cheapestCompatiblePrinting(
   prints: ScryfallCard[],
   provider: PrintingPriceProvider,
   foil: boolean,
 ): ScryfallCard | undefined {
-  const finish = foil ? "foil" : "nonfoil";
   const priceOf = (print: ScryfallCard) => {
     if (provider === "cardhoarder") return Number(print.prices.tix);
     if (provider === "cardmarket") return Number(foil ? print.prices.eur_foil : print.prices.eur);
@@ -18,7 +21,9 @@ export function cheapestCompatiblePrinting(
   return prints
     .filter(
       (print) =>
-        print.finishes?.includes(finish) && Number.isFinite(priceOf(print)) && priceOf(print) > 0,
+        supportsPrintingFinish(print, foil) &&
+        Number.isFinite(priceOf(print)) &&
+        priceOf(print) > 0,
     )
     .sort((left, right) => priceOf(left) - priceOf(right))[0];
 }

@@ -148,12 +148,12 @@ function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefin
   if (!localDeck) return deck;
   return {
     ...deck,
-    customTags: localDeck.customTags,
-    cardTags: localDeck.cardTags,
-    editor: localDeck.editor,
-    playmat: localDeck.playmat,
-    playmatSettings: localDeck.playmatSettings,
-    stackPositions: localDeck.stackPositions,
+    customTags: deck.customTags ?? localDeck.customTags,
+    cardTags: deck.cardTags ?? localDeck.cardTags,
+    editor: deck.editor ?? localDeck.editor,
+    playmat: deck.playmat ?? localDeck.playmat,
+    playmatSettings: deck.playmatSettings ?? localDeck.playmatSettings,
+    stackPositions: deck.stackPositions ?? localDeck.stackPositions,
   };
 }
 

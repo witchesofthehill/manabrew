@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { Deck as DeckDto } from "@/protocol/deck";
+import type {
+  Deck as DeckDto,
+  DeckEditorGoals as DeckEditorGoalsDto,
+  DeckEditorGroup as DeckEditorGroupDto,
+  DeckEditorLayout as DeckEditorLayoutDto,
+  DeckEditorMetadata as DeckEditorMetadataDto,
+  DeckEditorTag as DeckEditorTagDto,
+  DeckSideboardPlan as DeckSideboardPlanDto,
+} from "@/protocol/deck";
 
 export interface CardIdentity {
   id: string;
@@ -27,71 +35,15 @@ export interface CardRulesSummary {
   isDoubleFaced?: boolean;
 }
 
-/** A deck open in the deck-builder: the wire `Deck` plus editor-only scratch
- *  that never reaches the engine — saved with the deck, dropped on the wire. */
-export type EditorDeck = DeckDto & {
-  customTags?: string[];
-  cardTags?: Record<string, string[]>;
-  editor?: DeckEditorMetadata;
-};
-
-export interface DeckEditorTag {
-  id: string;
-  name: string;
-  color?: string;
-  icon?: string;
-}
-
-export interface DeckEditorGroup {
-  id: string;
-  name: string;
-  cardNames: string[];
-  collapsed?: boolean;
-  pinned?: boolean;
-}
-
-export interface DeckEditorLayout {
-  id: string;
-  name: string;
-  groupBy: "type" | "cmc" | "color" | "custom";
-  sortBy: "name" | "mana-value" | "quantity" | "owned" | "not-owned";
-  groups: DeckEditorGroup[];
-  filter?: string;
-  cardSize?: number;
-  viewMode?: "list" | "visual" | "stack";
-  collectionFilter?: "all" | "exact" | "other" | "partial" | "missing";
-  defaultDestination?: "main" | "side" | "maybe";
-}
-
-export interface DeckEditorMetadata {
-  version: 1;
-  tags: DeckEditorTag[];
-  layouts: DeckEditorLayout[];
-  activeLayoutId?: string;
-  sideboardPlans?: DeckSideboardPlan[];
-  budgetUsd?: number;
-  budgetAmount?: number;
-  priceProvider?: "tcgplayer" | "cardmarket" | "cardhoarder";
-  goals?: DeckEditorGoals;
-  dismissedHints?: string[];
-  acquisition?: Record<string, "ordered" | "proxy">;
-}
-
-export interface DeckEditorGoals {
-  minLands?: number;
-  maxLands?: number;
-  maxMissingCards?: number;
-  maxAverageManaValue?: number;
-  tagTargets?: Record<string, number>;
-}
-
-export interface DeckSideboardPlan {
-  id: string;
-  matchup: string;
-  bringIn: string;
-  takeOut: string;
-  notes: string;
-}
+/** The shared deck snapshot includes editor metadata for account round-trips;
+ *  gameplay consumers ignore those optional fields. */
+export type EditorDeck = DeckDto;
+export type DeckEditorTag = DeckEditorTagDto;
+export type DeckEditorGroup = DeckEditorGroupDto;
+export type DeckEditorLayout = DeckEditorLayoutDto;
+export type DeckEditorMetadata = DeckEditorMetadataDto;
+export type DeckEditorGoals = DeckEditorGoalsDto;
+export type DeckSideboardPlan = DeckSideboardPlanDto;
 
 export interface User {
   username: string;

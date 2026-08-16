@@ -1,5 +1,13 @@
 import { useRef, useState } from "react";
-import { BadgeDollarSign, Check, Layers3, Loader2, Sparkles, WalletCards } from "lucide-react";
+import {
+  BadgeDollarSign,
+  Check,
+  Layers3,
+  Loader2,
+  Sparkles,
+  TriangleAlert,
+  WalletCards,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { scryfallCardKey } from "@/api/scryfall";
@@ -34,6 +42,13 @@ interface PrintingChange {
   targetFoil?: boolean;
 }
 
+interface PrintingSkip {
+  cardId: string;
+  name: string;
+  printing: string;
+  reason: string;
+}
+
 export function PrintingOptimizerDialog({
   open,
   onOpenChange,
@@ -43,6 +58,7 @@ export function PrintingOptimizerDialog({
 }) {
   const [loading, setLoading] = useState<OptimizerPolicy | null>(null);
   const [changes, setChanges] = useState<PrintingChange[]>([]);
+  const [skipped, setSkipped] = useState<PrintingSkip[]>([]);
   const [progress, setProgress] = useState(0);
   const [proposalSessionId, setProposalSessionId] = useState<string | null>(null);
   const [selectedPolicy, setSelectedPolicy] = useState<OptimizerPolicy>("owned");
@@ -75,11 +91,13 @@ export function PrintingOptimizerDialog({
     setProposalSessionId(sessionId);
     setLoading(policy);
     setChanges([]);
+    setSkipped([]);
     setProgress(0);
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     try {
       let proposal: PrintingChange[] = [];
+      const unresolved: PrintingSkip[] = [];
       if (policy === "nonfoil") {
         const foilCards = allCards.filter((card) => card.identity.foil);
         const currentPrintings = await useScryfallStore.getState().fetchCardCollection(
@@ -91,21 +109,35 @@ export function PrintingOptimizerDialog({
           abortController.signal,
         );
         abortController.signal.throwIfAborted();
-        proposal = allCards
-          .filter((card) => card.identity.foil)
-          .filter((card) => {
-            const print = currentPrintings.get(
-              scryfallCardKey(card.identity.name, card.identity.setCode, card.identity.cardNumber),
-            );
-            return print ? supportsPrintingFinish(print, false) : false;
-          })
-          .map((card) => ({
-            cardId: card.identity.id,
-            name: card.identity.name,
-            from: `${card.identity.setCode.toUpperCase()} #${card.identity.cardNumber} · foil`,
-            to: `${card.identity.setCode.toUpperCase()} #${card.identity.cardNumber} · non-foil`,
-            targetFoil: false,
-          }));
+        for (const card of foilCards) {
+          const printing = `${card.identity.setCode.toUpperCase()} #${card.identity.cardNumber}`;
+          const print = currentPrintings.get(
+            scryfallCardKey(card.identity.name, card.identity.setCode, card.identity.cardNumber),
+          );
+          if (!print) {
+            unresolved.push({
+              cardId: card.identity.id,
+              name: card.identity.name,
+              printing,
+              reason: "Printing could not be resolved",
+            });
+          } else if (!supportsPrintingFinish(print, false)) {
+            unresolved.push({
+              cardId: card.identity.id,
+              name: card.identity.name,
+              printing,
+              reason: "This printing is foil-only",
+            });
+          } else {
+            proposal.push({
+              cardId: card.identity.id,
+              name: card.identity.name,
+              from: `${printing} · foil`,
+              to: `${printing} · non-foil`,
+              targetFoil: false,
+            });
+          }
+        }
       } else if (policy === "owned") {
         const assignments = allocateOwnedPrintings(allCards, quantities);
         const cards = await useScryfallStore
@@ -182,7 +214,10 @@ export function PrintingOptimizerDialog({
         throw new Error("The open deck changed while printings were being checked");
       }
       setChanges(proposal);
-      if (proposal.length === 0) toast.info("The selected policy would not change this deck");
+      setSkipped(unresolved);
+      if (proposal.length === 0 && unresolved.length === 0) {
+        toast.info("The selected policy would not change this deck");
+      }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         toast.error(error instanceof Error ? error.message : "Could not optimize deck printings");
@@ -200,6 +235,7 @@ export function PrintingOptimizerDialog({
     if (proposalSessionId !== useDeckStore.getState().editorSessionId) {
       toast.error("The open deck changed. Build the printing proposal again.");
       setChanges([]);
+      setSkipped([]);
       return;
     }
     executeDeckEdit(`Optimize ${changes.length} deck printings`, () => {
@@ -215,6 +251,7 @@ export function PrintingOptimizerDialog({
       `Updated ${changes.length} card ${changes.length === 1 ? "printing" : "printings"}`,
     );
     setChanges([]);
+    setSkipped([]);
     onOpenChange(false);
   }
 
@@ -228,6 +265,7 @@ export function PrintingOptimizerDialog({
           setLoading(null);
           setProgress(0);
           setChanges([]);
+          setSkipped([]);
         }
         onOpenChange(next);
       }}
@@ -268,7 +306,7 @@ export function PrintingOptimizerDialog({
             onClick={() => setSelectedPolicy("nonfoil")}
           />
         </div>
-        {changes.length === 0 && !loading && (
+        {changes.length === 0 && skipped.length === 0 && !loading && (
           <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-3">
             <div>
               <p className="text-sm font-medium">Ready to scan {allCards.length} cards</p>
@@ -329,7 +367,14 @@ export function PrintingOptimizerDialog({
                   undoable edit
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setChanges([])}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setChanges([]);
+                  setSkipped([]);
+                }}
+              >
                 Change goal
               </Button>
             </div>
@@ -353,6 +398,34 @@ export function PrintingOptimizerDialog({
               <Button className="gap-1" onClick={applyProposal}>
                 <Check className="h-3.5 w-3.5" /> Apply {changes.length} changes
               </Button>
+            </div>
+          </div>
+        )}
+        {skipped.length > 0 && (
+          <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-warning">
+                <TriangleAlert className="h-4 w-4" /> Could not convert {skipped.length}{" "}
+                {skipped.length === 1 ? "copy" : "copies"}
+              </div>
+              {changes.length === 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setSkipped([])}>
+                  Change goal
+                </Button>
+              )}
+            </div>
+            <div className="max-h-36 overflow-y-auto divide-y divide-border/50">
+              {skipped.map((item) => (
+                <div
+                  key={item.cardId}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 text-xs"
+                >
+                  <span className="truncate font-medium">{item.name}</span>
+                  <span className="text-right text-muted-foreground">
+                    {item.printing} · {item.reason}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -251,14 +251,16 @@ impl Storage {
             "DELETE FROM card_collection WHERE account_id = ?1",
             params![account_id],
         )?;
-        for (card_key, quantity) in cards {
-            if *quantity == 0 {
-                continue;
-            }
-            tx.execute(
+        {
+            let mut statement = tx.prepare(
                 "INSERT INTO card_collection (account_id, card_key, quantity) VALUES (?1, ?2, ?3)",
-                params![account_id, card_key, quantity],
             )?;
+            for (card_key, quantity) in cards {
+                if *quantity == 0 {
+                    continue;
+                }
+                statement.execute(params![account_id, card_key, quantity])?;
+            }
         }
         let version = tx.query_row(
             "SELECT version FROM card_collection_versions WHERE account_id = ?1",

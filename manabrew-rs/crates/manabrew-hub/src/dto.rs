@@ -38,6 +38,9 @@ pub struct CardPrintingIdentifier {
     pub name: String,
     pub set_code: String,
     pub collector_number: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub foil: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

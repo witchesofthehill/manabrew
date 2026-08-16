@@ -5,7 +5,9 @@ import type { ScryfallCard } from "@/types/scryfall";
 export type PrintingPriceProvider = "tcgplayer" | "cardmarket" | "cardhoarder";
 
 export function supportsPrintingFinish(print: ScryfallCard, foil: boolean): boolean {
-  return print.finishes?.includes(foil ? "foil" : "nonfoil") ?? false;
+  return foil
+    ? (print.finishes?.some((finish) => finish === "foil" || finish === "etched") ?? false)
+    : (print.finishes?.includes("nonfoil") ?? false);
 }
 
 export function cheapestCompatiblePrinting(

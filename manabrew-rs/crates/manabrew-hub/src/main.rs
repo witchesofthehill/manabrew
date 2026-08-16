@@ -98,6 +98,7 @@ async fn main() {
         storage: Mutex::new(storage),
         limiter: RateLimiter::new(config.publish_per_hour),
         play_limiter: RateLimiter::new(config.play_reports_per_hour),
+        collection_limiter: RateLimiter::new(300),
         deck_hub_enabled: config.deck_hub_enabled,
         publish_per_day: config.publish_per_day,
         relay_deck_plays_token: config.relay_deck_plays_token,

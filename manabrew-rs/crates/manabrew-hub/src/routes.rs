@@ -33,7 +33,10 @@ use crate::storage::{
 use crate::validate;
 
 const MAX_BODY_BYTES: usize = 1024 * 1024;
-const MAX_COLLECTION_BODY_BYTES: usize = 48 * 1024 * 1024;
+const MAX_COLLECTION_BODY_BYTES: usize = 8 * 1024 * 1024;
+const MAX_COLLECTION_ENTRIES: usize = 25_000;
+const MAX_VERIFY_BODY_BYTES: usize = 4 * 1024 * 1024;
+const MAX_VERIFY_IDENTIFIERS: usize = 5_000;
 const DEFAULT_PAGE_SIZE: u32 = 20;
 const MAX_PAGE_SIZE: u32 = 50;
 const FORWARDED_FOR_HEADER: &str = "x-forwarded-for";
@@ -43,6 +46,7 @@ pub struct AppState {
     pub storage: Mutex<Storage>,
     pub limiter: RateLimiter,
     pub play_limiter: RateLimiter,
+    pub collection_limiter: RateLimiter,
     pub deck_hub_enabled: bool,
     pub publish_per_day: u32,
     pub relay_deck_plays_token: Option<String>,
@@ -97,8 +101,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route(
             "/api/cards/verify",
-            post(verify_card_printings_handler)
-                .layer(DefaultBodyLimit::max(MAX_COLLECTION_BODY_BYTES)),
+            post(verify_card_printings_handler).layer(DefaultBodyLimit::max(MAX_VERIFY_BODY_BYTES)),
         )
         .route(
             "/api/scryfall/*path",
@@ -180,7 +183,7 @@ async fn verify_card_printings_handler(
     auth::SessionAccount(_account): auth::SessionAccount,
     Json(request): Json<VerifyCardPrintingsRequest>,
 ) -> Response {
-    if request.identifiers.len() > 100_000
+    if request.identifiers.len() > MAX_VERIFY_IDENTIFIERS
         || request.identifiers.iter().any(|identifier| {
             identifier.name.is_empty()
                 || identifier.name.len() > 300
@@ -224,7 +227,10 @@ async fn replace_card_collection_handler(
     auth::SessionAccount(account): auth::SessionAccount,
     Json(collection): Json<CardCollection>,
 ) -> Response {
-    if collection.cards.len() > 100_000
+    if !state.collection_limiter.allow(&account.id) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    if collection.cards.len() > MAX_COLLECTION_ENTRIES
         || collection
             .cards
             .iter()
@@ -994,6 +1000,7 @@ mod tests {
             storage: Mutex::new(Storage::open_memory().unwrap()),
             limiter: RateLimiter::new(per_hour),
             play_limiter: RateLimiter::new(100),
+            collection_limiter: RateLimiter::new(100),
             deck_hub_enabled: true,
             publish_per_day: per_day,
             relay_deck_plays_token: Some("relay-deck-plays-token".into()),
@@ -1082,7 +1089,9 @@ mod tests {
         let payload = serde_json::json!({
             "identifiers": [
                 {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "303"},
-                {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "304"}
+                {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "304"},
+                {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "303", "foil": false},
+                {"name": "Blind Obedience", "setCode": "RVR", "collectorNumber": "303", "foil": true}
             ]
         });
 
@@ -1099,7 +1108,7 @@ mod tests {
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let verified: VerifyCardPrintingsResponse = body_json(response).await;
-        assert_eq!(verified.matched, vec![true, false]);
+        assert_eq!(verified.matched, vec![true, false, true, false]);
     }
 
     #[tokio::test]
@@ -1150,6 +1159,40 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn collection_writes_are_rate_limited_per_account() {
+        let state = test_state(100, 100);
+        let token = sign_up(&state, "limited", "limited@example.com");
+        let router = build_router(state);
+
+        for _ in 0..100 {
+            let response = router
+                .clone()
+                .oneshot(with_ip(
+                    Request::put("/api/collection")
+                        .header("content-type", "application/json")
+                        .header("authorization", format!("Bearer {token}"))
+                        .body(Body::from(r#"{"cards":[]}"#))
+                        .unwrap(),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+
+        let response = router
+            .oneshot(with_ip(
+                Request::put("/api/collection")
+                    .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {token}"))
+                    .body(Body::from(r#"{"cards":[]}"#))
+                    .unwrap(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
     }
 
     #[tokio::test]

@@ -3,7 +3,6 @@ import { CheckCircle2, ClipboardPaste, FileUp, Loader2, TriangleAlert } from "lu
 import { toast } from "sonner";
 
 import { verifyCardPrintings } from "@/api/hub";
-import { scryfallCardKey } from "@/api/scryfall";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { collectionCardKey } from "@/lib/collection";
 import {
   collectionQuantitiesFromPreview,
   parseCollectionFile,
@@ -32,6 +32,15 @@ const SOURCE_LABELS = {
   archidekt: "Archidekt",
   generic: "Custom CSV",
 };
+
+function printingValidationKey(
+  name: string,
+  setCode: string,
+  collectorNumber: string,
+  foil?: boolean,
+): string {
+  return collectionCardKey(name, setCode, collectorNumber, foil);
+}
 
 export function CollectionImportDialog({
   open,
@@ -82,7 +91,7 @@ export function CollectionImportDialog({
       const uniqueRows = Array.from(
         new Map(
           exactRows.map((row) => [
-            scryfallCardKey(row.name, row.setCode, row.collectorNumber),
+            printingValidationKey(row.name, row.setCode!, row.collectorNumber!, row.foil),
             row,
           ]),
         ).entries(),
@@ -93,6 +102,7 @@ export function CollectionImportDialog({
             name: row.name,
             setCode: row.setCode!,
             collectorNumber: row.collectorNumber!,
+            foil: row.foil,
           })),
         });
         if (!active) return;
@@ -120,7 +130,9 @@ export function CollectionImportDialog({
       preview.map((row) => {
         if (!row.valid || !row.setCode || !row.collectorNumber) return row;
         const validation =
-          printingValidation[scryfallCardKey(row.name, row.setCode, row.collectorNumber)];
+          printingValidation[
+            printingValidationKey(row.name, row.setCode, row.collectorNumber, row.foil)
+          ];
         if (validation === true) return row;
         return {
           ...row,

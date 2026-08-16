@@ -107,14 +107,19 @@ export function fetchAccountCollection(): Promise<CardCollection> {
   return hubJson<CardCollection>("/api/collection");
 }
 
-export function verifyCardPrintings(
+export async function verifyCardPrintings(
   request: VerifyCardPrintingsRequest,
 ): Promise<VerifyCardPrintingsResponse> {
-  return hubJson<VerifyCardPrintingsResponse>("/api/cards/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
+  const matched: boolean[] = [];
+  for (let index = 0; index < request.identifiers.length; index += 5_000) {
+    const response = await hubJson<VerifyCardPrintingsResponse>("/api/cards/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers: request.identifiers.slice(index, index + 5_000) }),
+    });
+    matched.push(...response.matched);
+  }
+  return { matched };
 }
 
 export function saveAccountCollection(collection: CardCollection): Promise<CardCollection> {

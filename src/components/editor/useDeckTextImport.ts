@@ -45,7 +45,7 @@ export async function resolveDeckTextImport(
   const stragglers = [
     ...new Set(
       entries
-        .filter((entry) => !entry.collectorNumber && !lookup(entry))
+        .filter((entry) => !entry.setCode && !entry.collectorNumber && !lookup(entry))
         .map((entry) => entry.name),
     ),
   ];

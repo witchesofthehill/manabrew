@@ -98,4 +98,11 @@ describe("cheapestCompatiblePrinting", () => {
     expect(supportsPrintingFinish(foilOnly, false)).toBe(false);
     expect(supportsPrintingFinish(foilOnly, true)).toBe(true);
   });
+
+  it("treats etched as a foil finish", () => {
+    const etched = printing("etched", ["etched"], { usd_foil: "1" });
+
+    expect(supportsPrintingFinish(etched, true)).toBe(true);
+    expect(supportsPrintingFinish(etched, false)).toBe(false);
+  });
 });

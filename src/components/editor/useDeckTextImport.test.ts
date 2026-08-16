@@ -61,4 +61,26 @@ describe("deck text import printing resolution", () => {
     ).rejects.toThrow("None of the cards could be found");
     expect(fetchCardByFuzzyName).not.toHaveBeenCalled();
   });
+
+  it("does not use fuzzy fallback when a set-constrained lookup fails", async () => {
+    fetchCardCollection.mockResolvedValue(new Map());
+    fetchCardByFuzzyName.mockResolvedValue({ name: "Lightning Bolt", set: "2xm" });
+
+    await expect(
+      resolveDeckTextImport(
+        [
+          {
+            name: "Lightning Bolt",
+            count: 1,
+            side: false,
+            maybe: false,
+            commander: false,
+            setCode: "lea",
+          },
+        ],
+        () => undefined,
+      ),
+    ).rejects.toThrow("None of the cards could be found");
+    expect(fetchCardByFuzzyName).not.toHaveBeenCalled();
+  });
 });

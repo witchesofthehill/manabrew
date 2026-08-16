@@ -16,22 +16,29 @@ const RETRY_INTERVAL: Duration = Duration::from_secs(60);
 
 #[derive(Default)]
 pub struct CardIndex {
-    printings: HashMap<String, HashSet<String>>,
+    printings: HashMap<String, IndexedPrinting>,
+}
+
+#[derive(Default)]
+struct IndexedPrinting {
+    names: HashSet<String>,
+    finishes: HashSet<String>,
 }
 
 impl CardIndex {
     fn insert(&mut self, card: BulkCard) {
-        let names = self
+        let printing = self
             .printings
             .entry(printing_key(&card.set, &card.collector_number))
             .or_default();
-        names.insert(normalize_name(&card.name));
+        printing.names.insert(normalize_name(&card.name));
         for part in card.name.split(" // ") {
-            names.insert(normalize_name(part));
+            printing.names.insert(normalize_name(part));
         }
         for face in card.card_faces {
-            names.insert(normalize_name(&face.name));
+            printing.names.insert(normalize_name(&face.name));
         }
+        printing.finishes.extend(card.finishes);
     }
 
     pub fn matches(&self, identifier: &CardPrintingIdentifier) -> bool {
@@ -40,7 +47,17 @@ impl CardIndex {
                 &identifier.set_code,
                 &identifier.collector_number,
             ))
-            .is_some_and(|names| names.contains(&normalize_name(&identifier.name)))
+            .is_some_and(|printing| {
+                printing.names.contains(&normalize_name(&identifier.name))
+                    && identifier.foil.is_none_or(|foil| {
+                        if foil {
+                            printing.finishes.contains("foil")
+                                || printing.finishes.contains("etched")
+                        } else {
+                            printing.finishes.contains("nonfoil")
+                        }
+                    })
+            })
     }
 }
 
@@ -84,6 +101,7 @@ impl ScryfallBulkIndex {
                 set: (*set).into(),
                 collector_number: (*collector_number).into(),
                 card_faces: Vec::new(),
+                finishes: vec!["nonfoil".into()],
             });
         }
         Self {
@@ -170,6 +188,8 @@ struct BulkCard {
     collector_number: String,
     #[serde(default)]
     card_faces: Vec<BulkCardFace>,
+    #[serde(default)]
+    finishes: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -245,6 +265,7 @@ mod tests {
             name: name.into(),
             set_code: set_code.into(),
             collector_number: collector_number.into(),
+            foil: None,
         }
     }
 
@@ -267,16 +288,33 @@ mod tests {
                 "name": "Delver of Secrets // Insectile Aberration",
                 "set": "isd",
                 "collector_number": "51",
+                "finishes": ["nonfoil"],
                 "card_faces": [{"name": "Delver of Secrets"}, {"name": "Insectile Aberration"}]
             })
         )
         .unwrap();
         encoder.finish().unwrap();
 
-        let index = load_index(&path).unwrap();
+        let mut index = load_index(&path).unwrap();
         assert!(index.matches(&identifier("Delver of Secrets", "ISD", "51")));
         assert!(index.matches(&identifier("Insectile Aberration", "isd", "51")));
         assert!(!index.matches(&identifier("Delver of Secrets", "ISD", "52")));
+        let mut foil = identifier("Delver of Secrets", "ISD", "51");
+        foil.foil = Some(true);
+        assert!(!index.matches(&foil));
+        let mut nonfoil = identifier("Delver of Secrets", "ISD", "51");
+        nonfoil.foil = Some(false);
+        assert!(index.matches(&nonfoil));
+        index.insert(BulkCard {
+            name: "Etched Example".into(),
+            set: "tst".into(),
+            collector_number: "1".into(),
+            card_faces: Vec::new(),
+            finishes: vec!["etched".into()],
+        });
+        let mut etched = identifier("Etched Example", "TST", "1");
+        etched.foil = Some(true);
+        assert!(index.matches(&etched));
         std::fs::remove_file(path).unwrap();
     }
 }

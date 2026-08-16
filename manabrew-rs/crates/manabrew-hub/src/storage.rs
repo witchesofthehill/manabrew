@@ -1486,17 +1486,17 @@ impl Storage {
                 |row| {
                     let entry = map_deckhub_entry_summary(row)?;
                     let snapshot_json: String = row.get(14)?;
-                    let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+                    let deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
                             14,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
                     })?;
-                    deck.playmat = None;
-                    deck.playmat_settings = None;
-                    deck.stack_positions = None;
-                    Ok(DeckHubEntryDetail { entry, deck })
+                    Ok(DeckHubEntryDetail {
+                        entry,
+                        deck: public_deck(deck),
+                    })
                 },
             )
             .optional()?;
@@ -2586,6 +2586,16 @@ fn publication_slug(name: &str, id: &str) -> String {
     } else {
         format!("{slug}-{id}")
     }
+}
+
+fn public_deck(mut deck: Deck) -> Deck {
+    deck.custom_tags = None;
+    deck.card_tags = None;
+    deck.editor = None;
+    deck.playmat = None;
+    deck.playmat_settings = None;
+    deck.stack_positions = None;
+    deck
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

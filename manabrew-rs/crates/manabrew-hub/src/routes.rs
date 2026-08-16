@@ -1200,7 +1200,36 @@ mod tests {
         let state = test_state(100, 100);
         let token = sign_up(&state, "tester", "tester@example.com");
         let router = build_router(state);
-        let deck = crate::validate::tests::deck(60);
+        let deck = serde_json::from_value::<manabrew_protocol::deck_dto::Deck>({
+            let mut value = serde_json::to_value(crate::validate::tests::deck(60)).unwrap();
+            let object = value.as_object_mut().unwrap();
+            object.insert(
+                "customTags".into(),
+                serde_json::json!(["private organization"]),
+            );
+            object.insert(
+                "cardTags".into(),
+                serde_json::json!({"Card 1": ["private organization"]}),
+            );
+            object.insert(
+                "editor".into(),
+                serde_json::json!({
+                    "version": 1,
+                    "tags": [],
+                    "layouts": [],
+                    "sideboardPlans": [{
+                        "id": "plan-1",
+                        "matchup": "Control",
+                        "bringIn": "Card 2",
+                        "takeOut": "Card 3",
+                        "notes": "Private matchup notes"
+                    }],
+                    "acquisition": {"Card 4": "ordered"}
+                }),
+            );
+            value
+        })
+        .unwrap();
 
         let response = router
             .clone()
@@ -1214,6 +1243,9 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CREATED);
         let created: AccountDeckDetail = body_json(response).await;
         assert_eq!(created.summary.current_version_no, 1);
+        assert!(created.deck.editor.is_some());
+        assert!(created.deck.custom_tags.is_some());
+        assert!(created.deck.card_tags.is_some());
 
         let mut changed = created.deck.clone();
         changed.name = "Updated Deck".into();
@@ -1258,6 +1290,9 @@ mod tests {
         let published: DeckHubEntryDetail = body_json(response).await;
         assert_eq!(published.entry.tags.len(), 2);
         assert_eq!(published.deck.name, "Updated Deck");
+        assert!(published.deck.editor.is_none());
+        assert!(published.deck.custom_tags.is_none());
+        assert!(published.deck.card_tags.is_none());
 
         let response = router
             .clone()

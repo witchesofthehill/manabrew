@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { normalizeCardName } from "@/lib/gameChangers";
-import { getCardByName } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToDeckCard, frontFaceName } from "@/lib/scryfall.utils";
 import { ComboDetailModal } from "./ComboDetailModal";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
@@ -117,8 +117,8 @@ export function CombosPanel() {
 
   async function handleAdd(name: string) {
     try {
-      const sc = await getCardByName(frontFaceName(name));
-      const base = scryfallToDeckCard(sc);
+      const sc = await useScryfallStore.getState().getCard({ name: frontFaceName(name) });
+      const base = scryfallToDeckCard(sc.info);
       addToMain({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
       toast.success(`Added ${name}`);
     } catch {

@@ -1016,6 +1016,11 @@ export default function DeckEditor() {
                 selectedCardsRef.current = selectedCards;
               }}
               onToggleSearch={() => setShowSearch((v) => !v)}
+              onReadOnlyDeckImported={(id) => {
+                restoredParamRef.current = id;
+                setStateView("editor");
+                setSearchParams({ deck: id }, { replace: true, state: { directToEditor: true } });
+              }}
               setPreviewSlot={setPreviewSlot}
               previewCollapsed={previewCollapsed}
               onPreviewCollapsedChange={setPreviewCollapsedValue}

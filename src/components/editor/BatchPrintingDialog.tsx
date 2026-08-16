@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
-import { fetchCardsBySet, fetchSets } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,7 +35,9 @@ export function BatchPrintingDialog({
   useEffect(() => {
     if (!open || sets.length > 0) return;
     setLoadingSets(true);
-    fetchSets()
+    useScryfallStore
+      .getState()
+      .fetchSets()
       .then(setSets)
       .catch(() => toast.error("Could not load Magic sets"))
       .finally(() => setLoadingSets(false));
@@ -59,7 +61,7 @@ export function BatchPrintingDialog({
     const startingDeck = startingState.currentDeck;
     setApplyingSet(set.code);
     try {
-      const prints = await fetchCardsBySet(set.code);
+      const prints = await useScryfallStore.getState().fetchCardsBySet(set.code);
       const currentState = useDeckStore.getState();
       if (
         operation !== operationRef.current ||

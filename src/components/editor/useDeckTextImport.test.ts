@@ -8,10 +8,13 @@ const { fetchCardCollection, fetchCardByFuzzyName } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/api/scryfall", () => ({
-  fetchCardCollection,
-  fetchCardByFuzzyName,
   scryfallCardKey: (name: string, setCode?: string, collectorNumber?: string) =>
     [name, setCode, collectorNumber].filter(Boolean).join("::").toLowerCase(),
+}));
+vi.mock("@/stores/useScryfallStore", () => ({
+  useScryfallStore: {
+    getState: () => ({ fetchCardCollection, fetchCardByFuzzyName }),
+  },
 }));
 vi.mock("pixi.js", () => ({
   ImageSource: class {},

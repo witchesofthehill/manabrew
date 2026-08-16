@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { CircleDollarSign } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { fetchCardCollection, scryfallCardKey } from "@/api/scryfall";
+import { scryfallCardKey } from "@/api/scryfall";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
 type PriceProvider = "tcgplayer" | "cardmarket" | "cardhoarder";
@@ -56,7 +57,9 @@ export function DeckBudgetPanel() {
   useEffect(() => {
     if (printings.length === 0) return;
     let active = true;
-    void fetchCardCollection(printings)
+    void useScryfallStore
+      .getState()
+      .fetchCardCollection(printings)
       .then((cards) => {
         if (!active) return;
         const next: Record<string, CardPrices> = {};

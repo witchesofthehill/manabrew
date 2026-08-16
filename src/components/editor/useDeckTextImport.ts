@@ -1,9 +1,10 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { fetchCardCollection, fetchCardByFuzzyName, scryfallCardKey } from "@/api/scryfall";
+import { scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { getFormat } from "@/lib/formats";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
@@ -23,7 +24,7 @@ export async function resolveDeckTextImport(
   onProgress: (fraction: number) => void,
 ): Promise<ResolvedDeckTextImport> {
   onProgress(0.05);
-  const scryfallMap = await fetchCardCollection(
+  const scryfallMap = await useScryfallStore.getState().fetchCardCollection(
     entries.map((e) => ({
       name: e.name,
       setCode: e.setCode,
@@ -51,7 +52,9 @@ export async function resolveDeckTextImport(
   let resolved = 0;
   await Promise.all(
     stragglers.map((n) =>
-      fetchCardByFuzzyName(n)
+      useScryfallStore
+        .getState()
+        .fetchCardByFuzzyName(n)
         .then((sc) => scryfallMap.set(n.toLowerCase(), sc))
         .catch((err) => console.warn(`[import] fuzzy "${n}" failed`, err))
         .finally(() => {

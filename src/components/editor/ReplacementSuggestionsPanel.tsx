@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
-import { searchCards } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { isLand } from "@/lib/mana";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { cn } from "@/lib/utils";
@@ -77,11 +77,13 @@ export function ReplacementSuggestionsPanel({
       const colors = target.colorIdentity.join("").toLowerCase();
       const identityQuery = colors ? `id<=${colors}` : "id=c";
       const type = target.types[0] ? `t:${target.types[0].toLowerCase()}` : "";
-      const response = await searchCards(
-        `${identityQuery} cmc=${Math.round(target.cmc)} ${type} -name:"${target.identity.name}"`,
-        1,
-        "edhrec",
-      );
+      const response = await useScryfallStore
+        .getState()
+        .searchCards(
+          `${identityQuery} cmc=${Math.round(target.cmc)} ${type} -name:"${target.identity.name}"`,
+          1,
+          "edhrec",
+        );
       const nextSuggestions = response.data
         .filter(
           (candidate) => !ownedOnly || collectionQuantityForName(quantities, candidate.name) > 0,

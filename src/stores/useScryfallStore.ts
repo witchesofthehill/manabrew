@@ -3,12 +3,16 @@ import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import {
   fetchCardsBySet,
+  fetchCardByFuzzyName,
+  fetchCardCollection,
+  fetchPrintsByOracleIds,
   fetchImageElement,
   fetchSets,
   getCardById,
   getCardByName,
   getCardBySetAndNumber,
   getRulings,
+  searchCards,
 } from "@/api/scryfall";
 import { getPlatformType } from "@/platform";
 import { loadScryfallImage, clearScryfallImageCache } from "@/lib/scryfallImageSource";
@@ -16,6 +20,7 @@ import type {
   ScryfallCard,
   ScryfallImageUris,
   ScryfallRulingsResponse,
+  ScryfallListResponse,
   ScryfallSet,
 } from "@/types/scryfall";
 import type { DeckCard } from "@/protocol/deck";
@@ -73,6 +78,22 @@ interface ScryfallState {
   invalidateCard: (name: string) => void;
   clearImageCaches: () => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
+  getPrintings: (
+    lookups: ScryfallCardLookup[],
+    onProgress?: (completed: number, total: number) => void,
+  ) => Promise<Map<string, ScryfallCard[]>>;
+  fetchCardCollection: (
+    cards: { name: string; setCode?: string; collectorNumber?: string }[],
+  ) => Promise<Map<string, ScryfallCard>>;
+  fetchCardByFuzzyName: (name: string) => Promise<ScryfallCard>;
+  searchCards: (
+    query: string,
+    page?: number,
+    order?: string,
+    dir?: string,
+  ) => Promise<ScryfallListResponse>;
+  fetchCardsBySet: (setCode: string) => Promise<ScryfallCard[]>;
+  fetchSets: () => Promise<ScryfallSet[]>;
 
   prefetchSet: (setCode: string) => Promise<void>;
 }
@@ -146,6 +167,7 @@ function forgeTokenSetCode(setCode: string): string | null {
 
 let tokenArchivePromise: Promise<TokenArchiveIndex> | null = null;
 let loadedTokenArchive: TokenArchiveIndex | null = null;
+const printingsByOracleId = new Map<string, ScryfallCard[]>();
 
 async function loadTokenArchive(): Promise<TokenArchiveIndex> {
   tokenArchivePromise ??= fetch("/token_archive.json")
@@ -494,6 +516,30 @@ export const useScryfallStore = create<ScryfallState>()(
         const rulingsUri = c.rulings_uri;
         return getRulings(rulingsUri);
       },
+      getPrintings: async (lookups, onProgress) => {
+        const cards = await Promise.all(lookups.map((lookup) => get().getCard(lookup)));
+        const oracleIds = [...new Set(cards.map((entry) => entry.info.oracle_id))];
+        const missing = oracleIds.filter((id) => !printingsByOracleId.has(id));
+        if (missing.length > 0) {
+          const fetched = await fetchPrintsByOracleIds(missing, onProgress);
+          for (const [oracleId, printings] of fetched) {
+            printingsByOracleId.set(oracleId, printings);
+          }
+        } else {
+          onProgress?.(1, 1);
+        }
+        return new Map(
+          cards.map((entry, index) => [
+            cardKey(lookups[index]),
+            printingsByOracleId.get(entry.info.oracle_id) ?? [],
+          ]),
+        );
+      },
+      fetchCardCollection,
+      fetchCardByFuzzyName,
+      searchCards,
+      fetchCardsBySet,
+      fetchSets,
       prefetchSet: async (setCode) => {
         const code = setCode.toLowerCase();
         if (!get().hydratedSets[code]) {

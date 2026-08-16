@@ -188,6 +188,27 @@ function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): Edit
   };
 }
 
+function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): EditorDeck {
+  const normalized = normalizeDeck(deck);
+  const patchCards = (cards: DeckCard[]) =>
+    cards.map((card) => (card.identity.id === cardId ? applyPatch(card, patch) : card));
+  return {
+    ...normalized,
+    cards: patchCards(normalized.cards),
+    sideboard: patchCards(normalized.sideboard),
+    maybeboard: normalized.maybeboard ? patchCards(normalized.maybeboard) : undefined,
+    attractions: normalized.attractions ? patchCards(normalized.attractions) : undefined,
+    contraptions: normalized.contraptions ? patchCards(normalized.contraptions) : undefined,
+    schemes: normalized.schemes ? patchCards(normalized.schemes) : undefined,
+    planes: normalized.planes ? patchCards(normalized.planes) : undefined,
+    commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
+    companion:
+      normalized.companion?.identity.id === cardId
+        ? applyPatch(normalized.companion, patch)
+        : normalized.companion,
+  };
+}
+
 export interface SavedDeck {
   id: string;
   deck: EditorDeck;
@@ -259,6 +280,8 @@ interface DeckState {
   setCommander: (card: DeckCard) => void;
   removeCommander: (card?: DeckCard) => void;
   updatePrint: (cardName: string, scryfallCard: ScryfallCard) => void;
+  updateCardPrint: (cardId: string, scryfallCard: ScryfallCard, foil?: boolean) => void;
+  setCardFoil: (cardId: string, foil: boolean) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
   toggleFoil: (cardName: string) => void;
   resetTokenPrint: (token: DeckCard) => void;
@@ -642,6 +665,26 @@ export const useDeckStore = create<DeckState>()(
               currentDeck: patchDeckCards(state.currentDeck, updates),
             };
           }),
+        updateCardPrint: (cardId, scryfallCard, foil) =>
+          set((state) => {
+            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
+            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            return {
+              currentDeck: patchDeckCardById(state.currentDeck, cardId, {
+                identity: {
+                  setCode: scryfallCard.set,
+                  cardNumber: scryfallCard.collector_number,
+                  oracleId: scryfallCard.oracle_id,
+                  ...(foil === undefined ? {} : { foil }),
+                },
+                uris,
+              }),
+            };
+          }),
+        setCardFoil: (cardId, foil) =>
+          set((state) => ({
+            currentDeck: patchDeckCardById(state.currentDeck, cardId, { identity: { foil } }),
+          })),
         updateTokenPrint: (token, scryfallCard) =>
           set((state) => {
             const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });

@@ -15,7 +15,7 @@ const REQUEST_INTERVAL: Duration = Duration::from_millis(300);
 const CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 const CACHE_CAPACITY: usize = 512;
 const CLIENT_WINDOW: Duration = Duration::from_secs(60);
-const CLIENT_REQUEST_LIMIT: usize = 60;
+const CLIENT_REQUEST_LIMIT: usize = 240;
 const QUEUE_CAPACITY: usize = 32;
 
 #[derive(Clone)]

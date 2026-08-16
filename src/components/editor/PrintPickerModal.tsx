@@ -3,8 +3,12 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { getCardPrints } from "@/api/scryfall";
-import { getArchivedTokenPrints, useScryfallStore, useSetLookup } from "@/stores/useScryfallStore";
+import {
+  cardKey,
+  getArchivedTokenPrints,
+  useScryfallStore,
+  useSetLookup,
+} from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import { HorizontalCardImage } from "@/components/game/HorizontalCardImage";
@@ -45,9 +49,8 @@ export function PrintPickerModal({ cardName, onClose, onSelect, token }: PrintPi
           if (mounted) setPrints(tokenPrints);
           return;
         }
-        const card = await useScryfallStore.getState().getCard({ name });
-        const res = await getCardPrints(card.info.prints_search_uri);
-        if (mounted) setPrints(res.data || []);
+        const prints = await useScryfallStore.getState().getPrintings([{ name }]);
+        if (mounted) setPrints(prints.get(cardKey({ name })) ?? []);
       } catch {
         if (mounted) {
           setError("Failed to fetch printings.");

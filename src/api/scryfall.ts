@@ -77,17 +77,21 @@ export async function scryfallFetch<T>(
   errorMsg: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await queuedScryfallFetch(url, init);
-  if (response.status === 429) {
-    const retryAfterMs = applyScryfallCooldown(response);
-    throw new Error(
-      `Scryfall is rate limited. Try again in ${Math.ceil(retryAfterMs / 1000)} seconds.`,
-    );
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await queuedScryfallFetch(url, init);
+    if (response.status === 429) {
+      const retryAfterMs = applyScryfallCooldown(response);
+      if (attempt === 0) continue;
+      throw new Error(
+        `Scryfall is rate limited. Try again in ${Math.ceil(retryAfterMs / 1000)} seconds.`,
+      );
+    }
+    if (!response.ok) {
+      throw new Error(`${errorMsg} (HTTP ${response.status})`);
+    }
+    return response.json();
   }
-  if (!response.ok) {
-    throw new Error(`${errorMsg} (HTTP ${response.status})`);
-  }
-  return response.json();
+  throw new Error(errorMsg);
 }
 
 export async function searchCards(
@@ -108,6 +112,42 @@ export async function getRulings(rulingsUri: string): Promise<ScryfallRulingsRes
 }
 export async function getCardPrints(printsSearchUri: string): Promise<ScryfallListResponse> {
   return scryfallFetch(printsSearchUri, "Failed to fetch card prints from Scryfall");
+}
+
+const PRINT_SEARCH_ORACLE_BATCH_SIZE = 20;
+
+export async function fetchPrintsByOracleIds(
+  oracleIds: string[],
+  onProgress?: (completed: number, total: number) => void,
+): Promise<Map<string, ScryfallCard[]>> {
+  const unique = [...new Set(oracleIds)];
+  const result = new Map<string, ScryfallCard[]>();
+  const batches = Math.ceil(unique.length / PRINT_SEARCH_ORACLE_BATCH_SIZE);
+  let completed = 0;
+
+  for (let index = 0; index < unique.length; index += PRINT_SEARCH_ORACLE_BATCH_SIZE) {
+    const ids = unique.slice(index, index + PRINT_SEARCH_ORACLE_BATCH_SIZE);
+    const query = ids.map((id) => `oracleid:${id}`).join(" or ");
+    let url: string | undefined =
+      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(`(${query})`)}` +
+      "&unique=prints&order=released&dir=desc&include_extras=true";
+    while (url) {
+      const page: ScryfallListResponse = await scryfallFetch<ScryfallListResponse>(
+        url,
+        "Failed to fetch card printings from Scryfall",
+      );
+      for (const card of page.data) {
+        const prints = result.get(card.oracle_id) ?? [];
+        prints.push(card);
+        result.set(card.oracle_id, prints);
+      }
+      url = page.has_more ? page.next_page : undefined;
+    }
+    completed += 1;
+    onProgress?.(completed, batches);
+  }
+
+  return result;
 }
 
 export async function getCardByName(name: string, setCode?: string): Promise<ScryfallCard> {

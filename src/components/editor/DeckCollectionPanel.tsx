@@ -13,10 +13,11 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { fetchCardCollection, scryfallCardKey } from "@/api/scryfall";
+import { scryfallCardKey } from "@/api/scryfall";
 import { collectionQuantityForName, deckOwnershipByName } from "@/lib/collection";
 import type { DeckCard } from "@/protocol/deck";
 import { useCollectionStore } from "@/stores/useCollectionStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { CardThumbnail } from "./deckEditor.primitives";
 import { CARD_WIDTH_MAP, DEFAULT_CARD_SIZE } from "./deckBuilder.utils";
@@ -88,7 +89,9 @@ export function DeckCollectionPanel({
   useEffect(() => {
     if (missingPrintings.length === 0) return;
     let active = true;
-    void fetchCardCollection(missingPrintings)
+    void useScryfallStore
+      .getState()
+      .fetchCardCollection(missingPrintings)
       .then((cards) => {
         if (!active) return;
         const next: Record<string, number> = {};

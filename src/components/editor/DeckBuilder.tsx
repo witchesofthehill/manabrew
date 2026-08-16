@@ -47,9 +47,9 @@ import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } f
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
 import type { DeckCard } from "@/protocol/deck";
-import { fetchCardCollection } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import {
   deckCardToPreviewDto,
   frontFaceName,
@@ -110,7 +110,6 @@ import {
   setUnsavedState,
   setLastSavedSnapshotRef,
 } from "./deckBuilder.unsavedChanges";
-import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 import { CommanderSlots } from "./CommanderSlots";
 import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
@@ -173,6 +172,7 @@ export function DeckBuilder({
   resumedPublication,
   onResumedPublicationClose,
   onSelectionChange,
+  onReadOnlyDeckImported,
 }: {
   onToggleSearch?: () => void;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
@@ -181,6 +181,7 @@ export function DeckBuilder({
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
   onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
+  onReadOnlyDeckImported?: (deckId: string) => void;
 } = {}) {
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
@@ -519,7 +520,9 @@ export function DeckBuilder({
         `${card.name.toLowerCase()}::${card.setCode.toLowerCase()}::${card.collectorNumber.toLowerCase()}`,
       ),
     );
-    fetchCardCollection(uniqueCards)
+    useScryfallStore
+      .getState()
+      .fetchCardCollection(uniqueCards)
       .then((scryfallMap) => {
         const updates = new Map<string, Partial<DeckCard>>();
         for (const [key, sc] of scryfallMap) updates.set(key, scryfallToDeckCard(sc));
@@ -1218,7 +1221,9 @@ export function DeckBuilder({
 
   function handleImportReadOnlyDeck() {
     const importedName = currentDeck.name;
-    importReadOnlyDeck();
+    const importedId = importReadOnlyDeck();
+    if (!importedId) return;
+    onReadOnlyDeckImported?.(importedId);
     toast.success(`Copied "${importedName}" to My Decks`);
   }
 

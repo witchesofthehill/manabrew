@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { useKeybindings } from "@/hooks/useKeybindings";
-import { searchCards } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallCard } from "@/types/scryfall";
 
 import { DeckQuickAddOptions } from "./DeckQuickAddOptions";
@@ -49,7 +49,9 @@ export function DeckQuickAdd({ customTags, onAdd, getCount }: DeckQuickAddProps)
       return;
     }
     setIsLoading(true);
-    searchCards(`${query} -is:digital -is:funny`, 1)
+    useScryfallStore
+      .getState()
+      .searchCards(`${query} -is:digital -is:funny`, 1)
       .then((response) => {
         if (searchId !== searchIdRef.current) return;
         setResults(response.data.slice(0, 20));

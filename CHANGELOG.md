@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.15.0](https://github.com/witchesofthehill/manabrew/compare/v3.14.0...v3.15.0) (2026-08-17)
+
+### Features
+
+* **ui:** overhaul deck editor and collection workflows ([#683](https://github.com/witchesofthehill/manabrew/issues/683)) ([aa1e610](https://github.com/witchesofthehill/manabrew/commit/aa1e61032ecebf0df9ad427e9231f73ba61d795e))
+
 ## [3.14.0](https://github.com/witchesofthehill/manabrew/compare/v3.13.2...v3.14.0) (2026-08-16)
 
 ### Features

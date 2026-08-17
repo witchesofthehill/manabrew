@@ -11,6 +11,7 @@ import {
 import type { AccountDeckDetail, AccountDeckSummary, DeckVersionSummary } from "@/api/hubTypes";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { withResolvedDeckName } from "@/lib/deckName";
 import type { EditorDeck } from "@/types/manabrew";
 
 interface AccountDecksState {
@@ -163,7 +164,7 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     refreshRequestId += 1;
     refreshRequest = null;
     set({ loading: false });
-    const detail = await createAccountDeck({ deck, notes });
+    const detail = await createAccountDeck({ deck: withResolvedDeckName(deck), notes });
     if (isCurrentAccount(accountId)) {
       set((state) => cacheDetail(state, accountId, detail));
     }
@@ -202,7 +203,11 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
     detailRequests.delete(id);
     versionRequests.delete(id);
     set({ loading: false });
-    const detail = await saveAccountDeck(id, { deck, expectedVersionNo: versionNo, notes });
+    const detail = await saveAccountDeck(id, {
+      deck: withResolvedDeckName(deck),
+      expectedVersionNo: versionNo,
+      notes,
+    });
     if (isCurrentAccount(accountId)) {
       set((state) => cacheDetail(state, accountId, detail, true));
     }

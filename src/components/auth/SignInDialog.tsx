@@ -32,6 +32,11 @@ import { openExternal } from "@/lib/openExternal";
 
 type Step = "start" | "email-code" | "desktop-code" | "handle";
 
+function isValidEmail(value: string): boolean {
+  const email = value.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export function SignInDialog() {
   const open = useSignInDialog((s) => s.open);
   const prefill = useSignInDialog((s) => s.prefill);
@@ -227,12 +232,12 @@ export function SignInDialog() {
                     placeholder="you@example.com"
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && email.includes("@")) handleSendCode();
+                      if (e.key === "Enter" && isValidEmail(email)) handleSendCode();
                     }}
                   />
                   <Button
                     className="w-full"
-                    disabled={busy || !email.includes("@")}
+                    disabled={busy || !isValidEmail(email)}
                     onClick={handleSendCode}
                   >
                     {busy ? "Sending…" : "Send sign-in code"}

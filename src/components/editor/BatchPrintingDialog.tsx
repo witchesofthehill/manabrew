@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
-import { fetchCardsBySet, fetchSets } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,9 +20,11 @@ import { executeDeckEdit } from "./deckEditor.history";
 export function BatchPrintingDialog({
   open,
   onOpenChange,
+  cardNames,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  cardNames?: ReadonlySet<string>;
 }) {
   const [sets, setSets] = useState<ScryfallSet[]>([]);
   const [query, setQuery] = useState("");
@@ -33,7 +35,9 @@ export function BatchPrintingDialog({
   useEffect(() => {
     if (!open || sets.length > 0) return;
     setLoadingSets(true);
-    fetchSets()
+    useScryfallStore
+      .getState()
+      .fetchSets()
       .then(setSets)
       .catch(() => toast.error("Could not load Magic sets"))
       .finally(() => setLoadingSets(false));
@@ -57,7 +61,7 @@ export function BatchPrintingDialog({
     const startingDeck = startingState.currentDeck;
     setApplyingSet(set.code);
     try {
-      const prints = await fetchCardsBySet(set.code);
+      const prints = await useScryfallStore.getState().fetchCardsBySet(set.code);
       const currentState = useDeckStore.getState();
       if (
         operation !== operationRef.current ||
@@ -87,7 +91,9 @@ export function BatchPrintingDialog({
           ...(deck.contraptions ?? []),
           ...(deck.schemes ?? []),
           ...(deck.planes ?? []),
-        ].map((card) => card.identity.name),
+        ]
+          .map((card) => card.identity.name)
+          .filter((name) => !cardNames || cardNames.has(name.toLowerCase())),
       );
       const matches = [...names]
         .map((name) => ({ name, print: printsByName.get(name.toLowerCase()) }))
@@ -125,7 +131,7 @@ export function BatchPrintingDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Change deck printings</DialogTitle>
+          <DialogTitle>Change {cardNames ? "selected" : "deck"} printings</DialogTitle>
           <DialogDescription>
             Choose a set to update every matching card. Cards without a printing in that set stay
             unchanged.

@@ -12,6 +12,7 @@ pub struct HubConfig {
     pub play_reports_per_hour: u32,
     pub ranking_refresh_seconds: u64,
     pub auth: AuthConfig,
+    pub scryfall_bulk_path: String,
 }
 
 #[derive(Clone)]
@@ -35,6 +36,12 @@ pub struct OAuthClient {
 impl HubConfig {
     pub fn from_env() -> Self {
         let db_path = std::env::var("HUB_DB_PATH").unwrap_or_else(|_| "hub.db".into());
+        let scryfall_bulk_path = std::env::var("HUB_SCRYFALL_BULK_PATH").unwrap_or_else(|_| {
+            std::path::Path::new(&db_path)
+                .with_file_name("scryfall-default-cards.jsonl.gz")
+                .to_string_lossy()
+                .into_owned()
+        });
         HubConfig {
             host: std::env::var("HUB_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: std::env::var("HUB_PORT")
@@ -82,6 +89,7 @@ impl HubConfig {
                 .and_then(|n| n.parse().ok())
                 .unwrap_or(15 * 60),
             auth: AuthConfig::from_env(),
+            scryfall_bulk_path,
         }
     }
 }

@@ -14,6 +14,7 @@ export const ROUTES = {
   GAME: "/game",
   SEARCH: "/search",
   DECK_EDITOR: "/deck-editor",
+  MY_COLLECTION: "/mycollection",
   HUB: "/hub",
   HUB_TOP: "/hub/top",
   COMPANION: "/companion",
@@ -44,13 +45,11 @@ export const STORAGE_KEYS = {
   STATUS_BANNER: "manabrew-status-banner",
   PUBLISHED_DECKS: "manabrew-published-decks",
   DECK_PLAY_REPORTS: "manabrew-deck-play-reports",
+  DECK_CHECKPOINTS: "manabrew-deck-checkpoints",
+  DECK_EDITOR_PRESENTATION: "manabrew-deck-editor-presentation",
 } as const;
 
-// ─── Deck Defaults ───────────────────────────────────────────────────────────
-
-export const DEFAULT_DECK_NAME = "New Deck";
-
-export const DEFAULT_IMPORT_NAME = "Imported Deck";
+export { DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "./deckNames.constants";
 
 // ─── Formats & Legalities ────────────────────────────────────────────────────
 

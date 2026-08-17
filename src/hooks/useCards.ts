@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { searchCards } from "@/api/scryfall";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import type { ScryfallListResponse } from "@/types/scryfall";
 
 type CardSearchStatus = "pending" | "error" | "success";
@@ -28,7 +28,9 @@ export function useCardSearch(query: string, order?: string, dir?: string) {
 
     setStatus("pending");
     setIsFetchingNextPage(true);
-    searchCards(query, 1, order, dir)
+    useScryfallStore
+      .getState()
+      .searchCards(query, 1, order, dir)
       .then((page) => {
         if (requestId !== requestIdRef.current) return;
         setPages([page]);
@@ -52,7 +54,7 @@ export function useCardSearch(query: string, order?: string, dir?: string) {
     const nextPage = pages.length + 1;
     setIsFetchingNextPage(true);
     try {
-      const page = await searchCards(query, nextPage, order, dir);
+      const page = await useScryfallStore.getState().searchCards(query, nextPage, order, dir);
       setPages((current) => [...current, page]);
       setStatus("success");
     } catch (caught) {

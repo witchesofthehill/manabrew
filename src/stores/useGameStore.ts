@@ -31,6 +31,7 @@ import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
+import { withResolvedDeckName } from "@/lib/deckName";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 
@@ -127,6 +128,7 @@ async function initializeGame({
   get: () => GameState;
   isLaunchCurrent: () => boolean;
 }): Promise<void> {
+  deck = withResolvedDeckName(deck);
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;

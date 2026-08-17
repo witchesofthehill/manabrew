@@ -22,7 +22,14 @@ import { ROUTES } from "@/lib/constants";
 import { flushPublishedDeckPlayReports } from "@/lib/deckPlayEvidence";
 
 // Drives previous/next page shortcuts.
-const NAV_ROUTES = [ROUTES.PLAY, ROUTES.LOBBY, ROUTES.SEARCH, ROUTES.DECK_EDITOR, ROUTES.COMPANION];
+const NAV_ROUTES = [
+  ROUTES.PLAY,
+  ROUTES.LOBBY,
+  ROUTES.SEARCH,
+  ROUTES.DECK_EDITOR,
+  ROUTES.MY_COLLECTION,
+  ROUTES.COMPANION,
+];
 
 export function AppShell() {
   const accountsEnabled = isFeatureEnabled("accounts");
@@ -42,6 +49,7 @@ export function AppShell() {
   const usesSubtleBackdrop =
     pathname.startsWith(ROUTES.SEARCH) ||
     pathname.startsWith(ROUTES.DECK_EDITOR) ||
+    pathname.startsWith(ROUTES.MY_COLLECTION) ||
     pathname.startsWith(ROUTES.HUB) ||
     pathname.startsWith(ROUTES.DRAFT) ||
     pathname.startsWith(ROUTES.SEALED) ||

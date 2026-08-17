@@ -4,6 +4,7 @@ import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import type {
   AccountDeckDetail,
   AccountDeckList,
+  CardCollection,
   CreateAccountDeckRequest,
   DeckHubEntryDetail,
   DeckHubEntryList,
@@ -19,6 +20,8 @@ import type {
   TopDeckBucket,
   TopDeckSnapshot,
   UpdateDeckHubEntryRequest,
+  VerifyCardPrintingsRequest,
+  VerifyCardPrintingsResponse,
 } from "@/api/hubTypes";
 import type { EngineKind } from "@/protocol";
 
@@ -103,6 +106,44 @@ async function hubJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchHubCapabilities(): Promise<HubCapabilities> {
   return hubJson<HubCapabilities>("/api/hub/capabilities");
+}
+
+export function fetchAccountCollection(): Promise<CardCollection> {
+  return hubJson<CardCollection>("/api/collection");
+}
+
+export async function verifyCardPrintings(
+  request: VerifyCardPrintingsRequest,
+  onBatch?: (matched: boolean[], offset: number, total: number) => void,
+): Promise<VerifyCardPrintingsResponse> {
+  const matched: boolean[] = [];
+  for (let index = 0; index < request.identifiers.length; index += 5_000) {
+    const identifiers = request.identifiers.slice(index, index + 5_000);
+    const response = await hubJson<VerifyCardPrintingsResponse>("/api/cards/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers }),
+    });
+    if (response.matched.length !== identifiers.length) {
+      throw new Error("Card verification returned an incomplete response");
+    }
+    matched.push(...response.matched);
+    onBatch?.(response.matched, index, request.identifiers.length);
+  }
+  return { matched };
+}
+
+export function saveAccountCollection(collection: CardCollection): Promise<CardCollection> {
+  return hubRequest("/api/collection", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collection),
+  }).then(async (response) => {
+    if (response.status === 204) {
+      return { ...collection, version: (collection.version ?? 0) + 1 };
+    }
+    return (await response.json()) as CardCollection;
+  });
 }
 
 export function fetchAccountDecks(): Promise<AccountDeckList> {

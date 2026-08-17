@@ -4,7 +4,7 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { Sparkles, Gem } from "lucide-react";
+import { ChevronDown, Gem, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
@@ -140,17 +140,33 @@ export function SectionHeader({
   label,
   count,
   extraContent,
+  open,
+  onToggle,
 }: {
   label: string;
   count: number;
   extraContent?: React.ReactNode;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
   return (
     <div className="flex items-center gap-1.5 mb-1.5 border-b border-border/40 pb-1">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-xs text-muted-foreground/60">({count})</span>
+      <button
+        type="button"
+        className="flex min-w-0 items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        {onToggle && (
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", open === false && "-rotate-90")}
+          />
+        )}
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-xs text-muted-foreground/60">({count})</span>
+      </button>
       <div className="flex-1" />
       {extraContent}
     </div>

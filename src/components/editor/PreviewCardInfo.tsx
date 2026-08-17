@@ -1,25 +1,16 @@
 import { Bookmark, Gem, Sparkles } from "lucide-react";
-import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+import { CardPreviewDetails } from "@/components/game/CardPreviewDetails";
+import type { PreviewCard } from "@/lib/cardPreview";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
-
-export type PreviewCard = {
-  identity: { name: string };
-  manaCost: string;
-  text: string;
-  types: string[];
-  subtypes: string[];
-  supertypes: string[];
-  power?: string | null;
-  toughness?: string | null;
-};
+import { CARD_ROLE_LABELS, useCardRoles } from "@/stores/useCardRolesStore";
 
 export function PreviewCardInfo({ card }: { card: PreviewCard }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const { name } = card.identity;
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
+  const roles = useCardRoles(name);
 
   const mainCopies =
     currentDeck.cards.filter((c) => c.identity.name === name).length +
@@ -27,44 +18,8 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
   const sideCopies = currentDeck.sideboard.filter((c) => c.identity.name === name).length;
   const tags = currentDeck.cardTags?.[name.toLowerCase()] ?? [];
 
-  const typeLine = [
-    card.supertypes?.join(" "),
-    card.types?.join(" "),
-    card.subtypes?.length ? `— ${card.subtypes.join(" ")}` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 pt-3">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-semibold leading-tight">{name}</span>
-        {card.manaCost && (
-          <ManaSymbols cost={card.manaCost} size="sm" className="mt-0.5 shrink-0" />
-        )}
-      </div>
-
-      <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
-        <span className="truncate">{typeLine}</span>
-        {card.power && card.toughness && (
-          <span className="ml-auto shrink-0 font-mono tabular-nums">
-            {card.power}/{card.toughness}
-          </span>
-        )}
-      </div>
-
-      {card.text && (
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/40 bg-muted/20 p-2.5">
-          <div className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
-            {card.text.split("\n").map((line, i) => (
-              <p key={i}>
-                <DynamicTextRender text={line} />
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <CardPreviewDetails card={card}>
       <div className="flex flex-wrap items-center gap-1.5">
         {mainCopies > 0 && (
           <span className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
@@ -94,7 +49,15 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
             <Bookmark className="h-3 w-3" /> {tag}
           </span>
         ))}
+        {roles.map((role) => (
+          <span
+            key={role}
+            className="rounded-full border bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+          >
+            {CARD_ROLE_LABELS[role] ?? role}
+          </span>
+        ))}
       </div>
-    </div>
+    </CardPreviewDetails>
   );
 }

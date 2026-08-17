@@ -71,7 +71,14 @@ export function exchangeCode(code: string): Promise<AuthSessionResponse> {
 }
 
 export async function requestMagicLink(email: string): Promise<void> {
-  await authRequest("/api/auth/email/request", jsonInit("POST", { email }));
+  try {
+    await authRequest("/api/auth/email/request", jsonInit("POST", { email }));
+  } catch (error) {
+    if (error instanceof AuthRequestError && error.status === 422) {
+      throw new Error("Enter a complete email address, including its domain.");
+    }
+    throw error;
+  }
 }
 
 export function verifyEmailCode(email: string, code: string): Promise<AuthSessionResponse> {

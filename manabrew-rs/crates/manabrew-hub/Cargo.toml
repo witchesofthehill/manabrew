@@ -23,6 +23,7 @@ server = [
     "dep:maud",
     "dep:aws-lc-rs",
     "dep:base64",
+    "dep:flate2",
 ]
 
 [[bin]]
@@ -35,7 +36,7 @@ manabrew-protocol = { path = "../manabrew-protocol", version = "5.0.0" }
 serde = { workspace = true }
 ts-rs = { workspace = true }
 axum = { version = "0.7", optional = true }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "time"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "time", "fs", "io-util", "sync"], optional = true }
 tower-http = { version = "0.5", features = ["cors"], optional = true }
 rusqlite = { version = "0.31", features = ["bundled"], optional = true }
 serde_json = { workspace = true, optional = true }
@@ -49,6 +50,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 maud = { version = "0.26", features = ["axum"], optional = true }
 aws-lc-rs = { version = "1", optional = true }
 base64 = { version = "0.22", optional = true }
+flate2 = { version = "1", optional = true }
 
 [dev-dependencies]
 tower = { version = "0.4", features = ["util"] }

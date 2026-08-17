@@ -7,8 +7,10 @@ import {
   type RequestOptions,
 } from "./archidekt";
 import { fetchMoxfieldDeck, fetchMoxfieldResult, parseMoxfieldUrl } from "./moxfield";
-import { BASIC_LAND_NAMES } from "./formats";
-import type { DeckFormat } from "@/protocol/deck";
+import { BASIC_LAND_NAMES, formatRequiresCommander } from "./formats";
+import { resolveDeckName } from "./deckName";
+import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import type { EditorDeck } from "@/types/manabrew";
 
 export type DeckSource = "archidekt" | "moxfield";
 
@@ -62,8 +64,8 @@ const CATEGORY_SUFFIX_REGEX = /\s+\[([^\]]*)\]$/;
 // ` #!Commander` (or ` # comment`) line trailers.
 const DECKSTATS_SET_PREFIX_REGEX = /^\[[^\]]*\]\s+/;
 const COMMENT_SUFFIX_REGEX = /\s+#(.*)$/;
-// Moxfield plain text has no headers: the commander is the trailing block
-// after the last blank line. Only trust that shape for commander-sized lists.
+// Headerless exports put the commander in an isolated first or trailing block.
+// Only trust that shape for commander-sized lists.
 const HEADERLESS_COMMANDER_MIN_MAIN = 90;
 
 export function parseDeckListText(text: string): ParsedDeckEntry[] {
@@ -135,31 +137,65 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
       foil: setMatch?.[3] ? true : undefined,
     });
   }
-  markTrailingCommanderBlock(entries, blockOf, sawHeader);
+  markHeaderlessCommanderBlock(entries, blockOf, sawHeader);
   return entries;
 }
 
-function markTrailingCommanderBlock(
+function markHeaderlessCommanderBlock(
   entries: ParsedDeckEntry[],
   blockOf: number[],
   sawHeader: boolean,
 ): void {
   if (sawHeader || entries.some((e) => e.commander || e.side || e.maybe)) return;
-  const lastBlock = blockOf[blockOf.length - 1];
+  const lastBlock = blockOf.at(-1);
   if (lastBlock === undefined || lastBlock === 0) return;
-  const trailing = entries.filter((_, i) => blockOf[i] === lastBlock);
-  const mainCount = entries.reduce(
-    (sum, e, i) => (blockOf[i] === lastBlock ? sum : sum + e.count),
-    0,
-  );
-  if (
-    trailing.length >= 1 &&
-    trailing.length <= 2 &&
-    trailing.every((e) => e.count === 1) &&
-    mainCount >= HEADERLESS_COMMANDER_MIN_MAIN
-  ) {
-    for (const entry of trailing) entry.commander = true;
+  for (const candidateBlock of [lastBlock, 0]) {
+    const candidate = entries.filter((_, index) => blockOf[index] === candidateBlock);
+    const mainCount = entries.reduce(
+      (sum, entry, index) => (blockOf[index] === candidateBlock ? sum : sum + entry.count),
+      0,
+    );
+    if (
+      candidate.length >= 1 &&
+      candidate.length <= 2 &&
+      candidate.every((entry) => entry.count === 1) &&
+      mainCount >= HEADERLESS_COMMANDER_MIN_MAIN
+    ) {
+      for (const entry of candidate) entry.commander = true;
+      return;
+    }
   }
+}
+
+export interface ResolvedDeckImportSections {
+  cards: DeckCard[];
+  sideboard: DeckCard[];
+  maybeboard: DeckCard[];
+  commanders: DeckCard[];
+}
+
+export function mergeDeckImportIntoDeck(
+  deck: EditorDeck,
+  sections: ResolvedDeckImportSections,
+): EditorDeck {
+  const hasCommanders = (deck.commanders?.length ?? 0) > 0;
+  const importsCommanders = sections.commanders.length > 0;
+  const format =
+    importsCommanders && !formatRequiresCommander(deck.format) ? "commander" : deck.format;
+  const keepsImportedCommanders = formatRequiresCommander(format) && !hasCommanders;
+  const commanders = keepsImportedCommanders ? sections.commanders : (deck.commanders ?? []);
+  const importedMain = keepsImportedCommanders
+    ? sections.cards
+    : [...sections.cards, ...sections.commanders];
+  return {
+    ...deck,
+    name: resolveDeckName(deck.name, commanders),
+    format,
+    cards: [...deck.cards, ...importedMain],
+    sideboard: [...deck.sideboard, ...sections.sideboard],
+    maybeboard: [...(deck.maybeboard ?? []), ...sections.maybeboard],
+    commanders,
+  };
 }
 
 export async function fetchDeckBySource(

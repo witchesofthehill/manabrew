@@ -6,6 +6,7 @@ import {
 import { CardSearch } from "@/components/editor/CardSearch";
 import { useTopBarOverride } from "@/components/layout/TopBarOverride";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { useCardPreview } from "@/hooks/useCardPreview";
 import {
   DndContext,
   DragOverlay,
@@ -48,7 +49,7 @@ import type { ParsedDeckEntry } from "@/lib/deckImport";
 import { useDeckTextImport } from "@/components/editor/useDeckTextImport";
 import { applyDeckFilters, presetDeckParamId, PRESET_DECK_ID_PREFIX } from "@/views/myDecks.utils";
 import type { SortBy } from "@/views/myDecks.utils";
-import { usePresetDecks } from "@/stores/usePresetDecksStore";
+import { usePresetDecks, usePresetDecksResolved } from "@/stores/usePresetDecksStore";
 import { useQuickPlaytest } from "@/hooks/useQuickPlaytest";
 import { useMyDeckHubEntries } from "@/hooks/useMyDeckHubEntries";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
@@ -59,7 +60,11 @@ import type { SavedDeck } from "@/stores/useDeckStore";
 import { DeckHubEntryCard } from "@/components/deck/DeckHubEntryCard";
 import { HubDeckPreviewDialog } from "@/components/deck/HubDeckPreviewDialog";
 import { isCommanderEligible, canBeOathbreaker, canBeSignatureSpell } from "@/lib/formats";
-import { executeDeckEdit, resetDeckHistory } from "@/components/editor/deckEditor.history";
+import {
+  executeDeckEdit,
+  resetDeckHistory,
+  undoDeckEdit,
+} from "@/components/editor/deckEditor.history";
 import {
   moveCardCopies,
   moveSelectedCards,
@@ -97,6 +102,7 @@ function DragTrayTarget({
 }
 
 export default function DeckEditor() {
+  const previewController = useCardPreview([], { subscribe: false });
   const {
     removeFromSide,
     removeFromMaybe,
@@ -116,8 +122,10 @@ export default function DeckEditor() {
   } = useDeckStore();
   const importDeckText = useDeckTextImport();
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
+  const editorSessionId = useDeckStore((s) => s.editorSessionId);
   const loadPresetDeck = useDeckStore((s) => s.loadPresetDeck);
   const presetDecks = usePresetDecks();
+  const presetDecksResolved = usePresetDecksResolved();
   const { quickPlaytest, playtestDialog } = useQuickPlaytest();
   const {
     entries: publishedDecks,
@@ -206,6 +214,12 @@ export default function DeckEditor() {
       return next;
     });
   }
+  function setPreviewCollapsedValue(collapsed: boolean) {
+    setPreviewCollapsed(collapsed);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("deckEditor.previewRailCollapsed", String(collapsed));
+    }
+  }
   const hasUnsavedChanges = useDeckUnsavedChanges();
   const [searchParams, setSearchParams] = useSearchParams();
   const currentDeckId = useDeckStore((s) => s.currentDeckId);
@@ -284,6 +298,21 @@ export default function DeckEditor() {
       return;
     }
 
+    if (deckParam.startsWith("account:")) {
+      const accountDeckId = deckParam.slice("account:".length);
+      const detail = accountDeckDetails[accountDeckId];
+      if (!detail) return;
+      const id = loadAccountDeck(
+        detail.id,
+        detail.currentVersionNo,
+        detail.deck as SavedDeck["deck"],
+      );
+      resetDeckHistory();
+      setStateView("editor");
+      restoredParamRef.current = id;
+      return;
+    }
+
     const saved = savedDecks.find((s) => s.id === deckParam);
     if (!saved) return;
     loadSavedDeck(deckParam);
@@ -293,7 +322,9 @@ export default function DeckEditor() {
   }, [
     searchParams,
     presetDecks,
+    accountDeckDetails,
     savedDecks,
+    loadAccountDeck,
     loadPresetDeck,
     loadSavedDeck,
     clearDeck,
@@ -323,6 +354,7 @@ export default function DeckEditor() {
   const collectionPending =
     (isFeatureEnabled("accounts") && authStatus === "unknown") ||
     (accountDecksSignedIn && !accountDecksResolved);
+  const deckCatalogPending = collectionPending || !presetDecksResolved;
   const collectionDecks = collectionPending
     ? []
     : accountDecksAvailable && accountDecksSignedIn
@@ -442,10 +474,7 @@ export default function DeckEditor() {
           draft
             ? undefined
             : () => {
-                const id = accountDeck
-                  ? loadAccountDeck(accountDeckId, saved.accountVersionNo ?? 1, saved.deck)
-                  : saved.id;
-                navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(id)}`);
+                navigate(`${ROUTES.PLAY_DECK}/${encodeURIComponent(saved.id)}`);
               }
         }
         badge={
@@ -560,6 +589,9 @@ export default function DeckEditor() {
         if (activeId.startsWith("deck-sideboard-")) removeFromSide(card.identity.id);
         else if (activeId.startsWith("deck-maybeboard-")) removeFromMaybe(card.identity.id);
       });
+      toast.success(`Set ${card.identity.name} in the command zone`, {
+        action: { label: "Undo", onClick: undoDeckEdit },
+      });
       return;
     }
 
@@ -583,6 +615,9 @@ export default function DeckEditor() {
           }
           tagCard(name, destTag);
         }
+      });
+      toast.success(`Tagged ${draggedNames.length} cards with ${destTag}`, {
+        action: { label: "Undo", onClick: undoDeckEdit },
       });
     } else if (
       overId === DROP_ZONE.MAIN ||
@@ -612,7 +647,7 @@ export default function DeckEditor() {
             : "maybe";
 
       const sourceZone = source === "side" || source === "special" ? "side" : source;
-      if (sourceZone === dest) return;
+      if (draggedNames.length === 1 && sourceZone === dest) return;
       if (source === "commander") {
         if (dest === "main") {
           executeDeckEdit(`Return ${card.identity.name} to main deck`, () => removeCommander(card));
@@ -627,12 +662,18 @@ export default function DeckEditor() {
           }
           moveSelectedCards(draggedNames, dest);
         });
+        toast.success(`Moved ${draggedNames.length} cards to ${dest}`, {
+          action: { label: "Undo", onClick: undoDeckEdit },
+        });
         return;
       }
 
       executeDeckEdit(`Move ${cardName} to ${dest}`, () => {
         if (sourceTag) untagCard(cardName, sourceTag);
         moveCardCopies(cardName, source as DeckSourceZone, dest, "one");
+      });
+      toast.success(`Moved ${cardName} to ${dest}`, {
+        action: { label: "Undo", onClick: undoDeckEdit },
       });
     }
   }
@@ -687,14 +728,25 @@ export default function DeckEditor() {
               {accountDecksAvailable && accountDecksSignedIn && accountDecksError && (
                 <p className="mb-3 text-sm text-destructive">{accountDecksError}</p>
               )}
-              {(collectionPending ||
+              {(deckCatalogPending ||
                 (accountDecksAvailable &&
                   accountDecksSignedIn &&
                   accountDecksLoading &&
                   collectionDecks.length === 0)) && (
-                <p className="mb-3 text-sm text-muted-foreground">Loading your decks…</p>
+                <div
+                  className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  aria-label="Loading your decks"
+                  aria-busy="true"
+                >
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <div
+                      key={index}
+                      className="aspect-[4/3] animate-pulse rounded-lg border border-border/60 bg-muted/40"
+                    />
+                  ))}
+                </div>
               )}
-              {!collectionPending && (
+              {!deckCatalogPending && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   <div className="group relative">
                     <button
@@ -716,7 +768,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {filteredCollectionDrafts.length > 0 && (
+              {!deckCatalogPending && filteredCollectionDrafts.length > 0 && (
                 <div className={cn("mt-4", filteredCollectionDecks.length > 0 && "border-t pt-4")}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -732,7 +784,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {publishEnabled && signedIn && (
+              {!deckCatalogPending && publishEnabled && signedIn && (
                 <div className="mt-4 border-t pt-4">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -784,7 +836,7 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {presetSavedDecks.length > 0 && (
+              {!deckCatalogPending && presetSavedDecks.length > 0 && (
                 <div
                   className={cn(
                     "mt-4",
@@ -807,6 +859,7 @@ export default function DeckEditor() {
                         deck={s}
                         readOnly
                         onOpen={() => handleOpenPreset(s.deck)}
+                        onPlay={() => quickPlaytest(s.deck)}
                         onPlaytest={() => quickPlaytest(s.deck)}
                         onViewInHub={
                           hubEnabled
@@ -824,7 +877,8 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {filteredCollectionDecks.length === 0 &&
+              {!deckCatalogPending &&
+                filteredCollectionDecks.length === 0 &&
                 filteredCollectionDrafts.length === 0 &&
                 presetSavedDecks.length === 0 &&
                 collectionDecks.length > 0 && (
@@ -961,14 +1015,25 @@ export default function DeckEditor() {
         <div className="h-full w-full overflow-hidden flex flex-col lg:flex-row">
           <div className="overflow-hidden flex-1 min-h-0 min-w-0">
             <DeckBuilder
+              key={editorSessionId}
               onSelectionChange={(selectedCards) => {
                 selectedCardsRef.current = selectedCards;
               }}
               onToggleSearch={() => setShowSearch((v) => !v)}
-              previewSlot={previewSlot}
+              onReadOnlyDeckImported={(id) => {
+                restoredParamRef.current = id;
+                setStateView("editor");
+                setSearchParams({ deck: id }, { replace: true, state: { directToEditor: true } });
+              }}
               setPreviewSlot={setPreviewSlot}
+              previewController={previewController}
+              onDeckDeleted={() => {
+                setShowSearch(false);
+                setStateView("list");
+                navigate(ROUTES.DECK_EDITOR, { replace: true, state: null });
+              }}
               previewCollapsed={previewCollapsed}
-              onTogglePreview={togglePreview}
+              onPreviewCollapsedChange={setPreviewCollapsedValue}
               resumedPublication={
                 publishEnabled && routeState?.resumeCurrentPublish ? routePublishingDeck : null
               }
@@ -985,6 +1050,7 @@ export default function DeckEditor() {
               <CardSearch
                 onClose={() => setShowSearch(false)}
                 previewSlot={previewSlot}
+                previewController={previewController}
                 focusSignal={searchFocusSignal}
               />
             </div>
@@ -1019,7 +1085,7 @@ export default function DeckEditor() {
                 return (
                   <div
                     key={card.identity.id}
-                    className="absolute left-5 top-1 w-24 origin-bottom shadow-2xl transition-transform"
+                    className="absolute left-5 top-1 w-24 origin-bottom shadow-2xl transition-transform motion-reduce:transition-none"
                     style={{
                       transform: `translateX(${(index - center) * 13}px) translateY(${Math.abs(index - center) * 3}px) rotate(${(index - center) * 7}deg)`,
                       zIndex: index + 1,
@@ -1034,6 +1100,9 @@ export default function DeckEditor() {
                   {draggedCards.length}
                 </div>
               )}
+              <div className="absolute -bottom-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border bg-popover/95 px-2 py-1 text-[10px] font-medium shadow">
+                Moving {draggedCards.length} card{draggedCards.length === 1 ? "" : "s"}
+              </div>
             </div>
           )}
         </DragOverlay>

@@ -3882,6 +3882,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "chrono",
+ "flate2",
  "manabrew-protocol",
  "maud",
  "rand 0.8.6",

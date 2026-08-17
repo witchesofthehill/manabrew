@@ -166,7 +166,13 @@ export default function Play() {
   }
 
   if (deckRoute?.params.localSavedDeckId) {
-    return <DeckPlayActions savedDeckId={deckRoute.params.localSavedDeckId} />;
+    let savedDeckId = deckRoute.params.localSavedDeckId;
+    try {
+      savedDeckId = decodeURIComponent(savedDeckId);
+    } catch {
+      savedDeckId = deckRoute.params.localSavedDeckId;
+    }
+    return <DeckPlayActions savedDeckId={savedDeckId} />;
   }
 
   if (pathname === ROUTES.PLAY) {

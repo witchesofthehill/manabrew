@@ -74,6 +74,7 @@ pub fn run() {
         .manage(local_relay::LocalRelayHost::new())
         .invoke_handler(tauri::generate_handler![
             commands::is_card_supported,
+            commands::card_roles,
             forge_room::forge_room_available,
             forge_room::forge_room_running,
             forge_room::start_forge_host,

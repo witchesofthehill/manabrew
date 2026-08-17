@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
+import { CardPreviewDetails } from "@/components/game/CardPreviewDetails";
+import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import {
   CardCountBadge,
@@ -258,7 +259,9 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [loadingCardName, setLoadingCardName] = useState<string | null>(null);
   const cardDetailRequestIdRef = useRef(0);
-  const preview = useCardPreview([deck.id, search, zone, groupBy, viewMode]);
+  const preview = useCardPreview([deck.id, search, zone, groupBy, viewMode], {
+    subscribe: false,
+  });
   const getCard = useScryfallStore((state) => state.getCard);
   const cardsByName = useMemo(
     () =>
@@ -489,158 +492,167 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" {...longPress}>
-        {shownCount === 0 ? (
-          <div className="grid min-h-48 place-items-center text-center">
-            <div>
-              <p className="text-sm font-medium">No cards match these filters</p>
-              <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
-                Clear filters
-              </Button>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4" {...longPress}>
+          {shownCount === 0 ? (
+            <div className="grid min-h-48 place-items-center text-center">
+              <div>
+                <p className="text-sm font-medium">No cards match these filters</p>
+                <Button variant="ghost" size="sm" className="mt-2" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : viewMode === "stack" ? (
-          <div className="flex flex-wrap items-start gap-5">
-            {commanders.length > 0 && (
-              <BrowserStackColumn
-                label={commanders.length > 1 ? "Commanders" : "Commander"}
-                groups={groupCards(commanders)}
-                width={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {companion.length > 0 && (
-              <BrowserStackColumn
-                label="Companion"
-                groups={groupCards(companion)}
-                width={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {visibleMainSections.map((section) => (
-              <BrowserSection
-                key={section.id}
-                label={section.label}
-                groups={section.groups}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            ))}
-            {sideboard.length > 0 && (
-              <BrowserStackColumn
-                label="Sideboard"
-                groups={groupCards(sideboard)}
-                width={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {maybeboard.length > 0 && (
-              <BrowserStackColumn
-                label="Maybeboard"
-                groups={groupCards(maybeboard)}
-                width={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {specialSections.map((section) => (
-              <BrowserStackColumn
-                key={section.label}
-                label={section.label}
-                groups={section.groups}
-                width={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            className={cn(
-              viewMode === "list" ? "columns-1 gap-5 md:columns-2 xl:columns-3" : "space-y-5",
-            )}
-          >
-            {commanders.length > 0 && (
-              <BrowserSection
-                label={commanders.length > 1 ? "Commanders" : "Commander"}
-                groups={groupCards(commanders)}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {companion.length > 0 && (
-              <BrowserSection
-                label="Companion"
-                groups={groupCards(companion)}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {visibleMainSections.map((section) => (
-              <BrowserSection
-                key={section.id}
-                label={section.label}
-                groups={section.groups}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            ))}
-            {sideboard.length > 0 && (
-              <BrowserSection
-                label="Sideboard"
-                groups={groupCards(sideboard)}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {maybeboard.length > 0 && (
-              <BrowserSection
-                label="Maybeboard"
-                groups={groupCards(maybeboard)}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            )}
-            {specialSections.map((section) => (
-              <BrowserSection
-                key={section.label}
-                label={section.label}
-                groups={section.groups}
-                viewMode={viewMode}
-                cardWidth={cardWidth}
-                onOpen={(card) => void openCard(card)}
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={preview.handleMouseLeave}
-              />
-            ))}
-          </div>
-        )}
+          ) : viewMode === "stack" ? (
+            <div className="flex flex-wrap items-start gap-5">
+              {commanders.length > 0 && (
+                <BrowserStackColumn
+                  label={commanders.length > 1 ? "Commanders" : "Commander"}
+                  groups={groupCards(commanders)}
+                  width={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {companion.length > 0 && (
+                <BrowserStackColumn
+                  label="Companion"
+                  groups={groupCards(companion)}
+                  width={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {visibleMainSections.map((section) => (
+                <BrowserSection
+                  key={section.id}
+                  label={section.label}
+                  groups={section.groups}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              ))}
+              {sideboard.length > 0 && (
+                <BrowserStackColumn
+                  label="Sideboard"
+                  groups={groupCards(sideboard)}
+                  width={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {maybeboard.length > 0 && (
+                <BrowserStackColumn
+                  label="Maybeboard"
+                  groups={groupCards(maybeboard)}
+                  width={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {specialSections.map((section) => (
+                <BrowserStackColumn
+                  key={section.label}
+                  label={section.label}
+                  groups={section.groups}
+                  width={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              ))}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                viewMode === "list" ? "columns-1 gap-5 md:columns-2 xl:columns-3" : "space-y-5",
+              )}
+            >
+              {commanders.length > 0 && (
+                <BrowserSection
+                  label={commanders.length > 1 ? "Commanders" : "Commander"}
+                  groups={groupCards(commanders)}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {companion.length > 0 && (
+                <BrowserSection
+                  label="Companion"
+                  groups={groupCards(companion)}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {visibleMainSections.map((section) => (
+                <BrowserSection
+                  key={section.id}
+                  label={section.label}
+                  groups={section.groups}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              ))}
+              {sideboard.length > 0 && (
+                <BrowserSection
+                  label="Sideboard"
+                  groups={groupCards(sideboard)}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {maybeboard.length > 0 && (
+                <BrowserSection
+                  label="Maybeboard"
+                  groups={groupCards(maybeboard)}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              )}
+              {specialSections.map((section) => (
+                <BrowserSection
+                  key={section.label}
+                  label={section.label}
+                  groups={section.groups}
+                  viewMode={viewMode}
+                  cardWidth={cardWidth}
+                  onOpen={(card) => void openCard(card)}
+                  onPointerEnter={handlePointerEnter}
+                  onPointerLeave={preview.handleMouseLeave}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="hidden min-h-0 lg:contents">
+          <CardPreviewRail
+            preview={preview}
+            title="Card preview"
+            renderDetails={(card) => <CardPreviewDetails card={card} />}
+          />
+        </div>
       </div>
 
       {loadingCardName && (
@@ -651,7 +663,6 @@ export function DeckCardBrowser({ deck }: { deck: Deck }) {
           </span>
         </div>
       )}
-      <HoverCardPreview preview={preview} imageSize="normal" />
       {detailCard && <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />}
     </div>
   );

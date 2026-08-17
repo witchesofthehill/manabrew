@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { useDraggable } from "@dnd-kit/core";
 import { toast } from "sonner";
@@ -24,7 +23,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { SetSelect } from "@/components/editor/SetSelect";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -544,6 +543,7 @@ function DraggableCardRow({
 interface CardSearchProps {
   standalone?: boolean;
   onClose?: () => void;
+  previewController?: ReturnType<typeof useCardPreview>;
   /** Shared rail slot — when provided, the hover preview portals into it
    *  (pinned). When absent, the search panel renders no preview of its own. */
   previewSlot?: HTMLElement | null;
@@ -551,8 +551,15 @@ interface CardSearchProps {
   focusSignal?: number;
 }
 
-export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
-  const preview = useCardPreview();
+export function CardSearch({
+  standalone,
+  onClose,
+  previewController,
+  previewSlot,
+  focusSignal,
+}: CardSearchProps) {
+  const internalPreview = useCardPreview();
+  const preview = previewController ?? internalPreview;
   const addToMain = useDeckStore((s) => s.addToMain);
   const addCard = (card: DeckCard) => {
     addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
@@ -1112,7 +1119,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                     onAdd={standalone ? undefined : () => addCard(card)}
                     standalone={standalone}
                     onHover={(c, e) =>
-                      preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
+                      preview.handleMouseEnter(deckCardToPreviewDto(c), e, { useDelay: true })
                     }
                     onLeave={preview.handleMouseLeave}
                   />
@@ -1129,7 +1136,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   onAdd={standalone ? undefined : () => addCard(card)}
                   standalone={standalone}
                   onHover={(c, e) =>
-                    preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
+                    preview.handleMouseEnter(deckCardToPreviewDto(c), e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
                 />
@@ -1146,7 +1153,9 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
       </ScrollArea>
 
       {detailCard && <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />}
-      <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      {!previewController && (
+        <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      )}
     </div>
   );
 }

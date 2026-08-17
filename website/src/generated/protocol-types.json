@@ -72,8 +72,20 @@
     "Deck",
     "DeckCard",
     "DeckCardIdentity",
+    "DeckEditorCollectionFilter",
+    "DeckEditorDestination",
+    "DeckEditorGoals",
+    "DeckEditorGroup",
+    "DeckEditorGroupBy",
+    "DeckEditorLayout",
+    "DeckEditorMetadata",
+    "DeckEditorSortBy",
+    "DeckEditorTag",
+    "DeckEditorViewMode",
     "DeckFormat",
-    "DeckLabel"
+    "DeckLabel",
+    "DeckPriceProvider",
+    "DeckSideboardPlan"
   ],
   "types": {
     "ActivatableAbilityInfo": {
@@ -217,9 +229,15 @@
       "refs": []
     },
     "Deck": {
-      "ts": "interface Deck {\n  version?: string;\n  id?: string;\n  name: string;\n  description?: string;\n  color?: string;\n  format?: DeckFormat;\n  cards: Array<DeckCard>;\n  sideboard: Array<DeckCard>;\n  attractions?: Array<DeckCard>;\n  contraptions?: Array<DeckCard>;\n  schemes?: Array<DeckCard>;\n  planes?: Array<DeckCard>;\n  commanders?: Array<DeckCard>;\n  companion?: DeckCard;\n  maybeboard?: Array<DeckCard>;\n  draft?: boolean;\n  labels?: Array<DeckLabel>;\n  coverCardName?: string;\n  coverCardFace?: number;\n  playmat?: string;\n  playmatSettings?: PlaymatSettings;\n  stackPositions?: Record<string, { x: number; y: number }>;\n  tokens?: Array<DeckCard>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct Deck {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub version: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub id: Option<String>,\n    pub name: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub color: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub format: Option<DeckFormat>,\n    #[serde(default)]\n    pub cards: Vec<DeckCard>,\n    #[serde(default)]\n    pub sideboard: Vec<DeckCard>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attractions: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub contraptions: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub schemes: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub planes: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub commanders: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub companion: Option<DeckCard>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub maybeboard: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub draft: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub labels: Option<Vec<DeckLabel>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cover_card_name: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cover_card_face: Option<u8>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub playmat: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub playmat_settings: Option<PlaymatSettings>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub stack_positions: Option<serde_json::Value>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub tokens: Option<Vec<DeckCard>>,\n}",
-      "refs": ["DeckCard", "DeckFormat", "DeckLabel", "PlaymatSettings"]
+      "ts": "interface Deck {\n  version?: string;\n  id?: string;\n  name: string;\n  description?: string;\n  color?: string;\n  format?: DeckFormat;\n  cards: Array<DeckCard>;\n  sideboard: Array<DeckCard>;\n  attractions?: Array<DeckCard>;\n  contraptions?: Array<DeckCard>;\n  schemes?: Array<DeckCard>;\n  planes?: Array<DeckCard>;\n  commanders?: Array<DeckCard>;\n  companion?: DeckCard;\n  maybeboard?: Array<DeckCard>;\n  draft?: boolean;\n  labels?: Array<DeckLabel>;\n  customTags?: Array<string>;\n  cardTags?: Record<string, Array<string>>;\n  editor?: DeckEditorMetadata;\n  coverCardName?: string;\n  coverCardFace?: number;\n  playmat?: string;\n  playmatSettings?: PlaymatSettings;\n  stackPositions?: Record<string, { x: number; y: number }>;\n  tokens?: Array<DeckCard>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct Deck {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub version: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub id: Option<String>,\n    pub name: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub color: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub format: Option<DeckFormat>,\n    #[serde(default)]\n    pub cards: Vec<DeckCard>,\n    #[serde(default)]\n    pub sideboard: Vec<DeckCard>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attractions: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub contraptions: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub schemes: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub planes: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub commanders: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub companion: Option<DeckCard>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub maybeboard: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub draft: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub labels: Option<Vec<DeckLabel>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub custom_tags: Option<Vec<String>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub card_tags: Option<BTreeMap<String, Vec<String>>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub editor: Option<DeckEditorMetadata>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cover_card_name: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cover_card_face: Option<u8>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub playmat: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub playmat_settings: Option<PlaymatSettings>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub stack_positions: Option<serde_json::Value>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub tokens: Option<Vec<DeckCard>>,\n}",
+      "refs": [
+        "DeckCard",
+        "DeckEditorMetadata",
+        "DeckFormat",
+        "DeckLabel",
+        "PlaymatSettings"
+      ]
     },
     "DeckCard": {
       "ts": "interface DeckCard {\n  identity: DeckCardIdentity;\n  uris: CardImageUris;\n  allParts?: Array<CardPart>;\n  color: string;\n  colorIdentity: Array<string>;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  keywords?: Array<string>;\n  power?: string;\n  toughness?: string;\n  text: string;\n  layout?: string;\n  isDoubleFaced?: boolean;\n  /**\n   * Back face of a transform / modal_dfc card, captured at deck import.\n   * Absent on single-faced cards and on decks saved before it existed.\n   */\n  backFace?: CardBackFaceSummary;\n}",
@@ -236,6 +254,69 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckCardIdentity {\n    #[serde(default, skip_serializing_if = \"String::is_empty\")]\n    pub id: String,\n    pub name: String,\n    pub set_code: String,\n    pub card_number: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub oracle_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub token_script: Option<TokenScript>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub foil: Option<bool>,\n}",
       "refs": ["TokenScript"]
     },
+    "DeckEditorCollectionFilter": {
+      "ts": "type DeckEditorCollectionFilter =\n  | \"all\"\n  | \"exact\"\n  | \"other\"\n  | \"partial\"\n  | \"missing\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckEditorCollectionFilter {\n    All,\n    Exact,\n    Other,\n    Partial,\n    Missing,\n}",
+      "refs": []
+    },
+    "DeckEditorDestination": {
+      "ts": "type DeckEditorDestination = \"main\" | \"side\" | \"maybe\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckEditorDestination {\n    Main,\n    Side,\n    Maybe,\n}",
+      "refs": []
+    },
+    "DeckEditorGoals": {
+      "ts": "interface DeckEditorGoals {\n  minLands?: number;\n  maxLands?: number;\n  maxMissingCards?: number;\n  maxAverageManaValue?: number;\n  tagTargets?: Record<string, number>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckEditorGoals {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub min_lands: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub max_lands: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub max_missing_cards: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub max_average_mana_value: Option<f64>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub tag_targets: Option<BTreeMap<String, u32>>,\n}",
+      "refs": []
+    },
+    "DeckEditorGroup": {
+      "ts": "interface DeckEditorGroup {\n  id: string;\n  name: string;\n  cardNames: Array<string>;\n  collapsed?: boolean;\n  pinned?: boolean;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckEditorGroup {\n    pub id: String,\n    pub name: String,\n    pub card_names: Vec<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub collapsed: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub pinned: Option<bool>,\n}",
+      "refs": []
+    },
+    "DeckEditorGroupBy": {
+      "ts": "type DeckEditorGroupBy = \"type\" | \"cmc\" | \"color\" | \"custom\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckEditorGroupBy {\n    Type,\n    Cmc,\n    Color,\n    Custom,\n}",
+      "refs": []
+    },
+    "DeckEditorLayout": {
+      "ts": "interface DeckEditorLayout {\n  id: string;\n  name: string;\n  groupBy: DeckEditorGroupBy;\n  sortBy: DeckEditorSortBy;\n  groups: Array<DeckEditorGroup>;\n  filter?: string;\n  cardSize?: number;\n  viewMode?: DeckEditorViewMode;\n  collectionFilter?: DeckEditorCollectionFilter;\n  defaultDestination?: DeckEditorDestination;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckEditorLayout {\n    pub id: String,\n    pub name: String,\n    pub group_by: DeckEditorGroupBy,\n    pub sort_by: DeckEditorSortBy,\n    pub groups: Vec<DeckEditorGroup>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub filter: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub card_size: Option<u32>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub view_mode: Option<DeckEditorViewMode>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub collection_filter: Option<DeckEditorCollectionFilter>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub default_destination: Option<DeckEditorDestination>,\n}",
+      "refs": [
+        "DeckEditorCollectionFilter",
+        "DeckEditorDestination",
+        "DeckEditorGroup",
+        "DeckEditorGroupBy",
+        "DeckEditorSortBy",
+        "DeckEditorViewMode"
+      ]
+    },
+    "DeckEditorMetadata": {
+      "ts": "interface DeckEditorMetadata {\n  version: number;\n  tags: Array<DeckEditorTag>;\n  layouts: Array<DeckEditorLayout>;\n  activeLayoutId?: string;\n  sideboardPlans?: Array<DeckSideboardPlan>;\n  budgetUsd?: number;\n  budgetAmount?: number;\n  priceProvider?: DeckPriceProvider;\n  goals?: DeckEditorGoals;\n  dismissedHints?: Array<string>;\n  acquisition?: Record<string, \"ordered\" | \"proxy\">;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckEditorMetadata {\n    pub version: u32,\n    #[serde(default)]\n    pub tags: Vec<DeckEditorTag>,\n    #[serde(default)]\n    pub layouts: Vec<DeckEditorLayout>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub active_layout_id: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub sideboard_plans: Option<Vec<DeckSideboardPlan>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub budget_usd: Option<f64>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub budget_amount: Option<f64>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub price_provider: Option<DeckPriceProvider>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub goals: Option<DeckEditorGoals>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub dismissed_hints: Option<Vec<String>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub acquisition: Option<BTreeMap<String, DeckAcquisitionStatus>>,\n}",
+      "refs": [
+        "DeckEditorGoals",
+        "DeckEditorLayout",
+        "DeckEditorTag",
+        "DeckPriceProvider",
+        "DeckSideboardPlan"
+      ]
+    },
+    "DeckEditorSortBy": {
+      "ts": "type DeckEditorSortBy =\n  | \"name\"\n  | \"mana-value\"\n  | \"quantity\"\n  | \"owned\"\n  | \"not-owned\";",
+      "rust": "pub enum DeckEditorSortBy {\n    #[serde(rename = \"name\")]\n    Name,\n    #[serde(rename = \"mana-value\")]\n    ManaValue,\n    #[serde(rename = \"quantity\")]\n    Quantity,\n    #[serde(rename = \"owned\")]\n    Owned,\n    #[serde(rename = \"not-owned\")]\n    NotOwned,\n}",
+      "refs": []
+    },
+    "DeckEditorTag": {
+      "ts": "interface DeckEditorTag {\n  id: string;\n  name: string;\n  color?: string;\n  icon?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckEditorTag {\n    pub id: String,\n    pub name: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub color: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub icon: Option<String>,\n}",
+      "refs": []
+    },
+    "DeckEditorViewMode": {
+      "ts": "type DeckEditorViewMode = \"list\" | \"visual\" | \"stack\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckEditorViewMode {\n    List,\n    Visual,\n    Stack,\n}",
+      "refs": []
+    },
     "DeckFormat": {
       "ts": "type DeckFormat =\n  | \"standard\"\n  | \"pioneer\"\n  | \"modern\"\n  | \"legacy\"\n  | \"vintage\"\n  | \"pauper\"\n  | \"commander\"\n  | \"brawl\"\n  | \"oathbreaker\"\n  | \"draft\"\n  | \"sealed\";",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckFormat {\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
@@ -244,6 +325,16 @@
     "DeckLabel": {
       "ts": "interface DeckLabel {\n  name: string;\n  color?: string;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckLabel {\n    pub name: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub color: Option<String>,\n}",
+      "refs": []
+    },
+    "DeckPriceProvider": {
+      "ts": "type DeckPriceProvider = \"tcgplayer\" | \"cardmarket\" | \"cardhoarder\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckPriceProvider {\n    Tcgplayer,\n    Cardmarket,\n    Cardhoarder,\n}",
+      "refs": []
+    },
+    "DeckSideboardPlan": {
+      "ts": "interface DeckSideboardPlan {\n  id: string;\n  matchup: string;\n  bringIn: string;\n  takeOut: string;\n  notes: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckSideboardPlan {\n    pub id: String,\n    pub matchup: String,\n    pub bring_in: String,\n    pub take_out: String,\n    pub notes: String,\n}",
       "refs": []
     },
     "DiceRollEntry": {

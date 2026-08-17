@@ -29,7 +29,10 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
   const count = errors.length;
 
   return (
-    <div className="mx-4 mt-4 rounded-xl border border-destructive/40 bg-destructive/5 px-5 py-4">
+    <div
+      data-editor-validation
+      className="scroll-mt-14 mx-4 mt-4 rounded-xl border border-destructive/40 bg-destructive/5 px-5 py-4"
+    >
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
         <span className="text-sm font-semibold text-destructive">

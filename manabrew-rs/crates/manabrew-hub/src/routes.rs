@@ -909,7 +909,7 @@ mod tests {
         })
     }
 
-    fn sign_up(state: &Arc<AppState>, handle: &str, email: &str) -> String {
+    fn sign_up(state: &Arc<AppState>, handle: &str, email: &str) -> (String, String) {
         let token = generate_token();
         let storage = state.storage.lock().unwrap();
         let account_id = uuid::Uuid::new_v4().to_string();
@@ -939,7 +939,10 @@ mod tests {
                 "2999-01-01T00:00:00Z",
             )
             .unwrap();
-        token
+        drop(storage);
+        let access =
+            auth::mint_access_token(&state.identity, &account_id, handle, auth::AUDIENCE_HUB);
+        (access.access_token, token)
     }
 
     fn with_ip(mut request: Request<Body>) -> Request<Body> {
@@ -967,7 +970,7 @@ mod tests {
     #[tokio::test]
     async fn account_deck_versions_publication_favorites_and_snapshot_roundtrip() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "tester", "tester@example.com");
+        let (token, _) = sign_up(&state, "tester", "tester@example.com");
         let router = build_router(state);
         let deck = crate::validate::tests::deck(60);
 
@@ -1262,7 +1265,7 @@ mod tests {
     async fn handle_conflict_is_409() {
         let state = test_state(100, 100);
         sign_up(&state, "taken", "a@example.com");
-        let token = sign_up(&state, "second", "b@example.com");
+        let (token, _) = sign_up(&state, "second", "b@example.com");
         let router = build_router(state);
         let response = router
             .oneshot(with_ip(
@@ -1282,7 +1285,7 @@ mod tests {
     #[tokio::test]
     async fn last_identity_unlink_refused() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "tester", "tester@example.com");
+        let (token, _) = sign_up(&state, "tester", "tester@example.com");
         let router = build_router(state);
         let response = router
             .oneshot(with_ip(
@@ -1297,31 +1300,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn logout_invalidates_session() {
+    async fn logout_revokes_the_refresh_token() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "tester", "tester@example.com");
+        let (_, refresh) = sign_up(&state, "tester", "tester@example.com");
         let router = build_router(state);
         let response = router
             .clone()
-            .oneshot(with_ip(
-                Request::post("/api/auth/logout")
-                    .header("authorization", format!("Bearer {token}"))
-                    .body(Body::empty())
-                    .unwrap(),
+            .oneshot(json_post(
+                "/api/auth/logout",
+                None,
+                serde_json::json!({ "token": refresh }),
             ))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
         let response = router
-            .oneshot(with_ip(
-                Request::get("/api/auth/me")
-                    .header("authorization", format!("Bearer {token}"))
-                    .body(Body::empty())
-                    .unwrap(),
+            .oneshot(json_post(
+                "/api/auth/token",
+                None,
+                serde_json::json!({ "grant_type": "refresh_token", "refresh_token": refresh }),
             ))
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
@@ -1339,37 +1340,53 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn identity_token_requires_session_and_verifies_against_jwks() {
+    async fn token_endpoint_mints_per_audience_and_verifies_against_jwks() {
         let state = test_state(100, 100);
+        let (_, refresh) = sign_up(&state, "brewer", "brewer@example.com");
         let router = build_router(state.clone());
+
         let response = router
             .clone()
-            .oneshot(with_ip(
-                Request::post("/api/auth/token")
-                    .body(Body::empty())
-                    .unwrap(),
+            .oneshot(json_post(
+                "/api/auth/token",
+                None,
+                serde_json::json!({ "grant_type": "password", "refresh_token": refresh }),
             ))
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 
-        let session = sign_up(&state, "brewer", "brewer@example.com");
         let response = router
             .clone()
-            .oneshot(with_ip(
-                Request::post("/api/auth/token")
-                    .header("authorization", format!("Bearer {session}"))
-                    .body(Body::empty())
-                    .unwrap(),
+            .oneshot(json_post(
+                "/api/auth/token",
+                None,
+                serde_json::json!({
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh,
+                    "resource": "example.com",
+                }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let response = router
+            .clone()
+            .oneshot(json_post(
+                "/api/auth/token",
+                None,
+                serde_json::json!({
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh,
+                    "resource": auth::token_tests::AUDIENCE_RELAY,
+                }),
             ))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let minted: manabrew_hub::dto::IdentityTokenResponse =
-            serde_json::from_slice(&bytes).unwrap();
+        let minted: manabrew_hub::dto::AccessTokenResponse = body_json(response).await;
+        assert_eq!(minted.token_type, "Bearer");
 
         let response = router
             .oneshot(with_ip(
@@ -1381,10 +1398,13 @@ mod tests {
             .await
             .unwrap();
         let jwks: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-        let claims =
-            auth::token_tests::verify(&minted.token, jwks["keys"][0]["x"].as_str().unwrap())
-                .unwrap();
+        let claims = auth::token_tests::verify_with_jwk(
+            &minted.access_token,
+            jwks["keys"][0]["x"].as_str().unwrap(),
+        )
+        .unwrap();
         assert_eq!(claims.handle, "brewer");
+        assert_eq!(claims.aud, auth::token_tests::AUDIENCE_RELAY);
         assert_eq!(claims.exp - claims.iat, i64::from(minted.expires_in));
     }
 }

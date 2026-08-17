@@ -19,7 +19,7 @@ COPY scripts/gen-harness-prompts.mjs scripts/gen-harness-prompts.mjs
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
-    cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && \
+    cargo run -q -p manabrew-relay-protocol --bin gen-protocol -- src/protocol && \
     node scripts/gen-harness-prompts.mjs /generated
 
 # ── Stage 1: Build Java harness JAR ─────────────────────────────────

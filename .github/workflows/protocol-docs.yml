@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - "manabrew-rs/crates/manabrew-protocol/**"
+      - "manabrew-rs/crates/manabrew-relay-protocol/**"
       - "scripts/gen-protocol-doc-types.mjs"
       - "website/src/generated/protocol-types.json"
   workflow_dispatch:

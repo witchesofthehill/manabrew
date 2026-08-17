@@ -77,6 +77,7 @@ pub async fn start_local_relay(relay: State<'_, LocalRelayHost>) -> Result<Local
             None,
             manabrew_server::analytics::AnalyticsHandle::disabled(),
             manabrew_server::deck_play_events::DeckPlayEventHandle::disabled(),
+            None,
         ));
         let shutdown = Arc::new(tokio::sync::Notify::new());
         let health_addr = std::net::SocketAddr::from(([127, 0, 0, 1], 0));

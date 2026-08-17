@@ -408,7 +408,7 @@ mod tests {
         Room::new(
             "r".into(),
             "room".into(),
-            manabrew_protocol::protocol::PROTOCOL_VERSION,
+            manabrew_relay_protocol::PROTOCOL_VERSION,
             "host".into(),
             "host".into(),
             4,

@@ -1,19 +1,62 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import { fetchMe, signOutSession, AuthRequestError } from "@/api/auth";
+import { fetchMe, requestAccessToken, signOutSession, AuthRequestError } from "@/api/auth";
+import { clearIdentityToken } from "@/lib/relayIdentity";
 import { isFeatureEnabled } from "@/featureFlags";
-import type { AuthAccount, AuthIdentity } from "@/api/authTypes";
+import type { AuthAccount, AuthIdentity, AuthSessionResponse } from "@/api/authTypes";
 
 export type AuthStatus = "unknown" | "signedOut" | "signedIn";
 
+const ACCESS_TOKEN_EXPIRY_MARGIN_MS = 30_000;
+
 let refreshRequestId = 0;
+let accessToken: string | null = null;
+let accessTokenExpiresAt = 0;
+let pendingAccessToken: Promise<string | null> | null = null;
+
+function holdAccessToken(token: string, expiresIn: number) {
+  accessToken = token;
+  accessTokenExpiresAt = Date.now() + expiresIn * 1000;
+}
+
+function dropAccessToken() {
+  accessToken = null;
+  accessTokenExpiresAt = 0;
+  pendingAccessToken = null;
+}
+
+async function mintAccessToken(refreshToken: string): Promise<string | null> {
+  try {
+    const minted = await requestAccessToken(refreshToken);
+    holdAccessToken(minted.access_token, minted.expires_in);
+    return minted.access_token;
+  } catch (err) {
+    if (err instanceof AuthRequestError && err.status === 400) {
+      await useAuthStore.getState().signOut();
+    }
+    return null;
+  }
+}
+
+export async function getAccessToken(): Promise<string | null> {
+  if (!isFeatureEnabled("accounts")) return null;
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) return null;
+  if (accessToken && Date.now() < accessTokenExpiresAt - ACCESS_TOKEN_EXPIRY_MARGIN_MS) {
+    return accessToken;
+  }
+  pendingAccessToken ??= mintAccessToken(refreshToken).finally(() => {
+    pendingAccessToken = null;
+  });
+  return pendingAccessToken;
+}
 
 interface AuthState {
-  token: string | null;
+  refreshToken: string | null;
   account: AuthAccount | null;
   identities: AuthIdentity[];
   status: AuthStatus;
-  signIn: (token: string, account: AuthAccount) => void;
+  signIn: (session: AuthSessionResponse) => void;
   setAccount: (account: AuthAccount) => void;
   hydrate: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -24,13 +67,21 @@ export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
       (set, get) => ({
-        token: null,
+        refreshToken: null,
         account: null,
         identities: [],
         status: "unknown",
-        signIn: (token, account) => {
+        signIn: (session) => {
           refreshRequestId += 1;
-          set({ token, account, identities: [], status: "signedIn" });
+          clearIdentityToken();
+          dropAccessToken();
+          holdAccessToken(session.access_token, session.expires_in);
+          set({
+            refreshToken: session.refresh_token,
+            account: session.account,
+            identities: [],
+            status: "signedIn",
+          });
           void get().refresh();
         },
         setAccount: (account) => {
@@ -39,50 +90,63 @@ export const useAuthStore = create<AuthState>()(
           void get().refresh();
         },
         hydrate: async () => {
-          const token = get().token;
-          if (!token || !isFeatureEnabled("accounts")) {
+          if (!get().refreshToken || !isFeatureEnabled("accounts")) {
             set({ status: "signedOut" });
             return;
           }
           await get().refresh();
         },
         refresh: async () => {
-          const token = get().token;
-          if (!token) return;
+          const refreshToken = get().refreshToken;
+          if (!refreshToken) return;
           const requestId = ++refreshRequestId;
+          const token = await getAccessToken();
+          if (!token) return;
           try {
             const me = await fetchMe(token);
-            if (get().token !== token || requestId !== refreshRequestId) return;
+            if (get().refreshToken !== refreshToken || requestId !== refreshRequestId) return;
             set({ account: me.account, identities: me.identities, status: "signedIn" });
           } catch (err) {
             if (
-              get().token === token &&
+              get().refreshToken === refreshToken &&
               requestId === refreshRequestId &&
               err instanceof AuthRequestError &&
               err.status === 401
             ) {
-              set({ token: null, account: null, identities: [], status: "signedOut" });
+              dropAccessToken();
+              set({ refreshToken: null, account: null, identities: [], status: "signedOut" });
             }
           }
         },
         signOut: async () => {
-          const token = get().token;
+          const refreshToken = get().refreshToken;
           refreshRequestId += 1;
-          set({ token: null, account: null, identities: [], status: "signedOut" });
-          if (token) {
-            await signOutSession(token).catch(() => {});
+          clearIdentityToken();
+          dropAccessToken();
+          set({ refreshToken: null, account: null, identities: [], status: "signedOut" });
+          if (refreshToken) {
+            await signOutSession(refreshToken).catch(() => {});
           }
         },
       }),
       {
         name: "manabrew-auth-storage",
-        // The bearer token persists in localStorage on purpose: staying signed
+        version: 1,
+        // The refresh token persists in localStorage on purpose: staying signed
         // in across reloads is the product behavior, and any XSS that could
-        // read it could call the API directly anyway. Sign-out revokes the
-        // session server-side, and the hub stores only its sha256.
+        // read it could call the API directly anyway. It is presented only to
+        // the token endpoint, sign-out revokes it, and the hub stores only its
+        // sha256. Access tokens stay in memory and last ten minutes.
         partialize: (state) => ({
-          token: state.token,
+          refreshToken: state.refreshToken,
         }),
+        migrate: (persisted, version) => {
+          if (version === 0 && persisted && typeof persisted === "object") {
+            const legacy = (persisted as { token?: string | null }).token ?? null;
+            return { refreshToken: legacy };
+          }
+          return persisted as { refreshToken: string | null };
+        },
       },
     ),
     { name: "auth", enabled: import.meta.env.DEV },

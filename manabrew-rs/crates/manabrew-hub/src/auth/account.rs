@@ -6,10 +6,11 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use manabrew_hub::dto::{
-    AuthAccount, AuthIdentity, ExchangeCodeRequest, MeResponse, UpdateHandleRequest,
+    AuthAccount, AuthIdentity, ExchangeCodeRequest, MeResponse, RevocationRequest,
+    UpdateHandleRequest,
 };
 
-use super::{account_dto, bearer_token, create_session, now_str, SessionAccount};
+use super::{account_dto, create_session, now_str, revoke_refresh_token, SessionAccount};
 use crate::routes::{client_ip, hash_token, internal_error, AppState};
 use crate::storage::HandleOutcome;
 use crate::validate;
@@ -95,16 +96,11 @@ pub async fn update_handle_handler(
     }
 }
 
-pub async fn logout_handler(State(state): State<Arc<AppState>>, headers: HeaderMap) -> Response {
-    let Some(token) = bearer_token(&headers) else {
-        return StatusCode::UNAUTHORIZED.into_response();
-    };
-    match state
-        .storage
-        .lock()
-        .unwrap()
-        .delete_session(&hash_token(token))
-    {
+pub async fn logout_handler(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<RevocationRequest>,
+) -> Response {
+    match revoke_refresh_token(&state, &request.token) {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(error) => internal_error(error),
     }

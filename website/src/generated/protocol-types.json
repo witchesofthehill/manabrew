@@ -48,6 +48,8 @@
     "ClassLevelDto",
     "CombatAssignmentDto",
     "DayTime",
+    "EngineKind",
+    "GameFormat",
     "GameViewDto",
     "Mana",
     "ManaColor",
@@ -257,6 +259,16 @@
     "DirectiveInput": {
       "ts": "interface DirectiveInput {\n  type: \"concede\";\n}",
       "rust": "#[serde(tag = \"type\", rename_all = \"camelCase\")]\npub enum DirectiveInput {\n    Concede,\n}",
+      "refs": []
+    },
+    "EngineKind": {
+      "ts": "type EngineKind = \"Manabrew\" | \"Forge\" | \"Ironsmith\";",
+      "rust": "pub enum EngineKind {\n    #[default]\n    Manabrew,\n    Forge,\n    Ironsmith,\n}",
+      "refs": []
+    },
+    "GameFormat": {
+      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Commander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
+      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
       "refs": []
     },
     "GameOverInput": {

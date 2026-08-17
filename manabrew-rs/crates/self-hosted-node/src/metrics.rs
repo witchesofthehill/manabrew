@@ -7,6 +7,7 @@ use tracing::{info, warn};
 const ROOMS_HOSTED: &str = "manabrew_node_rooms_hosted";
 const GAMES_ACTIVE: &str = "manabrew_node_games_active";
 const GAME_DURATION_SECONDS: &str = "manabrew_node_game_duration_seconds";
+const DECISION_LATENCY_SECONDS: &str = "manabrew_node_decision_latency_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
@@ -130,6 +131,11 @@ impl Drop for RoomHostedGuard {
 
 pub fn record_relay_reconnect() {
     counter!(RELAY_RECONNECTS).increment(1);
+}
+
+pub fn record_decision_latency(players: usize, submitted: Instant) {
+    histogram!(DECISION_LATENCY_SECONDS, LABEL_PLAYERS => players.to_string())
+        .record(submitted.elapsed().as_secs_f64());
 }
 
 pub fn record_engine_session_started() {

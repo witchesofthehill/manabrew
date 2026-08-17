@@ -71,14 +71,29 @@ Defined in `manabrew-rs/crates/manabrew-server/src/metrics.rs`, served on the he
 
 Defined in `manabrew-rs/crates/self-hosted-node/src/metrics.rs`; pushed to the push gateway (`SELF_HOSTED_NODE_METRICS_PUSH_URL` / `_USERNAME` / `_PASSWORD`), which adds `push_time_seconds{job="self-hosted-node"}` used for staleness checks.
 
-| Metric                                 | Kind    | Labels                            |
-| -------------------------------------- | ------- | --------------------------------- |
-| `manabrew_node_rooms_hosted`           | gauge   | `pool`                            |
-| `manabrew_node_games_active`           | gauge   | —                                 |
-| `manabrew_node_game_duration_seconds`  | summary | `clean`, `players` (+ `quantile`) |
-| `manabrew_node_engine_errors_total`    | counter | `signature`                       |
-| `manabrew_node_relay_reconnects_total` | counter | —                                 |
-| `manabrew_node_build_info`             | gauge   | `version`                         |
+| Metric                                   | Kind    | Labels                            |
+| ---------------------------------------- | ------- | --------------------------------- |
+| `manabrew_node_rooms_hosted`             | gauge   | `pool`                            |
+| `manabrew_node_games_active`             | gauge   | —                                 |
+| `manabrew_node_game_duration_seconds`    | summary | `clean`, `players` (+ `quantile`) |
+| `manabrew_node_decision_latency_seconds` | summary | `players` (+ `quantile`)          |
+| `manabrew_node_engine_errors_total`      | counter | `signature`                       |
+| `manabrew_node_relay_reconnects_total`   | counter | —                                 |
+| `manabrew_node_build_info`               | gauge   | `version`                         |
+
+`manabrew_node_decision_latency_seconds` measures a hosted player's answer reaching the engine
+until the engine asks for the next decision. The production node fleet ships no logs anywhere, so
+this is the only fleet-wide view of the per-decision latency in #684. Its floor is the 50ms poll
+interval of the hosted loop.
+
+### Engine JVM GC logs
+
+`SELF_HOSTED_NODE_JAVA_GC_LOG=stderr` makes the engine JVM emit `-Xlog:gc*` on stderr, which the
+node forwards at `info`, so a containerised node's GC log reaches Loki through the same
+`discovery.docker` path as everything else. `staging` sets it by default. Query with
+`{service="self-hosted-node-staging"} |= "[gc"`. The `gc,init` lines at startup record what the JVM
+picked for heap and GC threads, which is the `jcmd VM.flags` evidence #684 asks for. Point the
+variable at a directory instead to write rotating files, for a node that is not in a container.
 
 ### SQLite analytics DB
 

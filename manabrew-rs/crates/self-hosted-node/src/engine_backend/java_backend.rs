@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 #[cfg(forge_backend)]
 use std::time::Duration;
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use std::time::Instant;
 
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
@@ -1032,12 +1032,19 @@ fn drive_game_via_handle(
     ))
 }
 
+const DEFAULT_JAVA_HEAP_MB: u64 = 1024;
+const DEFAULT_JAVA_ACTIVE_PROCESSORS: u64 = 2;
+
 #[derive(Debug, Clone)]
 pub struct JavaRuntimeConfig {
     pub assets_dir: PathBuf,
     pub harness_jar: PathBuf,
     pub java_home: Option<PathBuf>,
     pub extra_classpath: Vec<PathBuf>,
+    pub heap_mb: Option<u64>,
+    pub active_processor_count: Option<u64>,
+    pub gc_log: Option<String>,
+    pub extra_jvm_args: Vec<String>,
 }
 
 impl JavaRuntimeConfig {
@@ -1059,7 +1066,55 @@ impl JavaRuntimeConfig {
                 .into_iter()
                 .chain(env_classpath("MANA_BREW_FORGE_EXTRA_CLASSPATH"))
                 .collect(),
+            heap_mb: env_sizing("SELF_HOSTED_NODE_JAVA_HEAP_MB", DEFAULT_JAVA_HEAP_MB),
+            active_processor_count: env_sizing(
+                "SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS",
+                DEFAULT_JAVA_ACTIVE_PROCESSORS,
+            ),
+            gc_log: env::var("SELF_HOSTED_NODE_JAVA_GC_LOG")
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty()),
+            extra_jvm_args: env::var("SELF_HOSTED_NODE_JAVA_OPTS")
+                .unwrap_or_default()
+                .split_whitespace()
+                .map(str::to_string)
+                .collect(),
         }
+    }
+
+    #[cfg(feature = "java-forge")]
+    fn jvm_args(&self) -> Vec<String> {
+        let mut args = vec![
+            "-Dfile.encoding=UTF-8".to_string(),
+            "-Dsun.stdout.encoding=UTF-8".to_string(),
+            "-Dsun.stderr.encoding=UTF-8".to_string(),
+            "-Djava.awt.headless=true".to_string(),
+            // Forge's endstep concurrency patches assume a heap exhaustion kills the process
+            // instead of thrashing; a supervised node is restarted, a thrashing one is not.
+            "-XX:+ExitOnOutOfMemoryError".to_string(),
+        ];
+        // A fleet runs many of these side by side, and every JVM sizes its heap and its GC
+        // thread count from the whole machine unless told otherwise.
+        if let Some(heap_mb) = self.heap_mb {
+            args.push(format!("-Xmx{heap_mb}m"));
+        }
+        if let Some(processors) = self.active_processor_count {
+            args.push(format!("-XX:ActiveProcessorCount={processors}"));
+        }
+        // In a container the only log that reaches Loki is the node's own, and the
+        // subprocess owns stdout for the protocol, so "stderr" routes GC through the
+        // stderr pump instead of a file nothing ships.
+        match self.gc_log.as_deref() {
+            None => {}
+            Some("stderr") => args.push("-Xlog:gc*:stderr:time,uptime,level,tags".to_string()),
+            Some(dir) => args.push(format!(
+                "-Xlog:gc*:file={}:time,uptime,level,tags:filecount=5,filesize=20M",
+                Path::new(dir).join("engine-gc-%p.log").display()
+            )),
+        }
+        args.extend(self.extra_jvm_args.iter().cloned());
+        args
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -1213,6 +1268,7 @@ fn run_hosted_engine_game_inner(
         remote_response_rxs.into_iter().collect();
     let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
+    let mut decision_submitted: Option<Instant> = None;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1315,6 +1371,7 @@ fn run_hosted_engine_game_inner(
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
                         engine.submit_action(&session_id, &action_json)?;
+                        decision_submitted = Some(Instant::now());
                     }
                     Ok(ClientToServerMessage::Directive {
                         directive: DirectiveInput::Concede,
@@ -1339,6 +1396,12 @@ fn run_hosted_engine_game_inner(
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
             if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                // The engine is opaque from here, so the only latency we can see is the
+                // gap between handing it a decision and it asking for the next one. The
+                // poll below rounds this up to the next 50ms.
+                if let Some(submitted) = decision_submitted.take() {
+                    crate::metrics::record_decision_latency(player_names.len(), submitted);
+                }
                 last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
@@ -2265,11 +2328,10 @@ impl SubprocessBridge {
         config.validate()?;
 
         let java_bin = resolve_java_bin(config);
+        let jvm_args = config.jvm_args();
+        info!(target: "self_hosted_node::java", args = %jvm_args.join(" "), "spawning java engine");
         let mut cmd = Command::new(&java_bin);
-        cmd.arg("-Dfile.encoding=UTF-8");
-        cmd.arg("-Dsun.stdout.encoding=UTF-8");
-        cmd.arg("-Dsun.stderr.encoding=UTF-8");
-        cmd.arg("-Djava.awt.headless=true");
+        cmd.args(&jvm_args);
         cmd.arg("-jar").arg(&config.harness_jar);
         cmd.arg("--interactive-server");
         cmd.arg("--forge-home")
@@ -2310,6 +2372,9 @@ impl SubprocessBridge {
                 for line in reader.lines().map_while(Result::ok) {
                     if line.contains("Exception") || line.contains("ERROR") {
                         warn!(target: "self_hosted_node::java", "[java] {line}");
+                    } else if line.contains("][gc") {
+                        // -Xlog:gc*:stderr is opt-in, and debug would drop it before Loki.
+                        info!(target: "self_hosted_node::java", "[java] {line}");
                     } else {
                         debug!(target: "self_hosted_node::java", "[java] {line}");
                     }
@@ -2599,6 +2664,20 @@ fn env_path(key: &str) -> Option<PathBuf> {
     env::var_os(key)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
+}
+
+fn env_sizing(key: &str, default: u64) -> Option<u64> {
+    let value = match env::var(key) {
+        Ok(raw) if !raw.trim().is_empty() => match raw.trim().parse::<u64>() {
+            Ok(parsed) => parsed,
+            Err(_) => {
+                tracing::warn!(target: "self_hosted_node::java", key, raw, "ignoring unparseable jvm sizing");
+                default
+            }
+        },
+        _ => default,
+    };
+    (value > 0).then_some(value)
 }
 
 fn env_classpath(key: &str) -> Vec<PathBuf> {

@@ -1,5 +1,6 @@
 import type { CardDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
+import { resolveDeckName } from "@/lib/deckName";
 import {
   getCardTokenScripts,
   peekArchivedToken,
@@ -143,7 +144,7 @@ export function getDeckFingerprint(deck: Deck): string {
     ...tag("commander", deck.commanders ?? []),
   ].sort();
   return JSON.stringify({
-    name: deck.name,
+    name: resolveDeckName(deck.name, deck.commanders),
     format: deck.format ?? "standard",
     commander: deck.commanders?.[0]?.identity.name ?? null,
     cards: serialized,

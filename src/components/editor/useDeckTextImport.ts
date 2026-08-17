@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
+import { resolveDeckName } from "@/lib/deckName";
 import { getFormat } from "@/lib/formats";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
@@ -109,8 +110,7 @@ export function useDeckTextImport() {
         entries,
         onProgress,
       );
-      const commanderName = commanders.map((c) => c.identity.name).join(" / ");
-      const deckName = customName || commanderName || DEFAULT_IMPORT_NAME;
+      const deckName = resolveDeckName(customName || DEFAULT_IMPORT_NAME, commanders);
       const importedFormat =
         formatId ??
         (commanders.length > 0

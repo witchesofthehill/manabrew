@@ -49,11 +49,7 @@ export const STORAGE_KEYS = {
   DECK_EDITOR_PRESENTATION: "manabrew-deck-editor-presentation",
 } as const;
 
-// ─── Deck Defaults ───────────────────────────────────────────────────────────
-
-export const DEFAULT_DECK_NAME = "New Deck";
-
-export const DEFAULT_IMPORT_NAME = "Imported Deck";
+export { DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "./deckNames.constants";
 
 // ─── Formats & Legalities ────────────────────────────────────────────────────
 

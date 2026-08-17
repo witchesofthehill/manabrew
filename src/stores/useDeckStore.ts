@@ -19,6 +19,8 @@ import {
 } from "@/lib/formats";
 import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallStore";
 import { collectProducedTokenKeys } from "@/lib/decks";
+import { resolveDeckName } from "@/lib/deckName";
+import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
 
 /** Migrate legacy "constructed" format id to "standard". */
 function migrateFormatId(id: string): DeckFormat {
@@ -117,6 +119,7 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
 
   const normalized: EditorDeck = {
     ...deck,
+    name: resolveDeckName(deck.name, commanders),
     format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
     cards: main,
     sideboard: remainingSideboard,
@@ -532,27 +535,8 @@ export const useDeckStore = create<DeckState>()(
         mergeIntoCurrentDeck: (sections) =>
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
-            const canImportCommanders = formatRequiresCommander(deck.format);
-            const hasCommanders = (deck.commanders?.length ?? 0) > 0;
-            const commanders =
-              canImportCommanders && !hasCommanders ? sections.commanders : (deck.commanders ?? []);
-            const importedMain =
-              canImportCommanders && !hasCommanders
-                ? sections.cards
-                : [...sections.cards, ...sections.commanders];
-            const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === DEFAULT_DECK_NAME;
             return {
-              currentDeck: normalizeDeck({
-                ...deck,
-                name:
-                  autoRename && commanders.length > 0
-                    ? commanders.map((commander) => commander.identity.name).join(" / ")
-                    : deck.name,
-                cards: [...deck.cards, ...importedMain],
-                sideboard: [...deck.sideboard, ...sections.sideboard],
-                maybeboard: [...(deck.maybeboard ?? []), ...sections.maybeboard],
-                commanders,
-              }),
+              currentDeck: normalizeDeck(mergeDeckImportIntoDeck(deck, sections)),
             };
           }),
         setCommander: (card) =>

@@ -19,6 +19,7 @@ import { useHubStore } from "@/stores/useHubStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import type { EditorDeck } from "@/types/manabrew";
 import { isFeatureEnabled } from "@/featureFlags";
+import { resolveDeckName } from "@/lib/deckName";
 
 interface PublishDeckDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ function toPublishableDeck(deck: EditorDeck): EditorDeck {
   const { customTags: _customTags, cardTags: _cardTags, ...wireDeck } = deck;
   return {
     ...wireDeck,
+    name: resolveDeckName(deck.name, deck.commanders),
     id: undefined,
     version: undefined,
     playmat: undefined,
@@ -58,16 +60,17 @@ export function PublishDeckDialog({
   const loadCapabilities = useHubStore((s) => s.loadCapabilities);
   const savedDecks = useDeckStore((s) => s.savedDecks);
   const linkSavedDeckToAccount = useDeckStore((s) => s.linkSavedDeckToAccount);
+  const resolvedDeckName = resolveDeckName(deck.name, deck.commanders);
   const [busy, setBusy] = useState(false);
-  const [title, setTitle] = useState(deck.name);
+  const [title, setTitle] = useState(resolvedDeckName);
   const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
     if (publishEnabled && open) {
-      setTitle(deck.name);
+      setTitle(resolvedDeckName);
       void loadCapabilities();
     }
-  }, [deck.name, loadCapabilities, open, publishEnabled]);
+  }, [loadCapabilities, open, publishEnabled, resolvedDeckName]);
 
   const cardCount = deck.cards.length + (deck.commanders?.length ?? 0);
   const signedIn = authStatus === "signedIn" && account !== null;
@@ -146,8 +149,8 @@ export function PublishDeckDialog({
           <DialogTitle>Publish to Community</DialogTitle>
           <DialogDescription>
             {!capabilitiesLoaded
-              ? `Checking Community support before publishing "${deck.name}".`
-              : `Publish the current version of "${deck.name}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`}
+              ? `Checking Community support before publishing "${resolvedDeckName}".`
+              : `Publish the current version of "${resolvedDeckName}" (${cardCount} cards) as a new public entry. You can publish the same deck more than once.`}
           </DialogDescription>
         </DialogHeader>
         {signedIn ? (

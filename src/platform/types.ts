@@ -16,9 +16,7 @@ import type {
 import type { Deck } from "@/protocol/deck";
 import type { DirectiveInput, Prompt, PromptOutput, ResumeRoomRequest } from "@/protocol";
 
-// ============================================================================
 // Game API Types
-// ============================================================================
 
 export interface StartGameParams {
   deck: Deck;
@@ -54,9 +52,7 @@ export interface RestoreSnapshotParams {
   checkpointId: number;
 }
 
-// ============================================================================
 // Server API Types
-// ============================================================================
 
 export interface ServerConnectParams {
   host: string;
@@ -120,9 +116,7 @@ export interface SpawnAiBotParams extends SetDeckSelectionParams {
   agent?: BotAgentKind;
 }
 
-// ============================================================================
 // Platform Interfaces
-// ============================================================================
 
 /**
  * Game engine API interface.

@@ -71,7 +71,6 @@ export function canHaveAnyNumberOf(card: DeckCard): boolean {
 }
 
 export const GAME_FORMATS: GameFormat[] = [
-  // ── 60-card Constructed formats ─────────────────────────────────────
   {
     id: "standard",
     name: "Standard",
@@ -168,7 +167,6 @@ export const GAME_FORMATS: GameFormat[] = [
     },
     bannedCards: [],
   },
-  // ── Singleton / Commander variants ──────────────────────────────────
   {
     id: "commander",
     name: "Commander",
@@ -217,7 +215,6 @@ export const GAME_FORMATS: GameFormat[] = [
     },
     bannedCards: [],
   },
-  // ── Limited formats ─────────────────────────────────────────────────
   {
     id: "draft",
     name: "Draft",
@@ -324,8 +321,6 @@ function getCardIdentity(card?: DeckCard): string[] {
   }
   return [...new Set((card.color ?? "").split("").filter(Boolean))];
 }
-
-// ─── Partner utilities ───────────────────────────────────────────────────────
 
 function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;

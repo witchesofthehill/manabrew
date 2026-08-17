@@ -25,10 +25,8 @@ export interface Theme {
   gameTheme: GameTheme;
 }
 
-// ---------------------------------------------------------------------------
 // Imperative accessor — cached, kept in sync via a preferences subscription.
 // Used by Pixi and other non-React code that cannot call hooks.
-// ---------------------------------------------------------------------------
 
 /** Internal shape that also carries the CSS variable map for :root
  *  injection. Consumers see only `Theme`; `gameCssVars` stays private. */

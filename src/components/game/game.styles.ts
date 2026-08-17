@@ -5,8 +5,6 @@
  * consistency and makes bulk style changes easier.
  */
 
-// ── Card ring variants ────────────────────────────────────────────────────
-
 export const CARD_RING = {
   selectable: "ring-2 cursor-pointer",
   pending: "ring-2 cursor-pointer",
@@ -15,8 +13,6 @@ export const CARD_RING = {
   untappable: "ring-2 cursor-pointer",
   selected: "ring-2",
 } as const;
-
-// ── Card sizing ────────────────────────────────────────────────────────────
 
 export const BATTLEFIELD_CARD = "w-[70px] h-[98px] shrink-0" as const;
 export const HAND_CARD = "w-[80px] h-[112px]" as const;
@@ -36,8 +32,6 @@ export const PROMPT_SOURCE_CARD_SIZE = {
   horizontal: "w-[220px]",
   horizontalCompact: "w-[120px]",
 } as const;
-
-// ── Modal shared styles ────────────────────────────────────────────────────
 
 export const MODAL_CARD_THUMBNAIL =
   "w-[60px] h-[84px] rounded-md object-cover shrink-0 shadow-md" as const;
@@ -67,20 +61,14 @@ export const MODAL_PILL_BUTTON = [
 export const MODAL_FOOTER_BETWEEN =
   "flex justify-between items-center px-4 py-3 border-t bg-muted/10 rounded-b-xl gap-2" as const;
 
-// ── Zone label ─────────────────────────────────────────────────────────────
-
 export const ZONE_LABEL =
   "text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1" as const;
-
-// ── Action panel ──────────────────────────────────────────────────────────
 
 /** Button column layout used in PromptActionController */
 export const PROMPT_BUTTON_COLUMN = "flex flex-col gap-2 items-start [&_button]:w-fit" as const;
 
 /** Muted hint text used across prompt/modal contexts */
 export const PROMPT_HINT = "text-xs text-muted-foreground" as const;
-
-// ── Card badge / banner ──────────────────────────────────────────────────
 
 /**
  * Container for card status badges (Exerted, Morph, Bestow, Token,

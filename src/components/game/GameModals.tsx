@@ -57,16 +57,6 @@ export function GameModals({
   return (
     <>
       <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />
-      {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ChooseCardsModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ReorderCardsModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ScryModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ChooseColorModalPreview />}*/}
-      {/*{import.meta.env.DEV && <RevealCardsModalPreview />}*/}
-      {/*{import.meta.env.DEV && <DiceRolledPreview />}*/}
-      {/*{import.meta.env.DEV && <VAssignCombatDamagePreview />}*/}
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}

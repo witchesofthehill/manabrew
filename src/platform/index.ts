@@ -47,9 +47,7 @@ export type {
 } from "./types";
 export type { RoomRelayEnvelope, RoomMessagePayload } from "@/types/server";
 
-// ============================================================================
 // Platform Detection
-// ============================================================================
 
 /**
  * Detect if running in a Tauri environment.
@@ -70,9 +68,7 @@ export function getPlatformType(): "tauri" | "web" {
   return isTauriEnvironment() ? "tauri" : "web";
 }
 
-// ============================================================================
 // Singleton Platform Instance
-// ============================================================================
 
 let platformInstance: IPlatformApi | null = null;
 
@@ -105,9 +101,7 @@ export function resetPlatform(): void {
   platformInstance = null;
 }
 
-// ============================================================================
 // React Context
-// ============================================================================
 
 /**
  * React context for the platform API.
@@ -136,9 +130,7 @@ export function isFeatureSupported(feature: PlatformFeature): boolean {
   return getPlatform().isSupported(feature);
 }
 
-// ============================================================================
 // Convenience Accessors
-// ============================================================================
 
 /**
  * Get the game API directly.

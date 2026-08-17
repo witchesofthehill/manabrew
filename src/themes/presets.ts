@@ -9,8 +9,6 @@
 import type { ThemeColors } from "./appTheme";
 import type { GameThemeColorMap } from "./gameTheme";
 
-// ── Font sizes ──────────────────────────────────────────────────────────
-
 /** Semantic font sizes used across the in-game panel surfaces. Values
  *  are raw pixel strings (e.g. `"13px"`, `"1rem"`) applied via
  *  `style={{ fontSize }}` or emitted as CSS variables (`--game-font-*`)
@@ -42,8 +40,6 @@ export const DEFAULT_GAME_FONT_SIZES: GameFontSizes = {
   avatarInitials: "16px",
 };
 
-// ── Preset types ────────────────────────────────────────────────────────
-
 export interface ThemePreset {
   id: string;
   name: string;
@@ -55,8 +51,6 @@ export interface ThemePreset {
    *  default preset's entries via `resolveGameFontSizes`. */
   gameFontSizes?: Partial<GameFontSizes>;
 }
-
-// ── Preset registry ─────────────────────────────────────────────────────
 
 import defaultPreset from "./default";
 import rosePinePreset from "./rose-pine";

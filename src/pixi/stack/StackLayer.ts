@@ -226,7 +226,6 @@ export class StackLayer implements StackAnchorProvider {
     this.container.destroy({ children: true });
   }
 
-  // ── StackAnchorProvider ────────────────────────────────────────────────────
   getAnchor(stackObjectId: string): ScreenPos | null {
     if (this.effectiveCollapsed()) return this.buttonAnchor();
     const sprite = this.sprites.get(stackObjectId);
@@ -285,7 +284,6 @@ export class StackLayer implements StackAnchorProvider {
     this.setSpec(this.spec);
   }
 
-  // ── Internals ──────────────────────────────────────────────────────────────
   private effectiveCollapsed(): boolean {
     return this.spec.collapsed && !this.peeking;
   }

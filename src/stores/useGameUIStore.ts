@@ -3,8 +3,6 @@ import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 
-// ── State Shapes ──────────────────────────────────────────────────────────────
-
 export interface HandActionOption {
   kind: "cast" | "ability" | "manual-move" | "manual-tap";
   cardId: string;
@@ -48,8 +46,6 @@ interface ViewingZoneState {
   targetHostile?: boolean;
 }
 
-// ── Store Interface ───────────────────────────────────────────────────────────
-
 interface GameUIState {
   // Modal states (all transient, not persisted)
   abilityPicker: AbilityPickerState | null;
@@ -74,8 +70,6 @@ interface GameUIState {
   showPromptModal: () => void;
   resetAll: () => void;
 }
-
-// ── Store Implementation ──────────────────────────────────────────────────────
 
 export const useGameUIStore = create<GameUIState>()(
   devtools(

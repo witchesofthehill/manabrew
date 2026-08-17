@@ -1199,7 +1199,6 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          {/* end preferences grid */}
           {playmatEditorOpen && (
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
@@ -1343,7 +1342,6 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          {/* end top-level mode/preset grid */}
 
           <div className="pt-2">
             <Input
@@ -1429,7 +1427,6 @@ export default function Settings() {
                 );
               })}
             </div>
-            {/* end app theme grid */}
             <p className="text-xs text-muted-foreground">
               Override individual colors from the active preset.
             </p>
@@ -1568,7 +1565,6 @@ export default function Settings() {
                   ));
               })()}
             </div>
-            {/* end game theme grid */}
             <p className="text-xs text-muted-foreground">
               Generated from game theme keys. Defaults come from the active preset.
             </p>

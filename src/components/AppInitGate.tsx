@@ -213,7 +213,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                         style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
                       />
                     </div>
-                    {/* Trailing glow that follows the leading edge of the fill. */}
                     <div
                       aria-hidden
                       className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"

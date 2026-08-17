@@ -46,9 +46,7 @@ import init, {
 } from "../wasm/wasm";
 import type { Deck } from "@/protocol/deck";
 
-// ============================================================================
 // Types
-// ============================================================================
 
 interface WorkerCommand {
   type: "command";
@@ -70,9 +68,7 @@ interface WorkerEvent {
   payload: unknown;
 }
 
-// ============================================================================
 // State
-// ============================================================================
 
 /** 256KB SharedArrayBuffer for prompt/response communication */
 const SAB_SIZE = 256 * 1024;
@@ -110,9 +106,7 @@ async function purgeLegacyArchiveCaches(): Promise<void> {
   }
 }
 
-// ============================================================================
 // WASM and Data Initialization
-// ============================================================================
 
 async function initWasm(): Promise<void> {
   // Cache the promise so eager init + first command share a single run.
@@ -290,9 +284,7 @@ async function fetchCardArchive(reload: boolean): Promise<ArrayBuffer> {
   return bytes.buffer;
 }
 
-// ============================================================================
 // Interactive Game Runner
-// ============================================================================
 
 /**
  * Start an interactive game. Sends the response to the main thread BEFORE
@@ -428,9 +420,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
   }
 }
 
-// ============================================================================
 // Command Handlers
-// ============================================================================
 
 async function handleCommand(command: string, args?: Record<string, unknown>): Promise<unknown> {
   await initWasm();
@@ -584,9 +574,7 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
   }
 }
 
-// ============================================================================
 // Message Handling
-// ============================================================================
 
 function postResponse(requestId: string, payload?: unknown): void {
   const message: WorkerResponse = {

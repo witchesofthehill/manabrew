@@ -37,17 +37,14 @@ export interface ArrowDef {
   slot?: { width: number; height: number };
 }
 
-// ── Layer ordering ─────────────────────────────────────────────────────────
 const ARROW_Z_INDEX = 8000;
 
-// ── Curve geometry (cubic Bezier with perpendicular bow) ───────────────────
 const BOW_PAINTERLY = 0.3;
 const BOW_RUNE = 0.3;
 const BOW_PLACEMENT = 0.22;
 const TAIL_SHORTEN = 6;
 const TIP_SHORTEN = 12;
 
-// ── Painterly (combat) ─────────────────────────────────────────────────────
 const PAINTERLY_UNDER_WIDTH = 3.5;
 const PAINTERLY_UNDER_ALPHA = 0.55;
 const PAINTERLY_CORE_WIDTH = 1.5;
@@ -67,7 +64,6 @@ const PAINTERLY_PARTICLE_SIZES = [2.4, 3.2, 2.4, 3.2, 2.4];
 const PAINTERLY_PARTICLE_HALO_ALPHA = 0.45;
 const PAINTERLY_PARTICLE_CORE_RATIO = 0.45;
 
-// ── Rune (attach) ──────────────────────────────────────────────────────────
 const RUNE_LINE_WIDTH = 1;
 const RUNE_LINE_ALPHA = 0.7;
 const RUNE_DASH_ON = 2;
@@ -81,7 +77,6 @@ const RUNE_PARTICLE_CYCLE_MS = 2200;
 const RUNE_PARTICLE_STAGGER_MS = 350;
 const RUNE_PARTICLE_RADIUS = 1.4;
 
-// ── Placement (drop-here ghost arrow, marching-ants) ───────────────────────
 const PLACEMENT_STROKE_WIDTH = 3;
 const PLACEMENT_ALPHA = 0.7;
 const PLACEMENT_DASH = 9;
@@ -91,14 +86,12 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
-// ── Placement target slot (fixed dotted outline of the grid cell) ───────────
 const SLOT_RADIUS = 6;
 const SLOT_DASH = 1;
 const SLOT_GAP = 6;
 const SLOT_STROKE_WIDTH = 2;
 const SLOT_ALPHA = 0.9;
 
-// ── Cast (targeting arrow — slim dashed, marching-ants) ─────────────────────
 const CAST_STROKE_WIDTH = 3;
 const CAST_ALPHA = 0.85;
 const CAST_DASH = 10;
@@ -117,7 +110,6 @@ interface DashedArrowStyle {
   dashOffset: number;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
 interface Point {
   x: number;
   y: number;
@@ -253,7 +245,6 @@ function particleAlpha(t: number): number {
   return 1;
 }
 
-// ── Internal pool entry — one per active arrow ─────────────────────────────
 interface ArrowEntry {
   root: Container;
   underGfx: Graphics;
@@ -421,7 +412,6 @@ export class ArrowLayer {
     entry.marker.visible = true;
   }
 
-  // ── Painterly (combat) ───────────────────────────────────────────────────
   private drawPainterly(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PAINTERLY);
@@ -512,7 +502,6 @@ export class ArrowLayer {
     }
   }
 
-  // ── Rune (attach) ────────────────────────────────────────────────────────
   private drawRune(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_RUNE);
@@ -600,7 +589,6 @@ export class ArrowLayer {
     }
   }
 
-  // ── Placement (drop-here marching-ants — unchanged from original) ────────
   private drawPlacement(entry: ArrowEntry, arrow: ArrowDef, style: DashedArrowStyle): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PLACEMENT);

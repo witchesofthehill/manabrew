@@ -164,8 +164,6 @@ import { PreviewCardInfo } from "./PreviewCardInfo";
 
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 
-// ─── Main DeckBuilder Component ───────────────────────────────────────────────
-
 export function DeckBuilder({
   onToggleSearch,
   setPreviewSlot,
@@ -839,8 +837,6 @@ export function DeckBuilder({
       })),
     [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags, isCardOwned],
   );
-
-  // ── Handlers ──
 
   function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
     executeDeckEdit(`Remove ${quantity === "one" ? "1" : "all"} ${cardName}`, () =>
@@ -2499,7 +2495,6 @@ export function DeckBuilder({
           }}
         />
 
-        {/* Clear/delete deck confirm dialog */}
         {confirmClear && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
             <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">

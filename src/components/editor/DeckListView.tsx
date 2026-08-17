@@ -589,8 +589,6 @@ export function CardContextMenu({
   );
 }
 
-// ─── Draggable Stack Card ─────────────────────────────────────────────────────
-
 function DraggableStackCard({
   group,
   dragId,
@@ -718,13 +716,9 @@ function DraggableStackCard({
   );
 }
 
-// ─── Section Drag Handle ─────────────────────────────────────────────────────
-
 interface DragHandleProps {
   onMouseDown: (e: React.MouseEvent) => void;
 }
-
-// ─── Empty Stack Board Placeholder ───────────────────────────────────────────
 
 function EmptyStackBoard({
   label,
@@ -754,8 +748,6 @@ function EmptyStackBoard({
     </div>
   );
 }
-
-// ─── Stack Column Component ───────────────────────────────────────────────────
 
 interface StackColumnProps {
   label: string;
@@ -871,8 +863,6 @@ function StackColumn({
     </div>
   );
 }
-
-// ─── Visual Grid Card ─────────────────────────────────────────────────────────
 
 interface CardVisualProps {
   group: CardGroup;
@@ -1039,8 +1029,6 @@ const DraggableMiniRow = forwardRef<
   );
 });
 
-// ─── List Row ─────────────────────────────────────────────────────────────────
-
 interface CardRowProps {
   group: CardGroup;
   dragId: string;
@@ -1165,8 +1153,6 @@ function CardRow({
     </CardContextMenu>
   );
 }
-
-// ─── Unified Collapsible Card Section ─────────────────────────────────────────
 
 interface CardSectionProps {
   label: string;
@@ -1397,8 +1383,6 @@ function CardSection({
   );
 }
 
-// ─── Droppable Stack Tag Column ──────────────────────────────────────────────
-
 function DroppableStackTag({
   tag,
   groups,
@@ -1485,8 +1469,6 @@ function DroppableStackTag({
     </div>
   );
 }
-
-// ─── Main DeckListView Component ──────────────────────────────────────────────
 
 export interface DeckListViewProps {
   viewMode: ViewMode;
@@ -1833,8 +1815,6 @@ export function DeckListView({
     />
   );
 
-  // ─── Stack Section 2D Layout & Reordering ──────────────────────────────────
-
   // Build natural section IDs
   const naturalSectionIds = useMemo(() => {
     const ids: string[] = [];
@@ -1848,7 +1828,6 @@ export function DeckListView({
     return ids;
   }, [stackColumns, customTags, allMainCards, specialSections]);
 
-  // ─── Order-based layout: sections flow into CSS columns; drag reorders. ─────
   // Persisted through stackPositions as {x: index, y: 0}; legacy free-position
   // saves migrate by sorting (y, x).
   const orderRef = useRef<string[]>([]);
@@ -1944,8 +1923,6 @@ export function DeckListView({
     }),
     [handleGripPointerDown],
   );
-
-  // ─── Render a single stack section by ID ──────────────────────────────────
 
   function renderStackSection(id: string) {
     const dhProps = makeDragHandleProps(id);
@@ -2216,7 +2193,6 @@ export function DeckListView({
             {orderedSectionIds.map((id) => renderStackSection(id))}
           </div>
 
-          {/* Drag ghost following cursor */}
           {dragSection && dragPos && (
             <div
               className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-xs font-semibold"
@@ -2360,7 +2336,6 @@ export function DeckListView({
           </>
         )}
 
-        {/* ── Sideboard ── */}
         <div
           ref={setSideDropRef}
           className={cn(
@@ -2472,7 +2447,6 @@ export function DeckListView({
           </div>
         </div>
 
-        {/* ── Maybeboard ── */}
         <div
           ref={setMaybeDropRef}
           className={cn(
@@ -2595,7 +2569,6 @@ export function DeckListView({
           </div>
         </div>
 
-        {/* ── Special sections (Attractions, Contraptions, Schemes, Planes) ── */}
         {specialSections.map((section) => {
           const count = section.groups.reduce((s, g) => s + g.count, 0);
           const open = !collapsedSpecialSections.has(section.id);

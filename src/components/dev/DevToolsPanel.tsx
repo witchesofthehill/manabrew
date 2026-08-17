@@ -19,8 +19,6 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 
-// ── Zustand store registry ──────────────────────────────────────────────────
-
 type StoreEntry = { getState: () => unknown; subscribe: (fn: () => void) => () => void };
 
 const STORES: Record<string, StoreEntry> = {
@@ -55,8 +53,6 @@ function collectState(): Record<string, unknown> {
   return state;
 }
 
-// ── Redux bridge ────────────────────────────────────────────────────────────
-
 type BridgeAction = { type: string; storeName?: string };
 
 function bridgeReducer(
@@ -74,8 +70,6 @@ function bridgeReducer(
   return collectState();
 }
 
-// ── DevTools component (created once) ───────────────────────────────────────
-
 const DevTools = createDevTools(
   <DockMonitor
     toggleVisibilityKey="ctrl-shift-d"
@@ -90,8 +84,6 @@ const DevTools = createDevTools(
   </DockMonitor>,
 );
 
-// ── Bridge store (singleton) ────────────────────────────────────────────────
-
 let bridgeStore: ReturnType<typeof createStore> | null = null;
 
 function getBridgeStore() {
@@ -101,8 +93,6 @@ function getBridgeStore() {
   }
   return bridgeStore;
 }
-
-// ── Exported component ──────────────────────────────────────────────────────
 
 export function DevToolsPanel() {
   // getBridgeStore is a module-level singleton getter — same identity across renders.

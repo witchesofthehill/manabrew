@@ -4,11 +4,7 @@ import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 export const MTG_SUPERTYPES = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing"]);
-
-// ─── Type Line Parsing ────────────────────────────────────────────────────────
 
 export interface ParsedTypeLine {
   supertypes: string[];
@@ -25,8 +21,6 @@ export function parseTypeLine(typeLine: string): ParsedTypeLine {
     subtypes: subPart ? subPart.split(/\s+/).filter(Boolean) : [],
   };
 }
-
-// ─── ScryfallCard → DeckCard ─────────────────────────────────────────────────
 
 /** Strip the back face from a DFC name: `"Kazuul's Fury // Kazuul's Cliffs"` → `"Kazuul's Fury"`.
  *  The engine emits only the front-face name (Forge's card DB indexes

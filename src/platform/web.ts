@@ -70,9 +70,7 @@ function describeBotFrame(raw: string): string {
   }
 }
 
-// ============================================================================
 // Worker Message Types
-// ============================================================================
 
 interface WorkerCommand {
   type: "command";
@@ -115,9 +113,7 @@ type RelayMessage = {
   msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
 };
 
-// ============================================================================
 // Worker Bridge
-// ============================================================================
 
 /**
  * Bridge for communicating with the game engine worker.
@@ -520,9 +516,7 @@ class WorkerBridge {
   }
 }
 
-// ============================================================================
 // Web Game API (WASM-based)
-// ============================================================================
 
 class WebGameApi implements IGameApi {
   private bridge: WorkerBridge;
@@ -636,9 +630,7 @@ class WebGameApi implements IGameApi {
   }
 }
 
-// ============================================================================
 // Web Storage API (localStorage-based, upgradeable to IndexedDB)
-// ============================================================================
 
 class WebStorageApi implements IStorageApi {
   private prefix = "manabrew:";
@@ -667,9 +659,7 @@ class WebStorageApi implements IStorageApi {
   }
 }
 
-// ============================================================================
 // Web Event Bus (pure JS implementation)
-// ============================================================================
 
 class WebEventBus implements IEventBus {
   private listeners = new Map<string, Set<(payload: unknown) => void>>();
@@ -700,9 +690,7 @@ class WebEventBus implements IEventBus {
   }
 }
 
-// ============================================================================
 // Web Server API (WebSocket-based multiplayer)
-// ============================================================================
 
 interface BotEntry {
   ws: WebSocket | null;
@@ -1418,9 +1406,7 @@ function buildServerUrl(params: ServerConnectParams): string {
   return `${scheme}://${params.host}:${params.port}`;
 }
 
-// ============================================================================
 // Web Platform
-// ============================================================================
 
 /**
  * Web platform implementation.

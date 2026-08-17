@@ -70,7 +70,6 @@ function easeOut(t: number): number {
   return 1 - t1 * t1 * t1;
 }
 
-// ── Indicator lines for self (bottom) and opponents (top) ─────────────
 const INDICATOR_H = 4;
 const INDICATOR_HOVER_H = 6;
 const INDICATOR_GAP = 4;
@@ -668,7 +667,6 @@ export class PhaseStripLayer {
         cell.text.y = y + CELL_H / 2;
       }
 
-      // ── Store indicator geometry for tick() drawing ──
       cell._indData = {
         cx: cx + cellW / 2,
         selfCy: y + CELL_H + INDICATOR_MARGIN + INDICATOR_H / 2,

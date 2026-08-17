@@ -3,9 +3,7 @@ import type { GameThemeColors } from "@/themes/gameTheme";
 import { GameIcon, type GameIconName } from "./GameIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-// ---------------------------------------------------------------------------
 // Counter configuration registry
-// ---------------------------------------------------------------------------
 
 type CounterColorKey = keyof GameThemeColors["counter"];
 
@@ -92,9 +90,7 @@ const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
   shield: "bg-counter-shield",
 };
 
-// ---------------------------------------------------------------------------
 // Size tokens
-// ---------------------------------------------------------------------------
 
 export type CounterSize = "sm" | "md" | "lg";
 
@@ -126,9 +122,7 @@ const SIZE_TOKENS: Record<CounterSize, SizeTokens> = {
   },
 };
 
-// ---------------------------------------------------------------------------
 // CounterBadge — one badge per counter type
-// ---------------------------------------------------------------------------
 
 export interface CounterBadgeProps {
   type: string;
@@ -182,9 +176,7 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
   );
 }
 
-// ---------------------------------------------------------------------------
 // CounterDisplay — row of badges for all counters on a card
-// ---------------------------------------------------------------------------
 
 export interface CounterDisplayProps {
   /** Map of counter-type name → count, as received from the engine. */

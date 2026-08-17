@@ -398,7 +398,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               showPicker && "md:min-h-0 md:flex-1 md:overflow-y-auto",
             )}
           >
-            {/* Room kind */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Table type</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -663,7 +662,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               </div>
             </details>
 
-            {/* Format (Match only) */}
             {kind === "match" && (
               <div className="space-y-1.5">
                 <Label htmlFor="room-format" className="text-xs font-medium">
@@ -687,7 +685,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               </div>
             )}
 
-            {/* Max players */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">
                 {kind === "limited" ? "Pod size" : "Players"}
@@ -898,7 +895,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t bg-muted/20 flex items-center justify-end gap-2 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             Cancel

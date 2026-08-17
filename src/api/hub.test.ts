@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const platformFetch = vi.hoisted(() => vi.fn());
+const getAccessToken = vi.hoisted(() => vi.fn());
 
 vi.mock("@/config/webRuntimeConfig", () => ({ getHubApiUrl: () => "https://hub.test" }));
 vi.mock("@/featureFlags", () => ({ isFeatureEnabled: () => false }));
 vi.mock("@/lib/platformFetch", () => ({ platformFetch }));
 vi.mock("@/stores/useAuthStore", () => ({
-  getAccessToken: vi.fn().mockResolvedValue(null),
+  getAccessToken,
   useAuthStore: {
     getState: () => ({ token: null }),
     setState: vi.fn(),
@@ -16,7 +17,10 @@ vi.mock("@/stores/useAuthStore", () => ({
 import { verifyCardPrintings } from "./hub";
 
 describe("card printing verification", () => {
-  beforeEach(() => platformFetch.mockReset());
+  beforeEach(() => {
+    platformFetch.mockReset();
+    getAccessToken.mockReset().mockResolvedValue("hub-access-token");
+  });
 
   it("verifies large collections in bounded batches and reports each completed batch", async () => {
     platformFetch
@@ -34,6 +38,9 @@ describe("card printing verification", () => {
     const response = await verifyCardPrintings({ identifiers }, onBatch);
 
     expect(platformFetch).toHaveBeenCalledTimes(2);
+    expect(new Headers(platformFetch.mock.calls[0][1].headers).get("Authorization")).toBe(
+      "Bearer hub-access-token",
+    );
     expect(JSON.parse(platformFetch.mock.calls[0][1].body as string).identifiers).toHaveLength(
       5_000,
     );

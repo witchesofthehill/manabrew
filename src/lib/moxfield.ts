@@ -44,7 +44,6 @@ interface RawMoxfieldDeck {
   createdByUser?: { userName?: string };
   mainboard?: Record<string, RawMoxfieldBoardEntry>;
   commanders?: Record<string, RawMoxfieldBoardEntry>;
-  /** Oathbreaker signature spells (separate command-zone slot). */
   signatureSpells?: Record<string, RawMoxfieldBoardEntry>;
   sideboard?: Record<string, RawMoxfieldBoardEntry>;
   maybeboard?: Record<string, RawMoxfieldBoardEntry>;

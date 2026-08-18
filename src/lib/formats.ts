@@ -6,10 +6,8 @@ import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 export interface GameFormat {
   id: DeckFormat;
   name: string;
-  /** Short label used in badges, e.g. "STD" / "CMD" */
   shortName: string;
   description: string;
-  /** Tailwind color variant key for FormatBadge */
   badgeColor: string;
   deckRules: {
     minDeckSize: number;
@@ -289,7 +287,6 @@ export function validateDeck(
     errors.push(`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`);
   }
 
-  // Count copies and check against limit
   const counts = new Map<string, number>();
   for (const name of cardNames) {
     counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -302,7 +299,6 @@ export function validateDeck(
     }
   }
 
-  // Check banned list
   const seenBanned = new Set<string>();
   for (const name of cardNames) {
     if (format.bannedCards.includes(name) && !seenBanned.has(name)) {

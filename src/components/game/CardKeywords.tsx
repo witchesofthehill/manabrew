@@ -17,7 +17,6 @@ function truncateChipLabel(text: string): string {
   return `${text.slice(0, KEYWORD_LABEL_MAX_LEN - 1)}…`;
 }
 
-/** Render a keyword chip — if it contains a colon, the part after is a mana cost. */
 export function KeywordChip({ kw }: { kw: string }) {
   const colonIdx = kw.indexOf(":");
   if (colonIdx === -1) {

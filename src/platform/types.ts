@@ -161,7 +161,6 @@ export interface IEventBus {
 export interface IPlatformApi {
   readonly type: "tauri" | "web";
 
-  /** Eagerly initialize the game engine (worker + card data). */
   init(): Promise<void>;
 
   readonly game: IGameApi;

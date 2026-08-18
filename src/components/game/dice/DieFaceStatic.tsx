@@ -18,11 +18,6 @@ interface DieFaceStaticProps {
   selected?: boolean;
   onClick?: () => void;
   ariaLabel?: string;
-  /**
-   * Optional theme-token color (CSS color string). When supplied,
-   * tints the die's silhouette and numeral so it can be associated
-   * with a specific player.
-   */
   accentColor?: string;
   className?: string;
 }

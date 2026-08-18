@@ -37,15 +37,12 @@ import { relayIdentityProof } from "@/lib/relayIdentity";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
-/** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
 
-/** Reload/bot-recovery trace, gated behind the debug-prompts preference. */
 const dlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log(...args);
 };
 
-/** One-line summary of a bot wire frame (in or out) for the reload trace. */
 function describeBotFrame(raw: string): string {
   try {
     const p = JSON.parse(raw) as {
@@ -123,14 +120,12 @@ class WorkerBridge {
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
 
-  /** SharedArrayBuffer for local player prompt/response */
   gameBuffer: SharedArrayBuffer | null = null;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
   private localAwaitingResponse = false;
   private localPendingDirective: DirectiveInput | null = null;
 
-  /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
   private remoteSeats = new Map<string, RemoteSeat>();
   private remotePlayerSlots = new Map<string, string>();
 
@@ -519,7 +514,6 @@ class WebGameApi implements IGameApi {
     this.bridge = bridge;
   }
 
-  /** Set server API reference for multiplayer relay */
   setServerApi(server: WebServerApi): void {
     this.serverApi = server;
   }
@@ -1027,7 +1021,6 @@ class WebServerApi implements IServerApi {
     this.send({ type: "RequestResync" });
   }
 
-  /** Broadcast game state to other players in the room */
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }

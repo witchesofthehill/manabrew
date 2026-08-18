@@ -20,7 +20,6 @@ import type { StepKind } from "@/protocol";
 interface PhaseSpec {
   id: string;
   short: string;
-  /** If set, this cell represents multiple phase ids (combat). */
   subPhases?: string[];
   /** If set, stop indicators/toggles use these phase ids instead of the cell phases. */
   indicatorPhases?: string[];

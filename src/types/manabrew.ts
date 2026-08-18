@@ -30,7 +30,6 @@ export interface CardRulesSummary {
   power?: string;
   toughness?: string;
   text: string;
-  /** Scryfall's `layout` string. Drives sideways-frame rendering. */
   layout?: string;
   isDoubleFaced?: boolean;
 }

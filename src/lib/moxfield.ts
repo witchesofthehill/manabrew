@@ -17,7 +17,6 @@ function resolveFetch(opts?: RequestOptions): typeof fetch {
   return f;
 }
 
-/** Parse a Moxfield deck URL into a public deck id. */
 export function parseMoxfieldUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -45,7 +44,6 @@ interface RawMoxfieldDeck {
   createdByUser?: { userName?: string };
   mainboard?: Record<string, RawMoxfieldBoardEntry>;
   commanders?: Record<string, RawMoxfieldBoardEntry>;
-  /** Oathbreaker signature spells (separate command-zone slot). */
   signatureSpells?: Record<string, RawMoxfieldBoardEntry>;
   sideboard?: Record<string, RawMoxfieldBoardEntry>;
   maybeboard?: Record<string, RawMoxfieldBoardEntry>;
@@ -75,7 +73,6 @@ function collectBoard(
   return out;
 }
 
-/** Fetch a Moxfield deck by public id and project it into the shared ArchidektDeck shape. */
 export async function fetchMoxfieldDeck(
   publicId: string,
   opts: RequestOptions = {},
@@ -102,7 +99,6 @@ export async function fetchMoxfieldDeck(
   };
 }
 
-/** Lightweight deck summary for preview rows, mirroring the Archidekt shape. */
 export async function fetchMoxfieldResult(
   publicId: string,
   opts: RequestOptions = {},

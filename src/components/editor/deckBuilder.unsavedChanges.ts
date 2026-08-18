@@ -45,7 +45,6 @@ export function buildDeckSnapshot(deck: EditorDeck): string {
   });
 }
 
-/** Hook to read unsaved changes state from outside DeckBuilder. */
 export function useDeckUnsavedChanges(): boolean {
   const [, forceUpdate] = useState(0);
   useEffect(() => {
@@ -58,7 +57,6 @@ export function useDeckUnsavedChanges(): boolean {
   return _hasUnsavedChanges;
 }
 
-/** Revert currentDeck to the last saved snapshot. Called when user leaves without saving. */
 export function revertDeckToLastSaved() {
   if (!_lastSavedSnapshotRef) return;
   try {

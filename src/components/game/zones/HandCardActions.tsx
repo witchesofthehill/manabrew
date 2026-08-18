@@ -17,7 +17,6 @@ export function HandCardActions({ actions, onSelectAction }: HandCardActionsProp
     if (!actions || actions.length === 0) return;
 
     function handleKey(e: KeyboardEvent) {
-      // Number keys 1-9 activate the corresponding action
       const num = parseInt(e.key);
       if (num >= 1 && num <= actions.length) {
         e.preventDefault();
@@ -35,7 +34,6 @@ export function HandCardActions({ actions, onSelectAction }: HandCardActionsProp
     <div
       className="flex flex-col gap-1.5 z-[200] w-[220px]"
       onMouseDown={(e) => {
-        // Prevent click from bubbling to the card
         e.stopPropagation();
       }}
     >

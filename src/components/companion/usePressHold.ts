@@ -7,10 +7,6 @@ interface PressHoldOptions {
   holdIntervalMs?: number;
 }
 
-/**
- * Returns props for a touch-target that fires `onTap` on a quick press and
- * `onHoldTick` repeatedly while the user keeps it pressed past `holdDelayMs`.
- */
 export function usePressHold({
   onTap,
   onHoldTick,

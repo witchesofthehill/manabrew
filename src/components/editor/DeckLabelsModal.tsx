@@ -66,7 +66,6 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
 
       <Modal.Body>
         <div className="space-y-4">
-          {/* Current labels */}
           <div>
             <div className="text-sm font-medium text-muted-foreground mb-2">Current Labels</div>
             {labels.length === 0 ? (
@@ -103,7 +102,6 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
             )}
           </div>
 
-          {/* Add custom label */}
           <div>
             <div className="text-sm font-medium text-muted-foreground mb-2">Add Custom Label</div>
             <div className="flex items-center gap-2">
@@ -135,7 +133,6 @@ export function DeckLabelsModal({ open, onClose }: DeckLabelsModalProps) {
             </div>
           </div>
 
-          {/* Suggestions */}
           {unusedSuggestions.length > 0 && (
             <div>
               <div className="text-sm font-medium text-muted-foreground mb-2">Suggestions</div>

@@ -36,7 +36,6 @@ export interface SceneCombatStaging {
   blockerIds: Set<string>;
 }
 
-/** Per-frame animation target for a hand-fan sprite. */
 export interface HandTarget {
   x: number;
   y: number;
@@ -46,7 +45,6 @@ export interface HandTarget {
   zIndex: number;
 }
 
-/** Hit rectangle + card for one hand-fan slot (cursor → card resolution). */
 export interface HandHitZone {
   index: number;
   card: CardDto;
@@ -68,12 +66,10 @@ export interface SpriteEntry {
   /** Lerp state for the base (card + hover) scale, kept separate from the
    *  sprite's live scale so the entrance squash multiplier can compose with it. */
   scaleBase: number;
-  /** Frames of damage-shake jitter remaining (0 = not shaking). */
   shakeFrames: number;
   /** A freshly-entered card awaiting its landing stomp — fired once it lerps
    *  onto its battlefield slot (not at spawn, while it's still sliding in). */
   pendingEntrance: boolean;
-  /** True while the card is fading out after leaving the battlefield. */
   exiting?: boolean;
   /** True while a cross-region arrival is still travelling to its home cell;
    *  the sprite renders in the unclipped guest layer until it lands. */
@@ -112,7 +108,6 @@ export interface OverlayHost {
  *  event wiring) without owning them. */
 export interface RegionHost {
   getTheme(): Theme;
-  /** Keep-out rects for this region (hand fan + panel reserves). */
   collectBlockers(): BlockingRect[];
   /** Seed transform for a newly-entering battlefield sprite (mirror of a
    *  hand sprite / stack card / hand-fan origin). `glide` is set when the seed
@@ -137,9 +132,7 @@ export interface RegionHost {
   ): void;
   isSelected(cardId: string): boolean;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
-  /** Wire pointer events (drag/tap/hover) on a new battlefield sprite. */
   wireSprite(sprite: CardSprite): void;
-  /** Convert an absolute viewport x to this region's canvas-local x. */
   screenXToLocalX(screenX: number): number;
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
@@ -147,7 +140,6 @@ export interface RegionHost {
   /** Px to trim off the top of this region's grid so the first card row clears
    *  the Pixi player bar (opponents when the bar is on; 0 otherwise). */
   getTopReserve(): number;
-  /** Spawn a rising/fading number at a canvas-space point (combat damage). */
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   previewCard(card: CardDto | null, bounds?: ScreenBounds): void;
   isPointerTapSuppressed(pointerId: number): boolean;

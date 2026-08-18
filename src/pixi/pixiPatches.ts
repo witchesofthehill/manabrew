@@ -58,7 +58,6 @@ export function installPixiPatches(): void {
   if (patched) return;
   patched = true;
 
-  // ── TexturePool.returnTexture guard ────────────────────────────────────
   // Pixi v8 crashes with `undefined is not an object (evaluating
   // 'this._texturePool[key].push')` when a texture is returned whose
   // `uid` isn't present in `_poolKeyHash` — e.g. during renderer teardown

@@ -16,8 +16,6 @@ export const PLAYER_HUD_MAX_WIDTH_PX = 280;
 // the badge instead of rising above it (off the top edge).
 const ANCHOR_BELOW_Y = 200;
 
-/** Owns one `PlayerHudCapsule` per player, a shared hover tooltip, and the root
- *  container they live in. `BoardScene` positions each capsule via `setRect`. */
 export class PlayerHudLayer {
   readonly container: Container;
   private theme: Theme;

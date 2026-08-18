@@ -57,7 +57,6 @@ export interface BoardCanvasRegion {
   state: BattlefieldState;
   playmat?: string;
   playmatSettings?: PlaymatSettings;
-  /** Seat colour (hex) for the hover highlight. */
   color?: string;
 }
 
@@ -65,7 +64,6 @@ export interface BoardCanvasRegion {
  *  player's region. */
 export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
-  /** Y of the center band where the phase strip is centered. */
   dividerY: number;
   /** Px from the canvas bottom up to the local player's playmat bottom edge
    *  (= hand-fan top). The action cluster is hard-capped to this so it can never
@@ -83,10 +81,8 @@ interface BoardCanvasProps {
   hand: HandState;
   arrowSpecs: ArrowSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
-  /** Local player is declaring blockers — enables drag-to-block. */
   declareBlockers?: boolean;
   combatBlocks?: { blockerId: string; attackerId: string }[];
-  /** Local player is declaring attackers — enables drag-to-attack. */
   declareAttackers?: boolean;
   /** Legal defenders (player / planeswalker / battle) for the active
    *  `chooseAttackers` prompt, and per-attacker validity. */
@@ -108,7 +104,6 @@ interface BoardCanvasProps {
    *  them; `playerBars` carries the per-opponent name/life/colour/state. */
   playerBars?: PlayerBarSpec[];
   showPlayerBars?: boolean;
-  /** On-grid zone tiles (deck/graveyard/exile/command) per player id. */
   zoneTiles?: Record<string, ZoneTileSpec[]>;
   /** Px the hand fan reserves at the bottom of the self region — subtracted from
    *  its height when sizing cards so ~3 rows always fit the free area. */
@@ -117,7 +112,6 @@ interface BoardCanvasProps {
   /** Bottom-corner keep-out widths for the hand fan so it centers in the gap. */
   handInsets?: { left: number; right: number };
   isDropActive?: boolean;
-  /** Auto-arrange the battlefield into rows, ignoring manual drag placement. */
   autoSort?: boolean;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: CardDto) => HandActionOption[];

@@ -12,8 +12,6 @@ import type { OverlayAction } from "./deckEditor.utils";
 import type { DeckCard } from "@/protocol/deck";
 export type { OverlayAction } from "./deckEditor.utils";
 
-// ─── Card Count Badge ────────────────────────────────────────────────────────
-
 export function CardCountBadge({ count, className }: { count: number; className?: string }) {
   if (count <= 1) return null;
   return (
@@ -28,8 +26,6 @@ export function CardCountBadge({ count, className }: { count: number; className?
     </div>
   );
 }
-
-// ─── Card Thumbnail (image or fallback) ──────────────────────────────────────
 
 export function CardThumbnail({
   card,
@@ -55,8 +51,6 @@ export function CardThumbnail({
     </div>
   );
 }
-
-// ─── Card Analysis Badges (combo / game changer) ─────────────────────────────
 
 export function CardAnalysisBadges({
   isCombo,
@@ -87,8 +81,6 @@ export function CardAnalysisBadges({
     </div>
   );
 }
-
-// ─── Card Hover Overlay ──────────────────────────────────────────────────────
 
 export function CardHoverOverlay({
   actions,
@@ -134,8 +126,6 @@ export function CardHoverOverlay({
   );
 }
 
-// ─── Section Header ──────────────────────────────────────────────────────────
-
 export function SectionHeader({
   label,
   count,
@@ -172,8 +162,6 @@ export function SectionHeader({
     </div>
   );
 }
-
-// ─── Empty Drop Zone ─────────────────────────────────────────────────────────
 
 export function EmptyDropZone({ message = "Drop cards here" }: { message?: string }) {
   return (

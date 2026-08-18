@@ -1,31 +1,15 @@
-/**
- * Shared helper that turns a preset-specific palette into the 70 game
- * colour keys consumed by `GameThemeColors`. Every preset defines one
- * `BasePalette` (about 25 entries) and spreads the output of
- * `buildGameColors(palette)` into its `gameColors` map.
- *
- * This keeps per-preset theme files short and ensures every preset
- * assigns the same semantic intent to the same base hue — e.g. every
- * theme's "pointer.sacrifice" draws from its palette's `redDeep`, every
- * theme's "pt.buffed" from its `green`, and so on.
- */
-
 export interface BasePalette {
   /** Opaque, high-contrast foreground used for icons, strokes, and
    *  reveal / neutral pointer glyphs. Usually a near-white for dark
    *  themes and a near-black for light ones. */
   foreground: string;
-  /** Subdued label colour (empty-zone labels). */
   labelMuted: string;
   /** Ghost label colour (card-loading placeholder). Slightly brighter
    *  than `labelMuted`. */
   labelGhost: string;
 
-  /** Sprite background used while a card image is still loading. */
   placeholderFill: string;
-  /** Stroke around the placeholder sprite. */
   placeholderStroke: string;
-  /** Canvas backdrop for the Pixi play area. */
   canvasBackground: string;
 
   /** Core hue set — map each to the nearest match in the preset's
@@ -70,38 +54,26 @@ export interface BasePalette {
 
 import type { GameThemeColorMap } from "./gameTheme";
 
-/**
- * Convert a palette into the full set of `gameColors` entries covering
- * every game-theme token. The return type ensures every key from
- * `GameThemeColors` is present — a missing or misspelled key is a
- * compile error.
- */
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   return {
-    // ── Active action indicators ────────────────────────────────────
     "activeAction.priority": p.violet,
     "activeAction.active": p.amber,
 
-    // ── Prompt action buttons ───────────────────────────────────────
     "promptAction.passAction": p.promptPass,
     "promptAction.attackAction": p.red,
     "promptAction.defenseAction": p.promptDefense,
     "promptAction.cancel": p.slate,
 
-    // ── Combat / placement arrows ───────────────────────────────────
     "arrow.attack": rgbaFromHex(p.orange, 0.88),
     "arrow.block": rgbaFromHex(p.red, 0.88),
     "arrow.hostileTarget": rgbaFromHex(p.red, 0.88),
     "arrow.friendlyTarget": rgbaFromHex(p.promptDefense, 0.88),
 
-    // ── Card selection ring ─────────────────────────────────────────
     cardRing: p.amber,
 
-    // ── Targeting pointer colours ────────────────────────────────────
     "pointer.hostile": rgbaFromHex(p.red, 0.88),
     "pointer.friendly": rgbaFromHex(p.blue, 0.88),
 
-    // ── Mana symbol tints ────────────────────────────────────────────
     "mana.W": p.manaW,
     "mana.U": p.manaU,
     "mana.B": p.manaB,
@@ -109,7 +81,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "mana.G": p.manaG,
     "mana.C": p.manaC,
 
-    // ── Card status ring / badge colours ─────────────────────────────
     "cardStatus.exerted": p.orange,
     "cardStatus.morph": p.slate,
     "cardStatus.bestow": p.teal,
@@ -120,29 +91,24 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "cardStatus.warped": p.cyan,
     "cardStatus.copy": p.sky,
 
-    // ── Generic text / label colours ─────────────────────────────────
     textOnTinted: p.foreground,
     textMuted: p.labelMuted,
     textGhost: p.labelGhost,
 
-    // ── Canvas-level neutrals ────────────────────────────────────────
     // Shadow stays a physics-black across all presets — dark-mode and
     // light-mode surfaces still drop black shadows.
     "canvas.background": p.canvasBackground,
     "canvas.shadow": "#000000",
     "canvas.neutral": p.foreground,
 
-    // ── Card placeholder ─────────────────────────────────────────────
     "cardPlaceholder.fill": p.placeholderFill,
     "cardPlaceholder.stroke": p.placeholderStroke,
 
-    // ── P/T badge backgrounds ────────────────────────────────────────
     "pt.neutral": p.slate,
     "pt.lethal": p.red,
     "pt.buffed": p.green,
     "pt.debuffed": p.red,
 
-    // ── Generic status signals ───────────────────────────────────────
     // Semantic tokens for non-creature UI states. `poison` is a cooler
     // / more olive sibling of `green` so the infect pip reads as ill
     // rather than as a stat buff.
@@ -150,7 +116,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     poison: p.poison,
     life: p.red,
 
-    // ── Counter chip colours ─────────────────────────────────────────
     "counter.default": p.slate,
     "counter.p1p1": p.green,
     "counter.m1m1": p.red,
@@ -170,7 +135,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "counter.page": p.paper,
     "counter.shield": p.amber,
 
-    // ── Player seat colours ──────────────────────────────────────────
     // Phase strip indicator + turn tint. Seat-to-hue mapping is fixed
     // across presets: self = green, opponents cycle amber → blue →
     // purple. Each preset's palette-native version of those hues keeps
@@ -180,7 +144,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "playerColors.opponent2": p.blue,
     "playerColors.opponent3": p.pink,
 
-    // ── Badge icon colours ───────────────────────────────────────────
     // Tint the status chips rendered next to the mana pool. No fill —
     // the hue stains both the icon and its count. Kept semantically
     // stable across presets (monarch = regal amber, poison = infect,
@@ -199,14 +162,12 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "badges.experience": p.violet,
     "badges.ticket": p.teal,
 
-    // ── Legality badge colours ──────────────────────────────────────────
     "legality.legal": p.green,
     "legality.banned": p.red,
     "legality.restricted": p.yellow,
 
     "community.accent": p.purple,
 
-    // ── Format badge colours ────────────────────────────────────────────
     // One token per format badge colour key. Each preset maps these to
     // its own palette so format badges feel cohesive with the theme.
     "formatBadge.blue": p.blue,
@@ -230,7 +191,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
   };
 }
 
-/** Convert a `#rrggbb` hex to an rgba() string with the given alpha. */
 function rgbaFromHex(hex: string, alpha: number): string {
   const clean = hex.replace("#", "");
   const full =

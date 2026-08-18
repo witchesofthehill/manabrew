@@ -19,8 +19,6 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePreferredPrintsStore } from "@/stores/usePreferredPrintsStore";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 
-// ── Zustand store registry ──────────────────────────────────────────────────
-
 type StoreEntry = { getState: () => unknown; subscribe: (fn: () => void) => () => void };
 
 const STORES: Record<string, StoreEntry> = {
@@ -35,7 +33,6 @@ const STORES: Record<string, StoreEntry> = {
   stackUI: useStackUIStore,
 };
 
-/** Strip functions from a state object for serialisation. */
 function stripFunctions(obj: unknown): unknown {
   if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(stripFunctions);
@@ -46,7 +43,6 @@ function stripFunctions(obj: unknown): unknown {
   return out;
 }
 
-/** Collect all zustand state into one object. */
 function collectState(): Record<string, unknown> {
   const state: Record<string, unknown> = {};
   for (const [name, store] of Object.entries(STORES)) {
@@ -54,8 +50,6 @@ function collectState(): Record<string, unknown> {
   }
   return state;
 }
-
-// ── Redux bridge ────────────────────────────────────────────────────────────
 
 type BridgeAction = { type: string; storeName?: string };
 
@@ -65,7 +59,6 @@ function bridgeReducer(
 ): Record<string, unknown> {
   if (action.type === "@@INIT") return collectState();
   if (action.storeName) {
-    // Update only the changed store slice
     const store = STORES[action.storeName];
     if (store) {
       return { ...state, [action.storeName]: stripFunctions(store.getState()) };
@@ -73,8 +66,6 @@ function bridgeReducer(
   }
   return collectState();
 }
-
-// ── DevTools component (created once) ───────────────────────────────────────
 
 const DevTools = createDevTools(
   <DockMonitor
@@ -90,8 +81,6 @@ const DevTools = createDevTools(
   </DockMonitor>,
 );
 
-// ── Bridge store (singleton) ────────────────────────────────────────────────
-
 let bridgeStore: ReturnType<typeof createStore> | null = null;
 
 function getBridgeStore() {
@@ -101,8 +90,6 @@ function getBridgeStore() {
   }
   return bridgeStore;
 }
-
-// ── Exported component ──────────────────────────────────────────────────────
 
 export function DevToolsPanel() {
   // getBridgeStore is a module-level singleton getter — same identity across renders.

@@ -65,7 +65,6 @@ export function DeckListControls({
 
   return (
     <div className="mt-2 flex shrink-0 items-center gap-1 px-4 py-1.5 sm:px-6 lg:px-8">
-      {/* Search — takes 2/3 of the row */}
       <div className="relative flex-[2] min-w-0">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
@@ -87,7 +86,6 @@ export function DeckListControls({
         )}
       </div>
 
-      {/* Remaining controls — take 1/3 of the row, keeping internal proportions */}
       <div className="flex-[1] flex items-center gap-1 min-w-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -123,7 +121,6 @@ export function DeckListControls({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Sort */}
         <select
           value={sortBy}
           aria-label="Sort decks"
@@ -138,7 +135,6 @@ export function DeckListControls({
           ))}
         </select>
 
-        {/* Color pips */}
         {MANA_LETTERS.map((color) => {
           const active = colorFilter.includes(color);
           return (
@@ -160,7 +156,6 @@ export function DeckListControls({
           );
         })}
 
-        {/* Clear */}
         {hasActiveFilters && (
           <button
             type="button"

@@ -60,7 +60,6 @@ interface GameBoardProps {
   exile: CardDto[];
   library: CardDto[];
   myCommandZone?: CardDto[];
-  /** Ids of cards the active `chooseAction` prompt offers to cast/activate. */
   playableIds: Set<string>;
   activePlayerId: string;
   priorityPlayerId: string;
@@ -617,7 +616,6 @@ export function GameBoard({
   // The opponent whose field auto-expands: the active one on their turn,
   // otherwise the sticky one on ours (defaulting to the first opponent). The
   // scene owns + eases the delimiters, draws the grips, and applies the clip —
-  // React just sets this target.
   const focusedOpponentId = useMemo(() => {
     if (!isSelfTurn) return activePlayerId;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {

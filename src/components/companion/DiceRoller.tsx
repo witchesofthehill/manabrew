@@ -7,8 +7,6 @@ import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 
-/** Resolves the active player's accent colour, falling back to the first
- *  player if none is active and finally `null` (which means use --primary). */
 function useActiveAccent(): string | null {
   return useCompanionStore((s) => {
     const session = s.session;
@@ -28,14 +26,12 @@ type DiceRollerProps =
       open: boolean;
       onOpenChange: (open: boolean) => void;
       players: CompanionPlayer[];
-      /** Returns the winning player id (committed to the store). */
       pickWinner: () => string | null;
     }
   | {
       mode: "die";
       open: boolean;
       onOpenChange: (open: boolean) => void;
-      /** Number of faces, e.g. 6 / 20 / 100. */
       sides: number;
     }
   | {

@@ -18,9 +18,7 @@ export interface OpponentRegion {
  */
 export interface BoardLayout {
   self: PlayZoneRect;
-  /** One region per opponent, in the given opponent order. */
   opponents: OpponentRegion[];
-  /** Vertical center of the strip band — where the phase strip is drawn. */
   dividerY: number;
   stripBandPx: number;
 }

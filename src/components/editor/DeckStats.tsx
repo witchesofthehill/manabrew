@@ -73,7 +73,6 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
 
       {hasAnything ? (
         <>
-          {/* Count labels */}
           <div className="flex gap-1.5 mb-1">
             {counts.map((count, i) => (
               <div key={i} className="flex-1 text-center">
@@ -90,7 +89,6 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
             ))}
           </div>
 
-          {/* Bar chart — hover for the card list, click to filter the deck */}
           <div className="flex items-end gap-1.5" style={{ height: BAR_MAX_PX }}>
             {counts.map((count, i) => {
               const entries = [...bucketCards[i].entries()].sort(
@@ -163,7 +161,6 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
             })}
           </div>
 
-          {/* CMC labels */}
           <div className="mt-1.5 flex gap-1.5">
             {CMC_BUCKET_LABELS.map((label, i) => (
               <div key={i} className="flex-1 text-center">

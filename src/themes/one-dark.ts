@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Atom One Dark palette. Comment grey doubles as the muted label. */
 const palette: BasePalette = {
   foreground: "#abb2bf",
   labelMuted: "#5c6370",

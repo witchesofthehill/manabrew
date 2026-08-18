@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Tokyo Night palette — muted blues / magentas with warm accents. */
 const palette: BasePalette = {
   foreground: "#c0caf5",
   labelMuted: "#565f89",

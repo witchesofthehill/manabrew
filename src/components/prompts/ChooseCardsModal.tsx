@@ -48,7 +48,6 @@ interface ChooseCardsModalProps {
   min: number;
   max: number;
   sourceCard?: DeckCard;
-  /** Reveal mode: cards are display-only and the footer is a single acknowledge button. */
   reveal?: boolean;
   onConfirm: (chosenCardIds: string[]) => void;
 }

@@ -9,12 +9,9 @@ import { useLongPressPreview } from "@/hooks/useLongPressPreview";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 
-/** Alpha applied to the mana-letter tint when used as the tap-button fill. */
 const MANA_BUTTON_ALPHA = 0.45;
-/** Background used when the ability doesn't map to a single mana letter. */
 const MANA_BUTTON_FALLBACK_ALPHA = 0.4;
 
-/** A button with a mana symbol for tapping a dual land for a specific color, styled to fill card sections. */
 export const ManaAbilityTapButton = memo(function ManaAbilityTapButton({
   description,
   onClick,

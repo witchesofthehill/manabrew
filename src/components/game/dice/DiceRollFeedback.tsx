@@ -19,7 +19,6 @@ interface DiceRollFeedbackProps {
   sides: number;
   rolls: DiceRollEntry[];
   title?: string;
-  /** Players from the current game view; used to assign self/opponent colors. */
   players: PlayerSeatInfo[];
   sourceCard?: DeckCard;
   onAcknowledge: () => void;

@@ -6,10 +6,8 @@ import type { Deck, DeckCard, DeckFormat } from "@/protocol/deck";
 export interface GameFormat {
   id: DeckFormat;
   name: string;
-  /** Short label used in badges, e.g. "STD" / "CMD" */
   shortName: string;
   description: string;
-  /** Tailwind color variant key for FormatBadge */
   badgeColor: string;
   deckRules: {
     minDeckSize: number;
@@ -71,7 +69,6 @@ export function canHaveAnyNumberOf(card: DeckCard): boolean {
 }
 
 export const GAME_FORMATS: GameFormat[] = [
-  // ── 60-card Constructed formats ─────────────────────────────────────
   {
     id: "standard",
     name: "Standard",
@@ -168,7 +165,6 @@ export const GAME_FORMATS: GameFormat[] = [
     },
     bannedCards: [],
   },
-  // ── Singleton / Commander variants ──────────────────────────────────
   {
     id: "commander",
     name: "Commander",
@@ -217,7 +213,6 @@ export const GAME_FORMATS: GameFormat[] = [
     },
     bannedCards: [],
   },
-  // ── Limited formats ─────────────────────────────────────────────────
   {
     id: "draft",
     name: "Draft",
@@ -292,7 +287,6 @@ export function validateDeck(
     errors.push(`Deck must have at most ${maxDeckSize} cards (has ${cardNames.length})`);
   }
 
-  // Count copies and check against limit
   const counts = new Map<string, number>();
   for (const name of cardNames) {
     counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -305,7 +299,6 @@ export function validateDeck(
     }
   }
 
-  // Check banned list
   const seenBanned = new Set<string>();
   for (const name of cardNames) {
     if (format.bannedCards.includes(name) && !seenBanned.has(name)) {
@@ -324,8 +317,6 @@ function getCardIdentity(card?: DeckCard): string[] {
   }
   return [...new Set((card.color ?? "").split("").filter(Boolean))];
 }
-
-// ─── Partner utilities ───────────────────────────────────────────────────────
 
 function hasPartner(card?: DeckCard): boolean {
   if (!card) return false;

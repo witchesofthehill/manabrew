@@ -1,8 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Catppuccin Mocha palette — pastel warm; maps love → red, mauve →
- *  violet/purple, peach → orange, etc. */
 const palette: BasePalette = {
   foreground: "#cdd6f4", // text
   labelMuted: "#6c7086", // overlay0

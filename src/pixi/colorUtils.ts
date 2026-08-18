@@ -1,9 +1,3 @@
-/**
- * Minimal color parsing utilities for Pixi rendering.
- * Replaces the old PixiThemeColors / adaptTheme layer — Pixi code
- * reads GameThemeColors directly and converts inline.
- */
-
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   s /= 100;
   l /= 100;
@@ -18,7 +12,6 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 export function hexToNum(color: string): number {
   const trimmed = color.trim();
 
-  // #hex
   const bare = trimmed.replace("#", "");
   if (/^[\da-fA-F]{3}$/.test(bare)) {
     return parseInt(
@@ -31,7 +24,6 @@ export function hexToNum(color: string): number {
   }
   if (/^[\da-fA-F]{6}$/.test(bare)) return parseInt(bare, 16);
 
-  // rgb(r, g, b) / rgba(r, g, b, a)
   const rgbaMatch = trimmed.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
   if (rgbaMatch) {
     const r = Math.min(255, parseInt(rgbaMatch[1]!, 10));
@@ -40,7 +32,6 @@ export function hexToNum(color: string): number {
     return (r << 16) | (g << 8) | b;
   }
 
-  // HSL: "210 40% 98%" or "hsl(210, 40%, 98%)"
   const hslMatch =
     trimmed.match(/^(?:hsl\(\s*)?(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)%\s*\)?$/i) ??
     trimmed.match(/^hsl\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)%\s*,\s*(\d+(?:\.\d+)?)%\s*\)$/i);

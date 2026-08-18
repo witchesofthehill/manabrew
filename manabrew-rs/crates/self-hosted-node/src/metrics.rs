@@ -10,6 +10,7 @@ const GAME_DURATION_SECONDS: &str = "manabrew_node_game_duration_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
+const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 
 const LABEL_POOL: &str = "pool";
 const LABEL_CLEAN: &str = "clean";
@@ -126,6 +127,10 @@ impl Drop for RoomHostedGuard {
     fn drop(&mut self) {
         gauge!(ROOMS_HOSTED, LABEL_POOL => self.pool.as_str()).decrement(1.0);
     }
+}
+
+pub fn record_relay_send(elapsed: Duration) {
+    histogram!(RELAY_SEND_SECONDS).record(elapsed.as_secs_f64());
 }
 
 pub fn record_relay_reconnect() {

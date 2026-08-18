@@ -95,6 +95,13 @@ export function requestAccessToken(
   );
 }
 
+export function requestGuestToken(name: string, guestId: string): Promise<AccessTokenResponse> {
+  return authJson<AccessTokenResponse>(
+    "/api/auth/guest-token",
+    jsonInit("POST", { name, guest_id: guestId }),
+  );
+}
+
 export function fetchMe(token: string): Promise<MeResponse> {
   return authJson<MeResponse>("/api/auth/me", undefined, token);
 }

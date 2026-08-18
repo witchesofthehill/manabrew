@@ -48,6 +48,20 @@ function playerStatus(room: RoomInfo | undefined): string {
   return room.status === "InGame" ? "In game" : "At a table";
 }
 
+// The relay should never surface one username twice, but a stale disconnected
+// session can briefly linger alongside a live reconnect; collapse them here,
+// keeping the connected entry.
+function dedupePlayers(players: PlayerInfo[]): PlayerInfo[] {
+  const byUsername = new Map<string, PlayerInfo>();
+  for (const player of players) {
+    const existing = byUsername.get(player.username);
+    if (!existing || (!existing.connected && player.connected)) {
+      byUsername.set(player.username, player);
+    }
+  }
+  return [...byUsername.values()];
+}
+
 export function UserList({
   players,
   rooms,
@@ -61,12 +75,13 @@ export function UserList({
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [search, setSearch] = useState("");
 
-  const myEntry = players.find(
+  const uniquePlayers = dedupePlayers(players);
+  const myEntry = uniquePlayers.find(
     (p) =>
       (currentPlayerId != null && p.player_id === currentPlayerId) ||
       (currentUsername != null && p.username === currentUsername),
   );
-  const others = players.filter(
+  const others = uniquePlayers.filter(
     (p) =>
       (currentPlayerId == null || p.player_id !== currentPlayerId) &&
       (currentUsername == null || p.username !== currentUsername),
@@ -80,14 +95,14 @@ export function UserList({
       ? others
       : others.filter((p) => stripUsernameTag(p.username).toLowerCase().includes(normalizedSearch));
 
-  const playing = filteredOthers.filter((p) => {
+  const bucketOf = (p: PlayerInfo): "playing" | "atTable" | "available" => {
     const room = rooms.find((r) => r.room_id === p.room_id);
-    return room?.status === "InGame";
-  });
-  const available = filteredOthers.filter((p) => {
-    const room = rooms.find((r) => r.room_id === p.room_id);
-    return room?.status !== "InGame";
-  });
+    if (!room) return "available";
+    return room.status === "InGame" ? "playing" : "atTable";
+  };
+  const playing = filteredOthers.filter((p) => bucketOf(p) === "playing");
+  const atTable = filteredOthers.filter((p) => bucketOf(p) === "atTable");
+  const available = filteredOthers.filter((p) => bucketOf(p) === "available");
 
   async function handleJoinRoom(roomId: string, password?: string) {
     if (joiningRoomId) return;
@@ -190,7 +205,7 @@ export function UserList({
         </Tooltip>
         <h3 className="font-semibold text-sm">Players</h3>
         <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-          {players.length}
+          {uniquePlayers.length}
         </span>
       </div>
       <div className="px-3 py-2 shrink-0">
@@ -240,6 +255,7 @@ export function UserList({
           )}
 
           {renderSection("Playing", playing.length, playing)}
+          {renderSection("At a table", atTable.length, atTable)}
           {renderSection("Available", available.length, available)}
 
           {!myUsername && others.length === 0 && (

@@ -456,6 +456,29 @@ async fn authenticate(
                 return Err(ServerError::AuthFailed("Invalid server key".into()));
             }
 
+            let resolved = match &identity {
+                Some(proof) => state.identity.resolve(proof).await,
+                None => identity::ResolvedIdentity::default(),
+            };
+            let identities = resolved.identities;
+            let username = match resolved.name {
+                Some(name) => name,
+                None if service || !state.identity.hub_configured() => username,
+                None => {
+                    let reply = ServerMessage::AuthResult {
+                        success: false,
+                        player_id: None,
+                        reconnected: None,
+                        error: Some(
+                            "This name needs a Hub token — pick a different name, or sign in."
+                                .into(),
+                        ),
+                    };
+                    send_msg(sender, &reply);
+                    return Err(ServerError::AuthFailed("missing identity token".into()));
+                }
+            };
+
             if username.trim().is_empty() {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -466,11 +489,6 @@ async fn authenticate(
                 send_msg(sender, &reply);
                 return Err(ServerError::AuthFailed("Empty username".into()));
             }
-
-            let identities = match &identity {
-                Some(proof) => state.identity.resolve(proof).await,
-                None => Vec::new(),
-            };
 
             if let Some(session) = state.session_by_username(&username) {
                 let claimed = identity::same_owner(&session.identity, &identities);

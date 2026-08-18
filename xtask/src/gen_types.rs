@@ -13,11 +13,11 @@ use manabrew_hub::dto::{
     AdminTopDeckSnapshotRequest, AuthProviders, AuthSessionResponse, CardCollection,
     CreateAccountDeckRequest, DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary,
     DeckHubFacets, DeckHubTag, DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary,
-    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, HubCapabilities, MagicLinkRequest,
-    MeResponse, OAuthStartRequest, OAuthStartResponse, PublishDeckHubEntryRequest,
-    RevocationRequest, SaveDeckVersionRequest, TokenRequest, TopDeckBucket, TopDeckSnapshot,
-    UpdateDeckHubEntryRequest, UpdateHandleRequest, VerifyCardPrintingsRequest,
-    VerifyCardPrintingsResponse,
+    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, GuestTokenRequest, HubCapabilities,
+    MagicLinkRequest, MeResponse, OAuthStartRequest, OAuthStartResponse,
+    PublishDeckHubEntryRequest, RevocationRequest, SaveDeckVersionRequest, TokenRequest,
+    TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
+    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
 };
 use ts_rs::TS;
 
@@ -82,6 +82,7 @@ pub fn generate(root: &Path) -> Result<()> {
     UpdateHandleRequest::export_all_to(&out).context("export UpdateHandleRequest")?;
     AccessTokenResponse::export_all_to(&out).context("export AccessTokenResponse")?;
     TokenRequest::export_all_to(&out).context("export TokenRequest")?;
+    GuestTokenRequest::export_all_to(&out).context("export GuestTokenRequest")?;
     RevocationRequest::export_all_to(&out).context("export RevocationRequest")?;
 
     let path = out.join("hubTypes.ts");

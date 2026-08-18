@@ -168,6 +168,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/api/auth/logout", post(auth::logout_handler))
         .route("/api/auth/token", post(auth::token_handler))
+        .route("/api/auth/guest-token", post(auth::guest_token_handler))
         .route("/api/auth/jwks", get(auth::jwks_handler))
         .route(
             "/api/auth/identities/:provider",

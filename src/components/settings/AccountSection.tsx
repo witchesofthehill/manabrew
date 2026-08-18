@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { HandleDialog } from "@/components/auth/HandleDialog";
+import { AvatarPicker } from "@/components/settings/AvatarPicker";
+import { GuestNamePicker } from "@/components/settings/GuestNamePicker";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { startOAuth, unlinkIdentity, AuthRequestError, type OAuthProvider } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
@@ -37,12 +39,23 @@ export function AccountSection() {
     return (
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Account</h2>
-        <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
-          <p className="text-sm text-muted-foreground">
-            You are not signed in. An account syncs your decks and keeps publications yours on any
-            device. Playing does not require one.
-          </p>
-          <Button onClick={() => showSignIn()}>Sign in</Button>
+        <div className="max-w-2xl space-y-6 rounded-lg border bg-card/40 p-5">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <AvatarPicker />
+            <div className="min-w-0 flex-1">
+              <GuestNamePicker />
+            </div>
+          </div>
+          <div className="h-px bg-border/70" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              You are not signed in. An account syncs your decks and keeps publications yours on any
+              device. Playing does not require one.
+            </p>
+            <Button className="shrink-0" onClick={() => showSignIn()}>
+              Sign in
+            </Button>
+          </div>
         </div>
       </section>
     );
@@ -96,27 +109,32 @@ export function AccountSection() {
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Account</h2>
-      <div className="rounded-lg border bg-card/40 p-4 space-y-4 max-w-xl">
-        <div className="space-y-1">
-          <Label>Handle</Label>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">@{account.handle}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title="Change handle"
-              onClick={() => setHandleOpen(true)}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
+      <div className="max-w-2xl space-y-6 rounded-lg border bg-card/40 p-5">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <AvatarPicker />
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label>Handle</Label>
+            <div className="flex items-center gap-2">
+              <span className="truncate text-base font-semibold">@{account.handle}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                title="Change handle"
+                onClick={() => setHandleOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            {account.handlePending && (
+              <p className="text-xs text-muted-foreground">
+                This handle was generated for you — pick your own.
+              </p>
+            )}
           </div>
-          {account.handlePending && (
-            <p className="text-xs text-muted-foreground">
-              This handle was generated for you — pick your own.
-            </p>
-          )}
         </div>
+
+        <div className="h-px bg-border/70" />
 
         <div className="space-y-2">
           <Label>Sign-in methods</Label>
@@ -164,8 +182,19 @@ export function AccountSection() {
           </div>
         </div>
 
-        <div>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void signOut()}>
+        <div className="h-px bg-border/70" />
+
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-xs text-muted-foreground">
+            Signed in — your decks and publications sync across devices.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            disabled={busy}
+            onClick={() => void signOut()}
+          >
             Sign out
           </Button>
         </div>

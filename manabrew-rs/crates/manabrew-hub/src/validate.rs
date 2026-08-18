@@ -85,6 +85,34 @@ pub fn validate_handle(handle: &str) -> Result<(), String> {
     Ok(())
 }
 
+const MAX_GUEST_NAME_LEN: usize = 40;
+
+pub fn validate_guest_name(name: &str) -> Result<(), String> {
+    let trimmed = name.trim();
+    let len = trimmed.chars().count();
+    if len == 0 {
+        return Err("username is required".into());
+    }
+    if len > MAX_GUEST_NAME_LEN {
+        return Err(format!("username exceeds {MAX_GUEST_NAME_LEN} characters"));
+    }
+    if trimmed.chars().any(char::is_control) {
+        return Err("username contains control characters".into());
+    }
+    Ok(())
+}
+
+pub fn strip_name_tag(name: &str) -> &str {
+    let bytes = name.as_bytes();
+    if bytes.len() >= 5 {
+        let (base, tag) = bytes.split_at(bytes.len() - 5);
+        if tag[0] == b'@' && tag[1..].iter().all(u8::is_ascii_digit) {
+            return &name[..base.len()];
+        }
+    }
+    name
+}
+
 pub fn sanitize(deck: &mut Deck) {
     deck.version = None;
     deck.id = None;

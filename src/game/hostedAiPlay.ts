@@ -6,6 +6,7 @@ import {
 } from "@/config/webRuntimeConfig";
 import type { ServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
+import { relayUsername } from "@/lib/relayUsername";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { EngineKind, GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
@@ -224,8 +225,7 @@ async function ensureServerConnection(
   if (state.currentRoom) await state.leaveRoom(true);
   if (state.connected || state.connecting) await state.disconnect();
 
-  const prefs = usePreferencesStore.getState();
-  const username = prefs.serverUsername || serverDefaults.username || defaultHostedUsername();
+  const username = relayUsername() || serverDefaults.username || defaultHostedUsername();
   const auth = waitForEvent<{ success: boolean; error: string | null }>("server:auth_result");
   await server.connect({
     host: serverDefaults.host,

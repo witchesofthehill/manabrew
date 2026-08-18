@@ -9,6 +9,7 @@ import { useKeybindings } from "@/hooks/useKeybindings";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { IronsmithUnsupportedDeckModal } from "@/components/IronsmithUnsupportedDeckModal";
 import { SignInDialog } from "@/components/auth/SignInDialog";
+import { GuestNameConflictModal } from "@/components/GuestNameConflictModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { StatusBanner } from "./StatusBanner";
@@ -113,6 +114,7 @@ export function AppShell() {
         <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <IronsmithUnsupportedDeckModal />
         {accountsEnabled && <SignInDialog />}
+        {accountsEnabled && <GuestNameConflictModal />}
         {!hideNavChrome && <TopBar override={activeTopBarOverride} />}
         <main
           className={cn(

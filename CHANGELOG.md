@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.15.2](https://github.com/witchesofthehill/manabrew/compare/v3.15.1...v3.15.2) (2026-08-18)
+
+### Performance
+
+* **harness:** stop re-running the static-ability pass per candidate ability ([#691](https://github.com/witchesofthehill/manabrew/issues/691)) ([07759c4](https://github.com/witchesofthehill/manabrew/commit/07759c40c5e0f9013071b5c1a9b9d2267c98d02d))
+
 ## [3.15.1](https://github.com/witchesofthehill/manabrew/compare/v3.15.0...v3.15.1) (2026-08-18)
 
 ## [3.15.0](https://github.com/witchesofthehill/manabrew/compare/v3.14.0...v3.15.0) (2026-08-17)

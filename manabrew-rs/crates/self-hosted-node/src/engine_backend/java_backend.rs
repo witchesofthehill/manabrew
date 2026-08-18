@@ -2270,6 +2270,9 @@ impl SubprocessBridge {
         cmd.arg("-Dsun.stdout.encoding=UTF-8");
         cmd.arg("-Dsun.stderr.encoding=UTF-8");
         cmd.arg("-Djava.awt.headless=true");
+        // The fleet ships no logs, so the GC log exists only to be turned into
+        // metrics by the stderr pump. One line per collection.
+        cmd.arg("-Xlog:gc:stderr");
         cmd.arg("-jar").arg(&config.harness_jar);
         cmd.arg("--interactive-server");
         cmd.arg("--forge-home")
@@ -2308,6 +2311,13 @@ impl SubprocessBridge {
             if let Some(stderr) = stderr {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().map_while(Result::ok) {
+                    if let Some(pause) = parse_gc_pause(&line) {
+                        crate::metrics::record_jvm_gc(
+                            pause.kind,
+                            Duration::from_secs_f64(pause.millis / 1000.0),
+                            pause.heap_after_mb,
+                        );
+                    }
                     if line.contains("Exception") || line.contains("ERROR") {
                         warn!(target: "self_hosted_node::java", "[java] {line}");
                     } else {
@@ -2621,5 +2631,69 @@ fn require_file(path: &Path, label: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{label} does not exist: {}", path.display()))
+    }
+}
+
+/// One `Pause` line from the JVM's unified GC log.
+struct GcPause {
+    kind: &'static str,
+    millis: f64,
+    heap_after_mb: Option<u64>,
+}
+
+/// Parse a unified-log GC pause, e.g.
+/// `[12.3s][info][gc] GC(7) Pause Full (Allocation Failure) 240M->171M(247M) 226.856ms`
+fn parse_gc_pause(line: &str) -> Option<GcPause> {
+    let kind = if line.contains("Pause Full") {
+        "full"
+    } else if line.contains("Pause Young") {
+        "young"
+    } else {
+        return None;
+    };
+    let millis = line
+        .rsplit(' ')
+        .find_map(|token| token.strip_suffix("ms")?.parse::<f64>().ok())?;
+    // "240M->171M(247M)": the figure after the arrow is what survived.
+    let heap_after_mb = line.split_once("->").and_then(|(_, rest)| {
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+        digits.parse::<u64>().ok()
+    });
+    Some(GcPause {
+        kind,
+        millis,
+        heap_after_mb,
+    })
+}
+
+#[cfg(test)]
+mod gc_log_tests {
+    use super::parse_gc_pause;
+
+    #[test]
+    fn reads_a_full_collection() {
+        let pause = parse_gc_pause(
+            "[117.6s][info][gc] GC(21) Pause Full (Allocation Failure) 240M->171M(247M) 226.856ms",
+        )
+        .expect("parsed");
+        assert_eq!(pause.kind, "full");
+        assert_eq!(pause.heap_after_mb, Some(171));
+        assert!((pause.millis - 226.856).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn reads_a_young_collection() {
+        let pause = parse_gc_pause(
+            "[3.1s][info][gc] GC(2) Pause Young (Allocation Failure) 216M->91M(494M) 17.254ms",
+        )
+        .expect("parsed");
+        assert_eq!(pause.kind, "young");
+        assert_eq!(pause.heap_after_mb, Some(91));
+    }
+
+    #[test]
+    fn ignores_other_output() {
+        assert!(parse_gc_pause("[java] LOGGER ERROR: something").is_none());
+        assert!(parse_gc_pause("[1.0s][info][gc,init] CardTable entry size: 512").is_none());
     }
 }

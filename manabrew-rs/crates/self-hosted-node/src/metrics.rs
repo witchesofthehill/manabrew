@@ -10,8 +10,12 @@ const GAME_DURATION_SECONDS: &str = "manabrew_node_game_duration_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
+const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
+const JVM_GC_TOTAL: &str = "manabrew_node_jvm_gc_total";
+const JVM_HEAP_AFTER_GC_BYTES: &str = "manabrew_node_jvm_heap_after_gc_bytes";
 
 const LABEL_POOL: &str = "pool";
+const LABEL_KIND: &str = "kind";
 const LABEL_CLEAN: &str = "clean";
 const LABEL_PLAYERS: &str = "players";
 const LABEL_SIGNATURE: &str = "signature";
@@ -125,6 +129,16 @@ impl RoomHostedGuard {
 impl Drop for RoomHostedGuard {
     fn drop(&mut self) {
         gauge!(ROOMS_HOSTED, LABEL_POOL => self.pool.as_str()).decrement(1.0);
+    }
+}
+
+/// Pause and retained heap reported by the engine JVM's own GC log. The fleet
+/// ships no logs, so without this a stalled JVM is invisible from off-box.
+pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<u64>) {
+    histogram!(JVM_GC_PAUSE_SECONDS, LABEL_KIND => kind).record(pause.as_secs_f64());
+    counter!(JVM_GC_TOTAL, LABEL_KIND => kind).increment(1);
+    if let Some(megabytes) = heap_after_mb {
+        gauge!(JVM_HEAP_AFTER_GC_BYTES, LABEL_KIND => kind).set((megabytes * 1024 * 1024) as f64);
     }
 }
 

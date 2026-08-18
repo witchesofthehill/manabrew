@@ -14,8 +14,8 @@ use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus,
-    ServerMessage, StateEnvelope, PROTOCOL_VERSION,
+    ClientMessage, ClientPlatform, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest,
+    RoomInfo, RoomStatus, ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::transport::DirectiveInput;
@@ -2095,6 +2095,7 @@ impl RelayClient {
                 password: password.to_string(),
                 service: true,
                 identity: None,
+                client_platform: ClientPlatform::Unknown,
             })
             .await?;
         client.wait_for_auth().await?;

@@ -49,6 +49,12 @@ pub struct CardEntry {
 #[derive(Debug, Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum AnalyticsEvent {
+    ClientConnected {
+        ts: String,
+        username: String,
+        platform: String,
+        reconnected: bool,
+    },
     GameStarted {
         ts: String,
         game_id: String,

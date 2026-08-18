@@ -14,7 +14,7 @@ use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::metrics;
-use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
+use crate::protocol::{ClientMessage, ClientPlatform, RoomStatus, ServerMessage};
 use crate::room::Room;
 use crate::state::{ConnectedPlayer, ServerState};
 use manabrew_protocol::deck_dto::OUTDATED_CLIENT_MESSAGE;
@@ -251,7 +251,7 @@ pub async fn handle_connection(
 
     let mut write_task = tokio::spawn(write_loop(rx, sink));
 
-    let (player_id, username, reconnected, generation) =
+    let (player_id, username, reconnected, generation, client_platform, service) =
         match authenticate(&mut receiver, &tx, &state).await {
             Ok(result) => result,
             Err(e) => {
@@ -266,6 +266,15 @@ pub async fn handle_connection(
                 return Ok(());
             }
         };
+
+    if !service {
+        state.analytics.emit(AnalyticsEvent::ClientConnected {
+            ts: analytics::now_ts(),
+            username: username.clone(),
+            platform: format!("{client_platform:?}").to_lowercase(),
+            reconnected,
+        });
+    }
 
     if reconnected {
         info!(
@@ -419,7 +428,7 @@ async fn authenticate(
     receiver: &mut WsReceiver,
     sender: &mpsc::UnboundedSender<Message>,
     state: &Arc<ServerState>,
-) -> Result<(String, String, bool, u64), ServerError> {
+) -> Result<(String, String, bool, u64, ClientPlatform, bool), ServerError> {
     let timeout = Duration::from_secs(10);
 
     let frame = tokio::time::timeout(timeout, receiver.next())
@@ -444,6 +453,7 @@ async fn authenticate(
             password,
             service,
             identity,
+            client_platform,
         } => {
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
@@ -515,7 +525,14 @@ async fn authenticate(
                     session.generation,
                     identities,
                 );
-                return Ok((session.player_id, username, true, new_gen));
+                return Ok((
+                    session.player_id,
+                    username,
+                    true,
+                    new_gen,
+                    client_platform,
+                    service,
+                ));
             }
 
             let player_id = uuid::Uuid::new_v4().to_string();
@@ -544,7 +561,14 @@ async fn authenticate(
             };
             send_msg(sender, &reply);
 
-            Ok((player_id, username, false, generation))
+            Ok((
+                player_id,
+                username,
+                false,
+                generation,
+                client_platform,
+                service,
+            ))
         }
         _ => {
             let reply = ServerMessage::AuthResult {

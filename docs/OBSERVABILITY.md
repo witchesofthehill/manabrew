@@ -36,6 +36,7 @@ Filtered diagnosis for player behavior and game friction. Global variables apply
 | Selected segment   | players, games, games/player, median and p90 duration, completion               |
 | Behavior over time | games/players, completion, seven-day return cohorts, anonymous player frequency |
 | Where is friction? | duration distribution, human participation, non-game-over ending reasons        |
+| Platform usage     | distinct users and daily users across web, PWA, desktop, and mobile             |
 
 The retention panel uses first relay appearance as the cohort date. Recent cohorts have not had a full seven-day observation window and are explicitly labelled incomplete.
 
@@ -162,6 +163,7 @@ variable at a directory instead to write rotating files, for a node that is not 
 | `decks`                 | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                |
 | `deck_cards`            | `deck_id`, `name`, `set_code`, `count`                                                                                                                                       |
 | `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                         |
+| `client_connections`    | `id`, `ts`, `username`, classified `platform`, reconnect flag                                                                                                                |
 | `ingest_state`          | `file`, `byte_offset`                                                                                                                                                        |
 | `hub_sync_state`        | latest successful export time, Hub schema version, export duration                                                                                                           |
 | `hub_metric_snapshots`  | hourly aggregate Hub metrics with a non-identifying dimension                                                                                                                |
@@ -173,7 +175,7 @@ The Hub export covers row counts for `schema_version`, `accounts`, `identities`,
 
 The Hub analytics boundary excludes emails, usernames, account IDs, provider user IDs, session/token/code/state hashes, IP addresses, private deck snapshots, raw per-account collections, and Hub game/player keys. Collection-card rankings suppress cards held by fewer than two accounts, and collection-size distributions export only aggregate buckets. Collection history starts when the exporter is deployed because the source schema stores only current collection state and a version counter. Daily source-derived aggregates are rebuilt on every refresh so late data and corrections converge.
 
-Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`.
+Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored.
 
 Migrations 7 and 8 establish the Hub evidence schema, migration 9 adds the expanded Top Deck categories, and migration 10 tracks the latest refresh even when a category is empty. The first Hub startup after migration 8 performs a one-time import of eligible publication-linked analytics rows into `hub.db.deck_play_reports`. Top Decks has no live analytics-database dependency after that import. New managed-relay starts and outcomes use a dedicated Deck Play evidence channel and write directly to the Hub through `/internal/deckhub/relay-games`; offline and hosted-AI clients use the public play-report endpoint. Hosted Relay rooms are excluded from the dedicated channel to avoid counting the same human play twice, and bot seats never contribute. Ranking refreshes read Hub evidence, favorites, publication dates, and snapshot tables. Stored relay game/player keys are hashed, and no username or card list is retained in the Hub.
 

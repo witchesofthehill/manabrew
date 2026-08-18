@@ -34,6 +34,7 @@ import { PROTOCOL_VERSION } from "@/protocol";
 import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
 import { logComms } from "@/lib/commsLog";
 import { relayIdentityProof } from "@/lib/relayIdentity";
+import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
@@ -776,6 +777,7 @@ class WebServerApi implements IServerApi {
           username: params.username,
           password: params.password,
           identity,
+          client_platform: getClientPlatform(),
         });
         this.startKeepalive();
         resolve();

@@ -340,6 +340,52 @@
         ]
       },
       "options": {}
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "Which platforms do people use?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 31, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 18,
+      "type": "barchart",
+      "title": "Users by platform",
+      "description": "distinct relay identities per platform; multi-platform users appear in each platform they used",
+      "gridPos": { "x": 0, "y": 32, "w": 10, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT platform, count(DISTINCT username) AS users FROM client_connections WHERE CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY platform ORDER BY users DESC",
+          "rawQueryText": "SELECT platform, count(DISTINCT username) AS users FROM client_connections WHERE CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY platform ORDER BY users DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Daily users by platform",
+      "description": "distinct relay identities connecting each day; history begins with client-platform rollout",
+      "gridPos": { "x": 10, "y": 32, "w": 14, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', date(ts)) AS INTEGER) AS t, platform, count(DISTINCT username) AS users FROM client_connections WHERE CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY date(ts), platform ORDER BY date(ts), platform",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(ts)) AS INTEGER) AS t, platform, count(DISTINCT username) AS users FROM client_connections WHERE CAST(strftime('%s', ts) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', ts) AS INTEGER) <= $__to / 1000 GROUP BY date(ts), platform ORDER BY date(ts), platform",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
     }
   ]
 }

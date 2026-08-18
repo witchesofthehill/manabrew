@@ -67,6 +67,14 @@ CREATE TABLE IF NOT EXISTS events (
   room_id TEXT,
   payload TEXT
 );
+CREATE TABLE IF NOT EXISTS client_connections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  username TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  reconnected INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_client_connections_ts ON client_connections(ts);
 CREATE INDEX IF NOT EXISTS idx_games_started ON games(started_at);
 CREATE INDEX IF NOT EXISTS idx_games_ranking ON games(official, format, started_at);
 CREATE INDEX IF NOT EXISTS idx_game_players_user ON game_players(username);
@@ -218,7 +226,21 @@ def ingest_deck_selected(db, ev):
         )
 
 
+def ingest_client_connected(db, ev):
+    db.execute(
+        """INSERT INTO client_connections (ts, username, platform, reconnected)
+           VALUES (?, ?, ?, ?)""",
+        (
+            ev.get("ts"),
+            ev.get("username"),
+            ev.get("platform") or "unknown",
+            int(bool(ev.get("reconnected"))),
+        ),
+    )
+
+
 INGESTERS = {
+    "client_connected": ingest_client_connected,
     "game_started": ingest_game_started,
     "game_ended": ingest_game_ended,
     "deck_selected": ingest_deck_selected,

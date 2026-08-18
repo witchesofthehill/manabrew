@@ -254,6 +254,7 @@ impl Client {
                     token: None,
                     device: Some(secret.to_string()),
                 }),
+                client_platform: manabrew_relay_protocol::ClientPlatform::Unknown,
             },
         )
         .await?;

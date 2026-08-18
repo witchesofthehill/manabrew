@@ -1,16 +1,4 @@
 import { PromptModalHost } from "@/components/prompts/promptComponents";
-// Dev-only prompt previews — uncomment one to summon that prompt in a live game
-// and screenshot it. Each has an `EDIT ME` fixture block at the top.
-// import { ChooseNumberModalPreview } from "@/components/prompts/dev/ChooseNumberModalPreview";
-// import { ChooseCardsModalPreview } from "@/components/prompts/dev/ChooseCardsModalPreview";
-// import { ReorderCardsModalPreview } from "@/components/prompts/dev/ReorderCardsModalPreview";
-// import { ScryModalPreview } from "@/components/prompts/dev/ScryModalPreview";
-// import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
-// import { ChooseBooleanModalPreview } from "@/components/prompts/dev/ChooseBooleanModalPreview";
-// import { ChooseColorModalPreview } from "@/components/prompts/dev/ChooseColorModalPreview";
-// import { RevealCardsModalPreview } from "@/components/prompts/dev/RevealCardsModalPreview";
-// import { DiceRolledPreview } from "@/components/prompts/dev/DiceRolledPreview";
-// import { VAssignCombatDamagePreview } from "@/components/prompts/dev/VAssignCombatDamagePreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { CardDto, StackObjectDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";

@@ -52,7 +52,6 @@ export const HOSTILE_INTENT_GLYPHS: Partial<Record<TargetingIntent, string>> = {
   hostile: hostileUrl,
 };
 
-/** Raw SVG source for friendly intents (coloured with `pointer.friendly`). */
 export const FRIENDLY_INTENT_GLYPHS: Partial<Record<TargetingIntent, string>> = {
   untap: untapUrl,
   copy: copyUrl,
@@ -64,7 +63,6 @@ export const FRIENDLY_INTENT_GLYPHS: Partial<Record<TargetingIntent, string>> = 
   friendly: friendlyUrl,
 };
 
-/** Combined lookup. `null` entries are combat intents rendered as arrows. */
 export const INTENT_GLYPH_SVG: Record<TargetingIntent, string | null> = {
   ...HOSTILE_INTENT_GLYPHS,
   ...FRIENDLY_INTENT_GLYPHS,
@@ -73,5 +71,4 @@ export const INTENT_GLYPH_SVG: Record<TargetingIntent, string | null> = {
   attach: null,
 } as Record<TargetingIntent, string | null>;
 
-/** The main pointer glyph (arrow), used as the DOM targeting cursor. */
 export const ARROW_CURSOR_GLYPH: string = arrowCursorUrl;

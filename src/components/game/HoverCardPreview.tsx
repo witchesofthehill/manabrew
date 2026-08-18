@@ -4,11 +4,8 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 
 interface HoverCardPreviewProps {
   preview: ReturnType<typeof useCardPreview>;
-  /** Optional actions for interactive previews (game only). */
   actions?: HandActionOption[];
-  /** Optional handler for selected actions (game only). */
   onSelectAction?: (action: HandActionOption) => void;
-  /** Fade the preview out without dismissing it (transient UI churn, e.g. prompts). */
   suppressed?: boolean;
   pinned?: boolean;
   slot?: HTMLElement | null;

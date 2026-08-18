@@ -14,13 +14,9 @@ interface DieFaceStaticProps {
   sides: number;
   value: number;
   size?: Size;
-  /** When true, renders dimmed (e.g. ignored rolls). */
   muted?: boolean;
-  /** When true, renders selected (ring + tint). */
   selected?: boolean;
-  /** When true, renders as a focusable button. */
   onClick?: () => void;
-  /** Accessible label override; defaults to `Die: <value>`. */
   ariaLabel?: string;
   /**
    * Optional theme-token color (CSS color string). When supplied,
@@ -31,11 +27,6 @@ interface DieFaceStaticProps {
   className?: string;
 }
 
-/**
- * Polyhedral die silhouette (d4–d20). Renders as an SVG so the shape
- * accurately reflects the die type while staying themeable via the
- * `--die-bg` / `--die-border` / `--die-fg` CSS variables.
- */
 export function DieFaceStatic({
   sides,
   value,

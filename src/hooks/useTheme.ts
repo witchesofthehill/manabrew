@@ -14,12 +14,10 @@ import type { GameFontSizes } from "@/themes";
 export type { GameThemeColors } from "@/themes/gameTheme";
 export type { GameFontSizes } from "@/themes";
 
-/** Resolved game theme — colours plus font sizes. */
 export interface GameTheme extends GameThemeColors {
   fontSizes: GameFontSizes;
 }
 
-/** The single resolved theme object used across the entire app. */
 export interface Theme {
   appTheme: ThemeColors;
   gameTheme: GameTheme;
@@ -57,7 +55,6 @@ usePreferencesStore.subscribe(() => {
   }
 });
 
-/** Non-reactive accessor for imperative / Pixi code. */
 export function getTheme(): Theme {
   return cachedTheme;
 }

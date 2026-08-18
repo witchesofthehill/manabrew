@@ -52,13 +52,11 @@ async function loadSymbolTexture(symbol: string): Promise<Texture> {
   return tex;
 }
 
-/** Returns a cached mana-symbol texture, or null if it isn't loaded yet. */
 export function getManaSymbolTextureSync(symbol: string): Texture | null {
   const cached = textures.get(symbol);
   return cached && !cached.destroyed ? cached : null;
 }
 
-/** Kicks off a load for the given symbol; resolves to its texture. */
 export function loadManaSymbolTexture(symbol: string): Promise<Texture> {
   const cached = getManaSymbolTextureSync(symbol);
   if (cached) return Promise.resolve(cached);

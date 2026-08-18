@@ -1,6 +1,3 @@
-// Types for Scryfall API
-
-/** Scryfall image size variants returned from `/cards/*` endpoints. */
 export interface ScryfallImageUris {
   small: string;
   normal: string;
@@ -34,7 +31,6 @@ export interface ScryfallCard {
     art_crop: string;
     border_crop: string;
   };
-  /** Present on double-faced cards instead of top-level image_uris. */
   card_faces?: Array<{
     name: string;
     type_line?: string;
@@ -101,7 +97,6 @@ export interface ScryfallCard {
   };
   related_uris: Record<string, string>;
   purchase_uris: Record<string, string>;
-  /** Related cards — tokens, meld parts, combo pieces. Present when the card has related objects. */
   all_parts?: Array<{
     object: string;
     id: string;

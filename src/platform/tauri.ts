@@ -116,8 +116,6 @@ class TauriServerApi implements IServerApi {
   }
 }
 
-// Tauri Platform
-
 /**
  * Tauri platform implementation.
  * Used for desktop applications (macOS, Windows, Linux).

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 interface Props {
   children: ReactNode;
-  /** Optional fallback message. Defaults to generic error. */
   context?: string;
 }
 
@@ -12,10 +11,6 @@ interface State {
   error: Error | null;
 }
 
-/**
- * Catches uncaught exceptions in child components and displays
- * a fallback UI instead of a blank screen.
- */
 class ErrorBoundaryInner extends Component<Props & { onReset: () => void }, State> {
   state: State = { hasError: false, error: null };
 
@@ -75,10 +70,6 @@ class ErrorBoundaryInner extends Component<Props & { onReset: () => void }, Stat
   }
 }
 
-/**
- * Error boundary wrapper with navigation support.
- * Use as: <ErrorBoundary context="Game"><Game /></ErrorBoundary>
- */
 export function ErrorBoundary({ children, context }: Props) {
   const navigate = useNavigate();
   return (

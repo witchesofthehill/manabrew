@@ -1,14 +1,3 @@
-/**
- * Theme barrel — single import point for the full theme system.
- *
- *   import { ThemeColors, GameThemeColors, THEME_PRESETS, ... } from "@/themes";
- *
- * Implementation is split across three files:
- *   - `appTheme.ts`  — app-level (Radix / shadcn) colour interface
- *   - `gameTheme.ts` — game-surface colour interface, resolution logic, utilities
- *   - `presets.ts`    — ThemePreset type, font sizes, and the preset registry
- */
-
 export type { ThemeColors } from "./appTheme";
 
 export type {

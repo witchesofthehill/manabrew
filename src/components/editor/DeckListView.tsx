@@ -1730,7 +1730,6 @@ export function DeckListView({
     (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
       if (target.closest("[data-card-name]")) return;
-      // Dragging on empty space starts marquee selection
       handleContainerMouseDown(e);
     },
     [handleContainerMouseDown],
@@ -1815,7 +1814,6 @@ export function DeckListView({
     />
   );
 
-  // Build natural section IDs
   const naturalSectionIds = useMemo(() => {
     const ids: string[] = [];
     for (const col of stackColumns) ids.push(col.id);
@@ -1858,7 +1856,6 @@ export function DeckListView({
     [orderVersion],
   );
 
-  // Drag state
   const [dragSection, setDragSection] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -2147,7 +2144,6 @@ export function DeckListView({
       );
     }
 
-    // Regular stack column
     const col = stackColumns.find((c) => c.id === id);
     if (!col) return null;
     return (

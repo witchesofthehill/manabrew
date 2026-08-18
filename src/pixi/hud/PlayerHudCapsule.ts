@@ -88,12 +88,6 @@ interface ContentItem {
   place: (x: number, y: number) => void;
 }
 
-/** A single player's HUD: a minimal pill with the avatar as a left-edge cap,
- *  the life total, the floating mana pool, and any active player/game badges.
- *  When its field collapses to a narrow band it reflows into a **full-height
- *  vertical stack** (avatar + life + badges + mana) so all the info stays
- *  visible. Owns its own gsap tweens (life pop + floating delta, priority pulse,
- *  badge fade). */
 export class PlayerHudCapsule {
   readonly container: Container;
   private theme: Theme;
@@ -488,8 +482,6 @@ export class PlayerHudCapsule {
       this.initial.position.set(cx, cy);
     }
 
-    // Eliminated → skull over the avatar; disconnected → a small offline glyph
-    // pinned to the top-right.
     this.skull.visible = this.spec.isEliminated;
     if (this.spec.isEliminated) {
       const tex = this.iconTexture(SKULL_ICON_NAME);
@@ -522,8 +514,6 @@ export class PlayerHudCapsule {
     this.avatarHit.fill({ color: 0xffffff, alpha: 0.001 });
     this.avatarHit.cursor = "pointer";
 
-    // Self only: a small gear on a chip at the avatar's top-left that opens the
-    // board menu (fullscreen / dev panel / concede).
     this.gear.visible = this.spec.isSelf;
     this.gearHit.visible = this.spec.isSelf;
     if (this.spec.isSelf) {
@@ -544,8 +534,6 @@ export class PlayerHudCapsule {
     }
   }
 
-  /** The gear's chip backing — doubles as the click/hover hit area. Brightens on
-   *  hover so it reads as a button. */
   private redrawGearChip(): void {
     const gt = this.theme.gameTheme;
     this.gearHit.clear();
@@ -562,7 +550,6 @@ export class PlayerHudCapsule {
     });
   }
 
-  /** Gear size + tint, with a hover state so it reads as a clickable button. */
   private styleGear(): void {
     const gt = this.theme.gameTheme;
     const base = this.avatarDia * 0.22;
@@ -720,8 +707,6 @@ export class PlayerHudCapsule {
           : 1;
   }
 
-  /** Burst a few sparkles when a "prestige" badge (monarch / initiative) is
-   *  newly acquired this render. */
   private checkBadgeSparkles(): void {
     const ids = new Set(this.spec.badges.map((b) => b.id));
     for (const id of ["monarch", "initiative"]) {
@@ -756,9 +741,6 @@ export class PlayerHudCapsule {
     }
   }
 
-  /** Collapsed/narrow field: a full-height vertical stack — avatar + life pill
-   *  on top, then every badge and mana pip stacked down the column so all the
-   *  player info is still visible in the sliver of space. */
   private renderColumn(w: number, h: number): void {
     const gt = this.theme.gameTheme;
     this.manaLayer.visible = true;
@@ -780,7 +762,6 @@ export class PlayerHudCapsule {
     this.avatarDia = avatarD;
     this.drawAvatar(cx, avatarCy, avatarD);
 
-    // Life pill straddling the avatar's bottom edge.
     this.lifeFontSize = Math.round(avatarD * 0.3);
     this.heart.style = this.heartStyle(Math.round(avatarD * 0.24));
     this.life.style = this.textStyle(this.lifeFontSize, "800");
@@ -804,7 +785,6 @@ export class PlayerHudCapsule {
     this.extendContent(cx - avatarD / 2, avatarCy - avatarD / 2, avatarD, avatarD);
     this.extendContent(pillLeft, pillCy - pillH / 2, pillW, pillH);
 
-    // Vertical stack of badges + mana, distributed down the remaining height.
     const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
     const badges = this.spec.badges;
     this.ensurePips(present.length);
@@ -838,7 +818,6 @@ export class PlayerHudCapsule {
     this.drawAvatar(avatarCx, avatarCy, avatarD);
     this.extendContent(avatarCx - avatarD / 2, avatarCy - avatarD / 2, avatarD, avatarD);
 
-    // Life pill straddling the avatar's bottom edge (MTGA-style).
     this.lifeFontSize = Math.round(avatarD * 0.32);
     this.heart.style = this.heartStyle(Math.round(avatarD * 0.26));
     this.life.style = this.textStyle(this.lifeFontSize, "800");
@@ -1039,7 +1018,6 @@ export class PlayerHudCapsule {
       const gained = next > this.renderedLife;
       const delta = next - this.renderedLife;
       const flash = gained ? gt.pt.buffed : gt.pt.lethal;
-      // Odometer: roll the displayed number from the old value to the new one.
       this.lifeTween?.kill();
       const counter = { v: this.renderedLife };
       this.lifeTween = gsap.to(counter, {

@@ -167,7 +167,6 @@ function ColorCombo({
   };
   useModalKeyboard({ onSpace: remaining === 0 ? confirm : undefined }, [remaining, confirm]);
 
-  // Running preview of the chosen mana as symbols.
   const preview = Object.entries(counts).flatMap(([color, n]) =>
     Array.from({ length: n }, (_, i) => ({ color, key: `${color}-${i}` })),
   );

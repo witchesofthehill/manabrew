@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Default palette — clean slate-tinted material design. */
 const palette: BasePalette = {
   foreground: "#ffffff",
   labelMuted: "#666666",

@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Monokai palette — high-contrast neon on near-black. */
 const palette: BasePalette = {
   foreground: "#f8f8f2",
   labelMuted: "#75715e", // comment

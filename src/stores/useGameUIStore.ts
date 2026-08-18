@@ -55,7 +55,6 @@ interface GameUIState {
   rightPanelTab: "log" | "snapshots" | "dev";
   promptModalHidden: boolean;
 
-  // Actions
   openAbilityPicker: (state: AbilityPickerState) => void;
   closeAbilityPicker: () => void;
   openPlayModePicker: (state: PlayModePickerState) => void;
@@ -74,7 +73,6 @@ interface GameUIState {
 export const useGameUIStore = create<GameUIState>()(
   devtools(
     (set) => ({
-      // Initial state
       abilityPicker: null,
       playModePicker: null,
       viewingZone: null,
@@ -82,7 +80,6 @@ export const useGameUIStore = create<GameUIState>()(
       rightPanelTab: "log",
       promptModalHidden: false,
 
-      // Actions
       openAbilityPicker: (state) => set({ abilityPicker: state }),
       closeAbilityPicker: () => set({ abilityPicker: null }),
 

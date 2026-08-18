@@ -200,8 +200,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
                   </div>
 
-                  {/* The bar itself: thick track, gradient fill, shimmering overlay,
-                and a soft glow at the leading edge. */}
                   <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
                     <div
                       className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"

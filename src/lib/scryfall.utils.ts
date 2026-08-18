@@ -31,19 +31,16 @@ export function frontFaceName(name: string): string {
   return i >= 0 ? name.slice(0, i) : name;
 }
 
-/** Get the front-face type line, handling DFCs where type_line lives on card_faces. */
 function getFrontTypeLine(sc: ScryfallCard): string {
   if (sc.type_line) return sc.type_line.split("//")[0].trim();
   return sc.card_faces?.[0]?.type_line ?? "";
 }
 
-/** Get the front-face oracle text, handling DFCs. */
 function getFrontOracleText(sc: ScryfallCard): string {
   if (sc.oracle_text) return sc.oracle_text;
   return sc.card_faces?.[0]?.oracle_text ?? "";
 }
 
-/** True when a Scryfall card has two separate illustrated faces (transform, modal DFC, etc.). */
 function detectIsDoubleFaced(sc: ScryfallCard): boolean {
   return !!(sc.card_faces && sc.card_faces.length >= 2 && sc.card_faces[1]?.image_uris);
 }

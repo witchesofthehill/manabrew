@@ -2,12 +2,6 @@ import { useRef, useCallback } from "react";
 
 const DRAG_THRESHOLD = 30;
 
-/**
- * Adds drag-to-toggle behavior to a button. Dragging in `expandDirection`
- * calls onExpand; dragging opposite calls onCollapse. Click still works.
- *
- * @param expandDirection - "left" or "right": the direction to drag to expand
- */
 export function useDragToggle(
   onExpand: () => void,
   onCollapse: () => void,

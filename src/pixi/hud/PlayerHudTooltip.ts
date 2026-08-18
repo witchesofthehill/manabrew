@@ -7,9 +7,6 @@ const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const PAD = 8;
 const MAX_W = 240;
 
-/** A small themed hover tooltip shared by all capsules in a `PlayerHudLayer`.
- *  Shows a badge/player label and, for The Ring, the active/inactive ability
- *  list. Positioned above the hovered item (or below for top-anchored seats). */
 export class PlayerHudTooltip {
   readonly container: Container;
   private theme: Theme;

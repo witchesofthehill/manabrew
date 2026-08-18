@@ -33,7 +33,6 @@ const STORES: Record<string, StoreEntry> = {
   stackUI: useStackUIStore,
 };
 
-/** Strip functions from a state object for serialisation. */
 function stripFunctions(obj: unknown): unknown {
   if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(stripFunctions);
@@ -44,7 +43,6 @@ function stripFunctions(obj: unknown): unknown {
   return out;
 }
 
-/** Collect all zustand state into one object. */
 function collectState(): Record<string, unknown> {
   const state: Record<string, unknown> = {};
   for (const [name, store] of Object.entries(STORES)) {
@@ -61,7 +59,6 @@ function bridgeReducer(
 ): Record<string, unknown> {
   if (action.type === "@@INIT") return collectState();
   if (action.storeName) {
-    // Update only the changed store slice
     const store = STORES[action.storeName];
     if (store) {
       return { ...state, [action.storeName]: stripFunctions(store.getState()) };

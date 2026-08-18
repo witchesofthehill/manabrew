@@ -234,7 +234,6 @@ export function useGroupByRarity(
   );
 }
 
-/** Group entries by name (count duplicates), sorted alphabetically. */
 export function groupByName(entries: PoolEntry[]): Array<{ name: string; entries: PoolEntry[] }> {
   const map = new Map<string, PoolEntry[]>();
   for (const e of entries) {
@@ -251,7 +250,6 @@ export const BASIC_LAND_NAMES = ["Plains", "Island", "Swamp", "Mountain", "Fores
 export type BasicLandName = (typeof BASIC_LAND_NAMES)[number];
 
 export interface DeckValidationIssue {
-  /** Stable code for tests / styling. */
   kind: "main_too_small";
   message: string;
 }

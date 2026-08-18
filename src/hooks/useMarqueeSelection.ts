@@ -20,7 +20,6 @@ export interface UseMarqueeOptions {
   onMarqueeComplete?: (rect: MarqueeRect, additive: boolean, currentSelected: Set<string>) => void;
   /** Minimum width/height in px before a marquee is considered intentional (avoids accidental tiny selections). Default 4. */
   minSize?: number;
-  /** Optional external container ref. If not provided, one is created internally. */
   externalContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 

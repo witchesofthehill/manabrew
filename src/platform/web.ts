@@ -70,8 +70,6 @@ function describeBotFrame(raw: string): string {
   }
 }
 
-// Worker Message Types
-
 interface WorkerCommand {
   type: "command";
   requestId: string;
@@ -113,8 +111,6 @@ type RelayMessage = {
   msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
 };
 
-// Worker Bridge
-
 /**
  * Bridge for communicating with the game engine worker.
  */
@@ -141,7 +137,6 @@ class WorkerBridge {
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
 
-    // Listen for SAB from worker and start polling for prompts
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
       this.gameBuffer = payload.buffer;
       this.gameSignal = new Int32Array(this.gameBuffer, 0, 2);
@@ -203,7 +198,6 @@ class WorkerBridge {
         }
       }
 
-      // Keep polling while game is active
       if (this.gameBuffer) {
         requestAnimationFrame(poll);
       }
@@ -374,11 +368,8 @@ class WorkerBridge {
     }
     this.localAwaitingResponse = false;
     const json = new TextEncoder().encode(JSON.stringify(message));
-    // Write length
     Atomics.store(this.gameSignal, 1, json.length);
-    // Write data
     this.gameData.set(json, 0);
-    // Signal response ready
     Atomics.store(this.gameSignal, 0, 2); // SIGNAL_RESPONSE_READY
     Atomics.notify(this.gameSignal, 0);
   }
@@ -448,7 +439,6 @@ class WorkerBridge {
         }
       }
     } else if (message.type === "event") {
-      // Forward events to the event bus
       this.eventBus.emit(message.event, message.payload);
     }
   }
@@ -673,7 +663,6 @@ class WebEventBus implements IEventBus {
     const typedHandler = handler as (payload: unknown) => void;
     handlers.add(typedHandler);
 
-    // Return unsubscribe function
     return () => {
       handlers.delete(typedHandler);
       if (handlers.size === 0) {
@@ -1345,7 +1334,6 @@ class WebServerApi implements IServerApi {
       return;
     }
 
-    // Map server message type to event name and payload
     const eventMap: Record<string, [string, unknown]> = {
       AuthResult: [
         "server:auth_result",
@@ -1405,8 +1393,6 @@ function buildServerUrl(params: ServerConnectParams): string {
   const scheme = params.port === 443 ? "wss" : "ws";
   return `${scheme}://${params.host}:${params.port}`;
 }
-
-// Web Platform
 
 /**
  * Web platform implementation.

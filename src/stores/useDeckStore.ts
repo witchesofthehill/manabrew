@@ -41,7 +41,6 @@ function applyPatch(card: DeckCard, patch: CardPatch | undefined): DeckCard {
   return { ...card, ...patch, identity: { ...card.identity, ...patch.identity } };
 }
 
-/** Apply a map of name→patch to an array of cards. */
 function patchCardsByName(cards: DeckCard[], updates: Map<string, CardPatch>): DeckCard[] {
   return cards.map((c) =>
     applyPatch(
@@ -130,7 +129,6 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
     commanders: commanders.length > 0 ? commanders : undefined,
     editor: normalizeEditorMetadata(deck),
   };
-  // Remove legacy field
   delete (normalized as { commander?: DeckCard }).commander;
   return normalized;
 }
@@ -331,7 +329,6 @@ export const useDeckStore = create<DeckState>()(
         migrationError: false,
         addToMain: (card) =>
           set((state) => {
-            // Enforce max copy limit based on deck format
             if (!canHaveAnyNumberOf(card)) {
               const format = getFormat(state.currentDeck.format ?? "standard");
               if (format) {
@@ -452,7 +449,6 @@ export const useDeckStore = create<DeckState>()(
               !getFormat(format)?.deckRules.requiresCommander &&
               (deck.commanders?.length ?? 0) > 0
             ) {
-              // Move commanders back to main deck
               const movedBack = (deck.commanders ?? []).map((c) => ({
                 ...c,
                 identity: { ...c.identity, id: crypto.randomUUID() },
@@ -742,7 +738,6 @@ export const useDeckStore = create<DeckState>()(
           }),
         saveCurrentDeck: () =>
           set((state) => {
-            // Clear draft flag on full save
             const deckToSave = { ...state.currentDeck, draft: undefined };
             // Match by tracked ID first, then fall back to name match
             const existing = state.currentDeckId

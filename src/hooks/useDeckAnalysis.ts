@@ -5,9 +5,6 @@ import { looksLikeCommanderDeck } from "@/lib/formats";
 
 const ANALYSIS_DEBOUNCE_MS = 700;
 
-/** Drives Commander Spellbook combo lookup + bracket estimation for the deck
- *  being edited. Mount once in the deck builder; panels and card cells read the
- *  results from `useDeckAnalysisStore`. */
 export function useDeckAnalysis(): void {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const analyze = useDeckAnalysisStore((s) => s.analyze);

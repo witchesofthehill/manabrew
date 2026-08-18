@@ -201,7 +201,6 @@ function sampleCubic(curve: CubicCurve, steps: number): Point[] {
   return points;
 }
 
-/** Closed rounded-rect perimeter as a polyline (for dashing). */
 function roundedRectPath(cx: number, cy: number, w: number, h: number, r: number): Point[] {
   const x0 = cx - w / 2;
   const y0 = cy - h / 2;
@@ -559,11 +558,9 @@ export class ArrowLayer {
     const px = -tan.uy;
     const py = tan.ux;
 
-    // Outer circle outline.
     gfx.circle(tip.x, tip.y, RUNE_RETICLE_OUTER_R);
     gfx.stroke({ color, width: 1, alpha: RUNE_LINE_ALPHA });
 
-    // Filled inner dot.
     gfx.circle(tip.x, tip.y, RUNE_RETICLE_INNER_R);
     gfx.fill({ color, alpha: RUNE_LINE_ALPHA });
 

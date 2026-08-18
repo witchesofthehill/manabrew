@@ -36,7 +36,6 @@ export interface SectionDefinition {
 
 export const CMC_BUCKET_LABELS = ["1", "2", "3", "4", "5", "6", "7+"] as const;
 
-/** Mana-curve bucket (0–6) for a card; null for lands and unknown costs. */
 export function cmcBucketIndex(card: DeckCard): number | null {
   if (isLand(card.types)) return null;
   const cmc = card.cmc ?? (card.manaCost ? computeCmc(card.manaCost) : undefined);
@@ -44,7 +43,6 @@ export function cmcBucketIndex(card: DeckCard): number | null {
   return Math.min(Math.max(Math.round(cmc) - 1, 0), 6);
 }
 
-/** Comma-separated filter input → lowercase terms; a card matches if its name contains any term. */
 export function parseFilterTerms(filter: string): string[] {
   return filter
     .toLowerCase()

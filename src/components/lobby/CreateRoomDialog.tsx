@@ -418,8 +418,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               </div>
             </div>
 
-            {/* Limited subtype picker — mirrors the offline Limited view's
-              mode grid so the multiplayer surface area lines up. */}
             {kind === "limited" && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Limited mode</Label>

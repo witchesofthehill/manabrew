@@ -1,31 +1,15 @@
-/**
- * Shared helper that turns a preset-specific palette into the 70 game
- * colour keys consumed by `GameThemeColors`. Every preset defines one
- * `BasePalette` (about 25 entries) and spreads the output of
- * `buildGameColors(palette)` into its `gameColors` map.
- *
- * This keeps per-preset theme files short and ensures every preset
- * assigns the same semantic intent to the same base hue — e.g. every
- * theme's "pointer.sacrifice" draws from its palette's `redDeep`, every
- * theme's "pt.buffed" from its `green`, and so on.
- */
-
 export interface BasePalette {
   /** Opaque, high-contrast foreground used for icons, strokes, and
    *  reveal / neutral pointer glyphs. Usually a near-white for dark
    *  themes and a near-black for light ones. */
   foreground: string;
-  /** Subdued label colour (empty-zone labels). */
   labelMuted: string;
   /** Ghost label colour (card-loading placeholder). Slightly brighter
    *  than `labelMuted`. */
   labelGhost: string;
 
-  /** Sprite background used while a card image is still loading. */
   placeholderFill: string;
-  /** Stroke around the placeholder sprite. */
   placeholderStroke: string;
-  /** Canvas backdrop for the Pixi play area. */
   canvasBackground: string;
 
   /** Core hue set — map each to the nearest match in the preset's
@@ -70,12 +54,6 @@ export interface BasePalette {
 
 import type { GameThemeColorMap } from "./gameTheme";
 
-/**
- * Convert a palette into the full set of `gameColors` entries covering
- * every game-theme token. The return type ensures every key from
- * `GameThemeColors` is present — a missing or misspelled key is a
- * compile error.
- */
 export function buildGameColors(p: BasePalette): GameThemeColorMap {
   return {
     "activeAction.priority": p.violet,
@@ -213,7 +191,6 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
   };
 }
 
-/** Convert a `#rrggbb` hex to an rgba() string with the given alpha. */
 function rgbaFromHex(hex: string, alpha: number): string {
   const clean = hex.replace("#", "");
   const full =

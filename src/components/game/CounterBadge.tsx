@@ -3,17 +3,12 @@ import type { GameThemeColors } from "@/themes/gameTheme";
 import { GameIcon, type GameIconName } from "./GameIcon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Counter configuration registry
-
 type CounterColorKey = keyof GameThemeColors["counter"];
 
-/** Visual configuration for a single counter type. */
 interface CounterConfig {
   iconName?: GameIconName;
   label: string;
-  /** Theme colour key for this counter's background tint. */
   colorKey: CounterColorKey;
-  /** Full human-readable name used in tooltips. */
   title: string;
 }
 
@@ -90,8 +85,6 @@ const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
   shield: "bg-counter-shield",
 };
 
-// Size tokens
-
 export type CounterSize = "sm" | "md" | "lg";
 
 interface SizeTokens {
@@ -122,8 +115,6 @@ const SIZE_TOKENS: Record<CounterSize, SizeTokens> = {
   },
 };
 
-// CounterBadge — one badge per counter type
-
 export interface CounterBadgeProps {
   type: string;
   count: number;
@@ -131,10 +122,6 @@ export interface CounterBadgeProps {
   className?: string;
 }
 
-/**
- * Renders a single pill-shaped counter badge showing its symbol and, when
- * count > 1, the quantity.  Returns null for zero-count counters.
- */
 export function CounterBadge({ type, count, size = "sm", className }: CounterBadgeProps) {
   if (count <= 0) return null;
 
@@ -176,19 +163,12 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
   );
 }
 
-// CounterDisplay — row of badges for all counters on a card
-
 export interface CounterDisplayProps {
-  /** Map of counter-type name → count, as received from the engine. */
   counters: Record<string, number>;
   size?: CounterSize;
   className?: string;
 }
 
-/**
- * Renders all non-zero counters for a card as a compact, wrapping row of
- * `CounterBadge` elements.  Returns null when there are no counters.
- */
 export function CounterDisplay({ counters, size = "sm", className }: CounterDisplayProps) {
   const entries = Object.entries(counters).filter(([, n]) => n > 0);
   if (entries.length === 0) return null;

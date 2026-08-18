@@ -1032,6 +1032,8 @@ fn drive_game_via_handle(
     ))
 }
 
+/// G1 keeps pauses roughly bounded as the live set grows; Serial does not.
+const DEFAULT_JAVA_COLLECTOR: &str = "G1";
 const DEFAULT_JAVA_HEAP_MB: u64 = 1024;
 const DEFAULT_JAVA_ACTIVE_PROCESSORS: u64 = 2;
 
@@ -1044,6 +1046,7 @@ pub struct JavaRuntimeConfig {
     pub heap_mb: Option<u64>,
     pub active_processor_count: Option<u64>,
     pub gc_log: Option<String>,
+    pub collector: Option<String>,
     pub extra_jvm_args: Vec<String>,
 }
 
@@ -1071,6 +1074,11 @@ impl JavaRuntimeConfig {
                 "SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS",
                 DEFAULT_JAVA_ACTIVE_PROCESSORS,
             ),
+            collector: env::var("SELF_HOSTED_NODE_JAVA_COLLECTOR")
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .or_else(|| Some(DEFAULT_JAVA_COLLECTOR.to_string())),
             gc_log: env::var("SELF_HOSTED_NODE_JAVA_GC_LOG")
                 .ok()
                 .map(|value| value.trim().to_string())
@@ -1093,7 +1101,20 @@ impl JavaRuntimeConfig {
             // Forge's endstep concurrency patches assume a heap exhaustion kills the process
             // instead of thrashing; a supervised node is restarted, a thrashing one is not.
             "-XX:+ExitOnOutOfMemoryError".to_string(),
+            // Forge calls System.gc() on match boundaries (Match.java,
+            // HostedMatch.java) and so does the harness. Each one is a full
+            // collection, and a full collection costs about 1.3ms per MB of
+            // live set, so on a large board they are seconds of stop-the-world
+            // for no benefit the collector would not have reached anyway.
+            "-XX:+DisableExplicitGC".to_string(),
         ];
+        // Pause time is linear in the live set and Serial collects on one
+        // thread, so a bigger heap under Serial means longer freezes, not
+        // shorter ones. Name the collector rather than inheriting whatever the
+        // host's environment happens to set.
+        if let Some(collector) = &self.collector {
+            args.push(format!("-XX:+Use{collector}GC"));
+        }
         // A fleet runs many of these side by side, and every JVM sizes its heap and its GC
         // thread count from the whole machine unless told otherwise.
         if let Some(heap_mb) = self.heap_mb {
@@ -2323,6 +2344,12 @@ impl SubprocessBridge {
         let jvm_args = config.jvm_args();
         info!(target: "self_hosted_node::java", args = %jvm_args.join(" "), "spawning java engine");
         let mut cmd = Command::new(&java_bin);
+        // The JVM applies JAVA_TOOL_OPTIONS before anything on the command line,
+        // so whatever is set on the host silently governs every flag we do not
+        // name. Production ran -Xmx512m -XX:+UseSerialGC that way for months
+        // with nothing in the repo to show it. Use SELF_HOSTED_NODE_JAVA_OPTS
+        // instead: it is passed here, logged above, and lives in config.
+        cmd.env_remove("JAVA_TOOL_OPTIONS");
         cmd.args(&jvm_args);
         cmd.arg("-jar").arg(&config.harness_jar);
         cmd.arg("--interactive-server");

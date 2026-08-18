@@ -14,7 +14,6 @@ const BUTTON_CLASSNAME =
   "h-9 rounded-lg px-3 text-sm font-black tracking-[0.08em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105 flex items-center justify-center gap-2";
 
 interface MulliganButtonProps {
-  /** Base color from the prompt-action theme (e.g. defenseAction). */
   color: string;
   label: string;
   icon?: ReactNode;

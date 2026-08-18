@@ -164,8 +164,6 @@ import { PreviewCardInfo } from "./PreviewCardInfo";
 
 type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 
-// ─── Main DeckBuilder Component ───────────────────────────────────────────────
-
 export function DeckBuilder({
   onToggleSearch,
   setPreviewSlot,
@@ -435,7 +433,6 @@ export function DeckBuilder({
   // deck after the baseline snapshot, so never treat a preset as dirty.
   const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
 
-  // Sync shared unsaved state for DeckEditor blocker
   useEffect(() => {
     setLastSavedSnapshotRef(lastSavedSnapshot);
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
@@ -542,7 +539,6 @@ export function DeckBuilder({
       });
   }, [currentDeck.cards, supplementaryCards, enrichDeckCards]);
 
-  // ESC to clear selection
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") clearSelection();
@@ -551,7 +547,6 @@ export function DeckBuilder({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [clearSelection]);
 
-  // Bulk selection actions
   function bulkAction(message: string, edit: () => void) {
     executeDeckEdit(message, edit);
     clearSelection();
@@ -693,7 +688,6 @@ export function DeckBuilder({
     toast.success(`Tagged cards with "${tag}"`);
   };
 
-  // Tags that any of the selected cards belong to
   const selectedCardTags = (() => {
     if (selectedCards.size === 0 || !currentDeck.cardTags) return [];
     const tags = new Set<string>();
@@ -704,7 +698,6 @@ export function DeckBuilder({
     return [...tags];
   })();
 
-  // Filter
   const unsupportedNames = useUnsupportedCards(currentDeck);
   const editableUnsupportedNames = new Set(
     [...unsupportedNames].filter((name) =>
@@ -770,7 +763,6 @@ export function DeckBuilder({
     () => applyFilters(currentDeck.cards),
     [applyFilters, currentDeck.cards],
   );
-  // Compute groups
   const { sectionGroups, otherGroups, sideGroups, maybeGroups, specialSections } = useMemo(() => {
     const groupedMain = computeGroupedSections(
       filteredMain,
@@ -839,8 +831,6 @@ export function DeckBuilder({
       })),
     [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags, isCardOwned],
   );
-
-  // ── Handlers ──
 
   function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
     executeDeckEdit(`Remove ${quantity === "one" ? "1" : "all"} ${cardName}`, () =>
@@ -2499,7 +2489,6 @@ export function DeckBuilder({
           }}
         />
 
-        {/* Clear/delete deck confirm dialog */}
         {confirmClear && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
             <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">

@@ -26,18 +26,6 @@ const BTN_ARROW_W = 6;
 const BTN_ARROW_H = 11;
 const BTN_GAP = 6;
 
-/** Owns the stack pile: one `StackCardSprite` per stack object, plus the
- *  pre-stack flash card. Lays the cards out as a left-staggered fan with
- *  hover-push in canvas-local coordinates, and exposes the anchor/seed seam
- *  `BoardScene` reads for arrows and fly-from-stack animations.
- *
- *  Collapsed (driven by the spec) the fan slides right until only the top card's
- *  border peeks at the screen edge — it never fully vanishes. A single toggle
- *  button sits just left of the top card and follows it through the slide, so it
- *  rides between the expanded (left) and collapsed (right) positions with the
- *  same ease; its chevron flips and it pulses while collapsed. A new card landing
- *  while collapsed triggers a transient peek (slide out, hold, slide back). While
- *  collapsed, stack arrows anchor to the button so targeting still reads on screen. */
 export class StackLayer implements StackAnchorProvider {
   readonly container: Container;
   private theme: Theme;
@@ -226,7 +214,6 @@ export class StackLayer implements StackAnchorProvider {
     this.container.destroy({ children: true });
   }
 
-  // ── StackAnchorProvider ────────────────────────────────────────────────────
   getAnchor(stackObjectId: string): ScreenPos | null {
     if (this.effectiveCollapsed()) return this.buttonAnchor();
     const sprite = this.sprites.get(stackObjectId);
@@ -285,7 +272,6 @@ export class StackLayer implements StackAnchorProvider {
     this.setSpec(this.spec);
   }
 
-  // ── Internals ──────────────────────────────────────────────────────────────
   private effectiveCollapsed(): boolean {
     return this.spec.collapsed && !this.peeking;
   }

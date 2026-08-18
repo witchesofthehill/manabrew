@@ -80,7 +80,6 @@ export default function Play() {
     }
   }, [isGameActive, gameView, mpState, navigate]);
 
-  // Handle multiplayer game start from lobby navigation
   useEffect(() => {
     if (!mpState?.multiplayer || multiplayerStarted.current) return;
     multiplayerStarted.current = true;
@@ -149,7 +148,6 @@ export default function Play() {
     );
   }
 
-  // Multiplayer: show waiting state while game starts
   if (mpState?.multiplayer) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">

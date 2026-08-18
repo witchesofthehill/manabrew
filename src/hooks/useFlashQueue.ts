@@ -3,11 +3,6 @@ import { useGameStore } from "@/stores/useGameStore";
 import type { FlashItem } from "@/components/game/game.types";
 import type { GameViewDto } from "@/protocol/game";
 
-/**
- * Manages the display-event flash queue: processes deferred snapshots,
- * shows card-play / turn-change flashes sequentially, then applies
- * the deferred gameView + prompt to the store.
- */
 export function useFlashQueue(flashDurationMs: number) {
   const deferredQueue = useGameStore((s) => s.deferredQueue);
   const [activeFlash, setActiveFlash] = useState<FlashItem | null>(null);

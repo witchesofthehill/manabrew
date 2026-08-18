@@ -51,7 +51,7 @@ export function CommunityDeckShelf({
               <DeckHubEntryCard
                 entry={entry}
                 onOpen={() => onOpenDeck(entry.id)}
-                onAuthorClick={() => onAuthorClick(entry.author)}
+                onAuthorClick={onAuthorClick}
                 onPlay={() => onPlayDeck(entry.id)}
                 playing={pendingDeckId === entry.id}
                 playDisabled={pendingDeckId !== null}

@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Github, Link2, Mail, Pencil, Unlink } from "lucide-react";
+import { Download, Github, Link2, Mail, Pencil, Trash2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { HandleDialog } from "@/components/auth/HandleDialog";
+import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
-import { startOAuth, unlinkIdentity, AuthRequestError, type OAuthProvider } from "@/api/auth";
+import {
+  startOAuth,
+  unlinkIdentity,
+  exportAccount,
+  AuthRequestError,
+  type OAuthProvider,
+} from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { getPlatformType } from "@/platform";
 import { openExternal } from "@/lib/openExternal";
@@ -31,6 +38,7 @@ export function AccountSection() {
   const signOut = useAuthStore((s) => s.signOut);
   const showSignIn = useSignInDialog((s) => s.show);
   const [handleOpen, setHandleOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   if (status !== "signedIn" || !account) {
@@ -88,6 +96,27 @@ export function AccountSection() {
       } else {
         toast.error(err instanceof Error ? err.message : "Unlinking failed");
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExport() {
+    const token = await getAccessToken();
+    if (!token) return;
+    setBusy(true);
+    try {
+      const data = await exportAccount(token);
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `manabrew-${data.account.handle}-${data.exportedAt.slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
     } finally {
       setBusy(false);
     }
@@ -164,13 +193,28 @@ export function AccountSection() {
           </div>
         </div>
 
-        <div>
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void signOut()}>
             Sign out
+          </Button>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void handleExport()}>
+            <Download className="mr-2 h-3.5 w-3.5" />
+            Export my data
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            disabled={busy}
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="mr-2 h-3.5 w-3.5" />
+            Delete account
           </Button>
         </div>
       </div>
       <HandleDialog open={handleOpen} onOpenChange={setHandleOpen} />
+      <DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} />
     </section>
   );
 }

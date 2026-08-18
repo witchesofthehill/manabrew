@@ -25,6 +25,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
+import { DOCS_URL } from "@/lib/constants";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -45,7 +46,6 @@ import { HelpCircle, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
 
-/** Human-readable labels for theme color keys */
 /**
  * Canonical key unions. These drive the typed colour-description maps
  * below so a typo in a description key fails at compile time and adding
@@ -71,8 +71,6 @@ type GameThemePath = {
       : never;
 }[keyof GameThemeColors & string];
 
-/** Human-readable description for each Radix (app chrome) colour token.
- *  Shown as the `title` attribute of a small `?` icon next to the label. */
 const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   background: "Page / window background fill.",
   foreground: "Default body text colour.",
@@ -100,9 +98,6 @@ const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   overlay: "Modal / dialog backdrop dim.",
 };
 
-/** Human-readable description for each game-surface colour token.
- *  Keys are type-checked against the live `GameThemeColors` schema —
- *  a typo or renamed schema field fails compilation here. */
 const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   "activeAction.priority": "Highlight surrounding the player who currently has priority.",
   "activeAction.active": "Active-turn ring, turn-text colour, and general 'your turn' cue.",
@@ -229,9 +224,6 @@ const APP_THEME_COLOR_LABELS: Record<AppThemeKey, string> = {
   overlay: "Overlay",
 };
 
-/** Group the app-chrome Radix tokens by semantic role so the picker
- *  reads like "surfaces → brand → state → structure" instead of a
- *  flat list ordered by schema declaration. */
 const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKey[] }[] = [
   {
     heading: "Surfaces & Foregrounds",
@@ -269,10 +261,6 @@ const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKe
   },
 ];
 
-/** Group the game-surface tokens by prefix so related entries sit
- *  together (all `pointer.*` in one block, all `counter.*` in another,
- *  …). Keys are matched by prefix; anything not covered falls into
- *  the "Miscellaneous" group at the end. */
 const GAME_THEME_GROUPS: {
   heading: string;
   description: string;
@@ -593,6 +581,30 @@ export default function Settings() {
       </section>
 
       {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
+
+      {activeTab === "account" && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Legal</h2>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <a
+              className="underline underline-offset-2"
+              href={`${DOCS_URL}/terms`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Terms
+            </a>
+            <a
+              className="underline underline-offset-2"
+              href={`${DOCS_URL}/privacy`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Privacy &amp; data
+            </a>
+          </div>
+        </section>
+      )}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 
@@ -1199,7 +1211,6 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          {/* end preferences grid */}
           {playmatEditorOpen && (
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
@@ -1343,7 +1354,6 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          {/* end top-level mode/preset grid */}
 
           <div className="pt-2">
             <Input
@@ -1429,7 +1439,6 @@ export default function Settings() {
                 );
               })}
             </div>
-            {/* end app theme grid */}
             <p className="text-xs text-muted-foreground">
               Override individual colors from the active preset.
             </p>
@@ -1568,7 +1577,6 @@ export default function Settings() {
                   ));
               })()}
             </div>
-            {/* end game theme grid */}
             <p className="text-xs text-muted-foreground">
               Generated from game theme keys. Defaults come from the active preset.
             </p>

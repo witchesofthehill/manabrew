@@ -33,10 +33,8 @@ export interface GridBlocker {
 export interface GridCell {
   col: number;
   row: number;
-  /** Top-left corner of the card footprint inside this cell. */
   x: number;
   y: number;
-  /** Center of the card footprint — what sprite targetX/targetY use. */
   cx: number;
   cy: number;
   blocked: boolean;
@@ -52,7 +50,6 @@ export interface GridLayoutInfo {
   rows: number;
   originX: number;
   originY: number;
-  /** Flat cells array, col-major: index = col * rows + row. */
   cells: GridCell[];
 }
 

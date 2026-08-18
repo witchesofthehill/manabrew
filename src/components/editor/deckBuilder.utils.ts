@@ -2,8 +2,6 @@ import type { DeckCard } from "@/protocol/deck";
 import { computeCmc, isLand } from "@/lib/mana";
 export { scryfallToDeckCard } from "@/lib/scryfall.utils";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface CardGroup {
   card: DeckCard;
   count: number;
@@ -36,11 +34,8 @@ export interface SectionDefinition {
   filter: (types: string[]) => boolean;
 }
 
-// ─── Filtering ────────────────────────────────────────────────────────────────
-
 export const CMC_BUCKET_LABELS = ["1", "2", "3", "4", "5", "6", "7+"] as const;
 
-/** Mana-curve bucket (0–6) for a card; null for lands and unknown costs. */
 export function cmcBucketIndex(card: DeckCard): number | null {
   if (isLand(card.types)) return null;
   const cmc = card.cmc ?? (card.manaCost ? computeCmc(card.manaCost) : undefined);
@@ -48,7 +43,6 @@ export function cmcBucketIndex(card: DeckCard): number | null {
   return Math.min(Math.max(Math.round(cmc) - 1, 0), 6);
 }
 
-/** Comma-separated filter input → lowercase terms; a card matches if its name contains any term. */
 export function parseFilterTerms(filter: string): string[] {
   return filter
     .toLowerCase()
@@ -56,8 +50,6 @@ export function parseFilterTerms(filter: string): string[] {
     .map((t) => t.trim())
     .filter(Boolean);
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const TYPE_SECTIONS: Record<string, SectionDefinition> = {
   creatures: { id: "creatures", label: "Creatures", filter: (t) => t.includes("Creature") },
@@ -116,8 +108,6 @@ export const CARD_WIDTH_MAP: Record<number, number> = {
 
 export const DEFAULT_CARD_SIZE = 6;
 export const MAX_CARD_SIZE = 8;
-
-// ─── Pure Functions ───────────────────────────────────────────────────────────
 
 /**
  * Groups cards by name, counting duplicates and sorting by CMC then name.
@@ -212,8 +202,6 @@ export function computeStackColumns(
     cols.push({ id: "other", label: "Other", filter: () => false, groups: otherGroups });
   return cols.filter((c) => c.groups.length > 0);
 }
-
-// ─── Group-By Functions ──────────────────────────────────────────────────────
 
 const CMC_SECTIONS: SectionDefinition[] = [
   { id: "cmc-0", label: "0", filter: () => false },

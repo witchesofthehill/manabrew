@@ -22,10 +22,6 @@ const rlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log("[resume]", ...args);
 };
 
-/**
- * Resumes a multiplayer engine game after a page reload. Inert unless an
- * active-game marker was present when the page loaded.
- */
 export function useGameSessionResume() {
   const navigate = useNavigate();
   const connected = useServerStore((s) => s.connected);

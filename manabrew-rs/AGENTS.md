@@ -36,6 +36,8 @@ All under `manabrew-rs/crates/`:
 
 Deck Hub publication writes require `SessionAccount`. The Hub service's `DECK_HUB` flag defaults off and blocks publication creation, publication updates, and favorite mutations when disabled; public reads and authenticated removal of existing publications remain available. Wire the same value into the web and Hub containers so UI exposure and server enforcement cannot drift.
 
+`DELETE /api/auth/me` (`Storage::delete_account`) erases the account and hard-deletes its decks, but a deck backing a Community publication survives with `account_id` set to NULL, which `15_orphan_decks.sql` allows by relaxing the `decks` CHECK. An ownerless deck is normal: queries that read `decks.account_id` into a non-optional value must filter `account_id IS NOT NULL`, and the entry `author` is `None` on the wire so the client can distinguish a deleted owner from a real handle.
+
 Dependency direction: `foundation`, `card-script`, `cardset-archive` ← `carddb` ← `engine` ← everything else, and `manabrew-protocol` ← `manabrew-relay-protocol`. Don't introduce cycles.
 
 Per-seat `State`, `Prompt`, and `Error` envelopes can contain hidden information. A hosted node must set `BroadcastState.target_player` for all three; `forPlayer` inside the envelope is for client dispatch and replay indexing, not transport privacy.

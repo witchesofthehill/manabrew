@@ -72,9 +72,7 @@ export interface GameState {
    *  null between games. Populated while the start-game flow is fetching
    *  Scryfall textures, before the engine is allowed to emit prompts. */
   isPrefetchingCards: boolean;
-  /** Queue of deferred snapshots waiting for flash animation. */
   deferredQueue: DeferredSnapshot[];
-  /** True while Game.tsx is processing flash animations. */
   isFlashing: boolean;
   /** True after respond() is called and before the next prompt arrives — prevents double-submit. */
   isWaitingForResponse: boolean;
@@ -85,11 +83,8 @@ export interface GameState {
   gameConfig: GameConfig | null;
   /** Set at concede click, before the engine confirms via `status: "conceded"`. */
   selfConceded: boolean;
-  /** True if this is a networked multiplayer game. */
   isMultiplayer: boolean;
-  /** True if this client is the host (runs the engine). */
   isHost: boolean;
-  /** This player's slot identifier, e.g. "player-0", "player-1". */
   myPlayerSlot: string | null;
   /** Active game's decks keyed by player slot id ("player-0", "player-1", ...).
    *  Used by `asDeckCard(deck, gameCard)` callers to resolve the deck side of
@@ -101,7 +96,6 @@ export interface GameState {
   togglePlaymatHidden: (playerId: string) => void;
   updateGameView: (view: ClientGameView) => void;
   setGameConfig: (config: GameConfig) => void;
-  // Actions
   startGame: (
     deck: Deck,
     formatId?: string,

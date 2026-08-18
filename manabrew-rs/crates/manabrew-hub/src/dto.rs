@@ -217,7 +217,9 @@ pub struct DeckHubEntrySummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub summary: Option<String>,
-    pub author: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub author: Option<String>,
     pub source_kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -424,6 +426,107 @@ pub struct AuthIdentity {
 pub struct MeResponse {
     pub account: AuthAccount,
     pub identities: Vec<AuthIdentity>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExport {
+    pub exported_at: String,
+    pub account: AccountExportProfile,
+    pub identities: Vec<AccountExportIdentity>,
+    pub sessions: Vec<AccountExportSession>,
+    pub decks: Vec<AccountExportDeck>,
+    pub publications: Vec<AccountExportPublication>,
+    pub favorites: Vec<AccountExportFavorite>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExportProfile {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub account: AuthAccount,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub email: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExportIdentity {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub identity: AuthIdentity,
+    pub provider_user_id: String,
+    pub email_verified: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExportSession {
+    pub created_at: String,
+    pub expires_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExportDeck {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub summary: AccountDeckSummary,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub deleted_at: Option<String>,
+    pub versions: Vec<DeckVersionDetail>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExportPublication {
+    pub id: String,
+    pub deck_id: String,
+    pub published_version_id: String,
+    pub slug: String,
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub summary: Option<String>,
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub published_at: Option<String>,
+    pub created_at: String,
+    pub play_count: u32,
+    pub win_count: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountExportFavorite {
+    pub deckhub_entry_id: String,
+    pub slug: String,
+    pub title: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

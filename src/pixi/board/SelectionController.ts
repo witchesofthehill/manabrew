@@ -6,12 +6,6 @@ import { Z_SELECTION_BADGE } from "../constants";
 import type { ScreenPos } from "../types";
 import type { SelectionHost } from "./types";
 
-/**
- * Owns local-player battlefield selection: the drag-marquee, the selected-id
- * set, the "N selected" badge, and selection-ring refresh. Reads
- * battlefield sprites through `SelectionHost`. Drag
- * start/end feed the selected set in via `setSelected`.
- */
 export class SelectionController {
   private host: SelectionHost;
   private marquee: MarqueeHandler;
@@ -44,7 +38,6 @@ export class SelectionController {
     this.selected.clear();
   }
 
-  /** Redraw the badge + re-apply selection rings (after a selection change). */
   refresh(): void {
     this.drawBadge();
     this.refreshRings();

@@ -114,7 +114,7 @@ Known gap: `game_players.commander` and `decks.commander` hold a single name, so
 
 ### Loki
 
-Service logs shipped by Alloy (`ops/observability/alloy/config.alloy`), labelled `service` = `manabrew-server` | `self-hosted-node`.
+Service logs shipped by Alloy (`ops/observability/alloy/config.alloy`). It discovers every container on the Docker socket with no allowlist, so each one ships, labelled `service` with its compose service name and `container` with its container name.
 
 ## Provisioned alerts
 

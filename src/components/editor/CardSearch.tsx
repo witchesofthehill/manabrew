@@ -30,8 +30,6 @@ import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import type { ManaCode } from "@/types/scryfall";
 
-// ─── Filter definitions ────────────────────────────────────────────────────────
-
 const COLOR_FILTERS = [
   { id: "W", label: "W", scryfall: "c:w", title: "White" },
   { id: "U", label: "U", scryfall: "c:u", title: "Blue" },
@@ -302,8 +300,6 @@ function countAdvancedFilters(adv: AdvancedFilters): number {
   return count;
 }
 
-// ─── Filter UI helpers ───────────────────────────────────────────────────────
-
 function FilterBtn({
   active,
   onClick,
@@ -384,8 +380,6 @@ function FilterSeparator({ label }: { label: string }) {
   );
 }
 
-// ─── Draggable card wrapper (grid mode) ───────────────────────────────────────
-
 function DraggableCardGrid({
   card,
   onMoreInfo,
@@ -452,8 +446,6 @@ function DraggableCardGrid({
     </div>
   );
 }
-
-// ─── Draggable card wrapper (list mode) ───────────────────────────────────────
 
 function DraggableCardRow({
   card,
@@ -537,8 +529,6 @@ function DraggableCardRow({
     </div>
   );
 }
-
-// ─── Main component ────────────────────────────────────────────────────────────
 
 interface CardSearchProps {
   standalone?: boolean;
@@ -662,7 +652,6 @@ export function CardSearch({
 
   return (
     <div className="flex flex-col h-full w-full">
-      {/* Filters */}
       <div
         className={cn(
           "max-h-[60%] shrink-0 space-y-2 overflow-y-auto border-b py-3",
@@ -737,7 +726,6 @@ export function CardSearch({
 
         {showFilters && (
           <div className="space-y-1 pt-1">
-            {/* ── Colors ── */}
             <FilterSeparator label="Colors & Mana" />
 
             <FilterRow>
@@ -806,7 +794,6 @@ export function CardSearch({
               />
             </FilterRow>
 
-            {/* ── Card Properties ── */}
             <FilterSeparator label="Card Properties" />
 
             <FilterRow className="flex-wrap">
@@ -913,7 +900,6 @@ export function CardSearch({
               </div>
             </FilterRow>
 
-            {/* ── Text Search ── */}
             <FilterSeparator label="Text Search" />
 
             <FilterRow>
@@ -946,7 +932,6 @@ export function CardSearch({
               />
             </FilterRow>
 
-            {/* ── Format & Legality ── */}
             <FilterSeparator label="Format & Legality" />
 
             <FilterRow className="flex-wrap">
@@ -962,7 +947,6 @@ export function CardSearch({
               ))}
             </FilterRow>
 
-            {/* ── Printing & Availability ── */}
             <FilterSeparator label="Printing & Availability" />
 
             <FilterRow className="flex-wrap">
@@ -1040,7 +1024,6 @@ export function CardSearch({
               </div>
             </FilterRow>
 
-            {/* ── Card Modifiers ── */}
             <FilterSeparator label="Card Modifiers" />
 
             <FilterRow className="flex-wrap">
@@ -1056,7 +1039,6 @@ export function CardSearch({
               ))}
             </FilterRow>
 
-            {/* ── Sort ── */}
             <FilterSeparator label="Sort & Order" />
 
             <FilterRow>

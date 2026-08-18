@@ -25,9 +25,7 @@ import type {
 } from "./types";
 import type { RoomRelayEnvelope } from "@/types/server";
 
-// ============================================================================
 // Tauri Server API — delegates to the web relay client, except Forge hosting
-// ============================================================================
 
 class TauriServerApi implements IServerApi {
   private connection: ServerConnectParams | null = null;
@@ -117,10 +115,6 @@ class TauriServerApi implements IServerApi {
     return this.inner.removeAiBot(username);
   }
 }
-
-// ============================================================================
-// Tauri Platform
-// ============================================================================
 
 /**
  * Tauri platform implementation.

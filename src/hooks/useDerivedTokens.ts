@@ -7,9 +7,6 @@ import {
   tokenIdentityKey,
 } from "@/stores/useScryfallStore";
 
-/** Resolves the derived token list for a deck (one per token identity produced by
- *  any card's `allParts`). Waits for the token archive to be loaded so that
- *  `peekArchivedToken` returns results synchronously. */
 export function useDerivedTokens(deck: Deck): DeckCard[] {
   const [ready, setReady] = useState(() => peekAllArchivedTokens().length > 0);
   useEffect(() => {

@@ -42,7 +42,6 @@ interface CompanionState {
    *  Cleared when the user dismisses the summary. */
   summarySession: { session: CompanionSession; winnerId: string | null } | null;
   dismissSummary: () => void;
-  /** Transient per-player pending life deltas (not persisted). */
   pendingDeltas: Record<string, { amount: number; expiresAt: number }>;
 
   newSession: (input: {
@@ -1084,7 +1083,6 @@ export const useCompanionStore = create<CompanionState>()(
   ),
 );
 
-/** Quick-start helper used by the empty-state view. */
 export function bootstrapCompanionSession(): void {
   if (useCompanionStore.getState().session) return;
   useCompanionStore.getState().newSession({

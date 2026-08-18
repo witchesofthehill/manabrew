@@ -4,7 +4,6 @@ import type { PromptOutput } from "@/protocol";
 import { TargetingIntent } from "@/types/promptType";
 import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 
-/** Prompt types that are part of the spell-casting flow. */
 const CASTING_PROMPT_TYPES = new Set(["chooseBoardTargets", "payManaCost"]);
 
 interface UseCastingStateOptions {
@@ -23,12 +22,10 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     );
   }, [promptType, currentPrompt]);
 
-  // Track the chosen target so the arrow persists through cost payment
   const [targetId, setTargetId] = useState<string | null>(null);
   const [targetHostile, setTargetHostile] = useState(false);
   const [targetIntent, setTargetIntent] = useState<TargetingIntent>(TargetingIntent.Hostile);
 
-  // Whether the engine says the current effect is hostile
   const targetingInput =
     currentPrompt?.input.type === "chooseBoardTargets" ? currentPrompt.input : null;
   const promptHostile = targetingInput?.hostile ?? true;
@@ -48,10 +45,8 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     };
   }, [castingCardId]);
 
-  // Whether we're in the targeting phase (arrow follows cursor).
   const isTargeting = promptType === "chooseBoardTargets";
 
-  // Arrow hostility: use locked value if target chosen, else prompt value
   const arrowHostile = targetId ? targetHostile : promptHostile;
   const arrowIntent: TargetingIntent = targetId ? targetIntent : promptIntent;
 
@@ -98,19 +93,12 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
   }, [respond]);
 
   return {
-    /** The card ID being cast, or null. */
     castingCardId,
-    /** Whether the casting arrow should follow the cursor (targeting phase). */
     isTargeting,
-    /** The locked target ID after the player chose a target. */
     targetId,
-    /** Legacy hostile flag — kept for any consumer that hasn't migrated to `arrowIntent`. */
     arrowHostile,
-    /** Semantic intent driving pointer icon + glow colour. */
     arrowIntent,
-    /** Whether there's an active casting arrow to show. */
     showArrow: !!castingCardId && (isTargeting || !!targetId),
-    /** Wrapped target actions that track the chosen target. */
     wrappedTargetCard,
     wrappedTargetPlayer,
     wrappedTargetSpell,

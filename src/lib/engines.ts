@@ -6,7 +6,6 @@ export function availableEngines(): EngineKind[] {
   return isIronsmithRuntimeEnabled() ? ["Manabrew", "Forge", "Ironsmith"] : ["Manabrew", "Forge"];
 }
 
-/** A deck with no engines list runs on any available engine. */
 export function supportsAvailableEngine(engines: EngineKind[] | undefined | null): boolean {
   if (!engines || engines.length === 0) return true;
   const available = availableEngines();

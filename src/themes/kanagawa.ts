@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Kanagawa palette — wave-inspired; muted autumn-meets-spring hues. */
 const palette: BasePalette = {
   foreground: "#dcd7ba", // fujiWhite
   labelMuted: "#727169", // fujiGray

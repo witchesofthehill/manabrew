@@ -167,7 +167,7 @@ export function DeckHubResults({
                         key={entry.id}
                         entry={entry}
                         onOpen={() => onOpen(entry.id)}
-                        onAuthorClick={() => onAuthor(entry.author)}
+                        onAuthorClick={onAuthor}
                         onFavorite={onFavorite ? () => onFavorite(entry) : undefined}
                         favoritePending={Boolean(favoritePending[entry.id])}
                       />

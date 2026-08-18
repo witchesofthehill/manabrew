@@ -6,6 +6,50 @@ Inventory of every Grafana panel and queryable data source in the stack. Config 
 
 Provisioned from `ops/observability/grafana/dashboards/` via `provisioning/dashboards/provider.yml`.
 
+For local product-dashboard testing, start the normal stack and the dev Grafana profile:
+
+```bash
+./dev start
+docker compose -f compose.dev.yaml --profile observability up -d grafana
+```
+
+Open `http://localhost:3000` and sign in with `admin` / `admin`. The SQLite dashboards use `ops/hub-data/dev/events/events.db`, refreshed from the local Hub every five minutes. Live Ops Prometheus and Loki panels do not have local datasources in `compose.dev.yaml`; validate those panels against the production observability stack.
+
+### Executive Health (`executive.json`)
+
+The default product entry point. It is organized around four questions: current health, usage direction, drivers, and data confidence. It combines relay gameplay with sanitized Hub aggregates and links to each deeper dashboard.
+
+| Section             | Main signals                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| Are we healthy?     | active players, games, completion, accounts, collection adoption, user decks             |
+| Is usage improving? | daily games/players, new accounts, new user decks                                        |
+| What drives it?     | new/returning players, completion trend, format demand, play mode, non-game-over endings |
+| Can we trust it?    | relay-event freshness, sanitized Hub-export freshness, dropped analytics/evidence        |
+| Previous period     | player/game percentage change and completion percentage-point change                     |
+
+### Engagement & Gameplay (`engagement.json`)
+
+Filtered diagnosis for player behavior and game friction. Global variables apply format, engine, hosted, and official-game filters consistently to the selected-period panels.
+
+| Section            | Main signals                                                                    |
+| ------------------ | ------------------------------------------------------------------------------- |
+| Selected segment   | players, games, games/player, median and p90 duration, completion               |
+| Behavior over time | games/players, completion, seven-day return cohorts, anonymous player frequency |
+| Where is friction? | duration distribution, human participation, non-game-over ending reasons        |
+
+The retention panel uses first relay appearance as the cohort date. Recent cohorts have not had a full seven-day observation window and are explicitly labelled incomplete.
+
+### Decks & Collections (`decks-collections.json`)
+
+Deck creation, publishing, discovery, collection adoption, and published-deck play evidence. Current-state panels say so explicitly; collection history begins with deployment of the sanitized exporter.
+
+| Section                       | Main signals                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| Adoption now                  | collection users/cards/copies, user decks, publications, published-deck plays              |
+| Is adoption growing?          | collection snapshots, deck/publication/favorite creation, play/completion/win evidence     |
+| What do people build and own? | privacy-safe collection sizes, deck/publication formats, popular owned and published cards |
+| Is discovery healthy?         | latest ranking-category coverage and publication lifecycle                                 |
+
 ### Live Ops (`live-ops.json`)
 
 Datasources: Prometheus (`prometheus`), Loki (`loki`).
@@ -25,30 +69,48 @@ Datasources: Prometheus (`prometheus`), Loki (`loki`).
 | Engine errors by signature (10m increase) | timeseries | `sum by (signature) (increase(manabrew_node_engine_errors_total[10m]))`                                                              |
 | Hosted game duration p50 / p95 (s)        | timeseries | `max(manabrew_node_game_duration_seconds{quantile="0.5"})` / `{quantile="0.95"}`                                                     |
 | Reconnect resyncs (per hour)              | timeseries | `sum(rate(manabrew_relay_reconnect_resyncs_total[1h])) * 3600` and `sum(rate(manabrew_node_relay_reconnects_total[1h])) * 3600`      |
-| Warnings & errors (relay + node)          | logs       | Loki: `{service=~"manabrew-server\|self-hosted-node"} \|~ "WARN\|ERROR\|panicked"`                                                   |
+| Warnings & errors                         | logs       | Loki warnings/errors from relay, Hub, node, and events ingester                                                                      |
+| Stuck-room signal                         | timeseries | Abandoned game reaps compared with other game endings over two hours                                                                 |
+| Deck-play events dropped                  | stat       | `sum(manabrew_relay_deck_play_events_dropped_total)`                                                                                 |
+| Hub analytics age                         | stat       | Seconds since the latest successful sanitized Hub export in `events.db`                                                              |
 
-### Product (`product.json`)
+### Analytics Explorer (`product.json`)
 
-Datasource: SQLite (`events-sqlite`, `frser-sqlite-datasource`) over the analytics DB built by `scripts/ingest-events.py`. Player names are de-tagged in SQL with `substr(username,1,instr(username||'@','@')-1)` — usernames carry a permanent `@NNNN` tag on the relay.
+Broad all-in-one inventory retained for ad hoc analysis and schema inspection. The curated dashboards above should be the normal operational entry points. Datasource: SQLite (`events-sqlite`, `frser-sqlite-datasource`) over the analytics DB built by `scripts/ingest-events.py`.
 
-| Panel                   | Type       | Queries against                                                   |
-| ----------------------- | ---------- | ----------------------------------------------------------------- |
-| Games                   | stat       | `games`                                                           |
-| Distinct players        | stat       | `game_players` (humans only, de-tagged)                           |
-| Median game (min)       | stat       | `games.duration_s`                                                |
-| p90 game (min)          | stat       | `games.duration_s`                                                |
-| Completion rate         | stat       | `games.game_over` / `ended_at`                                    |
-| Games started per hour  | timeseries | `games.started_at`, bucketed hourly                               |
-| Active players per hour | timeseries | `games` ⋈ `game_players`, distinct de-tagged humans               |
-| Game length             | barchart   | `games.duration_s` bucketed (`<3` … `30+` min)                    |
-| Top players by games    | barchart   | `game_players` (humans, de-tagged, top 12)                        |
-| Game ends by reason     | barchart   | `games.end_reason`                                                |
-| Format split            | barchart   | `games.format`                                                    |
-| Games by human count    | barchart   | `games` ⋈ `game_players` (bots only / solo vs AI / 2 humans / 3+) |
-| Top commanders          | table      | `decks.commander` (humans, top 20)                                |
-| Top decks by games      | table      | `game_players.deck_name` (humans, top 20)                         |
-| Top cards               | table      | `deck_cards` (copies + distinct decks, top 25)                    |
-| Player growth           | timeseries | first-seen day per de-tagged player, cumulative                   |
+| Panel                    | Type       | Queries against                                                   |
+| ------------------------ | ---------- | ----------------------------------------------------------------- |
+| Games                    | stat       | `games`                                                           |
+| Distinct players         | stat       | `game_players` (humans only, de-tagged)                           |
+| Median game (min)        | stat       | `games.duration_s`                                                |
+| p90 game (min)           | stat       | `games.duration_s`                                                |
+| Completion rate          | stat       | `games.game_over` / `ended_at`                                    |
+| Games started per hour   | timeseries | `games.started_at`, bucketed hourly                               |
+| Active players per hour  | timeseries | `games` ⋈ `game_players`, distinct de-tagged humans               |
+| Game length              | barchart   | `games.duration_s` bucketed (`<3` … `30+` min)                    |
+| Games per player         | barchart   | anonymous human activity buckets in the selected range            |
+| Game ends by reason      | barchart   | `games.end_reason`                                                |
+| Format split             | barchart   | `games.format`                                                    |
+| Games by human count     | barchart   | `games` ⋈ `game_players` (bots only / solo vs AI / 2 humans / 3+) |
+| Top commanders           | table      | `decks.commander` (humans, top 20)                                |
+| Top decks by games       | table      | `game_players.deck_name` (humans, top 20)                         |
+| Top cards                | table      | `deck_cards` (copies + distinct decks, top 25)                    |
+| Player growth            | timeseries | first-seen day per de-tagged player, cumulative                   |
+| Accounts                 | stat       | latest sanitized Hub account count                                |
+| Collection users         | stat       | accounts with a non-empty synced collection                       |
+| User decks               | stat       | current non-deleted user decks                                    |
+| Active sessions          | stat       | current unexpired sessions, aggregate only                        |
+| Account growth           | timeseries | daily account creation                                            |
+| Deck creation            | timeseries | daily deck creation by kind                                       |
+| Auth providers           | barchart   | linked identity counts by provider                                |
+| Deck visibility          | barchart   | current non-deleted decks by visibility                           |
+| Publication status       | barchart   | current Deck Hub entries by status                                |
+| Collection adoption      | timeseries | hourly collector and unique-card snapshots                        |
+| Published deck plays     | timeseries | daily play evidence by source and hosting mode                    |
+| Popular collection cards | table      | aggregate ownership, suppressed below two collectors              |
+| Cards in published decks | table      | aggregate card inclusion in current published versions            |
+| Analytics coverage       | table      | sanitized row counts for every Hub table                          |
+| Hub export health        | stat       | export age, source schema version, and export duration            |
 
 ## Queryable sources
 
@@ -91,16 +153,25 @@ variable at a directory instead to write rotating files, for a node that is not 
 
 ### SQLite analytics DB
 
-`scripts/ingest-events.py` tails the relay's analytics JSONL (`MANABREW_EVENTS_DIR`) into SQLite; Grafana reads it via the `events-sqlite` datasource.
+`scripts/ingest-events.py` tails the relay's analytics JSONL (`MANABREW_EVENTS_DIR`) into SQLite; Grafana reads it via the `events-sqlite` datasource. The same process opens `hub.db` query-only when `--hub-db` is configured and materializes sanitized analytics into `events.db`. Grafana never mounts or queries `hub.db`.
 
-| Table          | Columns                                                                                                                                                                      |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `games`        | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner` |
-| `game_players` | `game_id`, `username`, `is_bot`, `deck_name`, `commander`, `published_deck_id`, `deck_fingerprint`                                                                           |
-| `decks`        | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                |
-| `deck_cards`   | `deck_id`, `name`, `set_code`, `count`                                                                                                                                       |
-| `events`       | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                         |
-| `ingest_state` | `file`, `byte_offset`                                                                                                                                                        |
+| Table                   | Columns                                                                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `games`                 | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner` |
+| `game_players`          | `game_id`, `username`, `is_bot`, `deck_name`, `commander`, `published_deck_id`, `deck_fingerprint`                                                                           |
+| `decks`                 | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                |
+| `deck_cards`            | `deck_id`, `name`, `set_code`, `count`                                                                                                                                       |
+| `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                         |
+| `ingest_state`          | `file`, `byte_offset`                                                                                                                                                        |
+| `hub_sync_state`        | latest successful export time, Hub schema version, export duration                                                                                                           |
+| `hub_metric_snapshots`  | hourly aggregate Hub metrics with a non-identifying dimension                                                                                                                |
+| `hub_daily_metrics`     | recomputed daily account, identity, deck, publication, favorite, and play-evidence aggregates                                                                                |
+| `hub_collection_cards`  | current card ownership totals; cards with fewer than two collectors are omitted                                                                                              |
+| `hub_public_deck_cards` | current aggregate card inclusion across published deck versions                                                                                                              |
+
+The Hub export covers row counts for `schema_version`, `accounts`, `identities`, `sessions`, `login_tokens`, `oauth_states`, `auth_codes`, `decks`, `deck_versions`, `deck_cards`, `deckhub_entries`, `deckhub_tags`, `deckhub_entry_tags`, `deckhub_favorites`, `top_deck_buckets`, `top_deck_snapshots`, `deck_play_reports`, `card_collection`, `card_collection_versions`, and `data_migrations`. It additionally exports only the aggregates needed for product analysis.
+
+The Hub analytics boundary excludes emails, usernames, account IDs, provider user IDs, session/token/code/state hashes, IP addresses, private deck snapshots, raw per-account collections, and Hub game/player keys. Collection-card rankings suppress cards held by fewer than two accounts, and collection-size distributions export only aggregate buckets. Collection history starts when the exporter is deployed because the source schema stores only current collection state and a version counter. Daily source-derived aggregates are rebuilt on every refresh so late data and corrections converge.
 
 Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`.
 

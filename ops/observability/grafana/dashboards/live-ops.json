@@ -10,6 +10,23 @@
     "to": "now"
   },
   "refresh": "30s",
+  "links": [
+    {
+      "title": "Executive Health",
+      "type": "link",
+      "url": "/d/manabrew-executive"
+    },
+    {
+      "title": "Engagement & Gameplay",
+      "type": "link",
+      "url": "/d/manabrew-engagement"
+    },
+    {
+      "title": "Decks & Collections",
+      "type": "link",
+      "url": "/d/manabrew-decks-collections"
+    }
+  ],
   "panels": [
     {
       "id": 1,
@@ -466,7 +483,7 @@
     {
       "id": 14,
       "type": "logs",
-      "title": "Warnings & errors (relay + node)",
+      "title": "Warnings & errors",
       "datasource": {
         "type": "loki",
         "uid": "loki"
@@ -484,7 +501,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{service=~\"manabrew-server|self-hosted-node\"} |~ \"WARN|ERROR|panicked\""
+          "expr": "{service=~\"manabrew-server|manabrew-hub|self-hosted-node|events-ingester\"} |~ \"WARN|ERROR|panicked|failed\""
         }
       ],
       "fieldConfig": {
@@ -535,6 +552,104 @@
           "legendFormat": "{{reason}} (context)"
         }
       ]
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "Deck-play events dropped",
+      "description": "relay-to-Hub evidence events lost since the relay started",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(manabrew_relay_deck_play_events_dropped_total)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background"
+      }
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Hub analytics age",
+      "description": "seconds since the last successful sanitized Hub export",
+      "gridPos": {
+        "x": 18,
+        "y": 36,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT strftime('%s', 'now') - strftime('%s', synced_at) AS seconds FROM hub_sync_state WHERE id = 1",
+          "rawQueryText": "SELECT strftime('%s', 'now') - strftime('%s', synced_at) AS seconds FROM hub_sync_state WHERE id = 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 900
+              },
+              {
+                "color": "red",
+                "value": 3600
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background"
+      }
     }
   ]
 }

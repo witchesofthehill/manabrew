@@ -130,11 +130,14 @@ services:
       - /app/ingest-events.py
       - --dir
       - /events
+      - --hub-db
+      - /hub/hub.db
       - --watch
       - "1"
     volumes:
       - ./scripts/ingest-events.py:/app/ingest-events.py:ro
       - ./ops/hub-data/dev/events:/events
+      - ./ops/hub-data/dev:/hub
     healthcheck:
       test:
         - CMD
@@ -145,9 +148,28 @@ services:
       timeout: 2s
       retries: 30
 
+  grafana:
+    profiles:
+      - observability
+    image: grafana/grafana:11.6.1
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: frser-sqlite-datasource
+      DISCORD_WEBHOOK_URL: https://discord.invalid/webhook-not-configured
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./ops/hub-data/dev/events:/var/manabrew/events
+      - grafana-dev-data:/var/lib/grafana
+    restart: unless-stopped
+
 volumes:
   web-node-modules:
   cargo-registry:
   cargo-git:
   relay-target:
   hub-target:
+  grafana-dev-data:

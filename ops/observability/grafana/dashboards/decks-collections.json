@@ -1,0 +1,353 @@
+{
+  "uid": "manabrew-decks-collections",
+  "title": "Manabrew — Decks & Collections",
+  "tags": ["manabrew", "product", "decks", "collections"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": { "from": "now-90d", "to": "now" },
+  "refresh": "5m",
+  "links": [
+    { "title": "Executive Health", "type": "link", "url": "/d/manabrew-executive" },
+    { "title": "Engagement & Gameplay", "type": "link", "url": "/d/manabrew-engagement" },
+    { "title": "Analytics Explorer", "type": "link", "url": "/d/manabrew-product" }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Adoption now",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Collection users",
+      "description": "accounts with at least one synced card; current state",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS collectors FROM hub_metric_snapshots WHERE metric = 'collection_collectors' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS collectors FROM hub_metric_snapshots WHERE metric = 'collection_collectors' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Unique owned cards",
+      "description": "distinct normalized card keys across synced collections; current state",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS cards FROM hub_metric_snapshots WHERE metric = 'collection_cards' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS cards FROM hub_metric_snapshots WHERE metric = 'collection_cards' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Owned copies",
+      "description": "total quantities across synced collections; current state",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS copies FROM hub_metric_snapshots WHERE metric = 'collection_copies' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS copies FROM hub_metric_snapshots WHERE metric = 'collection_copies' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "User decks",
+      "description": "current non-deleted user decks",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_kind' AND dimension = 'user' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_kind' AND dimension = 'user' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Published decks",
+      "description": "current published Deck Hub entries",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS published FROM hub_metric_snapshots WHERE metric = 'publications_by_status' AND dimension = 'published' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS published FROM hub_metric_snapshots WHERE metric = 'publications_by_status' AND dimension = 'published' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Published-deck plays",
+      "description": "all recorded privacy-safe play evidence",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT coalesce(sum(value), 0) AS plays FROM hub_metric_snapshots WHERE metric = 'play_reports_by_source' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "rawQueryText": "SELECT coalesce(sum(value), 0) AS plays FROM hub_metric_snapshots WHERE metric = 'play_reports_by_source' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Is adoption growing?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Collection adoption history",
+      "description": "hourly snapshots begin when the sanitized exporter is deployed",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', snapshot_at) AS INTEGER) AS t, max(CASE WHEN metric = 'collection_collectors' THEN value END) AS collectors, max(CASE WHEN metric = 'collection_cards' THEN value END) AS unique_cards FROM hub_metric_snapshots WHERE metric IN ('collection_collectors', 'collection_cards') AND CAST(strftime('%s', snapshot_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', snapshot_at) AS INTEGER) <= $__to / 1000 GROUP BY snapshot_at ORDER BY snapshot_at",
+          "rawQueryText": "SELECT CAST(strftime('%s', snapshot_at) AS INTEGER) AS t, max(CASE WHEN metric = 'collection_collectors' THEN value END) AS collectors, max(CASE WHEN metric = 'collection_cards' THEN value END) AS unique_cards FROM hub_metric_snapshots WHERE metric IN ('collection_collectors', 'collection_cards') AND CAST(strftime('%s', snapshot_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', snapshot_at) AS INTEGER) <= $__to / 1000 GROUP BY snapshot_at ORDER BY snapshot_at",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Deck creation and publication",
+      "description": "daily user deck creation and Deck Hub publication",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, sum(CASE WHEN metric = 'decks_created' AND dimension = 'user' THEN value ELSE 0 END) AS user_decks, sum(CASE WHEN metric = 'publications_created' AND dimension = 'published' THEN value ELSE 0 END) AS publications, sum(CASE WHEN metric = 'favorites_created' THEN value ELSE 0 END) AS favorites FROM hub_daily_metrics WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY day ORDER BY day",
+          "rawQueryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, sum(CASE WHEN metric = 'decks_created' AND dimension = 'user' THEN value ELSE 0 END) AS user_decks, sum(CASE WHEN metric = 'publications_created' AND dimension = 'published' THEN value ELSE 0 END) AS publications, sum(CASE WHEN metric = 'favorites_created' THEN value ELSE 0 END) AS favorites FROM hub_daily_metrics WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY day ORDER BY day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Published-deck engagement",
+      "description": "daily play, completion, and win evidence; counts are deck-seat reports, not unique games",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, sum(CASE WHEN metric = 'plays' THEN value ELSE 0 END) AS plays, sum(CASE WHEN metric = 'completed_plays' THEN value ELSE 0 END) AS completed, sum(CASE WHEN metric = 'wins' THEN value ELSE 0 END) AS wins FROM hub_daily_metrics WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY day ORDER BY day",
+          "rawQueryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, sum(CASE WHEN metric = 'plays' THEN value ELSE 0 END) AS plays, sum(CASE WHEN metric = 'completed_plays' THEN value ELSE 0 END) AS completed, sum(CASE WHEN metric = 'wins' THEN value ELSE 0 END) AS wins FROM hub_daily_metrics WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY day ORDER BY day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "What do people build and own?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 13,
+      "type": "barchart",
+      "title": "Collection sizes",
+      "description": "privacy-safe account buckets; no individual collection is exported",
+      "gridPos": { "x": 0, "y": 23, "w": 8, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS size, value AS collectors FROM hub_metric_snapshots WHERE metric = 'collection_size_buckets' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY CASE dimension WHEN '<100' THEN 1 WHEN '100-499' THEN 2 WHEN '500-999' THEN 3 WHEN '1k-5k' THEN 4 ELSE 5 END",
+          "rawQueryText": "SELECT dimension AS size, value AS collectors FROM hub_metric_snapshots WHERE metric = 'collection_size_buckets' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY CASE dimension WHEN '<100' THEN 1 WHEN '100-499' THEN 2 WHEN '500-999' THEN 3 WHEN '1k-5k' THEN 4 ELSE 5 END",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 14,
+      "type": "barchart",
+      "title": "Deck formats",
+      "description": "current non-deleted decks by format",
+      "gridPos": { "x": 8, "y": 23, "w": 8, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS format, value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_format' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY decks DESC",
+          "rawQueryText": "SELECT dimension AS format, value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_format' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY decks DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 15,
+      "type": "barchart",
+      "title": "Published formats",
+      "description": "current published Deck Hub entries by format",
+      "gridPos": { "x": 16, "y": 23, "w": 8, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS format, value AS publications FROM hub_metric_snapshots WHERE metric = 'publications_by_format' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY publications DESC",
+          "rawQueryText": "SELECT dimension AS format, value AS publications FROM hub_metric_snapshots WHERE metric = 'publications_by_format' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY publications DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Popular owned cards",
+      "description": "cards appearing in at least two collections; sorted by collector reach",
+      "gridPos": { "x": 0, "y": 31, "w": 12, "h": 10 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT card_key AS card, collectors, copies FROM hub_collection_cards ORDER BY collectors DESC, copies DESC LIMIT 30",
+          "rawQueryText": "SELECT card_key AS card, collectors, copies FROM hub_collection_cards ORDER BY collectors DESC, copies DESC LIMIT 30",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "Cards used in published decks",
+      "description": "current published versions; sorted by deck inclusion",
+      "gridPos": { "x": 12, "y": 31, "w": 12, "h": 10 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT card_name AS card, format, zone, decks, copies FROM hub_public_deck_cards WHERE zone != 'token' ORDER BY decks DESC, copies DESC LIMIT 30",
+          "rawQueryText": "SELECT card_name AS card, format, zone, decks, copies FROM hub_public_deck_cards WHERE zone != 'token' ORDER BY decks DESC, copies DESC LIMIT 30",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "Is discovery healthy?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 41, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "table",
+      "title": "Ranking coverage",
+      "description": "entries in each latest Top Deck snapshot; zero indicates an empty or stale category",
+      "gridPos": { "x": 0, "y": 42, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS category, CAST(value AS INTEGER) AS entries FROM hub_metric_snapshots WHERE metric = 'ranking_entries' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY category",
+          "rawQueryText": "SELECT dimension AS category, CAST(value AS INTEGER) AS entries FROM hub_metric_snapshots WHERE metric = 'ranking_entries' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY category",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 20,
+      "type": "table",
+      "title": "Publication state",
+      "description": "current Deck Hub lifecycle distribution",
+      "gridPos": { "x": 12, "y": 42, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS status, CAST(value AS INTEGER) AS publications FROM hub_metric_snapshots WHERE metric = 'publications_by_status' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY publications DESC",
+          "rawQueryText": "SELECT dimension AS status, CAST(value AS INTEGER) AS publications FROM hub_metric_snapshots WHERE metric = 'publications_by_status' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY publications DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    }
+  ]
+}

@@ -1880,7 +1880,7 @@ fn stamp_fingerprint(mut envelope: Value) -> Value {
     let Some(state) = envelope.get("state") else {
         return envelope;
     };
-    let fingerprint = manabrew_agent_interface::state_delta::fingerprint(state);
+    let fingerprint = manabrew_relay_protocol::state_delta::fingerprint(state);
     if let Some(object) = envelope.as_object_mut() {
         object.insert("fingerprint".to_string(), Value::String(fingerprint));
     }
@@ -1901,7 +1901,7 @@ fn patch_against_last(
     let fingerprint = envelope.get("fingerprint")?.as_str()?.to_string();
     let previous = bases.insert(player_index, (next.clone(), fingerprint.clone()));
     let (base_state, base) = previous?;
-    let patch = manabrew_agent_interface::state_delta::diff(&base_state, &next)?;
+    let patch = manabrew_relay_protocol::state_delta::diff(&base_state, &next)?;
     serde_json::to_value(StateEnvelope::StateDelta {
         for_player: per_seat.then(|| slot.to_string()),
         base,

@@ -18,6 +18,7 @@ name = "self-hosted-node"
 path = "src/main.rs"
 
 [dependencies]
+manabrew-relay-protocol = { path = "../manabrew-relay-protocol", version = "5.0.1" }
 manabrew-agent-interface = { path = "../manabrew-agent-interface", version = "0.7.1" }
 manabrew-protocol = { path = "../manabrew-protocol", version = "5.1.0" }
 manabot = { path = "../manabot/", version = "0.7.1" }

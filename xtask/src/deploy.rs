@@ -65,9 +65,13 @@ const CONFIG_EXCLUDES: [&str; 5] = [
 const COMPOSE_FILE: &str = "compose.production.yml";
 const GHCR: &str = "ghcr.io/witchesofthehill";
 const RELAY_BIN: &str = "/usr/local/bin/manabrew-server";
-const GATE_CRATES: [&str; 4] = [
+// Every crate whose wire format an installed client depends on. StateEnvelope
+// lives in manabrew-agent-interface rather than the protocol crates, so leaving
+// it out let an envelope change deploy early, ahead of the installers.
+const GATE_CRATES: [&str; 5] = [
     "manabrew-protocol",
     "manabrew-relay-protocol",
+    "manabrew-agent-interface",
     "manabrew-server",
     "manabrew-hub",
 ];

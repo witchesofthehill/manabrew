@@ -8,3 +8,4 @@ pub mod ids_codec;
 pub(crate) mod mana_action_id;
 pub mod prompt;
 pub mod protocol;
+pub mod state_delta;

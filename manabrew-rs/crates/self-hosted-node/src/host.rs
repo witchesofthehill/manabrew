@@ -1443,6 +1443,7 @@ fn maybe_start_hosted_engine(
                 game_id.clone(),
                 remote_prompt_rx,
                 Some(player_names.clone()),
+                config.state_delta,
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1516,6 +1517,7 @@ fn maybe_start_hosted_engine(
                 game_id.clone(),
                 remote_prompt_rx,
                 Some(player_names.clone()),
+                config.state_delta,
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1872,6 +1874,43 @@ fn authenticated_player_index(
     Some(player_index)
 }
 
+/// Add the fingerprint of the carried state to a full state envelope, so a
+/// receiver can tell whether a later patch applies to what it holds.
+fn stamp_fingerprint(mut envelope: Value) -> Value {
+    let Some(state) = envelope.get("state") else {
+        return envelope;
+    };
+    let fingerprint = manabrew_agent_interface::state_delta::fingerprint(state);
+    if let Some(object) = envelope.as_object_mut() {
+        object.insert("fingerprint".to_string(), Value::String(fingerprint));
+    }
+    envelope
+}
+
+/// Patch form of a fingerprinted state envelope, against the last one sent to
+/// this seat. `None` the first time a seat is served, or if anything is missing,
+/// and the caller falls back to the full state, which is always correct.
+fn patch_against_last(
+    bases: &mut HashMap<usize, (Value, String)>,
+    player_index: usize,
+    per_seat: bool,
+    slot: &str,
+    envelope: &Value,
+) -> Option<Value> {
+    let next = envelope.get("state")?.clone();
+    let fingerprint = envelope.get("fingerprint")?.as_str()?.to_string();
+    let previous = bases.insert(player_index, (next.clone(), fingerprint.clone()));
+    let (base_state, base) = previous?;
+    let patch = manabrew_agent_interface::state_delta::diff(&base_state, &next)?;
+    serde_json::to_value(StateEnvelope::StateDelta {
+        for_player: per_seat.then(|| slot.to_string()),
+        base,
+        fingerprint,
+        patch,
+    })
+    .ok()
+}
+
 fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     snapshot: SharedHostSnapshot,
@@ -1879,9 +1918,11 @@ fn spawn_remote_prompt_forwarder(
     game_id: String,
     remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
     seat_usernames: Option<Vec<String>>,
+    state_delta: bool,
 ) {
     thread::spawn(move || {
         let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
+        let mut delta_bases: HashMap<usize, (Value, String)> = HashMap::new();
         let mut last_state: Option<Value> = None;
         let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
@@ -1900,11 +1941,16 @@ fn spawn_remote_prompt_forwarder(
                 AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
                     for_player: None,
                     state: serde_json::to_value(state_update).unwrap_or(Value::Null),
+                    fingerprint: None,
                 },
                 _ => StateEnvelope::for_agent_message(slot.clone(), &message),
             };
             let Ok(state) = serde_json::to_value(envelope) else {
                 continue;
+            };
+            let state = match &message {
+                AgentMessage::State(_) if state_delta => stamp_fingerprint(state),
+                _ => state,
             };
             match &message {
                 AgentMessage::State(_) if per_seat => {
@@ -1922,15 +1968,22 @@ fn spawn_remote_prompt_forwarder(
             if let Ok(mut snap) = snapshot.lock() {
                 match &message {
                     AgentMessage::State(_) if per_seat => {
-                        snap.last_state_by_slot.insert(slot, state.clone());
+                        snap.last_state_by_slot.insert(slot.clone(), state.clone());
                     }
                     AgentMessage::State(_) => snap.last_state = Some(state.clone()),
                     AgentMessage::Prompt(_) => {
-                        snap.pending_prompts.insert(slot, state.clone());
+                        snap.pending_prompts.insert(slot.clone(), state.clone());
                     }
                     AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
             }
+            let state = match &message {
+                AgentMessage::State(_) if state_delta => {
+                    patch_against_last(&mut delta_bases, player_index, per_seat, &slot, &state)
+                        .unwrap_or(state)
+                }
+                _ => state,
+            };
             let target_player = if per_seat
                 && matches!(
                     message,
@@ -2000,6 +2053,7 @@ fn spawn_game_over_forwarder(
                     AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
                         for_player: None,
                         state: serde_json::to_value(state_update).unwrap_or(Value::Null),
+                        fingerprint: None,
                     },
                     _ => StateEnvelope::for_agent_message(player_slot(player_index), &message),
                 };

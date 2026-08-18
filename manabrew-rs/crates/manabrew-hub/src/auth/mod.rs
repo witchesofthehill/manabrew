@@ -4,7 +4,8 @@ mod oauth;
 mod token;
 
 pub use account::{
-    exchange_handler, logout_handler, me_handler, unlink_identity_handler, update_handle_handler,
+    delete_account_handler, exchange_handler, export_account_handler, logout_handler, me_handler,
+    unlink_identity_handler, update_handle_handler,
 };
 pub use email::{email_request_handler, email_verify_handler};
 pub use oauth::{oauth_callback_handler, oauth_start_handler};

@@ -9,7 +9,7 @@ use std::process::Command;
 
 use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
-    AccessTokenResponse, AccountDeckDetail, AccountDeckList, AccountDeckSummary,
+    AccessTokenResponse, AccountDeckDetail, AccountDeckList, AccountDeckSummary, AccountExport,
     AdminTopDeckSnapshotRequest, AuthProviders, AuthSessionResponse, CardCollection,
     CreateAccountDeckRequest, DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary,
     DeckHubFacets, DeckHubTag, DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary,
@@ -56,6 +56,7 @@ pub fn generate(root: &Path) -> Result<()> {
     AccountDeckSummary::export_all_to(&out).context("export AccountDeckSummary")?;
     AccountDeckList::export_all_to(&out).context("export AccountDeckList")?;
     AccountDeckDetail::export_all_to(&out).context("export AccountDeckDetail")?;
+    AccountExport::export_all_to(&out).context("export AccountExport")?;
     DeckVersionSummary::export_all_to(&out).context("export DeckVersionSummary")?;
     DeckVersionDetail::export_all_to(&out).context("export DeckVersionDetail")?;
     DeckHubTag::export_all_to(&out).context("export DeckHubTag")?;

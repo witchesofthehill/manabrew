@@ -55,7 +55,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
                 <DeckHubEntryCard
                   entry={entry}
                   onOpen={() => onOpen(entry.id)}
-                  onAuthorClick={() => onAuthor(entry.author)}
+                  onAuthorClick={onAuthor}
                 />
               </div>
             ))}
@@ -73,7 +73,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
                 entry={entry}
                 variant="list"
                 onOpen={() => onOpen(entry.id)}
-                onAuthorClick={() => onAuthor(entry.author)}
+                onAuthorClick={onAuthor}
               />
             ))}
           </div>
@@ -96,7 +96,7 @@ export function DeckHubCuratedSections({ onOpen, onAuthor }: DeckHubCuratedSecti
                 <DeckHubEntryCard
                   entry={entry}
                   onOpen={() => onOpen(entry.id)}
-                  onAuthorClick={() => onAuthor(entry.author)}
+                  onAuthorClick={onAuthor}
                 />
               </div>
             ))}

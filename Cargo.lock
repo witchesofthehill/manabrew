@@ -3876,7 +3876,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "aws-lc-rs",
  "axum",

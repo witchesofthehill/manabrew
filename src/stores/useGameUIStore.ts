@@ -3,8 +3,6 @@ import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 
-// ── State Shapes ──────────────────────────────────────────────────────────────
-
 export interface HandActionOption {
   kind: "cast" | "ability" | "manual-move" | "manual-tap";
   cardId: string;
@@ -48,8 +46,6 @@ interface ViewingZoneState {
   targetHostile?: boolean;
 }
 
-// ── Store Interface ───────────────────────────────────────────────────────────
-
 interface GameUIState {
   // Modal states (all transient, not persisted)
   abilityPicker: AbilityPickerState | null;
@@ -59,7 +55,6 @@ interface GameUIState {
   rightPanelTab: "log" | "snapshots" | "dev";
   promptModalHidden: boolean;
 
-  // Actions
   openAbilityPicker: (state: AbilityPickerState) => void;
   closeAbilityPicker: () => void;
   openPlayModePicker: (state: PlayModePickerState) => void;
@@ -75,12 +70,9 @@ interface GameUIState {
   resetAll: () => void;
 }
 
-// ── Store Implementation ──────────────────────────────────────────────────────
-
 export const useGameUIStore = create<GameUIState>()(
   devtools(
     (set) => ({
-      // Initial state
       abilityPicker: null,
       playModePicker: null,
       viewingZone: null,
@@ -88,7 +80,6 @@ export const useGameUIStore = create<GameUIState>()(
       rightPanelTab: "log",
       promptModalHidden: false,
 
-      // Actions
       openAbilityPicker: (state) => set({ abilityPicker: state }),
       closeAbilityPicker: () => set({ abilityPicker: null }),
 

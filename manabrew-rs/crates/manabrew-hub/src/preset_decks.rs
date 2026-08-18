@@ -6,7 +6,7 @@ use manabrew_protocol::deck_dto::{
     CardBackFaceSummary, CardImageUris, CardPart, CardRulesSummary, Deck, DeckCard,
     DeckCardIdentity, DeckFormat,
 };
-use manabrew_protocol::protocol::EngineKind;
+use manabrew_protocol::game::EngineKind;
 use serde::Deserialize;
 
 pub struct PresetDeck {
@@ -169,6 +169,9 @@ fn expand_preset_deck(key: &str, preset: PresetDeckFile) -> io::Result<Deck> {
         maybeboard: None,
         draft: None,
         labels: None,
+        custom_tags: None,
+        card_tags: None,
+        editor: None,
         cover_card_face: None,
         playmat: None,
         playmat_settings: None,

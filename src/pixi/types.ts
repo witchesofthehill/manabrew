@@ -67,13 +67,10 @@ export interface GameCanvasCallbacks {
   onClickCard_Hand?: (card: CardDto, pointer?: { clientX: number; clientY: number }) => void;
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
-  /** Fires when a non-targetable player's avatar is tapped — opens their detail sheet. */
   onShowPlayerSheet?: (playerId: string) => void;
   onFocusOpponentField?: (playerId: string) => void;
   onLongPressCard?: (card: CardDto, screenBounds: ScreenBounds) => void;
-  /** Fires when the self panel's gear is tapped — opens the board menu. */
   onShowBoardMenu?: () => void;
-  /** Fires when the mouse enters/leaves an opponent's battleground (null off-field). */
   onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
@@ -81,17 +78,12 @@ export interface GameCanvasCallbacks {
   onUntapLand?: (card: CardDto) => void;
   onUntapLands?: (cardIds: string[]) => void;
   onAttackerClick?: (card: CardDto) => void;
-  /** Drag-to-block: a blocker sprite was dropped onto an attacker sprite. */
   onAssignBlock?: (blockerId: string, attackerId: string) => void;
-  /** Drag-to-unblock: a staged blocker was dragged back off its attacker. */
   onUnassignBlock?: (blockerId: string) => void;
   /** Fires when a block-drag arms (blockerId) or ends (null), so the UI can
    *  highlight the attackers that blocker may legally block. */
   onBlockDragChange?: (blockerId: string | null) => void;
-  /** Drag-to-attack: a creature sprite was dropped onto a defender (player /
-   *  planeswalker / battle). */
   onAssignAttacker?: (attackerId: string, targetId: string) => void;
-  /** Drag-to-unattack: a staged attacker was dragged back off its target. */
   onUnassignAttacker?: (attackerId: string) => void;
   /** Fires when an attack-drag arms (attackerId) or ends (null), so the UI can
    *  highlight that attacker's legal defenders. */

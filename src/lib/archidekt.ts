@@ -15,9 +15,7 @@ export interface ArchidektSearchResult {
 export interface ArchidektDeckCard {
   name: string;
   count: number;
-  /** Lowercase set code (e.g. `"vow"`). Forwarded to Scryfall identifiers. */
   set?: string;
-  /** Collector number (e.g. `"42"` or `"42a"`). Used for art-variant lookups. */
   cardNumber?: string;
 }
 
@@ -26,11 +24,8 @@ export interface ArchidektDeck {
   name: string;
   description: string;
   colors: string[];
-  /** Mainboard cards (excludes sideboard, maybeboard, commanders). */
   cards: ArchidektDeckCard[];
-  /** Commander cards, if any. */
   commanders: ArchidektDeckCard[];
-  /** Oathbreaker signature spells, if any. Empty for non-Oathbreaker decks. */
   signatureSpells?: ArchidektDeckCard[];
 }
 
@@ -60,7 +55,6 @@ export const ARCHIDEKT_FORMATS: Record<number, string> = {
   23: "Timeless",
 };
 
-/** Map our local GAME_FORMATS ids to Archidekt's numeric `deckFormat` codes. */
 export const GAME_FORMAT_TO_ARCHIDEKT: Record<string, number> = {
   standard: 1,
   modern: 2,
@@ -122,7 +116,6 @@ function mapSearchResult(d: RawSearchResult): ArchidektSearchResult {
   };
 }
 
-/** Parse an Archidekt deck URL (or bare id) into a numeric deck id. */
 export function parseArchidektUrl(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -214,7 +207,6 @@ export async function fetchArchidektDeck(
   };
 }
 
-/** Fetch a deck and project it into a search-result-shaped object for display. */
 export async function fetchArchidektResult(
   id: string,
   opts: RequestOptions = {},

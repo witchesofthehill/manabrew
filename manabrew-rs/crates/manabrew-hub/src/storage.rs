@@ -202,6 +202,78 @@ pub struct Storage {
 }
 
 impl Storage {
+    pub fn card_collection(&self, account_id: &str) -> SqlResult<(u32, Vec<(String, u32)>)> {
+        let version = self
+            .conn
+            .query_row(
+                "SELECT version FROM card_collection_versions WHERE account_id = ?1",
+                params![account_id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .unwrap_or_default();
+        let mut statement = self.conn.prepare(
+            "SELECT card_key, quantity FROM card_collection WHERE account_id = ?1 ORDER BY card_key",
+        )?;
+        let cards = statement
+            .query_map(params![account_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)?))
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+        Ok((version, cards))
+    }
+
+    pub fn replace_card_collection(
+        &self,
+        account_id: &str,
+        cards: &[(String, u32)],
+        expected_version: Option<u32>,
+    ) -> SqlResult<Option<u32>> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO card_collection_versions (account_id, version) VALUES (?1, 0)
+             ON CONFLICT (account_id) DO NOTHING",
+            params![account_id],
+        )?;
+        let updated = match expected_version {
+            Some(version) => tx.execute(
+                "UPDATE card_collection_versions SET version = version + 1
+                 WHERE account_id = ?1 AND version = ?2",
+                params![account_id, version],
+            )?,
+            None => tx.execute(
+                "UPDATE card_collection_versions SET version = version + 1 WHERE account_id = ?1",
+                params![account_id],
+            )?,
+        };
+        if updated == 0 {
+            tx.rollback()?;
+            return Ok(None);
+        }
+        tx.execute(
+            "DELETE FROM card_collection WHERE account_id = ?1",
+            params![account_id],
+        )?;
+        {
+            let mut statement = tx.prepare(
+                "INSERT INTO card_collection (account_id, card_key, quantity) VALUES (?1, ?2, ?3)",
+            )?;
+            for (card_key, quantity) in cards {
+                if *quantity == 0 {
+                    continue;
+                }
+                statement.execute(params![account_id, card_key, quantity])?;
+            }
+        }
+        let version = tx.query_row(
+            "SELECT version FROM card_collection_versions WHERE account_id = ?1",
+            params![account_id],
+            |row| row.get(0),
+        )?;
+        tx.commit()?;
+        Ok(Some(version))
+    }
+
     pub fn open(path: &str) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
         conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))?;
@@ -1422,17 +1494,17 @@ impl Storage {
                 |row| {
                     let entry = map_deckhub_entry_summary(row)?;
                     let snapshot_json: String = row.get(14)?;
-                    let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+                    let deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
                             14,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
                     })?;
-                    deck.playmat = None;
-                    deck.playmat_settings = None;
-                    deck.stack_positions = None;
-                    Ok(DeckHubEntryDetail { entry, deck })
+                    Ok(DeckHubEntryDetail {
+                        entry,
+                        deck: public_deck(deck),
+                    })
                 },
             )
             .optional()?;
@@ -2756,6 +2828,16 @@ fn publication_slug(name: &str, id: &str) -> String {
     }
 }
 
+fn public_deck(mut deck: Deck) -> Deck {
+    deck.custom_tags = None;
+    deck.card_tags = None;
+    deck.editor = None;
+    deck.playmat = None;
+    deck.playmat_settings = None;
+    deck.stack_positions = None;
+    deck
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     Sha256::digest(bytes)
         .iter()
@@ -3051,6 +3133,105 @@ mod tests {
     use super::*;
 
     #[test]
+    fn card_collections_are_isolated_by_account_and_cascade_on_delete() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute_batch(
+                "INSERT INTO accounts (id, handle, handle_set, created_at) VALUES
+                 ('acct-1', 'first', 1, '2026-08-01T00:00:00Z'),
+                 ('acct-2', 'second', 1, '2026-08-01T00:00:00Z');",
+            )
+            .unwrap();
+
+        storage
+            .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)], Some(0))
+            .unwrap();
+        storage
+            .replace_card_collection("acct-2", &[("lightning bolt".to_string(), 1)], Some(0))
+            .unwrap();
+
+        assert_eq!(
+            storage.card_collection("acct-1").unwrap(),
+            (1, vec![("lightning bolt".to_string(), 4)])
+        );
+        assert_eq!(
+            storage.card_collection("acct-2").unwrap(),
+            (1, vec![("lightning bolt".to_string(), 1)])
+        );
+
+        storage
+            .conn
+            .execute("DELETE FROM accounts WHERE id = 'acct-1'", [])
+            .unwrap();
+        assert_eq!(storage.card_collection("acct-1").unwrap(), (0, Vec::new()));
+        assert_eq!(
+            storage.card_collection("acct-2").unwrap(),
+            (1, vec![("lightning bolt".to_string(), 1)])
+        );
+    }
+
+    #[test]
+    fn card_collection_rejects_stale_versions() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT INTO accounts (id, handle, handle_set, created_at)
+                 VALUES ('acct-1', 'first', 1, '2026-08-01T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+
+        assert_eq!(
+            storage
+                .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)], Some(0))
+                .unwrap(),
+            Some(1)
+        );
+        assert_eq!(
+            storage
+                .replace_card_collection("acct-1", &[("counterspell".to_string(), 2)], Some(0))
+                .unwrap(),
+            None
+        );
+        assert_eq!(
+            storage.card_collection("acct-1").unwrap(),
+            (1, vec![("lightning bolt".to_string(), 4)])
+        );
+    }
+
+    #[test]
+    fn card_collection_accepts_legacy_unversioned_writes() {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT INTO accounts (id, handle, handle_set, created_at)
+                 VALUES ('acct-1', 'first', 1, '2026-08-01T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+
+        assert_eq!(
+            storage
+                .replace_card_collection("acct-1", &[("lightning bolt".to_string(), 4)], Some(0))
+                .unwrap(),
+            Some(1)
+        );
+        assert_eq!(
+            storage
+                .replace_card_collection("acct-1", &[("counterspell".to_string(), 2)], None)
+                .unwrap(),
+            Some(2)
+        );
+        assert_eq!(
+            storage.card_collection("acct-1").unwrap(),
+            (2, vec![("counterspell".to_string(), 2)])
+        );
+    }
+
+    #[test]
     fn legacy_publication_migrates_to_normalized_domain() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys=ON").unwrap();
@@ -3128,7 +3309,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 13);
+        assert_eq!(version, 15);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

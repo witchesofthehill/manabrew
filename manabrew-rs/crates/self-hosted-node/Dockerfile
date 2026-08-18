@@ -30,7 +30,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=planner /build/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json -p manabrew-protocol
+RUN cargo chef cook --recipe-path recipe.json -p manabrew-relay-protocol
 
 COPY Cargo.toml Cargo.lock ./
 COPY manabrew-rs/ manabrew-rs/
@@ -40,7 +40,7 @@ COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 COPY xtask/ xtask/
 COPY scripts/gen-harness-prompts.mjs scripts/gen-harness-prompts.mjs
 
-RUN cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && \
+RUN cargo run -q -p manabrew-relay-protocol --bin gen-protocol -- src/protocol && \
     node scripts/gen-harness-prompts.mjs /generated
 
 # ── Stage 1: Build the Java Forge harness JAR ───────────────────────

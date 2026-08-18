@@ -3,6 +3,8 @@ mod config;
 mod preset_decks;
 mod rate_limit;
 mod routes;
+mod scryfall_api;
+mod scryfall_bulk;
 mod storage;
 mod validate;
 
@@ -17,6 +19,8 @@ use tracing_subscriber::EnvFilter;
 use crate::config::HubConfig;
 use crate::rate_limit::RateLimiter;
 use crate::routes::{build_router, AppState};
+use crate::scryfall_api::ScryfallApi;
+use crate::scryfall_bulk::ScryfallBulkIndex;
 use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
 const RANKING_QUERY_LIMIT: u32 = 100;
@@ -77,20 +81,37 @@ async fn main() {
             }
         }
     }
+    let http = reqwest::Client::builder()
+        .user_agent("Manabrew/1.0 (+https://manabrew.app)")
+        .default_headers({
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(
+                reqwest::header::ACCEPT,
+                reqwest::header::HeaderValue::from_static("application/json;q=0.9,*/*;q=0.8"),
+            );
+            headers
+        })
+        .build()
+        .expect("build HTTP client");
+    let scryfall_bulk = Arc::new(ScryfallBulkIndex::new(config.scryfall_bulk_path.into()));
     let state = Arc::new(AppState {
         storage: Mutex::new(storage),
         limiter: RateLimiter::new(config.publish_per_hour),
         play_limiter: RateLimiter::new(config.play_reports_per_hour),
+        collection_limiter: RateLimiter::new(300),
         deck_hub_enabled: config.deck_hub_enabled,
         publish_per_day: config.publish_per_day,
         relay_deck_plays_token: config.relay_deck_plays_token,
         auth_email_limiter: RateLimiter::new(config.auth.auth_emails_per_hour),
         auth_code_limiter: RateLimiter::new(config.auth.auth_attempts_per_hour),
         auth: config.auth.clone(),
-        http: reqwest::Client::new(),
+        http: http.clone(),
+        scryfall_bulk: Arc::clone(&scryfall_bulk),
+        scryfall_api: ScryfallApi::new(),
         identity: auth::IdentityKeys::load_or_generate(&config.jwt_key_path)
             .expect("load jwt signing key"),
     });
+    tokio::spawn(scryfall_bulk::refresh_loop(scryfall_bulk, http));
     refresh_top_deck_snapshots(&state);
     let ranking_state = Arc::clone(&state);
     tokio::spawn(async move {

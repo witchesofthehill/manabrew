@@ -71,7 +71,6 @@ export function useBattlefieldLayout({
 
     setPositions((prev) => {
       const next = { ...prev };
-      // Remove positions for cards no longer present
       for (const id of Object.keys(next)) {
         if (!cardIdSet.has(id)) delete next[id];
       }

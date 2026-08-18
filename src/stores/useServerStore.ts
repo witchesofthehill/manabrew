@@ -65,7 +65,6 @@ interface ServerState {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
   roomPassword: string | null;
-  /** This app spawned the embedded Forge engine node for the current room. */
   hostingForgeRoom: boolean;
   players: PlayerInfo[];
 
@@ -436,7 +435,6 @@ export const useServerStore = create<ServerState>()(
       },
 
       setupListeners() {
-        // Server functionality requires a server API
         const platform = getPlatform();
         if (!platform.server) {
           return () => {}; // No-op cleanup for platforms without server support
@@ -466,6 +464,14 @@ export const useServerStore = create<ServerState>()(
               if (payload.error?.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT))
                 void handleDuplicateRejection();
             }
+          }),
+        );
+
+        unsubscribers.push(
+          platform.events.on("server:session_taken_over", () => {
+            void stopReconnectAsDuplicate(
+              "You connected as this player somewhere else. This session was signed out.",
+            );
           }),
         );
 

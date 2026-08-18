@@ -24,12 +24,6 @@ interface SetupMenuProps {
   onOpenLog: () => void;
 }
 
-/**
- * Collapses every "rarely touched once the game starts" control into one
- * dropdown: player count, starting life, commander rules, oathbreaker,
- * day/night cycle, timer mode, session tag. Keeps the inline bar
- * focused on actions you actually take every turn.
- */
 export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);

@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteAccount } from "@/api/auth";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 
 interface DeleteAccountDialogProps {
   open: boolean;
@@ -38,18 +38,13 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
   const confirmed = confirmation.trim().toLowerCase() === handle.toLowerCase();
 
   async function handleDelete() {
-    const token = useAuthStore.getState().token;
+    const token = await getAccessToken();
     if (!token) return;
     setBusy(true);
     setError(null);
     try {
       await deleteAccount(token);
-      useAuthStore.setState({
-        token: null,
-        account: null,
-        identities: [],
-        status: "signedOut",
-      });
+      await useAuthStore.getState().signOut();
       onOpenChange(false);
       toast.success("Your account has been deleted");
     } catch (err) {

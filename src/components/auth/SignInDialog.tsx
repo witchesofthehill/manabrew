@@ -24,7 +24,7 @@ import {
   AuthRequestError,
   type OAuthProvider,
 } from "@/api/auth";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { useSignInDialog } from "@/stores/useSignInDialogStore";
 import { getPlatformType } from "@/platform";
 import { clearAuthReturnIntent, storeAuthReturnIntent } from "@/lib/authReturn";
@@ -33,6 +33,11 @@ import type { AuthProviders, AuthSessionResponse } from "@/api/authTypes";
 import { openExternal } from "@/lib/openExternal";
 
 type Step = "start" | "email-code" | "desktop-code" | "handle";
+
+function isValidEmail(value: string): boolean {
+  const email = value.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 export function SignInDialog() {
   const open = useSignInDialog((s) => s.open);
@@ -83,7 +88,7 @@ export function SignInDialog() {
 
   function completeSignIn(session: AuthSessionResponse) {
     clearAuthReturnIntent();
-    signIn(session.token, session.account);
+    signIn(session);
     if (session.account.handlePending) {
       setError(null);
       setBusy(false);
@@ -143,11 +148,12 @@ export function SignInDialog() {
 
   function handleClaimHandle() {
     void run(async () => {
-      const token = useAuthStore.getState().token;
+      const refreshToken = useAuthStore.getState().refreshToken;
+      const token = await getAccessToken();
       if (!token) return;
       try {
         const account = await updateHandle(token, handle.trim());
-        if (useAuthStore.getState().token !== token) return;
+        if (useAuthStore.getState().refreshToken !== refreshToken) return;
         setAccount(account);
         toast.success(`Signed in as @${account.handle}`);
         hide();
@@ -230,12 +236,12 @@ export function SignInDialog() {
                     placeholder="you@example.com"
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && email.includes("@")) handleSendCode();
+                      if (e.key === "Enter" && isValidEmail(email)) handleSendCode();
                     }}
                   />
                   <Button
                     className="w-full"
-                    disabled={busy || !email.includes("@")}
+                    disabled={busy || !isValidEmail(email)}
                     onClick={handleSendCode}
                   >
                     {busy ? "Sending…" : "Send sign-in code"}

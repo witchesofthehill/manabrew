@@ -11,7 +11,7 @@ pub use email::{email_request_handler, email_verify_handler};
 pub use oauth::{oauth_callback_handler, oauth_start_handler};
 #[cfg(test)]
 pub use token::tests as token_tests;
-pub use token::{jwks_handler, token_handler, IdentityKeys};
+pub use token::{jwks_handler, mint_access_token, token_handler, IdentityKeys, AUDIENCE_HUB};
 
 use std::sync::Arc;
 
@@ -27,8 +27,8 @@ use rand::Rng;
 use crate::routes::{generate_token, hash_token, internal_error, AppState};
 use crate::storage::{is_unique_violation, AccountRow};
 
-const SESSION_TTL_DAYS: i64 = 90;
-const SESSION_EXTEND_THRESHOLD_DAYS: i64 = 60;
+const REFRESH_TOKEN_TTL_DAYS: i64 = 90;
+const REFRESH_TOKEN_EXTEND_THRESHOLD_DAYS: i64 = 60;
 const CODE_ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const LOGIN_CODE_LEN: usize = 8;
 const HANDLE_SUFFIX_LEN: usize = 5;
@@ -79,17 +79,37 @@ pub fn bearer_account(
     let Some(token) = bearer_token(headers) else {
         return Ok(None);
     };
-    let token_hash = hash_token(token);
-    let storage = state.storage.lock().unwrap();
-    let Some(account) = storage.session_account(&token_hash, &now_str())? else {
+    let Some(claims) = state.identity.verify(token, AUDIENCE_HUB) else {
         return Ok(None);
     };
-    storage.extend_session(
-        &token_hash,
-        &ts_in(Duration::days(SESSION_EXTEND_THRESHOLD_DAYS)),
-        &ts_in(Duration::days(SESSION_TTL_DAYS)),
-    )?;
-    Ok(Some(account))
+    state.storage.lock().unwrap().get_account(&claims.sub)
+}
+
+pub fn refresh_account(
+    state: &AppState,
+    refresh_token: &str,
+) -> rusqlite::Result<Option<AccountRow>> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .session_account(&hash_token(refresh_token), &now_str())
+}
+
+pub fn touch_refresh_token(state: &AppState, refresh_token: &str) -> rusqlite::Result<()> {
+    state.storage.lock().unwrap().extend_session(
+        &hash_token(refresh_token),
+        &ts_in(Duration::days(REFRESH_TOKEN_EXTEND_THRESHOLD_DAYS)),
+        &ts_in(Duration::days(REFRESH_TOKEN_TTL_DAYS)),
+    )
+}
+
+pub fn revoke_refresh_token(state: &AppState, refresh_token: &str) -> rusqlite::Result<()> {
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .delete_session(&hash_token(refresh_token))
 }
 
 pub struct SessionAccount(pub AccountRow);
@@ -111,15 +131,19 @@ impl FromRequestParts<Arc<AppState>> for SessionAccount {
 }
 
 fn create_session(state: &AppState, account: &AccountRow) -> rusqlite::Result<AuthSessionResponse> {
-    let token = generate_token();
+    let refresh_token = generate_token();
     state.storage.lock().unwrap().insert_session(
-        &hash_token(&token),
+        &hash_token(&refresh_token),
         &account.id,
         &now_str(),
-        &ts_in(Duration::days(SESSION_TTL_DAYS)),
+        &ts_in(Duration::days(REFRESH_TOKEN_TTL_DAYS)),
     )?;
+    let access = mint_access_token(&state.identity, &account.id, &account.handle, AUDIENCE_HUB);
     Ok(AuthSessionResponse {
-        token,
+        access_token: access.access_token,
+        token_type: access.token_type,
+        expires_in: access.expires_in,
+        refresh_token,
         account: account_dto(account),
     })
 }

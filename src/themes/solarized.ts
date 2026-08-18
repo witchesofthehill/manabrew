@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Solarized Dark palette by Ethan Schoonover. */
 const palette: BasePalette = {
   foreground: "#93a1a1", // base1
   labelMuted: "#586e75", // base01

@@ -17,16 +17,12 @@ import { CARD_W } from "@/components/game/game.constants";
 import { CARD_RADIUS } from "../constants";
 import { LongPressGesture } from "../LongPressGesture";
 
-/** One on-grid zone tile (deck / graveyard / exile / command). */
 export interface ZoneTileSpec {
   key: string;
   label: string;
   count: number;
-  /** Top card, rendered as the tile's face (graveyard / exile / command). */
   topCard?: CardDto;
-  /** Deck: render the MTG card back instead of a top card. */
   back?: boolean;
-  /** Highlight colour when the zone is playable/targetable (else none). */
   highlightColor?: string;
   /** Seat colour for the commander helm badge; absent when the zone holds no
    *  commander. */
@@ -34,8 +30,6 @@ export interface ZoneTileSpec {
   onOpen?: () => void;
 }
 
-/** Callbacks `BoardRegion` wires up so a local drag can paint the drop grid and
- *  snap the tile to a cell. */
 export interface ZoneTileHost {
   onDragMove: (centerX: number, centerY: number) => void;
   onDrop: (key: string, centerX: number, centerY: number) => void;
@@ -62,17 +56,12 @@ interface Tile {
 const DRAG_THRESHOLD_PX = 4;
 const DRAG_Z = 1000;
 
-/** Glyph per empty zone, keyed by `ZoneTileSpec.key`. */
 const ZONE_ICONS: Record<string, string> = { cmd: "♛", lib: "▦" };
 
 /** Zones drawn with a rasterised `panelIcons` SVG instead of a text glyph —
  *  the same tombstone/vortex icons the scry prompt uses. */
 const ZONE_ICON_SVG: Record<string, string> = { gy: "graveyard", ex: "exile" };
 
-/** The deck/graveyard/exile/command tiles laid out as cards on the battlefield
- *  grid. `BoardRegion` resolves each tile's grid cell and hands the placements
- *  here; tiles tap-to-open (all players) and drag-to-reposition (local only,
- *  `BoardRegion` snaps the drop to a free cell). */
 export class BoardZoneTiles {
   readonly container = new Container();
   private theme: Theme;
@@ -399,7 +388,6 @@ export class BoardZoneTiles {
     }
   }
 
-  /** Dots evenly spaced along the rounded-rect perimeter — the empty-zone look. */
   private dottedRoundRect(
     g: Graphics,
     w: number,

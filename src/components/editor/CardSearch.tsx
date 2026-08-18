@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
 import { useDraggable } from "@dnd-kit/core";
 import { toast } from "sonner";
@@ -24,14 +23,12 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { SetSelect } from "@/components/editor/SetSelect";
-import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { deckCardToPreviewDto, scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import type { ManaCode } from "@/types/scryfall";
-
-// ─── Filter definitions ────────────────────────────────────────────────────────
 
 const COLOR_FILTERS = [
   { id: "W", label: "W", scryfall: "c:w", title: "White" },
@@ -303,8 +300,6 @@ function countAdvancedFilters(adv: AdvancedFilters): number {
   return count;
 }
 
-// ─── Filter UI helpers ───────────────────────────────────────────────────────
-
 function FilterBtn({
   active,
   onClick,
@@ -385,8 +380,6 @@ function FilterSeparator({ label }: { label: string }) {
   );
 }
 
-// ─── Draggable card wrapper (grid mode) ───────────────────────────────────────
-
 function DraggableCardGrid({
   card,
   onMoreInfo,
@@ -453,8 +446,6 @@ function DraggableCardGrid({
     </div>
   );
 }
-
-// ─── Draggable card wrapper (list mode) ───────────────────────────────────────
 
 function DraggableCardRow({
   card,
@@ -539,11 +530,10 @@ function DraggableCardRow({
   );
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
-
 interface CardSearchProps {
   standalone?: boolean;
   onClose?: () => void;
+  previewController?: ReturnType<typeof useCardPreview>;
   /** Shared rail slot — when provided, the hover preview portals into it
    *  (pinned). When absent, the search panel renders no preview of its own. */
   previewSlot?: HTMLElement | null;
@@ -551,8 +541,15 @@ interface CardSearchProps {
   focusSignal?: number;
 }
 
-export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
-  const preview = useCardPreview();
+export function CardSearch({
+  standalone,
+  onClose,
+  previewController,
+  previewSlot,
+  focusSignal,
+}: CardSearchProps) {
+  const internalPreview = useCardPreview();
+  const preview = previewController ?? internalPreview;
   const addToMain = useDeckStore((s) => s.addToMain);
   const addCard = (card: DeckCard) => {
     addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
@@ -655,7 +652,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
 
   return (
     <div className="flex flex-col h-full w-full">
-      {/* Filters */}
       <div
         className={cn(
           "max-h-[60%] shrink-0 space-y-2 overflow-y-auto border-b py-3",
@@ -730,7 +726,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
 
         {showFilters && (
           <div className="space-y-1 pt-1">
-            {/* ── Colors ── */}
             <FilterSeparator label="Colors & Mana" />
 
             <FilterRow>
@@ -799,7 +794,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               />
             </FilterRow>
 
-            {/* ── Card Properties ── */}
             <FilterSeparator label="Card Properties" />
 
             <FilterRow className="flex-wrap">
@@ -906,7 +900,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               </div>
             </FilterRow>
 
-            {/* ── Text Search ── */}
             <FilterSeparator label="Text Search" />
 
             <FilterRow>
@@ -939,7 +932,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               />
             </FilterRow>
 
-            {/* ── Format & Legality ── */}
             <FilterSeparator label="Format & Legality" />
 
             <FilterRow className="flex-wrap">
@@ -955,7 +947,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               ))}
             </FilterRow>
 
-            {/* ── Printing & Availability ── */}
             <FilterSeparator label="Printing & Availability" />
 
             <FilterRow className="flex-wrap">
@@ -1033,7 +1024,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               </div>
             </FilterRow>
 
-            {/* ── Card Modifiers ── */}
             <FilterSeparator label="Card Modifiers" />
 
             <FilterRow className="flex-wrap">
@@ -1049,7 +1039,6 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
               ))}
             </FilterRow>
 
-            {/* ── Sort ── */}
             <FilterSeparator label="Sort & Order" />
 
             <FilterRow>
@@ -1112,7 +1101,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                     onAdd={standalone ? undefined : () => addCard(card)}
                     standalone={standalone}
                     onHover={(c, e) =>
-                      preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
+                      preview.handleMouseEnter(deckCardToPreviewDto(c), e, { useDelay: true })
                     }
                     onLeave={preview.handleMouseLeave}
                   />
@@ -1129,7 +1118,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   onAdd={standalone ? undefined : () => addCard(card)}
                   standalone={standalone}
                   onHover={(c, e) =>
-                    preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
+                    preview.handleMouseEnter(deckCardToPreviewDto(c), e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
                 />
@@ -1146,7 +1135,9 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
       </ScrollArea>
 
       {detailCard && <CardDetailModal card={detailCard} onClose={() => setDetailCard(null)} />}
-      <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      {!previewController && (
+        <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      )}
     </div>
   );
 }

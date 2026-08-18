@@ -186,6 +186,23 @@ export function useGameEventListeners() {
         }),
       );
 
+      // The card archive downloads on the first Manabrew-engine game, behind
+      // the loading screen. Without this the screen sits on "Start the game
+      // engine" with nothing to show for a 29 MB fetch.
+      unsubscribers.push(
+        platform.events.on<{ stage: string; loaded?: number; total?: number }>(
+          "engine:cards",
+          (payload) => {
+            if (payload?.stage === "downloading" && payload.total) {
+              const pct = Math.round(((payload.loaded ?? 0) / payload.total) * 100);
+              setState({ debugInfo: `Downloading card data ${pct}%` });
+            } else if (payload?.stage === "parsing") {
+              setState({ debugInfo: "Parsing card data..." });
+            }
+          },
+        ),
+      );
+
       const handleProtocolError = (error: ProtocolError | undefined, source: string) => {
         if (!error?.code) return;
         applyProtocolError(error, source, setState);

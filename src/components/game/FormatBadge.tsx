@@ -1,7 +1,6 @@
 import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 
-/** Map format badge color keys to theme token Tailwind classes. */
 const COLOR_CLASSES: Record<string, string> = {
   blue: "text-format-badge-blue",
   amber: "text-format-badge-amber",

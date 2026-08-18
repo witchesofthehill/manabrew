@@ -73,6 +73,7 @@ services:
       MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       DECK_HUB: "${DECK_HUB:-1}"
       MANABREW_HUB_DECK_PLAYS_URL: "http://manabrew-hub:9500"
+      MANABREW_HUB_JWKS_URL: "http://manabrew-hub:9500/api/auth/jwks"
       MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "manabrew_server=info"

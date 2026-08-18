@@ -1,0 +1,19 @@
+[package]
+name = "manabrew-relay-protocol"
+version = "5.0.1"
+edition = "2021"
+license.workspace = true
+repository.workspace = true
+homepage = "https://docs.manabrew.app/protocol/"
+documentation = "https://docs.rs/manabrew-relay-protocol"
+description = "Relay wire protocol for manabrew multiplayer"
+
+[[bin]]
+name = "gen-protocol"
+path = "src/bin/gen_protocol.rs"
+
+[dependencies]
+manabrew-protocol = { path = "../manabrew-protocol", version = "5.1.0" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ts-rs = { workspace = true }

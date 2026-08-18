@@ -14,7 +14,7 @@ import {
   AuthRequestError,
   type OAuthProvider,
 } from "@/api/auth";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import { getPlatformType } from "@/platform";
 import { openExternal } from "@/lib/openExternal";
 
@@ -59,7 +59,7 @@ export function AccountSection() {
   const linkedProviders = new Set(identities.map((i) => i.provider));
 
   async function handleLink(provider: OAuthProvider) {
-    const token = useAuthStore.getState().token;
+    const token = await getAccessToken();
     if (!token) return;
     setBusy(true);
     try {
@@ -83,7 +83,7 @@ export function AccountSection() {
   }
 
   async function handleUnlink(provider: string) {
-    const token = useAuthStore.getState().token;
+    const token = await getAccessToken();
     if (!token) return;
     setBusy(true);
     try {
@@ -102,7 +102,7 @@ export function AccountSection() {
   }
 
   async function handleExport() {
-    const token = useAuthStore.getState().token;
+    const token = await getAccessToken();
     if (!token) return;
     setBusy(true);
     try {

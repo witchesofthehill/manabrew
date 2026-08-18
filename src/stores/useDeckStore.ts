@@ -19,6 +19,8 @@ import {
 } from "@/lib/formats";
 import { chooseImageUrisForCard, tokenIdentityKey } from "@/stores/useScryfallStore";
 import { collectProducedTokenKeys } from "@/lib/decks";
+import { resolveDeckName } from "@/lib/deckName";
+import { mergeDeckImportIntoDeck } from "@/lib/deckImport";
 
 /** Migrate legacy "constructed" format id to "standard". */
 function migrateFormatId(id: string): DeckFormat {
@@ -39,7 +41,6 @@ function applyPatch(card: DeckCard, patch: CardPatch | undefined): DeckCard {
   return { ...card, ...patch, identity: { ...card.identity, ...patch.identity } };
 }
 
-/** Apply a map of name→patch to an array of cards. */
 function patchCardsByName(cards: DeckCard[], updates: Map<string, CardPatch>): DeckCard[] {
   return cards.map((c) =>
     applyPatch(
@@ -117,6 +118,7 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
 
   const normalized: EditorDeck = {
     ...deck,
+    name: resolveDeckName(deck.name, commanders),
     format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
     cards: main,
     sideboard: remainingSideboard,
@@ -127,7 +129,6 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
     commanders: commanders.length > 0 ? commanders : undefined,
     editor: normalizeEditorMetadata(deck),
   };
-  // Remove legacy field
   delete (normalized as { commander?: DeckCard }).commander;
   return normalized;
 }
@@ -148,12 +149,12 @@ function mergeLocalEditorState(deck: EditorDeck, localDeck: EditorDeck | undefin
   if (!localDeck) return deck;
   return {
     ...deck,
-    customTags: localDeck.customTags,
-    cardTags: localDeck.cardTags,
-    editor: localDeck.editor,
-    playmat: localDeck.playmat,
-    playmatSettings: localDeck.playmatSettings,
-    stackPositions: localDeck.stackPositions,
+    customTags: deck.customTags ?? localDeck.customTags,
+    cardTags: deck.cardTags ?? localDeck.cardTags,
+    editor: deck.editor ?? localDeck.editor,
+    playmat: deck.playmat ?? localDeck.playmat,
+    playmatSettings: deck.playmatSettings ?? localDeck.playmatSettings,
+    stackPositions: deck.stackPositions ?? localDeck.stackPositions,
   };
 }
 
@@ -185,6 +186,27 @@ function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): Edit
       ? patchCardsByName(normalized.maybeboard, updates)
       : undefined,
     tokens: normalized.tokens,
+  };
+}
+
+function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): EditorDeck {
+  const normalized = normalizeDeck(deck);
+  const patchCards = (cards: DeckCard[]) =>
+    cards.map((card) => (card.identity.id === cardId ? applyPatch(card, patch) : card));
+  return {
+    ...normalized,
+    cards: patchCards(normalized.cards),
+    sideboard: patchCards(normalized.sideboard),
+    maybeboard: normalized.maybeboard ? patchCards(normalized.maybeboard) : undefined,
+    attractions: normalized.attractions ? patchCards(normalized.attractions) : undefined,
+    contraptions: normalized.contraptions ? patchCards(normalized.contraptions) : undefined,
+    schemes: normalized.schemes ? patchCards(normalized.schemes) : undefined,
+    planes: normalized.planes ? patchCards(normalized.planes) : undefined,
+    commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
+    companion:
+      normalized.companion?.identity.id === cardId
+        ? applyPatch(normalized.companion, patch)
+        : normalized.companion,
   };
 }
 
@@ -259,6 +281,8 @@ interface DeckState {
   setCommander: (card: DeckCard) => void;
   removeCommander: (card?: DeckCard) => void;
   updatePrint: (cardName: string, scryfallCard: ScryfallCard) => void;
+  updateCardPrint: (cardId: string, scryfallCard: ScryfallCard, foil?: boolean) => void;
+  setCardFoil: (cardId: string, foil: boolean) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
   toggleFoil: (cardName: string) => void;
   resetTokenPrint: (token: DeckCard) => void;
@@ -305,7 +329,6 @@ export const useDeckStore = create<DeckState>()(
         migrationError: false,
         addToMain: (card) =>
           set((state) => {
-            // Enforce max copy limit based on deck format
             if (!canHaveAnyNumberOf(card)) {
               const format = getFormat(state.currentDeck.format ?? "standard");
               if (format) {
@@ -426,7 +449,6 @@ export const useDeckStore = create<DeckState>()(
               !getFormat(format)?.deckRules.requiresCommander &&
               (deck.commanders?.length ?? 0) > 0
             ) {
-              // Move commanders back to main deck
               const movedBack = (deck.commanders ?? []).map((c) => ({
                 ...c,
                 identity: { ...c.identity, id: crypto.randomUUID() },
@@ -509,27 +531,8 @@ export const useDeckStore = create<DeckState>()(
         mergeIntoCurrentDeck: (sections) =>
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
-            const canImportCommanders = formatRequiresCommander(deck.format);
-            const hasCommanders = (deck.commanders?.length ?? 0) > 0;
-            const commanders =
-              canImportCommanders && !hasCommanders ? sections.commanders : (deck.commanders ?? []);
-            const importedMain =
-              canImportCommanders && !hasCommanders
-                ? sections.cards
-                : [...sections.cards, ...sections.commanders];
-            const autoRename = deck.name === DEFAULT_IMPORT_NAME || deck.name === DEFAULT_DECK_NAME;
             return {
-              currentDeck: normalizeDeck({
-                ...deck,
-                name:
-                  autoRename && commanders.length > 0
-                    ? commanders.map((commander) => commander.identity.name).join(" / ")
-                    : deck.name,
-                cards: [...deck.cards, ...importedMain],
-                sideboard: [...deck.sideboard, ...sections.sideboard],
-                maybeboard: [...(deck.maybeboard ?? []), ...sections.maybeboard],
-                commanders,
-              }),
+              currentDeck: normalizeDeck(mergeDeckImportIntoDeck(deck, sections)),
             };
           }),
         setCommander: (card) =>
@@ -642,6 +645,26 @@ export const useDeckStore = create<DeckState>()(
               currentDeck: patchDeckCards(state.currentDeck, updates),
             };
           }),
+        updateCardPrint: (cardId, scryfallCard, foil) =>
+          set((state) => {
+            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
+            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            return {
+              currentDeck: patchDeckCardById(state.currentDeck, cardId, {
+                identity: {
+                  setCode: scryfallCard.set,
+                  cardNumber: scryfallCard.collector_number,
+                  oracleId: scryfallCard.oracle_id,
+                  ...(foil === undefined ? {} : { foil }),
+                },
+                uris,
+              }),
+            };
+          }),
+        setCardFoil: (cardId, foil) =>
+          set((state) => ({
+            currentDeck: patchDeckCardById(state.currentDeck, cardId, { identity: { foil } }),
+          })),
         updateTokenPrint: (token, scryfallCard) =>
           set((state) => {
             const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
@@ -715,7 +738,6 @@ export const useDeckStore = create<DeckState>()(
           }),
         saveCurrentDeck: () =>
           set((state) => {
-            // Clear draft flag on full save
             const deckToSave = { ...state.currentDeck, draft: undefined };
             // Match by tracked ID first, then fall back to name match
             const existing = state.currentDeckId
@@ -1076,7 +1098,7 @@ export const useDeckStore = create<DeckState>()(
         }),
         // Bump on any persisted-deck shape change so `migrate` runs over existing
         // users' decks — a shape change without a bump never migrates.
-        version: 5,
+        version: 6,
         migrate: (persistedState: unknown) => {
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;

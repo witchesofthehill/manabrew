@@ -1,5 +1,5 @@
-import { AlertTriangle, Crown, Palette, Plus, X } from "lucide-react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import { AlertTriangle, ChevronDown, Crown, Palette, Plus, X } from "lucide-react";
+import { type PointerEvent as ReactPointerEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,10 @@ import { CardThumbnail } from "./deckEditor.primitives";
 import { DROP_ZONE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
+import { useCardCollectionOwnership, useDeckCardOwnership } from "./useCardCollectionOwnership";
+import { CommandZoneCardMenu, type CommandZoneCardMenuActions } from "./CommandZoneCardMenu";
+import { useDeckSectionOpen } from "./deckSectionExpansion";
+import { CollectionOwnershipTooltip } from "./CollectionOwnershipTooltip";
 
 function CommandZoneCard({
   card,
@@ -34,6 +38,7 @@ function CommandZoneCard({
   onHover,
   onLeave,
   onPickPrint,
+  menuActions,
 }: {
   card: DeckCard;
   label: string;
@@ -43,15 +48,18 @@ function CommandZoneCard({
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
   onPickPrint?: (cardName: string) => void;
+  menuActions?: CommandZoneCardMenuActions;
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
+  const ownership = useCardCollectionOwnership(card);
+  const ownershipSummary = useDeckCardOwnership(card);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `deck-commander-${card.identity.name}`,
     data: { type: "deck-card", card, name: card.identity.name },
     disabled: readOnly,
   });
 
-  return (
+  const content = (
     <div
       ref={setNodeRef}
       {...listeners}
@@ -61,8 +69,12 @@ function CommandZoneCard({
         !readOnly && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
         unsupported && "rounded-lg ring-2 ring-warning/70",
+        ownership === "exact" && "rounded-lg outline outline-2 outline-legality-legal/60",
+        ownership === "other" && "rounded-lg outline-dashed outline outline-1 outline-primary/60",
+        ownershipSummary?.status === "partial" && "rounded-lg outline outline-2 outline-warning/70",
       )}
       style={{ width: cardWidth }}
+      data-card-ownership={ownership}
       onPointerEnter={(event) => {
         if (event.pointerType !== "touch") onHover?.(card, event);
       }}
@@ -71,6 +83,7 @@ function CommandZoneCard({
       }}
     >
       <CardThumbnail card={card} />
+      <CollectionOwnershipTooltip card={card} surface="visual" className="left-1 top-7" />
       {unsupported && (
         <div
           className="absolute bottom-1 right-1 z-30 rounded-full bg-warning/90 p-0.5 text-white shadow"
@@ -115,6 +128,11 @@ function CommandZoneCard({
       )}
     </div>
   );
+  return menuActions ? (
+    <CommandZoneCardMenu actions={menuActions}>{content}</CommandZoneCardMenu>
+  ) : (
+    content
+  );
 }
 
 interface CommanderSlotsProps {
@@ -128,6 +146,7 @@ interface CommanderSlotsProps {
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
   onPickPrint?: (cardName: string) => void;
+  contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
 }
 
 export function CommanderSlots({
@@ -141,7 +160,9 @@ export function CommanderSlots({
   onHover,
   onLeave,
   onPickPrint,
+  contextMenuFor,
 }: CommanderSlotsProps) {
+  const [open, setOpen] = useDeckSectionOpen();
   const { setNodeRef, isOver } = useDroppable({
     id: DROP_ZONE.COMMAND,
     disabled: readOnly || !formatRequiresCommander(format),
@@ -191,61 +212,78 @@ export function CommanderSlots({
         isOver && "bg-primary/10 ring-2 ring-inset ring-primary/50",
       )}
     >
-      <div className="mb-1.5 flex items-center gap-2">
+      <button
+        type="button"
+        className="mb-1.5 flex items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !open && "-rotate-90")} />
         <Crown className="h-3.5 w-3.5 text-primary" />
         <h3 className="text-xs font-semibold uppercase tracking-wide">Command zone</h3>
         <span className="text-xs text-muted-foreground">Set your deck identity</span>
-      </div>
-      <div className="flex flex-wrap items-start gap-2">
-        {commanders.map((card, index) => (
-          <CommandZoneCard
-            key={card.identity.id}
-            card={card}
-            label={
-              commanderSlotBadge(commanders, format, index)?.label ??
-              (format === "oathbreaker" ? "Oathbreaker" : "Commander")
-            }
-            cardWidth={cardWidth}
-            readOnly={readOnly}
-            onRemove={() => onRemoveCommander(card)}
-            onHover={onHover}
-            onLeave={onLeave}
-            onPickPrint={onPickPrint}
-          />
-        ))}
-        {!readOnly && canAddAnother && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" className="min-h-10 gap-2 border-dashed">
-                <Plus className="h-3.5 w-3.5" />
-                {emptyLabel}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-y-auto">
-              {candidates.length > 0 ? (
-                candidates.map((card) => (
-                  <DropdownMenuItem
-                    key={card.identity.id}
-                    onSelect={() => onSetCommander(card)}
-                    onPointerEnter={(event) => {
-                      if (event.pointerType !== "touch") onHover?.(card, event);
-                    }}
-                    onPointerLeave={(event) => {
-                      if (event.pointerType !== "touch") onLeave?.();
-                    }}
-                  >
-                    <span className="truncate">{card.identity.name}</span>
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <div className="px-2 py-3 text-xs text-muted-foreground">
-                  Add an eligible card to the deck first.
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      </button>
+      {open && (
+        <div className="flex flex-wrap items-start gap-2">
+          {commanders.map((card, index) => (
+            <CommandZoneCard
+              key={card.identity.id}
+              card={card}
+              label={
+                commanderSlotBadge(commanders, format, index)?.label ??
+                (format === "oathbreaker" ? "Oathbreaker" : "Commander")
+              }
+              cardWidth={cardWidth}
+              readOnly={readOnly}
+              onRemove={() => onRemoveCommander(card)}
+              onHover={onHover}
+              onLeave={onLeave}
+              onPickPrint={onPickPrint}
+              menuActions={
+                readOnly
+                  ? undefined
+                  : contextMenuFor?.(
+                      card,
+                      commanderSlotBadge(commanders, format, index)?.label?.toLowerCase() ??
+                        "commander",
+                    )
+              }
+            />
+          ))}
+          {!readOnly && canAddAnother && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" className="min-h-10 gap-2 border-dashed">
+                  <Plus className="h-3.5 w-3.5" />
+                  {emptyLabel}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-72 w-72 overflow-y-auto">
+                {candidates.length > 0 ? (
+                  candidates.map((card) => (
+                    <DropdownMenuItem
+                      key={card.identity.id}
+                      onSelect={() => onSetCommander(card)}
+                      onPointerEnter={(event) => {
+                        if (event.pointerType !== "touch") onHover?.(card, event);
+                      }}
+                      onPointerLeave={(event) => {
+                        if (event.pointerType !== "touch") onLeave?.();
+                      }}
+                    >
+                      <span className="truncate">{card.identity.name}</span>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <div className="px-2 py-3 text-xs text-muted-foreground">
+                    Add an eligible card to the deck first.
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
     </section>
   );
 }

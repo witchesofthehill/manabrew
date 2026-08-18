@@ -49,11 +49,6 @@ interface ActionKind {
 
 const MIN_ICON_SCREEN_PX = 22;
 
-/**
- * Builds and wires the per-card action overlay shown on battlefield cards:
- * a single tap/untap/select button, or a grid of mana-ability buttons.
- * Talks to the scene through `OverlayHost`.
- */
 export class BattlefieldOverlay {
   private host: OverlayHost;
 
@@ -61,8 +56,6 @@ export class BattlefieldOverlay {
     this.host = host;
   }
 
-  /** Resolve a battlefield card tap to the right action (tap land / untap /
-   *  open mana picker / select), mirroring the overlay button behaviour. */
   handleCardTap(card: CardDto): void {
     const state = this.host.getLastState();
     if (!state) {

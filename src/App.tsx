@@ -11,9 +11,9 @@ import { lazy, Suspense, useEffect } from "react";
 import { toast } from "sonner";
 import { getPlatformType } from "@/platform";
 import { initApp } from "@/lib/appInit";
-// Importing the store wires the `worker:init` event subscription at module
-// load — earlier than App mounts — so the gate can observe the worker's
-// download/parse stages from the very first event.
+// Importing the store wires the `app:init` event subscription at module load —
+// earlier than App mounts, and earlier than the `initApp()` below — so the gate
+// observes every boot stage from the first event.
 import "@/stores/useAppInitStore";
 
 void initApp();

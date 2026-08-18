@@ -1,5 +1,5 @@
 use manabrew_protocol::deck_dto::{Deck, DeckFormat};
-use manabrew_protocol::protocol::EngineKind;
+use manabrew_protocol::game::EngineKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -11,6 +11,50 @@ pub struct HubCapabilities {
     pub tags: bool,
     pub favorites: bool,
     pub top_deck_snapshots: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct CardCollectionEntry {
+    pub card_key: String,
+    pub quantity: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct CardCollection {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub version: Option<u32>,
+    pub cards: Vec<CardCollectionEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct CardPrintingIdentifier {
+    pub name: String,
+    pub set_code: String,
+    pub collector_number: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub foil: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct VerifyCardPrintingsRequest {
+    pub identifiers: Vec<CardPrintingIdentifier>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct VerifyCardPrintingsResponse {
+    pub matched: Vec<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -356,10 +400,13 @@ pub struct AuthAccount {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "authTypes.ts")]
 pub struct AuthSessionResponse {
-    pub token: String,
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: u32,
+    pub refresh_token: String,
     pub account: AuthAccount,
 }
 
@@ -505,9 +552,28 @@ pub struct UpdateHandleRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "authTypes.ts")]
-pub struct IdentityTokenResponse {
-    pub token: String,
+pub struct AccessTokenResponse {
+    pub access_token: String,
+    pub token_type: String,
     pub expires_in: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "authTypes.ts")]
+pub struct TokenRequest {
+    pub grant_type: String,
+    pub refresh_token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub resource: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "authTypes.ts")]
+pub struct RevocationRequest {
+    pub token: String,
 }

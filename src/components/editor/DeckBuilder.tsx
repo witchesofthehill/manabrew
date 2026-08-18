@@ -1,6 +1,7 @@
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useNavigate } from "react-router-dom";
 import { useAccountDecksStore } from "@/stores/useAccountDecksStore";
+import { fetchAccountDeck, HubRequestError } from "@/api/hub";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { PublishDeckDialog } from "@/components/deck/PublishDeckDialog";
 import { DeckVersionHistoryDialog } from "@/components/deck/DeckVersionHistoryDialog";
@@ -23,7 +24,6 @@ import {
   List,
   Layers,
   Plus,
-  Minus,
   Loader2,
   ChevronDown,
   FileBox,
@@ -31,29 +31,34 @@ import {
   Share2,
   Palette,
   Bookmark,
-  BookmarkMinus,
   Group,
-  ArrowUpToLine,
-  ArrowDownToLine,
   EllipsisVertical,
   History,
   LibraryBig,
   ListPlus,
   Command as CommandIcon,
   Images,
+  FoldVertical,
+  UnfoldVertical,
+  ArrowUp,
+  Sparkles,
+  BookOpen,
 } from "lucide-react";
-import { ScryfallImg } from "@/components/ScryfallImg";
-import { DeckStats } from "./DeckStats";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
-import type { CardDto } from "@/protocol/game";
 import type { DeckCard } from "@/protocol/deck";
-import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
-import { frontFaceName, needsScryfallEnrichment, scryfallToDeckCard } from "@/lib/scryfall.utils";
-import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES } from "@/lib/constants";
+import { useScryfallStore } from "@/stores/useScryfallStore";
+import {
+  deckCardToPreviewDto,
+  frontFaceName,
+  needsScryfallEnrichment,
+  scryfallToDeckCard,
+} from "@/lib/scryfall.utils";
+import { DROP_ZONE, DEFAULT_DECK_NAME, ROUTES, STORAGE_KEYS } from "@/lib/constants";
+import { parseDeckListText } from "@/lib/deckImport";
 import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
@@ -70,8 +75,7 @@ import {
 import { commanderSlotFor } from "./deckEditor.utils";
 import { DeckListView } from "./DeckListView";
 import { DeckHero } from "./DeckHero";
-import { PreviewRail } from "./PreviewRail";
-import { HoverCardPreview } from "@/components/game/HoverCardPreview";
+import { CardPreviewRail } from "@/components/game/CardPreviewRail";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
@@ -79,6 +83,7 @@ import { DeckValidationPanel } from "./DeckValidationPanel";
 import { DeckBracketPanel } from "./DeckBracketPanel";
 import { CombosPanel } from "./CombosPanel";
 import { useDeckAnalysis } from "@/hooks/useDeckAnalysis";
+import { useDeckRoles } from "@/hooks/useDeckRoles";
 import { isFeatureEnabled } from "@/featureFlags";
 import { useDeckSelection } from "./useDeckSelection";
 import {
@@ -91,13 +96,13 @@ import {
   CMC_BUCKET_LABELS,
   cmcBucketIndex,
   groupCards,
-  exportToArena,
   computeGroupedSections,
   computeGroupedStackColumns,
   sortCardGroups,
   DEFAULT_CARD_SIZE,
   MAX_CARD_SIZE,
 } from "./deckBuilder.utils";
+import { exportToArena, exportWithPrintings } from "./deckExport";
 import { TokenSection } from "./TokenSection";
 import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedTokens";
 
@@ -106,7 +111,6 @@ import {
   setUnsavedState,
   setLastSavedSnapshotRef,
 } from "./deckBuilder.unsavedChanges";
-import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 import { CommanderSlots } from "./CommanderSlots";
 import { ImportDeckTextDialog } from "./ImportDeckTextDialog";
@@ -114,11 +118,13 @@ import { useDeckTextImportIntoCurrent } from "./useDeckTextImport";
 import {
   executeDeckEdit,
   redoDeckEdit,
+  rebaseDeckHistory,
   resetDeckHistory,
   undoDeckEdit,
 } from "./deckEditor.history";
 import { DeckHistoryControls } from "./DeckHistoryControls";
 import { DeckLayoutMenu } from "./DeckLayoutMenu";
+import { setAllDeckSectionsExpanded, useDeckSectionOpen } from "./deckSectionExpansion";
 import { DeckCommandPalette } from "./DeckCommandPalette";
 import type { DeckEditorCommand } from "./deckEditor.commands";
 import { DeckTagDialog } from "./DeckTagDialog";
@@ -134,203 +140,52 @@ import {
   type DeckSourceZone,
   type EditableDeckZone,
 } from "./deckEditor.actions";
+import { DeckQuickAdd } from "./DeckQuickAdd";
+import { DeckSelectionTray } from "./DeckSelectionTray";
+import { DeckCheckpointsDialog } from "./DeckCheckpointsDialog";
+import { SideboardPlansDialog } from "./SideboardPlansDialog";
+import { useCardCollection } from "@/hooks/useCardCollection";
+import {
+  collectionQuantityForName,
+  deckOwnershipByName,
+  type DeckOwnershipStatus,
+} from "@/lib/collection";
+import { useCollectionStore } from "@/stores/useCollectionStore";
+import { normalizeCardName } from "@/lib/gameChangers";
+import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
+import { DeckInsightsPanel } from "./DeckInsightsPanel";
+import { DeckEditorWelcome } from "./DeckEditorWelcome";
+import { openDeckEditorWelcome } from "./deckEditorWelcome.actions";
+import { CardCollectionOwnershipScope } from "./useCardCollectionOwnership";
+import { DeckSaveConflictDialog } from "./DeckSaveConflictDialog";
+import { DeckStatusSummary } from "./DeckStatusSummary";
+import { PrintingOptimizerDialog } from "./PrintingOptimizerDialog";
+import { PreviewCardInfo } from "./PreviewCardInfo";
 
-// ─── Quick Search ─────────────────────────────────────────────────────────────
-
-function QuickCardSearch({
-  onAdd,
-  onRemove,
-  getCount,
-}: {
-  onAdd: (card: ScryfallCard, destination: "main" | "side" | "maybe") => void;
-  onRemove: (cardName: string) => void;
-  getCount: (cardName: string) => number;
-}) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useKeybindings({
-    "deck-editor-focus-quick-add": () => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    },
-  });
-
-  const doSearch = useCallback((q: string) => {
-    if (q.trim().length < 2) {
-      setResults([]);
-      setIsOpen(false);
-      return;
-    }
-    setIsLoading(true);
-    const fullQuery = `${q} -is:digital -is:funny`;
-    searchCards(fullQuery, 1)
-      .then((res) => {
-        setResults(res.data.slice(0, 20));
-        setActiveIndex(0);
-        setIsOpen(true);
-      })
-      .catch(() => setResults([]))
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  function handleChange(value: string) {
-    setQuery(value);
-    if (debounceRef.current !== null) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => doSearch(value), 400);
-  }
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <div className="relative">
-        <Plus className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-        <Input
-          ref={inputRef}
-          className="h-7 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
-          placeholder="Quick add card…"
-          value={query}
-          onChange={(e) => handleChange(e.target.value)}
-          onFocus={() => {
-            if (results.length > 0) setIsOpen(true);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setActiveIndex((index) => Math.min(index + 1, results.length - 1));
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setActiveIndex((index) => Math.max(index - 1, 0));
-            } else if (event.key === "Enter" && results[activeIndex]) {
-              event.preventDefault();
-              onAdd(
-                results[activeIndex],
-                event.shiftKey ? "side" : event.altKey ? "maybe" : "main",
-              );
-            }
-          }}
-        />
-        {isLoading && (
-          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
-        )}
-        {!isLoading && query && (
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setQuery("");
-              setResults([]);
-              setIsOpen(false);
-            }}
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-
-      {isOpen && results.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-80 overflow-y-auto min-w-[280px]">
-          {results.map((sc, index) => {
-            const count = getCount(sc.name);
-            const thumb = sc.image_uris?.small ?? sc.card_faces?.[0]?.image_uris?.small;
-            return (
-              <div
-                key={sc.id}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 border-b border-border/30 px-2 py-1 last:border-0 hover:bg-muted",
-                  activeIndex === index && "bg-muted",
-                )}
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => onAdd(sc, "main")}
-                title={`Add ${sc.name}`}
-              >
-                {thumb && (
-                  <ScryfallImg
-                    src={thumb}
-                    alt=""
-                    className="w-8 h-11 rounded object-cover object-top shrink-0"
-                  />
-                )}
-                <span className="text-xs font-medium flex-1 min-w-0 truncate">{sc.name}</span>
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <button
-                    type="button"
-                    className="h-6 w-6 rounded hover:bg-background flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30"
-                    title="Remove one"
-                    disabled={count === 0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemove(sc.name);
-                    }}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span
-                    className={cn(
-                      "text-xs font-mono w-4 text-center tabular-nums",
-                      count > 0 ? "text-foreground" : "text-muted-foreground/40",
-                    )}
-                  >
-                    {count}
-                  </span>
-                  <button
-                    type="button"
-                    className="h-6 w-6 rounded hover:bg-background flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
-                    title="Add one"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdd(sc, "main");
-                    }}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Main DeckBuilder Component ───────────────────────────────────────────────
+type DeckSyncState = "saved" | "saving" | "local" | "synced" | "failed";
 
 export function DeckBuilder({
   onToggleSearch,
-  previewSlot,
   setPreviewSlot,
   previewCollapsed,
-  onTogglePreview,
+  onPreviewCollapsedChange,
   resumedPublication,
   onResumedPublicationClose,
   onSelectionChange,
+  onReadOnlyDeckImported,
+  previewController,
+  onDeckDeleted,
 }: {
   onToggleSearch?: () => void;
-  previewSlot?: HTMLElement | null;
   setPreviewSlot?: (el: HTMLDivElement | null) => void;
   previewCollapsed?: boolean;
-  onTogglePreview?: () => void;
+  onPreviewCollapsedChange?: (collapsed: boolean) => void;
   resumedPublication?: { deck: EditorDeck; localDeckId: string | null } | null;
   onResumedPublicationClose?: () => void;
   onSelectionChange?: (selectedCards: ReadonlySet<string>) => void;
+  onReadOnlyDeckImported?: (deckId: string) => void;
+  previewController?: ReturnType<typeof useCardPreview>;
+  onDeckDeleted?: () => void;
 } = {}) {
   const navigate = useNavigate();
   const hubEnabled = isFeatureEnabled("deckHub");
@@ -343,13 +198,23 @@ export function DeckBuilder({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [syncState, setSyncState] = useState<DeckSyncState>("saved");
+  const [saveConflict, setSaveConflict] = useState<Awaited<
+    ReturnType<typeof fetchAccountDeck>
+  > | null>(null);
+  const conflictDeckRef = useRef<EditorDeck | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [batchPrintingOpen, setBatchPrintingOpen] = useState(false);
+  const [batchPrintingSelectionOnly, setBatchPrintingSelectionOnly] = useState(false);
+  const [printingOptimizerOpen, setPrintingOptimizerOpen] = useState(false);
   const saveInFlightRef = useRef(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [checkpointsOpen, setCheckpointsOpen] = useState(false);
+  const [sideboardPlansOpen, setSideboardPlansOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const readOnlySource = useDeckStore((s) => s.readOnlySource);
   const importReadOnlyDeck = useDeckStore((s) => s.importReadOnlyDeck);
@@ -379,6 +244,8 @@ export function DeckBuilder({
     toggleFoil,
     resetTokenPrint,
     updateAccountDeckVersion,
+    linkSavedDeckToAccount,
+    loadAccountDeck,
   } = useDeckStore();
   const allowIllegalDecks = useGameDevStore((s) => s.allowIllegalDecks);
   const importIntoCurrentDeck = useDeckTextImportIntoCurrent();
@@ -396,13 +263,18 @@ export function DeckBuilder({
   );
 
   const [deckFilter, setDeckFilter] = useState("");
+  const deferredDeckFilter = useDeferredValue(deckFilter);
   const [cmcFilter, setCmcFilter] = useState<number | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
+  const [announcement, setAnnouncement] = useState({ id: 0, message: "" });
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(DEFAULT_CARD_SIZE);
+  const [analysisOpen, setAnalysisOpen] = useDeckSectionOpen();
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
+  const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
     const snap = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshotRef(snap);
@@ -410,7 +282,63 @@ export function DeckBuilder({
   });
   const [confirmClear, setConfirmClear] = useState(false);
   const filterInputRef = useRef<HTMLInputElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement>(null);
   const enrichedCardsRef = useRef(new Set<string>());
+  const skipPresentationSaveRef = useRef(true);
+  const presentationKey = currentDeckId ?? currentDeck.name.toLowerCase();
+
+  useEffect(() => {
+    skipPresentationSaveRef.current = true;
+    try {
+      const all = JSON.parse(
+        localStorage.getItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION) ?? "{}",
+      ) as Record<
+        string,
+        Partial<{
+          viewMode: ViewMode;
+          cardSize: number;
+          groupBy: GroupByMode;
+          sortBy: SortMode;
+          collectionFilter: "all" | DeckOwnershipStatus;
+          analysisOpen: boolean;
+        }>
+      >;
+      const saved = all[presentationKey];
+      setViewMode(saved?.viewMode ?? "list");
+      setCardSize(saved?.cardSize ?? DEFAULT_CARD_SIZE);
+      setGroupBy(saved?.groupBy ?? "type");
+      setSortBy(saved?.sortBy ?? "mana-value");
+      setCollectionFilter(saved?.collectionFilter ?? "all");
+      setAnalysisOpen(saved?.analysisOpen ?? true);
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION);
+      setViewMode("list");
+      setCardSize(DEFAULT_CARD_SIZE);
+      setGroupBy("type");
+      setSortBy("mana-value");
+      setCollectionFilter("all");
+      setAnalysisOpen(true);
+    }
+  }, [editorSessionId, presentationKey, setAnalysisOpen]);
+
+  useEffect(() => {
+    if (skipPresentationSaveRef.current) {
+      skipPresentationSaveRef.current = false;
+      return;
+    }
+    const all = JSON.parse(
+      localStorage.getItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION) ?? "{}",
+    ) as Record<string, unknown>;
+    all[presentationKey] = {
+      viewMode,
+      cardSize,
+      groupBy,
+      sortBy,
+      collectionFilter,
+      analysisOpen,
+    };
+    localStorage.setItem(STORAGE_KEYS.DECK_EDITOR_PRESENTATION, JSON.stringify(all));
+  }, [analysisOpen, cardSize, collectionFilter, groupBy, presentationKey, sortBy, viewMode]);
 
   useKeybindings({
     "deck-editor-focus-filter": () => {
@@ -423,10 +351,61 @@ export function DeckBuilder({
     "deck-editor-undo": undoDeckEdit,
     "deck-editor-redo": redoDeckEdit,
     "deck-editor-command-palette": () => setCommandPaletteOpen(true),
+    "deck-editor-collapse-sections": () => setAllDeckSectionsExpanded(false),
+    "deck-editor-expand-sections": () => setAllDeckSectionsExpanded(true),
+    "deck-editor-next-section": () => jumpToNextEditorSection(),
     "deck-editor-tag-selection": () => {
       if (selectedCards.size > 0) setTagDialogOpen(true);
     },
+    "deck-editor-select-all": () => selectAllDeckCards(),
+    ...(selectedCards.size > 0
+      ? { "deck-editor-copy-selection": () => void copySelectedCards() }
+      : {}),
+    "deck-editor-paste-cards": () => void pasteCards(),
+    "deck-editor-remove-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleRemoveSelected();
+    },
+    "deck-editor-move-main": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToMain();
+    },
+    "deck-editor-move-side": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToSide();
+    },
+    "deck-editor-move-maybe": () => {
+      if (selectedCards.size > 0 && !isReadOnly) handleMoveSelectedToMaybe();
+    },
+    "deck-editor-toggle-foil-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) toggleSelectedFoil();
+    },
+    "deck-editor-remove-one-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) removeOneEachSelected();
+    },
+    "deck-editor-add-one-selection": () => {
+      if (selectedCards.size > 0 && !isReadOnly) addOneEachSelected();
+    },
   });
+
+  function jumpToNextEditorSection() {
+    const sections =
+      editorScrollRef.current?.querySelectorAll<HTMLElement>("[data-editor-section]");
+    if (!sections?.length) return;
+    const top = editorScrollRef.current!.getBoundingClientRect().top;
+    const next = [...sections].find((section) => section.getBoundingClientRect().top > top + 48);
+    (next ?? sections[0]).scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function navigateToDeckStatus(target: "validation" | "collection" | "budget") {
+    if (target !== "validation") setAnalysisOpen(true);
+    window.setTimeout(() => {
+      const selector =
+        target === "validation"
+          ? "[data-editor-validation], [data-editor-section='build']"
+          : `[data-editor-insight='${target}']`;
+      editorScrollRef.current
+        ?.querySelector<HTMLElement>(selector)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   const supplementaryCards = useMemo(
     () => [
@@ -448,13 +427,12 @@ export function DeckBuilder({
       currentDeck.planes,
     ],
   );
-  const currentSnapshot = buildDeckSnapshot(currentDeck);
+  const currentSnapshot = useMemo(() => buildDeckSnapshot(currentDeck), [currentDeck]);
   const accountSavedDeck = savedDecks.find((saved) => saved.id === currentDeckId);
   // Read-only presets can't be edited; background Scryfall enrichment mutates the
   // deck after the baseline snapshot, so never treat a preset as dirty.
   const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
 
-  // Sync shared unsaved state for DeckEditor blocker
   useEffect(() => {
     setLastSavedSnapshotRef(lastSavedSnapshot);
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
@@ -463,10 +441,14 @@ export function DeckBuilder({
   useEffect(() => {
     const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
     setLastSavedSnapshot(snapshot);
+    setSyncState("saved");
+    setSaveConflict(null);
+    conflictDeckRef.current = null;
+    setAnalysisOpen(true);
     setUnsavedState(snapshot, snapshot);
     resetDeckHistory();
     return resetDeckHistory;
-  }, [editorSessionId]);
+  }, [editorSessionId, setAnalysisOpen]);
 
   // Warn on navigation/tab close with unsaved changes
   useEffect(() => {
@@ -478,9 +460,35 @@ export function DeckBuilder({
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
 
-  const preview = useCardPreview();
+  const internalPreview = useCardPreview([], { subscribe: false });
+  const preview = previewController ?? internalPreview;
 
   useDeckAnalysis();
+  useDeckRoles();
+  useCardCollection();
+  const collectionQuantities = useCollectionStore((state) => state.quantities);
+  const comboCardNames = useDeckAnalysisStore((state) => state.comboCardNames);
+  const gameChangerNames = useDeckAnalysisStore((state) => state.gameChangerNames);
+  const ownershipByName = useMemo(
+    () =>
+      deckOwnershipByName(collectionQuantities, [
+        ...currentDeck.cards,
+        ...(currentDeck.commanders ?? []),
+        ...currentDeck.sideboard,
+      ]),
+    [collectionQuantities, currentDeck.cards, currentDeck.commanders, currentDeck.sideboard],
+  );
+  const collectionGapCount = useMemo(
+    () =>
+      [...ownershipByName.values()].filter(
+        (ownership) => ownership.status === "missing" || ownership.status === "partial",
+      ).length,
+    [ownershipByName],
+  );
+  const isCardOwned = useCallback(
+    (card: DeckCard) => collectionQuantityForName(collectionQuantities, card.identity.name) > 0,
+    [collectionQuantities],
+  );
 
   const { setNodeRef: setMainDropRef, isOver: isOverMain } = useDroppable({ id: DROP_ZONE.MAIN });
   const { setNodeRef: setSideDropRef, isOver: isOverSide } = useDroppable({ id: DROP_ZONE.SIDE });
@@ -516,18 +524,21 @@ export function DeckBuilder({
         `${card.name.toLowerCase()}::${card.setCode.toLowerCase()}::${card.collectorNumber.toLowerCase()}`,
       ),
     );
-    fetchCardCollection(uniqueCards)
+    useScryfallStore
+      .getState()
+      .fetchCardCollection(uniqueCards)
       .then((scryfallMap) => {
         const updates = new Map<string, Partial<DeckCard>>();
         for (const [key, sc] of scryfallMap) updates.set(key, scryfallToDeckCard(sc));
+        const before = useDeckStore.getState().currentDeck;
         enrichDeckCards(updates);
+        rebaseDeckHistory(before, useDeckStore.getState().currentDeck);
       })
       .catch((err) => {
         console.warn("[DeckBuilder] Failed to enrich card images:", err);
       });
   }, [currentDeck.cards, supplementaryCards, enrichDeckCards]);
 
-  // ESC to clear selection
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") clearSelection();
@@ -536,10 +547,11 @@ export function DeckBuilder({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [clearSelection]);
 
-  // Bulk selection actions
   function bulkAction(message: string, edit: () => void) {
     executeDeckEdit(message, edit);
     clearSelection();
+    window.setTimeout(() => editorScrollRef.current?.focus({ preventScroll: true }));
+    setAnnouncement((current) => ({ id: current.id + 1, message }));
     toast.success(message);
   }
 
@@ -553,6 +565,112 @@ export function DeckBuilder({
     bulkAction(`Moved ${selectedCards.size} cards to main`, () =>
       moveSelectedCards(selectedCards, "main"),
     );
+  const handleMoveSelectedToMaybe = () =>
+    bulkAction(`Moved ${selectedCards.size} cards to maybeboard`, () =>
+      moveSelectedCards(selectedCards, "maybe"),
+    );
+
+  function allDeckCards() {
+    return [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+      ...(currentDeck.attractions ?? []),
+      ...(currentDeck.contraptions ?? []),
+      ...(currentDeck.schemes ?? []),
+      ...(currentDeck.planes ?? []),
+    ];
+  }
+
+  function selectAllDeckCards() {
+    selectCards(
+      allDeckCards().map((card) => card.identity.name),
+      true,
+    );
+  }
+
+  function selectEditableCards(cardNames: Iterable<string>) {
+    const editableNames = new Set(allDeckCards().map((card) => card.identity.name.toLowerCase()));
+    selectCards(
+      [...cardNames].filter((name) => editableNames.has(name.toLowerCase())),
+      true,
+    );
+  }
+
+  async function copySelectedCards() {
+    if (selectedCards.size === 0) return;
+    const counts = new Map<string, number>();
+    for (const card of allDeckCards()) {
+      if (!selectedCards.has(card.identity.name.toLowerCase())) continue;
+      counts.set(card.identity.name, (counts.get(card.identity.name) ?? 0) + 1);
+    }
+    try {
+      await navigator.clipboard.writeText(
+        [...counts].map(([name, count]) => `${count} ${name}`).join("\n"),
+      );
+      toast.success(`Copied ${counts.size} selected card${counts.size === 1 ? "" : "s"}`);
+    } catch {
+      toast.error("Could not write selected cards to the clipboard");
+    }
+  }
+
+  async function pasteCards() {
+    if (isReadOnly) return;
+    try {
+      const entries = parseDeckListText(await navigator.clipboard.readText());
+      if (entries.length === 0) {
+        toast.error("Clipboard does not contain a recognized card list");
+        return;
+      }
+      await importIntoCurrentDeck(entries, "", undefined, () => undefined);
+    } catch {
+      toast.error("Could not read cards from the clipboard");
+    }
+  }
+
+  function addOneEachSelected() {
+    const store = useDeckStore.getState();
+    const editableCards = [
+      ...currentDeck.cards,
+      ...currentDeck.sideboard,
+      ...(currentDeck.maybeboard ?? []),
+    ];
+    let added = 0;
+    executeDeckEdit(`Add one copy of selected cards`, () => {
+      for (const name of selectedCards) {
+        const card = editableCards.find(
+          (candidate) => candidate.identity.name.toLowerCase() === name,
+        );
+        if (!card) continue;
+        const copy = { ...card, identity: { ...card.identity, id: crypto.randomUUID() } };
+        if (currentDeck.sideboard.includes(card)) store.addToSide(copy);
+        else if ((currentDeck.maybeboard ?? []).includes(card)) store.addToMaybe(copy);
+        else store.addToMain(copy);
+        added += 1;
+      }
+    });
+    if (added > 0) toast.success(`Added one copy of ${added} cards`);
+    if (added < selectedCards.size) {
+      toast.warning("Command-zone and special-section cards were not duplicated");
+    }
+  }
+
+  function removeOneEachSelected() {
+    executeDeckEdit(`Removed one copy of ${selectedCards.size} cards`, () => {
+      for (const name of selectedCards) {
+        for (const zone of ["main", "side", "maybe", "special"] as const) {
+          if (removeCardCopies(name, zone, "one") > 0) break;
+        }
+      }
+    });
+    toast.success(`Removed one copy of ${selectedCards.size} cards`);
+  }
+
+  function toggleSelectedFoil() {
+    bulkAction(`Toggled foil for ${selectedCards.size} cards`, () => {
+      for (const name of selectedCards) toggleFoil(name);
+    });
+  }
   const handleTagSelected = (tag: string) =>
     bulkAction(`Tagged ${selectedCards.size} cards with "${tag}"`, () => {
       for (const name of selectedCards) tagCard(name, tag);
@@ -570,7 +688,6 @@ export function DeckBuilder({
     toast.success(`Tagged cards with "${tag}"`);
   };
 
-  // Tags that any of the selected cards belong to
   const selectedCardTags = (() => {
     if (selectedCards.size === 0 || !currentDeck.cardTags) return [];
     const tags = new Set<string>();
@@ -581,8 +698,12 @@ export function DeckBuilder({
     return [...tags];
   })();
 
-  // Filter
   const unsupportedNames = useUnsupportedCards(currentDeck);
+  const editableUnsupportedNames = new Set(
+    [...unsupportedNames].filter((name) =>
+      allDeckCards().some((card) => card.identity.name.toLowerCase() === name.toLowerCase()),
+    ),
+  );
   const hasUnsupportedCards = unsupportedNames.size > 0;
 
   const deckFormat = getFormat(currentDeck.format ?? "standard");
@@ -602,62 +723,101 @@ export function DeckBuilder({
   const isDeckLegal = deckValidation.legal;
 
   const matchesFilters = useCallback(
-    (c: DeckCard) => {
+    (c: DeckCard, section: "main" | "sideboard" | "maybeboard" | "special" = "main") => {
       const tags = currentDeck.cardTags?.[c.identity.name.toLowerCase()] ?? [];
+      const ownership = ownershipByName.get(c.identity.name.toLowerCase())?.status ?? "missing";
+      if (collectionFilter !== "all" && ownership !== collectionFilter) return false;
       if (
-        !matchesDeckQuery(c, deckFilter, {
+        !matchesDeckQuery(c, deferredDeckFilter, {
           tags,
           unsupported: unsupportedNames.has(c.identity.name),
+          ownership,
+          combo: comboCardNames.has(normalizeCardName(c.identity.name)),
+          gameChanger: gameChangerNames.has(normalizeCardName(c.identity.name)),
+          section,
         })
       )
         return false;
       if (cmcFilter !== null && cmcBucketIndex(c) !== cmcFilter) return false;
       return true;
     },
-    [currentDeck.cardTags, deckFilter, unsupportedNames, cmcFilter],
+    [
+      currentDeck.cardTags,
+      deferredDeckFilter,
+      unsupportedNames,
+      cmcFilter,
+      ownershipByName,
+      collectionFilter,
+      comboCardNames,
+      gameChangerNames,
+    ],
   );
-  const hasActiveFilter = deckFilter.trim().length > 0 || cmcFilter !== null;
+  const hasActiveFilter =
+    deckFilter.trim().length > 0 || cmcFilter !== null || collectionFilter !== "all";
   const applyFilters = useCallback(
-    (cards: DeckCard[]) => (hasActiveFilter ? cards.filter(matchesFilters) : cards),
+    (cards: DeckCard[], section: "main" | "sideboard" | "maybeboard" | "special" = "main") =>
+      hasActiveFilter ? cards.filter((card) => matchesFilters(card, section)) : cards,
     [hasActiveFilter, matchesFilters],
   );
   const filteredMain = useMemo(
     () => applyFilters(currentDeck.cards),
     [applyFilters, currentDeck.cards],
   );
-  // Compute groups
-  const groupedMain = computeGroupedSections(
+  const { sectionGroups, otherGroups, sideGroups, maybeGroups, specialSections } = useMemo(() => {
+    const groupedMain = computeGroupedSections(
+      filteredMain,
+      groupBy,
+      currentDeck.customTags,
+      currentDeck.cardTags,
+    );
+    const groupZone = (cards: DeckCard[], section: "sideboard" | "maybeboard" | "special") =>
+      sortCardGroups(groupCards(applyFilters(cards, section)), sortBy, isCardOwned);
+    return {
+      sectionGroups: groupedMain.sections.map((section) => ({
+        ...section,
+        groups: sortCardGroups(section.groups, sortBy, isCardOwned),
+      })),
+      otherGroups: sortCardGroups(groupedMain.otherGroups, sortBy, isCardOwned),
+      sideGroups: groupZone(currentDeck.sideboard, "sideboard"),
+      maybeGroups: groupZone(currentDeck.maybeboard ?? [], "maybeboard"),
+      specialSections: [
+        {
+          id: "attractions",
+          label: "Attractions",
+          groups: groupZone(currentDeck.attractions ?? [], "special"),
+        },
+        {
+          id: "contraptions",
+          label: "Contraptions",
+          groups: groupZone(currentDeck.contraptions ?? [], "special"),
+        },
+        {
+          id: "schemes",
+          label: "Schemes",
+          groups: groupZone(currentDeck.schemes ?? [], "special"),
+        },
+        {
+          id: "planes",
+          label: "Planes",
+          groups: groupZone(currentDeck.planes ?? [], "special"),
+        },
+      ].filter((section) => section.groups.length > 0),
+    };
+  }, [
+    applyFilters,
+    currentDeck.attractions,
+    currentDeck.cardTags,
+    currentDeck.contraptions,
+    currentDeck.customTags,
+    currentDeck.maybeboard,
+    currentDeck.planes,
+    currentDeck.schemes,
+    currentDeck.sideboard,
     filteredMain,
     groupBy,
-    currentDeck.customTags,
-    currentDeck.cardTags,
-  );
-  const sectionGroups = groupedMain.sections.map((section) => ({
-    ...section,
-    groups: sortCardGroups(section.groups, sortBy),
-  }));
-  const otherGroups = sortCardGroups(groupedMain.otherGroups, sortBy);
-  const sideGroups = sortCardGroups(groupCards(applyFilters(currentDeck.sideboard)), sortBy);
-  const attractionGroups = sortCardGroups(
-    groupCards(applyFilters(currentDeck.attractions ?? [])),
+    isCardOwned,
     sortBy,
-  );
-  const contraptionGroups = sortCardGroups(
-    groupCards(applyFilters(currentDeck.contraptions ?? [])),
-    sortBy,
-  );
-  const schemeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.schemes ?? [])), sortBy);
-  const planeGroups = sortCardGroups(groupCards(applyFilters(currentDeck.planes ?? [])), sortBy);
-  const maybeGroups = sortCardGroups(
-    groupCards(applyFilters(currentDeck.maybeboard ?? [])),
-    sortBy,
-  );
-  const specialSections = [
-    { id: "attractions", label: "Attractions", groups: attractionGroups },
-    { id: "contraptions", label: "Contraptions", groups: contraptionGroups },
-    { id: "schemes", label: "Schemes", groups: schemeGroups },
-    { id: "planes", label: "Planes", groups: planeGroups },
-  ].filter((section) => section.groups.length > 0);
+  ]);
   const stackColsData = useMemo(
     () =>
       computeGroupedStackColumns(
@@ -665,11 +825,12 @@ export function DeckBuilder({
         groupBy,
         currentDeck.customTags,
         currentDeck.cardTags,
-      ).map((section) => ({ ...section, groups: sortCardGroups(section.groups, sortBy) })),
-    [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags],
+      ).map((section) => ({
+        ...section,
+        groups: sortCardGroups(section.groups, sortBy, isCardOwned),
+      })),
+    [filteredMain, groupBy, sortBy, currentDeck.customTags, currentDeck.cardTags, isCardOwned],
   );
-
-  // ── Handlers ──
 
   function removeCopies(cardName: string, source: DeckSourceZone, quantity: "one" | "all") {
     executeDeckEdit(`Remove ${quantity === "one" ? "1" : "all"} ${cardName}`, () =>
@@ -722,7 +883,6 @@ export function DeckBuilder({
   }
 
   function handleShowInfo(cardName: string) {
-    if (isReadOnly) return;
     setDetailToken(null);
     // Find the card in the deck to pass its stored setCode for accurate printing
     const allCards = [
@@ -751,7 +911,6 @@ export function DeckBuilder({
   }
 
   function handleShowTokenInfo(token: DeckCard) {
-    if (isReadOnly) return;
     useScryfallStore
       .getState()
       .getCard({
@@ -899,7 +1058,14 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
-  async function handleSave(deckOverride?: EditorDeck) {
+  function handleExactExport() {
+    navigator.clipboard
+      .writeText(exportWithPrintings(currentDeck))
+      .then(() => toast.success("Exact printings copied to clipboard"))
+      .catch(() => toast.error("Could not write to the clipboard"));
+  }
+
+  async function handleSave(deckOverride?: EditorDeck, quiet = false) {
     if (saveInFlightRef.current) return;
     const sourceDeck = deckOverride ?? currentDeck;
     const normalizedName = sourceDeck.name.trim();
@@ -911,6 +1077,7 @@ export function DeckBuilder({
     if (normalizedName !== sourceDeck.name) useDeckStore.getState().setDeckName(normalizedName);
     saveInFlightRef.current = true;
     setIsSaving(true);
+    setSyncState("saving");
     try {
       const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
       saveCurrentDeck();
@@ -921,28 +1088,98 @@ export function DeckBuilder({
         const detail = await useAccountDecksStore
           .getState()
           .save(saved.accountDeckId, saved.accountVersionNo, deckToSave);
+        const latestDeck = useDeckStore.getState().currentDeck;
+        const changedDuringSave = buildDeckSnapshot(latestDeck) !== snapshot;
+        const beforeAccountUpdate = useDeckStore.getState().currentDeck;
         updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
-        toast.success(`Saved version ${detail.currentVersionNo} to your account`);
+        if (changedDuringSave) useDeckStore.setState({ currentDeck: latestDeck });
+        else rebaseDeckHistory(beforeAccountUpdate, useDeckStore.getState().currentDeck);
+        setSyncState("synced");
+        if (!quiet) toast.success(`Saved version ${detail.currentVersionNo} to your account`);
       } else {
-        showAccountSaveNudge();
+        setSyncState("local");
+        if (!quiet) showAccountSaveNudge();
       }
-      if (hasUnsupportedCards) {
+      if (!quiet && hasUnsupportedCards) {
         toast.warning(
           `Saved "${deckToSave.name}" — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? " is" : "s are"} unsupported by the Manabrew and Forge engines`,
         );
-      } else if (!deckValidation.legal) {
+      } else if (!quiet && !deckValidation.legal) {
         toast.warning(
           `Saved "${deckToSave.name}" — ${deckValidation.errors[0] ?? "deck is not legal in this format"}`,
         );
       }
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? `${error.message} Your local copy is still saved.`
-          : "Account save failed. Your local copy is still saved.",
-      );
+      if (
+        error instanceof HubRequestError &&
+        error.status === 409 &&
+        accountSavedDeck?.accountDeckId
+      ) {
+        conflictDeckRef.current = deckToSave;
+        try {
+          setSaveConflict(await fetchAccountDeck(accountSavedDeck.accountDeckId));
+        } catch {
+          setSyncState("failed");
+          toast.error("The account version could not be loaded. Your local copy is still saved.");
+        }
+      } else {
+        setSyncState("failed");
+        if (!quiet) {
+          toast.error(
+            error instanceof Error
+              ? `${error.message} Your local copy is still saved.`
+              : "Account save failed. Your local copy is still saved.",
+          );
+        }
+      }
     } finally {
       saveInFlightRef.current = false;
+      setIsSaving(false);
+    }
+  }
+  async function resolveSaveConflict(action: "mine" | "account" | "copy") {
+    if (!saveConflict || !conflictDeckRef.current) return;
+    setIsSaving(true);
+    setSyncState("saving");
+    try {
+      if (action === "mine") {
+        const detail = await useAccountDecksStore
+          .getState()
+          .save(saveConflict.id, saveConflict.currentVersionNo, conflictDeckRef.current);
+        const beforeAccountUpdate = useDeckStore.getState().currentDeck;
+        updateAccountDeckVersion(detail.id, detail.currentVersionNo, detail.deck as EditorDeck);
+        rebaseDeckHistory(beforeAccountUpdate, useDeckStore.getState().currentDeck);
+      } else if (action === "account") {
+        loadAccountDeck(
+          saveConflict.id,
+          saveConflict.currentVersionNo,
+          saveConflict.deck as EditorDeck,
+        );
+      } else {
+        const copy = await useAccountDecksStore.getState().create({
+          ...conflictDeckRef.current,
+          name: `${conflictDeckRef.current.name} copy`,
+        });
+        linkSavedDeckToAccount(
+          currentDeckId,
+          copy.id,
+          copy.currentVersionNo,
+          copy.deck as EditorDeck,
+        );
+      }
+      const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
+      setLastSavedSnapshot(snapshot);
+      setUnsavedState(snapshot, snapshot);
+      setSyncState("synced");
+      setSaveConflict(null);
+      conflictDeckRef.current = null;
+      toast.success(
+        action === "copy" ? "Saved as a separate account deck" : "Deck conflict resolved",
+      );
+    } catch (error) {
+      setSyncState("failed");
+      toast.error(error instanceof Error ? error.message : "Could not resolve the deck conflict");
+    } finally {
       setIsSaving(false);
     }
   }
@@ -958,6 +1195,41 @@ export function DeckBuilder({
       );
     } else {
       toast.success(`Draft "${currentDeck.name}" saved`);
+    }
+  }
+
+  async function handleDeleteCurrentDeck() {
+    if (isDeleting) return;
+    const deckId = useDeckStore.getState().currentDeckId;
+    const saved = deckId ? savedDecks.find((candidate) => candidate.id === deckId) : undefined;
+    setIsDeleting(true);
+    try {
+      if (saved?.accountDeckId) {
+        await useAccountDecksStore.getState().remove(saved.accountDeckId);
+      }
+      if (deckId) deleteSavedDeck(deckId);
+      clearDeck();
+      resetDeckHistory();
+      setConfirmClear(false);
+      const snapshot = buildDeckSnapshot({
+        format: "standard",
+        cards: [],
+        sideboard: [],
+        commanders: [],
+        attractions: [],
+        contraptions: [],
+        schemes: [],
+        planes: [],
+        name: DEFAULT_DECK_NAME,
+      });
+      setLastSavedSnapshot(snapshot);
+      setUnsavedState(snapshot, snapshot);
+      toast.success("Deck deleted");
+      onDeckDeleted?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete deck");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -985,7 +1257,9 @@ export function DeckBuilder({
 
   function handleImportReadOnlyDeck() {
     const importedName = currentDeck.name;
-    importReadOnlyDeck();
+    const importedId = importReadOnlyDeck();
+    if (!importedId) return;
+    onReadOnlyDeckImported?.(importedId);
     toast.success(`Copied "${importedName}" to My Decks`);
   }
 
@@ -1011,10 +1285,161 @@ export function DeckBuilder({
     { id: "view-list", label: "Switch to list view", run: () => setViewMode("list") },
     { id: "view-grid", label: "Switch to grid view", run: () => setViewMode("visual") },
     { id: "view-stacks", label: "Switch to stack view", run: () => setViewMode("stack") },
+    {
+      id: "next-editor-section",
+      label: "Jump to next editor section",
+      keywords: ["cycle", "scroll", "navigate"],
+      run: () => jumpToNextEditorSection(),
+    },
+    {
+      id: "collapse-sections",
+      label: "Collapse all deck sections",
+      keywords: ["fold", "close", "hide"],
+      run: () => setAllDeckSectionsExpanded(false),
+    },
+    {
+      id: "expand-sections",
+      label: "Expand all deck sections",
+      keywords: ["unfold", "open", "show"],
+      run: () => setAllDeckSectionsExpanded(true),
+    },
     { id: "group-type", label: "Group cards by type", run: () => setGroupBy("type") },
     { id: "group-mana", label: "Group cards by mana value", run: () => setGroupBy("cmc") },
     { id: "group-color", label: "Group cards by color", run: () => setGroupBy("color") },
     { id: "group-tags", label: "Group cards by custom tags", run: () => setGroupBy("custom") },
+    { id: "sort-name", label: "Sort cards by name", run: () => setSortBy("name") },
+    { id: "sort-mana", label: "Sort cards by mana value", run: () => setSortBy("mana-value") },
+    { id: "sort-quantity", label: "Sort cards by quantity", run: () => setSortBy("quantity") },
+    { id: "sort-owned", label: "Sort owned cards first", run: () => setSortBy("owned") },
+    {
+      id: "sort-not-owned",
+      label: "Sort not owned cards first",
+      run: () => setSortBy("not-owned"),
+    },
+    {
+      id: "view-collection-gaps",
+      label: "Show collection gaps",
+      keywords: ["missing", "owned", "filter"],
+      run: () => setCollectionFilter("missing"),
+    },
+    {
+      id: "filter-partial-owned",
+      label: "Show partially owned cards",
+      keywords: ["collection", "shortage", "filter"],
+      run: () => setCollectionFilter("partial"),
+    },
+    {
+      id: "filter-exact-printings",
+      label: "Show exact printings owned",
+      keywords: ["collection", "printing", "filter"],
+      run: () => setCollectionFilter("exact"),
+    },
+    {
+      id: "editor-tour",
+      label: "Open deck editor guide",
+      keywords: ["help", "learn", "what can I do", "onboarding"],
+      run: openDeckEditorWelcome,
+    },
+    {
+      id: "clear-filter",
+      label: "Clear card filters",
+      keywords: ["show all", "reset search"],
+      disabled: !deckFilter && cmcFilter === null,
+      disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
+      run: () => {
+        setDeckFilter("");
+        setCmcFilter(null);
+      },
+    },
+    {
+      id: "select-all",
+      label: "Select all cards",
+      keywords: ["bulk", "multi select"],
+      disabled: allDeckCards().length === 0,
+      disabledReason: allDeckCards().length === 0 ? "Deck is empty" : undefined,
+      run: selectAllDeckCards,
+    },
+    {
+      id: "select-filtered",
+      label: "Select cards matching current filters",
+      keywords: ["visible", "search", "bulk"],
+      disabled: !deckFilter && cmcFilter === null,
+      disabledReason: !deckFilter && cmcFilter === null ? "No active filters" : undefined,
+      run: () =>
+        selectCards(
+          currentDeck.cards
+            .filter((card) => matchesFilters(card))
+            .map((card) => card.identity.name),
+          true,
+        ),
+    },
+    {
+      id: "select-unsupported",
+      label: "Select unsupported cards",
+      keywords: ["engine", "warning", "bulk"],
+      disabled: editableUnsupportedNames.size === 0,
+      disabledReason:
+        editableUnsupportedNames.size === 0 ? "No editable unsupported cards" : undefined,
+      run: () => selectEditableCards(editableUnsupportedNames),
+    },
+    ...(currentDeck.customTags ?? []).map(
+      (tag): DeckEditorCommand => ({
+        id: `select-tag-${tag}`,
+        label: `Select cards tagged ${tag}`,
+        keywords: ["group", "role", "bulk"],
+        run: () =>
+          selectEditableCards(
+            Object.entries(currentDeck.cardTags ?? {})
+              .filter(([, tags]) => tags.includes(tag))
+              .map(([name]) => name),
+          ),
+      }),
+    ),
+    {
+      id: "toggle-search",
+      label: "Toggle card search panel",
+      keywords: ["find", "scryfall"],
+      disabled: !onToggleSearch,
+      run: () => onToggleSearch?.(),
+    },
+    {
+      id: "toggle-preview",
+      label: "Toggle card preview panel",
+      keywords: ["inspector", "details"],
+      disabled: !onPreviewCollapsedChange,
+      run: () => onPreviewCollapsedChange?.(!(previewCollapsed ?? false)),
+    },
+    { id: "export", label: "Copy deck list", keywords: ["export", "clipboard"], run: handleExport },
+    {
+      id: "export-printings",
+      label: "Copy deck with exact printings",
+      keywords: ["export", "moxfield", "archidekt", "foil", "sets"],
+      run: handleExactExport,
+    },
+    {
+      id: "copy-selection",
+      label: "Copy selected cards",
+      keywords: ["clipboard", "duplicate"],
+      disabled: selectedCards.size === 0,
+      disabledReason: selectedCards.size === 0 ? "No selection" : undefined,
+      run: () => void copySelectedCards(),
+    },
+    {
+      id: "paste-cards",
+      label: "Paste cards into deck",
+      keywords: ["clipboard", "import"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => void pasteCards(),
+    },
+    {
+      id: "labels",
+      label: "Manage deck labels",
+      keywords: ["organize", "collection"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setLabelsOpen(true),
+    },
     {
       id: "remove-selection",
       label: "Remove selected cards",
@@ -1031,6 +1456,48 @@ export function DeckBuilder({
       run: () => setTagDialogOpen(true),
     },
     {
+      id: "move-selection-main",
+      label: "Move selected cards to main deck",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleMoveSelectedToMain,
+    },
+    {
+      id: "move-selection-side",
+      label: "Move selected cards to sideboard",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleMoveSelectedToSide,
+    },
+    {
+      id: "move-selection-maybe",
+      label: "Move selected cards to maybeboard",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: handleMoveSelectedToMaybe,
+    },
+    {
+      id: "add-selection-copy",
+      label: "Add one copy of each selected card",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: addOneEachSelected,
+    },
+    {
+      id: "remove-selection-copy",
+      label: "Remove one copy of each selected card",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: removeOneEachSelected,
+    },
+    {
+      id: "foil-selection",
+      label: "Toggle foil for selected cards",
+      disabled: selectedCards.size === 0 || isReadOnly,
+      disabledReason: selectedCards.size === 0 ? "No selection" : "Read only",
+      run: toggleSelectedFoil,
+    },
+    {
       id: "manage-tags",
       label: "Manage deck tags",
       keywords: ["rename", "reorder", "delete", "groups"],
@@ -1044,12 +1511,31 @@ export function DeckBuilder({
       keywords: ["art", "edition", "set"],
       disabled: isReadOnly,
       disabledReason: isReadOnly ? "Read only" : undefined,
-      run: () => setBatchPrintingOpen(true),
+      run: () => {
+        setBatchPrintingSelectionOnly(false);
+        setBatchPrintingOpen(true);
+      },
+    },
+    {
+      id: "optimize-printings",
+      label: "Optimize deck printings",
+      keywords: ["owned", "cheapest", "non-foil", "collection", "price"],
+      disabled: isReadOnly,
+      disabledReason: isReadOnly ? "Read only" : undefined,
+      run: () => setPrintingOptimizerOpen(true),
     },
   ];
 
   return (
-    <div className="flex flex-col h-full w-full relative">
+    <div className="deck-editor-root flex flex-col h-full w-full relative">
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {selectedCards.size > 0
+          ? `${selectedCards.size} card${selectedCards.size === 1 ? "" : "s"} selected`
+          : "Selection cleared"}
+      </div>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        <span key={announcement.id}>{announcement.message}</span>
+      </div>
       {isReadOnly && (
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-2">
           <Bookmark className="h-3.5 w-3.5 text-warning shrink-0" />
@@ -1088,22 +1574,35 @@ export function DeckBuilder({
         </div>
       )}
       <div className="flex flex-1 min-h-0">
-        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
+        <div
+          ref={editorScrollRef}
+          tabIndex={-1}
+          aria-label="Deck editor workspace"
+          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
+          onScroll={(event) => setShowBackToTop(event.currentTarget.scrollTop > 120)}
+        >
           <DeckHero
             onNameCommit={(name) =>
               void handleSave({ ...useDeckStore.getState().currentDeck, name })
             }
           />
 
-          <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
+          <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md max-sm:flex-nowrap max-sm:overflow-x-auto">
             {!isReadOnly && <DeckHistoryControls />}
+            <DeckStatusSummary
+              legalityErrors={deckValidation.errors.length}
+              unsupportedCards={unsupportedNames.size}
+              collectionGaps={collectionGapCount}
+              budgetTracked={currentDeck.editor?.budgetAmount !== undefined}
+              onNavigate={navigateToDeckStatus}
+            />
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
                 ref={filterInputRef}
                 className="h-6 text-xs pl-6 pr-6 pointer-coarse:h-9 pointer-coarse:text-base"
                 placeholder="Filter…"
-                title="Filter cards by name — comma-separate to match several, e.g. bolt, elves"
+                title="Filter by name or use tag:, type:, color:, section:, mv>=, is:owned, is:missing, is:partial, is:foil, is:combo, and - to negate"
                 value={deckFilter}
                 onChange={(e) => setDeckFilter(e.target.value)}
               />
@@ -1128,20 +1627,17 @@ export function DeckBuilder({
                 <X className="h-3 w-3" />
               </button>
             )}
-            <DeckLayoutMenu
-              groupBy={groupBy}
-              sortBy={sortBy}
-              cardSize={cardSize}
-              filter={deckFilter}
-              viewMode={viewMode}
-              onApply={(nextGroupBy, nextSortBy, nextCardSize, nextFilter, nextViewMode) => {
-                setGroupBy(nextGroupBy);
-                setSortBy(nextSortBy);
-                setCardSize(nextCardSize);
-                setDeckFilter(nextFilter);
-                setViewMode(nextViewMode);
-              }}
-            />
+            {collectionFilter !== "all" && (
+              <button
+                type="button"
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium capitalize text-primary transition-colors hover:bg-primary/25"
+                title="Clear collection filter"
+                onClick={() => setCollectionFilter("all")}
+              >
+                Collection: {collectionFilter.replace("-", " ")}
+                <X className="h-3 w-3" />
+              </button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
@@ -1181,6 +1677,30 @@ export function DeckBuilder({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <DeckLayoutMenu
+              compact
+              groupBy={groupBy}
+              sortBy={sortBy}
+              cardSize={cardSize}
+              filter={deckFilter}
+              viewMode={viewMode}
+              collectionFilter={collectionFilter}
+              onApply={(
+                nextGroupBy,
+                nextSortBy,
+                nextCardSize,
+                nextFilter,
+                nextViewMode,
+                nextCollectionFilter,
+              ) => {
+                setGroupBy(nextGroupBy);
+                setSortBy(nextSortBy);
+                setCardSize(nextCardSize);
+                setDeckFilter(nextFilter);
+                setViewMode(nextViewMode);
+                setCollectionFilter(nextCollectionFilter);
+              }}
+            />
             <div className="flex rounded-md border overflow-hidden shrink-0">
               {(
                 [
@@ -1218,84 +1738,86 @@ export function DeckBuilder({
               />
             )}
             <div className="flex-1 min-w-40">
-              <QuickCardSearch
-                onAdd={(sc, destination) => {
-                  if (destination === "main" && isAtCopyLimit(sc.name)) {
-                    const format = getFormat(currentDeck.format ?? "standard");
-                    toast.error(
-                      `Max ${format?.deckRules.maxCopies} copies of "${sc.name}" allowed in ${format?.name}`,
-                    );
-                    return;
-                  }
-                  const card = scryfallToDeckCard(sc);
-                  executeDeckEdit(`Add ${sc.name} to ${destination}`, () => {
-                    if (destination === "side") addToSide(card);
-                    else if (destination === "maybe") addToMaybe(card);
-                    else addToMain(card);
-                  });
-                  toast.success(
-                    `Added ${sc.name} to ${
-                      destination === "side"
-                        ? "sideboard"
-                        : destination === "maybe"
-                          ? "maybeboard"
-                          : "main deck"
-                    }`,
-                  );
-                }}
-                onRemove={(name) => {
-                  handleRemoveOneFromMain(name);
-                }}
+              <DeckQuickAdd
+                customTags={currentDeck.customTags ?? []}
                 getCount={(name) =>
-                  currentDeck.cards.filter((c) => c.identity.name === name).length
+                  currentDeck.cards.filter((card) => card.identity.name === frontFaceName(name))
+                    .length
                 }
+                onAdd={(sc, request) => {
+                  const card = scryfallToDeckCard(sc);
+                  const format = getFormat(currentDeck.format ?? "standard");
+                  const existingCount = currentDeck.cards.filter(
+                    (candidate) => candidate.identity.name === card.identity.name,
+                  ).length;
+                  const copyLimit =
+                    request.destination === "main" &&
+                    !allowIllegalDecks &&
+                    !canHaveAnyNumberOf(card)
+                      ? (copyLimitFromText(card.text) ?? format?.deckRules.maxCopies)
+                      : undefined;
+                  const quantity = copyLimit
+                    ? Math.min(request.quantity, Math.max(0, copyLimit - existingCount))
+                    : request.quantity;
+                  if (quantity === 0) {
+                    toast.error(
+                      `Max ${copyLimit} copies of "${sc.name}" allowed in ${format?.name}`,
+                    );
+                    return false;
+                  }
+                  executeDeckEdit(`Add ${quantity} ${sc.name} to ${request.destination}`, () => {
+                    for (let index = 0; index < quantity; index += 1) {
+                      const copy = {
+                        ...card,
+                        identity: { ...card.identity, id: crypto.randomUUID() },
+                      };
+                      if (request.destination === "side") addToSide(copy);
+                      else if (request.destination === "maybe") addToMaybe(copy);
+                      else addToMain(copy);
+                    }
+                    for (const tag of request.tags) {
+                      addCustomTag(tag);
+                      tagCard(card.identity.name, tag);
+                    }
+                  });
+                  if (quantity < request.quantity) {
+                    toast.warning(
+                      `Added ${quantity} of ${request.quantity} ${sc.name}; ${format?.name} allows ${copyLimit}`,
+                    );
+                  } else {
+                    toast.success(
+                      `Added ${quantity} ${sc.name} to ${
+                        request.destination === "side"
+                          ? "sideboard"
+                          : request.destination === "maybe"
+                            ? "maybeboard"
+                            : "main deck"
+                      }`,
+                    );
+                  }
+                  return true;
+                }}
               />
             </div>
-            {onToggleSearch && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 shrink-0"
-                title="Toggle card search"
-                onClick={onToggleSearch}
-              >
-                <Search className="h-3.5 w-3.5" />
-              </Button>
-            )}
-
-            {!isReadOnly && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 shrink-0 gap-1 text-xs"
-                onClick={() => setImportOpen(true)}
-              >
-                <ListPlus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Import list</span>
-                <span className="sm:hidden">Import</span>
-              </Button>
-            )}
-
             {!isReadOnly && (
               <span className="shrink-0 text-[11px] text-muted-foreground" aria-live="polite">
-                {isSaving ? "Saving…" : hasUnsavedChanges ? "Unsaved" : "Saved"}
+                {isSaving || syncState === "saving"
+                  ? "Saving…"
+                  : hasUnsavedChanges
+                    ? "Unsaved"
+                    : syncState === "local"
+                      ? "Saved locally"
+                      : syncState === "synced"
+                        ? "Synced"
+                        : syncState === "failed"
+                          ? "Sync failed"
+                          : "Saved"}
               </span>
             )}
 
             {!isReadOnly && (
               <DeckChangeSummary currentDeck={currentDeck} savedSnapshot={lastSavedSnapshot} />
             )}
-
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 shrink-0"
-              title="Deck commands"
-              aria-label="Deck commands"
-              onClick={() => setCommandPaletteOpen(true)}
-            >
-              <CommandIcon className="h-3.5 w-3.5" />
-            </Button>
 
             {isReadOnly ? (
               <Button
@@ -1357,15 +1879,47 @@ export function DeckBuilder({
                   <EllipsisVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={() => setCommandPaletteOpen(true)}>
+                  <CommandIcon className="mr-2 h-3.5 w-3.5" /> Command palette
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={openDeckEditorWelcome}>
+                  <BookOpen className="mr-2 h-3.5 w-3.5" /> Deck editor guide
+                </DropdownMenuItem>
+                {onToggleSearch && (
+                  <DropdownMenuItem onSelect={onToggleSearch}>
+                    <Search className="mr-2 h-3.5 w-3.5" /> Card search
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(false)}>
+                  <FoldVertical className="mr-2 h-3.5 w-3.5" /> Collapse all sections
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setAllDeckSectionsExpanded(true)}>
+                  <UnfoldVertical className="mr-2 h-3.5 w-3.5" /> Expand all sections
+                </DropdownMenuItem>
+                <div className="my-1 border-t" />
+                <DropdownMenuItem onSelect={() => setImportOpen(true)}>
+                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Import list
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={handleExport}
                   disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setBatchPrintingOpen(true)}>
+                <DropdownMenuItem onSelect={handleExactExport}>
+                  <Images className="mr-2 h-3.5 w-3.5" /> Export exact printings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setBatchPrintingSelectionOnly(false);
+                    setBatchPrintingOpen(true);
+                  }}
+                >
                   <Images className="mr-2 h-3.5 w-3.5" /> Change deck printings
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPrintingOptimizerOpen(true)}>
+                  <Sparkles className="mr-2 h-3.5 w-3.5" /> Optimize deck printings
                 </DropdownMenuItem>
                 {publishEnabled && (
                   <DropdownMenuItem
@@ -1384,6 +1938,12 @@ export function DeckBuilder({
                   )}
                 <DropdownMenuItem onSelect={handleSaveDraft}>
                   <FileBox className="h-3.5 w-3.5 mr-2" /> Save as draft
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setCheckpointsOpen(true)}>
+                  <History className="mr-2 h-3.5 w-3.5" /> Local checkpoints
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setSideboardPlansOpen(true)}>
+                  <ListPlus className="mr-2 h-3.5 w-3.5" /> Sideboard plans
                 </DropdownMenuItem>
                 <div className="border-t my-1" />
                 <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
@@ -1456,230 +2016,320 @@ export function DeckBuilder({
             </DropdownMenu>
           </div>
 
-          <fieldset disabled={isReadOnly} className="contents">
+          <CardCollectionOwnershipScope
+            disabled={isReadOnly}
+            quantities={collectionQuantities}
+            deckOwnership={ownershipByName}
+          >
             <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
-              <DeckValidationPanel unsupportedNames={unsupportedNames} />
-              <CommanderSlots
-                cards={currentDeck.cards}
-                commanders={currentDeck.commanders ?? []}
-                format={currentDeck.format ?? "standard"}
-                cardSize={cardSize}
-                readOnly={isReadOnly}
-                onSetCommander={handleSetCommander}
-                onRemoveCommander={handleRemoveCommander}
-                onHover={(card, event) =>
-                  preview.handleMouseEnter(card as unknown as CardDto, event, { useDelay: true })
-                }
-                onLeave={preview.handleMouseLeave}
-                onPickPrint={(name) => setPrintPickerCard(name)}
-              />
-              <div
-                ref={setMainDropRef}
-                className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
-              >
-                <DeckListView
-                  viewMode={viewMode}
-                  cardSize={cardSize}
+              <div data-editor-section="build" className="scroll-mt-12">
+                <DeckValidationPanel unsupportedNames={unsupportedNames} />
+                <CommanderSlots
+                  key={`command-zone-${editorSessionId}`}
+                  cards={currentDeck.cards}
                   commanders={currentDeck.commanders ?? []}
-                  deckFormat={currentDeck.format ?? "standard"}
-                  mainSections={sectionGroups}
-                  otherGroups={otherGroups}
-                  sideboardGroups={sideGroups}
-                  maybeboardGroups={maybeGroups}
-                  specialSections={specialSections}
-                  stackColumns={stackColsData}
-                  isOverSide={isOverSide}
-                  setSideDropRef={setSideDropRef}
-                  isOverMaybe={isOverMaybe}
-                  setMaybeDropRef={setMaybeDropRef}
-                  onAddOne={handleAddOneToMain}
-                  onRemoveOne={handleRemoveOneFromMain}
-                  onRemoveAll={handleRemoveAllFromMain}
+                  format={currentDeck.format ?? "standard"}
+                  cardSize={cardSize}
+                  readOnly={isReadOnly}
                   onSetCommander={handleSetCommander}
                   onRemoveCommander={handleRemoveCommander}
-                  onMoveOneToSide={handleMoveOneToSide}
-                  onMoveAllToSide={handleMoveAllToSide}
-                  onMoveOneToMaybe={handleMoveOneToMaybe}
-                  onMoveAllToMaybe={handleMoveAllToMaybe}
-                  onMoveOneFromSideToMain={handleMoveOneFromSideToMain}
-                  onMoveAllFromSideToMain={handleMoveAllFromSideToMain}
-                  onMoveOneFromSideToMaybe={handleMoveOneFromSideToMaybe}
-                  onMoveAllFromSideToMaybe={handleMoveAllFromSideToMaybe}
-                  onMoveOneFromMaybeToMain={handleMoveOneFromMaybeToMain}
-                  onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
-                  onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
-                  onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
-                  onPickPrint={(name) => setPrintPickerCard(name)}
-                  onToggleFoil={(name) =>
-                    executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
-                  }
-                  onHover={(card, e) =>
-                    preview.handleMouseEnter(card as unknown as CardDto, e, { useDelay: true })
+                  onHover={(card, event) =>
+                    preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
+                      useDelay: true,
+                    })
                   }
                   onLeave={preview.handleMouseLeave}
-                  onAddToSide={(card) =>
-                    executeDeckEdit(`Add ${card.identity.name} to sideboard`, () => addToSide(card))
-                  }
-                  onRemoveFromSide={handleRemoveOneFromSide}
-                  onAddToMaybe={(card) =>
-                    executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
-                      addToMaybe(card),
-                    )
-                  }
-                  onRemoveFromMaybe={handleRemoveOneFromMaybe}
-                  totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
-                  customTags={currentDeck.customTags}
-                  cardTags={currentDeck.cardTags}
-                  allMainCards={currentDeck.cards}
-                  onUntagCard={(name, tag) =>
-                    executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
-                  }
-                  onTagCard={(name, tag) =>
-                    executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
-                  }
-                  onAddCustomTag={(tag) =>
-                    executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
-                  }
-                  onRemoveTag={(tag) =>
-                    executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
-                  }
-                  selectedCards={selectedCards}
-                  onSelectCard={handleSelectCard}
-                  onSelectAll={(names) => selectCards(names, true)}
-                  onShowInfo={handleShowInfo}
-                  coverCardName={currentDeck.coverCardName}
-                  coverCardFace={currentDeck.coverCardFace}
-                  onSetCover={(card) => {
-                    const isSameFront =
-                      currentDeck.coverCardName === card.identity.name &&
-                      (currentDeck.coverCardFace ?? 0) === 0;
-                    executeDeckEdit(`Change deck cover`, () =>
-                      setCoverCard(isSameFront ? undefined : card.identity.name, 0),
-                    );
-                    if (!isSameFront)
-                      useScryfallStore.getState().invalidateCard(card.identity.name);
+                  onPickPrint={(name) => setPrintPickerCard(name)}
+                  contextMenuFor={(card, label) => {
+                    const name = card.identity.name;
+                    const isCover =
+                      currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === 0;
+                    const isCoverBack =
+                      currentDeck.coverCardName === name && currentDeck.coverCardFace === 1;
+                    return {
+                      commanderLabel: label,
+                      customTags: currentDeck.customTags ?? [],
+                      appliedTags: currentDeck.cardTags?.[name.toLowerCase()] ?? [],
+                      isFoil: !!card.identity.foil,
+                      isCover,
+                      isCoverBack,
+                      hasBackFace: !!card.backFace,
+                      onShowInfo: () => handleShowInfo(name),
+                      onRemoveCommander: () => handleRemoveCommander(card),
+                      onPickPrint: () => setPrintPickerCard(name),
+                      onToggleFoil: () =>
+                        executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
+                      onSetCover: () => {
+                        executeDeckEdit(`Change deck cover`, () =>
+                          setCoverCard(isCover ? undefined : name, 0),
+                        );
+                        if (!isCover) useScryfallStore.getState().invalidateCard(name);
+                      },
+                      onSetCoverBack: () => {
+                        executeDeckEdit(`Change deck cover`, () =>
+                          setCoverCard(isCoverBack ? undefined : name, 1),
+                        );
+                        if (!isCoverBack) useScryfallStore.getState().invalidateCard(name);
+                      },
+                      onApplyTag: (tag) => {
+                        const isApplied = currentDeck.cardTags?.[name.toLowerCase()]?.includes(tag);
+                        executeDeckEdit(`${isApplied ? "Remove" : "Apply"} ${tag}`, () => {
+                          if (isApplied) untagCard(name, tag);
+                          else tagCard(name, tag);
+                        });
+                      },
+                      onCreateTag: (tag) =>
+                        executeDeckEdit(`Create ${tag} tag`, () => {
+                          addCustomTag(tag);
+                          tagCard(name, tag);
+                        }),
+                    };
                   }}
-                  onSetCoverBack={(card) => {
-                    const isSameBack =
-                      currentDeck.coverCardName === card.identity.name &&
-                      currentDeck.coverCardFace === 1;
-                    executeDeckEdit(`Change deck cover`, () =>
-                      setCoverCard(isSameBack ? undefined : card.identity.name, 1),
-                    );
-                    if (!isSameBack) useScryfallStore.getState().invalidateCard(card.identity.name);
-                  }}
-                  stackPositions={currentDeck.stackPositions}
-                  onStackPositionsChange={setStackPositions}
                 />
+                <div
+                  ref={setMainDropRef}
+                  className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
+                >
+                  <DeckListView
+                    key={`deck-sections-${editorSessionId}`}
+                    viewMode={viewMode}
+                    cardSize={cardSize}
+                    commanders={currentDeck.commanders ?? []}
+                    deckFormat={currentDeck.format ?? "standard"}
+                    mainSections={sectionGroups}
+                    otherGroups={otherGroups}
+                    sideboardGroups={sideGroups}
+                    maybeboardGroups={maybeGroups}
+                    specialSections={specialSections}
+                    stackColumns={stackColsData}
+                    isOverSide={isOverSide}
+                    setSideDropRef={setSideDropRef}
+                    isOverMaybe={isOverMaybe}
+                    setMaybeDropRef={setMaybeDropRef}
+                    onAddOne={handleAddOneToMain}
+                    onRemoveOne={handleRemoveOneFromMain}
+                    onRemoveAll={handleRemoveAllFromMain}
+                    onSetCommander={handleSetCommander}
+                    onRemoveCommander={handleRemoveCommander}
+                    onMoveOneToSide={handleMoveOneToSide}
+                    onMoveAllToSide={handleMoveAllToSide}
+                    onMoveOneToMaybe={handleMoveOneToMaybe}
+                    onMoveAllToMaybe={handleMoveAllToMaybe}
+                    onMoveOneFromSideToMain={handleMoveOneFromSideToMain}
+                    onMoveAllFromSideToMain={handleMoveAllFromSideToMain}
+                    onMoveOneFromSideToMaybe={handleMoveOneFromSideToMaybe}
+                    onMoveAllFromSideToMaybe={handleMoveAllFromSideToMaybe}
+                    onMoveOneFromMaybeToMain={handleMoveOneFromMaybeToMain}
+                    onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
+                    onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
+                    onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
+                    onPickPrint={(name) => setPrintPickerCard(name)}
+                    onToggleFoil={(name) =>
+                      executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
+                    }
+                    onHover={(card, e) =>
+                      preview.handleMouseEnter(deckCardToPreviewDto(card), e, { useDelay: true })
+                    }
+                    onLeave={preview.handleMouseLeave}
+                    onAddToSide={(card) =>
+                      executeDeckEdit(`Add ${card.identity.name} to sideboard`, () =>
+                        addToSide(card),
+                      )
+                    }
+                    onRemoveFromSide={handleRemoveOneFromSide}
+                    onAddToMaybe={(card) =>
+                      executeDeckEdit(`Add ${card.identity.name} to maybeboard`, () =>
+                        addToMaybe(card),
+                      )
+                    }
+                    onRemoveFromMaybe={handleRemoveOneFromMaybe}
+                    totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
+                    customTags={currentDeck.customTags}
+                    cardTags={currentDeck.cardTags}
+                    allMainCards={currentDeck.cards}
+                    onUntagCard={(name, tag) =>
+                      executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag))
+                    }
+                    onTagCard={(name, tag) =>
+                      executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag))
+                    }
+                    onAddCustomTag={(tag) =>
+                      executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag))
+                    }
+                    onRemoveTag={(tag) =>
+                      executeDeckEdit(`Remove ${tag} tag`, () => removeCustomTag(tag))
+                    }
+                    selectedCards={selectedCards}
+                    onSelectCard={handleSelectCard}
+                    onSelectAll={(names) => selectCards(names, true)}
+                    onShowInfo={handleShowInfo}
+                    coverCardName={currentDeck.coverCardName}
+                    coverCardFace={currentDeck.coverCardFace}
+                    onSetCover={(card) => {
+                      const isSameFront =
+                        currentDeck.coverCardName === card.identity.name &&
+                        (currentDeck.coverCardFace ?? 0) === 0;
+                      executeDeckEdit(`Change deck cover`, () =>
+                        setCoverCard(isSameFront ? undefined : card.identity.name, 0),
+                      );
+                      if (!isSameFront)
+                        useScryfallStore.getState().invalidateCard(card.identity.name);
+                    }}
+                    onSetCoverBack={(card) => {
+                      const isSameBack =
+                        currentDeck.coverCardName === card.identity.name &&
+                        currentDeck.coverCardFace === 1;
+                      executeDeckEdit(`Change deck cover`, () =>
+                        setCoverCard(isSameBack ? undefined : card.identity.name, 1),
+                      );
+                      if (!isSameBack)
+                        useScryfallStore.getState().invalidateCard(card.identity.name);
+                    }}
+                    stackPositions={currentDeck.stackPositions}
+                    onStackPositionsChange={setStackPositions}
+                  />
+                </div>
               </div>
 
-              <div className="px-4 pb-10 pt-4">
-                <div className="mb-4 flex items-center gap-3">
+              <div data-editor-section="analysis" className="scroll-mt-12 px-4 pb-10 pt-4">
+                <button
+                  type="button"
+                  className="mb-4 flex w-full items-center gap-3 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-expanded={analysisOpen}
+                  onClick={() => setAnalysisOpen((value) => !value)}
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 text-muted-foreground transition-transform",
+                      !analysisOpen && "-rotate-90",
+                    )}
+                  />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Deck Analysis
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
-                </div>
-                <div className="space-y-5">
-                  {mergedTokens.length > 0 && (
-                    <TokenSection
-                      tokens={mergedTokens}
-                      customizedTokens={currentDeck.tokens}
+                </button>
+                {analysisOpen && (
+                  <div className="space-y-5">
+                    {mergedTokens.length > 0 && (
+                      <TokenSection
+                        key={`tokens-${editorSessionId}`}
+                        tokens={mergedTokens}
+                        customizedTokens={currentDeck.tokens}
+                        cardSize={cardSize}
+                        onShowInfo={handleShowTokenInfo}
+                        onPickPrint={setTokenPrintPicker}
+                        onResetPrint={(token) =>
+                          executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
+                            resetTokenPrint(token),
+                          )
+                        }
+                        onHover={(token, e) =>
+                          preview.handleMouseEnter(deckCardToPreviewDto(token), e, {
+                            useDelay: true,
+                          })
+                        }
+                        onLeave={preview.handleMouseLeave}
+                      />
+                    )}
+                    <DeckInsightsPanel
+                      key={`insights-${editorSessionId}`}
+                      deck={currentDeck}
+                      unsupportedNames={unsupportedNames}
+                      validationErrors={deckValidation.errors}
+                      activeBucket={cmcFilter}
+                      onBucketClick={setCmcFilter}
+                      onShowUnsupported={() => setDeckFilter("is:unsupported")}
+                      onOpenSearch={onToggleSearch}
                       cardSize={cardSize}
-                      onShowInfo={handleShowTokenInfo}
-                      onPickPrint={setTokenPrintPicker}
-                      onResetPrint={(token) =>
-                        executeDeckEdit(`Reset ${token.identity.name} token printing`, () =>
-                          resetTokenPrint(token),
-                        )
-                      }
-                      onHover={(token, e) =>
-                        preview.handleMouseEnter(token as unknown as CardDto, e, {
+                      onCardHover={(card, event) =>
+                        preview.handleMouseEnter(deckCardToPreviewDto(card), event, {
                           useDelay: true,
                         })
                       }
-                      onLeave={preview.handleMouseLeave}
+                      onCardLeave={preview.handleMouseLeave}
+                      onOptimizeOwnedPrintings={() => setPrintingOptimizerOpen(true)}
                     />
-                  )}
-                  <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
-                  <CombosPanel />
-                  <DeckBracketPanel />
-                </div>
+                    <CombosPanel />
+                    <DeckBracketPanel />
+                  </div>
+                )}
               </div>
             </div>
-          </fieldset>
+          </CardCollectionOwnershipScope>
         </div>
-        {setPreviewSlot && onTogglePreview && (
+
+        <DeckCheckpointsDialog
+          open={checkpointsOpen}
+          onOpenChange={setCheckpointsOpen}
+          deck={currentDeck}
+          deckKey={currentDeckId ?? currentDeck.name.toLowerCase()}
+          onRestore={(deck, checkpointName) => {
+            executeDeckEdit(`Restore ${checkpointName}`, () =>
+              useDeckStore.setState({ currentDeck: deck }),
+            );
+            setCheckpointsOpen(false);
+            toast.success(`Restored "${checkpointName}"`);
+          }}
+        />
+        <SideboardPlansDialog open={sideboardPlansOpen} onOpenChange={setSideboardPlansOpen} />
+        {setPreviewSlot && onPreviewCollapsedChange && (
           <div className="hidden lg:contents">
-            <PreviewRail
-              setSlot={setPreviewSlot}
+            <CardPreviewRail
+              preview={preview}
+              onSlotChange={setPreviewSlot}
               collapsed={previewCollapsed ?? false}
-              onCollapse={onTogglePreview}
-              previewCard={preview.hoveredCard}
+              onCollapsedChange={onPreviewCollapsedChange}
+              renderDetails={(card) => <PreviewCardInfo card={card} />}
             />
           </div>
         )}
       </div>
 
+      {showBackToTop && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className={cn(
+            "absolute bottom-4 right-4 z-50 h-10 w-10 rounded-full border shadow-lg",
+            selectedCards.size > 0 && "bottom-20",
+          )}
+          title="Back to top"
+          aria-label="Back to top"
+          onClick={() => editorScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
+
       <fieldset disabled={isReadOnly} className="contents">
         {selectedCards.size > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-selection/30 px-4 py-2 flex flex-wrap items-center gap-2 z-50">
-            <span className="text-sm font-medium text-selection">
-              {selectedCards.size} card{selectedCards.size !== 1 ? "s" : ""} selected
-            </span>
-            <div className="flex-1" />
-            <Button size="sm" variant="outline" onClick={handleMoveSelectedToMain}>
-              <ArrowUpToLine className="h-3 w-3 mr-1" /> To Main
-            </Button>
-            <Button size="sm" variant="outline" onClick={handleMoveSelectedToSide}>
-              <ArrowDownToLine className="h-3 w-3 mr-1" /> To Sideboard
-            </Button>
-            {(currentDeck.customTags?.length ?? 0) > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <Bookmark className="h-3 w-3 mr-1" /> Tag
-                    <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {currentDeck.customTags!.map((tag) => (
-                    <DropdownMenuItem key={tag} onSelect={() => handleTagSelected(tag)}>
-                      <Bookmark className="h-3 w-3 mr-2 text-primary/60" />
-                      {tag}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {selectedCardTags.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <BookmarkMinus className="h-3 w-3 mr-1" /> Untag
-                    <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {selectedCardTags.map((tag) => (
-                    <DropdownMenuItem key={tag} onSelect={() => handleUntagSelected(tag)}>
-                      <BookmarkMinus className="h-3 w-3 mr-2 text-destructive" />
-                      {tag}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <Button size="sm" variant="destructive" onClick={handleRemoveSelected}>
-              <X className="h-3 w-3 mr-1" /> Remove
-            </Button>
-            <Button size="sm" variant="ghost" onClick={clearSelection}>
-              Clear
-            </Button>
-          </div>
+          <DeckSelectionTray
+            count={selectedCards.size}
+            tags={currentDeck.customTags ?? []}
+            appliedTags={selectedCardTags}
+            onMoveToMain={handleMoveSelectedToMain}
+            onMoveToSide={handleMoveSelectedToSide}
+            onMoveToMaybe={handleMoveSelectedToMaybe}
+            onAddCopy={addOneEachSelected}
+            onRemoveCopy={removeOneEachSelected}
+            onToggleFoil={toggleSelectedFoil}
+            onCopy={() => void copySelectedCards()}
+            onTag={handleTagSelected}
+            onUntag={handleUntagSelected}
+            onPrinting={() => {
+              setBatchPrintingSelectionOnly(true);
+              setBatchPrintingOpen(true);
+            }}
+            onRemove={handleRemoveSelected}
+            onClear={() => {
+              clearSelection();
+              window.setTimeout(() => editorScrollRef.current?.focus({ preventScroll: true }));
+            }}
+          />
         )}
 
-        <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
         <PrintPickerModal
           cardName={printPickerCard}
           onClose={() => setPrintPickerCard(null)}
@@ -1706,6 +2356,7 @@ export function DeckBuilder({
         {detailCard && (
           <CardDetailModal
             card={detailCard}
+            readOnly={isReadOnly}
             onClose={() => {
               setDetailCard(null);
               setDetailToken(null);
@@ -1737,7 +2388,18 @@ export function DeckBuilder({
               customTags: currentDeck.customTags,
               onTagCard: (name, tag) =>
                 executeDeckEdit(`Tag ${name} with ${tag}`, () => tagCard(name, tag)),
+              onUntagCard: (name, tag) =>
+                executeDeckEdit(`Remove ${tag} from ${name}`, () => untagCard(name, tag)),
               onAddTag: (tag) => executeDeckEdit(`Create ${tag} tag`, () => addCustomTag(tag)),
+              onToggleFoil: (name) =>
+                executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
+              onSetCover: (name, face) => {
+                const isCurrent =
+                  currentDeck.coverCardName === name && (currentDeck.coverCardFace ?? 0) === face;
+                executeDeckEdit(`Change deck cover`, () =>
+                  setCoverCard(isCurrent ? undefined : name, face),
+                );
+              },
               token: detailToken ?? undefined,
               onUpdateTokenPrint: (_name, print) => {
                 if (detailToken) {
@@ -1770,7 +2432,15 @@ export function DeckBuilder({
           onCreateAndApply={handleCreateAndTagSelected}
         />
         <DeckTagManagerDialog open={tagManagerOpen} onOpenChange={setTagManagerOpen} />
-        <BatchPrintingDialog open={batchPrintingOpen} onOpenChange={setBatchPrintingOpen} />
+        <BatchPrintingDialog
+          open={batchPrintingOpen}
+          onOpenChange={setBatchPrintingOpen}
+          cardNames={batchPrintingSelectionOnly ? selectedCards : undefined}
+        />
+        <PrintingOptimizerDialog
+          open={printingOptimizerOpen}
+          onOpenChange={setPrintingOptimizerOpen}
+        />
         {publishEnabled && resumedPublication ? (
           <PublishDeckDialog
             open
@@ -1806,8 +2476,19 @@ export function DeckBuilder({
               }}
             />
           )}
+        <DeckSaveConflictDialog
+          conflict={saveConflict}
+          busy={isSaving}
+          onKeepMine={() => void resolveSaveConflict("mine")}
+          onUseAccount={() => void resolveSaveConflict("account")}
+          onSaveCopy={() => void resolveSaveConflict("copy")}
+          onCancel={() => {
+            setSaveConflict(null);
+            conflictDeckRef.current = null;
+            setSyncState("failed");
+          }}
+        />
 
-        {/* Clear/delete deck confirm dialog */}
         {confirmClear && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
             <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
@@ -1817,42 +2498,28 @@ export function DeckBuilder({
                 cards and delete the saved deck.
               </p>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setConfirmClear(false)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isDeleting}
+                  onClick={() => setConfirmClear(false)}
+                >
                   Cancel
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => {
-                    // Delete the saved deck if it exists
-                    const deckId = useDeckStore.getState().currentDeckId;
-                    if (deckId) deleteSavedDeck(deckId);
-                    clearDeck();
-                    resetDeckHistory();
-                    setConfirmClear(false);
-                    const snapshot = buildDeckSnapshot({
-                      format: "standard",
-                      cards: [],
-                      sideboard: [],
-                      commanders: [],
-                      attractions: [],
-                      contraptions: [],
-                      schemes: [],
-                      planes: [],
-                      name: DEFAULT_DECK_NAME,
-                    });
-                    setLastSavedSnapshot(snapshot);
-                    setUnsavedState(snapshot, snapshot);
-                    toast.success("Deck deleted");
-                  }}
+                  disabled={isDeleting}
+                  onClick={() => void handleDeleteCurrentDeck()}
                 >
-                  Delete
+                  {isDeleting ? "Deleting…" : "Delete"}
                 </Button>
               </div>
             </div>
           </div>
         )}
       </fieldset>
+      <DeckEditorWelcome readOnly={isReadOnly} />
     </div>
   );
 }

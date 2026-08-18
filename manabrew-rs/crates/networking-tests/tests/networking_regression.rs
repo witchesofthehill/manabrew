@@ -314,6 +314,46 @@ async fn creating_a_room_seats_the_creator() {
     );
 }
 
+async fn proven_owner_takes_over_its_live_session() {
+    scenario(
+        "a player seated in a room from one device, with a live socket the relay still sees as connected.",
+        "the same player connects again with the same device proof, and a stranger connects with a different one.",
+        "the owner takes the seat over (the old socket is signed out) while the stranger is still refused.",
+    );
+    let mut sim = Sim::spawn_relay_only(9644).await;
+    let device = "alice-device-secret-0001";
+    let mut alice = Client::connect_as(&sim.relay_url, "alice", Some(device))
+        .await
+        .unwrap();
+    alice.create_room("Alice's table").await.unwrap();
+    sim.room_id = alice.wait_own_room().await.unwrap().room_id;
+
+    let stranger =
+        Client::connect_as(&sim.relay_url, "alice", Some("someone-else-secret-01")).await;
+    assert!(
+        stranger.is_err(),
+        "a different device must not take the username"
+    );
+
+    let _second_tab = Client::connect_as(&sim.relay_url, "alice", Some(device))
+        .await
+        .unwrap();
+    alice.expect_session_taken_over().await.unwrap();
+
+    sim.wait_room(
+        Duration::from_secs(10),
+        "alice still seated on the new socket",
+        |room| {
+            room.is_some_and(|room| {
+                room.players
+                    .iter()
+                    .any(|p| p.username == "alice" && p.connected)
+            })
+        },
+    )
+    .await;
+}
+
 async fn ghost_session_reaped_on_room_teardown() {
     scenario(
         "an in-game room where one player vanished (session preserved for reconnect) and one survivor remains.",
@@ -416,6 +456,10 @@ fn main() {
         case(
             "creating_a_room_seats_the_creator",
             creating_a_room_seats_the_creator,
+        ),
+        case(
+            "proven_owner_takes_over_its_live_session",
+            proven_owner_takes_over_its_live_session,
         ),
         case(
             "ghost_session_reaped_on_room_teardown",

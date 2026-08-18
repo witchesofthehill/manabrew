@@ -11,6 +11,7 @@ use tracing::{debug, info, warn};
 use crate::analytics::{self, AnalyticsEvent};
 use crate::cleanup::mark_disconnected;
 use crate::error::ServerError;
+use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::metrics;
 use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
@@ -442,6 +443,7 @@ async fn authenticate(
             username,
             password,
             service,
+            identity,
         } => {
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
@@ -465,53 +467,55 @@ async fn authenticate(
                 return Err(ServerError::AuthFailed("Empty username".into()));
             }
 
-            if let Some((existing_pid, room_id, old_gen)) =
-                state.find_disconnected_by_username(&username)
-            {
-                let new_gen =
-                    reclaim_session(state, sender, &existing_pid, &username, room_id, old_gen);
-                return Ok((existing_pid, username, true, new_gen));
-            }
+            let identities = match &identity {
+                Some(proof) => state.identity.resolve(proof).await,
+                None => Vec::new(),
+            };
 
-            // If a "connected" entry exists but its outbound channel is already closed,
-            // it is stale and can be safely released before duplicate-username rejection.
-            if let Some((existing_pid, existing_gen, sender_closed)) =
-                state.find_connected_by_username(&username)
-            {
-                if sender_closed {
-                    warn!(
-                        "[auth] stale connected session detected for '{}' (id={}) -- forcing cleanup",
-                        username,
-                        &existing_pid[..8.min(existing_pid.len())]
-                    );
-                    mark_disconnected(state, &existing_pid, existing_gen);
+            if let Some(session) = state.session_by_username(&username) {
+                let claimed = identity::same_owner(&session.identity, &identities);
+                let reclaimable = !session.connected || session.sender_closed || claimed;
 
-                    if let Some((reclaim_pid, room_id, old_gen)) =
-                        state.find_disconnected_by_username(&username)
-                    {
-                        let new_gen = reclaim_session(
-                            state,
-                            sender,
-                            &reclaim_pid,
-                            &username,
-                            room_id,
-                            old_gen,
+                if !reclaimable || (!session.identity.is_empty() && !claimed) {
+                    let reply = ServerMessage::AuthResult {
+                        success: false,
+                        player_id: None,
+                        reconnected: None,
+                        error: Some(format!("Username '{username}' is already taken")),
+                    };
+                    send_msg(sender, &reply);
+                    return Err(ServerError::DuplicateUsername(username));
+                }
+
+                if session.connected {
+                    if session.sender_closed {
+                        warn!(
+                            "[auth] stale connected session detected for '{}' (id={}) -- forcing cleanup",
+                            username,
+                            &session.player_id[..8.min(session.player_id.len())]
                         );
-                        return Ok((reclaim_pid, username, true, new_gen));
+                    } else {
+                        info!(
+                            "[auth] '{}' took over its own session (id={}, identity={})",
+                            username,
+                            &session.player_id[..8.min(session.player_id.len())],
+                            identity::label(&identities),
+                        );
+                        metrics::record_session_takeover(identity::label(&identities));
+                        evict(state, &session.player_id);
                     }
                 }
-            }
 
-            // TODO: Per ora username unique quindi n'se po' ripetere
-            if state.username_taken_by_connected(&username) {
-                let reply = ServerMessage::AuthResult {
-                    success: false,
-                    player_id: None,
-                    reconnected: None,
-                    error: Some(format!("Username '{username}' is already taken")),
-                };
-                send_msg(sender, &reply);
-                return Err(ServerError::DuplicateUsername(username));
+                let new_gen = reclaim_session(
+                    state,
+                    sender,
+                    &session.player_id,
+                    &username,
+                    session.room_id,
+                    session.generation,
+                    identities,
+                );
+                return Ok((session.player_id, username, true, new_gen));
             }
 
             let player_id = uuid::Uuid::new_v4().to_string();
@@ -528,6 +532,7 @@ async fn authenticate(
                     last_seen: Instant::now(),
                     disconnected_at: None,
                     is_service: service,
+                    identity: identities,
                 },
             );
 
@@ -556,6 +561,13 @@ async fn authenticate(
     }
 }
 
+fn evict(state: &Arc<ServerState>, player_id: &str) {
+    if let Some(player) = state.players.get(player_id) {
+        send_msg(&player.sender, &ServerMessage::SessionTakenOver);
+        let _ = player.sender.send(Message::Close(None));
+    }
+}
+
 fn reclaim_session(
     state: &Arc<ServerState>,
     sender: &mpsc::UnboundedSender<Message>,
@@ -563,6 +575,7 @@ fn reclaim_session(
     username: &str,
     room_id: Option<String>,
     old_gen: u64,
+    identities: Vec<SessionIdentity>,
 ) -> u64 {
     let new_gen = old_gen + 1;
     info!(
@@ -578,6 +591,9 @@ fn reclaim_session(
         player.generation = new_gen;
         player.last_seen = Instant::now();
         player.disconnected_at = None;
+        if !identities.is_empty() {
+            player.identity = identities;
+        }
     }
 
     let reply = ServerMessage::AuthResult {
@@ -1272,6 +1288,7 @@ fn get_username(state: &Arc<ServerState>, player_id: &str) -> String {
 fn msg_type_of(msg: &ServerMessage) -> &'static str {
     match msg {
         ServerMessage::AuthResult { .. } => "AuthResult",
+        ServerMessage::SessionTakenOver => "SessionTakenOver",
         ServerMessage::RoomList { .. } => "RoomList",
         ServerMessage::PlayerList { .. } => "PlayerList",
         ServerMessage::RoomCreated { .. } => "RoomCreated",

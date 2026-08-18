@@ -28,13 +28,11 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   color: "",
 };
 
-/** Bounds for the playmat zoom (uniform resize) in `cover` fit. */
 export const PLAYMAT_ZOOM_MIN = 1;
 export const PLAYMAT_ZOOM_MAX = 4;
 export const clampPlaymatZoom = (z: number): number =>
   Math.max(PLAYMAT_ZOOM_MIN, Math.min(PLAYMAT_ZOOM_MAX, Number.isFinite(z) ? z : 1));
 
-/** Render-time readability filters applied to the playmat image. */
 export const PLAYMAT_BLUR_MAX = 20;
 export const PLAYMAT_BRIGHTNESS_MIN = 0.3;
 export const PLAYMAT_BRIGHTNESS_MAX = 1.5;

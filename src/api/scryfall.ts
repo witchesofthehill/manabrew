@@ -19,7 +19,6 @@ import {
 
 export const SCRYFALL_API = "https://api.scryfall.com";
 export const COLLECTION_BATCH_SIZE = 75;
-const SCRYFALL_MAX_RETRIES = 3;
 const SCRYFALL_REQUEST_INTERVAL_MS = 300;
 const SCRYFALL_DEFAULT_RATE_LIMIT_COOLDOWN_MS = 60_000;
 
@@ -27,8 +26,19 @@ let nextScryfallRequestAt = 0;
 let scryfallCooldownUntil = 0;
 let scryfallQueue = Promise.resolve();
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal | null): Promise<void> {
+  if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 }
 
 function parseRetryAfterMs(retryAfter: string | null): number | null {
@@ -47,12 +57,12 @@ export function scryfallCardKey(name: string, setCode?: string, collectorNumber?
   return setCode && collectorNumber ? `${base}::${collectorNumber.toLowerCase()}` : base;
 }
 
-async function waitForScryfallSlot(): Promise<void> {
+async function waitForScryfallSlot(signal?: AbortSignal | null): Promise<void> {
   const now = Date.now();
   const earliestRequestAt = Math.max(nextScryfallRequestAt, scryfallCooldownUntil);
   const waitMs = Math.max(earliestRequestAt - now, 0);
   nextScryfallRequestAt = Math.max(now, earliestRequestAt) + SCRYFALL_REQUEST_INTERVAL_MS;
-  if (waitMs > 0) await sleep(waitMs);
+  if (waitMs > 0) await sleep(waitMs, signal);
 }
 
 function applyScryfallCooldown(response: Response): number {
@@ -65,10 +75,15 @@ function applyScryfallCooldown(response: Response): number {
 }
 
 async function queuedScryfallFetch(url: string, init?: RequestInit): Promise<Response> {
-  const scheduled = scryfallQueue.then(waitForScryfallSlot, waitForScryfallSlot);
+  const scheduled = scryfallQueue.then(
+    () => waitForScryfallSlot(init?.signal),
+    () => waitForScryfallSlot(init?.signal),
+  );
   scryfallQueue = scheduled.catch(() => undefined);
   await scheduled;
-  return platformFetch(url, init);
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json;q=0.9,*/*;q=0.8");
+  return platformFetch(url, { ...init, headers });
 }
 
 export async function scryfallFetch<T>(
@@ -76,29 +91,14 @@ export async function scryfallFetch<T>(
   errorMsg: string,
   init?: RequestInit,
 ): Promise<T> {
-  for (let attempt = 0; attempt <= SCRYFALL_MAX_RETRIES; attempt += 1) {
-    const t0 = performance.now();
-    let response: Response;
-    try {
-      response = await queuedScryfallFetch(url, init);
-    } catch (err) {
-      console.error(`[scryfall] fetch threw after ${Math.round(performance.now() - t0)}ms`, {
-        url,
-        method: init?.method ?? "GET",
-        attempt,
-        err,
-      });
-      throw err;
-    }
-    console.log(
-      `[scryfall] ${init?.method ?? "GET"} ${response.status} in ${Math.round(performance.now() - t0)}ms`,
-      url,
-    );
-    if (response.status === 429 && attempt < SCRYFALL_MAX_RETRIES) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await queuedScryfallFetch(url, init);
+    if (response.status === 429) {
       const retryAfterMs = applyScryfallCooldown(response);
-      console.warn(`SCRYFALL 429; pausing queue for ${Math.ceil(retryAfterMs / 1000)}s`);
-      await sleep(retryAfterMs);
-      continue;
+      if (attempt === 0) continue;
+      throw new Error(
+        `Scryfall is rate limited. Try again in ${Math.ceil(retryAfterMs / 1000)} seconds.`,
+      );
     }
     if (!response.ok) {
       throw new Error(`${errorMsg} (HTTP ${response.status})`);
@@ -128,6 +128,44 @@ export async function getCardPrints(printsSearchUri: string): Promise<ScryfallLi
   return scryfallFetch(printsSearchUri, "Failed to fetch card prints from Scryfall");
 }
 
+const PRINT_SEARCH_ORACLE_BATCH_SIZE = 20;
+
+export async function fetchPrintsByOracleIds(
+  oracleIds: string[],
+  onProgress?: (completed: number, total: number) => void,
+  signal?: AbortSignal,
+): Promise<Map<string, ScryfallCard[]>> {
+  const unique = [...new Set(oracleIds)];
+  const result = new Map<string, ScryfallCard[]>();
+  const batches = Math.ceil(unique.length / PRINT_SEARCH_ORACLE_BATCH_SIZE);
+  let completed = 0;
+
+  for (let index = 0; index < unique.length; index += PRINT_SEARCH_ORACLE_BATCH_SIZE) {
+    const ids = unique.slice(index, index + PRINT_SEARCH_ORACLE_BATCH_SIZE);
+    const query = ids.map((id) => `oracleid:${id}`).join(" or ");
+    let url: string | undefined =
+      `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(`(${query})`)}` +
+      "&unique=prints&order=released&dir=desc&include_extras=true";
+    while (url) {
+      const page: ScryfallListResponse = await scryfallFetch<ScryfallListResponse>(
+        url,
+        "Failed to fetch card printings from Scryfall",
+        { signal },
+      );
+      for (const card of page.data) {
+        const prints = result.get(card.oracle_id) ?? [];
+        prints.push(card);
+        result.set(card.oracle_id, prints);
+      }
+      url = page.has_more ? page.next_page : undefined;
+    }
+    completed += 1;
+    onProgress?.(completed, batches);
+  }
+
+  return result;
+}
+
 export async function getCardByName(name: string, setCode?: string): Promise<ScryfallCard> {
   return enqueueCardLookup(setCode ? { name, set: setCode.toLowerCase() } : { name });
 }
@@ -148,6 +186,7 @@ export async function getCardBySetAndNumber(
 }
 export async function fetchCardCollection(
   cards: { name: string; setCode?: string; collectorNumber?: string }[],
+  signal?: AbortSignal,
 ): Promise<Map<string, ScryfallCard>> {
   const result = new Map<string, ScryfallCard>();
   const unique = Array.from(
@@ -169,6 +208,7 @@ export async function fetchCardCollection(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifiers: ids.map(normalizeIdentifierForRequest) }),
+        signal,
       },
     );
     batch.forEach((c, idx) => {

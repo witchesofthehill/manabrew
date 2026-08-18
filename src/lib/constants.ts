@@ -1,5 +1,3 @@
-// ─── Routes ──────────────────────────────────────────────────────────────────
-
 export const ROUTES = {
   LOBBY: "/lobby",
   PLAY: "/play",
@@ -14,6 +12,7 @@ export const ROUTES = {
   GAME: "/game",
   SEARCH: "/search",
   DECK_EDITOR: "/deck-editor",
+  MY_COLLECTION: "/mycollection",
   HUB: "/hub",
   HUB_TOP: "/hub/top",
   COMPANION: "/companion",
@@ -22,18 +21,12 @@ export const ROUTES = {
   DESIGN_SYSTEM: "/design-system",
 } as const;
 
-// ─── External Links ──────────────────────────────────────────────────────────
-
 export const GITHUB_REPO_URL = "https://github.com/witchesofthehill/manabrew";
 export const DISCORD_INVITE_URL = "https://discord.gg/NqrKpbhtcd";
 export const WEBSITE_URL = "https://manabrew.app";
 export const DOCS_URL = "https://docs.manabrew.app";
 
-// ─── App Version ─────────────────────────────────────────────────────────────
-
 export const APP_VERSION = __APP_VERSION__;
-
-// ─── Storage Keys ────────────────────────────────────────────────────────────
 
 export const STORAGE_KEYS = {
   DECK: "manabrew-deck-storage",
@@ -44,15 +37,11 @@ export const STORAGE_KEYS = {
   STATUS_BANNER: "manabrew-status-banner",
   PUBLISHED_DECKS: "manabrew-published-decks",
   DECK_PLAY_REPORTS: "manabrew-deck-play-reports",
+  DECK_CHECKPOINTS: "manabrew-deck-checkpoints",
+  DECK_EDITOR_PRESENTATION: "manabrew-deck-editor-presentation",
 } as const;
 
-// ─── Deck Defaults ───────────────────────────────────────────────────────────
-
-export const DEFAULT_DECK_NAME = "New Deck";
-
-export const DEFAULT_IMPORT_NAME = "Imported Deck";
-
-// ─── Formats & Legalities ────────────────────────────────────────────────────
+export { DEFAULT_DECK_NAME, DEFAULT_IMPORT_NAME } from "./deckNames.constants";
 
 export const FORMAT_DISPLAY: Record<string, string> = {
   standard: "Standard",
@@ -74,8 +63,6 @@ export const LEGALITY_STYLES: Record<string, string> = {
   not_legal: "bg-muted text-muted-foreground border-border",
 };
 
-// ─── Drag & Drop IDs ────────────────────────────────────────────────────────
-
 export const DROP_ZONE = {
   MAIN: "drop-main",
   SIDE: "drop-side",
@@ -83,8 +70,6 @@ export const DROP_ZONE = {
   COMMAND: "drop-command",
   TAG_PREFIX: "drop-tag-",
 } as const;
-
-// ─── Set Types ──────────────────────────────────────────────────────────────
 
 export const MAIN_SET_TYPES = new Set([
   "core",

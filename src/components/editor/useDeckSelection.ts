@@ -9,7 +9,6 @@ export function useDeckSelection() {
     [selectedCards],
   );
 
-  /** Toggle a single card in/out of the selection without clearing others. */
   const toggleCard = useCallback((cardName: string) => {
     const key = cardName.toLowerCase();
     lastClickedRef.current = key;

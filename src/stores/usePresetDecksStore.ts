@@ -10,6 +10,7 @@ import type { EngineKind } from "@/protocol";
 
 interface PresetDecksState {
   decks: PresetDeck[];
+  resolved: boolean;
   prefetch: () => Promise<void>;
 }
 
@@ -17,17 +18,18 @@ let prefetchPromise: Promise<void> | null = null;
 
 export const usePresetDecksStore = create<PresetDecksState>((set) => ({
   decks: [],
+  resolved: false,
   prefetch: () => {
     if (prefetchPromise) return prefetchPromise;
     prefetchPromise = (async () => {
       try {
         const definitions = await loadPresetDeckDefinitions();
-        set({ decks: expandPresetDeckDefinitions(definitions) });
+        set({ decks: expandPresetDeckDefinitions(definitions), resolved: true });
       } catch (err) {
+        set({ resolved: true });
         if (import.meta.env?.DEV) {
           console.warn("[usePresetDecks] prefetch failed:", err);
         }
-        prefetchPromise = null;
       }
     })();
     return prefetchPromise;
@@ -43,6 +45,10 @@ export function usePresetDecks(engine?: EngineKind): PresetDeck[] {
     () => (engine ? decks.filter((deck) => presetSupportsEngine(deck, engine)) : decks),
     [decks, engine],
   );
+}
+
+export function usePresetDecksResolved(): boolean {
+  return usePresetDecksStore((state) => state.resolved);
 }
 
 export function prefetchPresetDecks(): Promise<void> {

@@ -59,7 +59,6 @@ export function SetSelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Reset search and focus input when popover opens.
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (prevIsOpen !== isOpen) {
     setPrevIsOpen(isOpen);

@@ -1,4 +1,3 @@
-import { AlertCircle } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAppInitStore } from "@/stores/useAppInitStore";
 import { Button } from "@/components/ui/button";
@@ -21,39 +20,23 @@ const INITIAL_HOLD_MS = 300;
 
 /**
  * Each stage maps to a milestone on the progress bar so the fill keeps
- * moving forward visibly even on cached loads (where the worker flashes
- * through idle → cached → parsing → ready in tens of milliseconds). For the
- * downloading stage we honor the real `loaded/total` ratio, but cap it at
- * 60% so the parsing stage still gets dedicated visual real-estate at the
- * end.
+ * moving forward visibly even on a warm load, where the app flashes through
+ * idle → assets → decks → ready in tens of milliseconds.
  */
 const STAGE_PROGRESS: Record<string, number> = {
   idle: 4,
-  cached: 30,
-  downloading: 0, // computed from loaded/total when active
-  parsing: 80,
+  assets: 35,
+  decks: 80,
   ready: 100,
-  error: 0,
 };
 
 const STAGE_TITLE: Record<string, string> = {
   idle: "Starting",
-  cached: "Loading engine",
-  downloading: "Downloading card data",
-  parsing: "Parsing cards",
+  assets: "Loading card data",
+  decks: "Loading decks",
   ready: "Ready",
 };
 
-function formatBytes(bytes: number): string {
-  if (!bytes) return "—";
-  const mb = bytes / 1024 / 1024;
-  if (mb >= 1) return `${mb.toFixed(1)} MB`;
-  return `${(bytes / 1024).toFixed(0)} KB`;
-}
-
-// The terms body is plain prose in termsContent.ts; the gate is the one place
-// that renders it, so bare host names are turned into links here rather than
-// restructuring the content into segments.
 const TERMS_LINK = /((?:github\.com|docs\.manabrew\.app|scryfall\.com)(?:[^\s,)]*[^\s,).])?)/g;
 
 function linkifyTerms(body: string) {
@@ -79,9 +62,6 @@ let hasReleasedOnce = false;
 
 export function AppInitGate({ children }: { children: ReactNode }) {
   const rawStage = useAppInitStore((s) => s.stage);
-  const loaded = useAppInitStore((s) => s.loaded);
-  const total = useAppInitStore((s) => s.total);
-  const errorMessage = useAppInitStore((s) => s.errorMessage);
   const { accepted: termsAccepted, accept: acceptTerms } = useAcknowledgement(
     TERMS_STORAGE_KEY,
     TERMS_AND_CONDITIONS.version,
@@ -101,18 +81,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
 
   const stage = minHoldPassed ? rawStage : "idle";
 
-  // Compute the progress target. During `downloading`, the bar reflects
-  // bytes-loaded mapped into the 0–60% window so the parsing
-  // stages still have headroom to advance the visual.
-  const target = useMemo(() => {
-    if (stage === "downloading") {
-      if (total > 0) {
-        return Math.min(60, (loaded / total) * 60);
-      }
-      return 8;
-    }
-    return STAGE_PROGRESS[stage] ?? 0;
-  }, [stage, loaded, total]);
+  const target = useMemo(() => STAGE_PROGRESS[stage] ?? 0, [stage]);
 
   type Phase = "gating" | "releasing" | "done";
   const [phase, setPhase] = useState<Phase>(() => (hasReleasedOnce ? "done" : "gating"));
@@ -145,26 +114,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  if (stage === "error") {
-    return (
-      <div className="fixed inset-0 grid place-items-center bg-background p-8">
-        <div className="flex max-w-md flex-col items-center gap-5 rounded-lg border border-destructive/40 bg-card/80 px-10 py-12 text-center shadow-xl backdrop-blur">
-          <AlertCircle className="size-10 text-destructive" />
-          <h2 className="text-xl font-semibold text-foreground">Couldn't load the game engine</h2>
-          <p className="font-mono text-xs leading-relaxed text-muted-foreground">
-            {errorMessage ?? "Unknown error during startup."}
-          </p>
-          <Button variant="outline" size="default" onClick={() => window.location.reload()}>
-            Reload
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const title = STAGE_TITLE[stage] ?? "Loading";
   const pct = Math.round(target);
-  const showBytes = total > 0;
   const showTerms = stage === "ready" && !termsAccepted;
   const showOnboarding = stage === "ready" && termsAccepted && !onboardingDone;
 
@@ -273,8 +224,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
                   </div>
 
-                  {/* The bar itself: thick track, gradient fill, shimmering overlay,
-                and a soft glow at the leading edge. */}
                   <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
                     <div
                       className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
@@ -286,7 +235,6 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                         style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
                       />
                     </div>
-                    {/* Trailing glow that follows the leading edge of the fill. */}
                     <div
                       aria-hidden
                       className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
@@ -294,16 +242,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     />
                   </div>
 
-                  {/* Tech line — bytes during download, otherwise a quiet note
-                about caching. No flavor copy. */}
                   <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                    {stage === "downloading" && showBytes ? (
-                      <>
-                        {formatBytes(loaded)} / {formatBytes(total)}
-                      </>
-                    ) : (
-                      <>Connecting</>
-                    )}
+                    Connecting
                   </p>
                 </div>
               )}

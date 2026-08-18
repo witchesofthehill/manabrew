@@ -22,12 +22,6 @@ interface DiceMenuProps {
   players: CompanionPlayer[];
 }
 
-/**
- * Single-entry-point dice control: d4 / d6 / d8 / d10 / d12 / d20 / d100,
- * coin flip, and random first player all live behind one d20 dropdown
- * trigger. Each selection opens the shared DiceRoller modal in the
- * matching mode.
- */
 export function DiceMenu({ players }: DiceMenuProps) {
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
   const [roll, setRoll] = useState<Roll | null>(null);

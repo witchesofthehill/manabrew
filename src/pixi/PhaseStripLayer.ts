@@ -17,11 +17,9 @@ import {
 import { PHASES as STEP_DEFS } from "@/components/game/game.constants";
 import type { StepKind } from "@/protocol";
 
-/** Display cells. "combat" is a merged cell that represents all combat sub-phases. */
 interface PhaseSpec {
   id: string;
   short: string;
-  /** If set, this cell represents multiple phase ids (combat). */
   subPhases?: string[];
   /** If set, stop indicators/toggles use these phase ids instead of the cell phases. */
   indicatorPhases?: string[];
@@ -70,7 +68,6 @@ function easeOut(t: number): number {
   return 1 - t1 * t1 * t1;
 }
 
-// ── Indicator lines for self (bottom) and opponents (top) ─────────────
 const INDICATOR_H = 4;
 const INDICATOR_HOVER_H = 6;
 const INDICATOR_GAP = 4;
@@ -145,22 +142,16 @@ interface PhaseCell {
 
 export interface OpponentInfo {
   id: string;
-  /** Display order index (0-2). Determines color. */
   index: number;
 }
 
 export interface PhaseStripState {
   currentStep: string;
   isActiveTurn: boolean;
-  /** ID of the player whose turn it is. */
   activePlayerId: string;
-  /** The local player's ID. */
   myPlayerId: string;
-  /** Self-turn enabled phases. */
   selfEnabledPhases: Set<string>;
-  /** Per-opponent enabled phases, keyed by opponent id. */
   opponentEnabledPhases: Map<string, Set<string>>;
-  /** Ordered opponent list (max 3). */
   opponents: OpponentInfo[];
   isInteractive: boolean;
 }
@@ -213,7 +204,6 @@ export class PhaseStripLayer {
     this.container = new Container();
     this.container.label = "phaseStrip";
 
-    // Divider line behind the cells
     this.lineGfx = new Graphics();
     this.container.addChild(this.lineGfx);
 
@@ -465,15 +455,12 @@ export class PhaseStripLayer {
     this.pillContainer.visible = showPill;
     this.forceShowIndicators = (this.compact && this.expanded) || isCoarsePointer();
 
-    // Find combat cell index
     const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
     const leftCells = this.cells.slice(0, combatIdx);
     const rightCells = this.cells.slice(combatIdx + 1);
 
-    // Combat cell centered
     const combatX = centerX - COMBAT_CELL_W / 2;
 
-    // Left cells expand leftward from combat
     const cellPositions: number[] = new Array(this.cells.length);
     cellPositions[combatIdx] = combatX;
     let lx = combatX - CELL_GAP;
@@ -482,7 +469,6 @@ export class PhaseStripLayer {
       cellPositions[i] = lx;
       lx -= CELL_GAP;
     }
-    // Right cells expand rightward from combat
     let rx = combatX + COMBAT_CELL_W + CELL_GAP;
     for (let i = 0; i < rightCells.length; i++) {
       cellPositions[combatIdx + 1 + i] = rx;
@@ -528,7 +514,6 @@ export class PhaseStripLayer {
     this.stripHitArea.rect(stripLeft, y - hoverPad, stripRight - stripLeft, CELL_H + hoverPad * 2);
     this.stripHitArea.fill({ color: 0x000000, alpha: 0.001 });
 
-    // Detect phase change for flash
     const turnJustStarted = state.isActiveTurn && !this.prevIsActiveTurn;
     this.prevIsActiveTurn = state.isActiveTurn;
     let stepChanged = false;
@@ -630,18 +615,15 @@ export class PhaseStripLayer {
           cell.icon.y = y + (CELL_H - COMBAT_ICON_SIZE) / 2;
           cell.text.x = cell.icon.x + COMBAT_ICON_SIZE + 3 + cell.text.width / 2;
         } else {
-          // Icon centered
           cell.icon.x = cx + (cellW - COMBAT_ICON_SIZE) / 2;
           cell.icon.y = y + (CELL_H - COMBAT_ICON_SIZE) / 2;
         }
       }
 
-      // Trigger flash
       if (stepChanged && isActive) {
         cell.flashStart = performance.now();
       }
 
-      // Hit area
       cell.hitArea.clear();
       cell.hitArea.rect(cx, y, cellW, CELL_H);
       cell.hitArea.fill({ color: 0x000000, alpha: 0.001 });
@@ -668,7 +650,6 @@ export class PhaseStripLayer {
         cell.text.y = y + CELL_H / 2;
       }
 
-      // ── Store indicator geometry for tick() drawing ──
       cell._indData = {
         cx: cx + cellW / 2,
         selfCy: y + CELL_H + INDICATOR_MARGIN + INDICATOR_H / 2,
@@ -710,7 +691,6 @@ export class PhaseStripLayer {
         oha.fill({ color: 0x000000, alpha: 0.001 });
       }
 
-      // Store geometry for flash tick
       cell._fx = cx;
       cell._fy = y;
       cell._fw = cellW;
@@ -737,7 +717,6 @@ export class PhaseStripLayer {
         cell.selfHovered ||
         cell.oppHovered.some(Boolean);
 
-      // Self indicator
       cell.selfIndicator.clear();
       if (d.selfEnabled || showEmpty) {
         const h = cell.selfHovered ? INDICATOR_HOVER_H : INDICATOR_H;
@@ -752,7 +731,6 @@ export class PhaseStripLayer {
         });
       }
 
-      // Opponent indicators
       cell.oppIndicators.clear();
       const oppSegW =
         (d.cellW - Math.max(0, d.oppCount - 1) * INDICATOR_GAP) / Math.max(1, d.oppCount);
@@ -793,7 +771,6 @@ export class PhaseStripLayer {
 
     if (!(this.compact && !this.expanded)) this.drawIndicators();
 
-    // Flash animation
     const now = performance.now();
     for (const cell of this.cells) {
       cell.flashGfx.clear();

@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getTopBarNav, isNavDestinationActive } from "./navDestinations";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface TopBarNavProps {
   disabled?: boolean;
@@ -17,7 +18,8 @@ interface TopBarNavProps {
 export function TopBarNav({ disabled = false }: TopBarNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { direct, menus } = getTopBarNav();
+  const signedIn = useAuthStore((state) => state.status === "signedIn");
+  const { direct, menus } = getTopBarNav(signedIn);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   function isActive(to: string) {

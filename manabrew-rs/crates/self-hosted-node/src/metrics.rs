@@ -7,6 +7,7 @@ use tracing::{info, warn};
 const ROOMS_HOSTED: &str = "manabrew_node_rooms_hosted";
 const GAMES_ACTIVE: &str = "manabrew_node_games_active";
 const GAME_DURATION_SECONDS: &str = "manabrew_node_game_duration_seconds";
+const FORGE_DECISION_STAGE_SECONDS: &str = "manabrew_node_forge_decision_stage_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
@@ -15,6 +16,7 @@ const LABEL_POOL: &str = "pool";
 const LABEL_CLEAN: &str = "clean";
 const LABEL_PLAYERS: &str = "players";
 const LABEL_SIGNATURE: &str = "signature";
+const LABEL_STAGE: &str = "stage";
 const LABEL_VERSION: &str = "version";
 
 const ENV_PUSH_URL: &str = "SELF_HOSTED_NODE_METRICS_PUSH_URL";
@@ -130,6 +132,10 @@ impl Drop for RoomHostedGuard {
 
 pub fn record_relay_reconnect() {
     counter!(RELAY_RECONNECTS).increment(1);
+}
+
+pub fn record_forge_decision_stage(stage: &'static str, elapsed: Duration) {
+    histogram!(FORGE_DECISION_STAGE_SECONDS, LABEL_STAGE => stage).record(elapsed.as_secs_f64());
 }
 
 pub fn record_engine_session_started() {

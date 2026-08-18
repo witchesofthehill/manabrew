@@ -496,10 +496,15 @@ impl JavaEngineHandle {
 
     pub fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
         let bridge = self.bridge_for(session_id)?;
+        let mutex_started = Instant::now();
         let mut guard = bridge
             .lock()
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
-        guard.submit_action(session_id, action_json)
+        crate::metrics::record_forge_decision_stage("bridge_mutex", mutex_started.elapsed());
+        let call_started = Instant::now();
+        let result = guard.submit_action(session_id, action_json);
+        crate::metrics::record_forge_decision_stage("submit_action", call_started.elapsed());
+        result
     }
 
     pub fn get_prompt(
@@ -1213,6 +1218,8 @@ fn run_hosted_engine_game_inner(
         remote_response_rxs.into_iter().collect();
     let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
+    let mut decision_received: Option<Instant> = None;
+    let mut decision_submitted: Option<Instant> = None;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1308,6 +1315,7 @@ fn run_hosted_engine_game_inner(
                                 }
                             }
                         }
+                        decision_received = Some(Instant::now());
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1315,6 +1323,7 @@ fn run_hosted_engine_game_inner(
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
                         engine.submit_action(&session_id, &action_json)?;
+                        decision_submitted = Some(Instant::now());
                     }
                     Ok(ClientToServerMessage::Directive {
                         directive: DirectiveInput::Concede,
@@ -1339,10 +1348,20 @@ fn run_hosted_engine_game_inner(
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
             if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                if let Some(started) = decision_submitted.take() {
+                    crate::metrics::record_forge_decision_stage("next_prompt", started.elapsed());
+                }
+                if let Some(started) = decision_received.take() {
+                    crate::metrics::record_forge_decision_stage(
+                        "decision_total",
+                        started.elapsed(),
+                    );
+                }
                 last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
+                    let snapshots_started = Instant::now();
                     let prompt_msg = AgentMessage::Prompt(prompt);
                     for &agent_index in remote_response_rxs.keys() {
                         let state = AgentMessage::State(state_via_handle(
@@ -1362,6 +1381,10 @@ fn run_hosted_engine_game_inner(
                         .map_err(|err| format!("failed to serialize roll ack: {err}"))?;
                         engine.submit_action(&session_id, &ack)?;
                     }
+                    crate::metrics::record_forge_decision_stage(
+                        "snapshots",
+                        snapshots_started.elapsed(),
+                    );
                 } else if Some(player) == local_player_index {
                     if let Some(output) = auto_action(&prompt) {
                         let action_json = serde_json::to_string(&output)
@@ -1369,6 +1392,7 @@ fn run_hosted_engine_game_inner(
                         engine.submit_action(&session_id, &action_json)?;
                     }
                 } else {
+                    let snapshots_started = Instant::now();
                     for &agent_index in remote_response_rxs.keys() {
                         let state = AgentMessage::State(state_via_handle(
                             &engine,
@@ -1384,6 +1408,10 @@ fn run_hosted_engine_game_inner(
                     if remote_prompt_tx.send((player, prompt_msg)).is_err() {
                         return Ok(());
                     }
+                    crate::metrics::record_forge_decision_stage(
+                        "snapshots",
+                        snapshots_started.elapsed(),
+                    );
                 }
             }
         }

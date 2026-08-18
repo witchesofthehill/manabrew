@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use crate::updater::{run_stale_monitor, StaleConfig};
-use futures_util::stream::{SplitSink, SplitStream};
+use futures_util::stream::SplitStream;
 use futures_util::{SinkExt, StreamExt};
 use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
@@ -31,7 +31,6 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
-type WsWrite = SplitSink<WsStream, Message>;
 type WsRead = SplitStream<WsStream>;
 
 const SELF_HOSTED_NODE_PROTOCOL: &str = "self-hosted-node";
@@ -40,7 +39,8 @@ const PRIVATE_MESSAGE_MISSING_PLAYER: &str =
 
 struct RelayClient {
     username: String,
-    write: WsWrite,
+    write_tx: tokio_mpsc::Sender<Message>,
+    write_task: JoinHandle<()>,
     read: WsRead,
 }
 
@@ -2084,9 +2084,20 @@ impl RelayClient {
         info!(relay_url, username, "connecting relay client");
         let (socket, _) = connect_async(relay_url).await?;
         let (write, read) = socket.split();
+        let (write_tx, mut write_rx) = tokio_mpsc::channel(256);
+        let write_task = tokio::spawn(async move {
+            let mut write = write;
+            while let Some(message) = write_rx.recv().await {
+                if write.send(message).await.is_err() {
+                    break;
+                }
+            }
+            let _ = write.close().await;
+        });
         let mut client = Self {
             username: username.to_string(),
-            write,
+            write_tx,
+            write_task,
             read,
         };
         client
@@ -2123,9 +2134,10 @@ impl RelayClient {
         &mut self,
         message: &ClientMessage,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.write
+        self.write_tx
             .send(Message::Text(serde_json::to_string(message)?))
-            .await?;
+            .await
+            .map_err(|_| "relay websocket writer stopped")?;
         Ok(())
     }
 
@@ -2142,7 +2154,10 @@ impl RelayClient {
                     return Ok(Some(serde_json::from_str(&text)?));
                 }
                 Message::Ping(payload) => {
-                    self.write.send(Message::Pong(payload)).await?;
+                    self.write_tx
+                        .send(Message::Pong(payload))
+                        .await
+                        .map_err(|_| "relay websocket writer stopped")?;
                 }
                 Message::Close(_) => return Ok(None),
                 _ => {}
@@ -2151,13 +2166,14 @@ impl RelayClient {
     }
 
     async fn close(&mut self) {
-        if self.write.send(Message::Close(None)).await.is_err() {
+        if self.write_tx.send(Message::Close(None)).await.is_err() {
             return;
         }
         let _ = time::timeout(CLOSE_DRAIN_TIMEOUT, async {
             while let Some(Ok(_)) = self.read.next().await {}
         })
         .await;
+        self.write_task.abort();
     }
 
     async fn broadcast_room_message(

@@ -485,7 +485,6 @@ export default function Lobby() {
           </div>
         )}
 
-        {/* ── Rooms ── */}
         <div className="flex-1 min-h-0">
           <TablesList
             rooms={rooms}

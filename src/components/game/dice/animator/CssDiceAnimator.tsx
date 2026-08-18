@@ -8,17 +8,10 @@ const DWELL_AFTER_ANIMATION_MS = 350;
 const ANIMATION_DURATION_MS = 2000;
 
 interface DieAnimationParams {
-  /** Final-frame rotation in degrees (positive or negative). */
   spinDeg: number;
-  /** Stagger delay in ms — adds a per-die randomized lead-in. */
   delayMs: number;
 }
 
-/**
- * CSS-driven dice roll. Each die uses the global `dice-roll` keyframe
- * with per-die randomized spin via a CSS custom property. Resolves
- * `onComplete` after the keyframe finishes plus a brief dwell.
- */
 export function CssDiceAnimator({
   spec,
   onComplete,
@@ -111,7 +104,6 @@ function AnimatedDie({ sides, value, spinDeg, delayMs, accentColor, muted }: Ani
 }
 
 function generateParams(): DieAnimationParams {
-  // Two to three full revolutions, randomly clockwise or counter-clockwise.
   const turns = 2 + Math.random();
   const sign = Math.random() < 0.5 ? -1 : 1;
   return {

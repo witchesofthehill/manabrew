@@ -14,7 +14,6 @@ export function computeCmc(manaCost: string): number {
   let total = 0;
 
   if (trimmed.includes("{")) {
-    // ── Scryfall / standard {X} notation ────────────────────────
     const tokens = trimmed.match(/\{[^}]+\}/g) ?? [];
     for (const token of tokens) {
       const inner = token.slice(1, -1); // strip braces
@@ -29,7 +28,6 @@ export function computeCmc(manaCost: string): number {
       }
     }
   } else {
-    // ── Forge space-separated notation ──────────────────────────
     // e.g.  "2 U U"  "R"  "X B B"  "W/U"  "0"
     const tokens = trimmed.split(/\s+/).filter(Boolean);
     for (const token of tokens) {

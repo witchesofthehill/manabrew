@@ -13,7 +13,6 @@ export const COMPANION_COMMANDER_STARTING_LIFE = 40;
 
 export const COMPANION_HISTORY_LIMIT = 80;
 
-/** Window during which successive life taps merge into one history entry. */
 export const COMPANION_DELTA_BATCH_MS = 1400;
 
 export const COMPANION_LETHAL_COMMANDER_DAMAGE = 21;
@@ -62,7 +61,6 @@ export const COMPANION_COUNTER_PRESETS: CounterPreset[] = [
   { kind: "storm", label: "Storm", iconKey: "tornado", defaultValue: 0 },
 ];
 
-/** Game-icons keys offered in the custom-counter icon picker. */
 export const COMPANION_CUSTOM_ICONS = [
   "star-medal",
   "bleeding-heart",

@@ -77,7 +77,6 @@ interface PromptActionControllerProps {
   targetCompletionLabel?: string | null;
   targetCompletionKind?: "done" | "cancel" | null;
   onCompleteTargets?: (() => void) | null;
-  // Pay mana cost
   payManaCostInfo?: {
     cardName: string;
     sourceCard?: DeckCard;
@@ -94,7 +93,6 @@ interface PromptActionControllerProps {
   onPayManaCost?: () => void;
   onAutoManaCost?: () => void;
   onCancelManaCost?: () => void;
-  // Mulligan
   mulliganCount?: number;
   onMulliganKeep?: () => void;
   onMulliganDraw?: () => void;

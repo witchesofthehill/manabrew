@@ -10,14 +10,9 @@ const PREVIEW_H = 336;
 
 interface CardImageThumbnailProps {
   card: DeckCard;
-  /** CSS classes applied to the thumbnail <img>. */
   className?: string;
 }
 
-/**
- * Small card image that shows a large floating preview on hover.
- * Used inside modals where the user needs to read card text.
- */
 export function CardImageThumbnail({ card, className }: CardImageThumbnailProps) {
   const [hovered, setHovered] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -51,7 +46,6 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
     setHovered(false);
   }
 
-  // Position the preview near the cursor, clamped to viewport edges.
   const spaceRight = typeof window !== "undefined" ? window.innerWidth - mousePos.x : 999;
   const left = spaceRight > PREVIEW_W + 24 ? mousePos.x + 16 : mousePos.x - PREVIEW_W - 16;
   const top =

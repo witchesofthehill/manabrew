@@ -28,7 +28,6 @@ export interface OverlayAction {
   variant?: "primary" | "ghost";
 }
 
-/** Build the standard Add + Remove/Untag actions array for card overlays. */
 export function buildCardActions(
   onAddOne: () => void,
   onRemoveOne: () => void,

@@ -52,10 +52,6 @@ export function CommanderArt({ refs, className, variant = "banner" }: CommanderA
           className="absolute inset-y-0 right-0 w-1/2 object-cover object-[center_30%]"
         />
       )}
-      {/* Darken only the top and bottom bands where the name, status
-          chips, counters and commander-damage strip overlap the art —
-          the middle (life total) stays untinted so the commander
-          illustration reads in its true colours. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black/55 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
     </div>

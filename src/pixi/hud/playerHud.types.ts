@@ -9,7 +9,6 @@ export interface PlayerHudBadge {
   color: string;
   label: string;
   count?: number;
-  /** Renders the count in the lethal colour (e.g. ≥21 commander damage). */
   lethal?: boolean;
   onTap?: () => void;
   /** Compact-mode zone pill (library/graveyard/exile): renders in a vertical
@@ -33,7 +32,6 @@ export interface PlayerHudSpec {
   isEliminated: boolean;
   isDisconnected: boolean;
   inCombat: boolean;
-  /** Facing lethal unblocked combat damage — the combat ring pulses harder. */
   combatLethal: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];

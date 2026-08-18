@@ -9,25 +9,12 @@
 import type { ThemeColors } from "./appTheme";
 import type { GameThemeColorMap } from "./gameTheme";
 
-// ── Font sizes ──────────────────────────────────────────────────────────
-
-/** Semantic font sizes used across the in-game panel surfaces. Values
- *  are raw pixel strings (e.g. `"13px"`, `"1rem"`) applied via
- *  `style={{ fontSize }}` or emitted as CSS variables (`--game-font-*`)
- *  in `useAppTheme`. Presets can override any entry to tune typography
- *  without touching component code. */
 export interface GameFontSizes {
-  /** Numeric count next to row badges (monarch crown, poison bottle, …). */
   badgeCount: string;
-  /** Life total rendered inside the avatar's heart chip. */
   life: string;
-  /** Per-color count rendered before each mana symbol in the mana pool. */
   manaCount: string;
-  /** Count overlay drawn over library / graveyard / exile / command zone tiles. */
   zoneCount: string;
-  /** Uppercase label under each zone tile ("Lib", "GY", "Exile", "Cmd"). */
   zoneLabel: string;
-  /** Initials rendered inside the player avatar when no image is set. */
   avatarInitials: string;
 }
 
@@ -42,8 +29,6 @@ export const DEFAULT_GAME_FONT_SIZES: GameFontSizes = {
   avatarInitials: "16px",
 };
 
-// ── Preset types ────────────────────────────────────────────────────────
-
 export interface ThemePreset {
   id: string;
   name: string;
@@ -55,8 +40,6 @@ export interface ThemePreset {
    *  default preset's entries via `resolveGameFontSizes`. */
   gameFontSizes?: Partial<GameFontSizes>;
 }
-
-// ── Preset registry ─────────────────────────────────────────────────────
 
 import defaultPreset from "./default";
 import rosePinePreset from "./rose-pine";

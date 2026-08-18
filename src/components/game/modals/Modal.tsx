@@ -13,12 +13,9 @@ interface ModalProps {
   children: React.ReactNode;
   /** Called when the user clicks the backdrop or presses Escape. If omitted, backdrop click and Escape are disabled. */
   onClose?: () => void;
-  /** Max width class for the modal panel (default: "max-w-2xl") */
   maxWidth?: string;
   maxHeight?: string;
-  /** Additional className for the modal panel */
   className?: string;
-  /** Additional className for the backdrop overlay (e.g. z-index overrides) */
   backdropClassName?: string;
 }
 
@@ -116,7 +113,6 @@ export function Modal({
 interface ModalHeaderProps {
   children: React.ReactNode;
   onClose?: () => void;
-  /** Additional className */
   className?: string;
 }
 

@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Gruvbox dark palette — warm earthy tones built around #282828 bg. */
 const palette: BasePalette = {
   foreground: "#ebdbb2", // fg0
   labelMuted: "#928374", // gray

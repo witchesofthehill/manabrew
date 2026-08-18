@@ -33,9 +33,7 @@ export interface CompanionPlayer {
   life: number;
   counters: CompanionCounter[];
   commanders: [CompanionCommanderRef | null, CompanionCommanderRef | null];
-  /** Damage received per source player, per commander slot of the target. */
   commanderDamage: Record<string, [number, number]>;
-  /** Times each commander has been cast from the command zone; tax = 2× this. */
   commanderCasts?: [number, number];
   isDead: boolean;
   isMonarch?: boolean;
@@ -44,11 +42,8 @@ export interface CompanionPlayer {
   ringLevel?: number;
   speed?: number;
   manaPool?: Partial<Record<ManaColor, number>>;
-  /** Total chess-clock time accumulated while this player was active. */
   timeMs?: number;
-  /** Free-form note shown in the player menu. */
   notes?: string;
-  /** Free-layout position, rotation and scale (only consulted when layout === "free"). */
   freeLayout?: { x: number; y: number; rotation: number; scale?: number };
 }
 
@@ -143,7 +138,6 @@ export interface CompanionSession {
   /** When true, the partner commander slot represents an Oathbreaker
    *  "signature spell" rather than a second commander. UI-only flag. */
   oathbreaker?: boolean;
-  /** Optional user-supplied label for the game (e.g. "Friday EDH at Marco's"). */
   tag?: string;
   activePlayerId: string | null;
   turn: number;

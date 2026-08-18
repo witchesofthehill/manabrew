@@ -1,7 +1,6 @@
 import type { ThemePreset } from "./presets";
 import { buildGameColors, type BasePalette } from "./buildGameColors";
 
-/** Everforest dark palette — warm greens and muted autumn tones. */
 const palette: BasePalette = {
   foreground: "#d3c6aa",
   labelMuted: "#859289",

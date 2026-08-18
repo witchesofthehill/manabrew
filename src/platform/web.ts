@@ -37,15 +37,12 @@ import { relayIdentityProof } from "@/lib/relayIdentity";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
-/** Flip to true to surface the noisy transport/multiplayer wire logs. */
 const DEBUG_TRANSPORT = false;
 
-/** Reload/bot-recovery trace, gated behind the debug-prompts preference. */
 const dlog = (...args: unknown[]) => {
   if (isPromptLoggingEnabled()) console.log(...args);
 };
 
-/** One-line summary of a bot wire frame (in or out) for the reload trace. */
 function describeBotFrame(raw: string): string {
   try {
     const p = JSON.parse(raw) as {
@@ -69,10 +66,6 @@ function describeBotFrame(raw: string): string {
     return "?";
   }
 }
-
-// ============================================================================
-// Worker Message Types
-// ============================================================================
 
 interface WorkerCommand {
   type: "command";
@@ -115,10 +108,6 @@ type RelayMessage = {
   msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown; error?: unknown };
 };
 
-// ============================================================================
-// Worker Bridge
-// ============================================================================
-
 /**
  * Bridge for communicating with the game engine worker.
  */
@@ -131,21 +120,18 @@ class WorkerBridge {
   private eventBus: WebEventBus;
   private initPromise: Promise<void> | null = null;
 
-  /** SharedArrayBuffer for local player prompt/response */
   gameBuffer: SharedArrayBuffer | null = null;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
   private localAwaitingResponse = false;
   private localPendingDirective: DirectiveInput | null = null;
 
-  /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
   private remoteSeats = new Map<string, RemoteSeat>();
   private remotePlayerSlots = new Map<string, string>();
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
 
-    // Listen for SAB from worker and start polling for prompts
     eventBus.on<{ buffer: SharedArrayBuffer }>("game:sab", (payload) => {
       this.gameBuffer = payload.buffer;
       this.gameSignal = new Int32Array(this.gameBuffer, 0, 2);
@@ -207,7 +193,6 @@ class WorkerBridge {
         }
       }
 
-      // Keep polling while game is active
       if (this.gameBuffer) {
         requestAnimationFrame(poll);
       }
@@ -378,11 +363,8 @@ class WorkerBridge {
     }
     this.localAwaitingResponse = false;
     const json = new TextEncoder().encode(JSON.stringify(message));
-    // Write length
     Atomics.store(this.gameSignal, 1, json.length);
-    // Write data
     this.gameData.set(json, 0);
-    // Signal response ready
     Atomics.store(this.gameSignal, 0, 2); // SIGNAL_RESPONSE_READY
     Atomics.notify(this.gameSignal, 0);
   }
@@ -452,7 +434,6 @@ class WorkerBridge {
         }
       }
     } else if (message.type === "event") {
-      // Forward events to the event bus
       this.eventBus.emit(message.event, message.payload);
     }
   }
@@ -520,9 +501,7 @@ class WorkerBridge {
   }
 }
 
-// ============================================================================
 // Web Game API (WASM-based)
-// ============================================================================
 
 class WebGameApi implements IGameApi {
   private bridge: WorkerBridge;
@@ -535,7 +514,6 @@ class WebGameApi implements IGameApi {
     this.bridge = bridge;
   }
 
-  /** Set server API reference for multiplayer relay */
   setServerApi(server: WebServerApi): void {
     this.serverApi = server;
   }
@@ -636,9 +614,7 @@ class WebGameApi implements IGameApi {
   }
 }
 
-// ============================================================================
 // Web Storage API (localStorage-based, upgradeable to IndexedDB)
-// ============================================================================
 
 class WebStorageApi implements IStorageApi {
   private prefix = "manabrew:";
@@ -667,9 +643,7 @@ class WebStorageApi implements IStorageApi {
   }
 }
 
-// ============================================================================
 // Web Event Bus (pure JS implementation)
-// ============================================================================
 
 class WebEventBus implements IEventBus {
   private listeners = new Map<string, Set<(payload: unknown) => void>>();
@@ -683,7 +657,6 @@ class WebEventBus implements IEventBus {
     const typedHandler = handler as (payload: unknown) => void;
     handlers.add(typedHandler);
 
-    // Return unsubscribe function
     return () => {
       handlers.delete(typedHandler);
       if (handlers.size === 0) {
@@ -700,9 +673,7 @@ class WebEventBus implements IEventBus {
   }
 }
 
-// ============================================================================
 // Web Server API (WebSocket-based multiplayer)
-// ============================================================================
 
 interface BotEntry {
   ws: WebSocket | null;
@@ -1050,7 +1021,6 @@ class WebServerApi implements IServerApi {
     this.send({ type: "RequestResync" });
   }
 
-  /** Broadcast game state to other players in the room */
   async broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void> {
     this.send({ type: "BroadcastState", state, target_player: targetPlayer });
   }
@@ -1357,7 +1327,6 @@ class WebServerApi implements IServerApi {
       return;
     }
 
-    // Map server message type to event name and payload
     const eventMap: Record<string, [string, unknown]> = {
       AuthResult: [
         "server:auth_result",
@@ -1417,10 +1386,6 @@ function buildServerUrl(params: ServerConnectParams): string {
   const scheme = params.port === 443 ? "wss" : "ws";
   return `${scheme}://${params.host}:${params.port}`;
 }
-
-// ============================================================================
-// Web Platform
-// ============================================================================
 
 /**
  * Web platform implementation.

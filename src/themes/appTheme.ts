@@ -1,8 +1,3 @@
-/**
- * App-level (Radix / shadcn) theme colours.
- * These drive CSS custom properties on :root and style the non-game chrome
- * (menus, dialogs, settings panels, deck editor, lobby, etc.).
- */
 export interface ThemeColors {
   background: string;
   foreground: string;

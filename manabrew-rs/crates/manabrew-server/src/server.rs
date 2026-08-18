@@ -78,7 +78,7 @@ async fn accept_loop(state: Arc<ServerState>, listener: TcpListener, shutdown: A
                     let state = state.clone();
                     tokio::spawn(async move {
                         if let Err(e) = handle_connection(stream, peer_addr, state).await {
-                            error!("[server] connection error from {}: {}", peer_addr, e);
+                            error!("[server] connection error: {}", e);
                         }
                     });
                 }

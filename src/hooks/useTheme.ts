@@ -14,21 +14,17 @@ import type { GameFontSizes } from "@/themes";
 export type { GameThemeColors } from "@/themes/gameTheme";
 export type { GameFontSizes } from "@/themes";
 
-/** Resolved game theme — colours plus font sizes. */
 export interface GameTheme extends GameThemeColors {
   fontSizes: GameFontSizes;
 }
 
-/** The single resolved theme object used across the entire app. */
 export interface Theme {
   appTheme: ThemeColors;
   gameTheme: GameTheme;
 }
 
-// ---------------------------------------------------------------------------
 // Imperative accessor — cached, kept in sync via a preferences subscription.
 // Used by Pixi and other non-React code that cannot call hooks.
-// ---------------------------------------------------------------------------
 
 /** Internal shape that also carries the CSS variable map for :root
  *  injection. Consumers see only `Theme`; `gameCssVars` stays private. */
@@ -59,7 +55,6 @@ usePreferencesStore.subscribe(() => {
   }
 });
 
-/** Non-reactive accessor for imperative / Pixi code. */
 export function getTheme(): Theme {
   return cachedTheme;
 }

@@ -45,12 +45,6 @@ public final class ActionSpace {
             "Spend only colored mana on X. No more than one mana of each color may be spent this way.";
 
 
-    public static final java.util.concurrent.atomic.AtomicLong T_MANA = new java.util.concurrent.atomic.AtomicLong();
-    public static final java.util.concurrent.atomic.AtomicLong T_TGT = new java.util.concurrent.atomic.AtomicLong();
-    public static final java.util.concurrent.atomic.AtomicLong T_RESTR = new java.util.concurrent.atomic.AtomicLong();
-    public static final java.util.concurrent.atomic.AtomicLong T_ABIL = new java.util.concurrent.atomic.AtomicLong();
-    public static final java.util.concurrent.atomic.AtomicLong N_ABIL = new java.util.concurrent.atomic.AtomicLong();
-    public static final java.util.concurrent.atomic.AtomicLong N_SCAN = new java.util.concurrent.atomic.AtomicLong();
 
     private ActionSpace() {}
 
@@ -137,25 +131,25 @@ public final class ActionSpace {
 
         final List<SpellAbility> actions = new ArrayList<>();
         final Map<Integer, Card> restrictionHosts = new HashMap<>();
+        // GameActionUtil.getAlternativeCosts runs the whole CR 613 layer pass twice for
+        // every ability with an alternate host (MDFC, adventure, split, bestow), and an
+        // enumeration hits that once per candidate. Game state cannot change while we
+        // enumerate, so hold the pass and restore once at the end.
+        game.getAction().setHoldCheckingStaticAbilities(true);
+        try {
         for (final Card c : candidates) {
-            final long ta0 = System.nanoTime();
-            final java.util.List<SpellAbility> abils = c.getAllPossibleAbilities(player, true);
-            T_ABIL.addAndGet(System.nanoTime() - ta0);
-            for (final SpellAbility sa : abils) {
-                N_ABIL.incrementAndGet();
+            for (final SpellAbility sa : c.getAllPossibleAbilities(player, true)) {
                 sa.setActivatingPlayer(player);
                 final Cost payCosts = sa.getPayCosts();
                 if (payCosts != null && payCosts.hasManaCost()) {
                     // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
                     // is permissive in engine core. Add an explicit mana-feasibility check.
                     final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
-                    final long tm0 = System.nanoTime();
                     final boolean canPayMana = lifePaymentFallback
                             ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
                             : (reservedSacrifices.isEmpty()
                             ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
                             : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
-                    T_MANA.addAndGet(System.nanoTime() - tm0);
                     if (!canPayMana) {
                         continue;
                     }
@@ -165,28 +159,18 @@ public final class ActionSpace {
                 }
                 // Target enumeration scans every card in the target zones, so it stays behind
                 // the payability guards: most candidates are unpayable late in a game.
-                final long tt0 = System.nanoTime();
-                final boolean vt = hasValidTargets(sa);
-                T_TGT.addAndGet(System.nanoTime() - tt0);
-                if (!vt) {
+                if (!hasValidTargets(sa)) {
                     continue;
                 }
-                final long tr0 = System.nanoTime();
-                final boolean okr = sa.checkRestrictions(restrictionHost(sa, game, restrictionHosts), player);
-                T_RESTR.addAndGet(System.nanoTime() - tr0);
-                if (!okr) {
+                if (!sa.checkRestrictions(restrictionHost(sa, game, restrictionHosts), player)) {
                     continue;
                 }
                 actions.add(sa);
             }
         }
-        if (N_SCAN.incrementAndGet() % 100 == 0) {
-            System.err.printf("ERROR-SPLIT scans=%d abil=%d mana=%dms tgt=%dms restr=%dms getabil=%dms statics=%d staticms=%d nstat=%d%n",
-                    N_SCAN.get(), N_ABIL.get(), T_MANA.get()/1000000, T_TGT.get()/1000000,
-                    T_RESTR.get()/1000000, T_ABIL.get()/1000000,
-                    forge.game.GameAction.STATIC_CALLS.get(),
-                    forge.game.GameAction.STATIC_NANOS.get()/1000000,
-                    forge.game.GameAction.STATIC_COUNT.get());
+        } finally {
+            game.getAction().setHoldCheckingStaticAbilities(false);
+            game.getAction().checkStaticAbilities(false);
         }
         return actions;
     }

@@ -2,10 +2,13 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use manabrew_hub::dto::{
-    AccountDeckDetail, AccountDeckSummary, AdminTopDeckSnapshotEntry, DeckHubEntryDetail,
-    DeckHubEntrySummary, DeckHubFacet, DeckHubFacets, DeckHubTag, DeckVersionDetail,
-    DeckVersionSummary, FavoriteResponse, TopDeckBucket, TopDeckSnapshot, TopDeckSnapshotEntry,
+    AccountDeckDetail, AccountDeckSummary, AccountExport, AccountExportDeck, AccountExportFavorite,
+    AccountExportIdentity, AccountExportProfile, AccountExportPublication, AccountExportSession,
+    AdminTopDeckSnapshotEntry, AuthAccount, AuthIdentity, DeckHubEntryDetail, DeckHubEntrySummary,
+    DeckHubFacet, DeckHubFacets, DeckHubTag, DeckVersionDetail, DeckVersionSummary,
+    FavoriteResponse, TopDeckBucket, TopDeckSnapshot, TopDeckSnapshotEntry,
 };
+
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult, Row, Transaction};
 use sha2::{Digest, Sha256};
@@ -309,7 +312,7 @@ impl Storage {
             if *version <= current {
                 continue;
             }
-            let rebuilds_decks = *version == 4;
+            let rebuilds_decks = matches!(*version, 4 | 13);
             if rebuilds_decks {
                 self.conn.execute_batch("PRAGMA foreign_keys=OFF")?;
             }
@@ -1082,7 +1085,8 @@ impl Storage {
                         SELECT max(latest.version_no) FROM deck_versions latest
                         WHERE latest.deck_id = d.id
                     )
-                 WHERE d.id = ?1 AND d.kind = 'user' AND d.deleted_at IS NULL",
+                 WHERE d.id = ?1 AND d.kind = 'user' AND d.deleted_at IS NULL
+                   AND d.account_id IS NOT NULL",
                 params![deck_id],
                 |row| {
                     Ok((
@@ -1162,7 +1166,8 @@ impl Storage {
             .conn
             .query_row(
                 "SELECT account_id FROM decks
-                 WHERE id = ?1 AND kind = 'user' AND deleted_at IS NULL",
+                 WHERE id = ?1 AND kind = 'user' AND deleted_at IS NULL
+                   AND account_id IS NOT NULL",
                 params![deck_id],
                 |row| row.get::<_, String>(0),
             )
@@ -1271,7 +1276,8 @@ impl Storage {
             where_clause.push_str(&format!(
                 " AND (e.title LIKE ?{index} ESCAPE '\\'
                        OR COALESCE(e.summary, '') LIKE ?{index} ESCAPE '\\'
-                       OR COALESCE(a.username, a.handle, 'ManaBrew') LIKE ?{index} ESCAPE '\\'
+                       OR COALESCE(a.username, a.handle,
+                             CASE WHEN d.kind = 'preset' THEN 'ManaBrew' END) LIKE ?{index} ESCAPE '\\'
                        OR EXISTS(
                            SELECT 1 FROM deck_cards search_card
                            WHERE search_card.deck_version_id = v.id
@@ -1424,7 +1430,8 @@ impl Storage {
             .saturating_mul(params.page_size);
         let sql = format!(
             "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
-                    e.summary, COALESCE(a.username, a.handle, 'ManaBrew'),
+                    e.summary, COALESCE(a.username, a.handle,
+                             CASE WHEN d.kind = 'preset' THEN 'ManaBrew' END),
                     d.kind, d.preset_key, v.format,
                     v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                     e.cover_card_id, e.cover_card_name, e.status, e.published_at,
@@ -1462,7 +1469,8 @@ impl Storage {
             .conn
             .query_row(
                 "SELECT e.id, e.deck_id, e.published_version_id, v.version_no, e.slug, e.title,
-                        e.summary, COALESCE(a.username, a.handle, 'ManaBrew'),
+                        e.summary, COALESCE(a.username, a.handle,
+                             CASE WHEN d.kind = 'preset' THEN 'ManaBrew' END),
                         d.kind, d.preset_key, v.format,
                         v.commander_names, v.color_identity, v.card_count, v.snapshot_json,
                         e.cover_card_id, e.cover_card_name, e.status, e.published_at,
@@ -2098,6 +2106,238 @@ impl Storage {
         }
         tx.commit()?;
         Ok(changed > 0)
+    }
+
+    // Publications outlive their author: the decks behind them lose their owner
+    // instead of being deleted, so Community entries and ranking snapshots resolve.
+    pub fn delete_account(&self, account_id: &str) -> SqlResult<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            "DELETE FROM deckhub_entries
+             WHERE EXISTS (
+                       SELECT 1 FROM decks d
+                       WHERE d.id = deckhub_entries.deck_id AND d.account_id = ?1
+                         AND (deckhub_entries.status != 'published'
+                              OR d.deleted_at IS NOT NULL)
+                   )
+               AND NOT EXISTS (
+                       SELECT 1 FROM top_deck_snapshots s
+                       WHERE s.deckhub_entry_id = deckhub_entries.id
+                   )",
+            params![account_id],
+        )?;
+        tx.execute(
+            "DELETE FROM deck_versions
+             WHERE EXISTS (
+                       SELECT 1 FROM decks d
+                       WHERE d.id = deck_versions.deck_id AND d.account_id = ?1
+                   )
+               AND NOT EXISTS (
+                       SELECT 1 FROM deckhub_entries e
+                       WHERE e.published_version_id = deck_versions.id
+                   )",
+            params![account_id],
+        )?;
+        tx.execute(
+            "UPDATE deckhub_entries SET publish_ip = NULL
+             WHERE deck_id IN (SELECT id FROM decks WHERE account_id = ?1)",
+            params![account_id],
+        )?;
+        tx.execute(
+            "UPDATE decks SET account_id = NULL
+             WHERE account_id = ?1
+               AND EXISTS (SELECT 1 FROM deckhub_entries e WHERE e.deck_id = decks.id)",
+            params![account_id],
+        )?;
+        tx.execute(
+            "DELETE FROM decks WHERE account_id = ?1",
+            params![account_id],
+        )?;
+        tx.execute("DELETE FROM accounts WHERE id = ?1", params![account_id])?;
+        tx.commit()
+    }
+
+    pub fn export_account(&self, account_id: &str, now: &str) -> SqlResult<AccountExport> {
+        let account = self.conn.query_row(
+            "SELECT id, handle, handle_set, username, display_name, email, avatar_url,
+                    created_at, updated_at
+             FROM accounts WHERE id = ?1",
+            params![account_id],
+            |row| {
+                Ok(AccountExportProfile {
+                    account: AuthAccount {
+                        id: row.get(0)?,
+                        handle: row.get(1)?,
+                        handle_pending: row.get::<_, i64>(2)? == 0,
+                        created_at: row.get(7)?,
+                    },
+                    username: row.get(3)?,
+                    display_name: row.get(4)?,
+                    email: row.get(5)?,
+                    avatar_url: row.get(6)?,
+                    updated_at: row.get(8)?,
+                })
+            },
+        )?;
+
+        let identities = self
+            .conn
+            .prepare(
+                "SELECT provider, email, provider_user_id, email_verified, created_at
+                 FROM identities WHERE account_id = ?1 ORDER BY created_at ASC",
+            )?
+            .query_map(params![account_id], |row| {
+                Ok(AccountExportIdentity {
+                    identity: AuthIdentity {
+                        provider: row.get(0)?,
+                        email: row.get(1)?,
+                    },
+                    provider_user_id: row.get(2)?,
+                    email_verified: row.get::<_, i64>(3)? != 0,
+                    created_at: row.get(4)?,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+
+        let sessions = self
+            .conn
+            .prepare(
+                "SELECT created_at, expires_at FROM sessions
+                 WHERE account_id = ?1 ORDER BY created_at ASC",
+            )?
+            .query_map(params![account_id], |row| {
+                Ok(AccountExportSession {
+                    created_at: row.get(0)?,
+                    expires_at: row.get(1)?,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+
+        let mut versions: BTreeMap<String, Vec<DeckVersionDetail>> = BTreeMap::new();
+        let rows = self
+            .conn
+            .prepare(
+                "SELECT v.deck_id, v.id, v.version_no, v.notes,
+                        EXISTS(SELECT 1 FROM deckhub_entries e
+                               WHERE e.published_version_id = v.id AND e.status != 'archived'),
+                        v.created_at, v.snapshot_json
+                 FROM deck_versions v JOIN decks d ON d.id = v.deck_id
+                 WHERE d.account_id = ?1
+                 ORDER BY v.deck_id ASC, v.version_no ASC",
+            )?
+            .query_map(params![account_id], |row| {
+                let snapshot_json: String = row.get(6)?;
+                let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        6,
+                        rusqlite::types::Type::Text,
+                        Box::new(error),
+                    )
+                })?;
+                Ok((
+                    row.get::<_, String>(0)?,
+                    DeckVersionDetail {
+                        summary: DeckVersionSummary {
+                            id: row.get(1)?,
+                            version_no: row.get(2)?,
+                            notes: row.get(3)?,
+                            published: row.get(4)?,
+                            created_at: row.get(5)?,
+                        },
+                        deck,
+                    },
+                ))
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+        for (deck_id, version) in rows {
+            versions.entry(deck_id).or_default().push(version);
+        }
+
+        let decks = self
+            .conn
+            .prepare(
+                "SELECT d.id, d.name, d.format, d.description, d.visibility,
+                        v.id, v.version_no,
+                        (SELECT count(*) FROM deckhub_entries e
+                         WHERE e.deck_id = d.id AND e.status != 'archived'),
+                        source.preset_key, d.created_at, d.updated_at, d.deleted_at
+                 FROM decks d
+                 LEFT JOIN decks source ON source.id = d.derived_from_deck_id
+                 JOIN deck_versions v ON v.deck_id = d.id
+                    AND v.version_no = (
+                        SELECT max(latest.version_no) FROM deck_versions latest
+                        WHERE latest.deck_id = d.id
+                    )
+                 WHERE d.account_id = ?1
+                 ORDER BY d.created_at ASC",
+            )?
+            .query_map(params![account_id], |row| {
+                let summary = map_account_deck_summary(row)?;
+                Ok(AccountExportDeck {
+                    deleted_at: row.get(11)?,
+                    versions: versions.remove(&summary.id).unwrap_or_default(),
+                    summary,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+
+        let publications = self
+            .conn
+            .prepare(
+                "SELECT e.id, e.deck_id, e.published_version_id, e.slug, e.title, e.summary,
+                        e.status, e.published_at, e.created_at,
+                        (SELECT count(*) FROM deck_play_reports r
+                         WHERE r.deckhub_entry_id = e.id),
+                        (SELECT count(*) FROM deck_play_reports r
+                         WHERE r.deckhub_entry_id = e.id AND r.won = 1)
+                 FROM deckhub_entries e JOIN decks d ON d.id = e.deck_id
+                 WHERE d.account_id = ?1
+                 ORDER BY e.created_at ASC",
+            )?
+            .query_map(params![account_id], |row| {
+                Ok(AccountExportPublication {
+                    id: row.get(0)?,
+                    deck_id: row.get(1)?,
+                    published_version_id: row.get(2)?,
+                    slug: row.get(3)?,
+                    title: row.get(4)?,
+                    summary: row.get(5)?,
+                    status: row.get(6)?,
+                    published_at: row.get(7)?,
+                    created_at: row.get(8)?,
+                    play_count: row.get(9)?,
+                    win_count: row.get(10)?,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+
+        let favorites = self
+            .conn
+            .prepare(
+                "SELECT f.deckhub_entry_id, e.slug, e.title, f.created_at
+                 FROM deckhub_favorites f
+                 JOIN deckhub_entries e ON e.id = f.deckhub_entry_id
+                 WHERE f.account_id = ?1 ORDER BY f.created_at ASC",
+            )?
+            .query_map(params![account_id], |row| {
+                Ok(AccountExportFavorite {
+                    deckhub_entry_id: row.get(0)?,
+                    slug: row.get(1)?,
+                    title: row.get(2)?,
+                    created_at: row.get(3)?,
+                })
+            })?
+            .collect::<SqlResult<Vec<_>>>()?;
+
+        Ok(AccountExport {
+            exported_at: now.to_string(),
+            account,
+            identities,
+            sessions,
+            decks,
+            publications,
+            favorites,
+        })
     }
 
     pub fn insert_session(
@@ -3069,7 +3309,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 14);
+        assert_eq!(version, 15);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

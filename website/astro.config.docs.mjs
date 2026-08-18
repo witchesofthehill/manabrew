@@ -95,7 +95,7 @@ export default defineConfig({
           label: "Hosting",
           items: ["hosting-relay", "hosting-web-client", "hosting-full-stack", "self-hosting"],
         },
-        { label: "Project", items: ["contributing", "releases", "privacy"] },
+        { label: "Project", items: ["contributing", "releases", "terms", "privacy"] },
       ],
       editLink: {
         baseUrl: "https://github.com/witchesofthehill/manabrew/edit/main/website/",

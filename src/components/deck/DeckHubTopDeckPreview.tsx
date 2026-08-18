@@ -69,7 +69,7 @@ export function DeckHubTopDeckPreview({ onOpen, onAuthor }: DeckHubTopDeckPrevie
                   reason={ranked.reason}
                   variant="stage"
                   onOpen={() => onOpen(ranked.entry.id)}
-                  onAuthorClick={() => onAuthor(ranked.entry.author)}
+                  onAuthorClick={onAuthor}
                 />
               </DeckHubPodiumFrame>
             </div>

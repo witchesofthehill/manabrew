@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.15.4](https://github.com/witchesofthehill/manabrew/compare/v3.15.3...v3.15.4) (2026-08-18)
+
+### Fixes
+
+* **harness:** drop the profiling left in the action space, and apply the hold ([#712](https://github.com/witchesofthehill/manabrew/issues/712)) ([7b131db](https://github.com/witchesofthehill/manabrew/commit/7b131db57aee6bf978e69707ec740619f99a18e6))
+
 ## [3.15.3](https://github.com/witchesofthehill/manabrew/compare/v3.15.2...v3.15.3) (2026-08-18)
 
 ## [3.15.2](https://github.com/witchesofthehill/manabrew/compare/v3.15.1...v3.15.2) (2026-08-18)

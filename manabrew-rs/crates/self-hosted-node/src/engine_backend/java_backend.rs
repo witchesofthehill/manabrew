@@ -1268,7 +1268,6 @@ fn run_hosted_engine_game_inner(
         remote_response_rxs.into_iter().collect();
     let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
-    let mut decision_submitted: Option<Instant> = None;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1371,7 +1370,6 @@ fn run_hosted_engine_game_inner(
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
                         engine.submit_action(&session_id, &action_json)?;
-                        decision_submitted = Some(Instant::now());
                     }
                     Ok(ClientToServerMessage::Directive {
                         directive: DirectiveInput::Concede,
@@ -1396,12 +1394,6 @@ fn run_hosted_engine_game_inner(
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
             if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
-                // The engine is opaque from here, so the only latency we can see is the
-                // gap between handing it a decision and it asking for the next one. The
-                // poll below rounds this up to the next 50ms.
-                if let Some(submitted) = decision_submitted.take() {
-                    crate::metrics::record_decision_latency(player_names.len(), submitted);
-                }
                 last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");

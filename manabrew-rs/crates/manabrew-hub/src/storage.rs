@@ -312,7 +312,7 @@ impl Storage {
             if *version <= current {
                 continue;
             }
-            let rebuilds_decks = matches!(*version, 4 | 13);
+            let rebuilds_decks = matches!(*version, 4 | 13 | 15);
             if rebuilds_decks {
                 self.conn.execute_batch("PRAGMA foreign_keys=OFF")?;
             }

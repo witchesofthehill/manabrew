@@ -44,6 +44,8 @@ public final class ActionSpace {
     private static final String SPEND_ONLY_COLORED_ON_X =
             "Spend only colored mana on X. No more than one mana of each color may be spent this way.";
 
+
+
     private ActionSpace() {}
 
     private static String actionBaseLabel(final SpellAbility sa) {
@@ -128,42 +130,60 @@ public final class ActionSpace {
         }
 
         final List<SpellAbility> actions = new ArrayList<>();
+        final Map<Integer, Card> restrictionHosts = new HashMap<>();
+        // GameActionUtil.getAlternativeCosts runs the whole CR 613 layer pass twice for
+        // every ability with an alternate host (MDFC, adventure, split, bestow), and an
+        // enumeration hits that once per candidate. Game state cannot change while we
+        // enumerate, so hold the pass and restore once at the end.
+        game.getAction().setHoldCheckingStaticAbilities(true);
+        try {
         for (final Card c : candidates) {
             for (final SpellAbility sa : c.getAllPossibleAbilities(player, true)) {
                 sa.setActivatingPlayer(player);
-                final boolean hasManaCost = sa.getPayCosts() != null && sa.getPayCosts().hasManaCost();
-                final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
-                final boolean canPayMana = !hasManaCost
-                        || (lifePaymentFallback
-                        ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
-                        : (reservedSacrifices.isEmpty()
-                        ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
-                        : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices)));
-                final boolean validTargets = hasValidTargets(sa);
-                // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
-                // is permissive in engine core. Add an explicit mana-feasibility check.
-                if (!canPayMana) {
-                    continue;
+                final Cost payCosts = sa.getPayCosts();
+                if (payCosts != null && payCosts.hasManaCost()) {
+                    // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
+                    // is permissive in engine core. Add an explicit mana-feasibility check.
+                    final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
+                    final boolean canPayMana = lifePaymentFallback
+                            ? canPayManaCostWithLifeFallback(sa, player, reservedSacrifices)
+                            : (reservedSacrifices.isEmpty()
+                            ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
+                            : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+                    if (!canPayMana) {
+                        continue;
+                    }
                 }
                 if (!includeManaAbilities && sa.isManaAbility()) {
                     continue;
                 }
-                if (!validTargets) {
+                // Target enumeration scans every card in the target zones, so it stays behind
+                // the payability guards: most candidates are unpayable late in a game.
+                if (!hasValidTargets(sa)) {
                     continue;
                 }
-                if (!sa.checkRestrictions(restrictionHost(sa, game), player)) {
+                if (!sa.checkRestrictions(restrictionHost(sa, game, restrictionHosts), player)) {
                     continue;
                 }
                 actions.add(sa);
             }
         }
+        } finally {
+            game.getAction().setHoldCheckingStaticAbilities(false);
+            game.getAction().checkStaticAbilities(false);
+        }
         return actions;
     }
 
-    private static Card restrictionHost(final SpellAbility sa, final Game game) {
+    private static Card restrictionHost(
+            final SpellAbility sa, final Game game, final Map<Integer, Card> cache) {
         final Card card = sa.getHostCard();
         if (!sa.isSpell()) {
             return card;
+        }
+        final Card cached = cache.get(card.getId());
+        if (cached != null) {
+            return cached;
         }
         // Mirrors AiController.canPlaySa: CantBeCast statics are normally evaluated after
         // moveToStack, so a pre-cast probe has to supply the stack zone and origin itself.
@@ -171,6 +191,7 @@ public final class ActionSpace {
         spellHost.setLKICMC(-1);
         spellHost.setLastKnownZone(game.getStackZone());
         spellHost.setCastFrom(card.getZone());
+        cache.put(card.getId(), spellHost);
         return spellHost;
     }
 
@@ -244,12 +265,30 @@ public final class ActionSpace {
             final Set<Card> reservedSacrifices
     ) {
         final ManaCostBeingPaid base = probeManaCost(sa.getPayCosts(), sa, player, false);
-        if (reservedSacrifices.isEmpty()
-                && ComputerUtilMana.canPayManaCost(base, sa, player, false)) {
-            return true;
+        if (reservedSacrifices.isEmpty()) {
+            if (ComputerUtilMana.canPayManaCost(base, sa, player, false)) {
+                return true;
+            }
+            // The fallback only ever spends life on a shard canPayShardWithLife accepts, and
+            // canPayManaOnly is strictly stricter than the check above, so without such a shard
+            // the whole search is a second probe with a foregone answer.
+            if (!hasLifePayableShard(base, player)) {
+                return false;
+            }
         }
         return canPayManaCostWithLifeFallback(
                 base, sa, player, false, reservedSacrifices, 0, new HashSet<>());
+    }
+
+    private static boolean hasLifePayableShard(final ManaCostBeingPaid cost, final Player player) {
+        final boolean lifeForBlack =
+                player.hasKeyword("PayLifeInsteadOf:B") && cost.hasAnyKind(ManaAtom.BLACK);
+        for (final ManaCostShard shard : ManaCostShard.values()) {
+            if (cost.getUnpaidShards(shard) > 0 && canPayShardWithLife(shard, lifeForBlack)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ManaCostBeingPaid probeManaCost(
@@ -682,7 +721,9 @@ public final class ActionSpace {
         SpellAbility current = sa;
         while (current != null) {
             if (current.usesTargeting()) {
-                // Avoid stale target selections mutating candidate counts across repeated action-space scans.
+                // canTarget consults the already-chosen targets, so a selection left over from an
+                // earlier cast would shrink the candidate count. Clearing it here is safe because
+                // the real cast path re-runs SpellAbility.setupTargets, which clears them anyway.
                 current.resetTargets();
                 final TargetRestrictions tr = current.getTargetRestrictions();
                 if (tr == null) {

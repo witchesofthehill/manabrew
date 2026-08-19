@@ -171,8 +171,16 @@ services:
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
 
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
+      # Engine JVM sizing (#684). mem_limit has to cover the heap below plus the
+      # JVM's own non-heap (metaspace, code cache, stacks) and the node process,
+      # or the container is OOM-killed before the heap cap ever applies.
+      SELF_HOSTED_NODE_JAVA_HEAP_MB: "${SELF_HOSTED_NODE_JAVA_HEAP_MB:-768}"
+      SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS: "${SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS:-2}"
+      # stderr, not a file: alloy ships container output to Loki, nothing ships files.
+      SELF_HOSTED_NODE_JAVA_GC_LOG: "${SELF_HOSTED_NODE_JAVA_GC_LOG:-stderr}"
+      SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
-    mem_limit: 1g
+    mem_limit: 1536m
     cpu_shares: 512
     depends_on:
       - manabrew-server-staging

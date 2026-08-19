@@ -11,7 +11,9 @@ pub use email::{email_request_handler, email_verify_handler};
 pub use oauth::{oauth_callback_handler, oauth_start_handler};
 #[cfg(test)]
 pub use token::tests as token_tests;
-pub use token::{jwks_handler, mint_access_token, token_handler, IdentityKeys, AUDIENCE_HUB};
+pub use token::{
+    guest_token_handler, jwks_handler, mint_access_token, token_handler, IdentityKeys, AUDIENCE_HUB,
+};
 
 use std::sync::Arc;
 

@@ -1,5 +1,34 @@
 # Changelog
 
+## [3.16.0](https://github.com/witchesofthehill/manabrew/compare/v3.15.5...v3.16.0) (2026-08-19)
+
+### Features
+
+* account niceties and minor fixes ([#700](https://github.com/witchesofthehill/manabrew/issues/700)) ([6c95ec0](https://github.com/witchesofthehill/manabrew/commit/6c95ec0f5fa668ae39c7d40aefafa5a5cc3f0265))
+
+## [3.15.5](https://github.com/witchesofthehill/manabrew/compare/v3.15.4...v3.15.5) (2026-08-19)
+
+### Fixes
+
+* **relay:** answer the client keepalive so dead sockets are caught ([#719](https://github.com/witchesofthehill/manabrew/issues/719)) ([345c4a5](https://github.com/witchesofthehill/manabrew/commit/345c4a598ad9518191ac239e8c597e36eb01ef28))
+* **ui:** keep rendering while the window is unfocused ([#714](https://github.com/witchesofthehill/manabrew/issues/714)) ([77f149b](https://github.com/witchesofthehill/manabrew/commit/77f149b462a9c282c52cb68153ec41713f892034))
+
+## [3.15.4](https://github.com/witchesofthehill/manabrew/compare/v3.15.3...v3.15.4) (2026-08-18)
+
+### Fixes
+
+* **harness:** drop the profiling left in the action space, and apply the hold ([#712](https://github.com/witchesofthehill/manabrew/issues/712)) ([7b131db](https://github.com/witchesofthehill/manabrew/commit/7b131db57aee6bf978e69707ec740619f99a18e6))
+
+## [3.15.3](https://github.com/witchesofthehill/manabrew/compare/v3.15.2...v3.15.3) (2026-08-18)
+
+## [3.15.2](https://github.com/witchesofthehill/manabrew/compare/v3.15.1...v3.15.2) (2026-08-18)
+
+### Performance
+
+* **harness:** stop re-running the static-ability pass per candidate ability ([#691](https://github.com/witchesofthehill/manabrew/issues/691)) ([07759c4](https://github.com/witchesofthehill/manabrew/commit/07759c40c5e0f9013071b5c1a9b9d2267c98d02d))
+
+## [3.15.1](https://github.com/witchesofthehill/manabrew/compare/v3.15.0...v3.15.1) (2026-08-18)
+
 ## [3.15.0](https://github.com/witchesofthehill/manabrew/compare/v3.14.0...v3.15.0) (2026-08-17)
 
 ### Features

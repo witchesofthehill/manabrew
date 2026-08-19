@@ -8,12 +8,13 @@ use axum::Json;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use chrono::Utc;
-use manabrew_hub::dto::{AccessTokenResponse, TokenRequest};
+use manabrew_hub::dto::{AccessTokenResponse, GuestTokenRequest, TokenRequest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::{refresh_account, touch_refresh_token};
 use crate::routes::{internal_error, AppState};
+use crate::validate;
 
 const ACCESS_TOKEN_TTL_SECS: u32 = 600;
 const CLOCK_SKEW_SECS: i64 = 60;
@@ -172,6 +173,45 @@ pub async fn token_handler(
         &account.id,
         &account.handle,
         audience,
+    ))
+    .into_response()
+}
+
+fn guest_subject(guest_id: &str) -> String {
+    let digest = Sha256::digest(guest_id.as_bytes());
+    let hex: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+    format!("guest:{hex}")
+}
+
+pub async fn guest_token_handler(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<GuestTokenRequest>,
+) -> Response {
+    if let Err(error) = validate::validate_guest_name(&request.name) {
+        return (StatusCode::UNPROCESSABLE_ENTITY, error).into_response();
+    }
+    if request.guest_id.trim().is_empty() {
+        return (StatusCode::UNPROCESSABLE_ENTITY, "guest id is required").into_response();
+    }
+    let name = request.name.trim();
+    let base = validate::strip_name_tag(name).trim();
+    match state.storage.lock().unwrap().handle_exists(base) {
+        Ok(true) => {
+            return (
+                StatusCode::CONFLICT,
+                "That name is already claimed. Pick another.",
+            )
+                .into_response()
+        }
+        Ok(false) => {}
+        Err(error) => return internal_error(error),
+    }
+    let subject = guest_subject(&request.guest_id);
+    Json(mint_access_token(
+        &state.identity,
+        &subject,
+        name,
+        AUDIENCE_RELAY,
     ))
     .into_response()
 }

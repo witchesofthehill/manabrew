@@ -10,7 +10,9 @@ import { useQuickPlay } from "@/hooks/useQuickPlay";
 import { peekActiveGameSession } from "@/lib/activeGameSession";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { relayUsername } from "@/lib/relayUsername";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
 
 const MODES = [
@@ -47,6 +49,9 @@ export function PlayHome() {
   const serverPort = usePreferencesStore((state) => state.serverPort);
   const serverUsername = usePreferencesStore((state) => state.serverUsername);
   const serverPassword = usePreferencesStore((state) => state.serverPassword);
+  const accountHandle = useAuthStore((s) =>
+    s.status === "signedIn" ? (s.account?.handle ?? null) : null,
+  );
   const openTables = rooms.filter((room) => room.status === "Lobby").length;
   const lobbyTeaser =
     connected && (openTables > 0 || players.length > 0)
@@ -55,8 +60,9 @@ export function PlayHome() {
   const communityEnabled = isFeatureEnabled("deckHub");
 
   useEffect(() => {
-    if (!resumePending && !connected && !connecting && !connectionError && serverUsername) {
-      connect(serverHost, serverPort, serverUsername, serverPassword);
+    const name = relayUsername();
+    if (!resumePending && !connected && !connecting && !connectionError && name) {
+      connect(serverHost, serverPort, name, serverPassword);
     }
   }, [
     connect,
@@ -68,6 +74,7 @@ export function PlayHome() {
     serverPort,
     serverUsername,
     serverPassword,
+    accountHandle,
   ]);
 
   useEffect(() => {

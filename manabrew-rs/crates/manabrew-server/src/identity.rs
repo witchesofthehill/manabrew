@@ -45,10 +45,18 @@ struct JwtHeader {
 #[derive(Deserialize)]
 struct IdentityClaims {
     sub: String,
+    #[serde(default)]
+    handle: String,
     iss: String,
     aud: String,
     iat: i64,
     exp: i64,
+}
+
+#[derive(Default)]
+pub struct ResolvedIdentity {
+    pub identities: Vec<SessionIdentity>,
+    pub name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -92,20 +100,23 @@ impl IdentityVerifier {
         self.jwks_url.is_some()
     }
 
-    pub async fn resolve(&self, proof: &IdentityProof) -> Vec<SessionIdentity> {
-        let mut resolved = Vec::new();
+    pub async fn resolve(&self, proof: &IdentityProof) -> ResolvedIdentity {
+        let mut resolved = ResolvedIdentity::default();
         if let Some(token) = proof.token.as_deref() {
-            if let Some(identity) = self.account_identity(token).await {
-                resolved.push(identity);
+            if let Some((identity, name)) = self.account_identity(token).await {
+                resolved.identities.push(identity);
+                if !name.trim().is_empty() {
+                    resolved.name = Some(name);
+                }
             }
         }
         if let Some(identity) = proof.device.as_deref().and_then(device_identity) {
-            resolved.push(identity);
+            resolved.identities.push(identity);
         }
         resolved
     }
 
-    async fn account_identity(&self, token: &str) -> Option<SessionIdentity> {
+    async fn account_identity(&self, token: &str) -> Option<(SessionIdentity, String)> {
         let mut parts = token.split('.');
         let encoded_header = parts.next()?;
         let encoded_claims = parts.next()?;
@@ -135,7 +146,7 @@ impl IdentityVerifier {
             return None;
         }
 
-        Some(SessionIdentity::Account(claims.sub))
+        Some((SessionIdentity::Account(claims.sub), claims.handle))
     }
 
     async fn public_key(&self, kid: &str) -> Option<Vec<u8>> {
@@ -273,7 +284,11 @@ mod tests {
 
         let resolved = verifier.resolve(&token_proof(token)).await;
 
-        assert_eq!(resolved, vec![SessionIdentity::Account("account-1".into())]);
+        assert_eq!(
+            resolved.identities,
+            vec![SessionIdentity::Account("account-1".into())]
+        );
+        assert_eq!(resolved.name.as_deref(), Some("brewer"));
     }
 
     #[tokio::test]
@@ -284,13 +299,21 @@ mod tests {
 
         let mut tampered = signer.mint(claims(now));
         tampered.replace_range(..1, "x");
-        assert!(verifier.resolve(&token_proof(tampered)).await.is_empty());
+        assert!(verifier
+            .resolve(&token_proof(tampered))
+            .await
+            .identities
+            .is_empty());
 
         let expired = signer.mint(serde_json::json!({
             "sub": "account-1", "iss": ISSUER, "aud": AUDIENCE,
             "iat": now - 3600, "exp": now - 1800,
         }));
-        assert!(verifier.resolve(&token_proof(expired)).await.is_empty());
+        assert!(verifier
+            .resolve(&token_proof(expired))
+            .await
+            .identities
+            .is_empty());
 
         let wrong_audience = signer.mint(serde_json::json!({
             "sub": "account-1", "iss": ISSUER, "aud": "someone-else",
@@ -299,11 +322,16 @@ mod tests {
         assert!(verifier
             .resolve(&token_proof(wrong_audience))
             .await
+            .identities
             .is_empty());
 
         let other = Signer::new();
         let forged = other.mint(claims(now));
-        assert!(verifier.resolve(&token_proof(forged)).await.is_empty());
+        assert!(verifier
+            .resolve(&token_proof(forged))
+            .await
+            .identities
+            .is_empty());
     }
 
     #[tokio::test]
@@ -317,12 +345,13 @@ mod tests {
         };
 
         assert_eq!(
-            verifier.resolve(&proof).await,
+            verifier.resolve(&proof).await.identities,
             device_identity(secret).into_iter().collect::<Vec<_>>()
         );
         assert!(verifier
             .resolve(&token_proof("a.b.c".into()))
             .await
+            .identities
             .is_empty());
     }
 

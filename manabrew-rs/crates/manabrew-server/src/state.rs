@@ -19,6 +19,7 @@ pub struct ConnectedPlayer {
     pub disconnected_at: Option<Instant>,
     pub is_service: bool,
     pub identity: Vec<SessionIdentity>,
+    pub name_verified: bool,
 }
 
 pub struct UsernameSession {
@@ -28,6 +29,7 @@ pub struct UsernameSession {
     pub connected: bool,
     pub sender_closed: bool,
     pub identity: Vec<SessionIdentity>,
+    pub name_verified: bool,
 }
 
 impl From<&ConnectedPlayer> for UsernameSession {
@@ -39,6 +41,7 @@ impl From<&ConnectedPlayer> for UsernameSession {
             connected: player.connected,
             sender_closed: player.sender.is_closed(),
             identity: player.identity.clone(),
+            name_verified: player.name_verified,
         }
     }
 }

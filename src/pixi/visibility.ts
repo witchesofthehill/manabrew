@@ -4,8 +4,17 @@ const apps = new Set<Application>();
 let installed = false;
 let paused = false;
 
+/**
+ * Pause only when the page is genuinely hidden — minimised, occluded, or on a
+ * background tab — where the browser stops servicing rAF anyway.
+ *
+ * Deliberately NOT keyed on `document.hasFocus()`. A window that sits visible
+ * on a second monitor while the user works elsewhere is unfocused but still on
+ * screen, and stopping the ticker there froze the board mid-game: opponents'
+ * plays only appeared once the window regained focus (#618).
+ */
 function shouldPause(): boolean {
-  return document.hidden || !document.hasFocus();
+  return document.hidden;
 }
 
 function sync(): void {
@@ -23,8 +32,6 @@ function install(): void {
   if (installed) return;
   installed = true;
   document.addEventListener("visibilitychange", sync);
-  window.addEventListener("blur", sync);
-  window.addEventListener("focus", sync);
   paused = shouldPause();
 }
 

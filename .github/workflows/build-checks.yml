@@ -656,6 +656,88 @@ jobs:
       - name: Build tauri crate with forge-room feature
         run: cargo build --release -p manabrew --features forge-room
 
+  # The node's published image compiles Forge with native-image on Linux, so
+  # this is the only check between a broken native build and a broken release
+  # image. Unlike the desktop GraalVM jobs it needs no label: it is the Linux
+  # engine every hosted room runs on.
+  forge-node-graalvm-linux:
+    name: GraalVM node (Linux)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_forge_room == 'true'
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          clean: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - run: yarn
+
+      - name: Harness cache keys
+        id: harness-keys
+        run: |
+          echo "jar=$(node scripts/harness.mjs checksum)" >> "$GITHUB_OUTPUT"
+          echo "native=$(node scripts/harness.mjs native-checksum)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Forge harness jar
+        uses: actions/cache@v4
+        with:
+          path: |
+            forge-harness/target/forge-harness-jar-with-dependencies.jar
+            forge-harness/target/.harness-sources-checksum
+            forge-harness/src/main/java/forge/harness/protocol
+          key: harness-jar-v2-${{ steps.harness-keys.outputs.jar }}
+
+      - name: Cache Forge native library
+        id: forge-native-cache
+        uses: actions/cache@v4
+        with:
+          path: forge-harness/native/build
+          key: forge-native-${{ runner.os }}-${{ runner.arch }}-${{ steps.harness-keys.outputs.native }}
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn ensure:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        if: steps.forge-native-cache.outputs.cache-hit != 'true'
+        run: ./forge-harness/build-native.sh -J-Xmx8g
+
+      # Proves the library actually runs, not merely that it exists: a cache hit
+      # restores forge-harness/native/build without anything else exercising it.
+      - name: Smoke the shared isolate
+        env:
+          SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
+          SELF_HOSTED_NODE_SHARED_ISOLATE: "1"
+          RUST_LOG: self_hosted_node=info
+        run: cargo run --release -p self-hosted-node --features graal-forge
+
   forge-room-graalvm-macos:
     name: GraalVM build (macOS)
     runs-on: macos-latest

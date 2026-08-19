@@ -18,8 +18,9 @@ The node authenticates to the relay with the relay's server key. Set it via
 
 <Tabs>
   <TabItem label="Docker Compose">
-    The image is published on GHCR and bundles everything: the node binary,
-    the Forge harness, and a JRE — no checkout needed. Create a `compose.yml`:
+    The image is published on GHCR and bundles everything: the node binary and
+    Forge compiled ahead of time by GraalVM `native-image` — no JVM, no jar, no
+    checkout needed. Create a `compose.yml`:
 
     ```yaml
     services:
@@ -86,9 +87,7 @@ The node authenticates to the relay with the relay's server key. Set it via
 ## Hosting multiple rooms
 
 One node can host any number of rooms — set `SELF_HOSTED_NODE_MAX_GAMES` and it
-opens that many lobbies, suffixed `my-room (1)`, `my-room (2)`, …. Each game
-still runs in its own Forge subprocess, so rooms are fully isolated from each
-other:
+opens that many lobbies, suffixed `my-room (1)`, `my-room (2)`, …:
 
 ```yaml
 services:
@@ -104,7 +103,13 @@ services:
 ```
 
 In multi-room mode the format is forced to `any` — players pick per game.
-Memory scales with games in progress (one JVM each), not with idle lobbies.
+
+In the published image every room shares one engine and therefore one copy of
+the 34,000-card database, which is the bulk of the memory. Four rooms fit in
+about a gigabyte; a fifth costs far less than the first. Set
+`SELF_HOSTED_NODE_SHARED_ISOLATE=0` to give each game its own isolate instead,
+which isolates rooms from one another at the price of reloading the card
+database per game.
 
 To scale across containers instead (e.g. to spread rooms over hosts or set
 per-room memory limits), run several replicas of the same service:
@@ -118,13 +123,12 @@ replicas × `SELF_HOSTED_NODE_MAX_GAMES`. Replicas share the same
 `SELF_HOSTED_NODE_ROOM_NAME`; give each its own service entry instead if you
 want distinct lobby names.
 
-## Native Forge engine (GraalVM)
+## Building the native engine yourself
 
-The `forge` backend above spawns one Forge **process** per game (it ships a JRE
-and the harness jar). As an alternative, Forge can be compiled ahead-of-time with
+The published image compiles Forge ahead of time with
 [GraalVM `native-image`](https://www.graalvm.org/latest/reference-manual/native-image/)
-into a shared library that the node links and calls **in-process** — no JVM and
-no jar subprocess.
+into a shared library the node links and calls **in-process**. To reproduce that
+from a checkout rather than pulling the image:
 
 Build the library (needs GraalVM for JDK 21 — see the
 [native build README](https://github.com/witchesofthehill/manabrew/blob/main/forge-harness/native/README.md)),
@@ -143,6 +147,10 @@ cargo run --release -p self-hosted-node --features graal-forge
 
 `native-image` cannot cross-compile, so build the library on each platform you
 intend to run the node on.
+
+The older backend spawns one Forge **process** per game against a JRE and the
+harness jar. It is still supported — build with `--features java-forge` as shown
+under "From source" — but the published image no longer ships a JVM.
 
 ## Configuration
 

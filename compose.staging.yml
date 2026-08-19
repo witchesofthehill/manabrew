@@ -158,6 +158,9 @@ services:
     restart: "no"
     mem_limit: 64m
 
+  # Every staging deploy runs this, previews included. The image is the GraalVM
+  # native build: one process, one shared isolate, one card database for the
+  # whole node, so four concurrent games cost about what a single JVM used to.
   self-hosted-node-staging:
     profiles:
       - hosted-ai
@@ -169,11 +172,19 @@ services:
       # findHostedRoom only matches Any) and enough seats for commander pods.
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-Any}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
-
-      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
+      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-4}"
+      SELF_HOSTED_NODE_SHARED_ISOLATE: "${SELF_HOSTED_NODE_SHARED_ISOLATE:-1}"
+      SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
+    # The native image derives its max heap from the cgroup limit (70%, set at
+    # build time), so mem_limit is the heap knob: 1g here buys about 716m of
+    # heap against a card database that measures ~420m with one game live.
     mem_limit: 1g
-    cpu_shares: 512
+    # This box also serves production on two cores. cpus caps the node's own
+    # burst; cpu_shares only matters once the box is saturated, which is exactly
+    # when production must not lose.
+    cpus: 1.0
+    cpu_shares: 256
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped

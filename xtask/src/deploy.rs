@@ -16,8 +16,7 @@
 //!   --only S...  pull + force-recreate the named compose services (config
 //!                changes to bind-mounted files, e.g. grafana provisioning)
 //!   --staging    roll the staging slot out (compose.staging.yml on the prod
-//!                box, `:staging` images); --branch names what is deployed —
-//!                only the `staging` branch gets a hosted-AI node
+//!                box, `:staging` images); --branch names what is deployed
 //!   --local      build and run this checkout on THIS machine
 //!                (compose.selfhost.yml — own relay, published ports)
 //!   --ref R      fetch config at this exact ref (sha/tag/branch) instead of
@@ -90,11 +89,11 @@ const PULL_RETRY_SECS: u32 = 30;
 
 const STAGING_COMPOSE: &str = "compose.staging.yml";
 const STAGING_WEB: &str = "manabrew-staging";
-const STAGING_NODE: &str = "self-hosted-node-staging";
-const STAGING_SERVICES: [&str; 3] = [
+const STAGING_SERVICES: [&str; 4] = [
     "manabrew-staging",
     "manabrew-server-staging",
     "manabrew-hub-staging",
+    "self-hosted-node-staging",
 ];
 // staging-deploy.yml's deploy job `needs` the image builds in the SAME
 // workflow, so unlike prod this retry is only a safety net.
@@ -830,19 +829,13 @@ fn print_summary(
 // ── Staging slot ─────────────────────────────────────────────────────
 // compose.staging.yml on the prod box (/opt/manabrew-staging), always the
 // `:staging` images the same workflow run just built. `branch` names what the
-// slot serves; only `staging` gets a hosted-AI node — it is a Forge JVM on a
-// box that also runs production, and `up --remove-orphans` reclaims its
-// container when the profile is off.
+// slot serves. Every deploy gets the hosted-AI node, so a preview can be played
+// against, not just clicked through: the node is one GraalVM process sharing
+// one card database across its rooms, which is what makes it affordable next to
+// production on the same box.
 fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
-    let hosted_ai = branch == "staging";
-    let mut services: Vec<&str> = STAGING_SERVICES.to_vec();
-    let profile = if hosted_ai {
-        services.push(STAGING_NODE);
-        "--profile hosted-ai "
-    } else {
-        ""
-    };
-    let list = services.join(" ");
+    let profile = "--profile hosted-ai ";
+    let list = STAGING_SERVICES.join(" ");
 
     let (config, label) = config_source(root, opts)?;
     sync_config(root, opts, &config, &label)?;
@@ -947,15 +940,10 @@ fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
         &["log", "--pretty=format:- %s (%h, %an)", "-12"],
     )
     .unwrap_or_else(|_| "(no local checkout — see the branch on GitHub)".to_string());
-    let hosted_note = if hosted_ai {
-        "on (staging branch)"
-    } else {
-        "off (preview — node not started)"
-    };
     println!(
         "🧪 **Staging deploy complete** (branch `{branch}`, config `{label}`)\n\n\
          🔁 **Rolled out:** {list} (tag `{}`)\n\
-         🤖 **Hosted AI:** {hosted_note}\n\
+         🤖 **Hosted AI:** on\n\
          🧹 **Reclaimed:** {reclaimed}\n\n\
          📝 **Recent commits:**\n{recent}",
         opts.tag,

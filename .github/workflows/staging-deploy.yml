@@ -5,8 +5,9 @@ name: Staging deploy
 # Pushes to `staging` no longer deploy on their own — run this workflow from the
 # Actions tab (workflow_dispatch) to put the `staging` branch back on the slot.
 # There is ONE slot, so labelling a second PR replaces whatever is on it; the
-# slot is never torn down, it just holds the last thing deployed. Only the
-# `staging` branch gets a hosted-AI node (see xtask/src/deploy.rs).
+# slot is never torn down, it just holds the last thing deployed. Every deploy
+# gets the hosted-AI node (see xtask/src/deploy.rs), so a preview can be played
+# against and not just clicked through.
 #
 # Deploys to staging.manabrew.app — a staging slot on the PRODUCTION box
 # (/opt/manabrew-staging, compose.staging.yml on the prod docker network,
@@ -147,8 +148,7 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_STAGING_PATH || '/opt/manabrew-staging' }}
           # The PR's head branch; empty on workflow_dispatch → xtask's
-          # `staging` default, which is also the only branch that gets a
-          # hosted-AI node. DEPLOY_REF pins the config fetch to the exact sha
+          # `staging` default. DEPLOY_REF pins the config fetch to the exact sha
           # build-images built — a branch-name fetch could race a fresh push.
           DEPLOY_BRANCH: ${{ github.event.pull_request.head.ref }}
           DEPLOY_REF: ${{ github.event.pull_request.head.sha || github.sha }}

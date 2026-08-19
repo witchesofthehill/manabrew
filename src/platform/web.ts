@@ -767,7 +767,7 @@ class WebServerApi implements IServerApi {
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
-    const identity = await relayIdentityProof();
+    const identity = await relayIdentityProof(params.username);
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;

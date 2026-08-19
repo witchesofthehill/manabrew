@@ -5,7 +5,6 @@ import {
   Info,
   Layers,
   LibraryBig,
-  MoreHorizontal,
   PackageOpen,
   Palette,
   Search,
@@ -22,14 +21,6 @@ export interface NavDestination {
   label: string;
   icon: ComponentType<{ className?: string }>;
   external?: boolean;
-}
-
-export interface NavMenu {
-  id: string;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  iconOnly?: boolean;
-  items: NavDestination[];
 }
 
 export function isNavDestinationActive(to: string, pathname: string): boolean {
@@ -56,13 +47,12 @@ export function isNavDestinationActive(to: string, pathname: string): boolean {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
-export function getTopBarNav(signedIn = false): { direct: NavDestination[]; menus: NavMenu[] } {
+export function getTopBarNav(signedIn = false): NavDestination[] {
   const direct: NavDestination[] = [
     { to: ROUTES.PLAY_OFFLINE_CONSTRUCTED, label: "Play Offline", icon: Swords },
     { to: ROUTES.LOBBY, label: "Multiplayer", icon: Users },
     { to: ROUTES.DECK_EDITOR, label: "My Decks", icon: Layers },
   ];
-  const menus: NavMenu[] = [];
 
   if (isFeatureEnabled("deckHub")) {
     direct.push({ to: ROUTES.HUB, label: "Community", icon: LibraryBig });
@@ -76,6 +66,10 @@ export function getTopBarNav(signedIn = false): { direct: NavDestination[]; menu
     { to: ROUTES.SEARCH, label: "Card Search", icon: Search },
     { to: ROUTES.COMPANION, label: "Life Tracker", icon: HeartPulse },
   );
+  return direct;
+}
+
+export function getMoreDestinations(): NavDestination[] {
   const more: NavDestination[] = [{ to: ROUTES.ABOUT, label: "About", icon: Info }];
   if (DESIGN_SYSTEM_ENABLED) {
     more.push({ to: ROUTES.DESIGN_SYSTEM, label: "Design System", icon: Palette });
@@ -84,7 +78,5 @@ export function getTopBarNav(signedIn = false): { direct: NavDestination[]; menu
     { to: DISCORD_INVITE_URL, label: "Discord", icon: DiscordIcon, external: true },
     { to: GITHUB_REPO_URL, label: "GitHub", icon: Github, external: true },
   );
-  menus.push({ id: "more", label: "More", icon: MoreHorizontal, iconOnly: true, items: more });
-
-  return { direct, menus };
+  return more;
 }

@@ -29,6 +29,7 @@ services:
       - manabrew-rs/crates/manabrew-server
       - --watch
       - manabrew-rs/crates/manabrew-protocol
+      - --watch
       - manabrew-rs/crates/manabrew-relay-protocol
       - --
       - cargo
@@ -79,6 +80,7 @@ services:
       - manabrew-rs/crates/manabrew-hub
       - --watch
       - manabrew-rs/crates/manabrew-protocol
+      - --watch
       - manabrew-rs/crates/manabrew-relay-protocol
       - --
       - cargo

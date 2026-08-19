@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.15.5](https://github.com/witchesofthehill/manabrew/compare/v3.15.4...v3.15.5) (2026-08-19)
+
+### Fixes
+
+* **relay:** answer the client keepalive so dead sockets are caught ([#719](https://github.com/witchesofthehill/manabrew/issues/719)) ([345c4a5](https://github.com/witchesofthehill/manabrew/commit/345c4a598ad9518191ac239e8c597e36eb01ef28))
+
 ## [3.15.4](https://github.com/witchesofthehill/manabrew/compare/v3.15.3...v3.15.4) (2026-08-18)
 
 ### Fixes

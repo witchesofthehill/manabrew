@@ -173,6 +173,10 @@ services:
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-4}"
       SELF_HOSTED_NODE_SHARED_ISOLATE: "${SELF_HOSTED_NODE_SHARED_ISOLATE:-1}"
+      # On here and off in production: patches need a client that can apply
+      # them, and the staging web bundle is built from the same ref as the node
+      # while installed desktop clients are not.
+      SELF_HOSTED_NODE_STATE_DELTA: "${SELF_HOSTED_NODE_STATE_DELTA:-1}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
     # The native image takes 70% of the cgroup limit as its max heap, so this is

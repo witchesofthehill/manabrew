@@ -55,9 +55,15 @@ services:
       MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
+      # Captures are what makes a preview measurable: without them the only
+      # instrument for a change like #698's state patches is container byte
+      # counters. Small cap — this disk is production's too.
+      MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
+      MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-2}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events
+      - ./ops/observability/data/captures:/var/manabrew/captures
     expose:
       - "9443"
       - "9444"
@@ -180,8 +186,9 @@ services:
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
     # The native image takes 70% of the cgroup limit as its max heap, so this is
-    # the heap knob: 1g buys ~716m against a ~420m measured live set.
-    mem_limit: 1g
+    # the heap knob. Measured on the box: 447m idle with the database resident,
+    # +212m per game, so four games need this rather than 1g (see #684).
+    mem_limit: 1536m
     # Two cores, shared with production: cpus caps the burst, cpu_shares decides
     # who loses when the box saturates.
     cpus: 1.0

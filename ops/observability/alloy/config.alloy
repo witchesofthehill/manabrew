@@ -15,6 +15,22 @@ discovery.relabel "containers" {
     regex         = "/(.*)"
     target_label  = "container"
   }
+
+  // Both stacks run on this box, so `host` cannot separate them. The compose
+  // project can: `manabrew` is production, `manabrew-staging` the preview slot.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "manabrew"
+    target_label  = "env"
+    replacement   = "production"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "manabrew-(.*)"
+    target_label  = "env"
+    replacement   = "$1"
+  }
 }
 
 loki.source.docker "containers" {

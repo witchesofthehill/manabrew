@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.16.0](https://github.com/witchesofthehill/manabrew/compare/v3.15.5...v3.16.0) (2026-08-19)
+
+### Features
+
+* account niceties and minor fixes ([#700](https://github.com/witchesofthehill/manabrew/issues/700)) ([6c95ec0](https://github.com/witchesofthehill/manabrew/commit/6c95ec0f5fa668ae39c7d40aefafa5a5cc3f0265))
+
 ## [3.15.5](https://github.com/witchesofthehill/manabrew/compare/v3.15.4...v3.15.5) (2026-08-19)
 
 ### Fixes

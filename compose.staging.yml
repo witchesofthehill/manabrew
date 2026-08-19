@@ -158,9 +158,8 @@ services:
     restart: "no"
     mem_limit: 64m
 
-  # Every staging deploy runs this, previews included. The image is the GraalVM
-  # native build: one process, one shared isolate, one card database for the
-  # whole node, so four concurrent games cost about what a single JVM used to.
+  # Every staging deploy runs this, previews included. One GraalVM process, one
+  # shared isolate, one card database — four games cost about what a JVM used to.
   self-hosted-node-staging:
     profiles:
       - hosted-ai
@@ -176,13 +175,11 @@ services:
       SELF_HOSTED_NODE_SHARED_ISOLATE: "${SELF_HOSTED_NODE_SHARED_ISOLATE:-1}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
-    # The native image derives its max heap from the cgroup limit (70%, set at
-    # build time), so mem_limit is the heap knob: 1g here buys about 716m of
-    # heap against a card database that measures ~420m with one game live.
+    # The native image takes 70% of the cgroup limit as its max heap, so this is
+    # the heap knob: 1g buys ~716m against a ~420m measured live set.
     mem_limit: 1g
-    # This box also serves production on two cores. cpus caps the node's own
-    # burst; cpu_shares only matters once the box is saturated, which is exactly
-    # when production must not lose.
+    # Two cores, shared with production: cpus caps the burst, cpu_shares decides
+    # who loses when the box saturates.
     cpus: 1.0
     cpu_shares: 256
     depends_on:

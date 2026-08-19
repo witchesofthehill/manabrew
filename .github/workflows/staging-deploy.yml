@@ -6,8 +6,7 @@ name: Staging deploy
 # Actions tab (workflow_dispatch) to put the `staging` branch back on the slot.
 # There is ONE slot, so labelling a second PR replaces whatever is on it; the
 # slot is never torn down, it just holds the last thing deployed. Every deploy
-# gets the hosted-AI node (see xtask/src/deploy.rs), so a preview can be played
-# against and not just clicked through.
+# gets the hosted-AI node (see xtask/src/deploy.rs), so a preview is playable.
 #
 # Deploys to staging.manabrew.app — a staging slot on the PRODUCTION box
 # (/opt/manabrew-staging, compose.staging.yml on the prod docker network,

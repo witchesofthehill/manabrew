@@ -1,12 +1,8 @@
 # syntax=docker/dockerfile:1
 #
-# Headless engine node that hosts N concurrent rooms against ONE in-process
-# Forge engine: the harness is compiled to a native shared library by GraalVM
-# native-image (feature `graal-forge`), every room attaches a thread to a shared
-# isolate, and the 34k-card database is paid for once for the whole node instead
-# of once per game. That is what lets a preview node sit next to production on a
-# 2-core box. The subprocess-per-game JVM backend still exists
-# (`--features java-forge`) but this image no longer ships a JVM.
+# Headless engine node hosting N rooms against ONE in-process Forge engine:
+# native-image compiles the harness to a shared library (`graal-forge`) and every
+# room attaches to one isolate, so the 34k-card database is loaded once per node.
 
 # ── cargo-chef base + shared dependency recipe ───────────────────────
 # See manabrew-server's Dockerfile for why chef. One planner feeds both Rust
@@ -94,10 +90,8 @@ RUN --mount=type=cache,target=/root/.m2/repository \
     mvn -pl forge-harness -am -DskipTests -Dcheckstyle.skip package -q
 
 # ── Stage 2: GraalVM native-image → libforgeharness.so ──────────────
-# Runs the same build-native.sh the desktop/laptop builds use, so the image
-# cannot drift from what a developer gets locally. native-image wants several
-# GB and several minutes; the stage is keyed on the jar and the tracked
-# reachability config, so a Rust-only change reuses it from the layer cache.
+# The same build-native.sh the desktop builds use, so the image cannot drift
+# from a local build. Keyed on the jar, so a Rust-only change reuses the layer.
 FROM ghcr.io/graalvm/native-image-community:21 AS native-builder
 
 WORKDIR /build
@@ -109,20 +103,15 @@ COPY --from=java-builder /build/forge-harness/target/forge-harness-jar-with-depe
     forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 ENV GRAALVM_HOME=${JAVA_HOME}
-# -J-Xmx caps the BUILD jvm: native-image otherwise sizes its heap from the
-# whole machine, and a CI runner has to leave room for buildkit and the other
-# matrix images. -R: sets a RUNTIME default baked into the library: the image
-# heap tops out at 70% of the container's memory limit, leaving the other 30%
-# for the image's own code and data, the Rust side, and native allocations. The
-# default is 80%, which is enough to get the container OOM-killed before the
-# collector ever sees the cap.
+# -J-Xmx caps the BUILD jvm, which otherwise sizes itself from the whole runner.
+# -R: bakes a RUNTIME default: max heap 70% of the cgroup limit, leaving room for
+# the image's own data and the Rust side. The 80% default gets us OOM-killed.
 RUN chmod +x forge-harness/build-native.sh && \
     ./forge-harness/build-native.sh -J-Xmx8g -R:MaximumHeapSizePercent=70
 
 # ── Stage 3: Build the Rust node ─────────────────────────────────────
-# `graal-forge` links libforgeharness at build time, so the library has to be
-# in place before the dependency cook: build.rs emits the link flags for every
-# artifact in this stage, including chef's stand-in binary.
+# `graal-forge` links libforgeharness at build time, so the library must land
+# before the dependency cook — build.rs links chef's stand-in binary too.
 FROM chef AS rust-builder
 
 ENV FORGE_NATIVE_LIB_DIR=/build/forge-harness/native/build
@@ -146,10 +135,9 @@ RUN cargo build --release -p self-hosted-node --features graal-forge && \
     cp /build/target/release/self-hosted-node /usr/local/bin/self-hosted-node
 
 # ── Stage 4: Runtime ─────────────────────────────────────────────────
-# No JRE: the engine is libforgeharness.so, loaded into the node's own address
-# space. Same distro as the Rust builder so the binary's glibc matches.
-# The node resolves Forge assets / preset decks relative to its compile-time
-# workspace root (/build), so the image reproduces that layout.
+# No JRE: the engine is a .so in the node's own address space. Same distro as the
+# builder for glibc, and /build reproduces the compile-time workspace root the
+# node resolves Forge assets and preset decks against.
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
@@ -165,8 +153,7 @@ COPY public/preset_decks/ /build/public/preset_decks/
 WORKDIR /build
 
 ENV SELF_HOSTED_NODE_ENGINE_BACKEND=forge
-# One isolate for every room, so the card database is loaded once per node
-# rather than once per game.
+# One isolate for every room: the card database is loaded once per node.
 ENV SELF_HOSTED_NODE_SHARED_ISOLATE=1
 ENV LD_LIBRARY_PATH=/build/forge-harness/native/build
 # Default to the in-compose relay; compose overrides as needed.

@@ -828,11 +828,8 @@ fn print_summary(
 
 // ── Staging slot ─────────────────────────────────────────────────────
 // compose.staging.yml on the prod box (/opt/manabrew-staging), always the
-// `:staging` images the same workflow run just built. `branch` names what the
-// slot serves. Every deploy gets the hosted-AI node, so a preview can be played
-// against, not just clicked through: the node is one GraalVM process sharing
-// one card database across its rooms, which is what makes it affordable next to
-// production on the same box.
+// `:staging` images the same workflow run just built; `branch` names what the
+// slot serves. Every deploy gets the hosted-AI node, so a preview is playable.
 fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
     let profile = "--profile hosted-ai ";
     let list = STAGING_SERVICES.join(" ");

@@ -639,8 +639,8 @@ jobs:
         run: ./forge-harness/build-native.ps1
         shell: pwsh
 
-      # Proves the library actually runs, not merely that it exists: a cache hit
-      # restores forge-harness/native/build without anything else exercising it.
+      # Proves the library runs, not merely that it exists: a cache hit restores
+      # forge-harness/native/build without anything else exercising it.
       - name: Smoke the Forge native library
         env:
           SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
@@ -656,10 +656,9 @@ jobs:
       - name: Build tauri crate with forge-room feature
         run: cargo build --release -p manabrew --features forge-room
 
-  # The node's published image compiles Forge with native-image on Linux, so
-  # this is the only check between a broken native build and a broken release
-  # image. Unlike the desktop GraalVM jobs it needs no label: it is the Linux
-  # engine every hosted room runs on.
+  # The published node image compiles Forge with native-image on Linux, so this
+  # is the only check between a broken native build and a broken release image.
+  # Unlike the desktop GraalVM jobs it needs no label.
   forge-node-graalvm-linux:
     name: GraalVM node (Linux)
     runs-on: ubuntu-latest
@@ -729,8 +728,8 @@ jobs:
         if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.sh -J-Xmx8g
 
-      # Proves the library actually runs, not merely that it exists: a cache hit
-      # restores forge-harness/native/build without anything else exercising it.
+      # Proves the library runs, not merely that it exists: a cache hit restores
+      # forge-harness/native/build without anything else exercising it.
       - name: Smoke the shared isolate
         env:
           SELF_HOSTED_NODE_GRAAL_SMOKE: "1"
@@ -810,8 +809,8 @@ jobs:
         if: steps.forge-native-cache.outputs.cache-hit != 'true'
         run: ./forge-harness/build-native.sh
 
-      # Proves the library actually runs, not merely that it exists: a cache hit
-      # restores forge-harness/native/build without anything else exercising it.
+      # Proves the library runs, not merely that it exists: a cache hit restores
+      # forge-harness/native/build without anything else exercising it.
       - name: Smoke the Forge native library
         env:
           SELF_HOSTED_NODE_GRAAL_SMOKE: "1"

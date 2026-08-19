@@ -680,7 +680,7 @@ fn handle_client_message(
             );
         }
 
-        ClientMessage::Ping => {}
+        ClientMessage::Ping => send_msg(sender, &ServerMessage::Pong),
 
         ClientMessage::ListRooms => {
             let rooms: Vec<_> = state
@@ -1287,6 +1287,7 @@ fn get_username(state: &Arc<ServerState>, player_id: &str) -> String {
 
 fn msg_type_of(msg: &ServerMessage) -> &'static str {
     match msg {
+        ServerMessage::Pong => "Pong",
         ServerMessage::AuthResult { .. } => "AuthResult",
         ServerMessage::SessionTakenOver => "SessionTakenOver",
         ServerMessage::RoomList { .. } => "RoomList",

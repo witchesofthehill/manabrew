@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { getTopBarNav, isNavDestinationActive, type NavDestination } from "./navDestinations";
+import {
+  getMoreDestinations,
+  getTopBarNav,
+  isNavDestinationActive,
+  type NavDestination,
+} from "./navDestinations";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 interface NavSheetProps {
@@ -17,7 +22,8 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const signedIn = useAuthStore((state) => state.status === "signedIn");
-  const { direct, menus } = getTopBarNav(signedIn);
+  const direct = getTopBarNav(signedIn);
+  const more = getMoreDestinations();
 
   function isActive(to: string) {
     return isNavDestinationActive(to, location.pathname);
@@ -85,14 +91,12 @@ export function NavSheet({ disabled = false }: NavSheetProps) {
         <div className="pt-2">
           {renderRow({ to: ROUTES.PLAY, label: "Play", icon: Swords })}
           {direct.map(renderRow)}
-          {menus.map((menu) => (
-            <div key={menu.id} className="pt-3">
-              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {menu.label}
-              </p>
-              {menu.items.map(renderRow)}
-            </div>
-          ))}
+          <div className="pt-3">
+            <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              More
+            </p>
+            {more.map(renderRow)}
+          </div>
         </div>
       </SheetContent>
     </Sheet>

@@ -104,6 +104,12 @@ fn registry_idle(registry: &SessionRegistry) -> bool {
         .unwrap_or(false)
 }
 
+static DRAINING: AtomicBool = AtomicBool::new(false);
+
+fn draining() -> bool {
+    DRAINING.load(Ordering::Relaxed)
+}
+
 type SharedBotState = Arc<Mutex<Vec<BotState>>>;
 
 #[derive(Clone)]
@@ -309,6 +315,22 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         wait_for_shutdown_signal().await;
         info!("shutdown signal received; closing rooms");
         notify_all(&signal_cancels);
+    });
+
+    #[cfg(unix)]
+    tokio::spawn(async move {
+        let mut usr1 =
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1()) {
+                Ok(usr1) => usr1,
+                Err(error) => {
+                    warn!(%error, "failed to install SIGUSR1 handler");
+                    return;
+                }
+            };
+        while usr1.recv().await.is_some() {
+            DRAINING.store(true, Ordering::Relaxed);
+            info!("drain signal received; refusing new games and closing each room once idle");
+        }
     });
 
     if single {
@@ -941,6 +963,8 @@ async fn run_client_loop(
 ) -> LoopExit {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+    let mut drain_tick = time::interval(Duration::from_secs(5));
+    drain_tick.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
     let mut bot_usernames: HashSet<String> = HashSet::new();
 
     loop {
@@ -949,6 +973,16 @@ async fn run_client_loop(
                 info!(username = %client.username, "room host cancelled; shutting down");
                 cancel_engine(engine_session);
                 return LoopExit::Cancelled;
+            }
+            _ = drain_tick.tick() => {
+                let idle = engine_session
+                    .lock()
+                    .map(|guard| guard.is_none())
+                    .unwrap_or(false);
+                if draining() && idle {
+                    info!(username = %client.username, "draining and no active game; closing room");
+                    return LoopExit::Cancelled;
+                }
             }
             _ = heartbeat.tick() => {
                 if let Err(error) = client.broadcast_room_message(SELF_HOSTED_NODE_PROTOCOL, json!({
@@ -1236,7 +1270,7 @@ async fn maybe_auto_start_room(
     config: &Config,
     room: &RoomInfo,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    if !config.auto_start {
+    if !config.auto_start || draining() {
         return Ok(());
     }
     if config.format == GameFormat::Any {

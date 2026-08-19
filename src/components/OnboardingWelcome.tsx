@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AboutContent } from "@/components/AboutContent";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isNameClaimedError, reserveGuestName } from "@/lib/guestName";
 
 export const ONBOARDING_GUIDE_VERSION = "1.0";
 
@@ -10,15 +10,30 @@ const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 24;
 
 export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
-  const setServerUsername = usePreferencesStore((s) => s.setServerUsername);
   const [nickname, setNickname] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const trimmed = nickname.trim();
-  const canConfirm = trimmed.length >= NICKNAME_MIN_LENGTH;
+  const canConfirm = trimmed.length >= NICKNAME_MIN_LENGTH && !busy;
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!canConfirm) return;
-    setServerUsername(trimmed);
-    onComplete();
+    setBusy(true);
+    setError(null);
+    try {
+      await reserveGuestName(trimmed);
+      onComplete();
+    } catch (err) {
+      setError(
+        isNameClaimedError(err)
+          ? "That name is already claimed. Pick another."
+          : err instanceof Error
+            ? err.message
+            : "Could not set your name.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -50,17 +65,21 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
           value={nickname}
           maxLength={NICKNAME_MAX_LENGTH}
           placeholder="e.g. StormCrow"
-          onChange={(event) => setNickname(event.target.value)}
+          onChange={(event) => {
+            setNickname(event.target.value);
+            if (error) setError(null);
+          }}
           onKeyDown={(event) => {
-            if (event.key === "Enter") confirm();
+            if (event.key === "Enter") void confirm();
           }}
           className="mx-auto max-w-xs bg-card/60 text-center"
         />
+        {error && <p className="text-center text-sm text-destructive">{error}</p>}
       </div>
 
       <div className="flex justify-center">
-        <Button disabled={!canConfirm} onClick={confirm} className="min-w-[200px]">
-          Let's brew
+        <Button disabled={!canConfirm} onClick={() => void confirm()} className="min-w-[200px]">
+          {busy ? "Checking…" : "Let's brew"}
         </Button>
       </div>
     </div>

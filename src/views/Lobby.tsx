@@ -11,6 +11,8 @@ import { useServerStore } from "@/stores/useServerStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { relayUsername } from "@/lib/relayUsername";
 import { useOwnedDecks } from "@/hooks/useOwnedDecks";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
@@ -113,7 +115,10 @@ export default function Lobby() {
     startGame,
   } = useServerStore();
   const prefs = usePreferencesStore();
-  const myUsername = username ?? prefs.serverUsername ?? null;
+  const accountHandle = useAuthStore((s) =>
+    s.status === "signedIn" ? (s.account?.handle ?? null) : null,
+  );
+  const myUsername = username ?? relayUsername();
   const connectionState: ConnectionState = connected
     ? "connected"
     : connecting
@@ -184,8 +189,9 @@ export default function Lobby() {
   }, [sealedMode, navigate]);
 
   useEffect(() => {
-    if (!connected && !connecting && !error && prefs.serverUsername) {
-      connect(prefs.serverHost, prefs.serverPort, prefs.serverUsername, prefs.serverPassword);
+    const name = relayUsername();
+    if (!connected && !connecting && !error && name) {
+      connect(prefs.serverHost, prefs.serverPort, name, prefs.serverPassword);
     }
   }, [
     connect,
@@ -196,6 +202,7 @@ export default function Lobby() {
     prefs.serverPort,
     prefs.serverUsername,
     prefs.serverPassword,
+    accountHandle,
   ]);
 
   // Poll lobby data every 5s while connected
@@ -450,12 +457,7 @@ export default function Lobby() {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  connect(
-                    prefs.serverHost,
-                    prefs.serverPort,
-                    prefs.serverUsername,
-                    prefs.serverPassword,
-                  )
+                  connect(prefs.serverHost, prefs.serverPort, relayUsername(), prefs.serverPassword)
                 }
               >
                 Retry connection

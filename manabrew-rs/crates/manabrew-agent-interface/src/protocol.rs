@@ -19,6 +19,23 @@ pub enum StateEnvelope {
         #[serde(rename = "forPlayer", default, skip_serializing_if = "Option::is_none")]
         for_player: Option<String>,
         state: Value,
+        /// Set only when the sender also emits [`StateEnvelope::StateDelta`],
+        /// so a receiver can tell whether a later patch applies to what it
+        /// holds. Receivers never compute it: the sender is the only authority,
+        /// which keeps Rust and TypeScript from having to agree on a hash.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        fingerprint: Option<String>,
+    },
+    /// Patch turning the receiver's previous state into the current one, as
+    /// produced by [`crate::state_delta::diff`]. `base` is the fingerprint of
+    /// the state it applies to; a receiver holding a different one must ask for
+    /// a full [`StateEnvelope::State`] rather than apply the patch.
+    StateDelta {
+        #[serde(rename = "forPlayer", default, skip_serializing_if = "Option::is_none")]
+        for_player: Option<String>,
+        base: String,
+        fingerprint: String,
+        patch: Value,
     },
     Display {
         event: Value,
@@ -99,6 +116,7 @@ impl StateEnvelope {
             AgentMessage::State(state) => StateEnvelope::State {
                 for_player: Some(for_player),
                 state: serde_json::to_value(state).unwrap_or(Value::Null),
+                fingerprint: None,
             },
             AgentMessage::Display(event) => StateEnvelope::Display {
                 event: serde_json::to_value(event).unwrap_or(Value::Null),

@@ -13,7 +13,8 @@ name: Publish
 #      no deploy scripts and its git checkout is never consulted, so config
 #      and images always come from the same commit (issue #512). When the
 #      release is relay-compatible (deploy-gate = `xtask deploy --gate`: no
-#      semver-incompatible bump of manabrew-protocol / manabrew-server /
+#      semver-incompatible bump of manabrew-protocol / manabrew-relay-protocol /
+#      manabrew-agent-interface / manabrew-server /
 #      manabrew-hub), deploy-web ships the WEB container EARLY — in parallel
 #      with the installer builds. The relay and hub are deferred to the final
 #      deploy job. Incompatible releases keep the old ordering: deploy only

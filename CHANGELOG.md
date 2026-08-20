@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.18.1](https://github.com/witchesofthehill/manabrew/compare/v3.18.0...v3.18.1) (2026-08-20)
+
+### Fixes
+
+* **relay:** name sessions from the identity token only ([#728](https://github.com/witchesofthehill/manabrew/issues/728)) ([08245d7](https://github.com/witchesofthehill/manabrew/commit/08245d730fea5ccd373262d3224378509865e4b0))
+
 ## [3.18.0](https://github.com/witchesofthehill/manabrew/compare/v3.17.4...v3.18.0) (2026-08-20)
 
 ### Features

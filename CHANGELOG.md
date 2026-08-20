@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.17.3](https://github.com/witchesofthehill/manabrew/compare/v3.17.2...v3.17.3) (2026-08-20)
+
+### Fixes
+
+* **ui:** repair deck imports and game card summaries ([#722](https://github.com/witchesofthehill/manabrew/issues/722)) ([fb8966b](https://github.com/witchesofthehill/manabrew/commit/fb8966bb74dd1f27630078728106ef86ee59bee2))
+
 ## [3.17.2](https://github.com/witchesofthehill/manabrew/compare/v3.17.1...v3.17.2) (2026-08-20)
 
 ## [3.17.1](https://github.com/witchesofthehill/manabrew/compare/v3.17.0...v3.17.1) (2026-08-20)

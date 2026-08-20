@@ -247,7 +247,7 @@ async function ensureServerConnection(
 
 async function findHostedRoom(format: GameFormat, requiredSeats: number): Promise<RoomInfo> {
   const rooms = await fetchRooms();
-  const room = rooms.find(
+  const candidates = rooms.filter(
     (candidate) =>
       candidate.hosted &&
       candidate.status === "Lobby" &&
@@ -255,6 +255,7 @@ async function findHostedRoom(format: GameFormat, requiredSeats: number): Promis
       candidate.players.length === 0 &&
       candidate.max_players >= requiredSeats,
   );
+  const room = candidates[Math.floor(Math.random() * candidates.length)];
   if (!room) {
     throw new Error(`No self-hosted room is available for ${format}.`);
   }

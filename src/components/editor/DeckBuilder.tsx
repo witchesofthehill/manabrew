@@ -109,7 +109,7 @@ import { useDerivedTokens, mergeDerivedAndCustomized } from "@/hooks/useDerivedT
 import {
   buildDeckSnapshot,
   setUnsavedState,
-  setLastSavedSnapshotRef,
+  setLastSavedDeckRef,
 } from "./deckBuilder.unsavedChanges";
 import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 import { CommanderSlots } from "./CommanderSlots";
@@ -275,10 +275,9 @@ export function DeckBuilder({
   const [groupBy, setGroupBy] = useState<GroupByMode>("type");
   const [sortBy, setSortBy] = useState<SortMode>("mana-value");
   const [collectionFilter, setCollectionFilter] = useState<"all" | DeckOwnershipStatus>("all");
-  const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() => {
-    const snap = buildDeckSnapshot(currentDeck);
-    setLastSavedSnapshotRef(snap);
-    return snap;
+  const [lastSavedDeck, setLastSavedDeck] = useState<EditorDeck>(() => {
+    setLastSavedDeckRef(currentDeck);
+    return currentDeck;
   });
   const [confirmClear, setConfirmClear] = useState(false);
   const filterInputRef = useRef<HTMLInputElement>(null);
@@ -428,19 +427,21 @@ export function DeckBuilder({
     ],
   );
   const currentSnapshot = useMemo(() => buildDeckSnapshot(currentDeck), [currentDeck]);
+  const lastSavedSnapshot = useMemo(() => buildDeckSnapshot(lastSavedDeck), [lastSavedDeck]);
   const accountSavedDeck = savedDecks.find((saved) => saved.id === currentDeckId);
   // Read-only presets can't be edited; background Scryfall enrichment mutates the
   // deck after the baseline snapshot, so never treat a preset as dirty.
   const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
 
   useEffect(() => {
-    setLastSavedSnapshotRef(lastSavedSnapshot);
+    setLastSavedDeckRef(lastSavedDeck);
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
-  }, [lastSavedSnapshot, currentSnapshot, isReadOnly]);
+  }, [lastSavedDeck, lastSavedSnapshot, currentSnapshot, isReadOnly]);
 
   useEffect(() => {
-    const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
-    setLastSavedSnapshot(snapshot);
+    const savedDeck = useDeckStore.getState().currentDeck;
+    const snapshot = buildDeckSnapshot(savedDeck);
+    setLastSavedDeck(savedDeck);
     setSyncState("saved");
     setSaveConflict(null);
     conflictDeckRef.current = null;
@@ -1084,8 +1085,9 @@ export function DeckBuilder({
     try {
       const saved = savedDecks.find((candidate) => candidate.id === currentDeckId);
       saveCurrentDeck();
-      const snapshot = buildDeckSnapshot({ ...deckToSave, draft: undefined });
-      setLastSavedSnapshot(snapshot);
+      const savedDeck = { ...deckToSave, draft: undefined };
+      const snapshot = buildDeckSnapshot(savedDeck);
+      setLastSavedDeck(savedDeck);
       setUnsavedState(snapshot, snapshot);
       if (accountsEnabled && saved?.accountDeckId && saved.accountVersionNo) {
         const detail = await useAccountDecksStore
@@ -1170,8 +1172,9 @@ export function DeckBuilder({
           copy.deck as EditorDeck,
         );
       }
-      const snapshot = buildDeckSnapshot(useDeckStore.getState().currentDeck);
-      setLastSavedSnapshot(snapshot);
+      const savedDeck = useDeckStore.getState().currentDeck;
+      const snapshot = buildDeckSnapshot(savedDeck);
+      setLastSavedDeck(savedDeck);
       setUnsavedState(snapshot, snapshot);
       setSyncState("synced");
       setSaveConflict(null);
@@ -1189,8 +1192,9 @@ export function DeckBuilder({
 
   function handleSaveDraft() {
     saveDraft();
-    const snapshot = buildDeckSnapshot({ ...currentDeck, draft: true });
-    setLastSavedSnapshot(snapshot);
+    const savedDeck = { ...currentDeck, draft: true };
+    const snapshot = buildDeckSnapshot(savedDeck);
+    setLastSavedDeck(savedDeck);
     setUnsavedState(snapshot, snapshot);
     if (hasUnsupportedCards) {
       toast.warning(
@@ -1214,7 +1218,7 @@ export function DeckBuilder({
       clearDeck();
       resetDeckHistory();
       setConfirmClear(false);
-      const snapshot = buildDeckSnapshot({
+      const savedDeck: EditorDeck = {
         format: "standard",
         cards: [],
         sideboard: [],
@@ -1224,8 +1228,9 @@ export function DeckBuilder({
         schemes: [],
         planes: [],
         name: DEFAULT_DECK_NAME,
-      });
-      setLastSavedSnapshot(snapshot);
+      };
+      const snapshot = buildDeckSnapshot(savedDeck);
+      setLastSavedDeck(savedDeck);
       setUnsavedState(snapshot, snapshot);
       toast.success("Deck deleted");
       onDeckDeleted?.();
@@ -1819,7 +1824,7 @@ export function DeckBuilder({
             )}
 
             {!isReadOnly && (
-              <DeckChangeSummary currentDeck={currentDeck} savedSnapshot={lastSavedSnapshot} />
+              <DeckChangeSummary currentDeck={currentDeck} savedDeck={lastSavedDeck} />
             )}
 
             {isReadOnly ? (

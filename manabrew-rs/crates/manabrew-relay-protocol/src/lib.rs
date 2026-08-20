@@ -48,6 +48,30 @@ pub struct IdentityProof {
     pub device: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "lobby/index.ts")]
+pub enum ClientPlatform {
+    Web,
+    Pwa,
+    Desktop,
+    Mobile,
+    #[default]
+    Unknown,
+}
+
+impl ClientPlatform {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Web => "web",
+            Self::Pwa => "pwa",
+            Self::Desktop => "desktop",
+            Self::Mobile => "mobile",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]
@@ -59,6 +83,8 @@ pub enum ClientMessage {
         service: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         identity: Option<IdentityProof>,
+        #[serde(default)]
+        client_platform: ClientPlatform,
     },
 
     Ping,

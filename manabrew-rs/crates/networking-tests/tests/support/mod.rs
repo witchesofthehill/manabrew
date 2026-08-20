@@ -20,8 +20,8 @@ use manabot::{BotAgent, SimpleAi};
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo, RoomStatus,
-    ServerMessage, StateEnvelope, PROTOCOL_VERSION,
+    ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof, PlayerInfo, RoomInfo,
+    RoomStatus, ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
@@ -254,6 +254,7 @@ impl Client {
                     token: None,
                     device: Some(secret.to_string()),
                 }),
+                client_platform: ClientPlatform::Unknown,
             },
         )
         .await?;

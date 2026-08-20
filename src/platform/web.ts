@@ -40,6 +40,7 @@ import type {
 } from "@/protocol";
 import { logComms } from "@/lib/commsLog";
 import { relayIdentityProof } from "@/lib/relayIdentity";
+import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta } from "@/lib/stateDelta";
@@ -790,6 +791,7 @@ class WebServerApi implements IServerApi {
           username: params.username,
           password: params.password,
           identity,
+          client_platform: getClientPlatform(),
         });
         this.startKeepalive();
         resolve();

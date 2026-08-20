@@ -16,7 +16,15 @@ interface CombatSummarySectionProps {
 function powerOf(card: CardDto | undefined): number {
   if (!card?.power) return 0;
   const n = parseInt(card.power, 10);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
+function unblockedDamageOf(card: CardDto | undefined): number {
+  const damage = powerOf(card);
+  const hasDoubleStrike = card?.keywords?.some((keyword) =>
+    keyword.toLowerCase().startsWith("double strike"),
+  );
+  return hasDoubleStrike ? damage * 2 : damage;
 }
 
 function toughnessOf(card: CardDto | undefined): number {
@@ -49,17 +57,17 @@ export function CombatSummarySection({
   const blockerToughness = isBlockDecl
     ? blockAssignments.reduce((sum, a) => sum + toughnessOf(resolveCard(a.blockerId)), 0)
     : 0;
-  const unblockedPower = isBlockDecl
+  const unblockedDamage = isBlockDecl
     ? activeAttackers.reduce((sum, id) => {
         const blocked = blockAssignments.some((a) => a.attackerId === id);
-        return blocked ? sum : sum + powerOf(resolveCard(id));
+        return blocked ? sum : sum + unblockedDamageOf(resolveCard(id));
       }, 0)
-    : attackerPower;
+    : activeAttackers.reduce((sum, id) => sum + unblockedDamageOf(resolveCard(id)), 0);
 
   if (isBlockDecl) {
     return (
       <BlockerCombatSummary
-        unblockedPower={unblockedPower}
+        unblockedDamage={unblockedDamage}
         attackerPower={attackerPower}
         blockerToughness={blockerToughness}
         attackerIds={attackerIds}
@@ -76,14 +84,14 @@ export function CombatSummarySection({
       <div className="flex items-center gap-2 text-xs">
         <span className="font-semibold">⚔ {attackerPower}</span>
         <span className="text-muted-foreground">·</span>
-        <span className="font-semibold text-destructive">Through {unblockedPower}</span>
+        <span className="font-semibold text-destructive">Through {unblockedDamage}</span>
       </div>
     </div>
   );
 }
 
 interface BlockerCombatSummaryProps {
-  unblockedPower: number;
+  unblockedDamage: number;
   attackerPower: number;
   blockerToughness: number;
   attackerIds: string[];
@@ -93,7 +101,7 @@ interface BlockerCombatSummaryProps {
 }
 
 function BlockerCombatSummary({
-  unblockedPower,
+  unblockedDamage,
   attackerPower,
   blockerToughness,
   attackerIds,
@@ -106,7 +114,7 @@ function BlockerCombatSummary({
   return (
     <div className="rounded-lg px-2 py-1.5 bg-destructive/10 flex items-center justify-between gap-2">
       <div className="flex items-center gap-1.5 text-xs">
-        <span className="font-semibold text-destructive">Through {unblockedPower}</span>
+        <span className="font-semibold text-destructive">Through {unblockedDamage}</span>
       </div>
       <button
         type="button"
@@ -128,7 +136,7 @@ function BlockerCombatSummary({
               <span className="text-muted-foreground">vs</span>
               <span className="font-semibold">🛡 {blockerToughness}</span>
               <span className="text-muted-foreground">·</span>
-              <span className="font-semibold text-destructive">Through {unblockedPower}</span>
+              <span className="font-semibold text-destructive">Through {unblockedDamage}</span>
             </div>
             <div className="flex flex-col gap-1">
               {attackerIds.map((attackerId) => {

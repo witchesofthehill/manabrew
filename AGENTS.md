@@ -51,7 +51,6 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `manabrew-rs/AGENTS.md`                                            | Any Rust engine work — workspace map and engine module map                       |
 | `manabrew-rs/crates/manabrew-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                           |
 | `manabrew-rs/crates/parity/AGENTS.md`                              | Investigating a parity divergence or editing `regression.json`                   |
-| `forge/AGENTS.md`                                                  | Anything under `forge/` (read-only warning)                                      |
 | `forge-harness/src/main/java/forge/harness/AGENTS.md`              | Any change under `forge-harness/` (parity/host/common package boundaries)        |
 | `scripts/AGENTS.md`                                                | Adding or running a build/parity script                                          |
 | `website/AGENTS.md`                                                | Any change under `website/` (landing at manabrew.app, docs at docs.manabrew.app) |
@@ -70,6 +69,8 @@ Topic spinoffs (cross-cut multiple folders):
 | `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
 
 These files start minimal and grow over time. If a section outgrows its file, split it into a new doc under `docs/agents/` and add it to this map.
+
+The `forge/` submodule has no local `AGENTS.md`; treat it as read-only and use it only as the Java source of truth.
 
 ## Before every commit
 

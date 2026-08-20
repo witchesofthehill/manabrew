@@ -22,15 +22,15 @@ export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard 
   );
   if (exact) return exact;
   if (isToken) {
-    const exactToken = peekArchivedToken({ setCode, cardNumber });
+    const exactToken = gameCard.isCopy ? null : peekArchivedToken({ setCode, cardNumber });
     const semanticToken = tokenScript ? peekArchivedToken({ tokenScript }) : exactToken;
     if (semanticToken && (tokenScript || exactToken?.identity.oracleId) && deck?.tokens) {
       const key = tokenIdentityKey(semanticToken);
       const customized = deck.tokens.find((token) => tokenIdentityKey(token) === key);
       if (customized) return customized;
     }
+    if (tokenScript && semanticToken) return semanticToken;
     if (exactToken) return exactToken;
-    if (semanticToken) return semanticToken;
     const target = normalizeTokenName(name);
     const byName = pool.find(
       (c) => c.identity.name === name || normalizeTokenName(c.identity.name) === target,

@@ -19,19 +19,21 @@ export function setLastSavedSnapshotRef(snapshot: string | null) {
 }
 
 export function buildDeckSnapshot(deck: EditorDeck): string {
+  const cardIdentity = (card: EditorDeck["cards"][number]) => card.identity;
+  const cardIdentities = (cards: EditorDeck["cards"] | undefined) => cards?.map(cardIdentity) ?? [];
   return JSON.stringify({
     format: deck.format,
     draft: deck.draft,
-    cards: deck.cards,
-    commanders: deck.commanders ?? [],
-    sideboard: deck.sideboard,
-    maybeboard: deck.maybeboard ?? [],
-    attractions: deck.attractions ?? [],
-    contraptions: deck.contraptions ?? [],
-    schemes: deck.schemes ?? [],
-    planes: deck.planes ?? [],
-    companion: deck.companion,
-    tokens: deck.tokens ?? [],
+    cards: cardIdentities(deck.cards),
+    commanders: cardIdentities(deck.commanders),
+    sideboard: cardIdentities(deck.sideboard),
+    maybeboard: cardIdentities(deck.maybeboard),
+    attractions: cardIdentities(deck.attractions),
+    contraptions: cardIdentities(deck.contraptions),
+    schemes: cardIdentities(deck.schemes),
+    planes: cardIdentities(deck.planes),
+    companion: deck.companion?.identity,
+    tokens: cardIdentities(deck.tokens),
     name: deck.name,
     labels: deck.labels ?? [],
     customTags: deck.customTags ?? [],

@@ -690,23 +690,24 @@ fn spawn_relay(port: u16) -> Proc {
 }
 
 fn spawn_node(relay_url: &str) -> Proc {
-    Proc(
-        Command::new(bin("self-hosted-node", "REGRESSION_NODE_BIN"))
-            .env("SELF_HOSTED_NODE_RELAY_URL", relay_url)
-            .env("SELF_HOSTED_NODE_ROOM_NAME", "Regression room")
-            .env(
-                "SELF_HOSTED_NODE_RECONNECT_TIMEOUT_S",
-                RECONNECT_TIMEOUT_S.to_string(),
-            )
-            .env(
-                "CARDSET_ARCHIVE",
-                workspace_root().join("src-tauri/resources/cardset.rkyv"),
-            )
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("spawn self-hosted-node"),
-    )
+    let mut command = Command::new(bin("self-hosted-node", "REGRESSION_NODE_BIN"));
+    command
+        .env("SELF_HOSTED_NODE_RELAY_URL", relay_url)
+        .env("SELF_HOSTED_NODE_ROOM_NAME", "Regression room")
+        .env(
+            "SELF_HOSTED_NODE_RECONNECT_TIMEOUT_S",
+            RECONNECT_TIMEOUT_S.to_string(),
+        )
+        .env(
+            "CARDSET_ARCHIVE",
+            workspace_root().join("src-tauri/resources/cardset.rkyv"),
+        )
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    if let Ok(backend) = std::env::var("REGRESSION_NODE_ENGINE_BACKEND") {
+        command.env("SELF_HOSTED_NODE_ENGINE_BACKEND", backend);
+    }
+    Proc(command.spawn().expect("spawn self-hosted-node"))
 }
 
 async fn wait_for_port(port: u16) {

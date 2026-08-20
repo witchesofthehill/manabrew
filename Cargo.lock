@@ -3790,6 +3790,7 @@ name = "manabot"
 version = "0.9.0"
 dependencies = [
  "futures-util",
+ "js-sys",
  "manabrew-agent-interface",
  "manabrew-engine",
  "manabrew-protocol",
@@ -3915,6 +3916,7 @@ dependencies = [
 name = "manabrew-relay-protocol"
 version = "5.3.0"
 dependencies = [
+ "base64 0.22.1",
  "manabrew-protocol",
  "serde",
  "serde_json",

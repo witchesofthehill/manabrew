@@ -515,7 +515,7 @@ async fn authenticate(
                 None => identity::ResolvedIdentity::default(),
             };
             let identities = resolved.identities;
-            let name_verified = resolved.name.is_some();
+            let name_verified = resolved.name_verified;
             let username = resolved.name.unwrap_or(username);
 
             if username.trim().is_empty() {

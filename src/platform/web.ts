@@ -40,7 +40,7 @@ import type {
 } from "@/protocol";
 import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
-import { relayIdentityProof } from "@/lib/relayIdentity";
+import { relayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
@@ -702,6 +702,7 @@ class WebServerApi implements IServerApi {
   private eventBus: WebEventBus;
   private relayUrl: string | null = null;
   private serverPassword: string | null = null;
+  private authedUsername: string | null = null;
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
@@ -777,7 +778,8 @@ class WebServerApi implements IServerApi {
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
-    const identity = await relayIdentityProof(params.username);
+    const { proof, username } = await relayIdentity(params.username);
+    this.authedUsername = username;
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
@@ -789,9 +791,9 @@ class WebServerApi implements IServerApi {
         this.connectedAt = Date.now();
         this.send({
           type: "Authenticate",
-          username: params.username,
+          username,
           password: params.password,
-          identity,
+          identity: proof,
           client_platform: getClientPlatform(),
           client_version: APP_VERSION,
         });
@@ -1407,6 +1409,7 @@ class WebServerApi implements IServerApi {
           player_id: msg.player_id,
           reconnected: msg.reconnected,
           error: msg.error,
+          username: this.authedUsername,
         },
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],

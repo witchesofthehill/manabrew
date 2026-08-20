@@ -1,6 +1,7 @@
 //! Relay wire protocol: the session handshake, lobby management and game
 //! transport envelopes exchanged between clients and `manabrew-server`.
 //! Engine and UI DTOs live in `manabrew-protocol`.
+pub mod identity_token;
 pub mod state_delta;
 
 pub use manabrew_protocol::deck_dto::Deck;
@@ -77,6 +78,10 @@ impl ClientPlatform {
 #[allow(clippy::large_enum_variant)]
 pub enum ClientMessage {
     Authenticate {
+        /// Legacy name field, read only when `identity` carries no token.
+        /// The session name is the `handle` claim of `identity.token`
+        /// ([`identity_token`]); remove this field in the next major.
+        #[serde(default)]
         username: String,
         password: String,
         #[serde(default)]

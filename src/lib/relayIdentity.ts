@@ -1,5 +1,6 @@
 import { requestAccessToken, requestGuestToken } from "@/api/auth";
 import { isFeatureEnabled } from "@/featureFlags";
+import { mintUnsignedIdentityToken, tokenHandle } from "@/lib/identityToken";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const RELAY_AUDIENCE = "manabrew-relay";
@@ -93,13 +94,20 @@ async function guestToken(name: string): Promise<string | undefined> {
   }
 }
 
-export async function relayIdentityProof(
-  username?: string,
-): Promise<RelayIdentityProof | undefined> {
+export interface RelayIdentity {
+  proof: RelayIdentityProof;
+  username: string;
+}
+
+export async function relayIdentity(requestedName: string): Promise<RelayIdentity> {
   const account = await identityToken();
   const signedIn = useAuthStore.getState().status === "signedIn";
-  const token = account ?? (!signedIn && username ? await guestToken(username) : undefined);
-  const device = deviceSecret();
-  if (!token && !device) return undefined;
-  return { token, device };
+  const token =
+    account ??
+    (!signedIn ? await guestToken(requestedName) : undefined) ??
+    mintUnsignedIdentityToken("self", requestedName);
+  return {
+    proof: { token, device: deviceSecret() },
+    username: tokenHandle(token) ?? requestedName,
+  };
 }

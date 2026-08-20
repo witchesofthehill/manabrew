@@ -529,7 +529,10 @@ export function DeckBuilder({
       .fetchCardCollection(uniqueCards)
       .then((scryfallMap) => {
         const updates = new Map<string, Partial<DeckCard>>();
-        for (const [key, sc] of scryfallMap) updates.set(key, scryfallToDeckCard(sc));
+        for (const [key, sc] of scryfallMap) {
+          const { identity: _identity, ...update } = scryfallToDeckCard(sc);
+          updates.set(key, update);
+        }
         const before = useDeckStore.getState().currentDeck;
         enrichDeckCards(updates);
         rebaseDeckHistory(before, useDeckStore.getState().currentDeck);

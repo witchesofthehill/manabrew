@@ -55,7 +55,7 @@ const MAYBEBOARD_LINE_REGEX = /^(maybeboard|maybe)\s*:?$/i;
 const COMMANDER_LINE_REGEX = /^(commander|command)s?\s*:?$/i;
 const MAIN_SECTION_LINE_REGEX = /^(mainboard|main|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
-const SET_SUFFIX_REGEX = /\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w-]+))?(\s+\*F\*)?$/i;
+const SET_SUFFIX_REGEX = /\s+\(([A-Za-z0-9]{2,6})\)(?:\s+([\w-]+))?(?:\s+(\*F\*|F))?$/i;
 // Archidekt text exports decorate lines with `[Category]` and `^Label,#hex^`
 // suffixes; the category is also how they mark the commander.
 const LABEL_SUFFIX_REGEX = /\s+\^[^^]*\^$/;

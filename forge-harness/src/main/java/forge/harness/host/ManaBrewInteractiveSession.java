@@ -138,24 +138,12 @@ public final class ManaBrewInteractiveSession {
         }
         final JsonObject canonical = JsonParser.parseString(actionJson).getAsJsonObject();
         final JsonObject decoded = ManabrewProtocolAdapter.decodeAction(canonical);
-        trace("[harness-action] recv=" + actionJson + " decoded=" + decoded);
         actions.offer(decoded);
         // No snapshot here — it would race the game thread this unblocks.
         return "";
     }
 
-    private static final String TRACE_PATH =
-            System.getenv().getOrDefault("MANABREW_HARNESS_TRACE", "/tmp/harness-trace.log");
-
     static final String TRIGGER_ORDER_TITLE = "Order triggered abilities";
-
-    private static synchronized void trace(final String line) {
-        try (java.io.FileWriter writer = new java.io.FileWriter(TRACE_PATH, true)) {
-            writer.write(line);
-            writer.write(System.lineSeparator());
-        } catch (final java.io.IOException ignored) {
-        }
-    }
 
     enum PriorityActionKind { ACTION, PASS, UNDO }
 

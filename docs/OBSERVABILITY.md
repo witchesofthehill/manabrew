@@ -139,14 +139,17 @@ Defined in `manabrew-rs/crates/manabrew-server/src/metrics.rs`, served on the he
 
 Defined in `manabrew-rs/crates/self-hosted-node/src/metrics.rs`; pushed to the push gateway (`SELF_HOSTED_NODE_METRICS_PUSH_URL` / `_USERNAME` / `_PASSWORD`), which adds `push_time_seconds{job="self-hosted-node"}` used for staleness checks.
 
-| Metric                                 | Kind    | Labels                            |
-| -------------------------------------- | ------- | --------------------------------- |
-| `manabrew_node_rooms_hosted`           | gauge   | `pool`                            |
-| `manabrew_node_games_active`           | gauge   | —                                 |
-| `manabrew_node_game_duration_seconds`  | summary | `clean`, `players` (+ `quantile`) |
-| `manabrew_node_engine_errors_total`    | counter | `signature`                       |
-| `manabrew_node_relay_reconnects_total` | counter | —                                 |
-| `manabrew_node_build_info`             | gauge   | `version`                         |
+| Metric                                       | Kind    | Labels                            |
+| -------------------------------------------- | ------- | --------------------------------- |
+| `manabrew_node_rooms_hosted`                 | gauge   | `pool`                            |
+| `manabrew_node_games_active`                 | gauge   | —                                 |
+| `manabrew_node_game_duration_seconds`        | summary | `clean`, `players` (+ `quantile`) |
+| `manabrew_node_forge_decision_stage_seconds` | summary | `stage` (+ `quantile`)            |
+| `manabrew_node_engine_errors_total`          | counter | `signature`                       |
+| `manabrew_node_relay_reconnects_total`       | counter | —                                 |
+| `manabrew_node_build_info`                   | gauge   | `version`                         |
+
+`manabrew_node_forge_decision_stage_seconds` splits Forge-hosted decisions into `bridge_mutex`, `submit_action`, `next_prompt`, `decision_total`, and `snapshots`. `decision_total` begins when the hosted engine thread accepts a validated remote response; relay capture remains the source for time spent before that boundary.
 
 ### Engine JVM GC logs
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.17.1](https://github.com/witchesofthehill/manabrew/compare/v3.17.0...v3.17.1) (2026-08-20)
+
+### Fixes
+
+* **harness:** remove blocking action trace ([#694](https://github.com/witchesofthehill/manabrew/issues/694)) ([3895b0d](https://github.com/witchesofthehill/manabrew/commit/3895b0d240ede1aa1b4ccdd08d3fe90f3d9f4eb8))
+
 ## [3.17.0](https://github.com/witchesofthehill/manabrew/compare/v3.16.0...v3.17.0) (2026-08-20)
 
 ### Features

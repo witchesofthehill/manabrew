@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.18.0](https://github.com/witchesofthehill/manabrew/compare/v3.17.4...v3.18.0) (2026-08-20)
+
+### Features
+
+* **relay:** report client version and turn state patches on ([#727](https://github.com/witchesofthehill/manabrew/issues/727)) ([2f1315e](https://github.com/witchesofthehill/manabrew/commit/2f1315e99915d71c03378b89da877fc2daa992f4))
+
 ## [3.17.4](https://github.com/witchesofthehill/manabrew/compare/v3.17.3...v3.17.4) (2026-08-20)
 
 ### Fixes

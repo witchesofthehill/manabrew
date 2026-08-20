@@ -164,6 +164,8 @@ pub enum ClientMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ServerMessage {
+    Pong,
+
     AuthResult {
         success: bool,
         player_id: Option<String>,

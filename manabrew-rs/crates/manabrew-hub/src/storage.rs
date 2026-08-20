@@ -1985,6 +1985,17 @@ impl Storage {
             .optional()
     }
 
+    pub fn handle_exists(&self, handle: &str) -> SqlResult<bool> {
+        self.conn
+            .query_row(
+                "SELECT 1 FROM accounts WHERE handle = ?1 COLLATE NOCASE LIMIT 1",
+                params![handle],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|row| row.is_some())
+    }
+
     pub fn update_handle(&self, id: &str, handle: &str) -> SqlResult<HandleOutcome> {
         let result = self.conn.execute(
             "UPDATE accounts

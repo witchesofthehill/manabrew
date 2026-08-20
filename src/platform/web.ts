@@ -684,6 +684,10 @@ interface BotEntry {
 }
 
 const RECONNECT_BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
+const KEEPALIVE_INTERVAL_MS = 4_000;
+// A half-open socket (peer reset seen only by the relay) stays writable here, so
+// silence is the only signal the connection is gone. The relay answers every Ping.
+const KEEPALIVE_SILENCE_MS = 10_000;
 
 class WebServerApi implements IServerApi {
   private ws: WebSocket | null = null;
@@ -693,6 +697,8 @@ class WebServerApi implements IServerApi {
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  private lastInboundAt = 0;
+  private lastKeepaliveTickAt = 0;
   private connectParams: ServerConnectParams | null = null;
   private connectedAt: number | null = null;
   private manualDisconnect = false;
@@ -762,7 +768,7 @@ class WebServerApi implements IServerApi {
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
-    const identity = await relayIdentityProof();
+    const identity = await relayIdentityProof(params.username);
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
@@ -792,6 +798,7 @@ class WebServerApi implements IServerApi {
       };
 
       this.ws.onmessage = (e: MessageEvent) => {
+        this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
         try {
           const msg = JSON.parse(e.data);
@@ -803,7 +810,7 @@ class WebServerApi implements IServerApi {
     });
   }
 
-  private handleSocketClose(event: CloseEvent): void {
+  private handleSocketClose(event: { code: number; reason: string; wasClean: boolean }): void {
     const connectedForS =
       this.connectedAt !== null ? Math.round((Date.now() - this.connectedAt) / 1000) : null;
     const shutdownPending = this.serverShutdownPending;
@@ -885,9 +892,33 @@ class WebServerApi implements IServerApi {
 
   private startKeepalive(): void {
     this.stopKeepalive();
+    this.lastInboundAt = Date.now();
+    this.lastKeepaliveTickAt = Date.now();
     this.keepaliveTimer = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) this.send({ type: "Ping" });
-    }, 30_000);
+      const now = Date.now();
+      const sinceTick = now - this.lastKeepaliveTickAt;
+      this.lastKeepaliveTickAt = now;
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
+      // A background tab throttles timers to roughly once a minute, so a late tick
+      // says nothing about the socket. Re-baseline instead of reading it as death.
+      if (sinceTick > KEEPALIVE_INTERVAL_MS * 2) {
+        this.lastInboundAt = now;
+      } else if (now - this.lastInboundAt > KEEPALIVE_SILENCE_MS) {
+        this.failStaleSocket();
+        return;
+      }
+      this.send({ type: "Ping" });
+    }, KEEPALIVE_INTERVAL_MS);
+  }
+
+  private failStaleSocket(): void {
+    const ws = this.ws;
+    if (ws === null) return;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.onmessage = null;
+    ws.close();
+    this.handleSocketClose({ code: 4000, reason: "keepalive timeout", wasClean: false });
   }
 
   private stopKeepalive(): void {
@@ -1162,14 +1193,16 @@ class WebServerApi implements IServerApi {
       console.error("[WebServerApi] Not connected");
       return;
     }
-    logComms("send", msg);
+    if (msg.type !== "Ping") logComms("send", msg);
     this.ws.send(JSON.stringify(msg));
   }
 
   private handleServerMessage(msg: Record<string, unknown>): void {
+    const type = msg.type as string;
+    // The heartbeat would evict real traffic from the bug-report ring buffer.
+    if (type === "Pong") return;
     logComms("recv", msg);
     if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
-    const type = msg.type as string;
     if (isPromptLoggingEnabled()) {
       if (type === "AuthResult") {
         console.log(

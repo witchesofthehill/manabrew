@@ -574,6 +574,14 @@ pub struct TokenRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "authTypes.ts")]
+pub struct GuestTokenRequest {
+    pub name: String,
+    pub guest_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "authTypes.ts")]
 pub struct RevocationRequest {
     pub token: String,
 }

@@ -466,6 +466,14 @@ async fn authenticate(
                 return Err(ServerError::AuthFailed("Invalid server key".into()));
             }
 
+            let resolved = match &identity {
+                Some(proof) => state.identity.resolve(proof).await,
+                None => identity::ResolvedIdentity::default(),
+            };
+            let identities = resolved.identities;
+            let name_verified = resolved.name.is_some();
+            let username = resolved.name.unwrap_or(username);
+
             if username.trim().is_empty() {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -477,16 +485,13 @@ async fn authenticate(
                 return Err(ServerError::AuthFailed("Empty username".into()));
             }
 
-            let identities = match &identity {
-                Some(proof) => state.identity.resolve(proof).await,
-                None => Vec::new(),
-            };
-
             if let Some(session) = state.session_by_username(&username) {
                 let claimed = identity::same_owner(&session.identity, &identities);
-                let reclaimable = !session.connected || session.sender_closed || claimed;
+                let displaces = name_verified && !session.name_verified;
+                let reclaimable =
+                    !session.connected || session.sender_closed || claimed || displaces;
 
-                if !reclaimable || (!session.identity.is_empty() && !claimed) {
+                if !reclaimable || (!session.identity.is_empty() && !claimed && !displaces) {
                     let reply = ServerMessage::AuthResult {
                         success: false,
                         player_id: None,
@@ -506,8 +511,9 @@ async fn authenticate(
                         );
                     } else {
                         info!(
-                            "[auth] '{}' took over its own session (id={}, identity={})",
+                            "[auth] '{}' took over {} session (id={}, identity={})",
                             username,
+                            if claimed { "its own" } else { "an unverified" },
                             &session.player_id[..8.min(session.player_id.len())],
                             identity::label(&identities),
                         );
@@ -524,6 +530,7 @@ async fn authenticate(
                     session.room_id,
                     session.generation,
                     identities,
+                    name_verified,
                 );
                 return Ok((
                     session.player_id,
@@ -550,6 +557,7 @@ async fn authenticate(
                     disconnected_at: None,
                     is_service: service,
                     identity: identities,
+                    name_verified,
                 },
             );
 
@@ -592,6 +600,7 @@ fn evict(state: &Arc<ServerState>, player_id: &str) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reclaim_session(
     state: &Arc<ServerState>,
     sender: &mpsc::UnboundedSender<Message>,
@@ -600,6 +609,7 @@ fn reclaim_session(
     room_id: Option<String>,
     old_gen: u64,
     identities: Vec<SessionIdentity>,
+    name_verified: bool,
 ) -> u64 {
     let new_gen = old_gen + 1;
     info!(
@@ -615,6 +625,7 @@ fn reclaim_session(
         player.generation = new_gen;
         player.last_seen = Instant::now();
         player.disconnected_at = None;
+        player.name_verified = name_verified;
         if !identities.is_empty() {
             player.identity = identities;
         }
@@ -704,7 +715,7 @@ fn handle_client_message(
             );
         }
 
-        ClientMessage::Ping => {}
+        ClientMessage::Ping => send_msg(sender, &ServerMessage::Pong),
 
         ClientMessage::ListRooms => {
             let rooms: Vec<_> = state
@@ -1311,6 +1322,7 @@ fn get_username(state: &Arc<ServerState>, player_id: &str) -> String {
 
 fn msg_type_of(msg: &ServerMessage) -> &'static str {
     match msg {
+        ServerMessage::Pong => "Pong",
         ServerMessage::AuthResult { .. } => "AuthResult",
         ServerMessage::SessionTakenOver => "SessionTakenOver",
         ServerMessage::RoomList { .. } => "RoomList",

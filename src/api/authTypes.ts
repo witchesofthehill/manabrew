@@ -20,6 +20,8 @@ export type EmailVerifyRequest = { email: string; code: string };
 
 export type ExchangeCodeRequest = { code: string };
 
+export type GuestTokenRequest = { name: string; guest_id: string };
+
 export type MagicLinkRequest = { email: string };
 
 export type MeResponse = { account: AuthAccount; identities: Array<AuthIdentity> };

@@ -86,6 +86,7 @@ export const useAuthStore = create<AuthState>()(
         },
         setAccount: (account) => {
           refreshRequestId += 1;
+          clearIdentityToken();
           set({ account });
           void get().refresh();
         },

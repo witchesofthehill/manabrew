@@ -312,7 +312,7 @@ impl Storage {
             if *version <= current {
                 continue;
             }
-            let rebuilds_decks = matches!(*version, 4 | 13);
+            let rebuilds_decks = matches!(*version, 4 | 13 | 15);
             if rebuilds_decks {
                 self.conn.execute_batch("PRAGMA foreign_keys=OFF")?;
             }
@@ -1983,6 +1983,17 @@ impl Storage {
                 map_account,
             )
             .optional()
+    }
+
+    pub fn handle_exists(&self, handle: &str) -> SqlResult<bool> {
+        self.conn
+            .query_row(
+                "SELECT 1 FROM accounts WHERE handle = ?1 COLLATE NOCASE LIMIT 1",
+                params![handle],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|row| row.is_some())
     }
 
     pub fn update_handle(&self, id: &str, handle: &str) -> SqlResult<HandleOutcome> {

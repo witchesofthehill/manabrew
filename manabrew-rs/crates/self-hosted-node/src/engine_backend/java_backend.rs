@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 #[cfg(forge_backend)]
 use std::time::Duration;
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use std::time::Instant;
 
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
@@ -1037,12 +1037,23 @@ fn drive_game_via_handle(
     ))
 }
 
+/// G1 keeps pauses roughly bounded as the live set grows; Serial does not.
+const DEFAULT_JAVA_COLLECTOR: &str = "G1";
+const DEFAULT_JAVA_GC_LOG: &str = "stderr";
+const DEFAULT_JAVA_HEAP_MB: u64 = 1024;
+const DEFAULT_JAVA_ACTIVE_PROCESSORS: u64 = 2;
+
 #[derive(Debug, Clone)]
 pub struct JavaRuntimeConfig {
     pub assets_dir: PathBuf,
     pub harness_jar: PathBuf,
     pub java_home: Option<PathBuf>,
     pub extra_classpath: Vec<PathBuf>,
+    pub heap_mb: Option<u64>,
+    pub active_processor_count: Option<u64>,
+    pub gc_log: Option<String>,
+    pub collector: Option<String>,
+    pub extra_jvm_args: Vec<String>,
 }
 
 impl JavaRuntimeConfig {
@@ -1064,7 +1075,76 @@ impl JavaRuntimeConfig {
                 .into_iter()
                 .chain(env_classpath("MANA_BREW_FORGE_EXTRA_CLASSPATH"))
                 .collect(),
+            heap_mb: env_sizing("SELF_HOSTED_NODE_JAVA_HEAP_MB", DEFAULT_JAVA_HEAP_MB),
+            active_processor_count: env_sizing(
+                "SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS",
+                DEFAULT_JAVA_ACTIVE_PROCESSORS,
+            ),
+            collector: env::var("SELF_HOSTED_NODE_JAVA_COLLECTOR")
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .or_else(|| Some(DEFAULT_JAVA_COLLECTOR.to_string())),
+            // Defaults on: the fleet ships no logs, so this log exists to be
+            // turned into metrics by the stderr pump (see metrics.rs).
+            gc_log: env::var("SELF_HOSTED_NODE_JAVA_GC_LOG")
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+                .or_else(|| Some(DEFAULT_JAVA_GC_LOG.to_string())),
+            extra_jvm_args: env::var("SELF_HOSTED_NODE_JAVA_OPTS")
+                .unwrap_or_default()
+                .split_whitespace()
+                .map(str::to_string)
+                .collect(),
         }
+    }
+
+    #[cfg(feature = "java-forge")]
+    fn jvm_args(&self) -> Vec<String> {
+        let mut args = vec![
+            "-Dfile.encoding=UTF-8".to_string(),
+            "-Dsun.stdout.encoding=UTF-8".to_string(),
+            "-Dsun.stderr.encoding=UTF-8".to_string(),
+            "-Djava.awt.headless=true".to_string(),
+            // Forge's endstep concurrency patches assume a heap exhaustion kills the process
+            // instead of thrashing; a supervised node is restarted, a thrashing one is not.
+            "-XX:+ExitOnOutOfMemoryError".to_string(),
+            // Forge calls System.gc() on match boundaries (Match.java,
+            // HostedMatch.java) and so does the harness. Each one is a full
+            // collection, and a full collection costs about 1.3ms per MB of
+            // live set, so on a large board they are seconds of stop-the-world
+            // for no benefit the collector would not have reached anyway.
+            "-XX:+DisableExplicitGC".to_string(),
+        ];
+        // Pause time is linear in the live set and Serial collects on one
+        // thread, so a bigger heap under Serial means longer freezes, not
+        // shorter ones. Name the collector rather than inheriting whatever the
+        // host's environment happens to set.
+        if let Some(collector) = &self.collector {
+            args.push(format!("-XX:+Use{collector}GC"));
+        }
+        // A fleet runs many of these side by side, and every JVM sizes its heap and its GC
+        // thread count from the whole machine unless told otherwise.
+        if let Some(heap_mb) = self.heap_mb {
+            args.push(format!("-Xmx{heap_mb}m"));
+        }
+        if let Some(processors) = self.active_processor_count {
+            args.push(format!("-XX:ActiveProcessorCount={processors}"));
+        }
+        // In a container the only log that reaches Loki is the node's own, and the
+        // subprocess owns stdout for the protocol, so "stderr" routes GC through the
+        // stderr pump instead of a file nothing ships.
+        match self.gc_log.as_deref() {
+            None => {}
+            Some("stderr") => args.push("-Xlog:gc*:stderr:time,uptime,level,tags".to_string()),
+            Some(dir) => args.push(format!(
+                "-Xlog:gc*:file={}:time,uptime,level,tags:filecount=5,filesize=20M",
+                Path::new(dir).join("engine-gc-%p.log").display()
+            )),
+        }
+        args.extend(self.extra_jvm_args.iter().cloned());
+        args
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -2293,11 +2373,16 @@ impl SubprocessBridge {
         config.validate()?;
 
         let java_bin = resolve_java_bin(config);
+        let jvm_args = config.jvm_args();
+        info!(target: "self_hosted_node::java", args = %jvm_args.join(" "), "spawning java engine");
         let mut cmd = Command::new(&java_bin);
-        cmd.arg("-Dfile.encoding=UTF-8");
-        cmd.arg("-Dsun.stdout.encoding=UTF-8");
-        cmd.arg("-Dsun.stderr.encoding=UTF-8");
-        cmd.arg("-Djava.awt.headless=true");
+        // The JVM applies JAVA_TOOL_OPTIONS before anything on the command line,
+        // so whatever is set on the host silently governs every flag we do not
+        // name. Production ran -Xmx512m -XX:+UseSerialGC that way for months
+        // with nothing in the repo to show it. Use SELF_HOSTED_NODE_JAVA_OPTS
+        // instead: it is passed here, logged above, and lives in config.
+        cmd.env_remove("JAVA_TOOL_OPTIONS");
+        cmd.args(&jvm_args);
         cmd.arg("-jar").arg(&config.harness_jar);
         cmd.arg("--interactive-server");
         cmd.arg("--forge-home")
@@ -2336,8 +2421,18 @@ impl SubprocessBridge {
             if let Some(stderr) = stderr {
                 let reader = BufReader::new(stderr);
                 for line in reader.lines().map_while(Result::ok) {
+                    if let Some(pause) = parse_gc_pause(&line) {
+                        crate::metrics::record_jvm_gc(
+                            pause.kind,
+                            Duration::from_secs_f64(pause.millis / 1000.0),
+                            pause.heap_after_mb,
+                        );
+                    }
                     if line.contains("Exception") || line.contains("ERROR") {
                         warn!(target: "self_hosted_node::java", "[java] {line}");
+                    } else if line.contains("][gc") {
+                        // -Xlog:gc*:stderr is opt-in, and debug would drop it before Loki.
+                        info!(target: "self_hosted_node::java", "[java] {line}");
                     } else {
                         debug!(target: "self_hosted_node::java", "[java] {line}");
                     }
@@ -2629,6 +2724,20 @@ fn env_path(key: &str) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+fn env_sizing(key: &str, default: u64) -> Option<u64> {
+    let value = match env::var(key) {
+        Ok(raw) if !raw.trim().is_empty() => match raw.trim().parse::<u64>() {
+            Ok(parsed) => parsed,
+            Err(_) => {
+                tracing::warn!(target: "self_hosted_node::java", key, raw, "ignoring unparseable jvm sizing");
+                default
+            }
+        },
+        _ => default,
+    };
+    (value > 0).then_some(value)
+}
+
 fn env_classpath(key: &str) -> Vec<PathBuf> {
     let Some(value) = env::var_os(key) else {
         return Vec::new();
@@ -2649,5 +2758,96 @@ fn require_file(path: &Path, label: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{label} does not exist: {}", path.display()))
+    }
+}
+
+/// One `Pause` line from the JVM's unified GC log.
+struct GcPause {
+    kind: &'static str,
+    millis: f64,
+    heap_after_mb: Option<u64>,
+}
+
+/// Parse a unified-log GC pause, e.g.
+/// `[12.3s][info][gc] GC(7) Pause Full (Allocation Failure) 240M->171M(247M) 226.856ms`
+fn parse_gc_pause(line: &str) -> Option<GcPause> {
+    let kind = if line.contains("Pause Full") {
+        "full"
+    } else if line.contains("Pause Young") {
+        "young"
+    } else {
+        return None;
+    };
+    let millis = line
+        .rsplit(' ')
+        .find_map(|token| token.strip_suffix("ms")?.parse::<f64>().ok())?;
+    // "240M->171M(247M)": the figure after the arrow is what survived.
+    let heap_after_mb = line.split_once("->").and_then(|(_, rest)| {
+        let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+        digits.parse::<u64>().ok()
+    });
+    Some(GcPause {
+        kind,
+        millis,
+        heap_after_mb,
+    })
+}
+
+#[cfg(test)]
+mod gc_log_tests {
+    use super::parse_gc_pause;
+
+    #[test]
+    fn reads_a_full_collection() {
+        let pause = parse_gc_pause(
+            "[117.6s][info][gc] GC(21) Pause Full (Allocation Failure) 240M->171M(247M) 226.856ms",
+        )
+        .expect("parsed");
+        assert_eq!(pause.kind, "full");
+        assert_eq!(pause.heap_after_mb, Some(171));
+        assert!((pause.millis - 226.856).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn reads_a_young_collection() {
+        let pause = parse_gc_pause(
+            "[3.1s][info][gc] GC(2) Pause Young (Allocation Failure) 216M->91M(494M) 17.254ms",
+        )
+        .expect("parsed");
+        assert_eq!(pause.kind, "young");
+        assert_eq!(pause.heap_after_mb, Some(91));
+    }
+
+    /// The node asks for `-Xlog:gc*:stderr:time,uptime,level,tags`, which is a
+    /// richer line than plain `-Xlog:gc`. Real production output.
+    #[test]
+    fn reads_the_format_the_node_actually_requests() {
+        let pause = parse_gc_pause(
+            "[2026-08-18T20:41:42.907+0000][120025.819s][info][gc] GC(1202) Pause Full (Allocation Failure) 494M->487M(494M) 545.344ms",
+        )
+        .expect("parsed");
+        assert_eq!(pause.kind, "full");
+        assert_eq!(pause.heap_after_mb, Some(487));
+        assert!((pause.millis - 545.344).abs() < f64::EPSILON);
+    }
+
+    /// `gc*` also emits region and metaspace lines that carry `->`; they must
+    /// not be mistaken for pauses.
+    #[test]
+    fn ignores_the_extra_lines_gc_star_adds() {
+        assert!(
+            parse_gc_pause("[120025.819s][info][gc,heap] GC(1202) Eden regions: 10->0(12)")
+                .is_none()
+        );
+        assert!(
+            parse_gc_pause("[120025.819s][info][gc,metaspace] Metaspace: 48M->48M(1088M)")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn ignores_other_output() {
+        assert!(parse_gc_pause("[java] LOGGER ERROR: something").is_none());
+        assert!(parse_gc_pause("[1.0s][info][gc,init] CardTable entry size: 512").is_none());
     }
 }

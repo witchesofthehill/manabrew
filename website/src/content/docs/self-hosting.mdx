@@ -160,3 +160,25 @@ All settings are environment variables:
 | `SELF_HOSTED_NODE_ENGINE_BACKEND` | `manabrew`            | `forge` for the Forge engine, `manabrew` for the ManaBrew engine |
 | `SELF_HOSTED_NODE_BOT_ENABLED`    | `false`               | Seat an AI bot in the room                                       |
 | `SELF_HOSTED_NODE_AUTO_START`     | `false`               | Start as soon as the room fills                                  |
+
+## Shutdown and draining
+
+`SIGTERM` or `SIGINT` shuts the node down immediately: every room closes, and
+any game in progress ends.
+
+`SIGUSR1` drains instead. The node stops starting new games, each room closes
+itself as soon as it has no game running, and the process exits `0` once the
+last room is gone — games in progress run to completion. Use this to retire a
+node (for example to replace it with one on a new configuration) without
+kicking players mid-game:
+
+```bash
+kill -USR1 <node-pid>
+# or, in Docker:
+docker kill --signal=USR1 <container>
+```
+
+With `restart: unless-stopped`, Docker restarts the container after the drain
+exit and the old configuration comes back. Bring up the replacement first, then
+`docker compose stop` the drained service (or remove it from the compose file)
+once its games have finished.

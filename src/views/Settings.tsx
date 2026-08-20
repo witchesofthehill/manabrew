@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   CARD_SIZE_MULTIPLIER_MAX,
@@ -9,8 +9,7 @@ import {
 import { isFeatureEnabled } from "@/featureFlags";
 import { getPlatform } from "@/platform";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
-import { stripUsernameTag } from "@/lib/username";
-import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
+import { relayUsername } from "@/lib/relayUsername";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import {
   HOVER_DELAY_MAX,
@@ -361,6 +360,13 @@ export default function Settings() {
       ? "account"
       : "preferences",
   );
+  const accountTabRequested =
+    location.state?.settingsTab === "account" && isFeatureEnabled("accounts");
+  const [accountTabHandled, setAccountTabHandled] = useState(accountTabRequested);
+  if (accountTabRequested !== accountTabHandled) {
+    setAccountTabHandled(accountTabRequested);
+    if (accountTabRequested) setActiveTab("account");
+  }
   const [clearingCache, setClearingCache] = useState(false);
   const [presetOpen, setPresetOpen] = useState(false);
   const [editingThemeColorPath, setEditingThemeColorPath] = useState<string | null>(null);
@@ -369,22 +375,8 @@ export default function Settings() {
   const DEFAULT_GAME_THEME_COLOR_MAP = getDefaultGameThemeColorMap();
 
   const zoneOrder = prefs.zonePanelOrder;
-  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
   const hasDefaultPlaymat = !!prefs.defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
-
-  async function onAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      prefs.setCustomAvatar(await normalizeToWebp(file, AVATAR_IMAGE_BUDGET));
-    } catch (err) {
-      toast.error(
-        err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as an avatar",
-      );
-    }
-  }
 
   function setZoneSlot(index: number, value: ZonePanelItem) {
     const next = [...zoneOrder] as ZonePanelItem[];
@@ -401,7 +393,6 @@ export default function Settings() {
 
   const [host, setHost] = useState(prefs.serverHost);
   const [port, setPort] = useState(String(prefs.serverPort));
-  const [username, setUsername] = useState(stripUsernameTag(prefs.serverUsername));
   const [password, setPassword] = useState(prefs.serverPassword);
   const [savingServer, setSavingServer] = useState(false);
   const [newServerName, setNewServerName] = useState("");
@@ -409,7 +400,6 @@ export default function Settings() {
   const hasChanges =
     host !== prefs.serverHost ||
     port !== String(prefs.serverPort) ||
-    username !== stripUsernameTag(prefs.serverUsername) ||
     password !== prefs.serverPassword;
 
   function beginThemeColorEdit(path: string, value: string) {
@@ -427,16 +417,14 @@ export default function Settings() {
   async function handleSave() {
     prefs.setServerHost(host);
     prefs.setServerPort(Number(port));
-    prefs.setServerUsername(username);
     prefs.setServerPassword(password);
 
     // Always disconnect first (kills any existing WS connection)
     await server.disconnect();
 
-    // The setter tags the name (@NNNN); connect with the stored tagged form.
-    const storedUsername = usePreferencesStore.getState().serverUsername;
-    if (storedUsername) {
-      await server.connect(host, Number(port), storedUsername, password);
+    const name = relayUsername();
+    if (name) {
+      await server.connect(host, Number(port), name, password);
     }
   }
 
@@ -449,8 +437,9 @@ export default function Settings() {
     prefs.setServerPassword(relay.password);
 
     await server.disconnect();
-    if (username) {
-      await server.connect(relay.host, relay.port, username, relay.password);
+    const name = relayUsername();
+    if (name) {
+      await server.connect(relay.host, relay.port, name, relay.password);
     }
   }
 
@@ -658,15 +647,6 @@ export default function Settings() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="server-username">Username</Label>
-              <Input
-                id="server-username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Player1"
-              />
-            </div>
-            <div className="space-y-1">
               <Label htmlFor="server-password">Password</Label>
               <Input
                 id="server-password"
@@ -792,51 +772,6 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Preferences</h2>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Player Avatar</Label>
-              <div className="flex items-center gap-4">
-                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted">
-                  {prefs.customAvatar ? (
-                    <img
-                      src={prefs.customAvatar}
-                      alt="Your avatar"
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">None</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onAvatarPick}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => avatarInputRef.current?.click()}
-                  >
-                    {prefs.customAvatar ? "Replace" : "Upload"}
-                  </Button>
-                  {prefs.customAvatar && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => prefs.setCustomAvatar(undefined)}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Shown on your player panel and to opponents when a game starts.
-              </p>
-            </div>
-
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Default Playmat</Label>
               <div className="flex items-center gap-4">

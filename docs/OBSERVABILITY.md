@@ -83,6 +83,15 @@ Defined in `manabrew-rs/crates/self-hosted-node/src/metrics.rs`; pushed to the p
 
 `manabrew_node_forge_decision_stage_seconds` splits Forge-hosted decisions into `bridge_mutex`, `submit_action`, `next_prompt`, `decision_total`, and `snapshots`. `decision_total` begins when the hosted engine thread accepts a validated remote response; relay capture remains the source for time spent before that boundary.
 
+### Engine JVM GC logs
+
+`SELF_HOSTED_NODE_JAVA_GC_LOG=stderr` makes the engine JVM emit `-Xlog:gc*` on stderr, which the
+node forwards at `info`, so a containerised node's GC log reaches Loki through the same
+`discovery.docker` path as everything else. `staging` sets it by default. Query with
+`{service="self-hosted-node-staging"} |= "[gc"`. The `gc,init` lines at startup record what the JVM
+picked for heap and GC threads, which is the `jcmd VM.flags` evidence #684 asks for. Point the
+variable at a directory instead to write rotating files, for a node that is not in a container.
+
 ### SQLite analytics DB
 
 `scripts/ingest-events.py` tails the relay's analytics JSONL (`MANABREW_EVENTS_DIR`) into SQLite; Grafana reads it via the `events-sqlite` datasource.

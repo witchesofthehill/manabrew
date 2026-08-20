@@ -74,7 +74,7 @@ async fn accept_loop(state: Arc<ServerState>, listener: TcpListener, shutdown: A
             res = listener.accept() => match res {
                 Ok((stream, peer_addr)) => {
                     debug!("[server] accepted connection from {}", peer_addr);
-                    apply_tcp_keepalive(&stream, peer_addr);
+                    apply_tcp_socket_options(&stream, peer_addr);
                     let state = state.clone();
                     tokio::spawn(async move {
                         if let Err(e) = handle_connection(stream, peer_addr, state).await {
@@ -94,7 +94,10 @@ async fn accept_loop(state: Arc<ServerState>, listener: TcpListener, shutdown: A
     }
 }
 
-fn apply_tcp_keepalive(stream: &tokio::net::TcpStream, peer_addr: SocketAddr) {
+fn apply_tcp_socket_options(stream: &tokio::net::TcpStream, peer_addr: SocketAddr) {
+    if let Err(e) = stream.set_nodelay(true) {
+        warn!("[server] failed to disable Nagle on {}: {}", peer_addr, e);
+    }
     let keepalive = TcpKeepalive::new()
         .with_time(Duration::from_secs(30))
         .with_interval(Duration::from_secs(10));

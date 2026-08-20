@@ -1,0 +1,522 @@
+{
+  "uid": "manabrew-executive",
+  "title": "Manabrew — Executive Health",
+  "tags": ["manabrew", "product", "executive"],
+  "schemaVersion": 39,
+  "editable": true,
+  "timezone": "utc",
+  "time": { "from": "now-30d", "to": "now" },
+  "refresh": "5m",
+  "links": [
+    { "title": "Engagement & Gameplay", "type": "link", "url": "/d/manabrew-engagement" },
+    { "title": "Decks & Collections", "type": "link", "url": "/d/manabrew-decks-collections" },
+    { "title": "Live Ops", "type": "link", "url": "/d/manabrew-live-ops" },
+    { "title": "Analytics Explorer", "type": "link", "url": "/d/manabrew-product" }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Are we healthy?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active players",
+      "description": "distinct human relay identities playing during the selected period",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT count(DISTINCT p.username) AS players FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "SELECT count(DISTINCT p.username) AS players FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "green" } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Games started",
+      "description": "games started during the selected period",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "SELECT count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Completion rate",
+      "description": "ended games that reached a game-over result",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT round(100.0 * sum(game_over) / nullif(count(*), 0), 1) AS completion FROM games WHERE ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "SELECT round(100.0 * sum(game_over) / nullif(count(*), 0), 1) AS completion FROM games WHERE ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 70 },
+              { "color": "green", "value": 85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value" }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Accounts",
+      "description": "current registered accounts; current-state metric",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS accounts FROM hub_metric_snapshots WHERE metric = 'accounts' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS accounts FROM hub_metric_snapshots WHERE metric = 'accounts' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Collection adoption",
+      "description": "share of accounts with a non-empty synced collection; current state",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT round(100.0 * max(CASE WHEN metric = 'collection_collectors' THEN value END) / nullif(max(CASE WHEN metric = 'accounts' THEN value END), 0), 1) AS adoption FROM hub_metric_snapshots WHERE snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "rawQueryText": "SELECT round(100.0 * max(CASE WHEN metric = 'collection_collectors' THEN value END) / nullif(max(CASE WHEN metric = 'accounts' THEN value END), 0), 1) AS adoption FROM hub_metric_snapshots WHERE snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "User decks",
+      "description": "current non-deleted user-created decks",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_kind' AND dimension = 'user' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_kind' AND dimension = 'user' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "type": "row",
+      "title": "Is usage improving?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Games and active players by day",
+      "description": "daily demand and reach",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', date(g.started_at)) AS INTEGER) AS t, count(DISTINCT g.game_id) AS games, count(DISTINCT CASE WHEN p.is_bot = 0 THEN p.username END) AS players FROM games g LEFT JOIN game_players p USING(game_id) WHERE CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY date(g.started_at) ORDER BY date(g.started_at)",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(g.started_at)) AS INTEGER) AS t, count(DISTINCT g.game_id) AS games, count(DISTINCT CASE WHEN p.is_bot = 0 THEN p.username END) AS players FROM games g LEFT JOIN game_players p USING(game_id) WHERE CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY date(g.started_at) ORDER BY date(g.started_at)",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "New accounts and decks",
+      "description": "daily account and user-deck creation",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, sum(CASE WHEN metric = 'accounts_created' THEN value ELSE 0 END) AS accounts, sum(CASE WHEN metric = 'decks_created' AND dimension = 'user' THEN value ELSE 0 END) AS user_decks FROM hub_daily_metrics WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY day ORDER BY day",
+          "rawQueryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, sum(CASE WHEN metric = 'accounts_created' THEN value ELSE 0 END) AS accounts, sum(CASE WHEN metric = 'decks_created' AND dimension = 'user' THEN value ELSE 0 END) AS user_decks FROM hub_daily_metrics WHERE CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 GROUP BY day ORDER BY day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "row",
+      "title": "What is driving the result?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "New versus returning players",
+      "description": "a player is new on the first day their relay identity appears",
+      "gridPos": { "x": 0, "y": 15, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH first_seen AS (SELECT p.username, min(date(g.started_at)) AS first_day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 GROUP BY p.username), activity AS (SELECT date(g.started_at) AS day, p.username FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1, 2) SELECT CAST(strftime('%s', a.day) AS INTEGER) AS t, count(CASE WHEN f.first_day = a.day THEN 1 END) AS new_players, count(CASE WHEN f.first_day < a.day THEN 1 END) AS returning_players FROM activity a JOIN first_seen f USING(username) GROUP BY a.day ORDER BY a.day",
+          "rawQueryText": "WITH first_seen AS (SELECT p.username, min(date(g.started_at)) AS first_day FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 GROUP BY p.username), activity AS (SELECT date(g.started_at) AS day, p.username FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1, 2) SELECT CAST(strftime('%s', a.day) AS INTEGER) AS t, count(CASE WHEN f.first_day = a.day THEN 1 END) AS new_players, count(CASE WHEN f.first_day < a.day THEN 1 END) AS returning_players FROM activity a JOIN first_seen f USING(username) GROUP BY a.day ORDER BY a.day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Completion and problem endings",
+      "description": "completion rate and non-game-over endings by start day",
+      "gridPos": { "x": 12, "y": 15, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', date(started_at)) AS INTEGER) AS t, round(100.0 * sum(game_over) / nullif(count(CASE WHEN ended_at IS NOT NULL THEN 1 END), 0), 1) AS completion_pct, sum(CASE WHEN ended_at IS NOT NULL AND game_over = 0 THEN 1 ELSE 0 END) AS problem_endings FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY date(started_at) ORDER BY date(started_at)",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(started_at)) AS INTEGER) AS t, round(100.0 * sum(game_over) / nullif(count(CASE WHEN ended_at IS NOT NULL THEN 1 END), 0), 1) AS completion_pct, sum(CASE WHEN ended_at IS NOT NULL AND game_over = 0 THEN 1 ELSE 0 END) AS problem_endings FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY date(started_at) ORDER BY date(started_at)",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "completion_pct" },
+            "properties": [{ "id": "unit", "value": "percent" }]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 14,
+      "type": "barchart",
+      "title": "Format demand",
+      "description": "games by format during the selected period",
+      "gridPos": { "x": 0, "y": 23, "w": 8, "h": 7 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT coalesce(format, 'unknown') AS format, count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 2 DESC",
+          "rawQueryText": "SELECT coalesce(format, 'unknown') AS format, count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 2 DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 15,
+      "type": "barchart",
+      "title": "How people play",
+      "description": "solo AI versus multiplayer during the selected period",
+      "gridPos": { "x": 8, "y": 23, "w": 8, "h": 7 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CASE WHEN humans = 0 THEN 'bots only' WHEN humans = 1 THEN 'solo vs AI' WHEN humans = 2 THEN '2 humans' ELSE '3+ humans' END AS mode, count(*) AS games FROM (SELECT g.game_id, count(CASE WHEN p.is_bot = 0 THEN 1 END) AS humans FROM games g LEFT JOIN game_players p USING(game_id) WHERE CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY g.game_id) GROUP BY mode ORDER BY games DESC",
+          "rawQueryText": "SELECT CASE WHEN humans = 0 THEN 'bots only' WHEN humans = 1 THEN 'solo vs AI' WHEN humans = 2 THEN '2 humans' ELSE '3+ humans' END AS mode, count(*) AS games FROM (SELECT g.game_id, count(CASE WHEN p.is_bot = 0 THEN 1 END) AS humans FROM games g LEFT JOIN game_players p USING(game_id) WHERE CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY g.game_id) GROUP BY mode ORDER BY games DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Game endings requiring attention",
+      "description": "non-game-over endings during the selected period",
+      "gridPos": { "x": 16, "y": 23, "w": 8, "h": 7 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT end_reason AS reason, count(*) AS games, round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS pct FROM games WHERE game_over = 0 AND ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY end_reason ORDER BY games DESC",
+          "rawQueryText": "SELECT end_reason AS reason, count(*) AS games, round(100.0 * count(*) / sum(count(*)) OVER (), 1) AS pct FROM games WHERE game_over = 0 AND ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY end_reason ORDER BY games DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "pct" },
+            "properties": [{ "id": "unit", "value": "percent" }]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "Can we trust the data?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 30, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "Relay analytics age",
+      "description": "seconds since the latest stored relay event",
+      "gridPos": { "x": 0, "y": 31, "w": 8, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT strftime('%s', 'now') - max(strftime('%s', ts)) AS seconds FROM events",
+          "rawQueryText": "SELECT strftime('%s', 'now') - max(strftime('%s', ts)) AS seconds FROM events",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 900 },
+              { "color": "red", "value": 3600 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Hub analytics age",
+      "description": "seconds since the latest successful sanitized Hub export",
+      "gridPos": { "x": 8, "y": 31, "w": 8, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
+          "rawQueryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 900 },
+              { "color": "red", "value": 3600 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Analytics drops",
+      "description": "relay analytics and Deck Hub evidence drops since process start",
+      "gridPos": { "x": 16, "y": 31, "w": 8, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(manabrew_relay_analytics_dropped_total) + sum(manabrew_relay_deck_play_events_dropped_total)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "How does this compare with the previous period?",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 35, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Player change",
+      "description": "active-player change versus the immediately preceding period of equal length",
+      "gridPos": { "x": 0, "y": 36, "w": 8, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH periods AS (SELECT count(DISTINCT CASE WHEN CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 THEN p.username END) AS current, count(DISTINCT CASE WHEN CAST(strftime('%s', g.started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__from / 1000 THEN p.username END) AS previous FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0) SELECT round(100.0 * (current - previous) / nullif(previous, 0), 1) AS change FROM periods",
+          "rawQueryText": "WITH periods AS (SELECT count(DISTINCT CASE WHEN CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 THEN p.username END) AS current, count(DISTINCT CASE WHEN CAST(strftime('%s', g.started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__from / 1000 THEN p.username END) AS previous FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0) SELECT round(100.0 * (current - previous) / nullif(previous, 0), 1) AS change FROM periods",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value" }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Game change",
+      "description": "game-start change versus the immediately preceding period of equal length",
+      "gridPos": { "x": 8, "y": 36, "w": 8, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH periods AS (SELECT count(CASE WHEN CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 THEN 1 END) AS current, count(CASE WHEN CAST(strftime('%s', started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__from / 1000 THEN 1 END) AS previous FROM games) SELECT round(100.0 * (current - previous) / nullif(previous, 0), 1) AS change FROM periods",
+          "rawQueryText": "WITH periods AS (SELECT count(CASE WHEN CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 THEN 1 END) AS current, count(CASE WHEN CAST(strftime('%s', started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__from / 1000 THEN 1 END) AS previous FROM games) SELECT round(100.0 * (current - previous) / nullif(previous, 0), 1) AS change FROM periods",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value" }
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Completion change",
+      "description": "percentage-point completion change versus the preceding equal-length period",
+      "gridPos": { "x": 16, "y": 36, "w": 8, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "WITH periods AS (SELECT 100.0 * sum(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 THEN game_over ELSE 0 END) / nullif(count(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 THEN 1 END), 0) AS current, 100.0 * sum(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__from / 1000 THEN game_over ELSE 0 END) / nullif(count(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__from / 1000 THEN 1 END), 0) AS previous FROM games) SELECT round(current - previous, 1) AS percentage_points FROM periods",
+          "rawQueryText": "WITH periods AS (SELECT 100.0 * sum(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 THEN game_over ELSE 0 END) / nullif(count(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 THEN 1 END), 0) AS current, 100.0 * sum(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__from / 1000 THEN game_over ELSE 0 END) / nullif(count(CASE WHEN ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > (2 * $__from - $__to) / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__from / 1000 THEN 1 END), 0) AS previous FROM games) SELECT round(current - previous, 1) AS percentage_points FROM periods",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value" }
+    }
+  ]
+}

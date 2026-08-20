@@ -8,6 +8,7 @@ use crate::protocol::{EngineKind, RoomStatus};
 use crate::state::ServerState;
 
 const CONNECTIONS: &str = "manabrew_relay_connections";
+const PLAYERS: &str = "manabrew_relay_players";
 const ROOMS: &str = "manabrew_relay_rooms";
 const GAMES_STARTED: &str = "manabrew_relay_games_started_total";
 const GAMES_ENDED: &str = "manabrew_relay_games_ended_total";
@@ -86,10 +87,25 @@ pub fn refresh_gauges(state: &ServerState) {
     let mut lobby_hosted = 0u32;
     let mut in_game_player = 0u32;
     let mut in_game_hosted = 0u32;
+    let mut lobby_human_players = 0u32;
+    let mut lobby_bot_players = 0u32;
+    let mut in_game_human_players = 0u32;
+    let mut in_game_bot_players = 0u32;
     for entry in state.rooms.iter() {
         let room = entry.value();
-        for slot in room.players.iter().filter(|slot| slot.is_bot) {
-            bot_usernames.insert(slot.username.clone());
+        for slot in &room.players {
+            if slot.is_bot {
+                bot_usernames.insert(slot.username.clone());
+            }
+            if !slot.connected {
+                continue;
+            }
+            match (&room.status, slot.is_bot) {
+                (RoomStatus::Lobby, false) => lobby_human_players += 1,
+                (RoomStatus::Lobby, true) => lobby_bot_players += 1,
+                (RoomStatus::InGame, false) => in_game_human_players += 1,
+                (RoomStatus::InGame, true) => in_game_bot_players += 1,
+            }
         }
         match (&room.status, room.hosted) {
             (RoomStatus::Lobby, false) => lobby_player += 1,
@@ -119,6 +135,18 @@ pub fn refresh_gauges(state: &ServerState) {
     set_connections(ConnectionKind::Human, human);
     set_connections(ConnectionKind::Service, service);
     set_connections(ConnectionKind::Bot, bot);
+    set_players(
+        RoomStatus::Lobby,
+        ConnectionKind::Human,
+        lobby_human_players,
+    );
+    set_players(RoomStatus::Lobby, ConnectionKind::Bot, lobby_bot_players);
+    set_players(
+        RoomStatus::InGame,
+        ConnectionKind::Human,
+        in_game_human_players,
+    );
+    set_players(RoomStatus::InGame, ConnectionKind::Bot, in_game_bot_players);
     set_rooms(RoomStatus::Lobby, false, lobby_player);
     set_rooms(RoomStatus::Lobby, true, lobby_hosted);
     set_rooms(RoomStatus::InGame, false, in_game_player);
@@ -127,6 +155,11 @@ pub fn refresh_gauges(state: &ServerState) {
 
 fn set_connections(kind: ConnectionKind, count: u32) {
     gauge!(CONNECTIONS, LABEL_KIND => kind.as_str()).set(count as f64);
+}
+
+fn set_players(status: RoomStatus, kind: ConnectionKind, count: u32) {
+    gauge!(PLAYERS, LABEL_STATUS => status_label(status), LABEL_KIND => kind.as_str())
+        .set(count as f64);
 }
 
 fn set_rooms(status: RoomStatus, hosted: bool, count: u32) {

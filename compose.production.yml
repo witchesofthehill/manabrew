@@ -238,11 +238,14 @@ services:
       - /app/ingest-events.py
       - --dir
       - /var/manabrew/events
+      - --hub-db
+      - /var/manabrew/hub/hub.db
       - --watch
       - "300"
     volumes:
       - ./scripts/ingest-events.py:/app/ingest-events.py:ro
       - ./ops/observability/data/events:/var/manabrew/events
+      - ./ops/hub-data:/var/manabrew/hub
     restart: unless-stopped
     mem_limit: 64m
 

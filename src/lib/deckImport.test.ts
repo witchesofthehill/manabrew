@@ -45,6 +45,17 @@ Maybeboard
     ]);
   });
 
+  it("recognizes a plain foil marker after an exact printing", () => {
+    expect(parseDeckListText("1 Kona, Rescue Beastie (DSK) 358 F")).toEqual([
+      expect.objectContaining({
+        name: "Kona, Rescue Beastie",
+        setCode: "dsk",
+        collectorNumber: "358",
+        foil: true,
+      }),
+    ]);
+  });
+
   it("ignores malformed lines instead of creating partial cards", () => {
     expect(parseDeckListText("not a card\nLightning Bolt\n4 Counterspell")).toEqual([
       expect.objectContaining({ name: "Counterspell", count: 4 }),

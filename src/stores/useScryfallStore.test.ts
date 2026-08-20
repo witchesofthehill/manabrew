@@ -66,4 +66,21 @@ describe("Forge token identities", () => {
 
     expect(asDeckCard(deck, card).identity.id).toBe("token:red");
   });
+
+  it("resolves a copy token by its copied card before token collector numbers", async () => {
+    const { asDeckCard } = await import("@/lib/decks");
+    const deck: Deck = { name: "test", cards: [], sideboard: [], tokens: [whiteSoldier] };
+    const card = {
+      ...GAME_CARD_DEFAULTS,
+      identity: {
+        name: "Soldier Token",
+        setCode: "THS",
+        cardNumber: "7",
+        isToken: true,
+      },
+      isCopy: true,
+    };
+
+    expect(asDeckCard(deck, card).identity.id).toBe("token:white");
+  });
 });

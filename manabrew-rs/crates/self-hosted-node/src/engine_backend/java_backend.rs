@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 #[cfg(forge_backend)]
 use std::time::Duration;
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use std::time::Instant;
 
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};

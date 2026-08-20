@@ -1,7 +1,7 @@
 {
   "uid": "manabrew-product",
-  "title": "Manabrew \u2014 Product",
-  "tags": ["manabrew", "product"],
+  "title": "Manabrew \u2014 Analytics Explorer",
+  "tags": ["manabrew", "product", "explorer"],
   "schemaVersion": 39,
   "editable": true,
   "timezone": "utc",
@@ -10,12 +10,29 @@
     "to": "now"
   },
   "refresh": "5m",
+  "links": [
+    {
+      "title": "Executive Health",
+      "type": "link",
+      "url": "/d/manabrew-executive"
+    },
+    {
+      "title": "Engagement & Gameplay",
+      "type": "link",
+      "url": "/d/manabrew-engagement"
+    },
+    {
+      "title": "Decks & Collections",
+      "type": "link",
+      "url": "/d/manabrew-decks-collections"
+    }
+  ],
   "panels": [
     {
       "id": 1,
       "type": "stat",
       "title": "Games",
-      "description": "all recorded games",
+      "description": "games started in the selected time range",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -33,8 +50,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT count(*) AS games FROM games",
-          "rawQueryText": "SELECT count(*) AS games FROM games",
+          "queryText": "SELECT count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "SELECT count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
           "queryType": "table",
           "timeColumns": []
         }
@@ -54,7 +71,7 @@
       "id": 2,
       "type": "stat",
       "title": "Distinct players",
-      "description": "humans, no bots",
+      "description": "humans in games started in the selected time range",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -72,8 +89,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT count(DISTINCT substr(username,1,instr(username||'@','@')-1)) AS players FROM game_players WHERE is_bot = 0",
-          "rawQueryText": "SELECT count(DISTINCT substr(username,1,instr(username||'@','@')-1)) AS players FROM game_players WHERE is_bot = 0",
+          "queryText": "SELECT count(DISTINCT p.username) AS players FROM game_players p JOIN games g USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "SELECT count(DISTINCT p.username) AS players FROM game_players p JOIN games g USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000",
           "queryType": "table",
           "timeColumns": []
         }
@@ -111,8 +128,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT round((SELECT duration_s FROM games WHERE duration_s IS NOT NULL ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)/2 FROM games WHERE duration_s IS NOT NULL))/60.0, 1) AS median_min",
-          "rawQueryText": "SELECT round((SELECT duration_s FROM games WHERE duration_s IS NOT NULL ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)/2 FROM games WHERE duration_s IS NOT NULL))/60.0, 1) AS median_min",
+          "queryText": "WITH ranged AS (SELECT duration_s FROM games WHERE duration_s IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000) SELECT round((SELECT duration_s FROM ranged ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)/2 FROM ranged))/60.0, 1) AS median_min",
+          "rawQueryText": "WITH ranged AS (SELECT duration_s FROM games WHERE duration_s IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000) SELECT round((SELECT duration_s FROM ranged ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)/2 FROM ranged))/60.0, 1) AS median_min",
           "queryType": "table",
           "timeColumns": []
         }
@@ -150,8 +167,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT round((SELECT duration_s FROM games WHERE duration_s IS NOT NULL ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)*9/10 FROM games WHERE duration_s IS NOT NULL))/60.0, 1) AS p90_min",
-          "rawQueryText": "SELECT round((SELECT duration_s FROM games WHERE duration_s IS NOT NULL ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)*9/10 FROM games WHERE duration_s IS NOT NULL))/60.0, 1) AS p90_min",
+          "queryText": "WITH ranged AS (SELECT duration_s FROM games WHERE duration_s IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000) SELECT round((SELECT duration_s FROM ranged ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)*9/10 FROM ranged))/60.0, 1) AS p90_min",
+          "rawQueryText": "WITH ranged AS (SELECT duration_s FROM games WHERE duration_s IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000) SELECT round((SELECT duration_s FROM ranged ORDER BY duration_s LIMIT 1 OFFSET (SELECT count(*)*9/10 FROM ranged))/60.0, 1) AS p90_min",
           "queryType": "table",
           "timeColumns": []
         }
@@ -189,8 +206,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT round(100.0 * sum(game_over) / count(*), 1) AS pct FROM games WHERE ended_at IS NOT NULL",
-          "rawQueryText": "SELECT round(100.0 * sum(game_over) / count(*), 1) AS pct FROM games WHERE ended_at IS NOT NULL",
+          "queryText": "SELECT round(100.0 * sum(game_over) / count(*), 1) AS pct FROM games WHERE ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
+          "rawQueryText": "SELECT round(100.0 * sum(game_over) / count(*), 1) AS pct FROM games WHERE ended_at IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000",
           "queryType": "table",
           "timeColumns": []
         }
@@ -229,8 +246,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT (CAST(strftime('%s', started_at) AS INTEGER)/3600)*3600 AS t, count(*) AS games FROM games WHERE started_at IS NOT NULL GROUP BY 1 ORDER BY 1",
-          "rawQueryText": "SELECT (CAST(strftime('%s', started_at) AS INTEGER)/3600)*3600 AS t, count(*) AS games FROM games WHERE started_at IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "queryText": "SELECT (CAST(strftime('%s', started_at) AS INTEGER)/3600)*3600 AS t, count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT (CAST(strftime('%s', started_at) AS INTEGER)/3600)*3600 AS t, count(*) AS games FROM games WHERE CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 1",
           "queryType": "table",
           "timeColumns": ["t"]
         }
@@ -274,8 +291,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT (CAST(strftime('%s', g.started_at) AS INTEGER)/3600)*3600 AS t, count(DISTINCT substr(p.username,1,instr(p.username||'@','@')-1)) AS players FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY 1 ORDER BY 1",
-          "rawQueryText": "SELECT (CAST(strftime('%s', g.started_at) AS INTEGER)/3600)*3600 AS t, count(DISTINCT substr(p.username,1,instr(p.username||'@','@')-1)) AS players FROM games g JOIN game_players p USING(game_id) WHERE g.started_at IS NOT NULL AND p.is_bot = 0 GROUP BY 1 ORDER BY 1",
+          "queryText": "SELECT (CAST(strftime('%s', g.started_at) AS INTEGER)/3600)*3600 AS t, count(DISTINCT p.username) AS players FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT (CAST(strftime('%s', g.started_at) AS INTEGER)/3600)*3600 AS t, count(DISTINCT p.username) AS players FROM games g JOIN game_players p USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 1",
           "queryType": "table",
           "timeColumns": ["t"]
         }
@@ -319,8 +336,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT CASE\n WHEN duration_s < 180 THEN '<3'\n WHEN duration_s < 300 THEN '3-5'\n WHEN duration_s < 600 THEN '5-10'\n WHEN duration_s < 900 THEN '10-15'\n WHEN duration_s < 1200 THEN '15-20'\n WHEN duration_s < 1800 THEN '20-30'\n WHEN duration_s < 2700 THEN '30-45'\n WHEN duration_s < 3600 THEN '45-60'\n ELSE '60+' END AS bucket, count(*) AS games,\n min(CAST(duration_s AS INTEGER)) AS ord\n FROM games WHERE duration_s IS NOT NULL GROUP BY 1 ORDER BY ord",
-          "rawQueryText": "SELECT CASE\n WHEN duration_s < 180 THEN '<3'\n WHEN duration_s < 300 THEN '3-5'\n WHEN duration_s < 600 THEN '5-10'\n WHEN duration_s < 900 THEN '10-15'\n WHEN duration_s < 1200 THEN '15-20'\n WHEN duration_s < 1800 THEN '20-30'\n WHEN duration_s < 2700 THEN '30-45'\n WHEN duration_s < 3600 THEN '45-60'\n ELSE '60+' END AS bucket, count(*) AS games,\n min(CAST(duration_s AS INTEGER)) AS ord\n FROM games WHERE duration_s IS NOT NULL GROUP BY 1 ORDER BY ord",
+          "queryText": "SELECT CASE\n WHEN duration_s < 180 THEN '<3'\n WHEN duration_s < 300 THEN '3-5'\n WHEN duration_s < 600 THEN '5-10'\n WHEN duration_s < 900 THEN '10-15'\n WHEN duration_s < 1200 THEN '15-20'\n WHEN duration_s < 1800 THEN '20-30'\n WHEN duration_s < 2700 THEN '30-45'\n WHEN duration_s < 3600 THEN '45-60'\n ELSE '60+' END AS bucket, count(*) AS games,\n min(CAST(duration_s AS INTEGER)) AS ord\n FROM games WHERE duration_s IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY ord",
+          "rawQueryText": "SELECT CASE\n WHEN duration_s < 180 THEN '<3'\n WHEN duration_s < 300 THEN '3-5'\n WHEN duration_s < 600 THEN '5-10'\n WHEN duration_s < 900 THEN '10-15'\n WHEN duration_s < 1200 THEN '15-20'\n WHEN duration_s < 1800 THEN '20-30'\n WHEN duration_s < 2700 THEN '30-45'\n WHEN duration_s < 3600 THEN '45-60'\n ELSE '60+' END AS bucket, count(*) AS games,\n min(CAST(duration_s AS INTEGER)) AS ord\n FROM games WHERE duration_s IS NOT NULL AND CAST(strftime('%s', started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY ord",
           "queryType": "table",
           "timeColumns": []
         }
@@ -345,8 +362,8 @@
     {
       "id": 9,
       "type": "barchart",
-      "title": "Top players by games",
-      "description": "humans, all time",
+      "title": "Games per player",
+      "description": "anonymous human activity distribution in the selected time range",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "events-sqlite"
@@ -364,8 +381,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "events-sqlite"
           },
-          "queryText": "SELECT substr(username,1,instr(username||'@','@')-1) AS player, count(*) AS games FROM game_players WHERE is_bot = 0 GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
-          "rawQueryText": "SELECT substr(username,1,instr(username||'@','@')-1) AS player, count(*) AS games FROM game_players WHERE is_bot = 0 GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
+          "queryText": "SELECT CASE WHEN games = 1 THEN '1' WHEN games < 5 THEN '2-4' WHEN games < 10 THEN '5-9' ELSE '10+' END AS activity, count(*) AS players, min(games) AS ord FROM (SELECT p.username, count(*) AS games FROM game_players p JOIN games g USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY p.username) GROUP BY activity ORDER BY ord",
+          "rawQueryText": "SELECT CASE WHEN games = 1 THEN '1' WHEN games < 5 THEN '2-4' WHEN games < 10 THEN '5-9' ELSE '10+' END AS activity, count(*) AS players, min(games) AS ord FROM (SELECT p.username, count(*) AS games FROM game_players p JOIN games g USING(game_id) WHERE p.is_bot = 0 AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY p.username) GROUP BY activity ORDER BY ord",
           "queryType": "table",
           "timeColumns": []
         }
@@ -692,6 +709,349 @@
                 }
               }
             ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Accounts",
+      "description": "current registered accounts from the sanitized Hub export",
+      "gridPos": { "x": 0, "y": 54, "w": 6, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS accounts FROM hub_metric_snapshots WHERE metric = 'accounts' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS accounts FROM hub_metric_snapshots WHERE metric = 'accounts' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#1baf7a" } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "Collection users",
+      "description": "accounts with at least one card in their synced collection",
+      "gridPos": { "x": 6, "y": 54, "w": 6, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS collectors FROM hub_metric_snapshots WHERE metric = 'collection_collectors' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS collectors FROM hub_metric_snapshots WHERE metric = 'collection_collectors' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#1baf7a" } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "User decks",
+      "description": "current non-deleted user decks",
+      "gridPos": { "x": 12, "y": 54, "w": 6, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_kind' AND dimension = 'user' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_kind' AND dimension = 'user' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#2a78d6" } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Active sessions",
+      "description": "unexpired sessions at the latest Hub export",
+      "gridPos": { "x": 18, "y": 54, "w": 6, "h": 4 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT value AS sessions FROM hub_metric_snapshots WHERE metric = 'active_sessions' ORDER BY snapshot_at DESC LIMIT 1",
+          "rawQueryText": "SELECT value AS sessions FROM hub_metric_snapshots WHERE metric = 'active_sessions' ORDER BY snapshot_at DESC LIMIT 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "#2a78d6" } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Account growth",
+      "description": "new accounts per day in the selected time range",
+      "gridPos": { "x": 0, "y": 58, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, value AS accounts FROM hub_daily_metrics WHERE metric = 'accounts_created' AND CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 ORDER BY day",
+          "rawQueryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, value AS accounts FROM hub_daily_metrics WHERE metric = 'accounts_created' AND CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 ORDER BY day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 100, "lineWidth": 0 } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Deck creation",
+      "description": "new decks by kind in the selected time range",
+      "gridPos": { "x": 12, "y": 58, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, dimension AS kind, value AS decks FROM hub_daily_metrics WHERE metric = 'decks_created' AND CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 ORDER BY day",
+          "rawQueryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, dimension AS kind, value AS decks FROM hub_daily_metrics WHERE metric = 'decks_created' AND CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 ORDER BY day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 0 } },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 23,
+      "type": "barchart",
+      "title": "Auth providers",
+      "description": "current linked identities by provider; no identity data is exported",
+      "gridPos": { "x": 0, "y": 66, "w": 8, "h": 7 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS provider, value AS identities FROM hub_metric_snapshots WHERE metric = 'identities_by_provider' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "rawQueryText": "SELECT dimension AS provider, value AS identities FROM hub_metric_snapshots WHERE metric = 'identities_by_provider' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 24,
+      "type": "barchart",
+      "title": "Deck visibility",
+      "description": "current non-deleted decks",
+      "gridPos": { "x": 8, "y": 66, "w": 8, "h": 7 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS visibility, value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_visibility' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "rawQueryText": "SELECT dimension AS visibility, value AS decks FROM hub_metric_snapshots WHERE metric = 'decks_by_visibility' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 25,
+      "type": "barchart",
+      "title": "Publication status",
+      "description": "current Deck Hub entries",
+      "gridPos": { "x": 16, "y": 66, "w": 8, "h": 7 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS status, value AS publications FROM hub_metric_snapshots WHERE metric = 'publications_by_status' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "rawQueryText": "SELECT dimension AS status, value AS publications FROM hub_metric_snapshots WHERE metric = 'publications_by_status' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots)",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "showLegend": false }, "showValue": "always" }
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Collection adoption",
+      "description": "hourly current-state snapshots; history begins when this exporter is deployed",
+      "gridPos": { "x": 0, "y": 73, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', snapshot_at) AS INTEGER) AS t, max(CASE WHEN metric = 'collection_collectors' THEN value END) AS collectors, max(CASE WHEN metric = 'collection_cards' THEN value END) AS unique_cards FROM hub_metric_snapshots WHERE metric IN ('collection_collectors', 'collection_cards') AND CAST(strftime('%s', snapshot_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', snapshot_at) AS INTEGER) <= $__to / 1000 GROUP BY snapshot_at ORDER BY snapshot_at",
+          "rawQueryText": "SELECT CAST(strftime('%s', snapshot_at) AS INTEGER) AS t, max(CASE WHEN metric = 'collection_collectors' THEN value END) AS collectors, max(CASE WHEN metric = 'collection_cards' THEN value END) AS unique_cards FROM hub_metric_snapshots WHERE metric IN ('collection_collectors', 'collection_cards') AND CAST(strftime('%s', snapshot_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', snapshot_at) AS INTEGER) <= $__to / 1000 GROUP BY snapshot_at ORDER BY snapshot_at",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Published deck plays",
+      "description": "privacy-safe play evidence by source and hosting mode",
+      "gridPos": { "x": 12, "y": 73, "w": 12, "h": 8 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, dimension AS source, value AS plays FROM hub_daily_metrics WHERE metric = 'plays' AND CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 ORDER BY day",
+          "rawQueryText": "SELECT CAST(strftime('%s', day) AS INTEGER) AS t, dimension AS source, value AS plays FROM hub_daily_metrics WHERE metric = 'plays' AND CAST(strftime('%s', day) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', day) AS INTEGER) <= $__to / 1000 ORDER BY day",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 28,
+      "type": "table",
+      "title": "Popular collection cards",
+      "description": "only cards owned by at least two accounts are exported",
+      "gridPos": { "x": 0, "y": 81, "w": 12, "h": 10 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT card_key AS card, collectors, copies FROM hub_collection_cards ORDER BY collectors DESC, copies DESC LIMIT 30",
+          "rawQueryText": "SELECT card_key AS card, collectors, copies FROM hub_collection_cards ORDER BY collectors DESC, copies DESC LIMIT 30",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 29,
+      "type": "table",
+      "title": "Cards in published decks",
+      "description": "current published versions, excluding tokens",
+      "gridPos": { "x": 12, "y": 81, "w": 12, "h": 10 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT card_name AS card, format, zone, decks, copies FROM hub_public_deck_cards WHERE zone != 'token' ORDER BY decks DESC, copies DESC LIMIT 30",
+          "rawQueryText": "SELECT card_name AS card, format, zone, decks, copies FROM hub_public_deck_cards WHERE zone != 'token' ORDER BY decks DESC, copies DESC LIMIT 30",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 30,
+      "type": "table",
+      "title": "Analytics coverage by Hub table",
+      "description": "sanitized row counts for every Hub schema table",
+      "gridPos": { "x": 0, "y": 91, "w": 16, "h": 12 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT dimension AS hub_table, CAST(value AS INTEGER) AS rows FROM hub_metric_snapshots WHERE metric = 'table_rows' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY rows DESC",
+          "rawQueryText": "SELECT dimension AS hub_table, CAST(value AS INTEGER) AS rows FROM hub_metric_snapshots WHERE metric = 'table_rows' AND snapshot_at = (SELECT max(snapshot_at) FROM hub_metric_snapshots) ORDER BY rows DESC",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": {}
+    },
+    {
+      "id": 31,
+      "type": "stat",
+      "title": "Hub analytics age",
+      "description": "seconds since the last successful sanitized export",
+      "gridPos": { "x": 16, "y": 91, "w": 8, "h": 6 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
+          "rawQueryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 900 },
+              { "color": "red", "value": 3600 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background" }
+    },
+    {
+      "id": 32,
+      "type": "stat",
+      "title": "Hub schema / export time",
+      "description": "source migration version and last export duration",
+      "gridPos": { "x": 16, "y": 97, "w": 8, "h": 6 },
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "events-sqlite" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT schema_version, duration_ms FROM hub_sync_state WHERE id = 1",
+          "rawQueryText": "SELECT schema_version, duration_ms FROM hub_sync_state WHERE id = 1",
+          "queryType": "table",
+          "timeColumns": []
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "duration_ms" },
+            "properties": [{ "id": "unit", "value": "ms" }]
           }
         ]
       },

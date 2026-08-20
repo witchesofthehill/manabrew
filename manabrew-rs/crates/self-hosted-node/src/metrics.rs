@@ -11,6 +11,7 @@ const FORGE_DECISION_STAGE_SECONDS: &str = "manabrew_node_forge_decision_stage_s
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
+const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
 const JVM_GC_TOTAL: &str = "manabrew_node_jvm_gc_total";
 const JVM_HEAP_AFTER_GC_BYTES: &str = "manabrew_node_jvm_heap_after_gc_bytes";
@@ -132,6 +133,10 @@ impl Drop for RoomHostedGuard {
     fn drop(&mut self) {
         gauge!(ROOMS_HOSTED, LABEL_POOL => self.pool.as_str()).decrement(1.0);
     }
+}
+
+pub fn record_relay_send(elapsed: Duration) {
+    histogram!(RELAY_SEND_SECONDS).record(elapsed.as_secs_f64());
 }
 
 /// Pause and retained heap reported by the engine JVM's own GC log. The fleet

@@ -66,6 +66,8 @@ export function getPlatformType(): "tauri" | "web" {
   return isTauriEnvironment() ? "tauri" : "web";
 }
 
+export { getClientPlatform } from "./clientPlatform";
+
 let platformInstance: IPlatformApi | null = null;
 
 /**

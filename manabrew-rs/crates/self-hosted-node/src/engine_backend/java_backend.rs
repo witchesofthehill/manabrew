@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 #[cfg(forge_backend)]
 use std::time::Duration;
-#[cfg(forge_backend)]
+#[cfg(feature = "java-forge")]
 use std::time::Instant;
 
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
@@ -612,6 +612,14 @@ pub fn init_engine() -> Result<(), String> {
 
 #[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
 pub fn init_engine() -> Result<(), String> {
+    // Loading the card database into the isolate takes tens of seconds on a
+    // small box. Pay it here, before any room is advertised, rather than
+    // leaving it for whoever starts the first game.
+    if shared_isolate_enabled() {
+        drop(GraalEngineHandle::create(
+            &JavaRuntimeConfig::from_env().assets_dir,
+        )?);
+    }
     Ok(())
 }
 
@@ -736,6 +744,16 @@ unsafe impl Send for SharedIsolate {}
 #[cfg(feature = "graal-forge")]
 static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync::Mutex::new(None);
 
+// One isolate hosts every room's game (safe since the endstep concurrency
+// patches), so the card database loads once per node. Off keeps the historical
+// isolate-per-game shape.
+#[cfg(feature = "graal-forge")]
+fn shared_isolate_enabled() -> bool {
+    env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 #[cfg(feature = "graal-forge")]
 impl GraalBridge {
     fn create() -> Result<Self, String> {
@@ -828,13 +846,7 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        // SELF_HOSTED_NODE_SHARED_ISOLATE=1 hosts every room's game in one
-        // isolate (safe since the endstep concurrency patches), so the card db
-        // loads once. Default keeps the historical isolate-per-game shape.
-        let shared = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
-            .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-        let bridge = if shared {
+        let bridge = if shared_isolate_enabled() {
             GraalBridge::create_in_shared_isolate(assets_dir)?
         } else {
             let bridge = GraalBridge::create()?;

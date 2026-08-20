@@ -55,9 +55,15 @@ services:
       MANABREW_HUB_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       MANABREW_EVENTS_DIR: "/var/manabrew/events"
+      # Captures are what makes a preview measurable: without them the only
+      # instrument for a change like #698's state patches is container byte
+      # counters. Small cap — this disk is production's too.
+      MANABREW_GAME_CAPTURE_DIR: "/var/manabrew/captures"
+      MANABREW_GAME_CAPTURE_MAX_GB: "${MANABREW_GAME_CAPTURE_MAX_GB:-2}"
       RUST_LOG: "manabrew_server=info"
     volumes:
       - ./ops/events:/var/manabrew/events
+      - ./ops/observability/data/captures:/var/manabrew/captures
     expose:
       - "9443"
       - "9444"
@@ -158,6 +164,8 @@ services:
     restart: "no"
     mem_limit: 64m
 
+  # Every staging deploy runs this, previews included. One GraalVM process, one
+  # shared isolate, one card database — four games cost about what a JVM used to.
   self-hosted-node-staging:
     profiles:
       - hosted-ai
@@ -169,20 +177,22 @@ services:
       # findHostedRoom only matches Any) and enough seats for commander pods.
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-Any}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-4}"
-
-      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
-      SELF_HOSTED_NODE_GAMES_PER_JVM: "1"
-      # Engine JVM sizing (#684). mem_limit has to cover the heap below plus the
-      # JVM's own non-heap (metaspace, code cache, stacks) and the node process,
-      # or the container is OOM-killed before the heap cap ever applies.
-      SELF_HOSTED_NODE_JAVA_HEAP_MB: "${SELF_HOSTED_NODE_JAVA_HEAP_MB:-768}"
-      SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS: "${SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS:-2}"
-      # stderr, not a file: alloy ships container output to Loki, nothing ships files.
-      SELF_HOSTED_NODE_JAVA_GC_LOG: "${SELF_HOSTED_NODE_JAVA_GC_LOG:-stderr}"
+      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-4}"
+      SELF_HOSTED_NODE_SHARED_ISOLATE: "${SELF_HOSTED_NODE_SHARED_ISOLATE:-1}"
+      # On here and off in production: patches need a client that can apply
+      # them, and the staging web bundle is built from the same ref as the node
+      # while installed desktop clients are not.
+      SELF_HOSTED_NODE_STATE_DELTA: "${SELF_HOSTED_NODE_STATE_DELTA:-1}"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       RUST_LOG: "self_hosted_node=info"
+    # The native image takes 70% of the cgroup limit as its max heap, so this is
+    # the heap knob. Measured on the box: 447m idle with the database resident,
+    # +212m per game, so four games need this rather than 1g (see #684).
     mem_limit: 1536m
-    cpu_shares: 512
+    # Two cores, shared with production: cpus caps the burst, cpu_shares decides
+    # who loses when the box saturates.
+    cpus: 1.0
+    cpu_shares: 256
     depends_on:
       - manabrew-server-staging
     restart: unless-stopped

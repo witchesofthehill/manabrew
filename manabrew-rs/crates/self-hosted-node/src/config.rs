@@ -18,6 +18,9 @@ pub struct Config {
     pub room_name: String,
     pub max_players: u8,
     pub max_games: usize,
+    /// Send state patches instead of a full board per viewer. Off until every
+    /// installed client can apply them; see #696.
+    pub state_delta: bool,
     pub format: GameFormat,
     pub auto_start: bool,
     pub engine_enabled: bool,
@@ -91,6 +94,8 @@ impl Config {
             max_players: env_first("SELF_HOSTED_NODE_MAX_PLAYERS", "FORGE_ROOM_MAX_PLAYERS")
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(4),
+            state_delta: env_first("SELF_HOSTED_NODE_STATE_DELTA", "FORGE_ROOM_STATE_DELTA")
+                .is_some_and(|value| matches!(value.trim(), "1" | "true" | "yes")),
             max_games: env_first("SELF_HOSTED_NODE_MAX_GAMES", "FORGE_ROOM_MAX_GAMES")
                 .and_then(|value| value.parse().ok())
                 .filter(|games| *games >= 1)
@@ -155,6 +160,7 @@ impl Config {
             room_name,
             max_players,
             max_games: 1,
+            state_delta: false,
             format,
             auto_start: false,
             engine_enabled: true,

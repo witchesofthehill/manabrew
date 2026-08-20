@@ -2672,6 +2672,8 @@ pub struct PlayerConfig {
 pub struct CardIdentityForJava {
     name: String,
     set_code: Option<String>,
+    collector_number: Option<String>,
+    foil: bool,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -2720,6 +2722,9 @@ impl From<&DeckCardIdentity> for CardIdentityForJava {
         Self {
             name: java_card_name(&identity.name),
             set_code: (!identity.set_code.is_empty()).then(|| identity.set_code.clone()),
+            collector_number: (!identity.card_number.is_empty())
+                .then(|| identity.card_number.clone()),
+            foil: identity.foil.unwrap_or(false),
         }
     }
 }
@@ -2807,7 +2812,8 @@ fn parse_gc_pause(line: &str) -> Option<GcPause> {
 
 #[cfg(test)]
 mod gc_log_tests {
-    use super::parse_gc_pause;
+    use super::{parse_gc_pause, PlayerConfig, StartGameRequest};
+    use manabrew_protocol::deck_dto::DeckCardIdentity;
 
     #[test]
     fn reads_a_full_collection() {
@@ -2861,5 +2867,28 @@ mod gc_log_tests {
     fn ignores_other_output() {
         assert!(parse_gc_pause("[java] LOGGER ERROR: something").is_none());
         assert!(parse_gc_pause("[1.0s][info][gc,init] CardTable entry size: 512").is_none());
+    }
+
+    #[test]
+    fn serializes_exact_printing_identity_for_java() {
+        let card = DeckCardIdentity {
+            name: "Forest".to_string(),
+            set_code: "EOE".to_string(),
+            card_number: "266".to_string(),
+            foil: Some(true),
+            ..Default::default()
+        };
+        let request = StartGameRequest::new(
+            "printing-test".to_string(),
+            "Constructed".to_string(),
+            20,
+            42,
+            vec![PlayerConfig::new("Player".to_string(), &[card], Vec::new())],
+        );
+        let json = request.to_json().expect("serialized");
+
+        assert!(json.contains(
+            r#""deck":[{"name":"Forest","setCode":"EOE","collectorNumber":"266","foil":true}]"#
+        ));
     }
 }

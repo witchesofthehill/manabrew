@@ -36,7 +36,7 @@ import { formatRequiresCommander } from "@/lib/formats";
 import { DEFAULT_COMMANDER_SLOT, type CommanderSlot } from "@/components/editor/deckEditor.utils";
 import { toast } from "sonner";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { DeckCard } from "@/protocol/deck";
+import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import { useCollectionStore } from "@/stores/useCollectionStore";
 import { collectionOwnership, collectionQuantityForName } from "@/lib/collection";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
@@ -56,6 +56,7 @@ interface DeckEditorActions {
   onToggleFoil?: (cardName: string) => void;
   onSetCover?: (cardName: string, face: 0 | 1) => void;
   token?: DeckCard;
+  printing?: DeckCardIdentity;
   onUpdateTokenPrint?: (tokenName: string, print: ScryfallCard) => void;
 }
 
@@ -82,7 +83,14 @@ export function CardDetailModal({
   const rulingsLoading = !rulingsData;
   const { setPreferredPrint } = usePreferredPrintsStore();
   const setLookup = useSetLookup();
-  const { savedDecks, currentDeck, addToMain, addCardToSavedDeck, updatePrint } = useDeckStore();
+  const {
+    savedDecks,
+    currentDeck,
+    addToMain,
+    addCardToSavedDeck,
+    updatePrint,
+    updatePrintingVariant,
+  } = useDeckStore();
   const collectionQuantities = useCollectionStore((state) => state.quantities);
 
   const cardId = initialCard?.id;
@@ -184,6 +192,8 @@ export function CardDetailModal({
     });
     if (deckEditorActions?.token && deckEditorActions.onUpdateTokenPrint) {
       deckEditorActions.onUpdateTokenPrint(deckCardName, print);
+    } else if (deckEditorActions?.printing) {
+      updatePrintingVariant(deckEditorActions.printing, print);
     } else if (deckEditorActions) {
       updatePrint(deckCardName, print);
     }

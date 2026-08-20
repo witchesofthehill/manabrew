@@ -47,7 +47,7 @@ function CommandZoneCard({
   onRemove: () => void;
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
-  onPickPrint?: (cardName: string) => void;
+  onPickPrint?: (card: DeckCard) => void;
   menuActions?: CommandZoneCardMenuActions;
 }) {
   const unsupported = useIsUnsupported(card.identity.name);
@@ -106,7 +106,7 @@ function CommandZoneCard({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
-                onPickPrint(card.identity.name);
+                onPickPrint(card);
               }}
             >
               <Palette className="h-3.5 w-3.5" />
@@ -145,7 +145,7 @@ interface CommanderSlotsProps {
   onRemoveCommander: (card: DeckCard) => void;
   onHover?: (card: DeckCard, event: ReactPointerEvent<HTMLElement>) => void;
   onLeave?: () => void;
-  onPickPrint?: (cardName: string) => void;
+  onPickPrint?: (card: DeckCard) => void;
   contextMenuFor?: (card: DeckCard, label: string) => CommandZoneCardMenuActions;
 }
 

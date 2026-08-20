@@ -20,8 +20,9 @@ Forge rooms in-process — no JVM, no jar subprocess.
    - Homebrew: `brew install --cask graalvm-jdk`
 
    `build-native.sh` defaults `GRAALVM_HOME` to
-   `~/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1/Contents/Home`;
-   set the `GRAALVM_HOME` env var to override.
+   `~/.local/graalvm/graalvm-community-openjdk-21.0.2+13.1`, appending
+   `/Contents/Home` when that bundle directory exists (macOS); set the
+   `GRAALVM_HOME` env var to override.
 
 2. **JDK 17 + Maven** to build the harness fat jar (`yarn build:harness`).
 

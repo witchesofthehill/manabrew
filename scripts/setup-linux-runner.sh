@@ -7,15 +7,19 @@
 #   $ chmod +x scripts/setup-linux-runner.sh
 #   $ ./scripts/setup-linux-runner.sh
 #
-# Installs: apt core deps (build-essential, pkg-config, libssl-dev, git,
-# curl, jq, ca-certificates), Node.js LTS (via NodeSource), Yarn (via
+# Installs: core build deps (compiler toolchain, pkg-config, OpenSSL
+# headers, git, curl, jq, ca-certificates), Node.js LTS, Yarn (via
 # corepack), Rust (rustup, stable MSVC-equivalent = gnu on Linux),
 # wasm32-unknown-unknown target, and wasm-pack.
 #
 # Idempotent: each step skips work already done. Safe to re-run.
 #
-# Target distros: Debian/Ubuntu family (apt-get). Other families will
-# abort early with a clear message.
+# Target distros: Debian/Ubuntu (apt), Fedora/RHEL (dnf) — which covers
+# Fedora Asahi Remix on Apple Silicon — and Arch (pacman). Other
+# families abort early with a clear message.
+#
+# Architecture-independent: nothing here assumes x86_64, so it also
+# provisions an aarch64 host.
 
 set -euo pipefail
 
@@ -71,63 +75,142 @@ fi
 . /etc/os-release
 echo "Detected: $PRETTY_NAME (ID=$ID, ID_LIKE=${ID_LIKE:-n/a})"
 case "${ID,,} ${ID_LIKE:-}" in
-    *debian*|*ubuntu*) : ;;
-    *) echo "This script supports Debian/Ubuntu only. Port the apt-get lines for $ID." >&2; exit 1 ;;
+    *debian*|*ubuntu*)                  PKG_FAMILY=debian ;;
+    *fedora*|*rhel*|*centos*)           PKG_FAMILY=fedora ;;
+    *arch*)                             PKG_FAMILY=arch ;;
+    *)
+        echo "Unsupported distro '$ID'. Supported families: Debian/Ubuntu" >&2
+        echo "(apt), Fedora/RHEL (dnf), Arch (pacman)." >&2
+        exit 1
+        ;;
 esac
+echo "Package family: $PKG_FAMILY ($(uname -m))"
 echo "Runner user: $RUNNER_USER (HOME=$RUNNER_HOME)"
 
-# ---------- 2. apt core packages -----------------------------------------
+# ---------- 2. core packages ----------------------------------------------
 
-section "apt packages (build tools, TLS, jq, git)"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-# build-essential  : gcc/g++/make — cargo linker + native node modules
-# pkg-config       : cargo build scripts (openssl-sys, etc.)
-# libssl-dev       : openssl headers for cargo crates
-# ca-certificates  : TLS trust for curl / rustup / cargo
-# curl, wget, git  : checkout + installers
-# jq               : release workflow payload assembly
-# unzip, xz-utils  : occasional tarball helpers
-# python3          : some build scripts (node-gyp fallback)
-apt-get install -y --no-install-recommends \
-    build-essential \
-    pkg-config \
-    libssl-dev \
-    ca-certificates \
-    curl \
-    wget \
-    git \
-    jq \
-    unzip \
-    xz-utils \
-    python3
+section "Core packages (build tools, TLS, jq, git)"
+# compiler toolchain : gcc/g++/make — cargo linker + native node modules
+# pkg-config         : cargo build scripts (openssl-sys, etc.)
+# openssl headers    : cargo crates that link libssl
+# ca-certificates    : TLS trust for curl / rustup / cargo
+# curl, wget, git    : checkout + installers
+# jq                 : release workflow payload assembly
+# unzip, xz          : occasional tarball helpers
+# python3            : some build scripts (node-gyp fallback)
+case "$PKG_FAMILY" in
+    debian)
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y --no-install-recommends \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            ca-certificates \
+            curl \
+            wget \
+            git \
+            jq \
+            unzip \
+            xz-utils \
+            python3
+        ;;
+    fedora)
+        dnf install -y \
+            gcc \
+            gcc-c++ \
+            make \
+            pkgconf-pkg-config \
+            openssl-devel \
+            ca-certificates \
+            curl \
+            wget \
+            git \
+            jq \
+            unzip \
+            xz \
+            python3
+        ;;
+    arch)
+        # -Syu, not -Sy: a partial upgrade on Arch can leave the system
+        # with mismatched libc/toolchain versions.
+        pacman -Syu --needed --noconfirm \
+            base-devel \
+            pkgconf \
+            openssl \
+            ca-certificates \
+            curl \
+            wget \
+            git \
+            jq \
+            unzip \
+            xz \
+            python
+        ;;
+esac
 
-# ---------- 3. Node.js LTS via NodeSource ---------------------------------
+# ---------- 3. Node.js LTS ------------------------------------------------
 
 section "Node.js LTS"
 NODE_MAJOR_TARGET=20
-if has_cmd node; then
-    node_ver=$(node --version | sed 's/^v//')
-    node_major=${node_ver%%.*}
-    echo "node already installed: v$node_ver"
-    if (( node_major < NODE_MAJOR_TARGET )); then
-        echo "  upgrading from v$node_ver to Node.js $NODE_MAJOR_TARGET.x (LTS)."
-        curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR_TARGET}.x" | bash -
-        apt-get install -y nodejs
+
+node_major() {
+    has_cmd node || return 0
+    local ver
+    ver=$(node --version | sed 's/^v//')
+    echo "${ver%%.*}"
+}
+
+install_node() {
+    case "$PKG_FAMILY" in
+        debian)
+            curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR_TARGET}.x" | bash -
+            apt-get install -y nodejs
+            ;;
+        fedora)
+            # Fedora ships a current Node; only older RHEL rebuilds need
+            # NodeSource, so try the distro package and check the result.
+            dnf install -y nodejs npm || true
+            local got
+            got=$(node_major)
+            if (( ${got:-0} < NODE_MAJOR_TARGET )); then
+                curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR_TARGET}.x" | bash -
+                dnf install -y nodejs
+            fi
+            ;;
+        arch)
+            pacman -S --needed --noconfirm nodejs npm corepack
+            ;;
+    esac
+}
+
+current_major=$(node_major)
+if [[ -n "$current_major" ]]; then
+    echo "node already installed: v$(node --version | sed 's/^v//')"
+    if (( current_major < NODE_MAJOR_TARGET )); then
+        echo "  upgrading to Node.js $NODE_MAJOR_TARGET.x (LTS)."
+        install_node
     fi
 else
-    curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR_TARGET}.x" | bash -
-    apt-get install -y nodejs
+    install_node
 fi
 
 # ---------- 4. Yarn via corepack -----------------------------------------
 
 # Yarn is enabled through corepack (ships with Node >=16) rather than
-# the legacy `yarn` apt package, which is unmaintained on some mirrors.
+# the distro `yarn` package, which is Berry on Debian/Ubuntu and would
+# rewrite yarn.lock into a format CI's --frozen-lockfile rejects.
 section "Yarn (via corepack)"
-corepack enable
 # Pin Classic (1.x) — matches the `yarn.lock` format the workflow expects.
-corepack prepare yarn@1.22.22 --activate
+YARN_VERSION=1.22.22
+if has_cmd corepack; then
+    corepack enable
+    corepack prepare "yarn@$YARN_VERSION" --activate
+else
+    # Fedora ships no corepack package and strips the copy bundled in the
+    # upstream Node tarball, so fall back to a plain global install.
+    npm install -g "yarn@$YARN_VERSION"
+fi
 yarn --version
 
 # ---------- 5. Rust (rustup) for the runner user --------------------------

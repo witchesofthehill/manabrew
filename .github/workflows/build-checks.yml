@@ -30,6 +30,7 @@ jobs:
       run_rust: ${{ steps.scope.outputs.run_rust }}
       run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
+      run_runner_setup: ${{ steps.scope.outputs.run_runner_setup }}
     steps:
       - name: Classify changed files
         id: scope
@@ -93,8 +94,15 @@ jobs:
               '.github/workflows/build-checks.yml',
             ];
 
+            // Provisioning is per-distro package knowledge that nothing else
+            // exercises, so it is only worth a container matrix when it moves.
+            const RUNNER_SETUP_PATHS = [
+              'scripts/setup-linux-runner.sh',
+              '.github/workflows/build-checks.yml',
+            ];
+
             if (context.eventName !== 'pull_request') {
-              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room']) {
+              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room', 'run_runner_setup']) {
                 core.setOutput(key, 'true');
               }
               return;
@@ -111,6 +119,7 @@ jobs:
             core.setOutput('run_rust', matches(files, RUST_PATHS) ? 'true' : 'false');
             core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
             core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
+            core.setOutput('run_runner_setup', matches(files, RUNNER_SETUP_PATHS) ? 'true' : 'false');
 
   # ── TypeScript type-check ──────────────────────────────────────────
   # Builds the wasm bundle (or restores it from cache) and uploads it as an
@@ -375,6 +384,32 @@ jobs:
           done
           exit $EXIT
 
+  # ── Harness entrypoint guard ───────────────────────────────────────
+  # `forge.harness.protocol.*` is generated and gitignored, so Maven can
+  # only compile forge-harness after the codegen has run. Anything that
+  # calls Maven on that module must therefore go through harness.mjs, or
+  # (in a Dockerfile) copy the sources from a protocol-builder stage.
+  # This has regressed before, in regression.yml.
+  harness-entrypoint:
+    name: Harness entrypoint guard
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject bare Maven invocations on forge-harness
+        run: |
+          bad=0
+          while IFS= read -r file; do
+            grep -qE "harness\.mjs|gen-harness-prompts|protocol-builder" "$file" && continue
+            echo "::error file=$file::invokes Maven on forge-harness without the protocol codegen; use scripts/harness.mjs"
+            bad=1
+          done < <(grep -rlE "mvn .*-pl +forge-harness" .github/workflows 2>/dev/null; \
+                   find . -name "Dockerfile*" -not -path "./node_modules/*" -not -path "./forge/*" \
+                        -exec grep -lE "mvn .*-pl +forge-harness" {} +)
+          exit $bad
+
   # ── Mobile builds (unsigned) ───────────────────────────────────────
   # Compile-and-bundle checks mirroring publish.yml's ios-ipa / android-apk
   # jobs (same cardset-archive step, same runner pins) so a PR can't break
@@ -562,6 +597,66 @@ jobs:
 
       - name: Build and test forge-harness
         run: node scripts/harness.mjs test
+
+  # ── Runner provisioning (per-distro) ───────────────────────────────
+  # setup-linux-runner.sh is never executed by any other job, so its
+  # package sets can only rot silently. Run it to completion in each
+  # supported family and assert the toolchain it promises, plus the
+  # JAVA_HOME derivation the README documents (the JDK layout differs
+  # per distro: Debian suffixes the arch, Fedora and Arch do not).
+  linux-runner-setup:
+    name: Runner provisioning (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_runner_setup == 'true'
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "debian:trixie"
+            jdk: openjdk-21-jdk-headless
+          - image: "ubuntu:24.04"
+            jdk: openjdk-21-jdk-headless
+          - image: "fedora:41"
+            jdk: java-21-openjdk-devel
+          - image: "archlinux:latest"
+            jdk: jdk21-openjdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provision ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" "${{ matrix.image }}" bash -euo pipefail -c '
+            install_pkgs() {
+              if command -v apt-get >/dev/null; then
+                apt-get update -y
+                apt-get install -y --no-install-recommends "$@"
+              elif command -v dnf >/dev/null; then
+                dnf install -y "$@"
+              else
+                pacman -Sy --needed --noconfirm "$@"
+              fi
+            }
+            install_pkgs sudo ca-certificates
+            bash /repo/scripts/setup-linux-runner.sh
+
+            node_major=$(node --version | sed "s/^v//" | cut -d. -f1)
+            (( node_major >= 20 )) || { echo "node $node_major < 20"; exit 1; }
+            case "$(yarn --version)" in
+              1.*) ;;
+              *) echo "yarn is not Classic: $(yarn --version)"; exit 1 ;;
+            esac
+            for tool in gcc pkg-config git jq cargo rustc wasm-pack; do
+              command -v "$tool" >/dev/null || { echo "missing $tool"; exit 1; }
+            done
+            rustup target list --installed | grep -qx wasm32-unknown-unknown
+
+            install_pkgs ${{ matrix.jdk }}
+            JAVA_HOME=$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")
+            "$JAVA_HOME/bin/java" -version
+            echo "JAVA_HOME resolved to $JAVA_HOME"
+          '
 
   forge-room-graalvm-windows:
     name: GraalVM build (Windows)

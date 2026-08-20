@@ -52,7 +52,7 @@ The node authenticates to the relay with the relay's server key. Set it via
 
   </TabItem>
   <TabItem label="From source">
-    You need a Rust toolchain, a JDK (17+), Maven, and a full checkout:
+    You need a Rust toolchain, Node.js with Yarn, a JDK (17+), Maven, and a full checkout:
 
     ```bash
     git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
@@ -62,9 +62,14 @@ The node authenticates to the relay with the relay's server key. Set it via
     Build the Forge harness jar and the cardset archive once:
 
     ```bash
-    mvn -pl forge-harness -am package -DskipTests
+    yarn install
+    yarn build:harness
     cargo run --release -p forge-cardset-archive --features build --bin build-cardset-archive
     ```
+
+    Build the harness through `yarn build:harness`, not Maven directly — it
+    generates the harness's protocol classes from the Rust protocol crate before
+    Maven runs, and a bare `mvn` call fails without them.
 
     Then run the node:
 
@@ -73,13 +78,12 @@ The node authenticates to the relay with the relay's server key. Set it via
     SELF_HOSTED_NODE_SERVER_KEY=<your-server-key> \
     SELF_HOSTED_NODE_ENGINE_BACKEND=forge \
     SELF_HOSTED_NODE_RELAY_URL=wss://relay.manabrew.app \
-    JAVA_HOME="$(/usr/libexec/java_home)" \
+    JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
     cargo run --release -p self-hosted-node --features java-forge
     ```
 
-    `$(/usr/libexec/java_home)` resolves the JDK path on macOS; on Linux point
-    `JAVA_HOME` at your JDK installation (for example
-    `/usr/lib/jvm/temurin-21-jdk`).
+    Point `JAVA_HOME` at your own JDK installation — the path above is a Debian
+    example. On macOS use `JAVA_HOME="$(/usr/libexec/java_home -v 21)"`.
 
   </TabItem>
 </Tabs>

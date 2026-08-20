@@ -5,10 +5,13 @@ reference implementation.
 
 ## Prerequisites
 
-1. **Java 18** (Zulu recommended):
+1. **JDK 17+** (CI builds on 21). The harness auto-detects the highest JDK ≥17
+   under `/usr/lib/jvm` (Linux) or `/Library/Java/JavaVirtualMachines` (macOS),
+   so `JAVA_HOME` is only needed to pin a specific one:
 
    ```bash
-   export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home
+   export JAVA_HOME=$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")  # Linux
+   export JAVA_HOME="$(/usr/libexec/java_home -v 21)"                               # macOS
    ```
 
 ## How to run a parity test

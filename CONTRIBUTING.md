@@ -167,7 +167,7 @@ What this means for your PR:
 - To force a specific version (e.g. cutting a milestone), hand-set it in the
   crate's `Cargo.toml` in the PR: the release run honors any version ahead of
   the last tag. Preview locally with `cargo xtask plan` (needs `git-cliff` on
-  PATH: `brew install git-cliff`).
+  PATH: `cargo install git-cliff`, or `brew install git-cliff` on macOS).
 
 ## What not to include
 

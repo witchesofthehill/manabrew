@@ -98,7 +98,10 @@ if (commandExists("wasm-opt")) {
   run("mv", [tmpOut, wasmFile]);
 } else {
   console.log("\n[build-wasm] `wasm-opt` not on PATH; shipping unoptimized wasm.");
-  console.log("[build-wasm] Install Binaryen (`brew install binaryen`) to fix Firefox compat");
+  const binaryenHint =
+    { darwin: "brew install binaryen", linux: "apt install binaryen" }[process.platform] ??
+    "https://github.com/WebAssembly/binaryen/releases";
+  console.log(`[build-wasm] Install Binaryen (${binaryenHint}) to fix Firefox compat`);
   console.log("[build-wasm] and shrink the .wasm by ~30–50%.");
 }
 

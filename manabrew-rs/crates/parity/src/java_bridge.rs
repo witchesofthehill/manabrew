@@ -840,17 +840,21 @@ fn extract_jdk_version(name: &str) -> Option<u32> {
         .find_map(|s| s.parse().ok())
 }
 
+/// Directories the platform installs JDKs into, searched when JAVA_HOME is unset.
+const JDK_SEARCH_DIRS: [&str; 2] = ["/Library/Java/JavaVirtualMachines", "/usr/lib/jvm"];
+
 /// Resolve the `java` binary path. Forge requires Java 17+.
 /// If JAVA_HOME points to a JDK ≥17 use it; otherwise auto-detect the
-/// highest-version JDK under /Library/Java/JavaVirtualMachines.
+/// highest-version JDK under `JDK_SEARCH_DIRS`.
 fn resolve_java_bin(verbose: bool) -> String {
     // Check JAVA_HOME first — only use it if ≥17 (Forge's minimum).
     if let Ok(home) = std::env::var("JAVA_HOME") {
         let home_path = PathBuf::from(&home);
         let bin = home_path.join("bin").join("java");
         // Try to infer version from the JDK directory name (e.g. "zulu-18.jdk").
-        // JAVA_HOME is usually .../zulu-18.jdk/Contents/Home, so look for the
-        // ancestor whose name ends with ".jdk".
+        // On macOS JAVA_HOME is .../zulu-18.jdk/Contents/Home, so look for the
+        // ancestor whose name ends with ".jdk"; Linux homes have no such
+        // ancestor and fall through to the unwrap_or below.
         let dir_name = home_path
             .ancestors()
             .filter_map(|p| p.file_name())
@@ -872,16 +876,25 @@ fn resolve_java_bin(verbose: bool) -> String {
         }
     }
 
-    // Auto-detect: pick the highest-versioned JDK (≥17) on macOS.
-    let jvms_dir = PathBuf::from("/Library/Java/JavaVirtualMachines");
-    if jvms_dir.is_dir() {
-        let mut best: Option<(u32, PathBuf)> = None;
+    // Auto-detect: pick the highest-versioned JDK (≥17) the platform installed.
+    let mut best: Option<(u32, PathBuf)> = None;
+    for dir in JDK_SEARCH_DIRS {
+        let jvms_dir = PathBuf::from(dir);
+        if !jvms_dir.is_dir() {
+            continue;
+        }
         if let Ok(entries) = std::fs::read_dir(&jvms_dir) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if let Some(v) = extract_jdk_version(&name) {
                     if v >= 17 {
-                        let home = entry.path().join("Contents").join("Home");
+                        // macOS nests the JDK in a bundle; Linux uses the dir itself.
+                        let bundle = entry.path().join("Contents").join("Home");
+                        let home = if bundle.is_dir() {
+                            bundle
+                        } else {
+                            entry.path()
+                        };
                         if home.join("bin").join("java").exists()
                             && best.as_ref().is_none_or(|(bv, _)| v > *bv)
                         {
@@ -891,12 +904,12 @@ fn resolve_java_bin(verbose: bool) -> String {
                 }
             }
         }
-        if let Some((v, home)) = best {
-            if verbose {
-                eprintln!("[parity]   auto-detected Java {}: {}", v, home.display());
-            }
-            return home.join("bin").join("java").to_string_lossy().to_string();
+    }
+    if let Some((v, home)) = best {
+        if verbose {
+            eprintln!("[parity]   auto-detected Java {}: {}", v, home.display());
         }
+        return home.join("bin").join("java").to_string_lossy().to_string();
     }
 
     "java".to_string()

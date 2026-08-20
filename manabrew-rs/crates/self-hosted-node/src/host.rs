@@ -14,8 +14,9 @@ use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, ClientToServerMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    ClientMessage, ClientPlatform, EngineKind, GameFormat, PlayerDeckInfo, ResumeRoomRequest,
-    RoomInfo, RoomStatus, ServerMessage, StateEnvelope, PROTOCOL_VERSION,
+    identity_token, ClientMessage, ClientPlatform, EngineKind, GameFormat, IdentityProof,
+    PlayerDeckInfo, ResumeRoomRequest, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
+    PROTOCOL_VERSION,
 };
 use manabrew_protocol::deck_dto::Deck;
 use manabrew_protocol::transport::DirectiveInput;
@@ -2180,6 +2181,14 @@ async fn relay_writer(mut write: WsWrite, mut outbound: tokio_mpsc::UnboundedRec
     let _ = write.close().await;
 }
 
+fn self_minted_identity_token(kind: &str, handle: &str) -> String {
+    let iat = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs() as i64)
+        .unwrap_or_default();
+    identity_token::mint_unsigned(&format!("{kind}:{handle}"), handle, iat, 24 * 60 * 60)
+}
+
 impl RelayClient {
     async fn connect(
         relay_url: &str,
@@ -2202,7 +2211,10 @@ impl RelayClient {
                 username: username.to_string(),
                 password: password.to_string(),
                 service: true,
-                identity: None,
+                identity: Some(IdentityProof {
+                    token: Some(self_minted_identity_token("node", username)),
+                    device: None,
+                }),
                 client_platform: ClientPlatform::Unknown,
             })
             .await?;

@@ -9,11 +9,11 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use tracing::warn;
 
+use crate::protocol::identity_token::{
+    self, DecodedIdentityToken, IdentityTokenClaims, HUB_ISSUER, RELAY_AUDIENCE, SELF_ISSUER,
+    SIGNED_ALG,
+};
 use crate::protocol::IdentityProof;
-
-// Keep in sync with manabrew-hub/src/auth/token.rs, which mints these tokens.
-const ISSUER: &str = "manabrew-hub";
-const AUDIENCE: &str = "manabrew-relay";
 
 const CLOCK_SKEW_SECS: i64 = 60;
 const JWKS_REFRESH_COOLDOWN: Duration = Duration::from_secs(60);
@@ -36,27 +36,11 @@ impl SessionIdentity {
     }
 }
 
-#[derive(Deserialize)]
-struct JwtHeader {
-    alg: String,
-    kid: String,
-}
-
-#[derive(Deserialize)]
-struct IdentityClaims {
-    sub: String,
-    #[serde(default)]
-    handle: String,
-    iss: String,
-    aud: String,
-    iat: i64,
-    exp: i64,
-}
-
 #[derive(Default)]
 pub struct ResolvedIdentity {
     pub identities: Vec<SessionIdentity>,
     pub name: Option<String>,
+    pub name_verified: bool,
 }
 
 #[derive(Deserialize)]
@@ -102,11 +86,16 @@ impl IdentityVerifier {
 
     pub async fn resolve(&self, proof: &IdentityProof) -> ResolvedIdentity {
         let mut resolved = ResolvedIdentity::default();
-        if let Some(token) = proof.token.as_deref() {
-            if let Some((identity, name)) = self.account_identity(token).await {
+        if let Some(decoded) = proof.token.as_deref().and_then(identity_token::decode) {
+            if decoded.is_unsigned() {
+                if let Some(name) = unverified_name(&decoded) {
+                    resolved.name = Some(name);
+                }
+            } else if let Some((identity, name)) = self.account_identity(&decoded).await {
                 resolved.identities.push(identity);
                 if !name.trim().is_empty() {
                     resolved.name = Some(name);
+                    resolved.name_verified = true;
                 }
             }
         }
@@ -116,37 +105,31 @@ impl IdentityVerifier {
         resolved
     }
 
-    async fn account_identity(&self, token: &str) -> Option<(SessionIdentity, String)> {
-        let mut parts = token.split('.');
-        let encoded_header = parts.next()?;
-        let encoded_claims = parts.next()?;
-        let encoded_signature = parts.next()?;
-        if parts.next().is_some() {
+    async fn account_identity(
+        &self,
+        decoded: &DecodedIdentityToken,
+    ) -> Option<(SessionIdentity, String)> {
+        if decoded.header.alg != SIGNED_ALG {
             return None;
         }
 
-        let header: JwtHeader = serde_json::from_slice(&decode(encoded_header)?).ok()?;
-        if header.alg != "EdDSA" {
-            return None;
-        }
-
-        let key = self.public_key(&header.kid).await?;
-        let signing_input = format!("{encoded_header}.{encoded_claims}");
+        let key = self.public_key(decoded.header.kid.as_deref()?).await?;
         UnparsedPublicKey::new(&ED25519, &key)
-            .verify(signing_input.as_bytes(), &decode(encoded_signature)?)
+            .verify(decoded.signing_input.as_bytes(), &decoded.signature)
             .ok()?;
 
-        let claims: IdentityClaims = serde_json::from_slice(&decode(encoded_claims)?).ok()?;
-        if claims.iss != ISSUER || claims.aud != AUDIENCE || claims.sub.is_empty() {
+        let claims = &decoded.claims;
+        if claims.iss != HUB_ISSUER || claims.aud != RELAY_AUDIENCE || claims.sub.is_empty() {
+            return None;
+        }
+        if !claims_current(claims) {
             return None;
         }
 
-        let now = chrono::Utc::now().timestamp();
-        if claims.exp + CLOCK_SKEW_SECS < now || claims.iat - CLOCK_SKEW_SECS > now {
-            return None;
-        }
-
-        Some((SessionIdentity::Account(claims.sub), claims.handle))
+        Some((
+            SessionIdentity::Account(claims.sub.clone()),
+            claims.handle.clone(),
+        ))
     }
 
     async fn public_key(&self, kid: &str) -> Option<Vec<u8>> {
@@ -199,6 +182,26 @@ pub fn label(identities: &[SessionIdentity]) -> &'static str {
     identities
         .first()
         .map_or("anonymous", SessionIdentity::kind)
+}
+
+fn unverified_name(decoded: &DecodedIdentityToken) -> Option<String> {
+    let claims = &decoded.claims;
+    if claims.iss != SELF_ISSUER || claims.aud != RELAY_AUDIENCE {
+        return None;
+    }
+    if !claims_current(claims) {
+        return None;
+    }
+    let handle = claims.handle.trim();
+    if handle.is_empty() {
+        return None;
+    }
+    Some(handle.to_string())
+}
+
+fn claims_current(claims: &IdentityTokenClaims) -> bool {
+    let now = chrono::Utc::now().timestamp();
+    claims.exp + CLOCK_SKEW_SECS >= now && claims.iat - CLOCK_SKEW_SECS <= now
 }
 
 fn device_identity(secret: &str) -> Option<SessionIdentity> {
@@ -269,8 +272,8 @@ mod tests {
         serde_json::json!({
             "sub": "account-1",
             "handle": "brewer",
-            "iss": ISSUER,
-            "aud": AUDIENCE,
+            "iss": HUB_ISSUER,
+            "aud": RELAY_AUDIENCE,
             "iat": now,
             "exp": now + 600,
         })
@@ -292,6 +295,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn accepts_a_self_minted_unsigned_token_as_an_unverified_name() {
+        let verifier = IdentityVerifier::new(None);
+        let now = chrono::Utc::now().timestamp();
+        let token = identity_token::mint_unsigned("node:test", "Free room host", now, 600);
+
+        let resolved = verifier.resolve(&token_proof(token)).await;
+
+        assert_eq!(resolved.name.as_deref(), Some("Free room host"));
+        assert!(!resolved.name_verified);
+        assert!(resolved.identities.is_empty());
+
+        let expired = identity_token::mint_unsigned("node:test", "stale", now - 3600, 600);
+        assert!(verifier.resolve(&token_proof(expired)).await.name.is_none());
+    }
+
+    #[tokio::test]
+    async fn an_unsigned_token_cannot_claim_the_hub_issuer() {
+        let verifier = IdentityVerifier::new(None);
+        let now = chrono::Utc::now().timestamp();
+        let header = URL_SAFE_NO_PAD.encode(r#"{"alg":"none"}"#);
+        let claims = URL_SAFE_NO_PAD.encode(
+            serde_json::json!({
+                "sub": "account-1", "handle": "impostor",
+                "iss": HUB_ISSUER, "aud": RELAY_AUDIENCE,
+                "iat": now, "exp": now + 600,
+            })
+            .to_string(),
+        );
+
+        let resolved = verifier
+            .resolve(&token_proof(format!("{header}.{claims}.")))
+            .await;
+
+        assert!(resolved.name.is_none());
+        assert!(resolved.identities.is_empty());
+    }
+
+    #[tokio::test]
     async fn rejects_tampered_expired_and_foreign_tokens() {
         let signer = Signer::new();
         let verifier = verifier_for(&signer).await;
@@ -306,7 +347,7 @@ mod tests {
             .is_empty());
 
         let expired = signer.mint(serde_json::json!({
-            "sub": "account-1", "iss": ISSUER, "aud": AUDIENCE,
+            "sub": "account-1", "iss": HUB_ISSUER, "aud": RELAY_AUDIENCE,
             "iat": now - 3600, "exp": now - 1800,
         }));
         assert!(verifier
@@ -316,7 +357,7 @@ mod tests {
             .is_empty());
 
         let wrong_audience = signer.mint(serde_json::json!({
-            "sub": "account-1", "iss": ISSUER, "aud": "someone-else",
+            "sub": "account-1", "iss": HUB_ISSUER, "aud": "someone-else",
             "iat": now, "exp": now + 600,
         }));
         assert!(verifier

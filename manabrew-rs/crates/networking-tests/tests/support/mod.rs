@@ -240,6 +240,27 @@ impl Client {
         username: &str,
         device: Option<&str>,
     ) -> Result<Client, String> {
+        Client::connect_with_proof(
+            relay_url,
+            username,
+            username,
+            device.map(|secret| IdentityProof {
+                token: None,
+                device: Some(secret.to_string()),
+            }),
+        )
+        .await
+    }
+
+    /// `legacy_username` goes into the deprecated `Authenticate.username`
+    /// field; `session_username` is the name the session is expected to get
+    /// (the identity token's handle when one is sent).
+    pub async fn connect_with_proof(
+        relay_url: &str,
+        legacy_username: &str,
+        session_username: &str,
+        identity: Option<IdentityProof>,
+    ) -> Result<Client, String> {
         let (socket, _) = connect_async(relay_url)
             .await
             .map_err(|error| format!("connect {relay_url}: {error}"))?;
@@ -247,13 +268,10 @@ impl Client {
         send(
             &mut write,
             &ClientMessage::Authenticate {
-                username: username.to_string(),
+                username: legacy_username.to_string(),
                 password: "forge".to_string(),
                 service: false,
-                identity: device.map(|secret| IdentityProof {
-                    token: None,
-                    device: Some(secret.to_string()),
-                }),
+                identity,
                 client_platform: ClientPlatform::Unknown,
             },
         )
@@ -262,7 +280,7 @@ impl Client {
             match recv(&mut write, &mut read).await {
                 Some(ServerMessage::AuthResult { success: true, .. }) => {
                     return Ok(Client {
-                        username: username.to_string(),
+                        username: session_username.to_string(),
                         slot: None,
                         game_id: None,
                         write,

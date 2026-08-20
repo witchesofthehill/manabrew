@@ -10,6 +10,7 @@ mod support;
 use std::time::{Duration, Instant};
 
 use libtest_mimic::Arguments;
+use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
 use support::{
     case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Sim, GRACE_DEADLINE,
 };
@@ -354,6 +355,58 @@ async fn proven_owner_takes_over_its_live_session() {
     .await;
 }
 
+async fn token_handle_names_the_session() {
+    scenario(
+        "a client whose stored preferences name went stale while its identity token carries the real handle (the signed-in-reload shape that broke lobby controls).",
+        "it authenticates sending the stale legacy username alongside a self-minted token whose handle differs, then creates a room.",
+        "the session and its seat are named by the token handle everywhere, and the stale legacy name exists nowhere on the relay.",
+    );
+    let sim = Sim::spawn_relay_only(9648).await;
+    let iat = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    let token = identity_token::mint_unsigned("self:test", "real-handle", iat, 600);
+    let mut player = Client::connect_with_proof(
+        &sim.relay_url,
+        "stale-prefs-name",
+        "real-handle",
+        Some(IdentityProof {
+            token: Some(token),
+            device: None,
+        }),
+    )
+    .await
+    .unwrap();
+
+    player.create_room("Renamed table").await.unwrap();
+    let room = player.wait_own_room().await.unwrap();
+
+    assert!(
+        room.players
+            .iter()
+            .any(|p| p.username == "real-handle" && p.connected),
+        "the seat must carry the token handle, got {:?}",
+        room.players
+            .iter()
+            .map(|p| p.username.as_str())
+            .collect::<Vec<_>>()
+    );
+    let players = sim.players().await;
+    assert!(
+        players.iter().any(|p| p.username == "real-handle"),
+        "the session must be listed under the token handle"
+    );
+    assert!(
+        !players.iter().any(|p| p.username == "stale-prefs-name")
+            && !room
+                .players
+                .iter()
+                .any(|p| p.username == "stale-prefs-name"),
+        "the stale legacy username must not exist anywhere"
+    );
+}
+
 async fn ghost_session_reaped_on_room_teardown() {
     scenario(
         "an in-game room where one player vanished (session preserved for reconnect) and one survivor remains.",
@@ -460,6 +513,10 @@ fn main() {
         case(
             "proven_owner_takes_over_its_live_session",
             proven_owner_takes_over_its_live_session,
+        ),
+        case(
+            "token_handle_names_the_session",
+            token_handle_names_the_session,
         ),
         case(
             "ghost_session_reaped_on_room_teardown",

@@ -1,7 +1,8 @@
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{
-    ClientMessage, ClientPlatform, RoomStatus, ServerMessage, StateEnvelope,
+    identity_token, ClientMessage, ClientPlatform, IdentityProof, RoomStatus, ServerMessage,
+    StateEnvelope,
 };
 use manabrew_protocol::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
@@ -64,6 +65,29 @@ pub struct BotState {
     failure: Option<String>,
 }
 
+fn unix_now() -> i64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        (js_sys::Date::now() / 1000.0) as i64
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_secs() as i64)
+            .unwrap_or_default()
+    }
+}
+
+fn self_minted_identity_token(kind: &str, handle: &str) -> String {
+    identity_token::mint_unsigned(
+        &format!("{kind}:{handle}"),
+        handle,
+        unix_now(),
+        24 * 60 * 60,
+    )
+}
+
 impl BotState {
     pub fn answer_delay(&self) -> Option<std::time::Duration> {
         self.config
@@ -90,7 +114,10 @@ impl BotState {
             username: self.config.username.clone(),
             password: self.config.password.clone(),
             service: true,
-            identity: None,
+            identity: Some(IdentityProof {
+                token: Some(self_minted_identity_token("bot", &self.config.username)),
+                device: None,
+            }),
             client_platform: ClientPlatform::Unknown,
         }]
     }

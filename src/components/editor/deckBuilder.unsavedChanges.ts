@@ -4,7 +4,7 @@ import type { EditorDeck } from "@/types/manabrew";
 
 let _hasUnsavedChanges = false;
 const _listeners = new Set<() => void>();
-let _lastSavedSnapshotRef: string | null = null;
+let _lastSavedDeckRef: EditorDeck | null = null;
 
 export function setUnsavedState(snapshot: string, current: string) {
   const next = current !== snapshot;
@@ -14,8 +14,8 @@ export function setUnsavedState(snapshot: string, current: string) {
   }
 }
 
-export function setLastSavedSnapshotRef(snapshot: string | null) {
-  _lastSavedSnapshotRef = snapshot;
+export function setLastSavedDeckRef(deck: EditorDeck | null) {
+  _lastSavedDeckRef = deck;
 }
 
 export function buildDeckSnapshot(deck: EditorDeck): string {
@@ -60,11 +60,6 @@ export function useDeckUnsavedChanges(): boolean {
 }
 
 export function revertDeckToLastSaved() {
-  if (!_lastSavedSnapshotRef) return;
-  try {
-    const deck = JSON.parse(_lastSavedSnapshotRef);
-    useDeckStore.getState().loadDeck(deck);
-  } catch {
-    /* ignore parse errors */
-  }
+  if (!_lastSavedDeckRef) return;
+  useDeckStore.getState().loadDeck(_lastSavedDeckRef);
 }

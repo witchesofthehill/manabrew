@@ -69,15 +69,14 @@ function printingKeys(deck: EditorDeck): Map<string, string> {
 
 export function DeckChangeSummary({
   currentDeck,
-  savedSnapshot,
+  savedDeck,
 }: {
   currentDeck: EditorDeck;
-  savedSnapshot: string;
+  savedDeck: EditorDeck;
 }) {
   const [open, setOpen] = useState(false);
   const quantities = useCollectionStore((state) => state.quantities);
   const changes = useMemo(() => {
-    const savedDeck = JSON.parse(savedSnapshot) as EditorDeck;
     const before = cardCounts(savedDeck);
     const after = cardCounts(currentDeck);
     const quantityChanges = [...new Set([...before.keys(), ...after.keys()])]
@@ -103,7 +102,7 @@ export function DeckChangeSummary({
       coverageDelta:
         coverageShortage(currentDeck, quantities) - coverageShortage(savedDeck, quantities),
     };
-  }, [currentDeck, quantities, savedSnapshot]);
+  }, [currentDeck, quantities, savedDeck]);
   const changeCount =
     changes.quantityChanges.length +
     changes.moves.length +

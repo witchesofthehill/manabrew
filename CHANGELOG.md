@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.17.0](https://github.com/witchesofthehill/manabrew/compare/v3.16.0...v3.17.0) (2026-08-20)
+
+### Features
+
+* **node:** stop relay writes from blocking the room loo, send patched state and move to graalVM ([#697](https://github.com/witchesofthehill/manabrew/issues/697)) ([cd242e8](https://github.com/witchesofthehill/manabrew/commit/cd242e857283b1e92d0c4a6b06bfd5e01e7abac9))
+
 ## [3.16.0](https://github.com/witchesofthehill/manabrew/compare/v3.15.5...v3.16.0) (2026-08-19)
 
 ### Features

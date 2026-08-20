@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.17.4](https://github.com/witchesofthehill/manabrew/compare/v3.17.3...v3.17.4) (2026-08-20)
+
+### Fixes
+
+* **ui:** keep the last saved deck, not its snapshot ([#725](https://github.com/witchesofthehill/manabrew/issues/725)) ([13d10ac](https://github.com/witchesofthehill/manabrew/commit/13d10ac2c753161be978b5d6d1e059ba45717137))
+
 ## [3.17.3](https://github.com/witchesofthehill/manabrew/compare/v3.17.2...v3.17.3) (2026-08-20)
 
 ### Fixes

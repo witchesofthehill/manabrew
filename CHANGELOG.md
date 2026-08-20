@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.17.1](https://github.com/witchesofthehill/manabrew/compare/v3.17.0...v3.17.1) (2026-08-20)
+
+### Fixes
+
+* **harness:** remove blocking action trace ([#694](https://github.com/witchesofthehill/manabrew/issues/694)) ([3895b0d](https://github.com/witchesofthehill/manabrew/commit/3895b0d240ede1aa1b4ccdd08d3fe90f3d9f4eb8))
+
+## [3.17.0](https://github.com/witchesofthehill/manabrew/compare/v3.16.0...v3.17.0) (2026-08-20)
+
+### Features
+
+* **node:** stop relay writes from blocking the room loo, send patched state and move to graalVM ([#697](https://github.com/witchesofthehill/manabrew/issues/697)) ([cd242e8](https://github.com/witchesofthehill/manabrew/commit/cd242e857283b1e92d0c4a6b06bfd5e01e7abac9))
+* **observability:** expand product analytics dashboards ([#713](https://github.com/witchesofthehill/manabrew/issues/713)) ([dd78380](https://github.com/witchesofthehill/manabrew/commit/dd78380af8e21c8cd34d202f851e5787ac9ee909))
+
 ## [3.16.0](https://github.com/witchesofthehill/manabrew/compare/v3.15.5...v3.16.0) (2026-08-19)
 
 ### Features

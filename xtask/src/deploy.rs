@@ -16,8 +16,7 @@
 //!   --only S...  pull + force-recreate the named compose services (config
 //!                changes to bind-mounted files, e.g. grafana provisioning)
 //!   --staging    roll the staging slot out (compose.staging.yml on the prod
-//!                box, `:staging` images); --branch names what is deployed —
-//!                only the `staging` branch gets a hosted-AI node
+//!                box, `:staging` images); --branch names what is deployed
 //!   --local      build and run this checkout on THIS machine
 //!                (compose.selfhost.yml — own relay, published ports)
 //!   --ref R      fetch config at this exact ref (sha/tag/branch) instead of
@@ -65,9 +64,13 @@ const CONFIG_EXCLUDES: [&str; 5] = [
 const COMPOSE_FILE: &str = "compose.production.yml";
 const GHCR: &str = "ghcr.io/witchesofthehill";
 const RELAY_BIN: &str = "/usr/local/bin/manabrew-server";
-const GATE_CRATES: [&str; 4] = [
+// Every crate whose wire format an installed client depends on. StateEnvelope
+// lives in manabrew-agent-interface rather than the protocol crates, so leaving
+// it out let an envelope change deploy early, ahead of the installers.
+const GATE_CRATES: [&str; 5] = [
     "manabrew-protocol",
     "manabrew-relay-protocol",
+    "manabrew-agent-interface",
     "manabrew-server",
     "manabrew-hub",
 ];
@@ -86,11 +89,11 @@ const PULL_RETRY_SECS: u32 = 30;
 
 const STAGING_COMPOSE: &str = "compose.staging.yml";
 const STAGING_WEB: &str = "manabrew-staging";
-const STAGING_NODE: &str = "self-hosted-node-staging";
-const STAGING_SERVICES: [&str; 3] = [
+const STAGING_SERVICES: [&str; 4] = [
     "manabrew-staging",
     "manabrew-server-staging",
     "manabrew-hub-staging",
+    "self-hosted-node-staging",
 ];
 // staging-deploy.yml's deploy job `needs` the image builds in the SAME
 // workflow, so unlike prod this retry is only a safety net.
@@ -825,20 +828,11 @@ fn print_summary(
 
 // ── Staging slot ─────────────────────────────────────────────────────
 // compose.staging.yml on the prod box (/opt/manabrew-staging), always the
-// `:staging` images the same workflow run just built. `branch` names what the
-// slot serves; only `staging` gets a hosted-AI node — it is a Forge JVM on a
-// box that also runs production, and `up --remove-orphans` reclaims its
-// container when the profile is off.
+// `:staging` images the same workflow run just built; `branch` names what the
+// slot serves. Every deploy gets the hosted-AI node, so a preview is playable.
 fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
-    let hosted_ai = branch == "staging";
-    let mut services: Vec<&str> = STAGING_SERVICES.to_vec();
-    let profile = if hosted_ai {
-        services.push(STAGING_NODE);
-        "--profile hosted-ai "
-    } else {
-        ""
-    };
-    let list = services.join(" ");
+    let profile = "--profile hosted-ai ";
+    let list = STAGING_SERVICES.join(" ");
 
     let (config, label) = config_source(root, opts)?;
     sync_config(root, opts, &config, &label)?;
@@ -943,15 +937,10 @@ fn deploy_staging(root: &Path, opts: &Opts, branch: &str) -> Result<()> {
         &["log", "--pretty=format:- %s (%h, %an)", "-12"],
     )
     .unwrap_or_else(|_| "(no local checkout — see the branch on GitHub)".to_string());
-    let hosted_note = if hosted_ai {
-        "on (staging branch)"
-    } else {
-        "off (preview — node not started)"
-    };
     println!(
         "🧪 **Staging deploy complete** (branch `{branch}`, config `{label}`)\n\n\
          🔁 **Rolled out:** {list} (tag `{}`)\n\
-         🤖 **Hosted AI:** {hosted_note}\n\
+         🤖 **Hosted AI:** on\n\
          🧹 **Reclaimed:** {reclaimed}\n\n\
          📝 **Recent commits:**\n{recent}",
         opts.tag,

@@ -68,6 +68,40 @@ impl GameReplayCache {
                     None => self.last_state = Some(envelope.clone()),
                 }
             }
+            // Patches must be folded into the cached state, not stored raw: a
+            // resyncing client needs a whole board, and the outcome watcher
+            // reads gameOver out of it.
+            Some("stateDelta") => {
+                let slot = envelope.get("forPlayer").and_then(Value::as_str);
+                let previous = match slot {
+                    Some(slot) => self.last_state_by_slot.get(slot),
+                    None => self.last_state.as_ref(),
+                };
+                let Some(previous) = previous else {
+                    return;
+                };
+                let Some(patch) = envelope.get("patch") else {
+                    return;
+                };
+                let base = previous.get("state").cloned().unwrap_or(Value::Null);
+                let mut rebuilt = previous.clone();
+                if let Some(object) = rebuilt.as_object_mut() {
+                    object.insert(
+                        "state".to_string(),
+                        manabrew_relay_protocol::state_delta::apply(&base, patch),
+                    );
+                    if let Some(fingerprint) = envelope.get("fingerprint") {
+                        object.insert("fingerprint".to_string(), fingerprint.clone());
+                    }
+                }
+                self.observe_outcome(&rebuilt);
+                match slot {
+                    Some(slot) => {
+                        self.last_state_by_slot.insert(slot.to_string(), rebuilt);
+                    }
+                    None => self.last_state = Some(rebuilt),
+                }
+            }
             Some("prompt") => {
                 if let Some(slot) = envelope.get("forPlayer").and_then(Value::as_str) {
                     self.pending_prompts

@@ -82,6 +82,7 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
             password: key.to_string(),
             service: false,
             identity: None,
+            client_platform: manabrew_relay_protocol::ClientPlatform::Unknown,
         },
     )
     .await?;
@@ -128,6 +129,7 @@ async fn play_game(
                 password: key.to_string(),
                 service: false,
                 identity: None,
+                client_platform: manabrew_relay_protocol::ClientPlatform::Unknown,
             },
         )
         .await?;

@@ -136,7 +136,14 @@ export interface RoomRelayEnvelope<TPayload = unknown> {
 }
 
 export type StateEnvelope =
-  | { kind: "state"; forPlayer?: string; state: StateUpdate }
+  | { kind: "state"; forPlayer?: string; state: StateUpdate; fingerprint?: string }
+  | {
+      kind: "stateDelta";
+      forPlayer?: string;
+      base: string;
+      fingerprint: string;
+      patch: unknown;
+    }
   | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
   | { kind: "error"; forPlayer: string; error: ProtocolError }

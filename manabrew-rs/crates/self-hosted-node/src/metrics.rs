@@ -7,9 +7,11 @@ use tracing::{info, warn};
 const ROOMS_HOSTED: &str = "manabrew_node_rooms_hosted";
 const GAMES_ACTIVE: &str = "manabrew_node_games_active";
 const GAME_DURATION_SECONDS: &str = "manabrew_node_game_duration_seconds";
+const FORGE_DECISION_STAGE_SECONDS: &str = "manabrew_node_forge_decision_stage_seconds";
 const ENGINE_ERRORS: &str = "manabrew_node_engine_errors_total";
 const RELAY_RECONNECTS: &str = "manabrew_node_relay_reconnects_total";
 const BUILD_INFO: &str = "manabrew_node_build_info";
+const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
 const JVM_GC_TOTAL: &str = "manabrew_node_jvm_gc_total";
 const JVM_HEAP_AFTER_GC_BYTES: &str = "manabrew_node_jvm_heap_after_gc_bytes";
@@ -19,6 +21,7 @@ const LABEL_KIND: &str = "kind";
 const LABEL_CLEAN: &str = "clean";
 const LABEL_PLAYERS: &str = "players";
 const LABEL_SIGNATURE: &str = "signature";
+const LABEL_STAGE: &str = "stage";
 const LABEL_VERSION: &str = "version";
 
 const ENV_PUSH_URL: &str = "SELF_HOSTED_NODE_METRICS_PUSH_URL";
@@ -132,6 +135,10 @@ impl Drop for RoomHostedGuard {
     }
 }
 
+pub fn record_relay_send(elapsed: Duration) {
+    histogram!(RELAY_SEND_SECONDS).record(elapsed.as_secs_f64());
+}
+
 /// Pause and retained heap reported by the engine JVM's own GC log. The fleet
 /// ships no logs, so without this a stalled JVM is invisible from off-box.
 pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<u64>) {
@@ -144,6 +151,10 @@ pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<
 
 pub fn record_relay_reconnect() {
     counter!(RELAY_RECONNECTS).increment(1);
+}
+
+pub fn record_forge_decision_stage(stage: &'static str, elapsed: Duration) {
+    histogram!(FORGE_DECISION_STAGE_SECONDS, LABEL_STAGE => stage).record(elapsed.as_secs_f64());
 }
 
 pub fn record_engine_session_started() {

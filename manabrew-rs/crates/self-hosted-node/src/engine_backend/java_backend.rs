@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 #[cfg(forge_backend)]
 use std::time::Duration;
-#[cfg(forge_backend)]
+#[cfg(feature = "java-forge")]
 use std::time::Instant;
 
 use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
@@ -496,10 +496,15 @@ impl JavaEngineHandle {
 
     pub fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
         let bridge = self.bridge_for(session_id)?;
+        let mutex_started = Instant::now();
         let mut guard = bridge
             .lock()
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
-        guard.submit_action(session_id, action_json)
+        crate::metrics::record_forge_decision_stage("bridge_mutex", mutex_started.elapsed());
+        let call_started = Instant::now();
+        let result = guard.submit_action(session_id, action_json);
+        crate::metrics::record_forge_decision_stage("submit_action", call_started.elapsed());
+        result
     }
 
     pub fn get_prompt(
@@ -607,6 +612,14 @@ pub fn init_engine() -> Result<(), String> {
 
 #[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
 pub fn init_engine() -> Result<(), String> {
+    // Loading the card database into the isolate takes tens of seconds on a
+    // small box. Pay it here, before any room is advertised, rather than
+    // leaving it for whoever starts the first game.
+    if shared_isolate_enabled() {
+        drop(GraalEngineHandle::create(
+            &JavaRuntimeConfig::from_env().assets_dir,
+        )?);
+    }
     Ok(())
 }
 
@@ -731,6 +744,16 @@ unsafe impl Send for SharedIsolate {}
 #[cfg(feature = "graal-forge")]
 static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync::Mutex::new(None);
 
+// One isolate hosts every room's game (safe since the endstep concurrency
+// patches), so the card database loads once per node. Off keeps the historical
+// isolate-per-game shape.
+#[cfg(feature = "graal-forge")]
+fn shared_isolate_enabled() -> bool {
+    env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 #[cfg(feature = "graal-forge")]
 impl GraalBridge {
     fn create() -> Result<Self, String> {
@@ -823,13 +846,7 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        // SELF_HOSTED_NODE_SHARED_ISOLATE=1 hosts every room's game in one
-        // isolate (safe since the endstep concurrency patches), so the card db
-        // loads once. Default keeps the historical isolate-per-game shape.
-        let shared = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
-            .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-            .unwrap_or(false);
-        let bridge = if shared {
+        let bridge = if shared_isolate_enabled() {
             GraalBridge::create_in_shared_isolate(assets_dir)?
         } else {
             let bridge = GraalBridge::create()?;
@@ -1293,6 +1310,8 @@ fn run_hosted_engine_game_inner(
         remote_response_rxs.into_iter().collect();
     let mut last_prompt: Option<AgentPrompt> = None;
     let mut pending_roll_acks: usize = 0;
+    let mut decision_received: Option<Instant> = None;
+    let mut decision_submitted: Option<Instant> = None;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1388,6 +1407,7 @@ fn run_hosted_engine_game_inner(
                                 }
                             }
                         }
+                        decision_received = Some(Instant::now());
                         let action_json = serde_json::to_string(&action).map_err(|err| {
                             format!(
                                 "failed to serialize prompt output for player {player_index}: {err}"
@@ -1395,6 +1415,7 @@ fn run_hosted_engine_game_inner(
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
                         engine.submit_action(&session_id, &action_json)?;
+                        decision_submitted = Some(Instant::now());
                     }
                     Ok(ClientToServerMessage::Directive {
                         directive: DirectiveInput::Concede,
@@ -1419,10 +1440,20 @@ fn run_hosted_engine_game_inner(
             let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java prompt: {err}"))?;
             if last_prompt.as_ref().map(|p| p.prompt_id) != Some(prompt.prompt_id) {
+                if let Some(started) = decision_submitted.take() {
+                    crate::metrics::record_forge_decision_stage("next_prompt", started.elapsed());
+                }
+                if let Some(started) = decision_received.take() {
+                    crate::metrics::record_forge_decision_stage(
+                        "decision_total",
+                        started.elapsed(),
+                    );
+                }
                 last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
+                    let snapshots_started = Instant::now();
                     let prompt_msg = AgentMessage::Prompt(prompt);
                     for &agent_index in remote_response_rxs.keys() {
                         let state = AgentMessage::State(state_via_handle(
@@ -1442,6 +1473,10 @@ fn run_hosted_engine_game_inner(
                         .map_err(|err| format!("failed to serialize roll ack: {err}"))?;
                         engine.submit_action(&session_id, &ack)?;
                     }
+                    crate::metrics::record_forge_decision_stage(
+                        "snapshots",
+                        snapshots_started.elapsed(),
+                    );
                 } else if Some(player) == local_player_index {
                     if let Some(output) = auto_action(&prompt) {
                         let action_json = serde_json::to_string(&output)
@@ -1449,6 +1484,7 @@ fn run_hosted_engine_game_inner(
                         engine.submit_action(&session_id, &action_json)?;
                     }
                 } else {
+                    let snapshots_started = Instant::now();
                     for &agent_index in remote_response_rxs.keys() {
                         let state = AgentMessage::State(state_via_handle(
                             &engine,
@@ -1464,6 +1500,10 @@ fn run_hosted_engine_game_inner(
                     if remote_prompt_tx.send((player, prompt_msg)).is_err() {
                         return Ok(());
                     }
+                    crate::metrics::record_forge_decision_stage(
+                        "snapshots",
+                        snapshots_started.elapsed(),
+                    );
                 }
             }
         }

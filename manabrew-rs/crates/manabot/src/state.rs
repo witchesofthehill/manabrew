@@ -1,6 +1,8 @@
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
-use manabrew_agent_interface::protocol::{ClientMessage, RoomStatus, ServerMessage, StateEnvelope};
+use manabrew_agent_interface::protocol::{
+    ClientMessage, ClientPlatform, RoomStatus, ServerMessage, StateEnvelope,
+};
 use manabrew_protocol::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -89,6 +91,7 @@ impl BotState {
             password: self.config.password.clone(),
             service: true,
             identity: None,
+            client_platform: ClientPlatform::Unknown,
         }]
     }
 

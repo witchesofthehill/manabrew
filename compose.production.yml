@@ -152,6 +152,7 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      SELF_HOSTED_NODE_GAMES_PER_JVM: "1"
       SELF_HOSTED_NODE_METRICS_PUSH_URL: "${SELF_HOSTED_NODE_METRICS_PUSH_URL:-}"
       SELF_HOSTED_NODE_JAVA_HEAP_MB: "${SELF_HOSTED_NODE_JAVA_HEAP_MB:-}"
       SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS: "${SELF_HOSTED_NODE_JAVA_ACTIVE_PROCESSORS:-}"
@@ -238,11 +239,14 @@ services:
       - /app/ingest-events.py
       - --dir
       - /var/manabrew/events
+      - --hub-db
+      - /var/manabrew/hub/hub.db
       - --watch
       - "300"
     volumes:
       - ./scripts/ingest-events.py:/app/ingest-events.py:ro
       - ./ops/observability/data/events:/var/manabrew/events
+      - ./ops/hub-data:/var/manabrew/hub
     restart: unless-stopped
     mem_limit: 64m
 

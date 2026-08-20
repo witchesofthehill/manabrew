@@ -17,6 +17,7 @@ const RECONNECT_RESYNCS: &str = "manabrew_relay_reconnect_resyncs_total";
 const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
+const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
@@ -63,6 +64,13 @@ pub fn record_game_ended(reason: GameEndReason) {
 
 pub fn record_rejection(reason: &'static str) {
     counter!(CLIENT_REJECTIONS, LABEL_REASON => reason).increment(1);
+}
+
+/// A state patch was expanded back into a full state because a recipient's
+/// client is too old to apply it. Reaching zero is the signal that
+/// `SELF_HOSTED_NODE_STATE_DELTA` is saving bandwidth for everyone.
+pub fn record_state_patch_downgrade() {
+    counter!(STATE_PATCH_DOWNGRADES).increment(1);
 }
 
 pub fn record_resync() {

@@ -10,11 +10,12 @@ use tracing::{debug, info, warn};
 
 use crate::analytics::{self, AnalyticsEvent};
 use crate::cleanup::mark_disconnected;
+use crate::client_build::ClientBuild;
 use crate::error::ServerError;
 use crate::identity::{self, SessionIdentity};
 use crate::lobby;
 use crate::metrics;
-use crate::protocol::{ClientMessage, ClientPlatform, RoomStatus, ServerMessage};
+use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
 use crate::room::Room;
 use crate::state::{ConnectedPlayer, ServerState};
 use manabrew_protocol::deck_dto::OUTDATED_CLIENT_MESSAGE;
@@ -37,6 +38,12 @@ enum GameMessageSource {
     Engine,
     Player,
     RoomRelay,
+}
+
+/// A `stateDelta` envelope carries a patch against the last state sent to that
+/// seat, not a whole board. See `manabrew_relay_protocol::state_delta`.
+fn is_state_patch(envelope: &serde_json::Value) -> bool {
+    envelope.get("kind").and_then(serde_json::Value::as_str) == Some("stateDelta")
 }
 
 fn authorize_game_message(
@@ -174,6 +181,50 @@ pub fn broadcast_to_room_except(
     }
 }
 
+fn room_player_id(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    target_username: &str,
+) -> Option<String> {
+    state.rooms.get(room_id).and_then(|room| {
+        if room.host_username == target_username && room.host_connected() {
+            Some(room.host_player_id.clone())
+        } else {
+            room.players
+                .iter()
+                .find(|p| p.connected && p.username == target_username)
+                .map(|p| p.player_id.clone())
+        }
+    })
+}
+
+/// Whether every client that would receive this envelope ships the `stateDelta`
+/// applier. One seat that does not is enough to fall back to a full state: a
+/// dropped patch leaves that player's board frozen for the rest of the game.
+fn state_patch_audience_ready(
+    state: &Arc<ServerState>,
+    room_id: &str,
+    sender_player_id: &str,
+    target_username: Option<&str>,
+) -> bool {
+    let applies = |player_id: &str| {
+        state
+            .players
+            .get(player_id)
+            .is_some_and(|player| player.client.applies_state_patches())
+    };
+    match target_username {
+        // An unresolvable target means the send is about to be dropped anyway.
+        Some(target) => room_player_id(state, room_id, target).is_none_or(|pid| applies(&pid)),
+        None => state.rooms.get(room_id).is_some_and(|room| {
+            room.connected_player_ids()
+                .iter()
+                .filter(|pid| pid.as_str() != sender_player_id)
+                .all(|pid| applies(pid))
+        }),
+    }
+}
+
 pub fn send_to_room_player(
     state: &Arc<ServerState>,
     room_id: &str,
@@ -184,17 +235,7 @@ pub fn send_to_room_player(
         Ok(j) => j,
         Err(_) => return,
     };
-    let target_id: Option<String> = state.rooms.get(room_id).and_then(|room| {
-        if room.host_username == target_username && room.host_connected() {
-            Some(room.host_player_id.clone())
-        } else {
-            room.players
-                .iter()
-                .find(|p| p.connected && p.username == target_username)
-                .map(|p| p.player_id.clone())
-        }
-    });
-    let Some(pid) = target_id else {
+    let Some(pid) = room_player_id(state, room_id, target_username) else {
         debug!(
             "[send] room={} target '{}' not connected, dropping {}",
             &room_id[..8],
@@ -251,7 +292,7 @@ pub async fn handle_connection(
 
     let mut write_task = tokio::spawn(write_loop(rx, sink));
 
-    let (player_id, username, reconnected, generation, client_platform, service) =
+    let (player_id, username, reconnected, generation, client, service) =
         match authenticate(&mut receiver, &tx, &state).await {
             Ok(result) => result,
             Err(e) => {
@@ -271,7 +312,8 @@ pub async fn handle_connection(
         state.analytics.emit(AnalyticsEvent::ClientConnected {
             ts: analytics::now_ts(),
             username: username.clone(),
-            platform: client_platform.as_str().to_string(),
+            platform: client.platform.as_str().to_string(),
+            version: client.version().map(str::to_string),
             reconnected,
         });
     }
@@ -428,7 +470,7 @@ async fn authenticate(
     receiver: &mut WsReceiver,
     sender: &mpsc::UnboundedSender<Message>,
     state: &Arc<ServerState>,
-) -> Result<(String, String, bool, u64, ClientPlatform, bool), ServerError> {
+) -> Result<(String, String, bool, u64, ClientBuild, bool), ServerError> {
     let timeout = Duration::from_secs(10);
 
     let frame = tokio::time::timeout(timeout, receiver.next())
@@ -454,7 +496,9 @@ async fn authenticate(
             service,
             identity,
             client_platform,
+            client_version,
         } => {
+            let client = ClientBuild::new(client_platform, client_version);
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -531,15 +575,9 @@ async fn authenticate(
                     session.generation,
                     identities,
                     name_verified,
+                    client.clone(),
                 );
-                return Ok((
-                    session.player_id,
-                    username,
-                    true,
-                    new_gen,
-                    client_platform,
-                    service,
-                ));
+                return Ok((session.player_id, username, true, new_gen, client, service));
             }
 
             let player_id = uuid::Uuid::new_v4().to_string();
@@ -558,6 +596,7 @@ async fn authenticate(
                     is_service: service,
                     identity: identities,
                     name_verified,
+                    client: client.clone(),
                 },
             );
 
@@ -569,14 +608,7 @@ async fn authenticate(
             };
             send_msg(sender, &reply);
 
-            Ok((
-                player_id,
-                username,
-                false,
-                generation,
-                client_platform,
-                service,
-            ))
+            Ok((player_id, username, false, generation, client, service))
         }
         _ => {
             let reply = ServerMessage::AuthResult {
@@ -610,6 +642,7 @@ fn reclaim_session(
     old_gen: u64,
     identities: Vec<SessionIdentity>,
     name_verified: bool,
+    client: ClientBuild,
 ) -> u64 {
     let new_gen = old_gen + 1;
     info!(
@@ -626,6 +659,7 @@ fn reclaim_session(
         player.last_seen = Instant::now();
         player.disconnected_at = None;
         player.name_verified = name_verified;
+        player.client = client;
         if !identities.is_empty() {
             player.identity = identities;
         }
@@ -1233,6 +1267,16 @@ fn handle_client_message(
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
+                // `observe` has already folded this patch into the cached
+                // board, so an older seat can be handed the state the patch
+                // would have produced rather than an envelope it drops.
+                let folded_state = is_state_patch(&game_state)
+                    .then(|| {
+                        room.replay
+                            .as_ref()
+                            .and_then(|replay| replay.state_after(&game_state).cloned())
+                    })
+                    .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
                     state
@@ -1242,6 +1286,16 @@ fn handle_client_message(
                 if !should_deliver {
                     return;
                 }
+                let ready = || {
+                    state_patch_audience_ready(state, &rid, player_id, canonical_target.as_deref())
+                };
+                let game_state = match folded_state {
+                    Some(full) if !ready() => {
+                        metrics::record_state_patch_downgrade();
+                        full
+                    }
+                    _ => game_state,
+                };
                 let msg = ServerMessage::StateUpdate {
                     from_player: username.to_string(),
                     state: game_state,

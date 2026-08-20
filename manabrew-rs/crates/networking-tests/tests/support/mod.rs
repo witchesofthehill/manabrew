@@ -3,6 +3,7 @@
 // crate. No mocks, no browser — the system under test is the actual binaries.
 
 use std::any::Any;
+use std::collections::HashSet;
 use std::future::Future;
 use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
@@ -228,6 +229,7 @@ pub struct Client {
     read: WsRead,
     ai: SimpleAi,
     last_prompt: Option<String>,
+    envelope_kinds: HashSet<String>,
 }
 
 impl Client {
@@ -240,7 +242,7 @@ impl Client {
         username: &str,
         device: Option<&str>,
     ) -> Result<Client, String> {
-        Client::connect_with_proof(
+        Client::connect_full(
             relay_url,
             username,
             username,
@@ -248,8 +250,19 @@ impl Client {
                 token: None,
                 device: Some(secret.to_string()),
             }),
+            None,
         )
         .await
+    }
+
+    /// Connect reporting an app version, the way a released client does. `None`
+    /// stands in for a build old enough that it reported nothing.
+    pub async fn connect_versioned(
+        relay_url: &str,
+        username: &str,
+        version: &str,
+    ) -> Result<Client, String> {
+        Client::connect_full(relay_url, username, username, None, Some(version)).await
     }
 
     /// `legacy_username` goes into the deprecated `Authenticate.username`
@@ -260,6 +273,16 @@ impl Client {
         legacy_username: &str,
         session_username: &str,
         identity: Option<IdentityProof>,
+    ) -> Result<Client, String> {
+        Client::connect_full(relay_url, legacy_username, session_username, identity, None).await
+    }
+
+    pub async fn connect_full(
+        relay_url: &str,
+        legacy_username: &str,
+        session_username: &str,
+        identity: Option<IdentityProof>,
+        version: Option<&str>,
     ) -> Result<Client, String> {
         let (socket, _) = connect_async(relay_url)
             .await
@@ -273,6 +296,7 @@ impl Client {
                 service: false,
                 identity,
                 client_platform: ClientPlatform::Unknown,
+                client_version: version.map(str::to_string),
             },
         )
         .await?;
@@ -287,6 +311,7 @@ impl Client {
                         read,
                         ai: SimpleAi::default(),
                         last_prompt: None,
+                        envelope_kinds: HashSet::new(),
                     });
                 }
                 Some(ServerMessage::AuthResult { error, .. }) => {
@@ -458,10 +483,19 @@ impl Client {
         Ok(())
     }
 
+    /// Every envelope `kind` this client has been sent while answering
+    /// prompts. Proves what the relay chose to put on the wire for this seat.
+    pub fn saw_envelope_kind(&self, kind: &str) -> bool {
+        self.envelope_kinds.contains(kind)
+    }
+
     fn prompt_response(&mut self, message: ServerMessage) -> Result<Option<StateEnvelope>, String> {
         let ServerMessage::StateUpdate { state, .. } = message else {
             return Ok(None);
         };
+        if let Some(kind) = state.get("kind").and_then(serde_json::Value::as_str) {
+            self.envelope_kinds.insert(kind.to_string());
+        }
         let Ok(StateEnvelope::Prompt { for_player, prompt }) = serde_json::from_value(state) else {
             return Ok(None);
         };

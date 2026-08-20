@@ -38,6 +38,7 @@ import type {
   PromptOutput,
   StateUpdate,
 } from "@/protocol";
+import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
 import { relayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
@@ -794,6 +795,7 @@ class WebServerApi implements IServerApi {
           password: params.password,
           identity: proof,
           client_platform: getClientPlatform(),
+          client_version: APP_VERSION,
         });
         this.startKeepalive();
         resolve();

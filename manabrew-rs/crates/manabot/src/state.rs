@@ -119,6 +119,7 @@ impl BotState {
                 device: None,
             }),
             client_platform: ClientPlatform::Unknown,
+            client_version: None,
         }]
     }
 

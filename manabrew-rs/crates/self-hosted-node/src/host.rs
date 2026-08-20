@@ -2216,6 +2216,7 @@ impl RelayClient {
                     device: None,
                 }),
                 client_platform: ClientPlatform::Unknown,
+                client_version: None,
             })
             .await?;
         client.wait_for_auth().await?;

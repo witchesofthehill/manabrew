@@ -9,6 +9,9 @@ mod support;
 
 use std::time::{Duration, Instant};
 
+/// Any release at or past the one that shipped `src/lib/stateDelta.ts`.
+const CURRENT_CLIENT_VERSION: &str = "3.17.0";
+
 use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
 use support::{
@@ -470,6 +473,53 @@ async fn empty_lobby_room_is_removed() {
     .await;
 }
 
+async fn current_clients_are_sent_state_patches() {
+    scenario(
+        "a 2-player game where the human reports a client new enough to apply state patches.",
+        "the node sends its per-seat board updates, which it now patches by default.",
+        "the patches reach that seat as `stateDelta`, saving the full board on every update.",
+    );
+    let sim = Sim::spawn(9636).await;
+    let mut alice = Client::connect_versioned(&sim.relay_url, "alice", CURRENT_CLIENT_VERSION)
+        .await
+        .unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    alice.answer_prompts(4).await.unwrap();
+
+    assert!(
+        alice.saw_envelope_kind("stateDelta"),
+        "a current client never received a patch — is the node still sending full states?",
+    );
+}
+
+async fn old_clients_are_sent_whole_boards() {
+    scenario(
+        "the same game, but the human's client is old enough that it reports no version at all.",
+        "the node sends the same patched board updates.",
+        "the relay expands every patch back into a full `state`, so that seat never sees one.",
+    );
+    let sim = Sim::spawn(9640).await;
+    // No reported version is how every client built before the applier looks.
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    alice.answer_prompts(4).await.unwrap();
+
+    assert!(
+        !alice.saw_envelope_kind("stateDelta"),
+        "an old client was sent a patch it cannot apply — its board would have frozen here",
+    );
+    assert!(
+        alice.saw_envelope_kind("state"),
+        "the old client received no board at all, so the test proves nothing",
+    );
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -506,6 +556,14 @@ fn main() {
         ),
         case("dead_node_room_is_reclaimed", dead_node_room_is_reclaimed),
         case("empty_lobby_room_is_removed", empty_lobby_room_is_removed),
+        case(
+            "current_clients_are_sent_state_patches",
+            current_clients_are_sent_state_patches,
+        ),
+        case(
+            "old_clients_are_sent_whole_boards",
+            old_clients_are_sent_whole_boards,
+        ),
         case(
             "creating_a_room_seats_the_creator",
             creating_a_room_seats_the_creator,

@@ -74,6 +74,10 @@ Datasources: Prometheus (`prometheus`), Loki (`loki`).
 | Stuck-room signal                         | timeseries | Abandoned game reaps compared with other game endings over two hours                                                                 |
 | Deck-play events dropped                  | stat       | `sum(manabrew_relay_deck_play_events_dropped_total)`                                                                                 |
 | Hub analytics age                         | stat       | Seconds since the latest successful sanitized Hub export in `events.db`                                                              |
+| Lobby players record                      | stat       | 30-day maximum of connected human player seats in lobby rooms                                                                        |
+| Concurrent games record                   | stat       | 30-day maximum of `manabrew_relay_rooms{status="in_game"}`                                                                           |
+| Connected humans record                   | stat       | 30-day maximum of `manabrew_relay_connections{kind="human"}`                                                                         |
+| Open rooms record                         | stat       | 30-day maximum of all lobby and in-game relay rooms                                                                                  |
 
 ### Analytics Explorer (`product.json`)
 
@@ -122,6 +126,7 @@ Defined in `manabrew-rs/crates/manabrew-server/src/metrics.rs`, served on the he
 | Metric                                          | Kind    | Labels                          |
 | ----------------------------------------------- | ------- | ------------------------------- |
 | `manabrew_relay_connections`                    | gauge   | `kind`                          |
+| `manabrew_relay_players`                        | gauge   | `kind`, `status`                |
 | `manabrew_relay_rooms`                          | gauge   | `status`, `hosted`              |
 | `manabrew_relay_games_started_total`            | counter | `engine`                        |
 | `manabrew_relay_games_ended_total`              | counter | `reason`                        |

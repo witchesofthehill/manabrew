@@ -271,7 +271,7 @@ pub async fn handle_connection(
         state.analytics.emit(AnalyticsEvent::ClientConnected {
             ts: analytics::now_ts(),
             username: username.clone(),
-            platform: format!("{client_platform:?}").to_lowercase(),
+            platform: client_platform.as_str().to_string(),
             reconnected,
         });
     }

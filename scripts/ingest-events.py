@@ -311,7 +311,11 @@ def utc_now() -> str:
 
 
 def hub_rows(hub, query, params=()):
-    return hub.execute(query, params).fetchall()
+    try:
+        return hub.execute(query, params).fetchall()
+    except sqlite3.Error as error:
+        print(f"Hub analytics query failed: {error}", file=sys.stderr, flush=True)
+        return []
 
 
 def refresh_hub_analytics(db, hub_path: Path) -> bool:
@@ -322,9 +326,12 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
     hub = sqlite3.connect(f"file:{hub_path}?mode=ro", uri=True)
     try:
         hub.execute("BEGIN")
-        schema_version = hub.execute(
+        schema_version_row = hub.execute(
             "SELECT version FROM schema_version WHERE id = 1"
-        ).fetchone()[0]
+        ).fetchone()
+        if schema_version_row is None:
+            raise RuntimeError("Hub schema version row is missing")
+        schema_version = schema_version_row[0]
         snapshots = []
         for table_name in (
             "schema_version",
@@ -348,8 +355,10 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
             "card_collection_versions",
             "data_migrations",
         ):
-            count = hub.execute(f"SELECT count(*) FROM {table_name}").fetchone()[0]
-            snapshots.append((snapshot_at, "table_rows", table_name, count))
+            snapshots.extend(
+                (snapshot_at, "table_rows", table_name, count)
+                for (count,) in hub_rows(hub, f"SELECT count(*) FROM {table_name}")
+            )
 
         snapshot_queries = {
             "accounts": "SELECT '', count(*) FROM accounts",
@@ -405,13 +414,13 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         )
         public_deck_cards = hub_rows(
             hub,
-            """SELECT c.card_name, coalesce(v.format, ''), c.zone,
+            """SELECT c.card_name, coalesce(v.format, 'unknown'), c.zone,
                       count(DISTINCT v.deck_id), sum(c.quantity)
                FROM deckhub_entries e
                JOIN deck_versions v ON v.id = e.published_version_id
                JOIN deck_cards c ON c.deck_version_id = v.id
                WHERE e.status = 'published'
-               GROUP BY c.card_name, coalesce(v.format, ''), c.zone"""
+               GROUP BY c.card_name, coalesce(v.format, 'unknown'), c.zone"""
         )
     finally:
         hub.close()
@@ -474,7 +483,7 @@ def main():
         if args.hub_db and time.monotonic() >= next_hub_refresh:
             try:
                 refresh_hub_analytics(db, Path(args.hub_db))
-            except sqlite3.Error as error:
+            except Exception as error:
                 print(f"Hub analytics refresh failed: {error}", file=sys.stderr, flush=True)
             next_hub_refresh = time.monotonic() + args.hub_refresh
         if not args.watch:

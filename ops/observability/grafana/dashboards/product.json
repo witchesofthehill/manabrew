@@ -1008,8 +1008,8 @@
       "targets": [
         {
           "refId": "A",
-          "queryText": "SELECT strftime('%s', 'now') - strftime('%s', synced_at) AS seconds FROM hub_sync_state WHERE id = 1",
-          "rawQueryText": "SELECT strftime('%s', 'now') - strftime('%s', synced_at) AS seconds FROM hub_sync_state WHERE id = 1",
+          "queryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
+          "rawQueryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
           "queryType": "table",
           "timeColumns": []
         }

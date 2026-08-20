@@ -618,8 +618,8 @@
       "targets": [
         {
           "refId": "A",
-          "queryText": "SELECT strftime('%s', 'now') - strftime('%s', synced_at) AS seconds FROM hub_sync_state WHERE id = 1",
-          "rawQueryText": "SELECT strftime('%s', 'now') - strftime('%s', synced_at) AS seconds FROM hub_sync_state WHERE id = 1",
+          "queryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
+          "rawQueryText": "SELECT strftime('%s', 'now') - coalesce((SELECT strftime('%s', synced_at) FROM hub_sync_state WHERE id = 1), 0) AS seconds",
           "queryType": "table",
           "timeColumns": []
         }
@@ -650,6 +650,147 @@
       "options": {
         "colorMode": "background"
       }
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "30-day records",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "Lobby players record",
+      "description": "highest number of connected human player seats waiting in lobbies during Prometheus retention",
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time((sum(manabrew_relay_players{kind=\"human\",status=\"lobby\"}))[30d:])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Concurrent games record",
+      "description": "highest number of games running at the same time during Prometheus retention",
+      "gridPos": {
+        "x": 6,
+        "y": 45,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time((sum(manabrew_relay_rooms{status=\"in_game\"}))[30d:])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Connected humans record",
+      "description": "highest number of human relay connections at the same time during Prometheus retention",
+      "gridPos": {
+        "x": 12,
+        "y": 45,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time((sum(manabrew_relay_connections{kind=\"human\"}))[30d:])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Open rooms record",
+      "description": "highest number of lobby and in-game rooms open at the same time during Prometheus retention",
+      "gridPos": {
+        "x": 18,
+        "y": 45,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time((sum(manabrew_relay_rooms))[30d:])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
     }
   ]
 }

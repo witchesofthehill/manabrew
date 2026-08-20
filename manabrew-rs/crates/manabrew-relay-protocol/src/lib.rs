@@ -58,6 +58,18 @@ pub enum ClientPlatform {
     Unknown,
 }
 
+impl ClientPlatform {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Web => "web",
+            Self::Pwa => "pwa",
+            Self::Desktop => "desktop",
+            Self::Mobile => "mobile",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[allow(clippy::large_enum_variant)]

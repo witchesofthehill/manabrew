@@ -94,8 +94,14 @@ impl Config {
             max_players: env_first("SELF_HOSTED_NODE_MAX_PLAYERS", "FORGE_ROOM_MAX_PLAYERS")
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(4),
-            state_delta: env_first("SELF_HOSTED_NODE_STATE_DELTA", "FORGE_ROOM_STATE_DELTA")
-                .is_some_and(|value| matches!(value.trim(), "1" | "true" | "yes")),
+            // On by default: the relay expands a patch back into a full state
+            // for any seat whose client cannot apply one, so an old client sees
+            // the same board it always did. Set to 0 to send full states.
+            state_delta: env_bool(
+                "SELF_HOSTED_NODE_STATE_DELTA",
+                "FORGE_ROOM_STATE_DELTA",
+                true,
+            ),
             max_games: env_first("SELF_HOSTED_NODE_MAX_GAMES", "FORGE_ROOM_MAX_GAMES")
                 .and_then(|value| value.parse().ok())
                 .filter(|games| *games >= 1)

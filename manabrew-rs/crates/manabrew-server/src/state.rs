@@ -4,6 +4,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::analytics::AnalyticsHandle;
+use crate::client_build::ClientBuild;
 use crate::deck_play_events::DeckPlayEventHandle;
 use crate::identity::{IdentityVerifier, SessionIdentity};
 use crate::room::Room;
@@ -20,6 +21,9 @@ pub struct ConnectedPlayer {
     pub is_service: bool,
     pub identity: Vec<SessionIdentity>,
     pub name_verified: bool,
+    /// What the client reported at authentication. Read when deciding which
+    /// wire features this seat can be sent.
+    pub client: ClientBuild,
 }
 
 pub struct UsernameSession {

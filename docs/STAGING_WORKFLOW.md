@@ -143,8 +143,12 @@ The staging slot needs, once:
    consulted).
 
 The hosted "Play vs AI" node (`self-hosted-node-staging`) sits behind the
-`hosted-ai` compose profile and only the `staging` branch enables it — a PR
-preview costs web + relay + hub, not a Forge JVM on the prod box.
+`hosted-ai` compose profile and every staging deploy enables it, previews
+included, so a preview can be played against rather than only clicked through.
+It is a single GraalVM native process, not a JVM per game: the card database
+loads once for the whole node, which is what makes four concurrent games fit in
+about a gigabyte on a box that also runs production. Sizing lives in
+`compose.staging.yml` (`SELF_HOSTED_NODE_MAX_GAMES`, `mem_limit`, `cpus`).
 
 ## See also
 

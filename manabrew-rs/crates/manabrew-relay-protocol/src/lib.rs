@@ -1,6 +1,8 @@
 //! Relay wire protocol: the session handshake, lobby management and game
 //! transport envelopes exchanged between clients and `manabrew-server`.
 //! Engine and UI DTOs live in `manabrew-protocol`.
+pub mod state_delta;
+
 pub use manabrew_protocol::deck_dto::Deck;
 pub use manabrew_protocol::game::{EngineKind, GameFormat};
 use serde::{Deserialize, Serialize};

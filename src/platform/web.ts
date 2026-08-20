@@ -31,11 +31,18 @@ import type {
 import { DUPLICATE_USERNAME_ERROR_FRAGMENT, SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
-import type { ClientToServerMessage, DirectiveInput, Prompt, PromptOutput } from "@/protocol";
+import type {
+  ClientToServerMessage,
+  DirectiveInput,
+  Prompt,
+  PromptOutput,
+  StateUpdate,
+} from "@/protocol";
 import { logComms } from "@/lib/commsLog";
 import { relayIdentityProof } from "@/lib/relayIdentity";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
+import { applyStateDelta } from "@/lib/stateDelta";
 
 const DEBUG_TRANSPORT = false;
 
@@ -705,6 +712,7 @@ class WebServerApi implements IServerApi {
   private reconnectAttempt = 0;
   private serverShutdownPending: { reconnectInS: number } | null = null;
   private lastRelayStates = new Map<string, string>();
+  private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
   private pendingRelayPrompts = new Map<string, Record<string, unknown>>();
@@ -1282,8 +1290,34 @@ class WebServerApi implements IServerApi {
           });
           break;
         case "state":
+          if (envelope.fingerprint) {
+            this.deltaBases.set(envelope.forPlayer ?? "", {
+              state: envelope.state,
+              fingerprint: envelope.fingerprint,
+            });
+          }
           this.eventBus.emit("game:remote_state", envelope);
           return;
+        case "stateDelta": {
+          const seat = envelope.forPlayer ?? "";
+          const base = this.deltaBases.get(seat);
+          if (!base || base.fingerprint !== envelope.base) {
+            // Patched against a state we do not hold. Dropping it leaves the
+            // board as it was rather than showing a wrong one; the next full
+            // state, on resume or the next game, recovers.
+            dlog(`[state-delta] base mismatch for ${seat || "broadcast"}, ignoring patch`);
+            this.deltaBases.delete(seat);
+            return;
+          }
+          const state = applyStateDelta(base.state, envelope.patch) as StateUpdate;
+          this.deltaBases.set(seat, { state, fingerprint: envelope.fingerprint });
+          this.eventBus.emit("game:remote_state", {
+            kind: "state",
+            forPlayer: envelope.forPlayer,
+            state,
+          });
+          return;
+        }
         case "display":
           this.eventBus.emit("game:remote_display", envelope);
           return;
@@ -1320,6 +1354,7 @@ class WebServerApi implements IServerApi {
       this.lastRelayStates.clear();
       this.lastRelayDisplay = null;
       this.pendingRelayPrompts.clear();
+      this.deltaBases.clear();
     }
 
     if (type === "RoomResumed") {

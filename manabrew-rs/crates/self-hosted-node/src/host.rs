@@ -26,7 +26,7 @@ use tokio::sync::mpsc as tokio_mpsc;
 use tokio::task::JoinHandle;
 use tokio::time;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{connect_async_with_config, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -40,8 +40,9 @@ const PRIVATE_MESSAGE_MISSING_PLAYER: &str =
 
 struct RelayClient {
     username: String,
-    write: WsWrite,
+    outbound: tokio_mpsc::UnboundedSender<Message>,
     read: WsRead,
+    writer: JoinHandle<()>,
 }
 
 enum EngineSession {
@@ -1476,6 +1477,7 @@ fn maybe_start_hosted_engine(
                 game_id.clone(),
                 remote_prompt_rx,
                 Some(player_names.clone()),
+                config.state_delta,
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1549,6 +1551,7 @@ fn maybe_start_hosted_engine(
                 game_id.clone(),
                 remote_prompt_rx,
                 Some(player_names.clone()),
+                config.state_delta,
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1905,6 +1908,43 @@ fn authenticated_player_index(
     Some(player_index)
 }
 
+/// Add the fingerprint of the carried state to a full state envelope, so a
+/// receiver can tell whether a later patch applies to what it holds.
+fn stamp_fingerprint(mut envelope: Value) -> Value {
+    let Some(state) = envelope.get("state") else {
+        return envelope;
+    };
+    let fingerprint = manabrew_relay_protocol::state_delta::fingerprint(state);
+    if let Some(object) = envelope.as_object_mut() {
+        object.insert("fingerprint".to_string(), Value::String(fingerprint));
+    }
+    envelope
+}
+
+/// Patch form of a fingerprinted state envelope, against the last one sent to
+/// this seat. `None` the first time a seat is served, or if anything is missing,
+/// and the caller falls back to the full state, which is always correct.
+fn patch_against_last(
+    bases: &mut HashMap<usize, (Value, String)>,
+    player_index: usize,
+    per_seat: bool,
+    slot: &str,
+    envelope: &Value,
+) -> Option<Value> {
+    let next = envelope.get("state")?.clone();
+    let fingerprint = envelope.get("fingerprint")?.as_str()?.to_string();
+    let previous = bases.insert(player_index, (next.clone(), fingerprint.clone()));
+    let (base_state, base) = previous?;
+    let patch = manabrew_relay_protocol::state_delta::diff(&base_state, &next)?;
+    serde_json::to_value(StateEnvelope::StateDelta {
+        for_player: per_seat.then(|| slot.to_string()),
+        base,
+        fingerprint,
+        patch,
+    })
+    .ok()
+}
+
 fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     snapshot: SharedHostSnapshot,
@@ -1912,9 +1952,11 @@ fn spawn_remote_prompt_forwarder(
     game_id: String,
     remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
     seat_usernames: Option<Vec<String>>,
+    state_delta: bool,
 ) {
     thread::spawn(move || {
         let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
+        let mut delta_bases: HashMap<usize, (Value, String)> = HashMap::new();
         let mut last_state: Option<Value> = None;
         let mut last_display: Option<Value> = None;
         while let Ok((player_index, message)) = remote_prompt_rx.recv() {
@@ -1933,11 +1975,16 @@ fn spawn_remote_prompt_forwarder(
                 AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
                     for_player: None,
                     state: serde_json::to_value(state_update).unwrap_or(Value::Null),
+                    fingerprint: None,
                 },
                 _ => StateEnvelope::for_agent_message(slot.clone(), &message),
             };
             let Ok(state) = serde_json::to_value(envelope) else {
                 continue;
+            };
+            let state = match &message {
+                AgentMessage::State(_) if state_delta => stamp_fingerprint(state),
+                _ => state,
             };
             match &message {
                 AgentMessage::State(_) if per_seat => {
@@ -1955,15 +2002,22 @@ fn spawn_remote_prompt_forwarder(
             if let Ok(mut snap) = snapshot.lock() {
                 match &message {
                     AgentMessage::State(_) if per_seat => {
-                        snap.last_state_by_slot.insert(slot, state.clone());
+                        snap.last_state_by_slot.insert(slot.clone(), state.clone());
                     }
                     AgentMessage::State(_) => snap.last_state = Some(state.clone()),
                     AgentMessage::Prompt(_) => {
-                        snap.pending_prompts.insert(slot, state.clone());
+                        snap.pending_prompts.insert(slot.clone(), state.clone());
                     }
                     AgentMessage::Display(_) | AgentMessage::Error(_) => {}
                 }
             }
+            let state = match &message {
+                AgentMessage::State(_) if state_delta => {
+                    patch_against_last(&mut delta_bases, player_index, per_seat, &slot, &state)
+                        .unwrap_or(state)
+                }
+                _ => state,
+            };
             let target_player = if per_seat
                 && matches!(
                     message,
@@ -2033,6 +2087,7 @@ fn spawn_game_over_forwarder(
                     AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
                         for_player: None,
                         state: serde_json::to_value(state_update).unwrap_or(Value::Null),
+                        fingerprint: None,
                     },
                     _ => StateEnvelope::for_agent_message(player_slot(player_index), &message),
                 };
@@ -2109,6 +2164,22 @@ fn spawn_game_over_forwarder(
     });
 }
 
+async fn relay_writer(mut write: WsWrite, mut outbound: tokio_mpsc::UnboundedReceiver<Message>) {
+    while let Some(message) = outbound.recv().await {
+        let started = Instant::now();
+        let closing = matches!(message, Message::Close(_));
+        if let Err(error) = write.send(message).await {
+            warn!(%error, "relay write failed");
+            break;
+        }
+        crate::metrics::record_relay_send(started.elapsed());
+        if closing {
+            break;
+        }
+    }
+    let _ = write.close().await;
+}
+
 impl RelayClient {
     async fn connect(
         relay_url: &str,
@@ -2116,12 +2187,15 @@ impl RelayClient {
         password: &str,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         info!(relay_url, username, "connecting relay client");
-        let (socket, _) = connect_async(relay_url).await?;
+        let (socket, _) = connect_async_with_config(relay_url, None, true).await?;
         let (write, read) = socket.split();
+        let (outbound, outbound_rx) = tokio_mpsc::unbounded_channel();
+        let writer = tokio::spawn(relay_writer(write, outbound_rx));
         let mut client = Self {
             username: username.to_string(),
-            write,
+            outbound,
             read,
+            writer,
         };
         client
             .send(&ClientMessage::Authenticate {
@@ -2157,10 +2231,13 @@ impl RelayClient {
         &mut self,
         message: &ClientMessage,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.write
-            .send(Message::Text(serde_json::to_string(message)?))
-            .await?;
-        Ok(())
+        self.enqueue(Message::Text(serde_json::to_string(message)?))
+    }
+
+    fn enqueue(&self, message: Message) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.outbound
+            .send(message)
+            .map_err(|_| "relay writer stopped".into())
     }
 
     async fn recv(
@@ -2176,7 +2253,7 @@ impl RelayClient {
                     return Ok(Some(serde_json::from_str(&text)?));
                 }
                 Message::Ping(payload) => {
-                    self.write.send(Message::Pong(payload)).await?;
+                    self.enqueue(Message::Pong(payload))?;
                 }
                 Message::Close(_) => return Ok(None),
                 _ => {}
@@ -2185,13 +2262,14 @@ impl RelayClient {
     }
 
     async fn close(&mut self) {
-        if self.write.send(Message::Close(None)).await.is_err() {
+        if self.enqueue(Message::Close(None)).is_err() {
             return;
         }
         let _ = time::timeout(CLOSE_DRAIN_TIMEOUT, async {
             while let Some(Ok(_)) = self.read.next().await {}
         })
         .await;
+        self.writer.abort();
     }
 
     async fn broadcast_room_message(

@@ -92,6 +92,7 @@ impl BotState {
             service: true,
             identity: None,
             client_platform: ClientPlatform::Unknown,
+            client_version: None,
         }]
     }
 

@@ -53,6 +53,11 @@ pub enum AnalyticsEvent {
         ts: String,
         username: String,
         platform: String,
+        /// The client's reported app version. `None` means a build from before
+        /// clients reported one, which is the only handle we have on how much
+        /// of the player base is running a stale install.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        version: Option<String>,
         reconnected: bool,
     },
     GameStarted {

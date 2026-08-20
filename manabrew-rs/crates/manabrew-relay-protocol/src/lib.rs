@@ -85,6 +85,11 @@ pub enum ClientMessage {
         identity: Option<IdentityProof>,
         #[serde(default)]
         client_platform: ClientPlatform,
+        /// The client's app version (`APP_VERSION`), when it sends one. Absent
+        /// means a build older than the one that started reporting it, which is
+        /// how the relay decides what wire features that seat can handle.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        client_version: Option<String>,
     },
 
     Ping,

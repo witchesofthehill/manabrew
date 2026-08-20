@@ -148,6 +148,16 @@ impl GameReplayCache {
         }
     }
 
+    /// The whole board this seat should be holding, as folded by [`Self::observe`].
+    /// Used to serve a seat whose client cannot apply the patch that just came
+    /// through, so the relay hands it the state the patch would have produced.
+    pub fn state_after(&self, envelope: &Value) -> Option<&Value> {
+        match envelope.get("forPlayer").and_then(Value::as_str) {
+            Some(slot) => self.last_state_by_slot.get(slot),
+            None => self.last_state.as_ref(),
+        }
+    }
+
     pub fn slot_for(&self, username: &str) -> Option<String> {
         self.player_order
             .iter()
@@ -180,5 +190,79 @@ impl GameReplayCache {
 
     pub fn acknowledge_inputs(&mut self, host_username: &str) {
         self.queued_inputs.remove(host_username);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use manabrew_relay_protocol::state_delta;
+    use serde_json::json;
+
+    fn cache() -> GameReplayCache {
+        GameReplayCache::new("game-1".into(), vec!["alice".into()], Vec::new(), 40)
+    }
+
+    fn full(slot: &str, state: Value) -> Value {
+        json!({
+            "kind": "state",
+            "forPlayer": slot,
+            "fingerprint": state_delta::fingerprint(&state),
+            "state": state,
+        })
+    }
+
+    /// The envelope a node sends once `state_delta` is on: the real diff
+    /// between the seat's last board and its next one.
+    fn patch(slot: &str, previous: &Value, next: &Value) -> Value {
+        json!({
+            "kind": "stateDelta",
+            "forPlayer": slot,
+            "fingerprint": state_delta::fingerprint(next),
+            "patch": state_delta::diff(previous, next).expect("the boards differ"),
+        })
+    }
+
+    #[test]
+    fn folds_a_patch_into_the_board_it_hands_back() {
+        let before = json!({ "gameView": { "turn": 1, "phase": "MAIN1" } });
+        let after = json!({ "gameView": { "turn": 2, "phase": "MAIN1" } });
+        let mut replay = cache();
+        replay.observe(&full("player0", before.clone()));
+        let patch = patch("player0", &before, &after);
+        replay.observe(&patch);
+
+        let folded = replay.state_after(&patch).expect("a board for that seat");
+        assert_eq!(folded["state"], after);
+        assert_eq!(folded["fingerprint"], patch["fingerprint"]);
+    }
+
+    #[test]
+    fn a_patch_for_a_seat_with_no_board_leaves_nothing_to_hand_back() {
+        let mut replay = cache();
+        let patch = patch(
+            "player0",
+            &json!({ "gameView": { "turn": 1 } }),
+            &json!({ "gameView": { "turn": 2 } }),
+        );
+        replay.observe(&patch);
+        assert!(replay.state_after(&patch).is_none());
+    }
+
+    #[test]
+    fn seats_do_not_share_a_board() {
+        let mut replay = cache();
+        let mine = json!({ "gameView": { "hand": ["Swamp"] } });
+        let theirs = json!({ "gameView": { "hand": [] } });
+        replay.observe(&full("player0", mine.clone()));
+        replay.observe(&full("player1", theirs.clone()));
+
+        let patch = patch("player0", &mine, &json!({ "gameView": { "hand": [] } }));
+        replay.observe(&patch);
+
+        let other = replay
+            .state_after(&json!({ "kind": "stateDelta", "forPlayer": "player1" }))
+            .expect("player1 still has a board");
+        assert_eq!(other["state"], theirs);
     }
 }

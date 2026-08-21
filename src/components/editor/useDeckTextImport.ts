@@ -4,7 +4,7 @@ import { scryfallCardKey } from "@/api/scryfall";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { resolveDeckName } from "@/lib/deckName";
-import { getFormat } from "@/lib/formats";
+import { getFormat, isCommanderEligible } from "@/lib/formats";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useDeckStore } from "@/stores/useDeckStore";
@@ -18,6 +18,7 @@ export interface ResolvedDeckTextImport {
   maybeboard: DeckCard[];
   commanders: DeckCard[];
   notFound: string[];
+  substitutedPrintings: string[];
 }
 
 export async function resolveDeckTextImport(
@@ -32,9 +33,24 @@ export async function resolveDeckTextImport(
       collectorNumber: e.collectorNumber,
     })),
   );
+  const exactPrintingMisses = entries.filter(
+    (entry) =>
+      entry.setCode &&
+      entry.collectorNumber &&
+      !scryfallMap.has(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber)),
+  );
+  if (exactPrintingMisses.length > 0) {
+    const fallbacks = await useScryfallStore
+      .getState()
+      .fetchCardCollection(exactPrintingMisses.map((entry) => ({ name: entry.name })));
+    for (const [key, card] of fallbacks) scryfallMap.set(key, card);
+  }
   const lookup = (entry: ParsedDeckEntry) => {
     if (entry.setCode && entry.collectorNumber) {
-      return scryfallMap.get(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber));
+      return (
+        scryfallMap.get(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber)) ??
+        scryfallMap.get(scryfallCardKey(entry.name))
+      );
     }
     return (
       scryfallMap.get(scryfallCardKey(entry.name, entry.setCode)) ??
@@ -70,6 +86,7 @@ export async function resolveDeckTextImport(
   const maybeboard: DeckCard[] = [];
   const commanders: DeckCard[] = [];
   const notFound: string[] = [];
+  const substitutedPrintings: string[] = [];
   for (const entry of entries) {
     const { count, side, maybe, commander } = entry;
     const sc = lookup(entry);
@@ -77,9 +94,16 @@ export async function resolveDeckTextImport(
       notFound.push(entry.name);
       continue;
     }
-    const target = commander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
+    const exactPrintingFound =
+      !entry.setCode ||
+      !entry.collectorNumber ||
+      scryfallMap.has(scryfallCardKey(entry.name, entry.setCode, entry.collectorNumber));
+    if (!exactPrintingFound) substitutedPrintings.push(entry.name);
+    const base = scryfallToDeckCard(sc);
+    const inferredCommander = entry.commanderCandidate && isCommanderEligible(base);
+    const target =
+      commander || inferredCommander ? commanders : side ? sideboard : maybe ? maybeboard : cards;
     for (let i = 0; i < count; i++) {
-      const base = scryfallToDeckCard(sc);
       target.push({
         ...base,
         identity: { ...base.identity, id: crypto.randomUUID(), foil: entry.foil },
@@ -94,7 +118,7 @@ export async function resolveDeckTextImport(
   ) {
     throw new Error("None of the cards could be found on Scryfall");
   }
-  return { cards, sideboard, maybeboard, commanders, notFound };
+  return { cards, sideboard, maybeboard, commanders, notFound, substitutedPrintings };
 }
 
 export function useDeckTextImport() {
@@ -106,10 +130,8 @@ export function useDeckTextImport() {
       onProgress: (fraction: number) => void,
     ): Promise<string> => {
       const customName = name.trim();
-      const { cards, sideboard, maybeboard, commanders, notFound } = await resolveDeckTextImport(
-        entries,
-        onProgress,
-      );
+      const { cards, sideboard, maybeboard, commanders, notFound, substitutedPrintings } =
+        await resolveDeckTextImport(entries, onProgress);
       const deckName = resolveDeckName(customName || DEFAULT_IMPORT_NAME, commanders);
       const importedFormat =
         formatId ??
@@ -140,6 +162,10 @@ export function useDeckTextImport() {
         const shown = notFound.slice(0, 3).join(", ");
         const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
         toast.warning(`Imported "${deckName}" — couldn't find: ${shown}${extra}`);
+      } else if (substitutedPrintings.length > 0) {
+        toast.warning(
+          `Imported "${deckName}" with ${substitutedPrintings.length} default printing ${substitutedPrintings.length === 1 ? "substitution" : "substitutions"}`,
+        );
       } else {
         toast.success(`Imported "${deckName}"`);
       }
@@ -175,6 +201,10 @@ export function useDeckTextImportIntoCurrent() {
         const shown = result.notFound.slice(0, 3).join(", ");
         const extra = result.notFound.length > 3 ? ` +${result.notFound.length - 3} more` : "";
         toast.warning(`Added ${count} cards — couldn't find: ${shown}${extra}`);
+      } else if (result.substitutedPrintings.length > 0) {
+        toast.warning(
+          `Added ${count} cards with ${result.substitutedPrintings.length} default printing ${result.substitutedPrintings.length === 1 ? "substitution" : "substitutions"}`,
+        );
       } else {
         toast.success(`Added ${count} cards to this deck`);
       }

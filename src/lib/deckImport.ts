@@ -45,9 +45,21 @@ export interface ParsedDeckEntry {
   side: boolean;
   maybe: boolean;
   commander: boolean;
+  commanderCandidate?: boolean;
   setCode?: string;
   collectorNumber?: string;
   foil?: boolean;
+}
+
+export function isDetectedCommander(entry: ParsedDeckEntry): boolean {
+  return entry.commander || entry.commanderCandidate === true;
+}
+
+export function suggestedDeckName(entries: ParsedDeckEntry[]): string {
+  return entries
+    .filter(isDetectedCommander)
+    .map((entry) => entry.name)
+    .join(" / ");
 }
 
 const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
@@ -148,7 +160,12 @@ function markHeaderlessCommanderBlock(
 ): void {
   if (sawHeader || entries.some((e) => e.commander || e.side || e.maybe)) return;
   const lastBlock = blockOf.at(-1);
-  if (lastBlock === undefined || lastBlock === 0) return;
+  if (lastBlock === undefined) return;
+  if (lastBlock === 0) {
+    const total = entries.reduce((sum, entry) => sum + entry.count, 0);
+    if (total === 100 && entries[0]?.count === 1) entries[0].commanderCandidate = true;
+    return;
+  }
   for (const candidateBlock of [lastBlock, 0]) {
     const candidate = entries.filter((_, index) => blockOf[index] === candidateBlock);
     const mainCount = entries.reduce(

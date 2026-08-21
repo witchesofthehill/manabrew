@@ -48,22 +48,31 @@ export function matchesIdentifier(card: ScryfallCard, id: CardIdentifier): boole
       card.collector_number?.toLowerCase() === id.collector_number.toLowerCase()
     );
   }
-  const expectedName = id.name.toLowerCase();
-  const cardName = card.name.toLowerCase();
-  const faceMatches = card.card_faces?.some((face) => face.name.toLowerCase() === expectedName);
-  const splitNameMatches = cardName
-    .split(/\s+\/\/\s+/)
-    .some((part) => part.toLowerCase() === expectedName);
+  const expectedName = canonicalCardName(id.name);
+  const cardName = canonicalCardName(card.name);
+  const faceMatches = card.card_faces?.some(
+    (face) => canonicalCardName(face.name) === expectedName,
+  );
+  const splitNameMatches = cardName.split(" // ").some((part) => part === expectedName);
   if (cardName !== expectedName && !faceMatches && !splitNameMatches) return false;
   return id.set ? card.set?.toLowerCase() === id.set.toLowerCase() : true;
+}
+
+export function canonicalCardName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .split(/\s*\/{1,2}\s*/)
+    .map((part) => part.trim())
+    .join(" // ");
 }
 
 // Scryfall's /cards/collection matches `name` against a single face — the
 // full DFC display name returns not_found. Strip the back-face half before
 // sending; matchesIdentifier still accepts the full name on the way back.
 export function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifier {
-  if ("name" in id && id.name.includes("//")) {
-    const front = id.name.split(/\s*\/\/\s*/)[0]?.trim();
+  if ("name" in id && /\/{1,2}/.test(id.name)) {
+    const front = id.name.split(/\s*\/{1,2}\s*/)[0]?.trim();
     if (front) return { ...id, name: front };
   }
   return id;

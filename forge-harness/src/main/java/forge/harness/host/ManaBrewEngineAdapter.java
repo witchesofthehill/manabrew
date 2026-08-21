@@ -10,6 +10,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import forge.ai.LobbyPlayerAi;
+import forge.card.CardDb;
 import forge.deck.CardPool;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
@@ -173,11 +174,7 @@ public final class ManaBrewEngineAdapter {
         CardPool main = deck.getOrCreate(DeckSection.Main);
         Map<String, PaperCard> mainByName = new HashMap<>();
         for (CardIdentity card : playerConfig.getDeck()) {
-            if (card.getSetCode() == null || card.getSetCode().isBlank()) {
-                main.add(card.getName(), 1);
-            } else {
-                main.add(card.getName(), card.getSetCode());
-            }
+            main.add(cardRequest(card), 1);
         }
         for (PaperCard card : main.toFlatList()) {
             mainByName.putIfAbsent(card.getName().toLowerCase(Locale.ROOT), card);
@@ -207,6 +204,17 @@ public final class ManaBrewEngineAdapter {
             deck.getOrCreate(DeckSection.Commander).add(commander, 1);
         }
         return deck;
+    }
+
+    static String cardRequest(final CardIdentity card) {
+        final String name = CardDb.CardRequest.compose(card.getName(), card.isFoil());
+        if (card.getSetCode() == null || card.getSetCode().isBlank()) {
+            return name;
+        }
+        if (card.getCollectorNumber() == null || card.getCollectorNumber().isBlank()) {
+            return CardDb.CardRequest.compose(name, card.getSetCode());
+        }
+        return CardDb.CardRequest.compose(name, card.getSetCode(), card.getCollectorNumber());
     }
 
     private static void requireSessionId(final String sessionId) {
@@ -275,7 +283,9 @@ public final class ManaBrewEngineAdapter {
                 JsonObject cardObject = cardValue.getAsJsonObject();
                 deck.add(new CardIdentity(
                         requiredString(cardObject, "name"),
-                        optionalString(cardObject, "setCode")));
+                        optionalString(cardObject, "setCode"),
+                        optionalString(cardObject, "collectorNumber"),
+                        cardObject.has("foil") && cardObject.get("foil").getAsBoolean()));
             }
             boolean ai = playerObject.has("ai")
                     && !playerObject.get("ai").isJsonNull()
@@ -392,13 +402,22 @@ public final class ManaBrewEngineAdapter {
     public static final class CardIdentity {
         private final String name;
         private final String setCode;
+        private final String collectorNumber;
+        private final boolean foil;
 
-        public CardIdentity(final String name, final String setCode) {
+        public CardIdentity(
+                final String name,
+                final String setCode,
+                final String collectorNumber,
+                final boolean foil
+        ) {
             if (name == null || name.isBlank()) {
                 throw new IllegalArgumentException("card name is required");
             }
             this.name = name;
             this.setCode = setCode;
+            this.collectorNumber = collectorNumber;
+            this.foil = foil;
         }
 
         public String getName() {
@@ -407,6 +426,14 @@ public final class ManaBrewEngineAdapter {
 
         public String getSetCode() {
             return setCode;
+        }
+
+        public String getCollectorNumber() {
+            return collectorNumber;
+        }
+
+        public boolean isFoil() {
+            return foil;
         }
     }
 

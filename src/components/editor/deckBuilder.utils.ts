@@ -3,8 +3,14 @@ import { computeCmc, isLand } from "@/lib/mana";
 export { scryfallToDeckCard } from "@/lib/scryfall.utils";
 
 export interface CardGroup {
+  key: string;
   card: DeckCard;
   count: number;
+}
+
+export function cardPrintingKey(card: DeckCard): string {
+  const { name, setCode, cardNumber, foil } = card.identity;
+  return `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber.toLowerCase()}::${foil ? "foil" : "nonfoil"}`;
 }
 
 export type ViewMode = "list" | "visual" | "stack";
@@ -115,9 +121,10 @@ export const MAX_CARD_SIZE = 8;
 export function groupCards(cards: DeckCard[]): CardGroup[] {
   const map = new Map<string, CardGroup>();
   for (const card of cards) {
-    const existing = map.get(card.identity.name);
+    const key = cardPrintingKey(card);
+    const existing = map.get(key);
     if (existing) existing.count++;
-    else map.set(card.identity.name, { card, count: 1 });
+    else map.set(key, { key, card, count: 1 });
   }
   return Array.from(map.values()).sort((a, b) => {
     const aCmc = a.card.cmc ?? 0;
@@ -185,19 +192,19 @@ export function computeStackColumns(
   columns: SectionDefinition[],
 ): Array<SectionDefinition & { groups: CardGroup[] }> {
   const allGroups = groupCards(cards);
-  const usedNames = new Set<string>();
+  const usedGroups = new Set<string>();
   const cols = columns.map((col) => ({
     ...col,
     groups: allGroups.filter((g) => {
-      if (usedNames.has(g.card.identity.name)) return false;
+      if (usedGroups.has(g.key)) return false;
       if (col.filter(g.card.types)) {
-        usedNames.add(g.card.identity.name);
+        usedGroups.add(g.key);
         return true;
       }
       return false;
     }),
   }));
-  const otherGroups = allGroups.filter((g) => !usedNames.has(g.card.identity.name));
+  const otherGroups = allGroups.filter((g) => !usedGroups.has(g.key));
   if (otherGroups.length > 0)
     cols.push({ id: "other", label: "Other", filter: () => false, groups: otherGroups });
   return cols.filter((c) => c.groups.length > 0);

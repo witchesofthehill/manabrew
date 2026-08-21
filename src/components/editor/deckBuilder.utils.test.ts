@@ -1,7 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { DeckCard } from "@/protocol/deck";
 import { exportToArena, exportWithPrintings } from "./deckExport";
+import { groupCards } from "./deckBuilder.utils";
+
+vi.hoisted(() => vi.stubGlobal("__APP_VERSION__", "test"));
+vi.mock("pixi.js", () => ({
+  ImageSource: class {},
+  Texture: class {
+    static EMPTY = {};
+  },
+}));
+
+afterAll(() => vi.unstubAllGlobals());
 
 function card(name: string, setCode: string, cardNumber: string, foil = false): DeckCard {
   return {
@@ -48,5 +59,25 @@ describe("deck exports", () => {
 
     expect(result).toContain("Attractions\n1 Pick-a-Beeble (UNF) 190");
     expect(result).toContain("Schemes\n1 All in Good Time (OE01) 1");
+  });
+});
+
+describe("deck editor printing groups", () => {
+  it("keeps set, collector number, and foil variants separate", () => {
+    const groups = groupCards([
+      card("Cast Down", "cmr", "112"),
+      card("Cast Down", "cmr", "112"),
+      card("Cast Down", "clb", "119"),
+      card("Cast Down", "clb", "119", true),
+    ]);
+
+    expect(groups.map((group) => group.count)).toEqual([2, 1, 1]);
+    expect(groups.map((group) => group.card.identity)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ setCode: "cmr", cardNumber: "112", foil: false }),
+        expect.objectContaining({ setCode: "clb", cardNumber: "119", foil: false }),
+        expect.objectContaining({ setCode: "clb", cardNumber: "119", foil: true }),
+      ]),
+    );
   });
 });

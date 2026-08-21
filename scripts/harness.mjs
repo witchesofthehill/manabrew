@@ -275,6 +275,7 @@ function rebuild() {
   );
   console.log("harness: running regression tests...");
   for (const regressionClass of [
+    "forge.harness.host.ManaBrewEngineAdapterTest",
     "forge.harness.host.InteractiveSnapshotExtractorTest",
     "forge.harness.common.HarnessPlayPlumbingTest",
   ]) {

@@ -210,6 +210,46 @@ function patchDeckCardById(deck: EditorDeck, cardId: string, patch: CardPatch): 
   };
 }
 
+function patchDeckPrintingVariant(
+  deck: EditorDeck,
+  printing: DeckCardIdentity,
+  patch: CardPatch,
+): EditorDeck {
+  const normalized = normalizeDeck(deck);
+  const matches = (card: DeckCard) =>
+    card.identity.name === printing.name &&
+    card.identity.setCode === printing.setCode &&
+    card.identity.cardNumber === printing.cardNumber &&
+    !!card.identity.foil === !!printing.foil;
+  const patchCards = (cards: DeckCard[]) =>
+    cards.map((card) => (matches(card) ? applyPatch(card, patch) : card));
+  return {
+    ...normalized,
+    cards: patchCards(normalized.cards),
+    sideboard: patchCards(normalized.sideboard),
+    maybeboard: normalized.maybeboard ? patchCards(normalized.maybeboard) : undefined,
+    attractions: normalized.attractions ? patchCards(normalized.attractions) : undefined,
+    contraptions: normalized.contraptions ? patchCards(normalized.contraptions) : undefined,
+    schemes: normalized.schemes ? patchCards(normalized.schemes) : undefined,
+    planes: normalized.planes ? patchCards(normalized.planes) : undefined,
+    commanders: normalized.commanders ? patchCards(normalized.commanders) : undefined,
+    companion:
+      normalized.companion && matches(normalized.companion)
+        ? applyPatch(normalized.companion, patch)
+        : normalized.companion,
+  };
+}
+
+function availablePrintingFoil(printing: DeckCardIdentity, scryfallCard: ScryfallCard): boolean {
+  const finishes = scryfallCard.finishes ?? [];
+  if (finishes.length === 0) return !!printing.foil;
+  const hasFoil = finishes.some((finish) => finish === "foil" || finish === "etched");
+  const hasNonfoil = finishes.includes("nonfoil");
+  if (printing.foil && !hasFoil && hasNonfoil) return false;
+  if (!printing.foil && !hasNonfoil && hasFoil) return true;
+  return !!printing.foil;
+}
+
 export interface SavedDeck {
   id: string;
   deck: EditorDeck;
@@ -282,6 +322,7 @@ interface DeckState {
   removeCommander: (card?: DeckCard) => void;
   updatePrint: (cardName: string, scryfallCard: ScryfallCard) => void;
   updateCardPrint: (cardId: string, scryfallCard: ScryfallCard, foil?: boolean) => void;
+  updatePrintingVariant: (printing: DeckCardIdentity, scryfallCard: ScryfallCard) => void;
   setCardFoil: (cardId: string, foil: boolean) => void;
   updateTokenPrint: (token: DeckCard, scryfallCard: ScryfallCard) => void;
   toggleFoil: (cardName: string) => void;
@@ -656,6 +697,22 @@ export const useDeckStore = create<DeckState>()(
                   cardNumber: scryfallCard.collector_number,
                   oracleId: scryfallCard.oracle_id,
                   ...(foil === undefined ? {} : { foil }),
+                },
+                uris,
+              }),
+            };
+          }),
+        updatePrintingVariant: (printing, scryfallCard) =>
+          set((state) => {
+            const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
+            if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
+            return {
+              currentDeck: patchDeckPrintingVariant(state.currentDeck, printing, {
+                identity: {
+                  setCode: scryfallCard.set,
+                  cardNumber: scryfallCard.collector_number,
+                  oracleId: scryfallCard.oracle_id,
+                  foil: availablePrintingFoil(printing, scryfallCard),
                 },
                 uris,
               }),

@@ -47,7 +47,7 @@ import {
 import { useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { toast } from "sonner";
 import { showAccountSaveNudge } from "@/components/auth/accountSaveNudge";
-import type { DeckCard } from "@/protocol/deck";
+import type { DeckCard, DeckCardIdentity } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import type { EditorDeck } from "@/types/manabrew";
 import { useScryfallStore } from "@/stores/useScryfallStore";
@@ -191,10 +191,11 @@ export function DeckBuilder({
   const hubEnabled = isFeatureEnabled("deckHub");
   const accountsEnabled = isFeatureEnabled("accounts");
   const publishEnabled = hubEnabled && accountsEnabled;
-  const [printPickerCard, setPrintPickerCard] = useState<string | null>(null);
+  const [printPickerCard, setPrintPickerCard] = useState<DeckCard | null>(null);
   const [tokenPrintPicker, setTokenPrintPicker] = useState<DeckCard | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [detailToken, setDetailToken] = useState<DeckCard | null>(null);
+  const [detailPrinting, setDetailPrinting] = useState<DeckCardIdentity | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -239,7 +240,7 @@ export function DeckBuilder({
     untagCard,
     setCoverCard,
     setStackPositions,
-    updatePrint,
+    updatePrintingVariant,
     updateTokenPrint,
     toggleFoil,
     resetTokenPrint,
@@ -886,32 +887,18 @@ export function DeckBuilder({
     removeCopies(cardName, "maybe", "one");
   }
 
-  function handleShowInfo(cardName: string) {
+  function handleShowInfo(deckCard: DeckCard) {
     setDetailToken(null);
-    // Find the card in the deck to pass its stored setCode for accurate printing
-    const allCards = [
-      ...currentDeck.cards,
-      ...supplementaryCards,
-      ...(currentDeck.commanders ?? []),
-    ];
-    const deckCard = allCards.find((c) => c.identity.name === cardName);
-    const token = mergedTokens.find((t) => t.identity.name === cardName);
-    const lookup = deckCard
-      ? {
-          name: deckCard.identity.name,
-          setCode: deckCard.identity.setCode,
-          collectorNumber: deckCard.identity.cardNumber,
-        }
-      : {
-          name: cardName,
-          setCode: token?.identity.setCode,
-          collectorNumber: token?.identity.cardNumber,
-        };
+    setDetailPrinting(deckCard.identity);
     useScryfallStore
       .getState()
-      .getCard(lookup)
+      .getCard({
+        name: deckCard.identity.name,
+        setCode: deckCard.identity.setCode,
+        collectorNumber: deckCard.identity.cardNumber,
+      })
       .then((sc) => setDetailCard(sc.info))
-      .catch(() => toast.error(`Could not fetch info for "${cardName}"`));
+      .catch(() => toast.error(`Could not fetch info for "${deckCard.identity.name}"`));
   }
 
   function handleShowTokenInfo(token: DeckCard) {
@@ -923,6 +910,7 @@ export function DeckBuilder({
       })
       .then((sc) => {
         setDetailToken(token);
+        setDetailPrinting(null);
         setDetailCard(sc.info);
       })
       .catch(() => toast.error(`Could not fetch info for "${token.identity.name}"`));
@@ -2047,7 +2035,7 @@ export function DeckBuilder({
                     })
                   }
                   onLeave={preview.handleMouseLeave}
-                  onPickPrint={(name) => setPrintPickerCard(name)}
+                  onPickPrint={setPrintPickerCard}
                   contextMenuFor={(card, label) => {
                     const name = card.identity.name;
                     const isCover =
@@ -2062,9 +2050,9 @@ export function DeckBuilder({
                       isCover,
                       isCoverBack,
                       hasBackFace: !!card.backFace,
-                      onShowInfo: () => handleShowInfo(name),
+                      onShowInfo: () => handleShowInfo(card),
                       onRemoveCommander: () => handleRemoveCommander(card),
-                      onPickPrint: () => setPrintPickerCard(name),
+                      onPickPrint: () => setPrintPickerCard(card),
                       onToggleFoil: () =>
                         executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name)),
                       onSetCover: () => {
@@ -2131,7 +2119,7 @@ export function DeckBuilder({
                     onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
                     onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
                     onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
-                    onPickPrint={(name) => setPrintPickerCard(name)}
+                    onPickPrint={setPrintPickerCard}
                     onToggleFoil={(name) =>
                       executeDeckEdit(`Toggle foil for ${name}`, () => toggleFoil(name))
                     }
@@ -2339,12 +2327,12 @@ export function DeckBuilder({
         )}
 
         <PrintPickerModal
-          cardName={printPickerCard}
+          cardName={printPickerCard?.identity.name ?? null}
           onClose={() => setPrintPickerCard(null)}
           onSelect={(print) => {
             if (printPickerCard) {
-              executeDeckEdit(`Change ${printPickerCard} printing`, () =>
-                updatePrint(printPickerCard, print),
+              executeDeckEdit(`Change ${printPickerCard.identity.name} printing`, () =>
+                updatePrintingVariant(printPickerCard.identity, print),
               );
             }
           }}
@@ -2368,11 +2356,16 @@ export function DeckBuilder({
             onClose={() => {
               setDetailCard(null);
               setDetailToken(null);
+              setDetailPrinting(null);
             }}
             deckEditorActions={{
+              printing: detailPrinting ?? undefined,
               onAddOne: handleAddOneToMainByName,
               onRemoveOne: handleRemoveOneFromMain,
-              onPickPrint: (name) => setPrintPickerCard(name),
+              onPickPrint: (name) => {
+                const card = allDeckCards().find((candidate) => candidate.identity.name === name);
+                if (card) setPrintPickerCard(card);
+              },
               onSetCommander: (name) => {
                 const existing = currentDeck.commanders?.find((c) => c.identity.name === name);
                 if (existing) {

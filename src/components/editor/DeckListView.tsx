@@ -614,7 +614,7 @@ function DraggableStackCard({
   index: number;
   onAddOne: () => void;
   onRemoveOne: () => void;
-  onPickPrint?: (cardName: string) => void;
+  onPickPrint?: (card: DeckCard) => void;
   onUntag?: (cardName: string) => void;
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
@@ -701,7 +701,7 @@ function DraggableStackCard({
       <CardSelectionButton name={name} selected={isSelected} onSelect={onSelect} />
       {(contextActions?.onPickPrint || onPickPrint) && (
         <CardPrintingButton
-          onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(name))}
+          onPickPrint={contextActions?.onPickPrint ?? (() => onPickPrint?.(group.card))}
         />
       )}
       {contextActions && <CardMenuButton className="absolute bottom-1 right-1 z-40" />}
@@ -756,11 +756,11 @@ interface StackColumnProps {
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
-  onPickPrint?: (cardName: string) => void;
+  onPickPrint?: (card: DeckCard) => void;
   onUntag?: (cardName: string) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
-  onShowInfo?: (cardName: string) => void;
+  onShowInfo?: (card: DeckCard) => void;
   dragHandleProps?: DragHandleProps;
   contextMenuFor?: (g: CardGroup) => { location: CardLocation; actions: CardContextActions } | null;
   sourceTag?: string;
@@ -837,9 +837,9 @@ function StackColumn({
             const cm = contextMenuFor?.(g);
             return (
               <DraggableStackCard
-                key={g.card.identity.name}
+                key={g.key}
                 group={g}
-                dragId={`deck-${sectionId}-${g.card.identity.name}`}
+                dragId={`deck-${sectionId}-${g.key}`}
                 cardWidth={cardWidth}
                 index={i}
                 onAddOne={() => onAddOne(g)}
@@ -848,7 +848,7 @@ function StackColumn({
                 onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
                 isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
                 onSelect={onSelectCard}
-                onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
+                onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                 topOffset={getTop(i)}
                 onCardHover={setHoveredIdx}
                 onCardLeave={() => setHoveredIdx(null)}
@@ -1171,11 +1171,11 @@ interface CardSectionProps {
   onMoveAllToSide: (name: string) => void;
   onMoveOneToMaybe: (name: string) => void;
   onMoveAllToMaybe: (name: string) => void;
-  onPickPrint: (name: string) => void;
+  onPickPrint: (card: DeckCard) => void;
   onToggleFoil?: (name: string) => void;
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
-  onShowInfo?: (cardName: string) => void;
+  onShowInfo?: (card: DeckCard) => void;
   // Tag-specific props (optional)
   tag?: string;
   onUntagCard?: (cardName: string) => void;
@@ -1247,8 +1247,8 @@ function CardSection({
       onMoveAllToSide: () => onMoveAllToSide(name),
       onMoveOneToMaybe: () => onMoveOneToMaybe(name),
       onMoveAllToMaybe: () => onMoveAllToMaybe(name),
-      onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
-      onPickPrint: () => onPickPrint(name),
+      onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
+      onPickPrint: () => onPickPrint(group.card),
       onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
       isFoil: !!group.card.identity.foil,
       isCommander: commanderNames?.has(name) ?? false,
@@ -1312,17 +1312,17 @@ function CardSection({
             const { name } = g.card.identity;
             return (
               <div
-                key={name}
+                key={g.key}
                 className={cn("flex items-center gap-1", isTagSection && "group/tag")}
               >
                 <div className="flex-1 min-w-0">
                   <CardRow
                     group={g}
-                    dragId={`${dragPrefix}-${name}`}
+                    dragId={`${dragPrefix}-${g.key}`}
                     sourceTag={isTagSection ? tag : undefined}
                     isSelected={selectedCards?.has(name.toLowerCase())}
                     onSelect={onSelectCard}
-                    onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
+                    onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                     contextActions={contextActionsFor(g)}
                   />
                 </div>
@@ -1346,18 +1346,18 @@ function CardSection({
           {groups.map((g) => {
             const { name } = g.card.identity;
             return (
-              <div key={name} className="shrink-0" style={{ width: cardWidth }}>
+              <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
                 <CardVisual
                   group={g}
-                  dragId={`${dragPrefix}-${name}`}
+                  dragId={`${dragPrefix}-${g.key}`}
                   sourceTag={isTagSection ? tag : undefined}
                   onAddOne={() => onAddOne(g)}
                   onRemoveOne={() => effectiveRemoveOne(name)}
                   onUntag={isTagSection && onUntagCard ? () => onUntagCard(name) : undefined}
-                  onPickPrint={() => onPickPrint(name)}
+                  onPickPrint={() => onPickPrint(g.card)}
                   isSelected={selectedCards?.has(name.toLowerCase())}
                   onSelect={onSelectCard}
-                  onShowInfo={onShowInfo ? () => onShowInfo(name) : undefined}
+                  onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
                   isCommander={commanderNames?.has(name) ?? false}
                   showCommander={formatRequiresCommander(deckFormat)}
                   commanderSlot={commanderSlotFor(g.card, deckFormat)}
@@ -1402,7 +1402,7 @@ function DroppableStackTag({
   cardWidth: number;
   onAddOne: (g: CardGroup) => void;
   onRemoveOne: (name: string) => void;
-  onPickPrint: (cardName: string) => void;
+  onPickPrint: (card: DeckCard) => void;
   onRemoveTag: () => void;
   onUntagCard?: (cardName: string, tag: string) => void;
   selectedCards?: Set<string>;
@@ -1502,7 +1502,7 @@ export interface DeckListViewProps {
   onMoveAllFromMaybeToMain: (name: string) => void;
   onMoveOneFromMaybeToSide: (name: string) => void;
   onMoveAllFromMaybeToSide: (name: string) => void;
-  onPickPrint: (name: string) => void;
+  onPickPrint: (card: DeckCard) => void;
   onToggleFoil?: (name: string) => void;
   onAddToSide: (card: DeckCard) => void;
   onRemoveFromSide: (name: string) => void;
@@ -1519,7 +1519,7 @@ export interface DeckListViewProps {
   selectedCards?: Set<string>;
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
   onSelectAll?: (cardNames: string[]) => void;
-  onShowInfo?: (cardName: string) => void;
+  onShowInfo?: (card: DeckCard) => void;
   coverCardName?: string;
   coverCardFace?: number;
   onSetCover?: (card: DeckCard) => void;
@@ -1943,8 +1943,8 @@ export function DeckListView({
           onMoveAllToSide: () => onMoveAllToSide(name),
           onMoveOneToMaybe: () => onMoveOneToMaybe(name),
           onMoveAllToMaybe: () => onMoveAllToMaybe(name),
-          onShowInfo: onShowInfo ? () => onShowInfo(name) : undefined,
-          onPickPrint: () => onPickPrint(name),
+          onShowInfo: onShowInfo ? () => onShowInfo(group.card) : undefined,
+          onPickPrint: () => onPickPrint(group.card),
           onToggleFoil: onToggleFoil ? () => onToggleFoil(name) : undefined,
           isFoil: !!group.card.identity.foil,
           isCommander: commanders.some((card) => card.identity.name === name),
@@ -2014,8 +2014,8 @@ export function DeckListView({
                   onMoveAllToMain: () => onMoveAllFromSideToMain(g.card.identity.name),
                   onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
                   onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
-                  onShowInfo: onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined,
-                  onPickPrint: () => onPickPrint(g.card.identity.name),
+                  onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                  onPickPrint: () => onPickPrint(g.card),
                   onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined,
                   isFoil: !!g.card.identity.foil,
                   customTags,
@@ -2076,8 +2076,8 @@ export function DeckListView({
                   onMoveAllToMain: () => onMoveAllFromMaybeToMain(g.card.identity.name),
                   onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
                   onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
-                  onShowInfo: onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined,
-                  onPickPrint: () => onPickPrint(g.card.identity.name),
+                  onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                  onPickPrint: () => onPickPrint(g.card),
                   onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined,
                   isFoil: !!g.card.identity.foil,
                   customTags,
@@ -2354,7 +2354,7 @@ export function DeckListView({
               <div className="space-y-0.5 pb-1">
                 {sideboardGroups.map((g) => (
                   <CardContextMenu
-                    key={g.card.identity.name}
+                    key={g.key}
                     count={g.count}
                     location="side"
                     onAddOne={() =>
@@ -2368,8 +2368,8 @@ export function DeckListView({
                     onMoveAllToMain={() => onMoveAllFromSideToMain(g.card.identity.name)}
                     onMoveOneToMaybe={() => onMoveOneFromSideToMaybe(g.card.identity.name)}
                     onMoveAllToMaybe={() => onMoveAllFromSideToMaybe(g.card.identity.name)}
-                    onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
-                    onPickPrint={() => onPickPrint(g.card.identity.name)}
+                    onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
+                    onPickPrint={() => onPickPrint(g.card)}
                     onToggleFoil={
                       onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
                     }
@@ -2381,7 +2381,7 @@ export function DeckListView({
                     onCreateTag={(t) => createAndApplyTag(g.card.identity.name, t)}
                   >
                     <DraggableMiniRow
-                      dragId={`deck-sideboard-${g.card.identity.name}`}
+                      dragId={`deck-sideboard-${g.key}`}
                       card={g.card}
                       className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                     >
@@ -2399,10 +2399,10 @@ export function DeckListView({
             ) : (
               <div className="flex flex-wrap gap-2 pb-1">
                 {sideboardGroups.map((g) => (
-                  <div key={g.card.identity.name} className="shrink-0" style={{ width: cardWidth }}>
+                  <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
                     <CardVisual
                       group={g}
-                      dragId={`deck-sideboard-${g.card.identity.name}`}
+                      dragId={`deck-sideboard-${g.key}`}
                       onAddOne={() =>
                         onAddToSide({
                           ...g.card,
@@ -2410,7 +2410,7 @@ export function DeckListView({
                         })
                       }
                       onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
-                      onPickPrint={() => onPickPrint(g.card.identity.name)}
+                      onPickPrint={() => onPickPrint(g.card)}
                       contextLocation="side"
                       contextActions={{
                         onAddOne: () =>
@@ -2423,8 +2423,8 @@ export function DeckListView({
                         onMoveAllToMain: () => onMoveAllFromSideToMain(g.card.identity.name),
                         onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
                         onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
-                        onShowInfo: onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined,
-                        onPickPrint: () => onPickPrint(g.card.identity.name),
+                        onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                        onPickPrint: () => onPickPrint(g.card),
                         onToggleFoil: onToggleFoil
                           ? () => onToggleFoil(g.card.identity.name)
                           : undefined,
@@ -2470,7 +2470,7 @@ export function DeckListView({
               <div className="space-y-0.5 pb-1">
                 {maybeboardGroups.map((g) => (
                   <CardContextMenu
-                    key={g.card.identity.name}
+                    key={g.key}
                     count={g.count}
                     location="maybe"
                     onAddOne={() =>
@@ -2484,8 +2484,8 @@ export function DeckListView({
                     onMoveAllToMain={() => onMoveAllFromMaybeToMain(g.card.identity.name)}
                     onMoveOneToSide={() => onMoveOneFromMaybeToSide(g.card.identity.name)}
                     onMoveAllToSide={() => onMoveAllFromMaybeToSide(g.card.identity.name)}
-                    onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
-                    onPickPrint={() => onPickPrint(g.card.identity.name)}
+                    onShowInfo={onShowInfo ? () => onShowInfo(g.card) : undefined}
+                    onPickPrint={() => onPickPrint(g.card)}
                     onToggleFoil={
                       onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined
                     }
@@ -2497,7 +2497,7 @@ export function DeckListView({
                     onCreateTag={(t) => createAndApplyTag(g.card.identity.name, t)}
                   >
                     <DraggableMiniRow
-                      dragId={`deck-maybeboard-${g.card.identity.name}`}
+                      dragId={`deck-maybeboard-${g.key}`}
                       card={g.card}
                       className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                     >
@@ -2521,10 +2521,10 @@ export function DeckListView({
             ) : (
               <div className="flex flex-wrap gap-2 pb-1">
                 {maybeboardGroups.map((g) => (
-                  <div key={g.card.identity.name} className="shrink-0" style={{ width: cardWidth }}>
+                  <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
                     <CardVisual
                       group={g}
-                      dragId={`deck-maybeboard-${g.card.identity.name}`}
+                      dragId={`deck-maybeboard-${g.key}`}
                       onAddOne={() =>
                         onAddToMaybe({
                           ...g.card,
@@ -2532,7 +2532,7 @@ export function DeckListView({
                         })
                       }
                       onRemoveOne={() => onRemoveFromMaybe(g.card.identity.name)}
-                      onPickPrint={() => onPickPrint(g.card.identity.name)}
+                      onPickPrint={() => onPickPrint(g.card)}
                       contextLocation="maybe"
                       contextActions={{
                         onAddOne: () =>
@@ -2545,8 +2545,8 @@ export function DeckListView({
                         onMoveAllToMain: () => onMoveAllFromMaybeToMain(g.card.identity.name),
                         onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
                         onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
-                        onShowInfo: onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined,
-                        onPickPrint: () => onPickPrint(g.card.identity.name),
+                        onShowInfo: onShowInfo ? () => onShowInfo(g.card) : undefined,
+                        onPickPrint: () => onPickPrint(g.card),
                         onToggleFoil: onToggleFoil
                           ? () => onToggleFoil(g.card.identity.name)
                           : undefined,
@@ -2591,7 +2591,7 @@ export function DeckListView({
                   <div className="space-y-0.5 pb-1">
                     {section.groups.map((g) => (
                       <div
-                        key={g.card.identity.name}
+                        key={g.key}
                         className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5"
                       >
                         <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
@@ -2616,14 +2616,10 @@ export function DeckListView({
                 ) : (
                   <div className="flex flex-wrap gap-2 pb-1">
                     {section.groups.map((g) => (
-                      <div
-                        key={g.card.identity.name}
-                        className="shrink-0"
-                        style={{ width: cardWidth }}
-                      >
+                      <div key={g.key} className="shrink-0" style={{ width: cardWidth }}>
                         <CardVisual
                           group={g}
-                          dragId={`deck-${section.id}-${g.card.identity.name}`}
+                          dragId={`deck-${section.id}-${g.key}`}
                           onAddOne={() =>
                             onAddToSide({
                               ...g.card,
@@ -2631,7 +2627,7 @@ export function DeckListView({
                             })
                           }
                           onRemoveOne={() => onRemoveFromSide(g.card.identity.name)}
-                          onPickPrint={() => onPickPrint(g.card.identity.name)}
+                          onPickPrint={() => onPickPrint(g.card)}
                         />
                       </div>
                     ))}

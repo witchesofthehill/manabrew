@@ -88,6 +88,8 @@ Use the exported hook helpers, not the raw store:
 | Force a refresh of a single card           | `useScryfallStore.getState().invalidateCard(name)` |
 | Promote a chosen printing                  | `useScryfallStore.getState().updatePrinting(card)` |
 
+Deck-editor card groups use name, set code, collector number, and foil finish as their identity. Keep per-tile printing actions on `DeckCardIdentity`; name-only updates are reserved for explicit bulk operations.
+
 Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks.
 
 ## Deck analysis — combos & bracket

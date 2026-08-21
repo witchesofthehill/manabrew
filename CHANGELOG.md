@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.18.4](https://github.com/witchesofthehill/manabrew/compare/v3.18.3...v3.18.4) (2026-08-21)
+
+### Fixes
+
+* **ui:** support platform deck export variants ([#731](https://github.com/witchesofthehill/manabrew/issues/731)) ([323bc6a](https://github.com/witchesofthehill/manabrew/commit/323bc6ac41a842e581296ac506f2e1679fd6631d))
+* **ui:** preserve exact card printings ([#724](https://github.com/witchesofthehill/manabrew/issues/724)) ([0d229b1](https://github.com/witchesofthehill/manabrew/commit/0d229b1513711e81533bb35be6d89173b0c2ecb5))
+
 ## [3.18.3](https://github.com/witchesofthehill/manabrew/compare/v3.18.2...v3.18.3) (2026-08-21)
 
 ### Fixes

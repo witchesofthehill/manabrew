@@ -66,6 +66,7 @@ CONFIG_ARG=""
   -cp "$JAR:$CLASSES:$LANGS" \
   -H:IncludeResourceBundles=en-US \
   --no-fallback \
+  --enable-monitoring=heapdump \
   --report-unsupported-elements-at-runtime \
   -H:+ReportExceptionStackTraces \
   --initialize-at-run-time=org.tinylog,org.slf4j,io.netty,forge,org.apache.commons.lang3 \

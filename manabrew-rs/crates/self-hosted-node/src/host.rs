@@ -334,6 +334,38 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         }
     });
 
+    #[cfg(all(unix, feature = "graal-forge"))]
+    tokio::spawn(async move {
+        let mut usr2 =
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined2()) {
+                Ok(usr2) => usr2,
+                Err(error) => {
+                    warn!(%error, "failed to install SIGUSR2 handler");
+                    return;
+                }
+            };
+        while usr2.recv().await.is_some() {
+            let dir = std::env::var("SELF_HOSTED_NODE_HEAP_DUMP_DIR")
+                .unwrap_or_else(|_| "/tmp".to_string());
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|since| since.as_secs())
+                .unwrap_or(0);
+            let path = format!("{dir}/self-hosted-node-{stamp}.hprof");
+            info!(path, "heap dump requested");
+            match tokio::task::spawn_blocking({
+                let path = path.clone();
+                move || java_backend::dump_shared_heap(&path)
+            })
+            .await
+            {
+                Ok(Ok(())) => info!(path, "heap dump written"),
+                Ok(Err(error)) => warn!(%error, "heap dump failed"),
+                Err(error) => warn!(%error, "heap dump task failed"),
+            }
+        }
+    });
+
     if single {
         return host_one_room(config, None, cancels[0].clone(), None, Some(registry)).await;
     }

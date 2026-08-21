@@ -6,6 +6,7 @@ import forge.harness.host.ManaBrewEngineAdapter;
 import java.nio.charset.StandardCharsets;
 
 import org.graalvm.nativeimage.IsolateThread;
+import org.graalvm.nativeimage.VMRuntime;
 import org.graalvm.nativeimage.UnmanagedMemory;
 import org.graalvm.nativeimage.c.function.CEntryPoint;
 import org.graalvm.nativeimage.c.type.CCharPointer;
@@ -96,6 +97,16 @@ public final class ForgeNative {
     static void freeString(IsolateThread thread, CCharPointer ptr) {
         if (ptr.isNonNull()) {
             UnmanagedMemory.free(ptr);
+        }
+    }
+
+    @CEntryPoint(name = "forge_dump_heap")
+    static CCharPointer dumpHeap(IsolateThread thread, CCharPointer path, boolean liveObjectsOnly) {
+        try {
+            VMRuntime.dumpHeap(str(path), liveObjectsOnly);
+            return ok(str(path));
+        } catch (Throwable t) {
+            return err(t);
         }
     }
 

@@ -712,6 +712,11 @@ mod graal_ffi {
             session_id: *const c_char,
         ) -> *mut c_char;
         pub fn forge_free_string(thread: *mut graal_isolatethread_t, ptr: *mut c_char);
+        pub fn forge_dump_heap(
+            thread: *mut graal_isolatethread_t,
+            path: *const c_char,
+            live_objects_only: c_int,
+        ) -> *mut c_char;
     }
 }
 
@@ -919,6 +924,32 @@ impl GraalEngineHandle {
             .decode(unsafe { graal_ffi::forge_abort_game(self.bridge.thread, session.as_ptr()) })
             .map(|_| ())
     }
+}
+
+/// Write an hprof dump of the shared isolate's heap. Attaches its own isolate
+/// thread, so it is callable from a signal handler task rather than the engine
+/// thread that owns the room's bridge.
+#[cfg(feature = "graal-forge")]
+pub fn dump_shared_heap(path: &str) -> Result<(), String> {
+    let isolate = SHARED_GRAAL_ISOLATE
+        .lock()
+        .map_err(|_| "shared graal isolate poisoned".to_string())?
+        .as_ref()
+        .map(|shared| shared.0)
+        .ok_or_else(|| "no shared isolate to dump".to_string())?;
+    let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+    let rc = unsafe { graal_ffi::graal_attach_thread(isolate, &mut thread) };
+    if rc != 0 {
+        return Err(format!("graal_attach_thread failed with code {rc}"));
+    }
+    let bridge = GraalBridge {
+        thread,
+        attached: true,
+    };
+    let target = cstring(path)?;
+    bridge
+        .decode(unsafe { graal_ffi::forge_dump_heap(bridge.thread, target.as_ptr(), 1) })
+        .map(|_| ())
 }
 
 #[cfg(feature = "graal-forge")]

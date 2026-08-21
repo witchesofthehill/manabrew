@@ -104,10 +104,16 @@ COPY --from=java-builder /build/forge-harness/target/forge-harness-jar-with-depe
 
 ENV GRAALVM_HOME=${JAVA_HOME}
 # -J-Xmx caps the BUILD jvm, which otherwise sizes itself from the whole runner.
-# -R: bakes a RUNTIME default: max heap 70% of the cgroup limit, leaving room for
-# the image's own data and the Rust side. The 80% default gets us OOM-killed.
+# -R: bakes a RUNTIME default. The percentage is of the cgroup limit, but RSS is
+# not the live set: the collector commits toward its max and is slow to hand
+# pages back, and image heap, GC bookkeeping and thread stacks sit outside the
+# cap entirely. At 70% of a 2GB limit the node reached that limit and ran in
+# permanent reclaim instead of collecting (#729). 55% leaves headroom until a
+# heap dump says what the real ceiling should be.
+ARG FORGE_MAX_HEAP_PERCENT=55
 RUN chmod +x forge-harness/build-native.sh && \
-    ./forge-harness/build-native.sh -J-Xmx8g -R:MaximumHeapSizePercent=70
+    ./forge-harness/build-native.sh -J-Xmx8g \
+      -R:MaximumHeapSizePercent=${FORGE_MAX_HEAP_PERCENT}
 
 # ── Stage 3: Build the Rust node ─────────────────────────────────────
 # `graal-forge` links libforgeharness at build time, so the library must land

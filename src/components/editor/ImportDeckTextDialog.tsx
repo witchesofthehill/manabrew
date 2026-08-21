@@ -14,7 +14,12 @@ import { Input } from "@/components/ui/input";
 import { DEFAULT_IMPORT_NAME } from "@/lib/constants";
 import { GAME_FORMATS } from "@/lib/formats";
 import { cn } from "@/lib/utils";
-import { parseDeckListText, type ParsedDeckEntry } from "@/lib/deckImport";
+import {
+  isDetectedCommander,
+  parseDeckListText,
+  suggestedDeckName,
+  type ParsedDeckEntry,
+} from "@/lib/deckImport";
 import type { DeckFormat } from "@/protocol/deck";
 
 interface ImportDeckTextDialogProps {
@@ -44,7 +49,7 @@ export function ImportDeckTextDialog({
   mode = "create",
 }: ImportDeckTextDialogProps) {
   const [text, setText] = useState("");
-  const [name, setName] = useState("");
+  const [customName, setCustomName] = useState<string | null>(null);
   const [formatId, setFormatId] = useState<DeckFormat | "">("");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -54,7 +59,7 @@ export function ImportDeckTextDialog({
   useEffect(() => {
     if (open) return;
     setText("");
-    setName("");
+    setCustomName(null);
     setFormatId("");
     setImporting(false);
     setProgress(0);
@@ -63,13 +68,20 @@ export function ImportDeckTextDialog({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const entries = useMemo(() => parseDeckListText(text), [text]);
+  const name = customName ?? suggestedDeckName(entries);
   const mainCount = entries.reduce(
-    (s, e) => (e.side || e.maybe || e.commander ? s : s + e.count),
+    (s, e) => (e.side || e.maybe || isDetectedCommander(e) ? s : s + e.count),
     0,
   );
-  const sideCount = entries.reduce((s, e) => (e.side && !e.commander ? s + e.count : s), 0);
-  const maybeCount = entries.reduce((s, e) => (e.maybe && !e.commander ? s + e.count : s), 0);
-  const commanderCount = entries.reduce((s, e) => (e.commander ? s + e.count : s), 0);
+  const sideCount = entries.reduce(
+    (s, e) => (e.side && !isDetectedCommander(e) ? s + e.count : s),
+    0,
+  );
+  const maybeCount = entries.reduce(
+    (s, e) => (e.maybe && !isDetectedCommander(e) ? s + e.count : s),
+    0,
+  );
+  const commanderCount = entries.reduce((s, e) => (isDetectedCommander(e) ? s + e.count : s), 0);
   const valid = entries.length > 0;
   const dirty = text.trim().length > 0;
   const unrecognizedLines = useMemo(() => {
@@ -173,7 +185,7 @@ export function ImportDeckTextDialog({
                         <td className="px-3 py-2 font-mono">{entry.count}</td>
                         <td className="px-3 py-2 font-medium">{entry.name}</td>
                         <td className="px-3 py-2 text-muted-foreground">
-                          {entry.commander
+                          {isDetectedCommander(entry)
                             ? "Command zone"
                             : entry.side
                               ? "Sideboard"
@@ -237,7 +249,7 @@ export function ImportDeckTextDialog({
                     <label className="text-xs font-medium">Deck name</label>
                     <Input
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => setCustomName(e.target.value)}
                       placeholder={DEFAULT_IMPORT_NAME}
                     />
                   </div>

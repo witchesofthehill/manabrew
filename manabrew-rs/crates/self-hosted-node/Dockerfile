@@ -104,11 +104,12 @@ COPY --from=java-builder /build/forge-harness/target/forge-harness-jar-with-depe
 
 ENV GRAALVM_HOME=${JAVA_HOME}
 # -J-Xmx caps the BUILD jvm, which otherwise sizes itself from the whole runner.
-# -R: bakes a RUNTIME default. The percentage is of the cgroup limit, but the
-# cgroup also holds what the heap cap does not count: the Rust side, thread
-# stacks and native allocation, measured at roughly 600MB on the prod fleet. At
-# 70% of a 2GB limit the two together reach the limit exactly, and the node runs
-# in permanent reclaim instead of collecting (#729). 55% leaves that headroom.
+# -R: bakes a RUNTIME default. The percentage is of the cgroup limit, but RSS is
+# not the live set: the collector commits toward its max and is slow to hand
+# pages back, and image heap, GC bookkeeping and thread stacks sit outside the
+# cap entirely. At 70% of a 2GB limit the node reached that limit and ran in
+# permanent reclaim instead of collecting (#729). 55% leaves headroom until a
+# heap dump says what the real ceiling should be.
 ARG FORGE_MAX_HEAP_PERCENT=55
 RUN chmod +x forge-harness/build-native.sh && \
     ./forge-harness/build-native.sh -J-Xmx8g \

@@ -23,6 +23,7 @@ members = [
     "manabrew-rs/crates/forge-limited",
     "manabrew-rs/crates/manabot",
     "manabrew-rs/crates/networking-tests",
+    "manabrew-rs/crates/loadgen",
     "xtask",
 ]
 exclude = [

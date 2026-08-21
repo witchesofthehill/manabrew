@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.18.3](https://github.com/witchesofthehill/manabrew/compare/v3.18.2...v3.18.3) (2026-08-21)
+
+### Fixes
+
+* pick random room on multiplayer ([#732](https://github.com/witchesofthehill/manabrew/issues/732)) ([a6d869b](https://github.com/witchesofthehill/manabrew/commit/a6d869b1131c08612413beaca4a932f301f4d332))
+
 ## [3.18.2](https://github.com/witchesofthehill/manabrew/compare/v3.18.1...v3.18.2) (2026-08-21)
 
 ### Fixes

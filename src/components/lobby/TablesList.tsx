@@ -9,6 +9,7 @@ import { OpenTableCard } from "@/components/lobby/OpenTableCard";
 import { SetUpTableDialog } from "@/components/lobby/SetUpTableDialog";
 import { TableRoom } from "@/components/lobby/TableRoom";
 import { needsFormatChoice } from "@/components/lobby/tables.utils";
+import { pickRandomDistinct } from "@/lib/utils";
 import { RefreshCw, Search } from "lucide-react";
 import type { GameFormat, RoomInfo } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
@@ -103,7 +104,7 @@ export function TablesList({
   async function handleJoinHostedRooms(roomCandidates: RoomInfo[], format: GameFormat) {
     if (joiningRoomId) return;
     try {
-      for (const room of roomCandidates) {
+      for (const room of pickRandomDistinct(roomCandidates, roomCandidates.length)) {
         setJoiningRoomId(room.room_id);
         try {
           await onJoinRoom(room.room_id, undefined, format);

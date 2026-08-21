@@ -7,6 +7,7 @@
     "forge-cardset-archive": "0.2.2",
     "forge-foundation": "0.3.3",
     "forge-limited": "0.2.5",
+    "loadgen": "0.1.0",
     "manabot": "0.9.1",
     "manabrew": "3.18.4",
     "manabrew-agent-interface": "0.8.3",

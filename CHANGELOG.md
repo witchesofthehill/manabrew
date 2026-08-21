@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.18.2](https://github.com/witchesofthehill/manabrew/compare/v3.18.1...v3.18.2) (2026-08-21)
+
+### Fixes
+
+* **node:** size the graal heap below the cgroup limit and dump on demand ([#730](https://github.com/witchesofthehill/manabrew/issues/730)) ([3582e63](https://github.com/witchesofthehill/manabrew/commit/3582e637c256a970c5b28df715079009671e4cac))
+
 ## [3.18.1](https://github.com/witchesofthehill/manabrew/compare/v3.18.0...v3.18.1) (2026-08-20)
 
 ### Fixes

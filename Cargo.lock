@@ -6371,7 +6371,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.18.3"
+version = "0.18.4"
 dependencies = [
  "forge-carddb",
  "forge-foundation",

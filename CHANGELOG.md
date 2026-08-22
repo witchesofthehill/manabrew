@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.18.6](https://github.com/witchesofthehill/manabrew/compare/v3.18.5...v3.18.6) (2026-08-22)
+
+### Fixes
+
+* **ui:** preserve dragged battlefield placement ([#739](https://github.com/witchesofthehill/manabrew/issues/739)) ([b2757dc](https://github.com/witchesofthehill/manabrew/commit/b2757dcc8223a745c472ec8b5e338c3df793b9bc))
+
 ## [3.18.5](https://github.com/witchesofthehill/manabrew/compare/v3.18.4...v3.18.5) (2026-08-22)
 
 ## [3.18.4](https://github.com/witchesofthehill/manabrew/compare/v3.18.3...v3.18.4) (2026-08-21)

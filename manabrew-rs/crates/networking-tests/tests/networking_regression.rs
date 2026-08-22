@@ -15,7 +15,8 @@ const CURRENT_CLIENT_VERSION: &str = "3.17.0";
 use libtest_mimic::Arguments;
 use manabrew_agent_interface::protocol::{identity_token, IdentityProof};
 use support::{
-    case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Sim, GRACE_DEADLINE,
+    case, execute, list, scenario, spawn_guest_bot, summary, Case, Client, Manifest, Sim,
+    GRACE_DEADLINE,
 };
 
 async fn brief_disconnect_reclaims_seat() {
@@ -520,6 +521,34 @@ async fn old_clients_are_sent_whole_boards() {
     );
 }
 
+async fn publishing_a_release_never_ends_a_live_game() {
+    scenario(
+        "a node armed to auto-update, hosting a game between a human and its bot.",
+        "a newer node build is published while that game is still being played.",
+        "the node drains instead of exiting: the game plays on, and the node only leaves once its room is back in the lobby.",
+    );
+    let manifest = Manifest::serve(9654).await;
+    let mut sim = Sim::spawn_updating(9652, &manifest.url()).await;
+    let mut alice = Client::connect(&sim.relay_url, "alice").await.unwrap();
+    alice.join(&sim.room_id, false).await.unwrap();
+    alice.spawn_node_bot(&sim.room_id).await.unwrap();
+    alice.select_deck_and_ready().await.unwrap();
+    alice.start_game(2).await.unwrap();
+    alice.answer_prompts(2).await.unwrap();
+
+    manifest.publish();
+    // Well past the 2s poll and the 10s shutdown grace behind it.
+    tokio::time::sleep(Duration::from_secs(20)).await;
+    assert!(
+        sim.node_running(),
+        "the node exited on top of a live game — every player in it would have been dropped",
+    );
+    alice.answer_prompts(2).await.unwrap();
+
+    alice.leave().await.unwrap();
+    sim.wait_node_exit(Duration::from_secs(60)).await;
+}
+
 fn main() {
     let args = Arguments::from_args();
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -579,6 +608,10 @@ fn main() {
         case(
             "ghost_session_reaped_on_room_teardown",
             ghost_session_reaped_on_room_teardown,
+        ),
+        case(
+            "publishing_a_release_never_ends_a_live_game",
+            publishing_a_release_never_ends_a_live_game,
         ),
     ];
 

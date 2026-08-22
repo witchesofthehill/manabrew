@@ -92,23 +92,64 @@ struct SpawnBotDeckPayload {
 }
 
 type SharedEngineSession = Arc<Mutex<Option<EngineSession>>>;
-type SessionRegistry = Arc<Mutex<Vec<SharedEngineSession>>>;
+type SessionRegistry = Arc<Mutex<Vec<RoomLiveness>>>;
 
-fn registry_idle(registry: &SessionRegistry) -> bool {
-    registry
+struct RoomLiveness {
+    engine_session: SharedEngineSession,
+    snapshot: SharedHostSnapshot,
+}
+
+/// The engine session alone is `None` in every window where the relay still has
+/// a game in the room — before the engine starts, after it is aborted, and on
+/// every path where `maybe_start_hosted_engine` bails out. Anything that ends
+/// the process must consult the relay's own view of the room too (#734).
+fn room_is_live(engine_session: &SharedEngineSession, snapshot: &SharedHostSnapshot) -> bool {
+    let engine_running = engine_session
         .lock()
-        .map(|sessions| {
-            sessions
-                .iter()
-                .all(|session| session.lock().map(|guard| guard.is_none()).unwrap_or(false))
+        .map(|guard| guard.is_some())
+        .unwrap_or(true);
+    if engine_running {
+        return true;
+    }
+    snapshot
+        .lock()
+        .map(|snap| {
+            snap.room_info
+                .as_ref()
+                .is_some_and(|room| room.status != RoomStatus::Lobby)
         })
-        .unwrap_or(false)
+        .unwrap_or(true)
+}
+
+/// `None` when liveness is unknowable: no room has registered yet, or a lock is
+/// poisoned. Callers must never read that as idle — an empty registry made
+/// `all()` vacuously true and let the updater exit on top of live games.
+fn registry_live_rooms(registry: &SessionRegistry) -> Option<usize> {
+    let rooms = registry.lock().ok()?;
+    if rooms.is_empty() {
+        return None;
+    }
+    Some(
+        rooms
+            .iter()
+            .filter(|room| room_is_live(&room.engine_session, &room.snapshot))
+            .count(),
+    )
 }
 
 static DRAINING: AtomicBool = AtomicBool::new(false);
 
 fn draining() -> bool {
     DRAINING.load(Ordering::Relaxed)
+}
+
+fn begin_drain(reason: &str) {
+    if !DRAINING.swap(true, Ordering::Relaxed) {
+        info!(
+            reason,
+            "draining: refusing new games and closing each room once idle"
+        );
+    }
 }
 
 type SharedBotState = Arc<Mutex<Vec<BotState>>>;
@@ -304,11 +345,10 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         .collect();
 
     let monitor_registry = registry.clone();
-    let stale_cancels = cancels.clone();
     tokio::spawn(run_stale_monitor(
         StaleConfig::from_env_and_args(),
-        move || registry_idle(&monitor_registry),
-        move || notify_all(&stale_cancels),
+        move || registry_live_rooms(&monitor_registry),
+        || begin_drain("a newer build is published"),
     ));
 
     let signal_cancels = cancels.clone();
@@ -329,8 +369,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
                 }
             };
         while usr1.recv().await.is_some() {
-            DRAINING.store(true, Ordering::Relaxed);
-            info!("drain signal received; refusing new games and closing each room once idle");
+            begin_drain("SIGUSR1");
         }
     });
 
@@ -456,7 +495,10 @@ async fn host_one_room(
     let engine_session: SharedEngineSession = Arc::new(Mutex::new(None));
     if let Some(sessions) = &sessions {
         if let Ok(mut registered) = sessions.lock() {
-            registered.push(engine_session.clone());
+            registered.push(RoomLiveness {
+                engine_session: engine_session.clone(),
+                snapshot: snapshot.clone(),
+            });
         }
     }
     let bot_state: SharedBotState = Arc::new(Mutex::new(Vec::new()));
@@ -1008,11 +1050,7 @@ async fn run_client_loop(
                 return LoopExit::Cancelled;
             }
             _ = drain_tick.tick() => {
-                let idle = engine_session
-                    .lock()
-                    .map(|guard| guard.is_none())
-                    .unwrap_or(false);
-                if draining() && idle {
+                if draining() && !room_is_live(engine_session, snapshot) {
                     info!(username = %client.username, "draining and no active game; closing room");
                     return LoopExit::Cancelled;
                 }

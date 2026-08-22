@@ -15,6 +15,8 @@ const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
 const JVM_GC_TOTAL: &str = "manabrew_node_jvm_gc_total";
 const JVM_HEAP_AFTER_GC_BYTES: &str = "manabrew_node_jvm_heap_after_gc_bytes";
+const STALE_CHECKS: &str = "manabrew_node_stale_checks_total";
+const STALE_LIVE_ROOMS: &str = "manabrew_node_stale_live_rooms";
 
 const LABEL_POOL: &str = "pool";
 const LABEL_KIND: &str = "kind";
@@ -23,6 +25,7 @@ const LABEL_PLAYERS: &str = "players";
 const LABEL_SIGNATURE: &str = "signature";
 const LABEL_STAGE: &str = "stage";
 const LABEL_VERSION: &str = "version";
+const LABEL_DECISION: &str = "decision";
 
 const ENV_PUSH_URL: &str = "SELF_HOSTED_NODE_METRICS_PUSH_URL";
 const ENV_PUSH_USERNAME: &str = "SELF_HOSTED_NODE_METRICS_PUSH_USERNAME";
@@ -146,6 +149,21 @@ pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<
     counter!(JVM_GC_TOTAL, LABEL_KIND => kind).increment(1);
     if let Some(megabytes) = heap_after_mb {
         gauge!(JVM_HEAP_AFTER_GC_BYTES, LABEL_KIND => kind).set((megabytes * 1024 * 1024) as f64);
+    }
+}
+
+/// The stale updater's shutdown decision. A node that terminates itself takes
+/// its container logs with it, so this counter is the only surviving evidence
+/// of why the fleet bounced.
+pub fn record_stale_check(live_rooms: Option<usize>) {
+    let decision = match live_rooms {
+        None => "unknown",
+        Some(0) => "exit",
+        Some(_) => "defer",
+    };
+    counter!(STALE_CHECKS, LABEL_DECISION => decision).increment(1);
+    if let Some(live) = live_rooms {
+        gauge!(STALE_LIVE_ROOMS).set(live as f64);
     }
 }
 

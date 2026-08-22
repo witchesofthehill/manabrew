@@ -1,5 +1,7 @@
 # Changelog
 
+## [3.18.5](https://github.com/witchesofthehill/manabrew/compare/v3.18.4...v3.18.5) (2026-08-22)
+
 ## [3.18.4](https://github.com/witchesofthehill/manabrew/compare/v3.18.3...v3.18.4) (2026-08-21)
 
 ### Fixes

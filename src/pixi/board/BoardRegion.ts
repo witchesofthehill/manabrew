@@ -158,7 +158,7 @@ export class BoardRegion {
   private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null }[] = [];
   private effectiveChildrenMap = new Map<string, string[]>();
   private lastState: BattlefieldState | null = null;
-  private pendingDropSlot: { col: number; row: number } | null = null;
+  private pendingDrop: { cardId: string; slot: { col: number; row: number } } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
   private hoveredCardId: string | null = null;
   private dropActive = false;
@@ -460,14 +460,21 @@ export class BoardRegion {
   setDropActive(active: boolean): void {
     if (this.dropActive === active) return;
     this.dropActive = active;
-    if (active) {
-      this.lastDropCell = null;
-    } else {
-      this.pendingDropSlot = this.lastDropCell;
-      this.lastDropCell = null;
-      this.hideGridSkeleton();
-    }
+    this.lastDropCell = null;
+    if (!active) this.hideGridSkeleton();
     this.drawBackground();
+  }
+
+  commitPendingDrop(cardId: string): boolean {
+    if (!this.lastDropCell) return false;
+    this.pendingDrop = { cardId, slot: this.lastDropCell };
+    return true;
+  }
+
+  clearPendingDrop(cardId: string): void {
+    if (this.pendingDrop?.cardId !== cardId) return;
+    this.pendingDrop = null;
+    if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
   setAutoSort(value: boolean): void {
@@ -493,10 +500,6 @@ export class BoardRegion {
   private isDeclaredBlocker(cardId: string): boolean {
     if (this.combatStaging?.blockerIds.has(cardId)) return true;
     return this.combatRowBlocks.some((b) => b.blockerId === cardId);
-  }
-
-  setPendingDropSlot(slot: { col: number; row: number } | null): void {
-    this.pendingDropSlot = slot;
   }
 
   getGridInfo(): GridLayoutInfo | null {
@@ -751,6 +754,9 @@ export class BoardRegion {
       if (!effectiveParent.has(childId)) {
         effectiveParent.set(childId, parentId);
       }
+    }
+    if (this.pendingDrop && effectiveParent.has(this.pendingDrop.cardId)) {
+      this.pendingDrop = null;
     }
 
     const effectiveChildren = new Map<string, string[]>();
@@ -1099,7 +1105,8 @@ export class BoardRegion {
       !c.isFaceDown &&
       !c.isTransformed &&
       (!c.attachmentIds || c.attachmentIds.length === 0) &&
-      !this.userPlacedCards.has(c.id);
+      !this.userPlacedCards.has(c.id) &&
+      c.id !== this.pendingDrop?.cardId;
 
     const byIdentity = new Map<string, CardDto[]>();
     for (const c of topLevel) {
@@ -1140,6 +1147,9 @@ export class BoardRegion {
 
     const prioritized = topLevelCandidates.map((card, i) => ({ card, i }));
     prioritized.sort((a, b) => {
+      const aPending = a.card.id === this.pendingDrop?.cardId ? 0 : 1;
+      const bPending = b.card.id === this.pendingDrop?.cardId ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
       const aHas = this.userSlots.has(a.card.id) ? 1 : 0;
       const bHas = this.userSlots.has(b.card.id) ? 1 : 0;
       if (aHas !== bHas) return aHas - bHas;
@@ -1224,17 +1234,26 @@ export class BoardRegion {
       occupied.add(cellKey(cell.col, cell.row));
     }
 
-    if (this.pendingDropSlot && unplaced.length > 0) {
-      const dropCell = cellAt(grid, this.pendingDropSlot.col, this.pendingDropSlot.row);
-      if (dropCell && !dropCell.blocked && !occupied.has(cellKey(dropCell.col, dropCell.row))) {
-        const dropCandidate = unplaced[0]!;
-        this.userSlots.set(dropCandidate.id, this.pendingDropSlot);
-        this.userPlacedCards.add(dropCandidate.id);
-        positions.set(dropCandidate.id, { x: dropCell.cx, y: dropCell.cy });
-        occupied.add(cellKey(dropCell.col, dropCell.row));
-        unplaced.shift();
+    if (this.pendingDrop) {
+      const { cardId, slot } = this.pendingDrop;
+      const dropCell = cellAt(grid, slot.col, slot.row);
+      const dropCandidateIndex = unplaced.findIndex((card) => card.id === cardId);
+      if (dropCell && !dropCell.blocked) {
+        const dropCellKey = cellKey(dropCell.col, dropCell.row);
+        if (!occupied.has(dropCellKey)) {
+          if (dropCandidateIndex >= 0) {
+            const dropCandidate = unplaced[dropCandidateIndex]!;
+            this.userSlots.set(dropCandidate.id, slot);
+            this.userPlacedCards.add(dropCandidate.id);
+            positions.set(dropCandidate.id, { x: dropCell.cx, y: dropCell.cy });
+            unplaced.splice(dropCandidateIndex, 1);
+          }
+          occupied.add(dropCellKey);
+        }
       }
-      this.pendingDropSlot = null;
+      if (dropCandidateIndex >= 0) {
+        this.pendingDrop = null;
+      }
     }
 
     const centerX = zone.x + zone.width / 2;
@@ -1365,8 +1384,8 @@ export class BoardRegion {
       if (cell) occupied.add(cellKey(cell.col, cell.row));
     }
 
-    if (this.pendingDropSlot) {
-      const dropCell = cellAt(grid, this.pendingDropSlot.col, this.pendingDropSlot.row);
+    if (this.pendingDrop) {
+      const dropCell = cellAt(grid, this.pendingDrop.slot.col, this.pendingDrop.slot.row);
       if (dropCell && !dropCell.blocked && !occupied.has(cellKey(dropCell.col, dropCell.row))) {
         return { x: dropCell.x, y: dropCell.y };
       }

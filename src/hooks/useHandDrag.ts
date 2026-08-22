@@ -14,6 +14,7 @@ interface UseHandDragOptions {
   battlefieldContainerRef: React.RefObject<HTMLDivElement | null>;
   handDropExclusionPx?: number;
   onCastSpell: (cardId: string) => void;
+  onBattlefieldDrop?: (card: CardDto, position: { clientX: number; clientY: number }) => void;
   dismissHover: () => void;
   onLongPress?: (card: CardDto, pos: { x: number; y: number }) => void;
 }
@@ -22,6 +23,7 @@ export function useHandDrag({
   battlefieldContainerRef,
   handDropExclusionPx = 0,
   onCastSpell,
+  onBattlefieldDrop,
   dismissHover,
   onLongPress,
 }: UseHandDragOptions) {
@@ -106,7 +108,12 @@ export function useHandDrag({
     const handlePointerUp = (pe: PointerEvent) => {
       if (pe.pointerId !== start.pointerId) return;
       teardown();
-      if (!moved || isOverBattlefieldRef.current) onCastSpell(card.id);
+      if (!moved || isOverBattlefieldRef.current) {
+        if (moved && isOverBattlefieldRef.current) {
+          onBattlefieldDrop?.(card, { clientX: pe.clientX, clientY: pe.clientY });
+        }
+        onCastSpell(card.id);
+      }
       reset();
     };
 

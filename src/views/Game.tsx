@@ -211,6 +211,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSceneRef = useRef<BoardScene | null>(null);
+  const placementIntentRef = useRef<{ cardId: string; castStarted: boolean } | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [handCardLifted, setHandCardLifted] = useState(false);
   const [boardMenuOpen, setBoardMenuOpen] = useState(false);
@@ -924,6 +925,14 @@ export default function Game({ exitTo }: GameProps = {}) {
     battlefieldContainerRef,
     handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
     onCastSpell: handleCastSpell,
+    onBattlefieldDrop: (card, position) => {
+      if (
+        isPermanentSpellCard(card) &&
+        boardSceneRef.current?.commitPendingDrop(card.id, position.clientX, position.clientY)
+      ) {
+        placementIntentRef.current = { cardId: card.id, castStarted: false };
+      }
+    },
     dismissHover: preview.dismiss,
     onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
   });
@@ -1009,6 +1018,24 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??
     gameView?.players?.find((p) => p.isHuman) ??
     gameView?.players?.[0];
+  useEffect(() => {
+    const intent = placementIntentRef.current;
+    if (!intent || !gameView || !me) return;
+    if (gameView.battlefield.some((card) => card.id === intent.cardId)) {
+      placementIntentRef.current = null;
+      return;
+    }
+
+    const onStack = gameView.stack.some((item) => item.sourceId === intent.cardId);
+    const promptingForCard =
+      casting.castingCardId === intent.cardId || activePrompt?.sourceCard?.id === intent.cardId;
+    const inHand = me.hand.some((card) => card.id === intent.cardId);
+    if (onStack || promptingForCard || !inHand) intent.castStarted = true;
+    if (!intent.castStarted || onStack || promptingForCard) return;
+
+    boardSceneRef.current?.clearPendingDrop(intent.cardId);
+    placementIntentRef.current = null;
+  }, [activePrompt, casting.castingCardId, gameView, me]);
   const opponents = useMemo(
     () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
     [gameView?.players, me?.id],

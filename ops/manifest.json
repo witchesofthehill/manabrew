@@ -19,7 +19,7 @@
     "manabrew_game_runtime": "0.3.24",
     "parity": "0.4.1",
     "parity-debugger": "0.2.16",
-    "self-hosted-node": "0.18.3",
+    "self-hosted-node": "0.18.4",
     "tree-sitter-forge-card-script": "0.2.0",
     "wasm": "0.6.5"
   }

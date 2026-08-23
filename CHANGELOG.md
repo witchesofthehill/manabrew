@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.18.7](https://github.com/witchesofthehill/manabrew/compare/v3.18.6...v3.18.7) (2026-08-23)
+
+### Fixes
+
+* style onaccount and minor fix ([#741](https://github.com/witchesofthehill/manabrew/issues/741)) ([a5e7711](https://github.com/witchesofthehill/manabrew/commit/a5e7711da0c639c178bd2c9d49a2bf4822f5c7c9))
+
 ## [3.18.6](https://github.com/witchesofthehill/manabrew/compare/v3.18.5...v3.18.6) (2026-08-22)
 
 ### Fixes

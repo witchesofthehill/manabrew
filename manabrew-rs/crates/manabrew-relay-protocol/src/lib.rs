@@ -403,6 +403,10 @@ pub struct PlayerInfo {
     pub username: String,
     pub player_id: String,
     pub connected: bool,
+    #[serde(default)]
+    pub verified: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub room_id: Option<String>,
 }

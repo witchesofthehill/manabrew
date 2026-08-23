@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { Wifi, WifiOff, Loader2, Search } from "lucide-react";
+import { GameIcon, type GameIconKey } from "@/components/companion/GameIcon";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,29 @@ const CONNECTION_STATUS: Record<
     Icon: WifiOff,
   },
 };
+
+const QUALIFICATION_BADGES: Record<string, { icon: GameIconKey; label: string; color: string }> = {
+  maintainer: { icon: "witch-flight", label: "Maintainer", color: "text-format-badge-amber" },
+};
+
+function IconBadge({ icon, label, color }: { icon: GameIconKey; label: string; color: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={cn("flex shrink-0", color)}>
+          <GameIcon icon={icon} className="h-3.5 w-3.5" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function QualificationBadge({ qualification }: { qualification: string | undefined }) {
+  const badge = qualification ? QUALIFICATION_BADGES[qualification] : undefined;
+  if (!badge) return null;
+  return <IconBadge icon={badge.icon} label={badge.label} color={badge.color} />;
+}
 
 function playerStatus(room: RoomInfo | undefined): string {
   if (!room) return "Available";
@@ -139,8 +163,8 @@ export function UserList({
       <div key={player.player_id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-md">
         <div className="relative shrink-0">
           <Avatar className="h-7 w-7">
-            <AvatarFallback className="text-[10px]">
-              {stripUsernameTag(player.username).slice(0, 2).toUpperCase()}
+            <AvatarFallback className="text-xs">
+              {stripUsernameTag(player.username).slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <span
@@ -151,8 +175,9 @@ export function UserList({
           />
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-xs font-medium leading-none truncate block">
-            {stripUsernameTag(player.username)}
+          <span className="flex items-center gap-1 text-sm font-medium leading-none">
+            <QualificationBadge qualification={player.qualification} />
+            <span className="truncate">{stripUsernameTag(player.username)}</span>
           </span>
           <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
             {playerStatus(room)}
@@ -225,8 +250,8 @@ export function UserList({
             <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md bg-muted/40">
               <div className="relative shrink-0">
                 <Avatar className="h-7 w-7">
-                  <AvatarFallback className="text-[10px]">
-                    {myUsername.slice(0, 2).toUpperCase()}
+                  <AvatarFallback className="text-xs">
+                    {myUsername.slice(0, 1).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <span
@@ -237,14 +262,14 @@ export function UserList({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <span className="text-xs font-medium leading-none truncate block">
-                  {myUsername && stripUsernameTag(myUsername)}{" "}
-                  <span className="text-muted-foreground font-normal">(You)</span>
+                <span className="flex items-center gap-1 text-sm font-medium leading-none">
+                  <QualificationBadge qualification={myEntry?.qualification} />
+                  <span className="truncate">{stripUsernameTag(myUsername)}</span>
                 </span>
                 <span className={cn("flex items-center gap-1 text-[10px]", status.text)}>
                   <status.Icon
                     className={cn(
-                      "h-2.5 w-2.5",
+                      "h-2.5 w-3.5",
                       connectionState === "connecting" && "animate-spin",
                     )}
                   />

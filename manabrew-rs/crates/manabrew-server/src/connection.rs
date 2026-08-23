@@ -141,6 +141,41 @@ pub(crate) fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMes
     }
 }
 
+fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
+    state
+        .players
+        .iter()
+        .filter(|entry| !entry.value().is_service)
+        .map(|entry| crate::protocol::PlayerInfo {
+            username: entry.value().username.clone(),
+            player_id: entry.value().player_id.clone(),
+            connected: entry.value().connected,
+            verified: entry.value().verified(),
+            qualification: entry.value().qualification.clone(),
+            room_id: entry.value().room_id.clone(),
+        })
+        .collect()
+}
+
+pub fn broadcast_player_list(state: &Arc<ServerState>) {
+    let msg = ServerMessage::PlayerList {
+        players: player_list(state),
+    };
+    let json = match serde_json::to_string(&msg) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+    let player_ids: Vec<String> = state
+        .players
+        .iter()
+        .filter(|entry| entry.value().connected && !entry.value().is_service)
+        .map(|entry| entry.key().clone())
+        .collect();
+    for pid in &player_ids {
+        emit_to(state, pid, &msg, &json);
+    }
+}
+
 pub fn broadcast_to_room_except(
     state: &Arc<ServerState>,
     sender_player_id: &str,
@@ -516,6 +551,7 @@ async fn authenticate(
             };
             let identities = resolved.identities;
             let name_verified = resolved.name_verified;
+            let qualification = resolved.qualification;
             let username = resolved.name.unwrap_or(username);
 
             if username.trim().is_empty() {
@@ -575,6 +611,7 @@ async fn authenticate(
                     session.generation,
                     identities,
                     name_verified,
+                    qualification,
                     client.clone(),
                 );
                 return Ok((session.player_id, username, true, new_gen, client, service));
@@ -596,6 +633,7 @@ async fn authenticate(
                     is_service: service,
                     identity: identities,
                     name_verified,
+                    qualification,
                     client: client.clone(),
                 },
             );
@@ -607,6 +645,7 @@ async fn authenticate(
                 error: None,
             };
             send_msg(sender, &reply);
+            broadcast_player_list(state);
 
             Ok((player_id, username, false, generation, client, service))
         }
@@ -642,6 +681,7 @@ fn reclaim_session(
     old_gen: u64,
     identities: Vec<SessionIdentity>,
     name_verified: bool,
+    qualification: Option<String>,
     client: ClientBuild,
 ) -> u64 {
     let new_gen = old_gen + 1;
@@ -659,6 +699,7 @@ fn reclaim_session(
         player.last_seen = Instant::now();
         player.disconnected_at = None;
         player.name_verified = name_verified;
+        player.qualification = qualification;
         player.client = client;
         if !identities.is_empty() {
             player.identity = identities;
@@ -724,6 +765,7 @@ fn reclaim_session(
         }
     }
 
+    broadcast_player_list(state);
     new_gen
 }
 
@@ -762,17 +804,7 @@ fn handle_client_message(
         }
 
         ClientMessage::ListPlayers => {
-            let players: Vec<_> = state
-                .players
-                .iter()
-                .filter(|entry| !entry.value().is_service)
-                .map(|entry| crate::protocol::PlayerInfo {
-                    username: entry.value().username.clone(),
-                    player_id: entry.value().player_id.clone(),
-                    connected: entry.value().connected,
-                    room_id: entry.value().room_id.clone(),
-                })
-                .collect();
+            let players = player_list(state);
             debug!(
                 "[emit] -> '{}': PlayerList ({} players)",
                 username,

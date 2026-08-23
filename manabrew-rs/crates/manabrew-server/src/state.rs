@@ -7,6 +7,7 @@ use crate::analytics::AnalyticsHandle;
 use crate::client_build::ClientBuild;
 use crate::deck_play_events::DeckPlayEventHandle;
 use crate::identity::{IdentityVerifier, SessionIdentity};
+use crate::protocol::identity_token::GUEST_SUBJECT_PREFIX;
 use crate::room::Room;
 
 pub struct ConnectedPlayer {
@@ -21,9 +22,19 @@ pub struct ConnectedPlayer {
     pub is_service: bool,
     pub identity: Vec<SessionIdentity>,
     pub name_verified: bool,
+    pub qualification: Option<String>,
     /// What the client reported at authentication. Read when deciding which
     /// wire features this seat can be sent.
     pub client: ClientBuild,
+}
+
+impl ConnectedPlayer {
+    pub fn verified(&self) -> bool {
+        self.name_verified
+            && self.identity.iter().any(|identity| {
+                matches!(identity, SessionIdentity::Account(sub) if !sub.starts_with(GUEST_SUBJECT_PREFIX))
+            })
+    }
 }
 
 pub struct UsernameSession {

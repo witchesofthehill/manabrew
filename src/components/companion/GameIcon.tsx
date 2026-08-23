@@ -25,6 +25,7 @@ import sword from "~icons/game-icons/broadsword";
 import tornado from "~icons/game-icons/tornado";
 import trophyCup from "~icons/game-icons/trophy-cup";
 import vortex from "~icons/game-icons/vortex";
+import witchFlight from "~icons/game-icons/witch-flight";
 
 const ICONS = {
   "bleeding-heart": bleedingHeart,
@@ -52,6 +53,7 @@ const ICONS = {
   tornado,
   "trophy-cup": trophyCup,
   vortex,
+  "witch-flight": witchFlight,
 } as const;
 
 export type GameIconKey = keyof typeof ICONS;

@@ -1040,6 +1040,7 @@ mod tests {
                 handle: handle.into(),
                 handle_set: false,
                 created_at: "2026-07-01T00:00:00Z".into(),
+                qualification: None,
             })
             .unwrap();
         storage
@@ -1061,8 +1062,13 @@ mod tests {
             )
             .unwrap();
         drop(storage);
-        let access =
-            auth::mint_access_token(&state.identity, &account_id, handle, auth::AUDIENCE_HUB);
+        let access = auth::mint_access_token(
+            &state.identity,
+            &account_id,
+            handle,
+            None,
+            auth::AUDIENCE_HUB,
+        );
         (access.access_token, token)
     }
 
@@ -1091,7 +1097,7 @@ mod tests {
     #[tokio::test]
     async fn card_printing_verification_requires_auth_and_matches_bulk_index() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "verifier", "verifier@example.com");
+        let (token, _) = sign_up(&state, "verifier", "verifier@example.com");
         let router = build_router(state);
         let payload = serde_json::json!({
             "identifiers": [
@@ -1121,7 +1127,7 @@ mod tests {
     #[tokio::test]
     async fn collection_routes_accept_payloads_larger_than_the_default_limit() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "collector", "collector@example.com");
+        let (token, _) = sign_up(&state, "collector", "collector@example.com");
         let router = build_router(state);
         let long_name = "x".repeat(300);
         let identifiers = (0..5_000)
@@ -1171,7 +1177,7 @@ mod tests {
     #[tokio::test]
     async fn collection_writes_are_rate_limited_per_account() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "limited", "limited@example.com");
+        let (token, _) = sign_up(&state, "limited", "limited@example.com");
         let router = build_router(state);
 
         for _ in 0..100 {
@@ -1496,6 +1502,7 @@ mod tests {
                     handle: "tester".into(),
                     handle_set: true,
                     created_at: "2026-07-01T00:00:00Z".into(),
+                    qualification: None,
                 })
                 .unwrap();
             storage

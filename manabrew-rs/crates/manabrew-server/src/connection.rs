@@ -335,12 +335,20 @@ pub async fn handle_connection(
     }
 
     let heartbeat_tx = tx.clone();
+    let heartbeat_start = Instant::now();
     let heartbeat_task = tokio::spawn(async move {
         let mut ticker = tokio::time::interval(HEARTBEAT_INTERVAL);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             ticker.tick().await;
-            if heartbeat_tx.send(Message::Ping(Vec::new())).is_err() {
+            // The payload comes back untouched in the pong (RFC 6455 §5.5.2),
+            // so the relay can time the round trip without the client
+            // participating or the two clocks agreeing.
+            let stamp = heartbeat_start.elapsed().as_millis() as u64;
+            if heartbeat_tx
+                .send(Message::Ping(stamp.to_be_bytes().to_vec()))
+                .is_err()
+            {
                 break;
             }
         }
@@ -432,8 +440,13 @@ pub async fn handle_connection(
                 debug!("[recv] '{}' ping", username);
                 let _ = tx.send(Message::Pong(data));
             }
-            Message::Pong(_) => {
+            Message::Pong(data) => {
                 debug!("[recv] '{}' pong", username);
+                if let Ok(bytes) = <[u8; 8]>::try_from(data.as_slice()) {
+                    let sent = u64::from_be_bytes(bytes);
+                    let now = heartbeat_start.elapsed().as_millis() as u64;
+                    metrics::record_client_rtt(now.saturating_sub(sent) as f64);
+                }
             }
             _ => {}
         }

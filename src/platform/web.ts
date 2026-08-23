@@ -28,7 +28,11 @@ import type {
   SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
-import { DUPLICATE_USERNAME_ERROR_FRAGMENT, SERVER_ERROR_CODE } from "@/types/server";
+import {
+  DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  SERVER_ERROR_CODE,
+  TOKEN_EXPIRED_ERROR_FRAGMENT,
+} from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type {
@@ -40,7 +44,7 @@ import type {
 } from "@/protocol";
 import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
-import { relayIdentity } from "@/lib/relayIdentity";
+import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
@@ -703,6 +707,8 @@ class WebServerApi implements IServerApi {
   private relayUrl: string | null = null;
   private serverPassword: string | null = null;
   private authedUsername: string | null = null;
+  private sessionIdentity: RelayIdentity | null = null;
+  private sessionTokenRejected = false;
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
@@ -774,20 +780,28 @@ class WebServerApi implements IServerApi {
     this.manualDisconnect = false;
     this.connectParams = params;
     this.reconnectAttempt = 0;
+    this.sessionIdentity = null;
+    this.sessionTokenRejected = false;
     return this.openSocket(params);
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
-    const { proof, username } = await relayIdentity(params.username);
+    const forceRemint = this.sessionTokenRejected;
+    this.sessionTokenRejected = false;
+    const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
+    this.sessionIdentity = identity;
+    const { proof, username } = identity;
     this.authedUsername = username;
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
 
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(url);
+      const socket = new WebSocket(url);
+      this.ws = socket;
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (this.ws !== socket) return;
         this.connectedAt = Date.now();
         this.send({
           type: "Authenticate",
@@ -801,15 +815,17 @@ class WebServerApi implements IServerApi {
         resolve();
       };
 
-      this.ws.onerror = () => {
+      socket.onerror = () => {
         reject(new Error(`Failed to connect to ${url}`));
       };
 
-      this.ws.onclose = (event) => {
+      socket.onclose = (event) => {
+        if (this.ws !== socket) return;
         this.handleSocketClose(event);
       };
 
-      this.ws.onmessage = (e: MessageEvent) => {
+      socket.onmessage = (e: MessageEvent) => {
+        if (this.ws !== socket) return;
         this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
         try {
@@ -946,6 +962,8 @@ class WebServerApi implements IServerApi {
     this.serverShutdownPending = null;
     this.reconnectAttempt = 0;
     this.connectParams = null;
+    this.sessionIdentity = null;
+    this.sessionTokenRejected = false;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -969,6 +987,7 @@ class WebServerApi implements IServerApi {
       ws.addEventListener("error", done);
       ws.close();
     });
+    this.eventBus.emit("server:disconnected", { terminal: true });
   }
 
   async listRooms(): Promise<void> {
@@ -1392,6 +1411,9 @@ class WebServerApi implements IServerApi {
       // of the backoff instead of retrying every 2s.
       if (typeof msg.error === "string" && msg.error.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT)) {
         this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
+      }
+      if (typeof msg.error === "string" && msg.error.includes(TOKEN_EXPIRED_ERROR_FRAGMENT)) {
+        this.sessionTokenRejected = true;
       }
     }
 

@@ -549,6 +549,16 @@ async fn authenticate(
                 Some(proof) => state.identity.resolve(proof).await,
                 None => identity::ResolvedIdentity::default(),
             };
+            if resolved.stale_token {
+                let reply = ServerMessage::AuthResult {
+                    success: false,
+                    player_id: None,
+                    reconnected: None,
+                    error: Some("identity token expired".into()),
+                };
+                send_msg(sender, &reply);
+                return Err(ServerError::AuthFailed("identity token expired".into()));
+            }
             let identities = resolved.identities;
             let name_verified = resolved.name_verified;
             let qualification = resolved.qualification;

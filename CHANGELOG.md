@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.19.0](https://github.com/witchesofthehill/manabrew/compare/v3.18.7...v3.19.0) (2026-08-23)
+
+### Features
+
+* add maintainer badge ([#744](https://github.com/witchesofthehill/manabrew/issues/744)) ([bbc3c5e](https://github.com/witchesofthehill/manabrew/commit/bbc3c5e7e3359b87a959cbc4a16446dd50b60f72))
+
 ## [3.18.7](https://github.com/witchesofthehill/manabrew/compare/v3.18.6...v3.18.7) (2026-08-23)
 
 ### Fixes

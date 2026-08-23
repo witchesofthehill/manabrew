@@ -70,6 +70,12 @@ Community Discover is a continuous explore feed with playful editorial sections 
 
 Author names on Community Explore cards filter the continuous feed to that author without opening the deck. Podium motion is limited to ranks one through three, uses theme color tokens, and must provide a static `prefers-reduced-motion` treatment.
 
+## Player assets — asset store
+
+Avatars and playmats are objects in the Hub's bucket, referenced on the wire as ordinary image URLs. **Every asset operation goes through `stores/useAssetStore.ts`** — nothing else may call `api/assets.ts` or `normalizeToWebp` directly. `replace(kind, blob, replaces)` uploads the new object and only then discards the one it supersedes, which is what stops a cosmetic swap stranding the previous object against the account's quota; `uploadAvatar` / `clearAvatar` additionally keep the server-side account link (`PUT /api/auth/me/avatar`) and the persisted preference in step. Gate upload affordances on `useAssetsAvailable()` (bucket configured _and_ signed in) — guests cannot upload.
+
+A cosmetic field always holds something an `<img>` can load: the hub joins `Deck.playmatUrl`, `AuthAccount.avatarUrl` and `AccountAsset.url` from the asset id on the way out, so the client never builds an asset URL. The paired `playmatAssetId` exists only so the Hub can key its foreign key; carry it alongside the URL when saving a deck. Pixi renders playmats through WebGL filters, so both texture loaders set `crossOrigin` — a bucket without CORS headers renders nothing. The inline `data:` encoding these fields once carried is gone: persisted decks are stripped of the old `playmat` key on rehydrate (`dropInlinePlaymat`, persist version 7) so a stored blob can't ride a spread back onto the wire, and the old `customAvatar` / `defaultPlaymat` preference keys are simply no longer read.
+
 ## Card data — Scryfall store
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.

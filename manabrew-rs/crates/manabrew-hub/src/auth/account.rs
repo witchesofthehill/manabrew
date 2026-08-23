@@ -89,6 +89,8 @@ pub async fn update_handle_handler(
             handle: handle.to_string(),
             handle_pending: false,
             created_at: account.created_at,
+            avatar_url: account.avatar_url,
+            avatar_asset_id: account.avatar_asset_id,
         })
         .into_response(),
         Ok(HandleOutcome::Conflict) => StatusCode::CONFLICT.into_response(),
@@ -100,6 +102,23 @@ pub async fn delete_account_handler(
     State(state): State<Arc<AppState>>,
     SessionAccount(account): SessionAccount,
 ) -> Response {
+    if let Some(assets) = state.assets.as_ref() {
+        let owned = state
+            .storage
+            .lock()
+            .unwrap()
+            .account_asset_kinds(&account.id);
+        let owned = match owned {
+            Ok(owned) => owned,
+            Err(error) => return internal_error(error),
+        };
+        for (asset_id, kind) in owned {
+            let object_key = crate::assets::object_key(&account.id, kind, &asset_id);
+            if let Err(error) = assets.store.delete(&object_key).await {
+                return internal_error(error);
+            }
+        }
+    }
     match state.storage.lock().unwrap().delete_account(&account.id) {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(error) => internal_error(error),

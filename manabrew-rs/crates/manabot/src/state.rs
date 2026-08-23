@@ -168,7 +168,7 @@ impl BotState {
                             deck: self.config.deck.clone(),
                             published_deck_id: None,
                             commander_name: self.config.commander_name.clone(),
-                            avatar: None,
+                            avatar_url: None,
                         },
                         ClientMessage::SetReady { ready: true },
                     ]

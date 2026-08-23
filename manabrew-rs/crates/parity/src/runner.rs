@@ -588,16 +588,14 @@ impl PlayerAgent for CapturingAgent {
             }
             GameNotification::ActivatedAbilityPaymentFailed {
                 player, card_id, ..
-            } => {
-                if *player == self.player_id {
-                    if std::env::var("FORGE_FAIL_TRACE").is_ok() {
-                        eprintln!(
-                            "[fail-rust] T{} {} insert failed card_id={:?}",
-                            self.current_turn, self.current_phase, card_id
-                        );
-                    }
-                    self.failed_payment_cards_this_turn.insert(*card_id);
+            } if *player == self.player_id => {
+                if std::env::var("FORGE_FAIL_TRACE").is_ok() {
+                    eprintln!(
+                        "[fail-rust] T{} {} insert failed card_id={:?}",
+                        self.current_turn, self.current_phase, card_id
+                    );
                 }
+                self.failed_payment_cards_this_turn.insert(*card_id);
             }
             _ => {}
         }

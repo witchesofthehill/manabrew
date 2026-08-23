@@ -1981,13 +1981,11 @@ impl PlayerAgent for DeterministicAgent {
                     );
                 }
             }
-            GameNotification::PhaseChanged { phase } => {
-                if self.is_verbose() {
-                    eprintln!(
-                        "[parity-agent-rust p{}] --- Phase: {:?} ---",
-                        self.player_id.0, phase
-                    );
-                }
+            GameNotification::PhaseChanged { phase } if self.is_verbose() => {
+                eprintln!(
+                    "[parity-agent-rust p{}] --- Phase: {:?} ---",
+                    self.player_id.0, phase
+                );
             }
             _ => {}
         }

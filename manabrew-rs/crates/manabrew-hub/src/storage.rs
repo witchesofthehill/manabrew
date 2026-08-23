@@ -4,9 +4,10 @@ use std::time::Duration;
 use manabrew_hub::dto::{
     AccountDeckDetail, AccountDeckSummary, AccountExport, AccountExportDeck, AccountExportFavorite,
     AccountExportIdentity, AccountExportProfile, AccountExportPublication, AccountExportSession,
-    AdminTopDeckSnapshotEntry, AuthAccount, AuthIdentity, DeckHubEntryDetail, DeckHubEntrySummary,
-    DeckHubFacet, DeckHubFacets, DeckHubTag, DeckVersionDetail, DeckVersionSummary,
-    FavoriteResponse, TopDeckBucket, TopDeckSnapshot, TopDeckSnapshotEntry,
+    AdminTopDeckSnapshotEntry, AssetKind, AssetQuota, AssetState, AuthAccount, AuthIdentity,
+    DeckHubEntryDetail, DeckHubEntrySummary, DeckHubFacet, DeckHubFacets, DeckHubTag,
+    DeckVersionDetail, DeckVersionSummary, FavoriteResponse, TopDeckBucket, TopDeckSnapshot,
+    TopDeckSnapshotEntry,
 };
 
 use manabrew_protocol::deck_dto::{deck_fingerprint, Deck, DeckCard, DeckFormat};
@@ -52,6 +53,40 @@ pub enum DeckHubColorMatch {
 pub enum DeckHubTagMatch {
     Any,
     All,
+}
+
+pub struct AssetRow {
+    pub id: String,
+    pub kind: AssetKind,
+    pub byte_size: u64,
+    pub state: AssetState,
+    pub created_at: String,
+}
+
+pub enum CreateDeckOutcome {
+    Created(Box<AccountDeckDetail>),
+    UnknownPlaymatAsset,
+}
+
+pub struct AssetReservation<'a> {
+    pub account_id: &'a str,
+    pub asset_id: &'a str,
+    pub kind: AssetKind,
+    pub byte_size: u64,
+    pub default_quota_bytes: u64,
+    pub expires_at: &'a str,
+    pub now: &'a str,
+}
+
+pub struct ExpiredAsset {
+    pub id: String,
+    pub account_id: String,
+    pub kind: AssetKind,
+}
+
+pub enum ReserveAssetOutcome {
+    Reserved,
+    QuotaExceeded { used_bytes: u64, quota_bytes: u64 },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -113,6 +148,7 @@ pub enum AnalyticsImportOutcome {
 
 #[derive(Debug)]
 pub enum SaveVersionOutcome {
+    UnknownPlaymatAsset,
     Saved(AccountDeckDetail),
     Unchanged(AccountDeckDetail),
     Conflict,
@@ -154,6 +190,8 @@ pub struct AccountRow {
     pub handle: String,
     pub handle_set: bool,
     pub created_at: String,
+    pub avatar_asset_id: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -199,6 +237,7 @@ include!(concat!(env!("OUT_DIR"), "/migrations.rs"));
 
 pub struct Storage {
     conn: Connection,
+    asset_base_url: Option<String>,
 }
 
 impl Storage {
@@ -274,11 +313,14 @@ impl Storage {
         Ok(Some(version))
     }
 
-    pub fn open(path: &str) -> SqlResult<Self> {
+    pub fn open(path: &str, asset_base_url: Option<String>) -> SqlResult<Self> {
         let conn = Connection::open(path)?;
         conn.query_row("PRAGMA journal_mode=WAL", [], |_| Ok(()))?;
         conn.execute_batch("PRAGMA foreign_keys=ON")?;
-        let storage = Self { conn };
+        let storage = Self {
+            conn,
+            asset_base_url,
+        };
         storage.migrate()?;
         Ok(storage)
     }
@@ -287,7 +329,10 @@ impl Storage {
     pub fn open_memory() -> SqlResult<Self> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch("PRAGMA foreign_keys=ON")?;
-        let storage = Self { conn };
+        let storage = Self {
+            conn,
+            asset_base_url: Some("https://assets.example".into()),
+        };
         storage.migrate()?;
         Ok(storage)
     }
@@ -728,25 +773,34 @@ impl Storage {
     pub fn create_account_deck(
         &self,
         account_id: &str,
-        deck: &Deck,
+        mut deck: Deck,
         notes: Option<&str>,
         now: &str,
-    ) -> SqlResult<AccountDeckDetail> {
+    ) -> SqlResult<CreateDeckOutcome> {
         let deck_id = uuid::Uuid::new_v4().to_string();
         let version_id = uuid::Uuid::new_v4().to_string();
+        let playmat_asset_id = deck.playmat_asset_id.take();
+        let deck = &deck;
         let snapshot_json = serde_json::to_string(deck)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
         let tx = self.conn.unchecked_transaction()?;
+        if let Some(asset_id) = playmat_asset_id.as_deref() {
+            if !activate_asset(&tx, account_id, asset_id, AssetKind::Playmat)? {
+                return Ok(CreateDeckOutcome::UnknownPlaymatAsset);
+            }
+        }
         tx.execute(
             "INSERT INTO decks
-                (id, account_id, name, format, description, visibility, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'private', ?6, ?6)",
+                (id, account_id, name, format, description, playmat_asset_id,
+                 visibility, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'private', ?7, ?7)",
             params![
                 deck_id,
                 account_id,
                 deck.name,
                 format_to_str(deck.format),
                 deck.description,
+                playmat_asset_id,
                 now,
             ],
         )?;
@@ -771,6 +825,7 @@ impl Storage {
         insert_deck_cards(&tx, &version_id, deck)?;
         tx.commit()?;
         self.get_account_deck(account_id, &deck_id)?
+            .map(|detail| CreateDeckOutcome::Created(Box::new(detail)))
             .ok_or(rusqlite::Error::QueryReturnedNoRows)
     }
 
@@ -1040,7 +1095,8 @@ impl Storage {
                         v.id, v.version_no,
                         (SELECT count(*) FROM deckhub_entries e
                          WHERE e.deck_id = d.id AND e.status != 'archived'),
-                        source.preset_key, d.created_at, d.updated_at, v.snapshot_json
+                        source.preset_key, d.created_at, d.updated_at, v.snapshot_json,
+                        d.playmat_asset_id
                  FROM decks d
                  LEFT JOIN decks source ON source.id = d.derived_from_deck_id
                  JOIN deck_versions v ON v.deck_id = d.id
@@ -1053,13 +1109,20 @@ impl Storage {
                 |row| {
                     let summary = map_account_deck_summary(row)?;
                     let snapshot_json: String = row.get(11)?;
-                    let deck = serde_json::from_str(&snapshot_json).map_err(|error| {
+                    let mut deck: Deck = serde_json::from_str(&snapshot_json).map_err(|error| {
                         rusqlite::Error::FromSqlConversionFailure(
                             11,
                             rusqlite::types::Type::Text,
                             Box::new(error),
                         )
                     })?;
+                    deck.playmat_asset_id = row.get(12)?;
+                    deck.playmat_url = public_asset_url(
+                        self.asset_base_url.as_deref(),
+                        account_id,
+                        AssetKind::Playmat,
+                        deck.playmat_asset_id.clone(),
+                    );
                     Ok(AccountDeckDetail { summary, deck })
                 },
             )
@@ -1071,10 +1134,12 @@ impl Storage {
         account_id: &str,
         deck_id: &str,
         expected_version_no: u32,
-        deck: &Deck,
+        mut deck: Deck,
         notes: Option<&str>,
         now: &str,
     ) -> SqlResult<SaveVersionOutcome> {
+        let playmat_asset_id = deck.playmat_asset_id.take();
+        let deck = &deck;
         let tx = self.conn.unchecked_transaction()?;
         let current = tx
             .query_row(
@@ -1106,6 +1171,15 @@ impl Storage {
         if current_version_no != expected_version_no {
             return Ok(SaveVersionOutcome::Conflict);
         }
+        if let Some(asset_id) = playmat_asset_id.as_deref() {
+            if !activate_asset(&tx, account_id, asset_id, AssetKind::Playmat)? {
+                return Ok(SaveVersionOutcome::UnknownPlaymatAsset);
+            }
+        }
+        tx.execute(
+            "UPDATE decks SET playmat_asset_id = ?2 WHERE id = ?1",
+            params![deck_id, playmat_asset_id],
+        )?;
         let snapshot_json = serde_json::to_string(deck)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
         let content_hash = sha256_hex(snapshot_json.as_bytes());
@@ -1978,9 +2052,10 @@ impl Storage {
     pub fn get_account(&self, id: &str) -> SqlResult<Option<AccountRow>> {
         self.conn
             .query_row(
-                "SELECT id, handle, handle_set, created_at FROM accounts WHERE id = ?1",
+                "SELECT id, handle, handle_set, created_at, avatar_asset_id
+                 FROM accounts WHERE id = ?1",
                 params![id],
-                map_account,
+                |row| map_account(row, self.asset_base_url.as_deref()),
             )
             .optional()
     }
@@ -2168,10 +2243,146 @@ impl Storage {
         tx.commit()
     }
 
+    pub fn reserve_asset(&self, reservation: AssetReservation) -> SqlResult<ReserveAssetOutcome> {
+        let tx = self.conn.unchecked_transaction()?;
+        let (used_bytes, quota_bytes) =
+            asset_usage(&tx, reservation.account_id, reservation.default_quota_bytes)?;
+        if used_bytes.saturating_add(reservation.byte_size) > quota_bytes {
+            return Ok(ReserveAssetOutcome::QuotaExceeded {
+                used_bytes,
+                quota_bytes,
+            });
+        }
+        tx.execute(
+            "INSERT INTO account_assets
+                (id, account_id, kind, byte_size, state, expires_at, created_at)
+             VALUES (?1, ?2, ?3, ?4, 'pending', ?5, ?6)",
+            params![
+                reservation.asset_id,
+                reservation.account_id,
+                reservation.kind.as_str(),
+                reservation.byte_size,
+                reservation.expires_at,
+                reservation.now,
+            ],
+        )?;
+        tx.commit()?;
+        Ok(ReserveAssetOutcome::Reserved)
+    }
+
+    pub fn account_assets(
+        &self,
+        account_id: &str,
+        default_quota_bytes: u64,
+    ) -> SqlResult<(Vec<AssetRow>, AssetQuota)> {
+        let assets = self
+            .conn
+            .prepare(
+                "SELECT id, kind, byte_size, state, created_at
+                 FROM account_assets WHERE account_id = ?1 ORDER BY created_at DESC",
+            )?
+            .query_map(params![account_id], map_asset_row)?
+            .collect::<SqlResult<Vec<_>>>()?;
+        let (used_bytes, quota_bytes) = asset_usage(&self.conn, account_id, default_quota_bytes)?;
+        Ok((
+            assets,
+            AssetQuota {
+                used_bytes,
+                quota_bytes,
+            },
+        ))
+    }
+
+    pub fn account_asset_kinds(&self, account_id: &str) -> SqlResult<Vec<(String, AssetKind)>> {
+        self.conn
+            .prepare("SELECT id, kind FROM account_assets WHERE account_id = ?1")?
+            .query_map(params![account_id], map_asset_ref)?
+            .collect()
+    }
+
+    pub fn delete_account_asset(&self, account_id: &str, asset_id: &str) -> SqlResult<bool> {
+        let deleted = self.conn.execute(
+            "DELETE FROM account_assets WHERE id = ?1 AND account_id = ?2",
+            params![asset_id, account_id],
+        )?;
+        Ok(deleted > 0)
+    }
+
+    pub fn expired_pending_assets(&self, now: &str, limit: u32) -> SqlResult<Vec<ExpiredAsset>> {
+        self.conn
+            .prepare(
+                "SELECT id, account_id, kind FROM account_assets
+                 WHERE state = 'pending' AND expires_at <= ?1
+                 ORDER BY expires_at ASC LIMIT ?2",
+            )?
+            .query_map(params![now, limit], |row| {
+                let kind: String = row.get(2)?;
+                Ok(ExpiredAsset {
+                    id: row.get(0)?,
+                    account_id: row.get(1)?,
+                    kind: AssetKind::parse(&kind).ok_or_else(|| column_domain_error(2, &kind))?,
+                })
+            })?
+            .collect()
+    }
+
+    pub fn confirm_pending_asset(&self, asset_id: &str, byte_size: u64) -> SqlResult<()> {
+        self.conn.execute(
+            "UPDATE account_assets SET state = 'active', expires_at = NULL, byte_size = ?2
+             WHERE id = ?1 AND state = 'pending'",
+            params![asset_id, byte_size],
+        )?;
+        Ok(())
+    }
+
+    pub fn discard_pending_asset(&self, asset_id: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "DELETE FROM account_assets WHERE id = ?1 AND state = 'pending'",
+            params![asset_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_account_avatar_asset(
+        &self,
+        account_id: &str,
+        asset_id: Option<&str>,
+    ) -> SqlResult<bool> {
+        let tx = self.conn.unchecked_transaction()?;
+        if let Some(asset_id) = asset_id {
+            if !activate_asset(&tx, account_id, asset_id, AssetKind::Avatar)? {
+                return Ok(false);
+            }
+        }
+        tx.execute(
+            "UPDATE accounts SET avatar_asset_id = ?2 WHERE id = ?1",
+            params![account_id, asset_id],
+        )?;
+        tx.commit()?;
+        Ok(true)
+    }
+
+    pub fn owned_asset_kind(
+        &self,
+        account_id: &str,
+        asset_id: &str,
+    ) -> SqlResult<Option<AssetKind>> {
+        self.conn
+            .query_row(
+                "SELECT kind FROM account_assets WHERE id = ?1 AND account_id = ?2",
+                params![asset_id, account_id],
+                |row| {
+                    let kind: String = row.get(0)?;
+                    AssetKind::parse(&kind).ok_or_else(|| column_domain_error(0, &kind))
+                },
+            )
+            .optional()
+    }
+
     pub fn export_account(&self, account_id: &str, now: &str) -> SqlResult<AccountExport> {
         let account = self.conn.query_row(
             "SELECT id, handle, handle_set, username, display_name, email, avatar_url,
-                    created_at, updated_at
+                    created_at, updated_at, avatar_asset_id
              FROM accounts WHERE id = ?1",
             params![account_id],
             |row| {
@@ -2181,11 +2392,13 @@ impl Storage {
                         handle: row.get(1)?,
                         handle_pending: row.get::<_, i64>(2)? == 0,
                         created_at: row.get(7)?,
+                        avatar_asset_id: row.get(9)?,
+                        avatar_url: None,
                     },
                     username: row.get(3)?,
                     display_name: row.get(4)?,
                     email: row.get(5)?,
-                    avatar_url: row.get(6)?,
+                    provider_avatar_url: row.get(6)?,
                     updated_at: row.get(8)?,
                 })
             },
@@ -2371,11 +2584,11 @@ impl Storage {
     pub fn session_account(&self, token_hash: &str, now: &str) -> SqlResult<Option<AccountRow>> {
         self.conn
             .query_row(
-                "SELECT a.id, a.handle, a.handle_set, a.created_at
+                "SELECT a.id, a.handle, a.handle_set, a.created_at, a.avatar_asset_id
                  FROM sessions s JOIN accounts a ON a.id = s.account_id
                  WHERE s.token_hash = ?1 AND s.expires_at > ?2",
                 params![token_hash, now],
-                map_account,
+                |row| map_account(row, self.asset_base_url.as_deref()),
             )
             .optional()
     }
@@ -2843,10 +3056,62 @@ fn public_deck(mut deck: Deck) -> Deck {
     deck.custom_tags = None;
     deck.card_tags = None;
     deck.editor = None;
-    deck.playmat = None;
+    deck.playmat_url = None;
     deck.playmat_settings = None;
     deck.stack_positions = None;
     deck
+}
+
+fn asset_usage(
+    conn: &Connection,
+    account_id: &str,
+    default_quota_bytes: u64,
+) -> SqlResult<(u64, u64)> {
+    let used_bytes = conn.query_row(
+        "SELECT coalesce(sum(byte_size), 0) FROM account_assets WHERE account_id = ?1",
+        params![account_id],
+        |row| row.get(0),
+    )?;
+    let quota_bytes = conn.query_row(
+        "SELECT coalesce(asset_quota_bytes, ?2) FROM accounts WHERE id = ?1",
+        params![account_id, default_quota_bytes],
+        |row| row.get(0),
+    )?;
+    Ok((used_bytes, quota_bytes))
+}
+
+fn activate_asset(
+    tx: &Transaction,
+    account_id: &str,
+    asset_id: &str,
+    kind: AssetKind,
+) -> SqlResult<bool> {
+    let updated = tx.execute(
+        "UPDATE account_assets SET state = 'active', expires_at = NULL
+         WHERE id = ?1 AND account_id = ?2 AND kind = ?3",
+        params![asset_id, account_id, kind.as_str()],
+    )?;
+    Ok(updated > 0)
+}
+
+fn map_asset_row(row: &Row) -> SqlResult<AssetRow> {
+    let kind: String = row.get(1)?;
+    let state: String = row.get(3)?;
+    Ok(AssetRow {
+        id: row.get(0)?,
+        kind: AssetKind::parse(&kind).ok_or_else(|| column_domain_error(1, &kind))?,
+        byte_size: row.get(2)?,
+        state: AssetState::parse(&state).ok_or_else(|| column_domain_error(3, &state))?,
+        created_at: row.get(4)?,
+    })
+}
+
+fn column_domain_error(index: usize, value: &str) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(
+        index,
+        rusqlite::types::Type::Text,
+        format!("unexpected column value: {value}").into(),
+    )
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
@@ -3084,13 +3349,43 @@ fn cover_image(deck: &Deck, cover_card_name: Option<&str>) -> Option<String> {
     .cloned()
 }
 
-fn map_account(row: &Row) -> SqlResult<AccountRow> {
+fn map_account(row: &Row, asset_base_url: Option<&str>) -> SqlResult<AccountRow> {
+    let id: String = row.get(0)?;
+    let avatar_asset_id: Option<String> = row.get(4)?;
     Ok(AccountRow {
-        id: row.get(0)?,
+        avatar_url: public_asset_url(
+            asset_base_url,
+            &id,
+            AssetKind::Avatar,
+            avatar_asset_id.clone(),
+        ),
+        id,
         handle: row.get(1)?,
         handle_set: row.get::<_, i64>(2)? != 0,
         created_at: row.get(3)?,
+        avatar_asset_id,
     })
+}
+
+fn public_asset_url(
+    base_url: Option<&str>,
+    account_id: &str,
+    kind: AssetKind,
+    asset_id: Option<String>,
+) -> Option<String> {
+    Some(format!(
+        "{}/{}",
+        base_url?,
+        crate::assets::object_key(account_id, kind, &asset_id?)
+    ))
+}
+
+fn map_asset_ref(row: &Row) -> SqlResult<(String, AssetKind)> {
+    let kind: String = row.get(1)?;
+    Ok((
+        row.get(0)?,
+        AssetKind::parse(&kind).ok_or_else(|| column_domain_error(1, &kind))?,
+    ))
 }
 
 fn map_account_deck_summary(row: &Row) -> SqlResult<AccountDeckSummary> {
@@ -3142,6 +3437,248 @@ fn format_from_str(s: &str) -> Option<DeckFormat> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const QUOTA: u64 = 1024;
+    const LATER: &str = "2026-08-02T00:00:00Z";
+    const NOW: &str = "2026-08-01T00:00:00Z";
+
+    fn avatar_asset_id(storage: &Storage) -> Option<String> {
+        storage
+            .conn
+            .query_row(
+                "SELECT avatar_asset_id FROM accounts WHERE id = 'acct-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    fn accounts() -> Storage {
+        let storage = Storage::open_memory().unwrap();
+        storage
+            .conn
+            .execute_batch(
+                "INSERT INTO accounts (id, handle, handle_set, created_at) VALUES
+                 ('acct-1', 'first', 1, '2026-08-01T00:00:00Z'),
+                 ('acct-2', 'second', 1, '2026-08-01T00:00:00Z');",
+            )
+            .unwrap();
+        storage
+    }
+
+    fn reserve_kind(
+        storage: &Storage,
+        account_id: &str,
+        kind: AssetKind,
+        byte_size: u64,
+    ) -> (ReserveAssetOutcome, String) {
+        let asset_id = uuid::Uuid::new_v4().to_string();
+        let outcome = storage
+            .reserve_asset(AssetReservation {
+                account_id,
+                asset_id: &asset_id,
+                kind,
+                byte_size,
+                default_quota_bytes: QUOTA,
+                expires_at: LATER,
+                now: NOW,
+            })
+            .unwrap();
+        (outcome, asset_id)
+    }
+
+    fn reserve(storage: &Storage, account_id: &str, byte_size: u64) -> ReserveAssetOutcome {
+        reserve_kind(storage, account_id, AssetKind::Playmat, byte_size).0
+    }
+
+    #[test]
+    fn reservations_count_against_the_quota_before_anything_is_uploaded() {
+        let storage = accounts();
+        assert!(matches!(
+            reserve(&storage, "acct-1", QUOTA),
+            ReserveAssetOutcome::Reserved
+        ));
+        assert!(matches!(
+            reserve(&storage, "acct-1", 1),
+            ReserveAssetOutcome::QuotaExceeded {
+                used_bytes: QUOTA,
+                quota_bytes: QUOTA,
+            }
+        ));
+        assert!(matches!(
+            reserve(&storage, "acct-2", QUOTA),
+            ReserveAssetOutcome::Reserved
+        ));
+    }
+
+    #[test]
+    fn deleting_an_asset_releases_its_bytes() {
+        let storage = accounts();
+        let (outcome, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, QUOTA);
+        assert!(matches!(outcome, ReserveAssetOutcome::Reserved));
+        assert!(storage.delete_account_asset("acct-1", &asset_id).unwrap());
+        assert_eq!(
+            storage
+                .account_assets("acct-1", QUOTA)
+                .unwrap()
+                .1
+                .used_bytes,
+            0
+        );
+        assert!(matches!(
+            reserve(&storage, "acct-1", QUOTA),
+            ReserveAssetOutcome::Reserved
+        ));
+    }
+
+    #[test]
+    fn an_account_cannot_delete_or_claim_another_accounts_asset() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 10);
+        assert!(!storage.delete_account_asset("acct-2", &asset_id).unwrap());
+        assert!(storage
+            .owned_asset_kind("acct-2", &asset_id)
+            .unwrap()
+            .is_none());
+        assert!(!storage
+            .set_account_avatar_asset("acct-2", Some(&asset_id))
+            .unwrap());
+    }
+
+    #[test]
+    fn a_deck_cannot_claim_another_accounts_playmat() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 10);
+        let deck = Deck {
+            name: "Borrowed".into(),
+            playmat_asset_id: Some(asset_id.clone()),
+            ..Deck::default()
+        };
+        assert!(matches!(
+            storage
+                .create_account_deck("acct-2", deck, None, NOW)
+                .unwrap(),
+            CreateDeckOutcome::UnknownPlaymatAsset
+        ));
+
+        let owned = Deck {
+            name: "Owned".into(),
+            playmat_asset_id: Some(asset_id),
+            ..Deck::default()
+        };
+        assert!(matches!(
+            storage
+                .create_account_deck("acct-1", owned, None, NOW)
+                .unwrap(),
+            CreateDeckOutcome::Created(_)
+        ));
+    }
+
+    #[test]
+    fn an_avatar_asset_cannot_be_used_as_a_playmat() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Avatar, 10);
+        let deck = Deck {
+            name: "Wrong kind".into(),
+            playmat_asset_id: Some(asset_id),
+            ..Deck::default()
+        };
+        assert!(matches!(
+            storage
+                .create_account_deck("acct-1", deck, None, NOW)
+                .unwrap(),
+            CreateDeckOutcome::UnknownPlaymatAsset
+        ));
+    }
+
+    #[test]
+    fn a_renamed_account_still_resolves_its_avatar() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Avatar, 10);
+        assert!(storage
+            .set_account_avatar_asset("acct-1", Some(&asset_id))
+            .unwrap());
+        let before = storage.get_account("acct-1").unwrap().unwrap().avatar_url;
+        assert!(before.is_some_and(|url| url.contains("/acct-1/avatar/")));
+        assert!(matches!(
+            storage.update_handle("acct-1", "renamed").unwrap(),
+            HandleOutcome::Updated
+        ));
+        let after = storage.get_account("acct-1").unwrap().unwrap().avatar_url;
+        assert!(after.is_some_and(|url| url.contains("/acct-1/avatar/")));
+    }
+
+    #[test]
+    fn a_per_account_quota_overrides_the_default() {
+        let storage = accounts();
+        storage
+            .conn
+            .execute_batch("UPDATE accounts SET asset_quota_bytes = 4096 WHERE id = 'acct-1'")
+            .unwrap();
+        assert!(matches!(
+            reserve(&storage, "acct-1", 4096),
+            ReserveAssetOutcome::Reserved
+        ));
+        assert!(matches!(
+            reserve(&storage, "acct-2", 4096),
+            ReserveAssetOutcome::QuotaExceeded { .. }
+        ));
+    }
+
+    #[test]
+    fn sweeping_a_landed_upload_corrects_its_size_and_keeps_it() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 500);
+        assert_eq!(
+            storage
+                .expired_pending_assets(LATER, 10)
+                .unwrap()
+                .into_iter()
+                .map(|it| it.id)
+                .collect::<Vec<_>>(),
+            vec![asset_id.clone()]
+        );
+        storage.confirm_pending_asset(&asset_id, 400).unwrap();
+        assert!(storage
+            .expired_pending_assets(LATER, 10)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            storage
+                .account_assets("acct-1", QUOTA)
+                .unwrap()
+                .1
+                .used_bytes,
+            400
+        );
+    }
+
+    #[test]
+    fn sweeping_an_upload_that_never_landed_releases_the_reservation() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 500);
+        storage.discard_pending_asset(&asset_id).unwrap();
+        assert_eq!(
+            storage
+                .account_assets("acct-1", QUOTA)
+                .unwrap()
+                .1
+                .used_bytes,
+            0
+        );
+    }
+
+    #[test]
+    fn deleting_an_avatar_asset_clears_the_account_reference() {
+        let storage = accounts();
+        let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Avatar, 10);
+        assert!(storage
+            .set_account_avatar_asset("acct-1", Some(&asset_id))
+            .unwrap());
+        assert_eq!(avatar_asset_id(&storage), Some(asset_id.clone()));
+        assert!(storage.delete_account_asset("acct-1", &asset_id).unwrap());
+        assert_eq!(avatar_asset_id(&storage), None);
+    }
 
     #[test]
     fn card_collections_are_isolated_by_account_and_cascade_on_delete() {
@@ -3285,7 +3822,10 @@ mod tests {
             ],
         )
         .unwrap();
-        let storage = Storage { conn };
+        let storage = Storage {
+            conn,
+            asset_base_url: None,
+        };
         storage.migrate().unwrap();
 
         let version: u32 = storage
@@ -3320,7 +3860,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 15);
+        assert_eq!(version, 16);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

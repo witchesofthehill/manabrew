@@ -136,7 +136,7 @@ async function joinHostedRoomAndPlay(
       deckName: request.playerDeck.name || "PlayerDto Deck",
       deck: request.playerDeck,
       commanderName: request.commanderName,
-      avatar: usePreferencesStore.getState().customAvatar,
+      avatarUrl: usePreferencesStore.getState().customAvatarUrl,
     });
     await platform.server.setReady({ ready: true });
 

@@ -1,4 +1,4 @@
-FROM rust:1.88-bookworm
+FROM rust:1.98-bookworm
 
 ARG WATCHEXEC_VERSION=2.3.2
 ARG TARGETARCH

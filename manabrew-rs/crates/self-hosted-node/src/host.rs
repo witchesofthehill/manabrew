@@ -968,7 +968,7 @@ async fn seat_client(
             deck: deck.deck.clone(),
             published_deck_id: None,
             commander_name: deck.commander_name.clone(),
-            avatar: None,
+            avatar_url: None,
         })
         .await?;
     client

@@ -17,6 +17,7 @@ import {
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
+import { useAssetStore } from "@/stores/useAssetStore";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -376,7 +377,8 @@ export default function Settings() {
 
   const zoneOrder = prefs.zonePanelOrder;
   const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
-  const hasDefaultPlaymat = !!prefs.defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
+  const defaultPlaymat = prefs.defaultPlaymatUrl;
+  const hasDefaultPlaymat = !!defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
 
   function setZoneSlot(index: number, value: ZonePanelItem) {
     const next = [...zoneOrder] as ZonePanelItem[];
@@ -776,9 +778,9 @@ export default function Settings() {
               <Label>Default Playmat</Label>
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
-                  {prefs.defaultPlaymat ? (
+                  {defaultPlaymat ? (
                     <img
-                      src={prefs.defaultPlaymat}
+                      src={defaultPlaymat}
                       alt="Your default playmat"
                       className="size-full object-cover"
                     />
@@ -801,7 +803,8 @@ export default function Settings() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        prefs.setDefaultPlaymat(undefined);
+                        void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
+                        prefs.setDefaultPlaymat(undefined, undefined);
                         prefs.setDefaultPlaymatSettings(undefined);
                       }}
                     >
@@ -1150,8 +1153,9 @@ export default function Settings() {
             <PlaymatEditorModal
               onClose={() => setPlaymatEditorOpen(false)}
               title="Default Playmat"
-              playmat={prefs.defaultPlaymat}
+              playmat={defaultPlaymat}
               storedSettings={prefs.defaultPlaymatSettings}
+              playmatAssetId={prefs.defaultPlaymatAssetId}
               setPlaymat={prefs.setDefaultPlaymat}
               setPlaymatSettings={prefs.setDefaultPlaymatSettings}
             />

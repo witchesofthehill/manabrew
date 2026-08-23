@@ -177,7 +177,7 @@ async fn play_game(
                     .map_err(|e| e.to_string())?,
                 published_deck_id: None,
                 commander_name: None,
-                avatar: None,
+                avatar_url: None,
             },
         )
         .await?;

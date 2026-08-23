@@ -237,7 +237,7 @@ pub fn resume_room_sync(
                 selected_deck: deck.map(|d| d.deck.clone()),
                 published_deck_id: deck.and_then(|d| d.published_deck_id.clone()),
                 selected_commander_name: deck.and_then(|d| d.commander_name.clone()),
-                avatar: deck.and_then(|d| d.avatar.clone()),
+                avatar_url: deck.and_then(|d| d.avatar_url.clone()),
             }
         })
         .collect();
@@ -421,14 +421,8 @@ pub fn set_ready_sync(
     Ok(room_id)
 }
 
-const MAX_COSMETIC_LEN: usize = 1_500_000;
-const COSMETIC_PREFIX: &str = "data:image/webp;base64,";
 const MAX_COLOR_LEN: usize = 32;
 const MAX_PUBLISHED_DECK_ID_LEN: usize = 160;
-
-fn sanitize_cosmetic(value: Option<String>) -> Option<String> {
-    value.filter(|s| s.len() <= MAX_COSMETIC_LEN && s.starts_with(COSMETIC_PREFIX))
-}
 
 fn sanitize_playmat_settings(settings: &mut PlaymatSettings) {
     settings.color = settings.color.take().filter(|s| s.len() <= MAX_COLOR_LEN);
@@ -455,7 +449,7 @@ pub fn set_deck_selection_sync(
     mut deck: Deck,
     published_deck_id: Option<String>,
     commander_name: Option<String>,
-    avatar: Option<String>,
+    avatar_url: Option<String>,
 ) -> Result<String, ServerError> {
     let room_id = {
         state
@@ -465,11 +459,9 @@ pub fn set_deck_selection_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    deck.playmat = sanitize_cosmetic(deck.playmat.take());
     if let Some(settings) = deck.playmat_settings.as_mut() {
         sanitize_playmat_settings(settings);
     }
-    let avatar = sanitize_cosmetic(avatar);
     let published_deck_id = sanitize_published_deck_id(published_deck_id);
 
     {
@@ -488,7 +480,7 @@ pub fn set_deck_selection_sync(
             deck,
             published_deck_id,
             commander_name,
-            avatar,
+            avatar_url,
         )
         .map_err(|_| ServerError::NotInRoom)?;
     }

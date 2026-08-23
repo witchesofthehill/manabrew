@@ -104,6 +104,15 @@ services:
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
       AUTH_EMAIL_FROM: "${AUTH_EMAIL_FROM:-Manabrew <onboarding@resend.dev>}"
       DECK_HUB: "1"
+      # Point these at a MinIO container or a real bucket to exercise avatar and
+      # playmat uploads; unset, the hub reports no asset capability.
+      HUB_S3_ENDPOINT: "${HUB_S3_ENDPOINT:-}"
+      HUB_S3_REGION: "${HUB_S3_REGION:-auto}"
+      HUB_S3_BUCKET: "${HUB_S3_BUCKET:-}"
+      HUB_S3_ACCESS_KEY_ID: "${HUB_S3_ACCESS_KEY_ID:-}"
+      HUB_S3_SECRET_ACCESS_KEY: "${HUB_S3_SECRET_ACCESS_KEY:-}"
+      HUB_S3_PUBLIC_BASE_URL: "${HUB_S3_PUBLIC_BASE_URL:-}"
+      HUB_S3_PATH_STYLE: "${HUB_S3_PATH_STYLE:-1}"
       RUST_LOG: "manabrew_hub=info"
     ports:
       - "9500:9500"

@@ -109,6 +109,17 @@ services:
       HUB_ANALYTICS_IMPORT_DB_PATH: "/var/manabrew/events/events.db"
       HUB_RELAY_DECK_PLAYS_TOKEN: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       DECK_HUB: "${DECK_HUB:-1}"
+      # Player avatars and playmats. All five are required together; with any of
+      # them unset the hub reports no asset capability and the upload endpoints
+      # return 503. Credentials live in ops/production.secrets.
+      HUB_S3_ENDPOINT: "${HUB_S3_ENDPOINT:-}"
+      HUB_S3_REGION: "${HUB_S3_REGION:-auto}"
+      HUB_S3_BUCKET: "${HUB_S3_BUCKET:-}"
+      HUB_S3_ACCESS_KEY_ID: "${HUB_S3_ACCESS_KEY_ID:-}"
+      HUB_S3_SECRET_ACCESS_KEY: "${HUB_S3_SECRET_ACCESS_KEY:-}"
+      HUB_S3_PUBLIC_BASE_URL: "${HUB_S3_PUBLIC_BASE_URL:-}"
+      HUB_S3_PATH_STYLE: "${HUB_S3_PATH_STYLE:-0}"
+      HUB_ASSET_QUOTA_BYTES: "${HUB_ASSET_QUOTA_BYTES:-1073741824}"
       RUST_LOG: "manabrew_hub=info"
       # Auth (/api/auth/*). Client ids/secrets live in ops/production.secrets;
       # an unset client id disables that provider. No RESEND_API_KEY → the

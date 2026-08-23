@@ -57,7 +57,7 @@ export class HubRequestError extends Error {
   }
 }
 
-async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
+export async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   const refreshToken = useAuthStore.getState().refreshToken;
   const token = await getAccessToken();
   const headers = new Headers(init?.headers);
@@ -99,7 +99,7 @@ async function hubRequest(path: string, init?: RequestInit): Promise<Response> {
   return response;
 }
 
-async function hubJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function hubJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await hubRequest(path, init);
   return (await response.json()) as T;
 }

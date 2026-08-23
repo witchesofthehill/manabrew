@@ -79,7 +79,7 @@ export interface SetDeckSelectionParams {
   deck: Deck;
   publishedDeckId?: string;
   commanderName: string | null;
-  avatar?: string;
+  avatarUrl?: string;
 }
 
 export interface StartServerGameParams {

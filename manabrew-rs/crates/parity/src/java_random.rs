@@ -171,7 +171,7 @@ mod tests {
         let mut rng = JavaRandom::new(0);
         // Should not panic and should produce deterministic output
         let v = rng.next_int(100);
-        assert!(v >= 0 && v < 100);
+        assert!((0..100).contains(&v));
     }
 
     /// Verify nextInt(1) always returns 0.

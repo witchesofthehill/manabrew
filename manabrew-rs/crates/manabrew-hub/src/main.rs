@@ -1,3 +1,4 @@
+mod assets;
 mod auth;
 mod config;
 mod preset_decks;
@@ -16,6 +17,7 @@ use std::time::Duration;
 use manabrew_hub::dto::AdminTopDeckSnapshotEntry;
 use tracing_subscriber::EnvFilter;
 
+use crate::assets::AssetService;
 use crate::config::HubConfig;
 use crate::rate_limit::RateLimiter;
 use crate::routes::{build_router, AppState};
@@ -23,6 +25,8 @@ use crate::scryfall_api::ScryfallApi;
 use crate::scryfall_bulk::ScryfallBulkIndex;
 use crate::storage::{AnalyticsImportOutcome, ReplaceSnapshotOutcome, Storage};
 
+const ASSET_SWEEP_INTERVAL: Duration = Duration::from_secs(5 * 60);
+const ASSET_SWEEP_BATCH: u32 = 200;
 const RANKING_QUERY_LIMIT: u32 = 100;
 const RANKING_RESULT_LIMIT: usize = 25;
 const MIN_WIN_RATE_GAMES: u32 = 20;
@@ -50,7 +54,11 @@ async fn main() {
     if let Some(parent) = std::path::Path::new(&config.db_path).parent() {
         std::fs::create_dir_all(parent).expect("create hub db directory");
     }
-    let storage = Storage::open(&config.db_path).expect("open hub db");
+    let storage = Storage::open(
+        &config.db_path,
+        config.assets.as_ref().map(|it| it.public_base_url.clone()),
+    )
+    .expect("open hub db");
     let presets = preset_decks::load_preset_decks(std::path::Path::new(&config.preset_decks_dir))
         .expect("load preset decks");
     storage
@@ -110,8 +118,20 @@ async fn main() {
         scryfall_api: ScryfallApi::new(),
         identity: auth::IdentityKeys::load_or_generate(&config.jwt_key_path)
             .expect("load jwt signing key"),
+        assets: config.assets.as_ref().map(AssetService::new),
     });
     tokio::spawn(scryfall_bulk::refresh_loop(scryfall_bulk, http));
+    if state.assets.is_some() {
+        let sweep_state = Arc::clone(&state);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(ASSET_SWEEP_INTERVAL);
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                interval.tick().await;
+                sweep_expired_assets(&sweep_state).await;
+            }
+        });
+    }
     refresh_top_deck_snapshots(&state);
     let ranking_state = Arc::clone(&state);
     tokio::spawn(async move {
@@ -135,6 +155,51 @@ async fn main() {
     .with_graceful_shutdown(shutdown_signal())
     .await
     .expect("serve hub");
+}
+
+/// Reservations outlive the presigned URL, so an expiring one is only garbage if
+/// the object never landed. The bucket is the source of truth for that, which is
+/// why nothing asks the client to confirm its own upload.
+async fn sweep_expired_assets(state: &AppState) {
+    let Some(assets) = state.assets.as_ref() else {
+        return;
+    };
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let expired = state
+        .storage
+        .lock()
+        .unwrap()
+        .expired_pending_assets(&now, ASSET_SWEEP_BATCH);
+    let expired = match expired {
+        Ok(expired) => expired,
+        Err(error) => {
+            tracing::warn!(%error, "could not list expired asset reservations");
+            return;
+        }
+    };
+    for expired in expired {
+        let asset_id = expired.id;
+        let object_key = assets::object_key(&expired.account_id, expired.kind, &asset_id);
+        let reconciled = match assets.store.size(&object_key).await {
+            Ok(Some(byte_size)) => state
+                .storage
+                .lock()
+                .unwrap()
+                .confirm_pending_asset(&asset_id, byte_size),
+            Ok(None) => state
+                .storage
+                .lock()
+                .unwrap()
+                .discard_pending_asset(&asset_id),
+            Err(error) => {
+                tracing::warn!(%error, asset_id, "could not read the uploaded asset");
+                continue;
+            }
+        };
+        if let Err(error) = reconciled {
+            tracing::warn!(%error, asset_id, "could not reconcile the asset reservation");
+        }
+    }
 }
 
 fn refresh_top_deck_snapshots(state: &AppState) {

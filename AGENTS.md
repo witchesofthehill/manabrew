@@ -65,6 +65,7 @@ Topic spinoffs (cross-cut multiple folders):
 | `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames            |
 | `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                      |
 | `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                       |
+| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results |
 | `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack |
 | `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
 

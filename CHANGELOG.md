@@ -1,5 +1,7 @@
 # Changelog
 
+## [3.19.1](https://github.com/witchesofthehill/manabrew/compare/v3.19.0...v3.19.1) (2026-08-23)
+
 ## [3.19.0](https://github.com/witchesofthehill/manabrew/compare/v3.18.7...v3.19.0) (2026-08-23)
 
 ### Features

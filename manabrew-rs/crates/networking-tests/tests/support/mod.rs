@@ -9,7 +9,8 @@ use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use libtest_mimic::Arguments;
@@ -25,7 +26,8 @@ use manabrew_agent_interface::protocol::{
     RoomStatus, ServerMessage, StateEnvelope, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
-use tokio::net::TcpStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
@@ -74,6 +76,12 @@ fn done(message: impl AsRef<str>, elapsed: Duration) {
 
 pub struct Proc(Child);
 
+impl Proc {
+    fn running(&mut self) -> bool {
+        matches!(self.0.try_wait(), Ok(None))
+    }
+}
+
 impl Drop for Proc {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -92,10 +100,19 @@ pub struct Sim {
 impl Sim {
     /// Relay + hosted node, node room discovered and ready.
     pub async fn spawn(port: u16) -> Sim {
+        Sim::spawn_node_sim(port, None).await
+    }
+
+    /// Same, with the node armed to auto-update off `manifest`.
+    pub async fn spawn_updating(port: u16, manifest: &str) -> Sim {
+        Sim::spawn_node_sim(port, Some(manifest)).await
+    }
+
+    async fn spawn_node_sim(port: u16, manifest: Option<&str>) -> Sim {
         let relay_url = format!("ws://127.0.0.1:{port}");
         let relay = spawn_relay(port);
         wait_for_port(port).await;
-        let node = spawn_node(&relay_url);
+        let node = spawn_node(&relay_url, manifest);
         let mut sim = Sim {
             port,
             relay_url,
@@ -131,6 +148,22 @@ impl Sim {
         self._relay = Some(spawn_relay(self.port));
         wait_for_port(self.port).await;
         step("relay killed and restarted — memory wiped");
+    }
+
+    pub fn node_running(&mut self) -> bool {
+        self.node.as_mut().is_some_and(Proc::running)
+    }
+
+    pub async fn wait_node_exit(&mut self, deadline: Duration) {
+        let started = tokio::time::Instant::now();
+        while started.elapsed() < deadline {
+            if !self.node_running() {
+                check("the drained node exited for the supervisor to respawn");
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+        panic!("the drained node never exited within {deadline:?}");
     }
 
     pub fn kill_node(&mut self) {
@@ -741,7 +774,7 @@ fn spawn_relay(port: u16) -> Proc {
     )
 }
 
-fn spawn_node(relay_url: &str) -> Proc {
+fn spawn_node(relay_url: &str, manifest: Option<&str>) -> Proc {
     let mut command = Command::new(bin("self-hosted-node", "REGRESSION_NODE_BIN"));
     command
         .env("SELF_HOSTED_NODE_RELAY_URL", relay_url)
@@ -756,10 +789,72 @@ fn spawn_node(relay_url: &str) -> Proc {
         )
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    if let Some(manifest) = manifest {
+        command
+            .env("SELF_HOSTED_NODE_SHUTDOWN_ON_STALE", "1")
+            .env("SELF_HOSTED_NODE_MANIFEST_URL", manifest)
+            .env("SELF_HOSTED_NODE_STALE_POLL_SECS", "2");
+    }
     if let Ok(backend) = std::env::var("REGRESSION_NODE_ENGINE_BACKEND") {
         command.env("SELF_HOSTED_NODE_ENGINE_BACKEND", backend);
     }
     Proc(command.spawn().expect("spawn self-hosted-node"))
+}
+
+/// The release manifest the node polls. Serves this node's own build until
+/// `publish`, then a newer one — a release going out under a running fleet.
+pub struct Manifest {
+    port: u16,
+    published: Arc<AtomicBool>,
+    server: tokio::task::JoinHandle<()>,
+}
+
+impl Manifest {
+    pub async fn serve(port: u16) -> Manifest {
+        let published = Arc::new(AtomicBool::new(false));
+        let listener = TcpListener::bind(("127.0.0.1", port))
+            .await
+            .expect("bind manifest server");
+        let flag = published.clone();
+        let server = tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                let version = if flag.load(Ordering::Relaxed) {
+                    "999.0.0"
+                } else {
+                    "0.0.1"
+                };
+                let body = json!({ "packages": { "self-hosted-node": version } }).to_string();
+                let mut request = [0u8; 1024];
+                let _ = socket.read(&mut request).await;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = socket.write_all(response.as_bytes()).await;
+                let _ = socket.shutdown().await;
+            }
+        });
+        Manifest {
+            port,
+            published,
+            server,
+        }
+    }
+
+    pub fn url(&self) -> String {
+        format!("http://127.0.0.1:{}/manifest.json", self.port)
+    }
+
+    pub fn publish(&self) {
+        self.published.store(true, Ordering::Relaxed);
+        step("a newer self-hosted-node build is published to the manifest");
+    }
+}
+
+impl Drop for Manifest {
+    fn drop(&mut self) {
+        self.server.abort();
+    }
 }
 
 async fn wait_for_port(port: u16) {

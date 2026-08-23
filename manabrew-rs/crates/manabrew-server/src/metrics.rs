@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use metrics::{counter, gauge};
+use metrics::{counter, gauge, histogram};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 
 use crate::analytics::GameEndReason;
@@ -18,6 +18,7 @@ const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
+const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
@@ -71,6 +72,14 @@ pub fn record_rejection(reason: &'static str) {
 /// `SELF_HOSTED_NODE_STATE_DELTA` is saving bandwidth for everyone.
 pub fn record_state_patch_downgrade() {
     counter!(STATE_PATCH_DOWNGRADES).increment(1);
+}
+
+/// Round trip from the relay to a client and back, taken from the websocket
+/// heartbeat. The heartbeat carries the send time and RFC 6455 requires the
+/// peer to echo a ping's payload, so this is measured entirely on the relay's
+/// own clock and needs nothing from the client.
+pub fn record_client_rtt(ms: f64) {
+    histogram!(CLIENT_RTT).record(ms);
 }
 
 pub fn record_resync() {

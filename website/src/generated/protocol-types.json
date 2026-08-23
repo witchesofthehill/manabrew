@@ -318,8 +318,8 @@
       "refs": []
     },
     "DeckFormat": {
-      "ts": "type DeckFormat =\n  | \"standard\"\n  | \"pioneer\"\n  | \"modern\"\n  | \"legacy\"\n  | \"vintage\"\n  | \"pauper\"\n  | \"commander\"\n  | \"brawl\"\n  | \"oathbreaker\"\n  | \"draft\"\n  | \"sealed\";",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckFormat {\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
+      "ts": "type DeckFormat =\n  | \"standard\"\n  | \"pioneer\"\n  | \"modern\"\n  | \"legacy\"\n  | \"vintage\"\n  | \"pauper\"\n  | \"premodern\"\n  | \"commander\"\n  | \"brawl\"\n  | \"oathbreaker\"\n  | \"draft\"\n  | \"sealed\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum DeckFormat {\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Premodern,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
       "refs": []
     },
     "DeckLabel": {
@@ -358,8 +358,8 @@
       "refs": []
     },
     "GameFormat": {
-      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Commander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
-      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
+      "ts": "type GameFormat =\n  | \"Any\"\n  | \"Standard\"\n  | \"Pioneer\"\n  | \"Modern\"\n  | \"Legacy\"\n  | \"Vintage\"\n  | \"Pauper\"\n  | \"Premodern\"\n  | \"Commander\"\n  | \"Brawl\"\n  | \"Oathbreaker\"\n  | \"Draft\"\n  | \"Sealed\";",
+      "rust": "pub enum GameFormat {\n    Any,\n    Standard,\n    Pioneer,\n    Modern,\n    Legacy,\n    Vintage,\n    Pauper,\n    Premodern,\n    Commander,\n    Brawl,\n    Oathbreaker,\n    Draft,\n    Sealed,\n}",
       "refs": []
     },
     "GameOverInput": {

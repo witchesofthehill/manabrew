@@ -1243,6 +1243,18 @@ export class BoardScene {
     this.hand?.setDropActive(active);
   }
 
+  commitPendingDrop(cardId: string, clientX: number, clientY: number): boolean {
+    const region = this.localRegion();
+    if (!region) return false;
+    const canvasRect = this.app.canvas.getBoundingClientRect();
+    region.drawDropGrid(clientX - canvasRect.left, clientY - canvasRect.top);
+    return region.commitPendingDrop(cardId);
+  }
+
+  clearPendingDrop(cardId: string): void {
+    this.localRegion()?.clearPendingDrop(cardId);
+  }
+
   setAutoSort(value: boolean): void {
     this.autoSort = value;
     for (const rec of this.regions.values()) rec.region.setAutoSort(value);
@@ -1250,10 +1262,6 @@ export class BoardScene {
 
   previewEtb(): void {
     for (const rec of this.regions.values()) rec.region.previewEtb();
-  }
-
-  setPendingDropSlot(slot: { col: number; row: number } | null): void {
-    this.localRegion()?.setPendingDropSlot(slot);
   }
 
   setCardStyle(style: BattlefieldCardStyle): void {

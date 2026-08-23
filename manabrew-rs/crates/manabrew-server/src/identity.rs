@@ -41,6 +41,7 @@ pub struct ResolvedIdentity {
     pub identities: Vec<SessionIdentity>,
     pub name: Option<String>,
     pub name_verified: bool,
+    pub qualification: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -91,11 +92,14 @@ impl IdentityVerifier {
                 if let Some(name) = unverified_name(&decoded) {
                     resolved.name = Some(name);
                 }
-            } else if let Some((identity, name)) = self.account_identity(&decoded).await {
+            } else if let Some((identity, name, qualification)) =
+                self.account_identity(&decoded).await
+            {
                 resolved.identities.push(identity);
                 if !name.trim().is_empty() {
                     resolved.name = Some(name);
                     resolved.name_verified = true;
+                    resolved.qualification = qualification;
                 }
             }
         }
@@ -108,7 +112,7 @@ impl IdentityVerifier {
     async fn account_identity(
         &self,
         decoded: &DecodedIdentityToken,
-    ) -> Option<(SessionIdentity, String)> {
+    ) -> Option<(SessionIdentity, String, Option<String>)> {
         if decoded.header.alg != SIGNED_ALG {
             return None;
         }
@@ -129,6 +133,7 @@ impl IdentityVerifier {
         Some((
             SessionIdentity::Account(claims.sub.clone()),
             claims.handle.clone(),
+            claims.qualification.clone(),
         ))
     }
 

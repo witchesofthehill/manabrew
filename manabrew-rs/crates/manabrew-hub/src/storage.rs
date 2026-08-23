@@ -154,6 +154,7 @@ pub struct AccountRow {
     pub handle: String,
     pub handle_set: bool,
     pub created_at: String,
+    pub qualification: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1963,13 +1964,14 @@ impl Storage {
     pub fn create_account(&self, account: &AccountRow) -> SqlResult<()> {
         self.conn.execute(
             "INSERT INTO accounts
-                (id, handle, handle_set, created_at, username, display_name, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?2, ?2, ?4)",
+                (id, handle, handle_set, created_at, username, display_name, updated_at, qualification)
+             VALUES (?1, ?2, ?3, ?4, ?2, ?2, ?4, ?5)",
             params![
                 account.id,
                 account.handle,
                 account.handle_set as i64,
-                account.created_at
+                account.created_at,
+                account.qualification
             ],
         )?;
         Ok(())
@@ -1978,7 +1980,7 @@ impl Storage {
     pub fn get_account(&self, id: &str) -> SqlResult<Option<AccountRow>> {
         self.conn
             .query_row(
-                "SELECT id, handle, handle_set, created_at FROM accounts WHERE id = ?1",
+                "SELECT id, handle, handle_set, created_at, qualification FROM accounts WHERE id = ?1",
                 params![id],
                 map_account,
             )
@@ -2371,7 +2373,7 @@ impl Storage {
     pub fn session_account(&self, token_hash: &str, now: &str) -> SqlResult<Option<AccountRow>> {
         self.conn
             .query_row(
-                "SELECT a.id, a.handle, a.handle_set, a.created_at
+                "SELECT a.id, a.handle, a.handle_set, a.created_at, a.qualification
                  FROM sessions s JOIN accounts a ON a.id = s.account_id
                  WHERE s.token_hash = ?1 AND s.expires_at > ?2",
                 params![token_hash, now],
@@ -3090,6 +3092,7 @@ fn map_account(row: &Row) -> SqlResult<AccountRow> {
         handle: row.get(1)?,
         handle_set: row.get::<_, i64>(2)? != 0,
         created_at: row.get(3)?,
+        qualification: row.get(4)?,
     })
 }
 
@@ -3320,7 +3323,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 15);
+        assert_eq!(version, 16);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

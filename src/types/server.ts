@@ -58,6 +58,8 @@ export interface PlayerInfo {
   username: string;
   player_id: string;
   connected: boolean;
+  verified?: boolean;
+  qualification?: string;
   room_id?: string;
 }
 

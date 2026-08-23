@@ -35,6 +35,8 @@ pub struct IdentityKeys {
 pub struct AccessClaims {
     pub sub: String,
     pub handle: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
     pub iss: String,
     pub aud: String,
     pub iat: i64,
@@ -126,12 +128,14 @@ pub fn mint_access_token(
     keys: &IdentityKeys,
     account_id: &str,
     handle: &str,
+    qualification: Option<&str>,
     audience: &str,
 ) -> AccessTokenResponse {
     let now = Utc::now().timestamp();
     let claims = AccessClaims {
         sub: account_id.to_string(),
         handle: handle.to_string(),
+        qualification: qualification.map(str::to_string),
         iss: ISSUER.into(),
         aud: audience.into(),
         iat: now,
@@ -172,6 +176,7 @@ pub async fn token_handler(
         &state.identity,
         &account.id,
         &account.handle,
+        account.qualification.as_deref(),
         audience,
     ))
     .into_response()
@@ -211,6 +216,7 @@ pub async fn guest_token_handler(
         &state.identity,
         &subject,
         name,
+        None,
         AUDIENCE_RELAY,
     ))
     .into_response()
@@ -254,7 +260,7 @@ pub mod tests {
     }
 
     fn issue(keys: &IdentityKeys, audience: &str) -> String {
-        mint_access_token(keys, "acct-1", "brewer", audience).access_token
+        mint_access_token(keys, "acct-1", "brewer", None, audience).access_token
     }
 
     #[test]
@@ -293,6 +299,7 @@ pub mod tests {
             serde_json::to_string(&AccessClaims {
                 sub: "acct-2".into(),
                 handle: "brewer".into(),
+                qualification: None,
                 iss: ISSUER.into(),
                 aud: AUDIENCE_HUB.into(),
                 iat: Utc::now().timestamp(),
@@ -317,6 +324,7 @@ pub mod tests {
         let token = keys.mint(&AccessClaims {
             sub: "acct-1".into(),
             handle: "brewer".into(),
+            qualification: None,
             iss: ISSUER.into(),
             aud: AUDIENCE_HUB.into(),
             iat: now - 7200,

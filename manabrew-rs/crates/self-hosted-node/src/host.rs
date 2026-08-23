@@ -1357,6 +1357,7 @@ fn is_commander_variant(format: GameFormat) -> bool {
         | GameFormat::Legacy
         | GameFormat::Vintage
         | GameFormat::Pauper
+        | GameFormat::Premodern
         | GameFormat::Draft
         | GameFormat::Sealed => false,
     }
@@ -1376,6 +1377,7 @@ fn java_game_variant(format: GameFormat) -> &'static str {
         | GameFormat::Legacy
         | GameFormat::Vintage
         | GameFormat::Pauper
+        | GameFormat::Premodern
         | GameFormat::Draft
         | GameFormat::Sealed => "Constructed",
     }

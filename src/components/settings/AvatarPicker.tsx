@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { toast } from "sonner";
-import { Camera, CircleUserRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Camera, CircleUserRound, X } from "lucide-react";
 import { AVATAR_IMAGE_BUDGET, ImageTooLargeError, normalizeToWebp } from "@/lib/imageEncode";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
@@ -24,44 +23,43 @@ export function AvatarPicker() {
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="group relative self-start sm:self-center">
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
         title={customAvatar ? "Replace avatar" : "Upload avatar"}
-        className="group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative flex size-20 shrink-0 items-center justify-center rounded-full border bg-muted motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {customAvatar ? (
-          <img src={customAvatar} alt="Your avatar" className="size-full object-cover" />
+          <img
+            src={customAvatar}
+            alt="Your avatar"
+            className="size-full rounded-full object-cover"
+          />
         ) : (
           <CircleUserRound className="h-8 w-8 text-muted-foreground" />
         )}
-        <span className="absolute inset-0 flex items-center justify-center bg-overlay/60 text-white opacity-0 motion-safe:transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-          <Camera className="h-5 w-5" />
+        <span className="absolute -bottom-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors group-hover:text-foreground">
+          <Camera className="h-3 w-3" />
         </span>
       </button>
-      <div className="flex flex-col items-start gap-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => void onPick(e)}
-        />
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-            {customAvatar ? "Replace" : "Upload"}
-          </Button>
-          {customAvatar && (
-            <Button variant="ghost" size="sm" onClick={() => setCustomAvatar(undefined)}>
-              Remove
-            </Button>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Shown on your player panel and to opponents when a game starts.
-        </p>
-      </div>
+      {customAvatar && (
+        <button
+          type="button"
+          title="Remove avatar"
+          onClick={() => setCustomAvatar(undefined)}
+          className="absolute -top-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-['']"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void onPick(e)}
+      />
     </div>
   );
 }

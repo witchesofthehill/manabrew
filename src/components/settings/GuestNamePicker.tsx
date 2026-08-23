@@ -47,6 +47,9 @@ export function GuestNamePicker() {
             setName(e.target.value);
             if (error) setError(null);
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && dirty) void save();
+          }}
           placeholder="Player1"
         />
         <Button size="sm" disabled={busy || !dirty} onClick={() => void save()}>
@@ -54,9 +57,7 @@ export function GuestNamePicker() {
         </Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <p className="text-xs text-muted-foreground">
-        Your name in multiplayer. Sign in to claim it permanently.
-      </p>
+      <p className="text-xs text-muted-foreground">Playing as a guest.</p>
     </div>
   );
 }

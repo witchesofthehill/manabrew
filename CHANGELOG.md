@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.21.0](https://github.com/witchesofthehill/manabrew/compare/v3.20.0...v3.21.0) (2026-08-24)
+
+### Features
+
+* measure each leg of hosted latency separately ([#754](https://github.com/witchesofthehill/manabrew/issues/754)) ([31f1378](https://github.com/witchesofthehill/manabrew/commit/31f1378c899ed19654b3f7937408058a4450a868))
+
 ## [3.20.0](https://github.com/witchesofthehill/manabrew/compare/v3.19.1...v3.20.0) (2026-08-24)
 
 ### Features

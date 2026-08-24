@@ -11,7 +11,11 @@ ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:24
 # ── cargo-chef base + shared dependency recipe ───────────────────────
 # See manabrew-server's Dockerfile for why chef. One planner feeds both Rust
 # stages below (debug deps for gen-protocol, release deps for the node).
-FROM rust:1.88-bookworm AS chef
+# trixie, not bookworm: the GraalVM 24 image is Oracle Linux 10, so the harness
+# links against glibc 2.38 symbols (__isoc23_*) that bookworm's 2.36 does not
+# have. That breaks the link here and would break dlopen in the runtime stage
+# too, so both move together. Keep them on the same glibc as the native builder.
+FROM rust:1.88-trixie AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /build
 
@@ -183,9 +187,10 @@ RUN cargo build --release -p self-hosted-node --features graal-forge && \
 
 # ── Stage 4: Runtime ─────────────────────────────────────────────────
 # No JRE: the engine is a .so in the node's own address space. Same distro as the
-# builder for glibc, and /build reproduces the compile-time workspace root the
+# builder for glibc, which now means trixie: the harness is built on Oracle Linux
+# 10 and needs glibc 2.38, and /build reproduces the compile-time workspace root the
 # node resolves Forge assets and preset decks against.
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates zlib1g && \

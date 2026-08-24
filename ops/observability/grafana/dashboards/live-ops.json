@@ -813,7 +813,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Wall clock the engine was stopped, measured by a probe inside the isolate instead of by the collector. Substrate registers collector beans for its Serial GC only, so the earlier query drew nothing at all on a G1 node and a G1 rollout looked like GC going away. This series works on both. #684 ran at 89% stopped: back to back full collections in an exhausted heap. One isolate hosts every room on a node, so this stops all of them at once. Sustained above a few percent is that failure returning. Scheduler preemption also lands here.",
+      "description": "Wall clock the engine was stopped. Two series per node. 'probe' is measured inside the isolate by sleep overshoot and works on any collector; it counts scheduler preemption too, so it reads slightly high. 'gc beans' is the collector's own pause counter, which Substrate registers for its Serial GC only: it is empty on a G1 node, and it is kept here because it is the only series that covers history from before the probe existed. Where both are present they should track within roughly 20%. #684 ran at 89% stopped: back to back full collections in an exhausted heap. One isolate hosts every room on a node, so this stops all of them at once. Sustained above a few percent is that failure returning.",
       "gridPos": {
         "x": 0,
         "y": 50,
@@ -828,7 +828,16 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "legendFormat": "{{instance}}"
+          "legendFormat": "{{instance}} probe"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (instance) (rate(manabrew_node_engine_gc_pause_millis_total[5m])) / 1000",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{instance}} gc beans"
         }
       ],
       "fieldConfig": {

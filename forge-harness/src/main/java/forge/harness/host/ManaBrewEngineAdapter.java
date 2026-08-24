@@ -21,6 +21,7 @@ import forge.game.Match;
 import forge.game.player.RegisteredPlayer;
 import forge.gui.GuiBase;
 import forge.item.PaperCard;
+import forge.localinstance.properties.ForgePreferences;
 import forge.model.FModel;
 
 import java.util.ArrayList;
@@ -58,7 +59,11 @@ public final class ManaBrewEngineAdapter {
             throw new IllegalArgumentException("assetsDir is required");
         }
         GuiBase.setInterface(new HeadlessGuiBase(assetsDir));
-        FModel.initialize(null, null);
+        FModel.initialize(null, prefs -> {
+            prefs.setPref(ForgePreferences.FPref.LOAD_CARD_SCRIPTS_LAZILY, true);
+            prefs.setPref(ForgePreferences.FPref.DECKGEN_CARDBASED, false);
+            return null;
+        });
         initialized = true;
     }
 
@@ -79,6 +84,8 @@ public final class ManaBrewEngineAdapter {
         // multiplexed processes only reset between idle periods.
         if (sessions.isEmpty()) {
             ForgeEngineReset.resetAllIdCounters();
+            forge.StaticData.instance().resetLazyLoadedCards();
+            forge.ImageKeys.clearCaches();
         }
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());

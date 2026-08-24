@@ -16,13 +16,12 @@ pub fn can_pay(
     ability: Option<&crate::spellability::SpellAbility>,
     _part: &super::CostPart,
 ) -> bool {
-    let static_source_cards = super::static_ability_source_cards(game);
     let gy_count = game
         .cards_in_zone(forge_foundation::ZoneType::Graveyard, player)
         .iter()
         .filter(|&&cid| {
             !crate::staticability::static_ability_cant_exile::cant_exile(
-                &static_source_cards,
+                &game.cards,
                 game.card(cid),
                 ability,
                 true,
@@ -35,7 +34,7 @@ pub fn can_pay(
         .any(|&cid| {
             game.card(cid).type_line.has_subtype("Food")
                 && !crate::staticability::static_ability_cant_sacrifice::cant_sacrifice(
-                    &static_source_cards,
+                    &game.cards,
                     game.card(cid),
                     ability,
                     true,

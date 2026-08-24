@@ -941,8 +941,19 @@ jobs:
             manabrew-node:pr
           for _ in $(seq 1 60); do
             if docker logs node-smoke 2>&1 | grep -q "shared graal isolate initialized"; then
-              echo "engine up"
-              docker logs node-smoke 2>&1 | tail -20
+              # The isolate alone is not enough. The engine logs two "Read cards"
+              # lines and the small one is second, so a tail shows 838 and hides
+              # whether the card database loaded at all — which is the whole live
+              # set this image is sized around.
+              cards=$(docker logs node-smoke 2>&1 \
+                | sed -n 's/.*Read cards: \([0-9]*\) files.*/\1/p' \
+                | sort -rn | head -1)
+              echo "engine up, largest card read: ${cards:-none}"
+              if [ "${cards:-0}" -lt 30000 ]; then
+                echo "card database did not load: expected ~33k, saw ${cards:-none}"
+                docker logs node-smoke 2>&1 | tail -40
+                exit 1
+              fi
               exit 0
             fi
             if ! docker ps -q --filter name=node-smoke | grep -q .; then

@@ -7,9 +7,9 @@
 import { readdirSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const [, , forgeGui, decks, out] = process.argv;
-if (!out) {
-  console.error("usage: node pack-assets.mjs <forge-gui-dir> <parity-decks-dir> <out.txt>");
+const [, , forgeGui, out, ...deckDirs] = process.argv;
+if (!out || !deckDirs.length) {
+  console.error("usage: node pack-assets.mjs <forge-gui-dir> <out.txt> <deck-dir...>");
   process.exit(1);
 }
 
@@ -36,28 +36,47 @@ for (const dir of NEEDED) {
     add(full, "res/" + relative(join(forgeGui, "res"), full));
   }
 }
-for (const full of walk(decks)) {
-  add(full, "parity_decks/" + relative(decks, full));
+for (const dir of deckDirs) {
+  for (const full of walk(dir)) add(full, "parity_decks/" + relative(dir, full));
 }
 
 // Only the cards the decks actually reference. Forge reads the whole
 // cardsfolder at init, so shipping 33,645 scripts is possible but pointless.
-const slug = (n) => n.toLowerCase().replace(/['",.]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+// Forge files are ASCII: strip diacritics, drop punctuation, underscore the rest.
+const slug = (n) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  .replace(/['",.]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 const names = new Set();
-for (const full of walk(decks)) {
-  for (const card of JSON.parse(readFileSync(full, "utf8")).cards || []) names.add(card.name);
+for (const dir of deckDirs) {
+  for (const full of walk(dir)) {
+    if (!full.endsWith(".json")) continue;
+    let doc;
+    try { doc = JSON.parse(readFileSync(full, "utf8")); } catch { continue; }
+    for (const card of doc.cards || []) if (card && card.name) names.add(card.name);
+  }
 }
 let missing = 0;
+const missingNames = [];
 for (const name of names) {
   const s = slug(name);
   const rel = `res/cardsfolder/${s[0]}/${s}.txt`;
   try {
     add(join(forgeGui, rel), rel);
   } catch {
-    missing++;
-    console.error("card script not found:", name);
+    // Double-faced scripts are filed under "front_back"; find by prefix.
+    const dir = join(forgeGui, "res/cardsfolder", s[0]);
+    let found = null;
+    try {
+      found = readdirSync(dir).find((f) => f.startsWith(s + "_") && f.endsWith(".txt"));
+    } catch { /* letter dir absent */ }
+    if (found) {
+      add(join(dir, found), `res/cardsfolder/${s[0]}/${found}`);
+    } else {
+      missing++;
+      missingNames.push(name);
+    }
   }
 }
 
 writeFileSync(out, chunks.join(""));
-console.log(`packed ${files} files (${skipped} binary skipped, ${missing} cards missing)`);
+console.log(`packed ${files} files, ${names.size} deck cards (${skipped} binary skipped, ${missing} missing)`);
+if (missingNames.length) console.error("missing:", missingNames.slice(0, 12).join(", "));

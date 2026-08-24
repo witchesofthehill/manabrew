@@ -121,3 +121,8 @@ src-tauri/gen/apple/assets/
 # Python bytecode from the latency scripts
 __pycache__/
 *.pyc
+# Web Image engine build outputs and packed assets (regenerated)
+public/forge/forgeharness.js
+public/forge/forgeharness.js.wasm
+public/forge/*.wasm
+public/forge/assets.txt

@@ -180,6 +180,41 @@ public final class WasmMain {
         return player;
     }
 
+    @JS(args = {"fn"}, value = "globalThis.__forgeStartGame = fn;")
+    private static native void exportStartGame(java.util.function.Function<org.graalvm.webimage.api.JSString, org.graalvm.webimage.api.JSString> fn);
+
+    @JS("globalThis.__forgeReady = true;"
+        + "postMessage({ type: 'event', event: 'forge:ready', payload: {} });")
+    private static native void announceReady();
+
+    /**
+     * Stays resident and hands the host a start function, so the app owns the
+     * game lifecycle exactly as it does for the Rust engine. The call blocks
+     * for the whole game: the bridge keeps the loop on this thread.
+     */
+    private static void serve() throws Exception {
+        forge.harness.host.ManaBrewEngineAdapter adapter = new forge.harness.host.ManaBrewEngineAdapter();
+        adapter.initialize("/forge-gui/");
+        System.out.println("[wasm] forge initialized, waiting for a game");
+
+        exportStartGame((request) -> {
+            String requestJson = request.asString();
+            try {
+                SabTransport.bind();
+                String gameId = com.google.gson.JsonParser.parseString(requestJson)
+                        .getAsJsonObject().get("gameId").getAsString();
+                ManaBrewInteractiveSession.setBridge(
+                        new SabTransport(viewer -> adapter.getSnapshot(gameId, viewer)));
+                return org.graalvm.webimage.api.JSString.of(adapter.startGameJson(requestJson));
+            } catch (RuntimeException error) {
+                error.printStackTrace(System.err);
+                return org.graalvm.webimage.api.JSString.of(
+                        "{\"error\":\"" + String.valueOf(error.getMessage()).replace("\"", "'") + "\"}");
+            }
+        });
+        announceReady();
+    }
+
     private static void runBrowserGame(String[] args) throws Exception {
         SabTransport.install(SabTransport.DEFAULT_BUFFER_SIZE);
 
@@ -243,6 +278,10 @@ public final class WasmMain {
             System.out.println("[wasm] total boot " + (System.currentTimeMillis() - t0) + "ms");
         }
 
+        if (args.length > 0 && "--serve".equals(args[0])) {
+            serve();
+            return;
+        }
         if (args.length > 0 && "--browser".equals(args[0])) {
             runBrowserGame(args);
             return;

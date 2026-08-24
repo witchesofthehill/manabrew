@@ -30,6 +30,7 @@ jobs:
       run_rust: ${{ steps.scope.outputs.run_rust }}
       run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
+      run_node_image: ${{ steps.scope.outputs.run_node_image }}
     steps:
       - name: Classify changed files
         id: scope
@@ -55,6 +56,18 @@ jobs:
               'src-tauri/',
               'manabrew-rs/crates/self-hosted-node/',
               'scripts/harness.mjs',
+              '.github/workflows/build-checks.yml',
+            ];
+
+            // The node image assembles four stages nothing else exercises: the
+            // GraalVM base, native-image's own output, the glibc the harness is
+            // linked against, and which artefacts reach the runtime layer. Every
+            // one of those has produced an image that builds and then fails to
+            // run, so the only useful check is building it.
+            const NODE_IMAGE_PATHS = [
+              'manabrew-rs/crates/self-hosted-node/Dockerfile',
+              'forge-harness/build-native.sh',
+              'forge-harness/native/',
               '.github/workflows/build-checks.yml',
             ];
 
@@ -94,7 +107,7 @@ jobs:
             ];
 
             if (context.eventName !== 'pull_request') {
-              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room']) {
+              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room', 'run_node_image']) {
                 core.setOutput(key, 'true');
               }
               return;
@@ -111,6 +124,7 @@ jobs:
             core.setOutput('run_rust', matches(files, RUST_PATHS) ? 'true' : 'false');
             core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
             core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
+            core.setOutput('run_node_image', matches(files, NODE_IMAGE_PATHS) ? 'true' : 'false');
 
   # ── TypeScript type-check ──────────────────────────────────────────
   # Builds the wasm bundle (or restores it from cache) and uploads it as an
@@ -878,3 +892,70 @@ jobs:
 
       - name: Compute release plan
         run: cargo xtask plan --github-summary
+
+  # ── Node engine image ──────────────────────────────────────────────
+  # Assembles the published node image and starts it. Nothing else covers this:
+  # the PR checks build the harness with Community Edition straight from
+  # build-native.sh, and the Dockerfile itself is only ever built by
+  # docker-images.yml on a `v*` tag — after merge, on the way to production.
+  #
+  # It earns its runtime because the failures here are the kind that build
+  # green: a native-image codegen abort, JDK libraries emitted beside the
+  # harness and left out of the runtime layer, and a glibc mismatch between the
+  # GraalVM base and the Debian stages that fails `dlopen` rather than the link.
+  # `docker build` alone would catch only the first, so the container is started
+  # and has to reach a listening engine before this passes.
+  node-image:
+    name: Node engine image
+    needs: changes
+    if: needs.changes.outputs.run_node_image == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Load, not push: this is a check, and the registry copy is
+      # docker-images.yml's job on a tag.
+      - name: Build node image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: manabrew-rs/crates/self-hosted-node/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: manabrew-node:pr
+          cache-from: type=registry,ref=ghcr.io/witchesofthehill/manabrew-node:buildcache
+
+      # A built image proves the link, not the load. The harness is dlopened, so
+      # a missing JDK library or a glibc mismatch only shows up on start.
+      - name: Start it and wait for the engine
+        run: |
+          docker run -d --name node-smoke --memory 2g \
+            -e SELF_HOSTED_NODE_RELAY_URL=ws://127.0.0.1:9 \
+            -e RUST_LOG=self_hosted_node=info \
+            manabrew-node:pr
+          for _ in $(seq 1 60); do
+            if docker logs node-smoke 2>&1 | grep -q "shared graal isolate initialized"; then
+              echo "engine up"
+              docker logs node-smoke 2>&1 | tail -20
+              exit 0
+            fi
+            if ! docker ps -q --filter name=node-smoke | grep -q .; then
+              echo "container exited early:"
+              docker logs node-smoke 2>&1 | tail -40
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "engine did not come up within 120s:"
+          docker logs node-smoke 2>&1 | tail -40
+          exit 1
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs node-smoke 2>&1 | tail -100 || true

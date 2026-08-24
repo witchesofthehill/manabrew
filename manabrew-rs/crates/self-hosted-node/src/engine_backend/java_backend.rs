@@ -739,6 +739,16 @@ pub struct GcStats {
     /// anything or not. The totals above hide that difference.
     #[serde(default)]
     pub by_collector: std::collections::HashMap<String, GcCollector>,
+    /// Wall clock the engine was stopped, measured inside the isolate by sleep
+    /// overshoot rather than by the collector, because a G1 image registers no
+    /// collector beans and leaves every field above at zero. Counts scheduler
+    /// preemption as well as collection pauses.
+    #[serde(default)]
+    pub stalled_millis: u64,
+    #[serde(default)]
+    pub max_stall_millis: u64,
+    #[serde(default)]
+    pub long_stalls: u64,
 }
 
 #[cfg(feature = "graal-forge")]
@@ -881,6 +891,11 @@ impl Drop for GraalBridge {
         if self.attached {
             unsafe { graal_ffi::graal_detach_thread(self.thread) };
         } else {
+            // Reachable only from the isolate-per-game path, which
+            // `shared_isolate_enabled` forces off. Teardown refuses while any
+            // thread is still attached, and the engine now keeps a permanent
+            // stall-probe thread inside the isolate, so restoring that path
+            // means giving the probe a way to be stopped first.
             unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
         }
     }
@@ -895,7 +910,8 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        let bridge = if shared_isolate_enabled() {
+        let shared = shared_isolate_enabled();
+        let bridge = if shared {
             GraalBridge::create_in_shared_isolate(assets_dir)?
         } else {
             let bridge = GraalBridge::create()?;
@@ -904,6 +920,9 @@ impl GraalEngineHandle {
                 .decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
             bridge
         };
+        if shared {
+            start_engine_gc_sampler();
+        }
         Ok(Self {
             bridge: std::rc::Rc::new(bridge),
         })
@@ -933,10 +952,7 @@ impl GraalEngineHandle {
     /// Cumulative collections, pause time and heap for the whole isolate. Every
     /// room on this node shares it, so a collection here stops all of them.
     fn gc_stats(&self) -> Result<GcStats, String> {
-        let raw = self
-            .bridge
-            .decode(unsafe { graal_ffi::forge_gc_stats(self.bridge.thread) })?;
-        serde_json::from_str(&raw).map_err(|err| format!("malformed gcStats response: {err}"))
+        gc_stats_via(&self.bridge)
     }
 
     fn get_prompt(&self, session_id: &str, player_index: usize) -> Result<Option<String>, String> {
@@ -1088,24 +1104,82 @@ pub fn run_concurrent_self_play(
     )
 }
 
-/// Sampled once per completed decision, which is the cadence the stalls happen
-/// at and cheap enough not to need its own timer.
 #[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
 fn report_engine_gc(engine: &ForgeEngine) {
     match engine.gc_stats() {
-        Ok(stats) => {
-            crate::metrics::record_engine_gc(
-                stats.collections,
-                stats.pause_millis,
-                stats.heap_used_bytes,
-                stats.heap_max_bytes,
-            );
-            for (name, per) in &stats.by_collector {
-                crate::metrics::record_engine_gc_collector(name, per.collections, per.pause_millis);
-            }
-        }
+        Ok(stats) => publish_engine_gc(&stats),
         Err(err) => debug!(%err, "engine gc stats unavailable"),
     }
+}
+
+#[cfg(feature = "graal-forge")]
+fn publish_engine_gc(stats: &GcStats) {
+    crate::metrics::record_engine_gc(
+        stats.collections,
+        stats.pause_millis,
+        stats.heap_used_bytes,
+        stats.heap_max_bytes,
+    );
+    crate::metrics::record_engine_stall(
+        stats.stalled_millis,
+        stats.max_stall_millis,
+        stats.long_stalls,
+    );
+    for (name, per) in &stats.by_collector {
+        crate::metrics::record_engine_gc_collector(name, per.collections, per.pause_millis);
+    }
+}
+
+#[cfg(feature = "graal-forge")]
+fn gc_stats_via(bridge: &GraalBridge) -> Result<GcStats, String> {
+    let raw = bridge.decode(unsafe { graal_ffi::forge_gc_stats(bridge.thread) })?;
+    serde_json::from_str(&raw).map_err(|err| format!("malformed gcStats response: {err}"))
+}
+
+#[cfg(feature = "graal-forge")]
+const ENGINE_GC_SAMPLE_INTERVAL: Duration = Duration::from_secs(15);
+
+/// Sampling on the decision path made an idle node and a wedged node look the
+/// same: both stop reporting. A node that is stalling is exactly the node that
+/// stops completing decisions, so the sample has to come from a thread that is
+/// not on that path. It attaches its own isolate thread because the handles the
+/// rooms hold are bound to their creating thread.
+#[cfg(feature = "graal-forge")]
+fn start_engine_gc_sampler() {
+    static STARTED: std::sync::Once = std::sync::Once::new();
+    STARTED.call_once(|| {
+        let spawned = std::thread::Builder::new()
+            .name("engine-gc-sampler".to_string())
+            .spawn(|| {
+                let isolate = match SHARED_GRAAL_ISOLATE.lock() {
+                    Ok(guard) => guard.as_ref().map(|shared| shared.0),
+                    Err(_) => None,
+                };
+                let Some(isolate) = isolate else {
+                    return;
+                };
+                let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+                let rc = unsafe { graal_ffi::graal_attach_thread(isolate, &mut thread) };
+                if rc != 0 {
+                    warn!(rc, "gc sampler could not attach to the engine isolate");
+                    return;
+                }
+                let bridge = GraalBridge {
+                    thread,
+                    attached: true,
+                };
+                loop {
+                    std::thread::sleep(ENGINE_GC_SAMPLE_INTERVAL);
+                    match gc_stats_via(&bridge) {
+                        Ok(stats) => publish_engine_gc(&stats),
+                        Err(err) => debug!(%err, "engine gc stats unavailable"),
+                    }
+                }
+            });
+        if let Err(err) = spawned {
+            warn!(%err, "could not start the engine gc sampler");
+        }
+    });
 }
 
 /// The subprocess backend already reports this by parsing its own GC log.

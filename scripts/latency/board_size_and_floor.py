@@ -59,6 +59,7 @@ def one(path):
         return None
     rows = []
     pending, answered, last_cards = {}, [], {}
+    rtts, perceived_pending, perceived = [], {}, []
     seats = SeatStates()
     patched = b'"kind":"stateDelta"' in raw
     for line in lines[1:]:
@@ -90,6 +91,11 @@ def one(path):
                     d = (when - row[1]) * 1000
                     if 0 <= d < 120000 and not row[4]:
                         rows.append((row[5], row[3], d, node_ms))
+                        # What the player waited: the server's work plus the
+                        # link their response and the new board both crossed.
+                        rtt = perceived_pending.pop(seat, None)
+                        if rtt is not None:
+                            perceived.append(d + rtt)
                     row[1] = None
                     break
             continue
@@ -128,12 +134,15 @@ def one(path):
                             ("mana ability" if c.get("isManaAbility") else "activated ability")
                             if c.get("type") == "activateAbility" else c.get("type"))
             answered.append([seat, when, ptype, last_cards.get(seat, 0), False, play])
+            if e.get("clientRttMs") is not None:
+                rtts.append(e["clientRttMs"])
+                perceived_pending[seat] = e["clientRttMs"]
     if len(rows) < 30:
         return None
     floor = pct([d for _, _, d, _ in rows], 5)
     peak = max(c for _, c, _, _ in rows)
     measured = [(d - node_ms) for _, _, d, node_ms in rows if node_ms is not None]
-    return (floor, peak, measured,
+    return (floor, peak, measured, rtts, perceived,
             [(play, cards, d, node_ms if node_ms is not None else max(0.0, d - floor))
              for play, cards, d, node_ms in rows])
 
@@ -150,7 +159,7 @@ def line(label, v, w=34):
 if __name__ == "__main__":
     floors, floors_by_peak = [], defaultdict(list)
     raw_ps, exc_ps = defaultdict(list), defaultdict(list)
-    hops = []
+    hops, client_rtts, perceived_all = [], [], []
     paths = sorted(glob.glob(os.path.expanduser(sys.argv[1])))
     with Pool(8) as pool:
         for n, res in enumerate(pool.imap_unordered(one, paths, chunksize=8)):
@@ -158,14 +167,28 @@ if __name__ == "__main__":
                 print(f"[{n}/{len(paths)}]", file=sys.stderr, flush=True)
             if not res:
                 continue
-            floor, peak, measured, rows = res
+            floor, peak, measured, rtts, perceived, rows = res
             floors.append(floor)
             hops.extend(measured)
+            client_rtts.extend(rtts)
+            perceived_all.extend(perceived)
             floors_by_peak[bucket(peak)].append(floor)
             for play, cards, d, excess in rows:
                 if play:
                     raw_ps[(play, bucket(cards))].append(d)
                     exc_ps[(play, bucket(cards))].append(excess)
+
+    if client_rtts:
+        print(f"\nPLAYER LEG (that player's own heartbeat round trip, per decision)")
+        print(f"decisions with a client RTT: {len(client_rtts)}")
+        print(f"  p50 {pct(client_rtts,50):.0f}   p90 {pct(client_rtts,90):.0f}   "
+              f"p99 {pct(client_rtts,99):.0f}   max {max(client_rtts):.0f} ms")
+    if perceived_all:
+        print(f"\nPERCEIVED LATENCY (node time + that player's own leg)")
+        print(f"decisions: {len(perceived_all)}")
+        print(f"  p50 {pct(perceived_all,50):.0f}   p90 {pct(perceived_all,90):.0f}   "
+              f"p99 {pct(perceived_all,99):.0f} ms")
+        print("  This is what the player waited. Every other figure here is server-side.")
 
     if hops:
         print(f"\nMEASURED HOP (round trip minus the node's own engineMs + emitMs)")

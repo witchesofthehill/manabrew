@@ -111,6 +111,17 @@ def one(path):
         when = ts(e["ts"].encode())
         if env.get("kind") == "prompt":
             seat = env.get("forPlayer")
+            # The node often answers a decision with the next question and no
+            # board. That prompt is its reply, so it closes the decision (trap
+            # 6). Waiting for a board instead holds the row open across the
+            # player's next think and charges it to the node.
+            for row in answered:
+                if row[0] == seat and row[1] is not None:
+                    d = (when - row[1]) * 1000
+                    if 0 <= d < 120000 and not row[4]:
+                        rows.append((row[5], row[3], d, None))
+                    row[1] = None
+                    break
             for row in answered:
                 if row[1] is not None and row[0] != seat:
                     row[4] = True

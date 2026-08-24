@@ -49,7 +49,7 @@ what `emitMs` covers. The hop is
 An envelope carrying `engineMs` but no `emitMs` predates that split, so its
 node-side work is only partly accounted for.
 
-## Five traps
+## Six traps
 
 Each of these was hit while producing the 40-day analysis, and each moved the
 headline numbers by more than any real code change did.
@@ -88,6 +88,20 @@ rollout that reader kept 110 games out of 449 and reported a network floor of
 window, which is why none of them appeared to move anything. Read `stateDelta`
 too, and rebuild the board from the patches. `scripts/latency/state_delta.py`
 does this.
+
+**6. The node's reply is often the next question, not a board.** Trap 1 handles a
+prompt to a _different_ seat. It does nothing about the node asking the _same_
+player several questions back to back and sending a board only at the end. A
+reader that waits for the board holds the decision open across every think in
+between and charges all of it to the node. One capture recorded a 152-second
+decision this way; the node had in fact replied in 212ms, and the rest was a
+player thinking through three more prompts.
+
+Close a decision at the node's **first** reply to that seat, state or prompt,
+whichever comes first. The body of the distribution barely moves, which is why
+this hides: on that game p50 and p90 were identical either way while the maximum
+went from 152,156ms to 577ms. It is purely a tail artifact, so it corrupts
+exactly the figures anyone investigating a stall will reach for.
 
 ## Controlling for the network
 

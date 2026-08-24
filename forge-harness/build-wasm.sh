@@ -67,7 +67,8 @@ cd "$OUT"
   --no-fallback \
   --report-unsupported-elements-at-runtime \
   -H:+ReportExceptionStackTraces \
-  --initialize-at-run-time=org.tinylog,org.slf4j,io.netty,forge,org.apache.commons.lang3  \
+  --initialize-at-run-time=org.tinylog,org.slf4j,io.netty,forge,org.apache.commons.lang3 \
+  --initialize-at-build-time=com.google.common.util.concurrent \
   -Djava.awt.headless=true \
   -H:ConfigurationFileDirectories="$CFG,$EXTRA,$GEN" \
   "$@" \

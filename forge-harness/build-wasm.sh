@@ -21,7 +21,7 @@ CFG="$HARNESS_DIR/native/frozen-config"
 EXTRA="$HARNESS_DIR/native/extra-config"
 GEN="$HARNESS_DIR/native/gen-config-wasm"
 OUT="$HARNESS_DIR/native/wasm"
-WASM_SRC="$HARNESS_DIR/native/wasm-src/forge/harness/wasm/WasmMain.java"
+WASM_SRC="$HARNESS_DIR/native/wasm-src"
 WASM_CLASSES="$HARNESS_DIR/native/wasm-classes"
 ENTRY="${ENTRY_CLASS:-forge.harness.wasm.WasmMain}"
 LANGS="$REPO_ROOT/forge/forge-gui/res/languages"
@@ -35,7 +35,7 @@ command -v wasm-as >/dev/null || { echo "binaryen (wasm-as) not on PATH"; exit 1
 echo "==> compiling WasmMain (@JS bootstrap layer)"
 rm -rf "$WASM_CLASSES"; mkdir -p "$WASM_CLASSES"
 "$GRAALVM_HOME/bin/javac" -parameters --add-modules org.graalvm.webimage.api \
-  -cp "$JAR" -d "$WASM_CLASSES" "$WASM_SRC"
+  -cp "$JAR" -d "$WASM_CLASSES" $(find "$WASM_SRC" -name '*.java')
 
 echo "==> generating reflect-config (same closure as build-native.sh)"
 rm -rf "$GEN"; mkdir -p "$GEN"
@@ -67,7 +67,7 @@ cd "$OUT"
   --no-fallback \
   --report-unsupported-elements-at-runtime \
   -H:+ReportExceptionStackTraces \
-  --initialize-at-run-time=org.tinylog,org.slf4j,io.netty,forge,org.apache.commons.lang3 \
+  --initialize-at-run-time=org.tinylog,org.slf4j,io.netty,forge,org.apache.commons.lang3  \
   -Djava.awt.headless=true \
   -H:ConfigurationFileDirectories="$CFG,$EXTRA,$GEN" \
   "$@" \

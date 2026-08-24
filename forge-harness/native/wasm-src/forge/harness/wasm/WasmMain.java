@@ -7,6 +7,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import forge.harness.host.ManaBrewInteractiveSession;
+
 /**
  * Web Image entry point for the Forge harness.
  *
@@ -46,19 +53,54 @@ public final class WasmMain {
     static native String hostReadGunzippedBase64(String path);
 
     /**
-     * The tar as a latin1 string: one char per byte, so the bytes survive
-     * intact and Java recovers them with a straight ISO-8859-1 decode.
+     * Assets as one NUL-framed "path\0body\0..." string.
      *
-     * String is the only bulk type that crosses the @JS boundary cheaply, and
-     * this avoids base64's 33% inflation and its decode pass. There is no way
-     * to share the buffer outright: WasmGC keeps Java objects in GC structs
-     * rather than linear memory, so a byte[] has no address a SharedArrayBuffer
-     * could alias.
+     * Everything Forge reads here is text, so this stays out of binary entirely:
+     * the browser decodes it as ordinary UTF-8 rather than paying for the
+     * x-user-defined byte-per-char trick, which dominated boot time. String is
+     * the only bulk type that crosses the @JS boundary cheaply anyway, since
+     * WasmGC keeps Java objects in GC structs rather than linear memory, so a
+     * byte[] has no address a SharedArrayBuffer could alias.
      */
     @JS.Coerce
-    @JS("const fs = require('fs'); const zlib = require('zlib');"
-        + "return zlib.gunzipSync(fs.readFileSync(path)).toString('latin1');")
+    @JS("if (typeof require === 'function') {"
+        + "  const fs = require('fs'); const zlib = require('zlib');"
+        + "  return zlib.gunzipSync(fs.readFileSync(path)).toString('utf8');"
+        + "}"
+        // Workers allow synchronous XHR, which is the only way an @JS snippet
+        // can hand bytes back: fetch is async and this must return a value.
+        // The wire stays compressed because the server sets Content-Encoding.
+        + "const url = new URL(path.replace(/\\.gz$/, ''), self.location.href).href;"
+        + "console.log('[assets] GET ' + url);"
+        + "const xhr = new XMLHttpRequest();"
+        + "xhr.open('GET', url, false);"
+        + "xhr.send(null);"
+        + "console.log('[assets] status ' + xhr.status + ', ' + xhr.responseText.length + ' chars');"
+        + "if (xhr.status !== 200 && xhr.status !== 0) throw new Error('asset fetch failed: ' + xhr.status);"
+        + "return xhr.responseText;")
     static native String hostReadAssets(String path);
+
+    private static void writeFramed(String framed, Path root) throws Exception {
+        int files = 0;
+        int i = 0;
+        while (i < framed.length()) {
+            int sep = framed.indexOf('\0', i);
+            if (sep < 0) {
+                break;
+            }
+            String name = framed.substring(i, sep);
+            int end = framed.indexOf('\0', sep + 1);
+            if (end < 0) {
+                end = framed.length();
+            }
+            Path target = root.resolve(name);
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, framed.substring(sep + 1, end));
+            files++;
+            i = end + 1;
+        }
+        System.out.println("[wasm] wrote " + files + " files into the VFS");
+    }
 
     /** Minimal ustar reader. Only the fields Forge's asset tree actually uses. */
     private static void untar(byte[] tar, Path root) throws Exception {
@@ -112,6 +154,60 @@ public final class WasmMain {
         return value;
     }
 
+    private static final String GAME_ID = "web-image-demo";
+
+    /** Expands a parity deck (name + count) into the flat deck the adapter wants. */
+    private static JsonArray deckFrom(String path) throws Exception {
+        JsonObject root = JsonParser.parseString(Files.readString(Path.of(path))).getAsJsonObject();
+        JsonArray out = new JsonArray();
+        for (JsonElement entry : root.getAsJsonArray("cards")) {
+            JsonObject card = entry.getAsJsonObject();
+            int count = card.has("count") ? card.get("count").getAsInt() : 1;
+            for (int i = 0; i < count; i++) {
+                JsonObject identity = new JsonObject();
+                identity.addProperty("name", card.get("name").getAsString());
+                out.add(identity);
+            }
+        }
+        return out;
+    }
+
+    private static JsonObject seat(String name, JsonArray deck, boolean ai) {
+        JsonObject player = new JsonObject();
+        player.addProperty("name", name);
+        player.addProperty("ai", ai);
+        player.add("deck", deck);
+        return player;
+    }
+
+    private static void runBrowserGame(String[] args) throws Exception {
+        SabTransport.install(SabTransport.DEFAULT_BUFFER_SIZE);
+
+        forge.harness.host.ManaBrewEngineAdapter adapter = new forge.harness.host.ManaBrewEngineAdapter();
+        adapter.initialize("/forge-gui/");
+        System.out.println("[wasm] forge initialized, starting game");
+
+        ManaBrewInteractiveSession.setBridge(
+                new SabTransport(viewer -> adapter.getSnapshot(GAME_ID, viewer)));
+
+        JsonArray players = new JsonArray();
+        players.add(seat("You", deckFrom("/forge-gui/parity_decks/red_burn.json"), false));
+        players.add(seat("Forge AI", deckFrom("/forge-gui/parity_decks/green_stompy.json"), true));
+
+        JsonObject request = new JsonObject();
+        request.addProperty("gameId", GAME_ID);
+        request.addProperty("variant", "Constructed");
+        request.addProperty("startingLife", 20);
+        request.addProperty("seed", 42L);
+        request.add("players", players);
+
+        // Blocks until the game ends: the bridge keeps the loop on this thread.
+        adapter.startGameJson(request.toString());
+
+        System.out.println("[wasm] game over");
+        SabTransport.post("game:over", "{\"gameId\":\"" + GAME_ID + "\"}");
+    }
+
     public static void main(String[] args) throws Exception {
         // Must be set before any forge class initializes: ThreadUtil reads it in
         // a static initializer. native-image's own -D only reaches the builder.
@@ -135,16 +231,21 @@ public final class WasmMain {
             untar(tar, root);
             System.out.println("[wasm] base64 path: total boot " + (System.currentTimeMillis() - t0) + "ms");
         } else {
-            String raw = hostReadAssets("assets.tar.gz");
+            // Measured: one call beats slicing. 11 MB takes ~0.6s on Node and
+            // ~40s in Chrome, and 44 chunked crossings made Chrome worse (~68s),
+            // so the cost is per-crossing overhead rather than payload size.
+            String framed = hostReadAssets("assets.txt.gz");
             long tFetch = System.currentTimeMillis();
-            System.out.println("[wasm] latin1 path: JS gunzip produced " + (raw.length() / 1024) + " KiB in " + (tFetch - t0) + "ms");
-            byte[] tar = raw.getBytes(StandardCharsets.ISO_8859_1);
-            long tDecode = System.currentTimeMillis();
-            System.out.println("[wasm] latin1 path: recovered " + (tar.length / 1024) + " KiB in " + (tDecode - tFetch) + "ms");
+            System.out.println("[wasm] pulled " + (framed.length() / 1024) + " KiB across the JS boundary in " + (tFetch - t0) + "ms");
             Path root = Path.of("/forge-gui");
             Files.createDirectories(root);
-            untar(tar, root);
-            System.out.println("[wasm] latin1 path: total boot " + (System.currentTimeMillis() - t0) + "ms");
+            writeFramed(framed, root);
+            System.out.println("[wasm] total boot " + (System.currentTimeMillis() - t0) + "ms");
+        }
+
+        if (args.length > 0 && "--browser".equals(args[0])) {
+            runBrowserGame(args);
+            return;
         }
 
         String[] forwarded = new String[args.length + 2];

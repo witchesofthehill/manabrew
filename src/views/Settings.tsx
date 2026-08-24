@@ -25,7 +25,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
-import { DOCS_URL } from "@/lib/constants";
+import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme as useColorMode } from "next-themes";
 import { Navigate, useLocation } from "react-router-dom";
-import { HelpCircle, Server, Trash2 } from "lucide-react";
+import { HelpCircle, Minus, Pencil, Plus, Server, Trash2 } from "lucide-react";
 import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
 
@@ -482,6 +482,20 @@ export default function Settings() {
     <div className="h-full space-y-8 overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
       <section className="space-y-4">
         <div className="flex items-center gap-6 border-b overflow-x-auto no-scrollbar">
+          {isFeatureEnabled("accounts") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("account")}
+              className={
+                "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
+                (activeTab === "account"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              Account
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab("preferences")}
@@ -520,18 +534,6 @@ export default function Settings() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("server")}
-            className={
-              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
-              (activeTab === "server"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground")
-            }
-          >
-            Server
-          </button>
-          <button
-            type="button"
             onClick={() => setActiveTab("keybindings")}
             className={
               "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
@@ -541,6 +543,18 @@ export default function Settings() {
             }
           >
             Shortcuts
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("server")}
+            className={
+              "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
+              (activeTab === "server"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground")
+            }
+          >
+            Server
           </button>
           <button
             type="button"
@@ -554,48 +568,10 @@ export default function Settings() {
           >
             Cache
           </button>
-          {isFeatureEnabled("accounts") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("account")}
-              className={
-                "pb-2 text-sm font-medium transition-colors border-b-2 " +
-                (activeTab === "account"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground")
-              }
-            >
-              Account
-            </button>
-          )}
         </div>
       </section>
 
       {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
-
-      {activeTab === "account" && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Legal</h2>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <a
-              className="underline underline-offset-2"
-              href={`${DOCS_URL}/terms`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Terms
-            </a>
-            <a
-              className="underline underline-offset-2"
-              href={`${DOCS_URL}/privacy`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Privacy &amp; data
-            </a>
-          </div>
-        </section>
-      )}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 
@@ -770,14 +746,24 @@ export default function Settings() {
       )}
 
       {activeTab === "preferences" && (
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Preferences</h2>
-
+        <section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Default Playmat</Label>
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+            <PreferenceCard
+              title="Default Playmat"
+              description="Used in games when the deck you're playing has no custom playmat of its own."
+            >
+              <div className="group relative">
+                <button
+                  type="button"
+                  onClick={() => setPlaymatEditorOpen(true)}
+                  title={hasDefaultPlaymat ? "Customize playmat" : "Set playmat"}
+                  className={cn(
+                    "flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border bg-muted",
+                    "motion-safe:transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-sm",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    !hasDefaultPlaymat && "border-dashed",
+                  )}
+                >
                   {defaultPlaymat ? (
                     <img
                       src={defaultPlaymat}
@@ -791,35 +777,37 @@ export default function Settings() {
                       aria-hidden
                     />
                   ) : (
-                    <span className="text-xs text-muted-foreground">None</span>
+                    <span className="flex size-12 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
+                      <Plus className="h-6 w-6" />
+                    </span>
                   )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setPlaymatEditorOpen(true)}>
-                    {hasDefaultPlaymat ? "Customize" : "Set playmat"}
-                  </Button>
-                  {hasDefaultPlaymat && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
-                        prefs.setDefaultPlaymat(undefined, undefined);
-                        prefs.setDefaultPlaymatSettings(undefined);
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
+                </button>
+                {hasDefaultPlaymat && (
+                  <span className="pointer-events-none absolute -bottom-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors group-hover:text-foreground">
+                    <Pencil className="h-3 w-3" />
+                  </span>
+                )}
+                {hasDefaultPlaymat && (
+                  <button
+                    type="button"
+                    title="Remove playmat"
+                    onClick={() => {
+                      void useAssetStore.getState().remove(prefs.defaultPlaymatAssetId);
+                      prefs.setDefaultPlaymat(undefined, undefined);
+                      prefs.setDefaultPlaymatSettings(undefined);
+                    }}
+                    className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm motion-safe:transition-opacity opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto hover:border-destructive hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring before:absolute before:-inset-2.5 before:content-['']"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Used in games when the deck you&apos;re playing has no custom playmat of its own.
-              </p>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Battlefield Zone Column Order</Label>
+            <PreferenceCard
+              title="Battlefield Zone Column Order"
+              description="Controls placement of Library / Graveyard / Exile in the in-field zone column."
+            >
               <div className="grid grid-cols-3 gap-2">
                 {(["Top", "Middle", "Bottom"] as const).map((slot, index) => (
                   <div key={slot} className="space-y-1">
@@ -842,15 +830,15 @@ export default function Settings() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Controls placement of Library / Graveyard / Exile in the in-field zone column.
-              </p>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Card Size ({Math.round(prefs.cardSizeMultiplier * 100)}%)</Label>
+            <PreferenceCard
+              title="Card Size"
+              value={`${Math.round(prefs.cardSizeMultiplier * 100)}%`}
+              description="Scales cards on every battlefield and your hand fan. 100% is the classic 3-row board; battlefield cards cap at a 2-row fill so the board stays playable, while the hand keeps growing past them."
+            >
               <div className="flex items-start gap-4">
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-3">
                   <input
                     type="range"
                     min={Math.round(CARD_SIZE_MULTIPLIER_MIN * 100)}
@@ -860,7 +848,7 @@ export default function Settings() {
                     onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
                     className="w-full accent-primary"
                   />
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -883,11 +871,6 @@ export default function Settings() {
                       150%
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Scales cards on every battlefield and your hand fan. 100% is the classic 3-row
-                    board; battlefield cards cap at a 2-row fill so the board stays playable, while
-                    the hand keeps growing past them.
-                  </p>
                 </div>
                 <div className="w-[120px] shrink-0 flex justify-center">
                   <BattlefieldStylePreview
@@ -901,11 +884,15 @@ export default function Settings() {
                   />
                 </div>
               </div>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Battlefield Layout</Label>
-              <div className="flex items-center gap-2">
+            <PreferenceCard
+              title="Battlefield Layout"
+              description={
+                '"Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield tidy in rows (creatures, then others, then lands) and ignores manual placement.'
+              }
+            >
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={!prefs.battlefieldAutoSort ? "default" : "outline"}
                   size="sm"
@@ -921,15 +908,15 @@ export default function Settings() {
                   Auto-arrange
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                "Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield
-                tidy in rows (creatures, then others, then lands) and ignores manual placement.
-              </p>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Zone Piles</Label>
-              <div className="flex items-center gap-2">
+            <PreferenceCard
+              title="Zone Piles"
+              description={
+                '"Locked" keeps the deck, graveyard, exile, and command piles fixed on the battlefield so a drag can\'t move them. Tapping to open still works.'
+              }
+            >
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={!prefs.lockZoneTiles ? "default" : "outline"}
                   size="sm"
@@ -945,53 +932,47 @@ export default function Settings() {
                   Locked
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                "Locked" keeps the deck, graveyard, exile, and command piles fixed on the
-                battlefield so a drag can't move them. Tapping to open still works.
-              </p>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Battlefield Card Style</Label>
+            <PreferenceCard
+              title="Battlefield Card Style"
+              description={
+                '"Realistic" uses the full printed card image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame" frames the art with name and type bars. Hand, stack, and previews always use the full card image.'
+              }
+            >
               <div className="flex items-start gap-4">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => prefs.setBattlefieldCardStyle("realistic")}
-                    >
-                      Realistic
-                    </Button>
-                    <Button
-                      variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => prefs.setBattlefieldCardStyle("art")}
-                    >
-                      Art-forward
-                    </Button>
-                    <Button
-                      variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => prefs.setBattlefieldCardStyle("frame")}
-                    >
-                      Mini-frame
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    How cards are drawn on the battlefield. "Realistic" uses the full printed card
-                    image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame"
-                    frames the art with name and type bars. Hand, stack, and previews always use the
-                    full card image.
-                  </p>
+                <div className="flex-1 flex flex-wrap content-start gap-2">
+                  <Button
+                    variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setBattlefieldCardStyle("realistic")}
+                  >
+                    Realistic
+                  </Button>
+                  <Button
+                    variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setBattlefieldCardStyle("art")}
+                  >
+                    Art-forward
+                  </Button>
+                  <Button
+                    variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setBattlefieldCardStyle("frame")}
+                  >
+                    Mini-frame
+                  </Button>
                 </div>
                 <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
               </div>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>In-game Animations</Label>
-              <div className="flex items-center gap-2">
+            <PreferenceCard
+              title="In-game Animations"
+              description="Decorative board effects — creature entrance stomp + dust, stat and damage pops, glow pulses. Turn these off to save performance on weaker hardware; the board still works (cards move, state indicators and damage numbers stay)."
+            >
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={prefs.inGameAnimations ? "default" : "outline"}
                   size="sm"
@@ -1007,17 +988,14 @@ export default function Settings() {
                   Off
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Decorative board effects — creature entrance stomp + dust, stat and damage pops,
-                glow pulses. Turn these off to save performance on weaker hardware; the board still
-                works (cards move, state indicators and damage numbers stay).
-              </p>
-            </div>
+            </PreferenceCard>
 
             {isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && (
-              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-                <Label>Ironsmith engine (experimental)</Label>
-                <div className="flex items-center gap-2">
+              <PreferenceCard
+                title="Ironsmith engine (experimental)"
+                description="Adds the experimental Ironsmith trusted engine as a Create Room option. Card support is partial and games may be rough — off by default. Leave this off unless you're testing Ironsmith."
+              >
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={prefs.ironsmithRuntimeEnabled ? "default" : "outline"}
                     size="sm"
@@ -1033,18 +1011,15 @@ export default function Settings() {
                     Off
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Adds the experimental Ironsmith trusted engine as a Create Room option. Card
-                  support is partial and games may be rough — off by default. Leave this off unless
-                  you're testing Ironsmith.
-                </p>
-              </div>
+              </PreferenceCard>
             )}
 
             {getPlatform().type === "web" && (
-              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-                <Label>Ask which engine before AI games</Label>
-                <div className="flex items-center gap-2">
+              <PreferenceCard
+                title="Ask which engine before AI games"
+                description="Games vs AI normally pick the best available engine automatically. Turn this on to choose between the hosted Forge engine and the in-browser Manabrew engine on every launch."
+              >
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={prefs.askEngineOnAiPlay ? "default" : "outline"}
                     size="sm"
@@ -1060,17 +1035,16 @@ export default function Settings() {
                     Off
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Games vs AI normally pick the best available engine automatically. Turn this on to
-                  choose between the hosted Forge engine and the in-browser Manabrew engine on every
-                  launch.
-                </p>
-              </div>
+              </PreferenceCard>
             )}
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Card Preview Trigger</Label>
-              <div className="flex items-center gap-2">
+            <PreferenceCard
+              title="Card Preview Trigger"
+              description={
+                'Controls when the card preview and ability panel appears. "Hover" shows on mouse over, others require holding a modifier key.'
+              }
+            >
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant={prefs.cardPreviewMode === "hover" ? "default" : "outline"}
                   size="sm"
@@ -1100,21 +1074,14 @@ export default function Settings() {
                   Ctrl + Hover
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Controls when the card preview and ability panel appears. "Hover" shows on mouse
-                over, others require holding a modifier key.
-              </p>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="hover-delay">Card Preview Delay</Label>
-                <span className="text-sm font-mono text-muted-foreground">
-                  {prefs.cardHoverDelayMs}ms
-                </span>
-              </div>
+            <PreferenceCard
+              title="Card Preview Delay"
+              value={`${prefs.cardHoverDelayMs}ms`}
+              description="How long to hover before the card preview appears. Lower values feel snappier, higher values reduce accidental popups."
+            >
               <input
-                id="hover-delay"
                 type="range"
                 min={HOVER_DELAY_MIN}
                 max={HOVER_DELAY_MAX}
@@ -1123,19 +1090,14 @@ export default function Settings() {
                 onChange={(e) => prefs.setCardHoverDelayMs(Number(e.target.value))}
                 className="w-full accent-primary"
               />
-              <p className="text-xs text-muted-foreground">
-                How long to hover before the card preview appears. Lower values feel snappier,
-                higher values reduce accidental popups.
-              </p>
-            </div>
+            </PreferenceCard>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="flash-duration">Flash duration</Label>
-                <span className="text-sm font-mono text-muted-foreground">{flashDurationMs}ms</span>
-              </div>
+            <PreferenceCard
+              title="Flash duration"
+              value={`${flashDurationMs}ms`}
+              description="Card-play and turn-start flash duration."
+            >
               <input
-                id="flash-duration"
                 type="range"
                 min={FLASH_MIN}
                 max={FLASH_MAX}
@@ -1144,10 +1106,7 @@ export default function Settings() {
                 onChange={(e) => setFlashDurationMs(Number(e.target.value))}
                 className="w-full accent-primary"
               />
-              <p className="text-xs text-muted-foreground">
-                Card-play and turn-start flash duration.
-              </p>
-            </div>
+            </PreferenceCard>
           </div>
           {playmatEditorOpen && (
             <PlaymatEditorModal

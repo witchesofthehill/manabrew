@@ -14,6 +14,10 @@ pub const SELF_ISSUER: &str = "manabrew-client";
 pub const RELAY_AUDIENCE: &str = "manabrew-relay";
 pub const SIGNED_ALG: &str = "EdDSA";
 pub const UNSIGNED_ALG: &str = "none";
+/// Keep in sync with `manabrew-hub/src/auth/token.rs::guest_subject` — hub
+/// guest tokens are signed like account tokens; only this namespace tells
+/// them apart.
+pub const GUEST_SUBJECT_PREFIX: &str = "guest:";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentityTokenHeader {
@@ -27,6 +31,8 @@ pub struct IdentityTokenClaims {
     pub sub: String,
     #[serde(default)]
     pub handle: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualification: Option<String>,
     pub iss: String,
     pub aud: String,
     pub iat: i64,
@@ -82,6 +88,7 @@ pub fn mint_unsigned(subject: &str, handle: &str, iat: i64, ttl_s: i64) -> Strin
     let claims = IdentityTokenClaims {
         sub: subject.to_string(),
         handle: handle.to_string(),
+        qualification: None,
         iss: SELF_ISSUER.to_string(),
         aud: RELAY_AUDIENCE.to_string(),
         iat,

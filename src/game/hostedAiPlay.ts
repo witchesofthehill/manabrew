@@ -335,6 +335,8 @@ function serverFormatFromId(formatId: string): GameFormat {
       return "Vintage";
     case "pauper":
       return "Pauper";
+    case "premodern":
+      return "Premodern";
     case "commander":
       return "Commander";
     case "brawl":

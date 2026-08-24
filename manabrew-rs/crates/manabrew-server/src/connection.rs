@@ -141,6 +141,41 @@ pub(crate) fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMes
     }
 }
 
+fn player_list(state: &Arc<ServerState>) -> Vec<crate::protocol::PlayerInfo> {
+    state
+        .players
+        .iter()
+        .filter(|entry| !entry.value().is_service)
+        .map(|entry| crate::protocol::PlayerInfo {
+            username: entry.value().username.clone(),
+            player_id: entry.value().player_id.clone(),
+            connected: entry.value().connected,
+            verified: entry.value().verified(),
+            qualification: entry.value().qualification.clone(),
+            room_id: entry.value().room_id.clone(),
+        })
+        .collect()
+}
+
+pub fn broadcast_player_list(state: &Arc<ServerState>) {
+    let msg = ServerMessage::PlayerList {
+        players: player_list(state),
+    };
+    let json = match serde_json::to_string(&msg) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+    let player_ids: Vec<String> = state
+        .players
+        .iter()
+        .filter(|entry| entry.value().connected && !entry.value().is_service)
+        .map(|entry| entry.key().clone())
+        .collect();
+    for pid in &player_ids {
+        emit_to(state, pid, &msg, &json);
+    }
+}
+
 pub fn broadcast_to_room_except(
     state: &Arc<ServerState>,
     sender_player_id: &str,
@@ -335,12 +370,20 @@ pub async fn handle_connection(
     }
 
     let heartbeat_tx = tx.clone();
+    let heartbeat_start = Instant::now();
     let heartbeat_task = tokio::spawn(async move {
         let mut ticker = tokio::time::interval(HEARTBEAT_INTERVAL);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             ticker.tick().await;
-            if heartbeat_tx.send(Message::Ping(Vec::new())).is_err() {
+            // The payload comes back untouched in the pong (RFC 6455 §5.5.2),
+            // so the relay can time the round trip without the client
+            // participating or the two clocks agreeing.
+            let stamp = heartbeat_start.elapsed().as_millis() as u64;
+            if heartbeat_tx
+                .send(Message::Ping(stamp.to_be_bytes().to_vec()))
+                .is_err()
+            {
                 break;
             }
         }
@@ -432,8 +475,17 @@ pub async fn handle_connection(
                 debug!("[recv] '{}' ping", username);
                 let _ = tx.send(Message::Pong(data));
             }
-            Message::Pong(_) => {
+            Message::Pong(data) => {
                 debug!("[recv] '{}' pong", username);
+                if let Ok(bytes) = <[u8; 8]>::try_from(data.as_slice()) {
+                    let sent = u64::from_be_bytes(bytes);
+                    let now = heartbeat_start.elapsed().as_millis() as u64;
+                    let rtt = now.saturating_sub(sent);
+                    metrics::record_client_rtt(rtt as f64);
+                    if let Some(mut player) = state.players.get_mut(&player_id) {
+                        player.last_client_rtt_ms = Some(rtt.min(u64::from(u32::MAX)) as u32);
+                    }
+                }
             }
             _ => {}
         }
@@ -516,6 +568,7 @@ async fn authenticate(
             };
             let identities = resolved.identities;
             let name_verified = resolved.name_verified;
+            let qualification = resolved.qualification;
             let username = resolved.name.unwrap_or(username);
 
             if username.trim().is_empty() {
@@ -575,6 +628,7 @@ async fn authenticate(
                     session.generation,
                     identities,
                     name_verified,
+                    qualification,
                     client.clone(),
                 );
                 return Ok((session.player_id, username, true, new_gen, client, service));
@@ -589,6 +643,7 @@ async fn authenticate(
                     username: username.clone(),
                     room_id: None,
                     sender: sender.clone(),
+                    last_client_rtt_ms: None,
                     connected: true,
                     generation,
                     last_seen: Instant::now(),
@@ -596,6 +651,7 @@ async fn authenticate(
                     is_service: service,
                     identity: identities,
                     name_verified,
+                    qualification,
                     client: client.clone(),
                 },
             );
@@ -607,6 +663,7 @@ async fn authenticate(
                 error: None,
             };
             send_msg(sender, &reply);
+            broadcast_player_list(state);
 
             Ok((player_id, username, false, generation, client, service))
         }
@@ -642,6 +699,7 @@ fn reclaim_session(
     old_gen: u64,
     identities: Vec<SessionIdentity>,
     name_verified: bool,
+    qualification: Option<String>,
     client: ClientBuild,
 ) -> u64 {
     let new_gen = old_gen + 1;
@@ -659,6 +717,7 @@ fn reclaim_session(
         player.last_seen = Instant::now();
         player.disconnected_at = None;
         player.name_verified = name_verified;
+        player.qualification = qualification;
         player.client = client;
         if !identities.is_empty() {
             player.identity = identities;
@@ -724,6 +783,7 @@ fn reclaim_session(
         }
     }
 
+    broadcast_player_list(state);
     new_gen
 }
 
@@ -762,17 +822,7 @@ fn handle_client_message(
         }
 
         ClientMessage::ListPlayers => {
-            let players: Vec<_> = state
-                .players
-                .iter()
-                .filter(|entry| !entry.value().is_service)
-                .map(|entry| crate::protocol::PlayerInfo {
-                    username: entry.value().username.clone(),
-                    player_id: entry.value().player_id.clone(),
-                    connected: entry.value().connected,
-                    room_id: entry.value().room_id.clone(),
-                })
-                .collect();
+            let players = player_list(state);
             debug!(
                 "[emit] -> '{}': PlayerList ({} players)",
                 username,
@@ -1279,9 +1329,22 @@ fn handle_client_message(
                     .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
-                    state
-                        .analytics
-                        .capture_envelope(&game_id, username, &game_state);
+                    // Only a player's own envelope carries a link that is theirs.
+                    // On an engine envelope `username` is the node.
+                    let client_rtt_ms = (source == GameMessageSource::Player)
+                        .then(|| {
+                            state
+                                .players
+                                .get(player_id)
+                                .and_then(|player| player.last_client_rtt_ms)
+                        })
+                        .flatten();
+                    state.analytics.capture_envelope(
+                        &game_id,
+                        username,
+                        &game_state,
+                        client_rtt_ms,
+                    );
                 }
                 if !should_deliver {
                     return;

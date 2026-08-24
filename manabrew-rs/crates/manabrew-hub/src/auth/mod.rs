@@ -142,7 +142,13 @@ fn create_session(state: &AppState, account: &AccountRow) -> rusqlite::Result<Au
         &now_str(),
         &ts_in(Duration::days(REFRESH_TOKEN_TTL_DAYS)),
     )?;
-    let access = mint_access_token(&state.identity, &account.id, &account.handle, AUDIENCE_HUB);
+    let access = mint_access_token(
+        &state.identity,
+        &account.id,
+        &account.handle,
+        account.qualification.as_deref(),
+        AUDIENCE_HUB,
+    );
     Ok(AuthSessionResponse {
         access_token: access.access_token,
         token_type: access.token_type,
@@ -169,6 +175,7 @@ fn create_account_with_identity(
             created_at: now.clone(),
             avatar_asset_id: None,
             avatar_url: None,
+            qualification: None,
         };
         match storage.create_account(&account) {
             Ok(()) => break account,

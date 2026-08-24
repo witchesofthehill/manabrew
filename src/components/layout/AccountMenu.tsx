@@ -82,7 +82,12 @@ export function AccountMenu({ disabled = false }: AccountMenuProps) {
           {renderAvatar("h-8 w-8", "text-sm")}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-2">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-64 rounded-xl p-2"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
         <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted">
             {renderAvatar("h-11 w-11", "text-base")}

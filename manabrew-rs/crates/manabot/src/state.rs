@@ -227,7 +227,10 @@ impl BotState {
                 return Vec::new();
             }
         };
-        let StateEnvelope::Prompt { for_player, prompt } = envelope else {
+        let StateEnvelope::Prompt {
+            for_player, prompt, ..
+        } = envelope
+        else {
             return Vec::new();
         };
         let prompt_type = prompt

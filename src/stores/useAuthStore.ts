@@ -141,7 +141,7 @@ export const useAuthStore = create<AuthState>()(
       }),
       {
         name: "manabrew-auth-storage",
-        version: 1,
+        version: 2,
         // The refresh token persists in localStorage on purpose: staying signed
         // in across reloads is the product behavior, and any XSS that could
         // read it could call the API directly anyway. It is presented only to
@@ -149,13 +149,23 @@ export const useAuthStore = create<AuthState>()(
         // sha256. Access tokens stay in memory and last ten minutes.
         partialize: (state) => ({
           refreshToken: state.refreshToken,
+          account: state.account,
         }),
         migrate: (persisted, version) => {
           if (version === 0 && persisted && typeof persisted === "object") {
             const legacy = (persisted as { token?: string | null }).token ?? null;
-            return { refreshToken: legacy };
+            return { refreshToken: legacy, account: null };
           }
-          return persisted as { refreshToken: string | null };
+          if (version === 1 && persisted && typeof persisted === "object") {
+            const { refreshToken } = persisted as { refreshToken: string | null };
+            return { refreshToken, account: null };
+          }
+          return persisted as { refreshToken: string | null; account: AuthAccount | null };
+        },
+        onRehydrateStorage: () => (state) => {
+          if (state?.refreshToken && isFeatureEnabled("accounts")) {
+            useAuthStore.setState({ status: "signedIn" });
+          }
         },
       },
     ),

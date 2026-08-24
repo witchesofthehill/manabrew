@@ -158,13 +158,12 @@ pub fn get_max_amount_x(
                     (type_filter.clone(), false)
                 };
             let type_list = if type_filter.contains('X') {
-                let static_sources = crate::cost::static_ability_source_cards(game);
                 game.cards_in_zone(forge_foundation::ZoneType::Battlefield, player)
                     .iter()
                     .copied()
                     .filter(|&cid| {
                         !crate::staticability::static_ability_cant_sacrifice::cant_sacrifice(
-                            &static_sources,
+                            &game.cards,
                             game.card(cid),
                             Some(ability),
                             true,

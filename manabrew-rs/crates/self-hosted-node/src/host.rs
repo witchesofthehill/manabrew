@@ -50,11 +50,13 @@ enum EngineSession {
     Manabrew {
         game_id: String,
         remote_response_txs: HashMap<usize, std_mpsc::Sender<ClientToServerMessage>>,
+        engine_clock: EngineClock,
     },
     Forge {
         game_id: String,
         remote_response_txs: HashMap<usize, std_mpsc::Sender<ClientToServerMessage>>,
         cancel: Arc<AtomicBool>,
+        engine_clock: EngineClock,
     },
 }
 
@@ -64,6 +66,13 @@ impl EngineSession {
             EngineSession::Manabrew { game_id, .. } | EngineSession::Forge { game_id, .. } => {
                 game_id
             }
+        }
+    }
+
+    fn engine_clock(&self) -> &EngineClock {
+        match self {
+            EngineSession::Manabrew { engine_clock, .. }
+            | EngineSession::Forge { engine_clock, .. } => engine_clock,
         }
     }
 }
@@ -1357,6 +1366,7 @@ fn is_commander_variant(format: GameFormat) -> bool {
         | GameFormat::Legacy
         | GameFormat::Vintage
         | GameFormat::Pauper
+        | GameFormat::Premodern
         | GameFormat::Draft
         | GameFormat::Sealed => false,
     }
@@ -1376,6 +1386,7 @@ fn java_game_variant(format: GameFormat) -> &'static str {
         | GameFormat::Legacy
         | GameFormat::Vintage
         | GameFormat::Pauper
+        | GameFormat::Premodern
         | GameFormat::Draft
         | GameFormat::Sealed => "Constructed",
     }
@@ -1497,9 +1508,11 @@ fn maybe_start_hosted_engine(
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
+            let engine_clock = EngineClock::default();
             *guard = Some(EngineSession::Manabrew {
                 game_id: game_id.clone(),
                 remote_response_txs,
+                engine_clock: engine_clock.clone(),
             });
             drop(guard);
 
@@ -1511,6 +1524,7 @@ fn maybe_start_hosted_engine(
                 remote_prompt_rx,
                 Some(player_names.clone()),
                 config.state_delta,
+                engine_clock,
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1570,10 +1584,12 @@ fn maybe_start_hosted_engine(
                 remote_response_rxs.push((i, response_rx));
             }
             let cancel = Arc::new(AtomicBool::new(false));
+            let engine_clock = EngineClock::default();
             *guard = Some(EngineSession::Forge {
                 game_id: game_id.clone(),
                 remote_response_txs,
                 cancel: cancel.clone(),
+                engine_clock: engine_clock.clone(),
             });
             drop(guard);
 
@@ -1585,6 +1601,7 @@ fn maybe_start_hosted_engine(
                 remote_prompt_rx,
                 Some(player_names.clone()),
                 config.state_delta,
+                engine_clock,
             );
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(
@@ -1879,6 +1896,7 @@ fn route_remote_response(
         debug!(from_player, player_index, "no response channel for player");
         return;
     };
+    session.engine_clock().mark_response();
     if let Err(error) = tx.send(ClientToServerMessage::Response { prompt_id, action }) {
         warn!(from_player, %error, "failed to route relay response");
         return;
@@ -1954,15 +1972,60 @@ fn stamp_fingerprint(mut envelope: Value) -> Value {
     envelope
 }
 
+/// Time spent building this envelope after `engine_ms` was sampled: serialising
+/// the state, fingerprinting it, diffing it. Must be stamped last, or it reaches
+/// the dedup comparisons and the diff base, neither of which may see it.
+fn stamp_emit_ms(mut envelope: Value, elapsed: Duration) -> Value {
+    if let Some(object) = envelope.as_object_mut() {
+        object.insert(
+            "emitMs".to_string(),
+            Value::from(elapsed.as_millis().min(u128::from(u32::MAX)) as u32),
+        );
+    }
+    envelope
+}
+
 /// Patch form of a fingerprinted state envelope, against the last one sent to
 /// this seat. `None` the first time a seat is served, or if anything is missing,
 /// and the caller falls back to the full state, which is always correct.
+/// When the engine host last received a player's response, as milliseconds on
+/// its own monotonic clock. The response path writes it and the emit path
+/// reads it, so an outgoing envelope can say how long the engine took without
+/// anyone comparing clocks across hosts.
+#[derive(Clone, Default)]
+pub struct EngineClock(std::sync::Arc<std::sync::atomic::AtomicU64>);
+
+impl EngineClock {
+    fn now() -> u64 {
+        use std::sync::OnceLock;
+        static START: OnceLock<Instant> = OnceLock::new();
+        START.get_or_init(Instant::now).elapsed().as_millis() as u64
+    }
+
+    pub fn mark_response(&self) {
+        self.0
+            .store(Self::now(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Milliseconds since the last response, or `None` if none has arrived yet
+    /// or the gap is implausibly long (the engine was idle, not working).
+    pub fn elapsed_ms(&self) -> Option<u32> {
+        let at = self.0.load(std::sync::atomic::Ordering::Relaxed);
+        if at == 0 {
+            return None;
+        }
+        let delta = Self::now().saturating_sub(at);
+        (delta < 120_000).then_some(delta as u32)
+    }
+}
+
 fn patch_against_last(
     bases: &mut HashMap<usize, (Value, String)>,
     player_index: usize,
     per_seat: bool,
     slot: &str,
     envelope: &Value,
+    engine_ms: Option<u32>,
 ) -> Option<Value> {
     let next = envelope.get("state")?.clone();
     let fingerprint = envelope.get("fingerprint")?.as_str()?.to_string();
@@ -1974,6 +2037,8 @@ fn patch_against_last(
         base,
         fingerprint,
         patch,
+        engine_ms,
+        emit_ms: None,
     })
     .ok()
 }
@@ -1986,6 +2051,7 @@ fn spawn_remote_prompt_forwarder(
     remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
     seat_usernames: Option<Vec<String>>,
     state_delta: bool,
+    engine_clock: EngineClock,
 ) {
     thread::spawn(move || {
         let mut last_state_by_seat: HashMap<usize, Value> = HashMap::new();
@@ -2004,13 +2070,17 @@ fn spawn_remote_prompt_forwarder(
             }
             let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
             let slot = player_slot(player_index);
+            let engine_ms = engine_clock.elapsed_ms();
+            let emit_started = Instant::now();
             let envelope = match &message {
                 AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
                     for_player: None,
                     state: serde_json::to_value(state_update).unwrap_or(Value::Null),
                     fingerprint: None,
+                    engine_ms,
+                    emit_ms: None,
                 },
-                _ => StateEnvelope::for_agent_message(slot.clone(), &message),
+                _ => StateEnvelope::for_agent_message_timed(slot.clone(), &message, engine_ms),
             };
             let Ok(state) = serde_json::to_value(envelope) else {
                 continue;
@@ -2045,10 +2115,15 @@ fn spawn_remote_prompt_forwarder(
                 }
             }
             let state = match &message {
-                AgentMessage::State(_) if state_delta => {
-                    patch_against_last(&mut delta_bases, player_index, per_seat, &slot, &state)
-                        .unwrap_or(state)
-                }
+                AgentMessage::State(_) if state_delta => patch_against_last(
+                    &mut delta_bases,
+                    player_index,
+                    per_seat,
+                    &slot,
+                    &state,
+                    engine_ms,
+                )
+                .unwrap_or(state),
                 _ => state,
             };
             let target_player = if per_seat
@@ -2069,7 +2144,7 @@ fn spawn_remote_prompt_forwarder(
             };
             if outbound_tx
                 .send(ClientMessage::BroadcastState {
-                    state,
+                    state: stamp_emit_ms(state, emit_started.elapsed()),
                     target_player,
                 })
                 .is_err()
@@ -2121,6 +2196,8 @@ fn spawn_game_over_forwarder(
                         for_player: None,
                         state: serde_json::to_value(state_update).unwrap_or(Value::Null),
                         fingerprint: None,
+                        engine_ms: None,
+                        emit_ms: None,
                     },
                     _ => StateEnvelope::for_agent_message(player_slot(player_index), &message),
                 };

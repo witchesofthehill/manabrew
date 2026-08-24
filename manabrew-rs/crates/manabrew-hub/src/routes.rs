@@ -1234,6 +1234,7 @@ mod tests {
                 created_at: "2026-07-01T00:00:00Z".into(),
                 avatar_asset_id: None,
                 avatar_url: None,
+                qualification: None,
             })
             .unwrap();
         storage
@@ -1255,8 +1256,13 @@ mod tests {
             )
             .unwrap();
         drop(storage);
-        let access =
-            auth::mint_access_token(&state.identity, &account_id, handle, auth::AUDIENCE_HUB);
+        let access = auth::mint_access_token(
+            &state.identity,
+            &account_id,
+            handle,
+            None,
+            auth::AUDIENCE_HUB,
+        );
         (access.access_token, token)
     }
 
@@ -1692,6 +1698,7 @@ mod tests {
                     created_at: "2026-07-01T00:00:00Z".into(),
                     avatar_asset_id: None,
                     avatar_url: None,
+                    qualification: None,
                 })
                 .unwrap();
             storage

@@ -204,7 +204,10 @@ async fn play_game(
                     let Ok(envelope) = serde_json::from_value::<StateEnvelope>(state) else {
                         continue;
                     };
-                    if let StateEnvelope::Prompt { for_player, prompt } = envelope {
+                    if let StateEnvelope::Prompt {
+                        for_player, prompt, ..
+                    } = envelope
+                    {
                         if my_slot.as_deref() != Some(for_player.as_str()) {
                             continue;
                         }

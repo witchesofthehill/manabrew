@@ -733,6 +733,20 @@ pub struct GcStats {
     pub heap_max_bytes: u64,
     pub collections: i64,
     pub pause_millis: i64,
+    /// Keyed by collector name. An incremental collection is a few milliseconds;
+    /// a complete one traces the whole live set, which here is a permanently
+    /// reachable card database, so it costs the same whether it reclaims
+    /// anything or not. The totals above hide that difference.
+    #[serde(default)]
+    pub by_collector: std::collections::HashMap<String, GcCollector>,
+}
+
+#[cfg(feature = "graal-forge")]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GcCollector {
+    pub collections: u64,
+    pub pause_millis: u64,
 }
 
 #[cfg(feature = "graal-forge")]
@@ -1064,12 +1078,17 @@ pub fn run_concurrent_self_play(
 #[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
 fn report_engine_gc(engine: &ForgeEngine) {
     match engine.gc_stats() {
-        Ok(stats) => crate::metrics::record_engine_gc(
-            stats.collections,
-            stats.pause_millis,
-            stats.heap_used_bytes,
-            stats.heap_max_bytes,
-        ),
+        Ok(stats) => {
+            crate::metrics::record_engine_gc(
+                stats.collections,
+                stats.pause_millis,
+                stats.heap_used_bytes,
+                stats.heap_max_bytes,
+            );
+            for (name, per) in &stats.by_collector {
+                crate::metrics::record_engine_gc_collector(name, per.collections, per.pause_millis);
+            }
+        }
         Err(err) => debug!(%err, "engine gc stats unavailable"),
     }
 }

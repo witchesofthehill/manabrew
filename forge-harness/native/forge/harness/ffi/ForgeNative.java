@@ -119,13 +119,18 @@ public final class ForgeNative {
         try {
             Runtime runtime = Runtime.getRuntime();
             JsonObject stats = new JsonObject();
+            JsonObject byCollector = new JsonObject();
             stats.addProperty("heapUsedBytes", runtime.totalMemory() - runtime.freeMemory());
             stats.addProperty("heapTotalBytes", runtime.totalMemory());
             stats.addProperty("heapMaxBytes", runtime.maxMemory());
             long collections = 0;
             long pauseMillis = 0;
-            // Absent or partial in some native-image configurations; the heap
-            // figures above are always available and are worth reporting alone.
+            // Per collector, because the two are nothing alike. An incremental
+            // young collection is a few milliseconds. A complete one traces the
+            // whole live set, and the live set here is a ~450MB card database
+            // that is permanently reachable, so it costs ~1.3ms per MB whether
+            // it reclaims anything or not (#684, #703). Aggregating them hides
+            // the only number that matters.
             try {
                 for (java.lang.management.GarbageCollectorMXBean bean :
                         java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -137,11 +142,16 @@ public final class ForgeNative {
                     if (millis > 0) {
                         pauseMillis += millis;
                     }
+                    JsonObject per = new JsonObject();
+                    per.addProperty("collections", Math.max(count, 0));
+                    per.addProperty("pauseMillis", Math.max(millis, 0));
+                    byCollector.add(bean.getName(), per);
                 }
             } catch (Throwable ignored) {
                 collections = -1;
                 pauseMillis = -1;
             }
+            stats.add("byCollector", byCollector);
             stats.addProperty("collections", collections);
             stats.addProperty("pauseMillis", pauseMillis);
             return ok(stats.toString());

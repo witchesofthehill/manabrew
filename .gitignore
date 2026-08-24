@@ -83,6 +83,11 @@ forge-harness/target/
 forge-harness/native/build/
 forge-harness/native/classes/
 forge-harness/native/gen-config/
+# Web Image (forge-harness/build-wasm.sh). wasm-src/ is tracked; the rest is
+# regenerated.
+forge-harness/native/wasm/
+forge-harness/native/wasm-classes/
+forge-harness/native/gen-config-wasm/
 .mvn/
 
 

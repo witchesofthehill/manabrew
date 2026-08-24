@@ -27,6 +27,7 @@ import forge.game.phase.PhaseType;
 import forge.game.player.RegisteredPlayer;
 import forge.gui.GuiBase;
 import forge.item.PaperCard;
+import forge.localinstance.properties.ForgePreferences;
 import forge.model.FModel;
 
 import java.io.*;
@@ -146,7 +147,15 @@ public final class Main {
         System.err.println("[harness] Initializing Forge...");
         GuiBase.setInterface(new HeadlessGuiBase(assetsDir));
         try {
-            FModel.initialize(null, null);
+            if (interactiveServerMode) {
+                FModel.initialize(null, prefs -> {
+                    prefs.setPref(ForgePreferences.FPref.LOAD_CARD_SCRIPTS_LAZILY, true);
+                    prefs.setPref(ForgePreferences.FPref.DECKGEN_CARDBASED, false);
+                    return null;
+                });
+            } else {
+                FModel.initialize(null, null);
+            }
         } catch (Exception e) {
             System.err.println("[harness] Failed to initialize Forge: " + e.getMessage());
             e.printStackTrace(System.err);

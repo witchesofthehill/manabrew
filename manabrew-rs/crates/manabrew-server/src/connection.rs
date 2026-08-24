@@ -480,7 +480,11 @@ pub async fn handle_connection(
                 if let Ok(bytes) = <[u8; 8]>::try_from(data.as_slice()) {
                     let sent = u64::from_be_bytes(bytes);
                     let now = heartbeat_start.elapsed().as_millis() as u64;
-                    metrics::record_client_rtt(now.saturating_sub(sent) as f64);
+                    let rtt = now.saturating_sub(sent);
+                    metrics::record_client_rtt(rtt as f64);
+                    if let Some(mut player) = state.players.get_mut(&player_id) {
+                        player.last_client_rtt_ms = Some(rtt.min(u64::from(u32::MAX)) as u32);
+                    }
                 }
             }
             _ => {}
@@ -639,6 +643,7 @@ async fn authenticate(
                     username: username.clone(),
                     room_id: None,
                     sender: sender.clone(),
+                    last_client_rtt_ms: None,
                     connected: true,
                     generation,
                     last_seen: Instant::now(),
@@ -1324,9 +1329,22 @@ fn handle_client_message(
                     .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
-                    state
-                        .analytics
-                        .capture_envelope(&game_id, username, &game_state);
+                    // Only a player's own envelope carries a link that is theirs.
+                    // On an engine envelope `username` is the node.
+                    let client_rtt_ms = (source == GameMessageSource::Player)
+                        .then(|| {
+                            state
+                                .players
+                                .get(player_id)
+                                .and_then(|player| player.last_client_rtt_ms)
+                        })
+                        .flatten();
+                    state.analytics.capture_envelope(
+                        &game_id,
+                        username,
+                        &game_state,
+                        client_rtt_ms,
+                    );
                 }
                 if !should_deliver {
                     return;

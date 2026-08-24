@@ -1972,6 +1972,19 @@ fn stamp_fingerprint(mut envelope: Value) -> Value {
     envelope
 }
 
+/// Time spent building this envelope after `engine_ms` was sampled: serialising
+/// the state, fingerprinting it, diffing it. Must be stamped last, or it reaches
+/// the dedup comparisons and the diff base, neither of which may see it.
+fn stamp_emit_ms(mut envelope: Value, elapsed: Duration) -> Value {
+    if let Some(object) = envelope.as_object_mut() {
+        object.insert(
+            "emitMs".to_string(),
+            Value::from(elapsed.as_millis().min(u128::from(u32::MAX)) as u32),
+        );
+    }
+    envelope
+}
+
 /// Patch form of a fingerprinted state envelope, against the last one sent to
 /// this seat. `None` the first time a seat is served, or if anything is missing,
 /// and the caller falls back to the full state, which is always correct.
@@ -2025,6 +2038,7 @@ fn patch_against_last(
         fingerprint,
         patch,
         engine_ms,
+        emit_ms: None,
     })
     .ok()
 }
@@ -2057,12 +2071,14 @@ fn spawn_remote_prompt_forwarder(
             let per_seat = seat_usernames.is_some() && player_index != OBSERVER_SEAT;
             let slot = player_slot(player_index);
             let engine_ms = engine_clock.elapsed_ms();
+            let emit_started = Instant::now();
             let envelope = match &message {
                 AgentMessage::State(state_update) if !per_seat => StateEnvelope::State {
                     for_player: None,
                     state: serde_json::to_value(state_update).unwrap_or(Value::Null),
                     fingerprint: None,
                     engine_ms,
+                    emit_ms: None,
                 },
                 _ => StateEnvelope::for_agent_message_timed(slot.clone(), &message, engine_ms),
             };
@@ -2128,7 +2144,7 @@ fn spawn_remote_prompt_forwarder(
             };
             if outbound_tx
                 .send(ClientMessage::BroadcastState {
-                    state,
+                    state: stamp_emit_ms(state, emit_started.elapsed()),
                     target_player,
                 })
                 .is_err()
@@ -2181,6 +2197,7 @@ fn spawn_game_over_forwarder(
                         state: serde_json::to_value(state_update).unwrap_or(Value::Null),
                         fingerprint: None,
                         engine_ms: None,
+                        emit_ms: None,
                     },
                     _ => StateEnvelope::for_agent_message(player_slot(player_index), &message),
                 };

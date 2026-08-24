@@ -15,6 +15,10 @@ const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
 const JVM_GC_TOTAL: &str = "manabrew_node_jvm_gc_total";
 const JVM_HEAP_AFTER_GC_BYTES: &str = "manabrew_node_jvm_heap_after_gc_bytes";
+const ENGINE_GC_COLLECTIONS: &str = "manabrew_node_engine_gc_collections_total";
+const ENGINE_GC_PAUSE_MILLIS: &str = "manabrew_node_engine_gc_pause_millis_total";
+const ENGINE_HEAP_USED_BYTES: &str = "manabrew_node_engine_heap_used_bytes";
+const ENGINE_HEAP_MAX_BYTES: &str = "manabrew_node_engine_heap_max_bytes";
 
 const LABEL_POOL: &str = "pool";
 const LABEL_KIND: &str = "kind";
@@ -22,6 +26,7 @@ const LABEL_CLEAN: &str = "clean";
 const LABEL_PLAYERS: &str = "players";
 const LABEL_SIGNATURE: &str = "signature";
 const LABEL_STAGE: &str = "stage";
+const LABEL_COLLECTOR: &str = "collector";
 const LABEL_VERSION: &str = "version";
 
 const ENV_PUSH_URL: &str = "SELF_HOSTED_NODE_METRICS_PUSH_URL";
@@ -147,6 +152,30 @@ pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<
     if let Some(megabytes) = heap_after_mb {
         gauge!(JVM_HEAP_AFTER_GC_BYTES, LABEL_KIND => kind).set((megabytes * 1024 * 1024) as f64);
     }
+}
+
+/// Isolate-wide GC and heap, polled from the engine rather than parsed from a
+/// log the graal fleet does not write. Cumulative, so
+/// `rate(engine_gc_pause_millis_total) / 1000` is the fraction of wall clock
+/// stopped, which is the figure that identified #684. Every room on the node
+/// shares one isolate, so a collection here stops all of them at once.
+/// The collection counters carry a `collector` label and are emitted by
+/// [`record_engine_gc_collector`]; emitting an unlabelled copy of the same name
+/// here would double every `sum`.
+pub fn record_engine_gc(_collections: i64, _pause_millis: i64, heap_used: u64, heap_max: u64) {
+    gauge!(ENGINE_HEAP_USED_BYTES).set(heap_used as f64);
+    gauge!(ENGINE_HEAP_MAX_BYTES).set(heap_max as f64);
+}
+
+/// Split by collector. Incremental collections are a few milliseconds and
+/// harmless; a complete collection traces the whole live set, and this live set
+/// is a permanently reachable card database, so it costs about 1.3ms per MB
+/// whether it reclaims anything or not. Only the complete series is worth
+/// alerting on.
+pub fn record_engine_gc_collector(collector: &str, collections: u64, pause_millis: u64) {
+    let name = collector.to_string();
+    counter!(ENGINE_GC_COLLECTIONS, LABEL_COLLECTOR => name.clone()).absolute(collections);
+    counter!(ENGINE_GC_PAUSE_MILLIS, LABEL_COLLECTOR => name).absolute(pause_millis);
 }
 
 pub fn record_relay_reconnect() {

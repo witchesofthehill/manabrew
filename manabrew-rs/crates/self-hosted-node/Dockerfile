@@ -6,7 +6,7 @@
 
 # Declared before the first FROM: an ARG used in a FROM is global only up here,
 # and inside a stage it expands to nothing and the build fails on a blank base.
-ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:21
+ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:24
 
 # ── cargo-chef base + shared dependency recipe ───────────────────────
 # See manabrew-server's Dockerfile for why chef. One planner feeds both Rust
@@ -151,7 +151,7 @@ ENV GRAALVM_HOME=${JAVA_HOME}
 # GraalVM bump: this costs peak throughput on the engine's hot path.
 ARG FORGE_GC=G1
 ARG FORGE_MAX_HEAP=1100m
-ARG FORGE_OPT=-O1
+ARG FORGE_OPT=
 RUN chmod +x forge-harness/build-native.sh && \
     ./forge-harness/build-native.sh -J-Xmx8g \
       --gc=${FORGE_GC} \

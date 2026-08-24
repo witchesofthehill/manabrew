@@ -79,10 +79,20 @@ async fn main() {
     let per_host: usize = var("PER_HOST", "4").parse().unwrap_or(4);
     let duration = Duration::from_secs(var("DURATION_S", "300").parse().unwrap_or(300));
     let stagger = Duration::from_millis(var("STAGGER_MS", "500").parse().unwrap_or(500));
+    // A node's retained heap is roughly the union of every card in every deck it
+    // has hosted (#703), so replaying one deck accumulates nothing and a memory
+    // test on it passes while production fails. DECKS takes a comma-separated
+    // list or a directory and rotates through it, one deck per seat per game.
+    let deck_spec = var("DECKS", "");
     let deck_path = var(
         "DECK",
         "public/preset_decks/starter_deck_red_deck_wins.json",
     );
+    let deck_paths: Vec<String> = if deck_spec.is_empty() {
+        vec![deck_path.clone()]
+    } else {
+        expand_decks(&deck_spec)
+    };
     let format = match var("FORMAT", "Any").as_str() {
         "Modern" => GameFormat::Modern,
         "Standard" => GameFormat::Standard,
@@ -94,7 +104,7 @@ async fn main() {
         _ => GameFormat::Any,
     };
 
-    let deck = load_deck(&deck_path);
+    let decks: Vec<Value> = deck_paths.iter().map(|path| load_deck(path)).collect();
     let rooms = list_rooms(&relay, &password).await;
     println!("listed {} rooms", rooms.len());
     let mut picked: Vec<RoomInfo> = Vec::new();
@@ -141,11 +151,11 @@ async fn main() {
         let relay = relay.clone();
         let password = password.clone();
         let user = format!("{prefix}-{:02}", index + 1);
-        let deck = deck.clone();
+        let seat_decks = decks.clone();
         let format = format.clone();
         tasks.push(tokio::spawn(async move {
             tokio::time::sleep(stagger * index as u32).await;
-            play(relay, password, user, room, deck, duration, format).await
+            play(relay, password, user, room, seat_decks, duration, format).await
         }));
     }
 
@@ -224,6 +234,31 @@ fn report(all: &[Stats], elapsed: Duration) {
     }
 }
 
+/// A directory of deck json, or a comma-separated list of files.
+fn expand_decks(spec: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    for entry in spec.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        let path = std::path::Path::new(entry);
+        if path.is_dir() {
+            let mut found: Vec<String> = std::fs::read_dir(path)
+                .expect("deck dir")
+                .filter_map(Result::ok)
+                .map(|item| item.path())
+                .filter(|item| item.extension().is_some_and(|ext| ext == "json"))
+                // index.json is a catalogue, not a deck.
+                .filter(|item| item.file_name().is_some_and(|name| name != "index.json"))
+                .map(|item| item.to_string_lossy().into_owned())
+                .collect();
+            found.sort();
+            paths.extend(found);
+        } else {
+            paths.push(entry.to_string());
+        }
+    }
+    assert!(!paths.is_empty(), "DECKS matched no deck files");
+    paths
+}
+
 fn load_deck(path: &str) -> Value {
     let raw: Value =
         serde_json::from_slice(&std::fs::read(path).expect("deck file")).expect("deck json");
@@ -278,7 +313,7 @@ async fn play(
     password: String,
     user: String,
     room: RoomInfo,
-    deck: Value,
+    decks: Vec<Value>,
     duration: Duration,
     format: GameFormat,
 ) -> Stats {
@@ -330,6 +365,10 @@ async fn play(
             stats.error = Some(error);
             break;
         }
+
+        // A fresh deck per game, so the node's retained set grows the way it
+        // does in production rather than plateauing after the first game.
+        let deck = &decks[stats.games % decks.len()];
 
         // Ask the node for an AI opponent, then take a seat.
         let bot_envelope = StateEnvelope::RoomRelay {

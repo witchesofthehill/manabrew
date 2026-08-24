@@ -6,7 +6,7 @@
 
 # Declared before the first FROM: an ARG used in a FROM is global only up here,
 # and inside a stage it expands to nothing and the build fails on a blank base.
-ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:21
+ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:24
 
 # ── cargo-chef base + shared dependency recipe ───────────────────────
 # See manabrew-server's Dockerfile for why chef. One planner feeds both Rust
@@ -139,23 +139,21 @@ ENV GRAALVM_HOME=${JAVA_HOME}
 #
 # Leaving the cap unset is not an option: G1 defaults to 25% of RAM, which on a
 # 2GB limit is ~512MB against a ~450MB live set — the #684 heap, exactly.
-# -O1 is a workaround, not a preference. At the default -O2 the amd64 lowering
-# fails compiling a synthesised reflective factory method:
+# GraalVM 24, not 21: at 21 the amd64 lowering aborts compiling a synthesised
+# reflective factory method —
 #   Did not find a matching CFunctionEpilogueNode in same block:
 #   [25|CFunctionPrologue, 96|If]
 #   at method: MXParser ...FactoryMethodHolder.MXParser_constructor_...() [entry point]
-# The method is an entry point, so it carries a CFunction prologue for the
-# thread-state transition, and something splits the block before the epilogue.
-# Serial builds fine and so does arm64, which points at G1's write barriers
-# changing the graph in a path only the amd64 lowering takes. Revisit on a
-# GraalVM bump: this costs peak throughput on the engine's hot path.
+# — which -O1 does not avoid (identical failure, same node ids), so it is a
+# codegen bug rather than an optimisation artefact. Serial and arm64 both build
+# at 21, so it needs G1's write barriers and the amd64 lowering together. Fixed
+# in 24. The harness jar is still built by the temurin-17 stage; only
+# native-image consumes it here.
 ARG FORGE_GC=G1
 ARG FORGE_MAX_HEAP=1100m
-ARG FORGE_OPT=-O1
 RUN chmod +x forge-harness/build-native.sh && \
     ./forge-harness/build-native.sh -J-Xmx8g \
       --gc=${FORGE_GC} \
-      ${FORGE_OPT} \
       -R:MaxHeapSize=${FORGE_MAX_HEAP}
 
 # ── Stage 3: Build the Rust node ─────────────────────────────────────
@@ -194,8 +192,13 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=rust-builder /usr/local/bin/self-hosted-node /usr/local/bin/self-hosted-node
-COPY --from=native-builder /build/forge-harness/native/build/libforgeharness.so \
-    /build/forge-harness/native/build/libforgeharness.so
+# lib*.so, not just the harness and not the whole directory: native-image emits
+# JDK libraries (libawt, libfontmanager, libjava and libjvm shims) beside it, and
+# taking the harness alone leaves an image that builds and then fails to dlopen
+# at run time. The directory would also carry forgeharness.so, a second 121MB
+# copy of the harness that build-native.sh leaves behind for the -l link name.
+COPY --from=native-builder /build/forge-harness/native/build/lib*.so \
+    /build/forge-harness/native/build/
 COPY forge/forge-gui/res/ /build/forge/forge-gui/res/
 COPY public/preset_decks/ /build/public/preset_decks/
 

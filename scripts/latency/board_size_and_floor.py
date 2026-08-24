@@ -3,12 +3,20 @@
 See docs/agents/LATENCY_ANALYSIS.md for what the timestamps mean and which
 traps make this easy to get wrong.
 
+Reads state patches as well as full states (trap 6), so it keeps working on
+captures from after the 2026-08-20 rollout. Where the node reports `engineMs`
+and `emitMs`, prefer those over the floor: the floor is not the network, it is
+the network plus the engine's cheapest decision.
+
     python3 scripts/latency/board_size_and_floor.py 'captures/*/*.zst'
 """
 import json, re, subprocess, sys, glob, os
 from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Pool
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from state_delta import SeatStates
 
 TS = re.compile(rb'"ts":"([^"]+)"')
 SEAT = re.compile(rb'"forPlayer":"([^"]+)"')
@@ -51,18 +59,43 @@ def one(path):
         return None
     rows = []
     pending, answered, last_cards = {}, [], {}
+    rtts, perceived_pending, perceived = [], {}, []
+    seats = SeatStates()
+    patched = b'"kind":"stateDelta"' in raw
     for line in lines[1:]:
-        if b'"kind":"state"' in line:
-            m, sm = TS.search(line), SEAT.search(line)
-            if not m or not sm:
-                continue
-            when, seat = ts(m.group(1)), sm.group(1).decode()
-            last_cards[seat] = len(CARD.findall(line))
+        is_state = b'"kind":"state"' in line or (patched and b'"kind":"stateDelta"' in line)
+        if is_state:
+            if not patched:
+                m, sm = TS.search(line), SEAT.search(line)
+                if not m or not sm:
+                    continue
+                when, seat = ts(m.group(1)), sm.group(1).decode()
+                last_cards[seat] = len(CARD.findall(line))
+                node_ms = None
+            else:
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                env = e.get("envelope") or {}
+                if "ts" not in e or not seats.observe(env):
+                    continue
+                when = ts(e["ts"].encode())
+                seat = env.get("forPlayer") or ""
+                last_cards[seat] = seats.size_for(seat)
+                node_ms = env.get("engineMs")
+                if node_ms is not None and env.get("emitMs") is not None:
+                    node_ms += env["emitMs"]
             for row in answered:
                 if row[0] == seat and row[1] is not None:
                     d = (when - row[1]) * 1000
                     if 0 <= d < 120000 and not row[4]:
-                        rows.append((row[5], row[3], d))
+                        rows.append((row[5], row[3], d, node_ms))
+                        # What the player waited: the server's work plus the
+                        # link their response and the new board both crossed.
+                        rtt = perceived_pending.pop(seat, None)
+                        if rtt is not None:
+                            perceived.append(d + rtt)
                     row[1] = None
                     break
             continue
@@ -78,6 +111,17 @@ def one(path):
         when = ts(e["ts"].encode())
         if env.get("kind") == "prompt":
             seat = env.get("forPlayer")
+            # The node often answers a decision with the next question and no
+            # board. That prompt is its reply, so it closes the decision (trap
+            # 6). Waiting for a board instead holds the row open across the
+            # player's next think and charges it to the node.
+            for row in answered:
+                if row[0] == seat and row[1] is not None:
+                    d = (when - row[1]) * 1000
+                    if 0 <= d < 120000 and not row[4]:
+                        rows.append((row[5], row[3], d, None))
+                    row[1] = None
+                    break
             for row in answered:
                 if row[1] is not None and row[0] != seat:
                     row[4] = True
@@ -101,11 +145,17 @@ def one(path):
                             ("mana ability" if c.get("isManaAbility") else "activated ability")
                             if c.get("type") == "activateAbility" else c.get("type"))
             answered.append([seat, when, ptype, last_cards.get(seat, 0), False, play])
+            if e.get("clientRttMs") is not None:
+                rtts.append(e["clientRttMs"])
+                perceived_pending[seat] = e["clientRttMs"]
     if len(rows) < 30:
         return None
-    floor = pct([d for _, _, d in rows], 5)
-    peak = max(c for _, c, _ in rows)
-    return (floor, peak, [(play, cards, d, max(0.0, d - floor)) for play, cards, d in rows])
+    floor = pct([d for _, _, d, _ in rows], 5)
+    peak = max(c for _, c, _, _ in rows)
+    measured = [(d - node_ms) for _, _, d, node_ms in rows if node_ms is not None]
+    return (floor, peak, measured, rtts, perceived,
+            [(play, cards, d, node_ms if node_ms is not None else max(0.0, d - floor))
+             for play, cards, d, node_ms in rows])
 
 def head(w=34):
     print(f"{'':{w}} {'n':>9} {'p50':>7} {'p75':>7} {'p90':>7} {'p95':>7} {'p99':>8} {'>10s':>7}")
@@ -120,6 +170,7 @@ def line(label, v, w=34):
 if __name__ == "__main__":
     floors, floors_by_peak = [], defaultdict(list)
     raw_ps, exc_ps = defaultdict(list), defaultdict(list)
+    hops, client_rtts, perceived_all = [], [], []
     paths = sorted(glob.glob(os.path.expanduser(sys.argv[1])))
     with Pool(8) as pool:
         for n, res in enumerate(pool.imap_unordered(one, paths, chunksize=8)):
@@ -127,13 +178,36 @@ if __name__ == "__main__":
                 print(f"[{n}/{len(paths)}]", file=sys.stderr, flush=True)
             if not res:
                 continue
-            floor, peak, rows = res
+            floor, peak, measured, rtts, perceived, rows = res
             floors.append(floor)
+            hops.extend(measured)
+            client_rtts.extend(rtts)
+            perceived_all.extend(perceived)
             floors_by_peak[bucket(peak)].append(floor)
             for play, cards, d, excess in rows:
                 if play:
                     raw_ps[(play, bucket(cards))].append(d)
                     exc_ps[(play, bucket(cards))].append(excess)
+
+    if client_rtts:
+        print(f"\nPLAYER LEG (that player's own heartbeat round trip, per decision)")
+        print(f"decisions with a client RTT: {len(client_rtts)}")
+        print(f"  p50 {pct(client_rtts,50):.0f}   p90 {pct(client_rtts,90):.0f}   "
+              f"p99 {pct(client_rtts,99):.0f}   max {max(client_rtts):.0f} ms")
+    if perceived_all:
+        print(f"\nPERCEIVED LATENCY (node time + that player's own leg)")
+        print(f"decisions: {len(perceived_all)}")
+        print(f"  p50 {pct(perceived_all,50):.0f}   p90 {pct(perceived_all,90):.0f}   "
+              f"p99 {pct(perceived_all,99):.0f} ms")
+        print("  This is what the player waited. Every other figure here is server-side.")
+
+    if hops:
+        print(f"\nMEASURED HOP (round trip minus the node's own engineMs + emitMs)")
+        print(f"decisions with node timing: {len(hops)}")
+        print(f"  p10 {pct(hops,10):.0f}   p50 {pct(hops,50):.0f}   "
+              f"p90 {pct(hops,90):.0f}   p99 {pct(hops,99):.0f} ms")
+        print("  Compare with the floor below. The floor is the network plus the")
+        print("  engine's cheapest decision, so it runs well above the real hop.")
 
     print(f"\nPER-GAME NETWORK FLOOR (5th percentile of that game's node times)")
     print(f"games with a usable floor: {len(floors)}")
@@ -149,7 +223,9 @@ if __name__ == "__main__":
         print(f"{b:>16} {len(v):>7} {pct(v,50):>10.0f} {pct(v,90):>10.0f}")
 
     BUCKETS = ("<40", "40-79", "80-119", "120-159", "160-219", "220+")
-    for title, data in (("RAW node time", raw_ps), ("EXCESS over that game's own floor", exc_ps)):
+    for title, data in (("RAW node time", raw_ps),
+                        ("NODE-SIDE time: measured engineMs+emitMs where the node "
+                         "reports it, otherwise excess over that game's own floor", exc_ps)):
         print(f"\n== {title}, ms ==")
         head()
         for play in ("pass priority", "cast / play land", "activated ability", "mana ability"):

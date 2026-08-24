@@ -57,6 +57,11 @@ const FORMATS: {
   },
   { value: "Pauper", label: "Pauper", description: "60-card, commons only" },
   {
+    value: "Premodern",
+    label: "Premodern",
+    description: "60-card, Fourth Edition through Scourge",
+  },
+  {
     value: "Commander",
     label: "Commander",
     description: "100-card singleton, 40 life",

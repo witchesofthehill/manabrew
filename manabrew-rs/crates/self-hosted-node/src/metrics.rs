@@ -15,6 +15,10 @@ const RELAY_SEND_SECONDS: &str = "manabrew_node_relay_send_seconds";
 const JVM_GC_PAUSE_SECONDS: &str = "manabrew_node_jvm_gc_pause_seconds";
 const JVM_GC_TOTAL: &str = "manabrew_node_jvm_gc_total";
 const JVM_HEAP_AFTER_GC_BYTES: &str = "manabrew_node_jvm_heap_after_gc_bytes";
+const ENGINE_GC_COLLECTIONS: &str = "manabrew_node_engine_gc_collections_total";
+const ENGINE_GC_PAUSE_MILLIS: &str = "manabrew_node_engine_gc_pause_millis_total";
+const ENGINE_HEAP_USED_BYTES: &str = "manabrew_node_engine_heap_used_bytes";
+const ENGINE_HEAP_MAX_BYTES: &str = "manabrew_node_engine_heap_max_bytes";
 
 const LABEL_POOL: &str = "pool";
 const LABEL_KIND: &str = "kind";
@@ -146,6 +150,22 @@ pub fn record_jvm_gc(kind: &'static str, pause: Duration, heap_after_mb: Option<
     counter!(JVM_GC_TOTAL, LABEL_KIND => kind).increment(1);
     if let Some(megabytes) = heap_after_mb {
         gauge!(JVM_HEAP_AFTER_GC_BYTES, LABEL_KIND => kind).set((megabytes * 1024 * 1024) as f64);
+    }
+}
+
+/// Isolate-wide GC and heap, polled from the engine rather than parsed from a
+/// log the graal fleet does not write. Cumulative, so
+/// `rate(engine_gc_pause_millis_total) / 1000` is the fraction of wall clock
+/// stopped, which is the figure that identified #684. Every room on the node
+/// shares one isolate, so a collection here stops all of them at once.
+pub fn record_engine_gc(collections: i64, pause_millis: i64, heap_used: u64, heap_max: u64) {
+    gauge!(ENGINE_HEAP_USED_BYTES).set(heap_used as f64);
+    gauge!(ENGINE_HEAP_MAX_BYTES).set(heap_max as f64);
+    if collections >= 0 {
+        counter!(ENGINE_GC_COLLECTIONS).absolute(collections as u64);
+    }
+    if pause_millis >= 0 {
+        counter!(ENGINE_GC_PAUSE_MILLIS).absolute(pause_millis as u64);
     }
 }
 

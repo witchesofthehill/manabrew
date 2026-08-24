@@ -110,6 +110,46 @@ public final class ForgeNative {
         }
     }
 
+    // One isolate hosts every room on the node, and a SubstrateVM collection
+    // stops every thread in it, so a collection in one game pauses all of them.
+    // Cumulative counters rather than per-pause samples: the caller differences
+    // them, and pause time over wall time is the number that identified #684.
+    @CEntryPoint(name = "forge_gc_stats")
+    static CCharPointer gcStats(IsolateThread thread) {
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            JsonObject stats = new JsonObject();
+            stats.addProperty("heapUsedBytes", runtime.totalMemory() - runtime.freeMemory());
+            stats.addProperty("heapTotalBytes", runtime.totalMemory());
+            stats.addProperty("heapMaxBytes", runtime.maxMemory());
+            long collections = 0;
+            long pauseMillis = 0;
+            // Absent or partial in some native-image configurations; the heap
+            // figures above are always available and are worth reporting alone.
+            try {
+                for (java.lang.management.GarbageCollectorMXBean bean :
+                        java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()) {
+                    long count = bean.getCollectionCount();
+                    long millis = bean.getCollectionTime();
+                    if (count > 0) {
+                        collections += count;
+                    }
+                    if (millis > 0) {
+                        pauseMillis += millis;
+                    }
+                }
+            } catch (Throwable ignored) {
+                collections = -1;
+                pauseMillis = -1;
+            }
+            stats.addProperty("collections", collections);
+            stats.addProperty("pauseMillis", pauseMillis);
+            return ok(stats.toString());
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
     private static String str(CCharPointer ptr) {
         return ptr.isNull() ? null : CTypeConversion.toJavaString(ptr);
     }

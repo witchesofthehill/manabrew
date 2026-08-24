@@ -717,7 +717,22 @@ mod graal_ffi {
             path: *const c_char,
             live_objects_only: c_int,
         ) -> *mut c_char;
+        pub fn forge_gc_stats(thread: *mut graal_isolatethread_t) -> *mut c_char;
     }
+}
+
+/// Isolate-wide GC and heap counters, as reported by the engine itself.
+/// `collections` and `pause_millis` are -1 when the native image exposes no
+/// collector beans; the heap figures are always present.
+#[cfg(feature = "graal-forge")]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GcStats {
+    pub heap_used_bytes: u64,
+    pub heap_total_bytes: u64,
+    pub heap_max_bytes: u64,
+    pub collections: i64,
+    pub pause_millis: i64,
 }
 
 #[cfg(feature = "graal-forge")]
@@ -878,9 +893,21 @@ impl GraalEngineHandle {
     fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
         let session = cstring(session_id)?;
         let action = cstring(action_json)?;
-        self.bridge.decode(unsafe {
+        let started = Instant::now();
+        let result = self.bridge.decode(unsafe {
             graal_ffi::forge_submit_action(self.bridge.thread, session.as_ptr(), action.as_ptr())
-        })
+        });
+        crate::metrics::record_forge_decision_stage("submit_action", started.elapsed());
+        result
+    }
+
+    /// Cumulative collections, pause time and heap for the whole isolate. Every
+    /// room on this node shares it, so a collection here stops all of them.
+    fn gc_stats(&self) -> Result<GcStats, String> {
+        let raw = self
+            .bridge
+            .decode(unsafe { graal_ffi::forge_gc_stats(self.bridge.thread) })?;
+        serde_json::from_str(&raw).map_err(|err| format!("malformed gcStats response: {err}"))
     }
 
     fn get_prompt(&self, session_id: &str, player_index: usize) -> Result<Option<String>, String> {
@@ -1031,6 +1058,25 @@ pub fn run_concurrent_self_play(
             .to_string(),
     )
 }
+
+/// Sampled once per completed decision, which is the cadence the stalls happen
+/// at and cheap enough not to need its own timer.
+#[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
+fn report_engine_gc(engine: &ForgeEngine) {
+    match engine.gc_stats() {
+        Ok(stats) => crate::metrics::record_engine_gc(
+            stats.collections,
+            stats.pause_millis,
+            stats.heap_used_bytes,
+            stats.heap_max_bytes,
+        ),
+        Err(err) => debug!(%err, "engine gc stats unavailable"),
+    }
+}
+
+/// The subprocess backend already reports this by parsing its own GC log.
+#[cfg(feature = "java-forge")]
+fn report_engine_gc(_engine: &ForgeEngine) {}
 
 #[cfg(feature = "java-forge")]
 fn drive_game_via_handle(
@@ -1479,6 +1525,7 @@ fn run_hosted_engine_game_inner(
                         "decision_total",
                         started.elapsed(),
                     );
+                    report_engine_gc(&engine);
                 }
                 last_prompt = Some(prompt.clone());
                 let player = player_index(&prompt.deciding_player_id);

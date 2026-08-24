@@ -92,6 +92,7 @@ async function startGame(requestId, args) {
   postEvent("game:sab", { buffer: sab });
   postResponse(requestId, "game-started");
 
+
   const request = {
     gameId: `forge-${Date.now()}`,
     variant: "Constructed",

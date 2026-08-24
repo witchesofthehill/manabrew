@@ -218,6 +218,15 @@ class WorkerBridge {
     error?: unknown;
   }): void {
     logComms("engine", msg);
+    // Dev seam for tests/e2e-ui/forge-wasm-offline.mjs, matching the
+    // window.__gameStore seam the other UI e2e uses.
+    if (import.meta.env.VITE_FORGE_WASM) {
+      const w = window as unknown as { __forgeFrames?: string[] };
+      w.__forgeFrames = w.__forgeFrames ?? [];
+      w.__forgeFrames.push(
+        `${msg?.kind}:${msg?.kind === "state" ? Object.keys((msg.state ?? {}) as object).join("|") : ""}`,
+      );
+    }
     switch (msg?.kind) {
       case "state":
         this.eventBus.emit("game:state", msg.state);
@@ -411,9 +420,12 @@ class WorkerBridge {
             });
 
         if (import.meta.env.VITE_FORGE_WASM) {
-          this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) =>
-            console.log("[forge]", p?.text ?? ""),
-          );
+          const w = window as unknown as { __forgeLog?: string[] };
+          w.__forgeLog = w.__forgeLog ?? [];
+          this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
+            w.__forgeLog?.push(p?.text ?? "");
+            console.log("[forge]", p?.text ?? "");
+          });
         }
 
         this.worker.onmessage = this.handleMessage.bind(this);

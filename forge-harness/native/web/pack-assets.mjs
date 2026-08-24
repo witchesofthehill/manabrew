@@ -17,16 +17,21 @@ if (!out || !deckDirs.length) {
 // legality and breaks parity, so it stays even though it is 4MB of the total.
 const NEEDED = ["editions", "tokenscripts", "lists", "formats", "blockdata", "defaults", "effects"];
 
-const walk = (dir) => readdirSync(dir).flatMap((name) => {
-  const full = join(dir, name);
-  return statSync(full).isDirectory() ? walk(full) : [full];
-});
+const walk = (dir) =>
+  readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    return statSync(full).isDirectory() ? walk(full) : [full];
+  });
 
 const chunks = [];
-let files = 0, skipped = 0;
+let files = 0,
+  skipped = 0;
 const add = (full, rel) => {
   const body = readFileSync(full, "utf8");
-  if (body.includes("\0")) { skipped++; return; }
+  if (body.includes("\0")) {
+    skipped++;
+    return;
+  }
   chunks.push(rel, "\0", body, "\0");
   files++;
 };
@@ -43,14 +48,24 @@ for (const dir of deckDirs) {
 // Only the cards the decks actually reference. Forge reads the whole
 // cardsfolder at init, so shipping 33,645 scripts is possible but pointless.
 // Forge files are ASCII: strip diacritics, drop punctuation, underscore the rest.
-const slug = (n) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-  .replace(/['",.]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+const slug = (n) =>
+  n
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['",.]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
 const names = new Set();
 for (const dir of deckDirs) {
   for (const full of walk(dir)) {
     if (!full.endsWith(".json")) continue;
     let doc;
-    try { doc = JSON.parse(readFileSync(full, "utf8")); } catch { continue; }
+    try {
+      doc = JSON.parse(readFileSync(full, "utf8"));
+    } catch {
+      continue;
+    }
     for (const card of doc.cards || []) if (card && card.name) names.add(card.name);
   }
 }
@@ -67,7 +82,9 @@ for (const name of names) {
     let found = null;
     try {
       found = readdirSync(dir).find((f) => f.startsWith(s + "_") && f.endsWith(".txt"));
-    } catch { /* letter dir absent */ }
+    } catch {
+      /* letter dir absent */
+    }
     if (found) {
       add(join(dir, found), `res/cardsfolder/${s[0]}/${found}`);
     } else {
@@ -78,5 +95,7 @@ for (const name of names) {
 }
 
 writeFileSync(out, chunks.join(""));
-console.log(`packed ${files} files, ${names.size} deck cards (${skipped} binary skipped, ${missing} missing)`);
+console.log(
+  `packed ${files} files, ${names.size} deck cards (${skipped} binary skipped, ${missing} missing)`,
+);
 if (missingNames.length) console.error("missing:", missingNames.slice(0, 12).join(", "));

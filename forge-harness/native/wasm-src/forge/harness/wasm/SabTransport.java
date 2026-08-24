@@ -75,6 +75,7 @@ public final class SabTransport implements InteractiveBridge {
     static native void post(String name, String json);
 
     private final java.util.function.IntFunction<String> snapshots;
+    private long checkpoint;
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
         this.snapshots = snapshots;
@@ -82,9 +83,13 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public String exchange(final String promptJson) {
-        final String state = snapshots == null ? null : snapshots.apply(0);
-        if (state != null && !state.isEmpty()) {
-            sendTagged("state", "state", state);
+        final String view = snapshots == null ? null : snapshots.apply(0);
+        if (view != null && !view.isEmpty()) {
+            // The client reads state.gameView, matching GameSnapshotEventDto on
+            // the Rust side; a bare game view leaves the board unmounted.
+            sendTagged("state", "state", "{\"checkpointId\":" + (++checkpoint)
+                    + ",\"label\":\"forge\",\"gameView\":" + view
+                    + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
         }
         sendTagged("prompt", "prompt", promptJson);
 

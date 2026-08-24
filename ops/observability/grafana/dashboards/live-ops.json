@@ -969,7 +969,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "manabrew_relay_client_rtt_ms{quantile=\"0.5\"}",
+          "expr": "manabrew_relay_client_rtt_ms{quantile=\"0.5\"} / 1000",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -978,7 +978,7 @@
         },
         {
           "refId": "B",
-          "expr": "manabrew_relay_client_rtt_ms{quantile=\"0.9\"}",
+          "expr": "manabrew_relay_client_rtt_ms{quantile=\"0.9\"} / 1000",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -987,7 +987,7 @@
         },
         {
           "refId": "C",
-          "expr": "manabrew_relay_client_rtt_ms{quantile=\"0.99\"}",
+          "expr": "manabrew_relay_client_rtt_ms{quantile=\"0.99\"} / 1000",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -997,7 +997,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },

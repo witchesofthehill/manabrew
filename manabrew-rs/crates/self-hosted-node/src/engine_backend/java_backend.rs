@@ -783,9 +783,24 @@ static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync
 // isolate-per-game shape.
 #[cfg(feature = "graal-forge")]
 fn shared_isolate_enabled() -> bool {
-    env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+    let asked = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
+        .unwrap_or(false);
+    // G1 permits one isolate per process and aborts the process on the second:
+    //   guarantee(SVMIsolateData::_heap_base == nullptr) failed:
+    //   G1 doesn't support multiple isolates at the moment.
+    // The published image is built with G1, and the collector is fixed at build
+    // time and not visible from here, so isolate-per-game cannot be honoured
+    // without risking that abort on the second room. One isolate is correct for
+    // a Serial build too — it is what production has run since the card
+    // database became shared — so this is forced rather than merely defaulted.
+    if !asked {
+        warn!(
+            "isolate-per-game is not available: the engine image is built with G1, \
+             which aborts on a second isolate. Hosting every room in one isolate."
+        );
+    }
+    true
 }
 
 #[cfg(feature = "graal-forge")]

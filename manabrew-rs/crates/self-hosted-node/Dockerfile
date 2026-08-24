@@ -139,11 +139,23 @@ ENV GRAALVM_HOME=${JAVA_HOME}
 #
 # Leaving the cap unset is not an option: G1 defaults to 25% of RAM, which on a
 # 2GB limit is ~512MB against a ~450MB live set — the #684 heap, exactly.
+# -O1 is a workaround, not a preference. At the default -O2 the amd64 lowering
+# fails compiling a synthesised reflective factory method:
+#   Did not find a matching CFunctionEpilogueNode in same block:
+#   [25|CFunctionPrologue, 96|If]
+#   at method: MXParser ...FactoryMethodHolder.MXParser_constructor_...() [entry point]
+# The method is an entry point, so it carries a CFunction prologue for the
+# thread-state transition, and something splits the block before the epilogue.
+# Serial builds fine and so does arm64, which points at G1's write barriers
+# changing the graph in a path only the amd64 lowering takes. Revisit on a
+# GraalVM bump: this costs peak throughput on the engine's hot path.
 ARG FORGE_GC=G1
 ARG FORGE_MAX_HEAP=1100m
+ARG FORGE_OPT=-O1
 RUN chmod +x forge-harness/build-native.sh && \
     ./forge-harness/build-native.sh -J-Xmx8g \
       --gc=${FORGE_GC} \
+      ${FORGE_OPT} \
       -R:MaxHeapSize=${FORGE_MAX_HEAP}
 
 # ── Stage 3: Build the Rust node ─────────────────────────────────────

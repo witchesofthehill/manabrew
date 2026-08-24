@@ -2,141 +2,390 @@
 <meta charset="utf-8">
 <title>Forge in WebAssembly</title>
 <style>
-  :root { color-scheme: dark; }
-  body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-         background: #101216; color: #d8dee9; margin: 0; padding: 20px; }
-  h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .04em; }
-  .sub { color: #7b8494; margin-bottom: 16px; }
-  .grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
-  .panel { background: #171a20; border: 1px solid #262b34; border-radius: 6px; padding: 12px; }
-  .k { color: #7b8494; }
-  .v { color: #a3d3a0; }
-  #log { height: 60vh; overflow: auto; white-space: pre-wrap; margin: 0; }
-  .row { display: flex; justify-content: space-between; padding: 2px 0; }
-  .big { font-size: 22px; color: #e5c07b; }
-  #status { padding: 6px 10px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
-  .ok { background: #1e3a24; color: #a3d3a0; }
-  .work { background: #3a341e; color: #e5c07b; }
-  .err { background: #3a1e1e; color: #d38a8a; }
-</style>
-<h1>Forge running in WebAssembly</h1>
-<div class="sub">GraalVM Web Image module in a worker, driven over the same SharedArrayBuffer protocol as the Rust engine.</div>
-<div id="status" class="work">booting</div>
-<div class="grid">
-  <div class="panel">
-    <div class="row"><span class="k">crossOriginIsolated</span><span class="v" id="coi"></span></div>
-    <div class="row"><span class="k">turn</span><span class="v big" id="turn">-</span></div>
-    <div class="row"><span class="k">phase</span><span class="v" id="phase">-</span></div>
-    <div class="row"><span class="k">you</span><span class="v" id="p0">-</span></div>
-    <div class="row"><span class="k">Forge AI</span><span class="v" id="p1">-</span></div>
-    <hr style="border:0;border-top:1px solid #262b34">
-    <div class="row"><span class="k">prompts answered</span><span class="v" id="prompts">0</span></div>
-    <div class="row"><span class="k">states received</span><span class="v" id="states">0</span></div>
-    <div class="row"><span class="k">last prompt</span><span class="v" id="lastkind">-</span></div>
-    <div class="row"><span class="k">last play</span><span class="v" id="lastplay">-</span></div>
-    <div class="row"><span class="k">unhandled</span><span class="v" id="unhandled">none</span></div>
-  </div>
-  <div class="panel"><pre id="log"></pre></div>
-</div>
-<script>
-const SIGNAL_IDLE = 0, SIGNAL_PROMPT_READY = 1, SIGNAL_RESPONSE_READY = 2, SIGNAL_PROMPT_ACKNOWLEDGED = 3;
+  :root {
+    color-scheme: dark;
+    --bg: #0d0f13; --panel: #161a21; --line: #252b35; --ink: #d8dee9;
+    --dim: #78828f; --good: #8fbf7f; --warn: #e0b866; --bad: #d18a8a; --pick: #4d9de0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
+  #app { display: grid; grid-template-columns: 1fr 300px; height: 100vh; }
+  #board { display: flex; flex-direction: column; padding: 10px; gap: 8px; min-width: 0; overflow: hidden; }
+  #side { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 
-const el = (id) => document.getElementById(id);
-const status = (text, cls) => { el("status").textContent = text; el("status").className = cls; };
-let lines = 0;
-function log(msg) {
-  if (lines++ > 400) { el("log").textContent = ""; lines = 0; }
-  el("log").textContent += msg + "\n";
-  el("log").scrollTop = el("log").scrollHeight;
+  .seat { display: flex; align-items: center; gap: 14px; padding: 5px 10px;
+          background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  .seat.active { border-color: var(--warn); }
+  .seat.targetable { outline: 2px solid var(--pick); cursor: pointer; }
+  .who { font-weight: 600; min-width: 90px; }
+  .life { font-size: 20px; color: var(--warn); min-width: 52px; }
+  .pips { color: var(--dim); display: flex; gap: 12px; font-size: 12px; }
+
+  .field { flex: 1; min-height: 70px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px;
+           padding: 8px; background: #12151b; border: 1px solid var(--line); border-radius: 6px; overflow-y: auto; }
+  .field.hand { flex: 0 0 auto; min-height: 108px; background: #141821; }
+  .lane { font-size: 10px; color: var(--dim); letter-spacing: .09em; text-transform: uppercase; margin-bottom: -4px; }
+
+  .card { width: 84px; min-height: 96px; padding: 5px 6px; border-radius: 5px; background: #1d222c;
+          border: 1px solid #2f3743; display: flex; flex-direction: column; gap: 3px;
+          transition: transform .12s, border-color .12s; position: relative; }
+  .card .nm { font-size: 10.5px; line-height: 1.2; font-weight: 600; word-break: break-word; }
+  .card .ct { font-size: 9.5px; color: var(--dim); }
+  .card .tp { font-size: 9px; color: var(--dim); margin-top: auto; }
+  .card .pt { position: absolute; right: 4px; bottom: 3px; font-size: 11px; font-weight: 700; color: var(--good); }
+  .card.tapped { transform: rotate(8deg); opacity: .62; }
+  .card.sick { border-style: dashed; }
+  .card.attacking { border-color: var(--bad); }
+  .card.actionable { border-color: var(--good); cursor: pointer; box-shadow: 0 0 0 1px var(--good) inset; }
+  .card.actionable:hover { transform: translateY(-3px); }
+  .card.targetable { border-color: var(--pick); cursor: pointer; box-shadow: 0 0 0 1px var(--pick) inset; }
+  .card.chosen { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn) inset; }
+  .card .dmg { position: absolute; left: 4px; bottom: 3px; font-size: 10px; color: var(--bad); }
+  .card .ctr { position: absolute; left: 4px; top: 3px; font-size: 9px; color: var(--warn); }
+
+  #stack { min-height: 26px; display: flex; gap: 6px; align-items: center; padding: 3px 10px;
+           font-size: 11px; color: var(--dim); }
+  #stack .item { color: var(--ink); background: #22283340; border: 1px solid var(--line);
+                 border-radius: 4px; padding: 1px 7px; }
+
+  #prompt { background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+            padding: 8px 10px; display: flex; align-items: center; gap: 10px; min-height: 44px; flex-wrap: wrap; }
+  #ask { flex: 1; min-width: 200px; }
+  #ask b { color: var(--warn); }
+  button { font: inherit; background: #232a35; color: var(--ink); border: 1px solid #38414f;
+           border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #2c3543; border-color: #4a5666; }
+  button:disabled { opacity: .35; cursor: default; }
+  button.primary { background: #24402c; border-color: #3c6446; color: #b9e0b0; }
+  kbd { font-size: 10px; color: var(--dim); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
+
+  #meta { padding: 8px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 2px; }
+  .row { display: flex; justify-content: space-between; font-size: 11.5px; }
+  .row span:first-child { color: var(--dim); }
+  #log { flex: 1; overflow-y: auto; padding: 8px 10px; font-size: 11px; white-space: pre-wrap;
+         color: #9aa5b3; min-height: 0; }
+  #log .me { color: var(--good); }
+  #log .sys { color: var(--dim); }
+  #opts { padding: 8px 10px; border-top: 1px solid var(--line); display: grid; gap: 4px; font-size: 11.5px; }
+  label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  #banner { position: fixed; inset: 0; display: none; place-items: center; background: #0d0f13ee; z-index: 9; }
+  #banner div { text-align: center; }
+  #banner h2 { font-size: 28px; margin: 0 0 6px; }
+</style>
+
+<div id="app">
+  <div id="board">
+    <div class="seat" id="seat1" data-pid="player-1">
+      <span class="who">Forge AI</span><span class="life" id="life1">20</span>
+      <span class="pips"><span id="pips1"></span></span>
+    </div>
+    <div class="lane">their battlefield</div>
+    <div class="field" id="bf1"></div>
+    <div id="stack"><span>stack</span><span id="stackitems" class="pips">empty</span></div>
+    <div class="lane">your battlefield</div>
+    <div class="field" id="bf0"></div>
+    <div class="seat" id="seat0" data-pid="player-0">
+      <span class="who">You</span><span class="life" id="life0">20</span>
+      <span class="pips"><span id="pips0"></span></span>
+    </div>
+    <div class="lane">your hand</div>
+    <div class="field hand" id="hand0"></div>
+    <div id="prompt"><span id="ask">booting the WebAssembly engine…</span><span id="btns"></span></div>
+  </div>
+
+  <div id="side">
+    <div id="meta">
+      <div class="row"><span>turn</span><span id="mTurn">-</span></div>
+      <div class="row"><span>step</span><span id="mStep">-</span></div>
+      <div class="row"><span>priority</span><span id="mPrio">-</span></div>
+      <div class="row"><span>prompts</span><span id="mPrompts">0</span></div>
+      <div class="row"><span>engine</span><span id="mEngine">loading</span></div>
+      <div class="row"><span>isolated</span><span id="mIso">-</span></div>
+    </div>
+    <div id="log"></div>
+    <div id="opts">
+      <label><input type="checkbox" id="optAutoPass" checked> auto-pass empty priority</label>
+      <label><input type="checkbox" id="optAutoMana" checked> auto-tap for mana</label>
+      <label><input type="checkbox" id="optAutoOrder" checked> auto-answer ordering prompts</label>
+    </div>
+  </div>
+</div>
+
+<div id="banner"><div><h2 id="bannerTitle"></h2><p id="bannerBody" class="pips"></p></div></div>
+
+<script>
+// Mirrors manabrew-rs/crates/wasm/src/wasm_transport.rs.
+const SIGNAL_IDLE = 0, SIGNAL_PROMPT_READY = 1, SIGNAL_RESPONSE_READY = 2, SIGNAL_PROMPT_ACKNOWLEDGED = 3;
+const ME = "player-0";
+
+const $ = (id) => document.getElementById(id);
+const enc = new TextEncoder(), dec = new TextDecoder();
+
+let state = null;        // latest snapshot
+let pending = null;      // { prompt, resolve }
+let answered = 0;
+let picks = [];          // multi-select buffer (attackers, blockers, targets)
+let logLines = 0;
+
+function log(text, cls) {
+  const el = document.createElement("div");
+  el.className = cls || "";
+  el.textContent = text;
+  $("log").appendChild(el);
+  if (++logLines > 400) { $("log").firstChild.remove(); logLines--; }
+  $("log").scrollTop = $("log").scrollHeight;
 }
 
-el("coi").textContent = String(crossOriginIsolated);
-if (!crossOriginIsolated) status("not cross-origin isolated, SharedArrayBuffer unavailable", "err");
+// ---------- rendering ----------
 
-let answered = 0, states = 0;
-const unhandled = {};
+const zoneOf = (kind, pid) => (state.zones || []).find((z) => z.zone === kind && z.ownerId === pid) || { cards: [], count: 0 };
 
-// Answers the human seat. Mirrors the PromptOutput shapes the relay sends.
-function decide(prompt) {
-  const input = prompt.input || {};
-  const ids = (list) => (list || []).map((c) => c && (c.id || c.cardId)).filter(Boolean);
-  switch (input.type) {
-    case "chooseAction": {
-      const acts = (input.actions || []).filter((a) => a && a.type === "cast");
-      if (acts.length) {
-        const pick = acts[Math.floor(Math.random() * acts.length)];
-        window.__lastPlay = pick.label || pick.cardId;
-        return { type: "chooseAction", output: { type: "act", actionId: pick.id } };
-      }
-      return { type: "chooseAction", output: { type: "pass" } };
-    }
-    case "payManaCost": {
-      // Commit once the pool covers the cost, otherwise tap another source.
-      if (input.canConfirmFromPool) return { type: "payManaCost", output: { type: "pay" } };
-      const src = (input.actions || []).find((a) => a && a.isManaAbility);
-      return src
-        ? { type: "payManaCost", output: { type: "act", actionId: src.id } }
-        : { type: "payManaCost", output: { type: "cancel" } };
-    }
-    case "chooseBoardTargets": {
-      const cands = input.candidates || [];
-      const me = prompt.decidingPlayerId;
-      // Point burn at the opponent's face when that is legal.
-      const target = cands.find((c) => c && c.kind === "player" && c.id !== me)
-                  || cands.find((c) => c && c.kind === "player")
-                  || cands[0];
-      if (!target) return { type: "chooseBoardTargets", output: { type: "cancel" } };
-      return { type: "chooseBoardTargets", output: { chosen: [{ kind: target.kind, id: target.id }] } };
-    }
-    case "chooseAttackers": {
-      const defender = (input.defenders || [])[0];
-      const attackers = (input.attackers || input.candidates || []).filter((a) => a && (a.canAttack !== false));
-      return { type: "chooseAttackers", output: {
-        assignments: attackers.map((a) => ({ attackerId: a.id || a.cardId, targetId: defender ? (defender.id || defender.cardId) : null })),
-      } };
-    }
-    case "chooseBlockers":
-      return { type: "chooseBlockers", output: { assignments: [] } };
-    case "mulligan":
-      return { type: "mulligan", output: { keep: true } };
-    case "mulliganPutBack":
-      return { type: "mulliganPutBack", output: { cardIds: ids(input.cards).slice(0, input.count || 0) } };
-    case "chooseCards":
-      return { type: "chooseCards", output: { chosenCardIds: ids(input.cards).slice(0, input.min || input.minCards || 0) } };
-    case "chooseBoolean":
-      return { type: "chooseBoolean", output: { value: false } };
-    case "chooseFromSelection":
-      return { type: "chooseFromSelection", output: { chosenIndices: [0] } };
-    case "chooseNumber":
-      return { type: "chooseNumber", output: { chosenNumber: input.min || input.minValue || 0 } };
-    case "chooseColor":
-      return { type: "chooseColor", output: { color: (input.colors || ["R"])[0] } };
-    case "scry":
-      return { type: "scry", output: { zoneCardIds: [ids(input.cards), []] } };
-    case "reorder":
-      return { type: "reorder", output: { orderedIds: ids(input.cards) } };
-    case "chooseDamageAssignmentOrder":
-      return { type: "chooseDamageAssignmentOrder", output: { orderedBlockerIds: ids(input.blockers || input.cards) } };
-    case "revealCards":
-      return { type: "revealCards", output: {} };
-    case "diceRolled":
-      return { type: "diceRolled", output: {} };
-    default:
-      unhandled[input.type] = (unhandled[input.type] || 0) + 1;
-      el("unhandled").textContent = Object.keys(unhandled).join(", ") || "none";
-      return { type: "chooseAction", output: { type: "pass" } };
+function cardEl(card, opts) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.dataset.id = card.id;
+  const name = (card.identity && card.identity.name) || "(hidden)";
+  const cost = card.manaCost && card.manaCost !== "no cost" ? card.manaCost : "";
+  const types = (card.types || []).join(" ");
+  el.innerHTML =
+    `<div class="nm"></div><div class="ct"></div><div class="tp"></div>`;
+  el.querySelector(".nm").textContent = name;
+  el.querySelector(".ct").textContent = cost;
+  el.querySelector(".tp").textContent = types;
+  if (card.power !== undefined && card.power !== null && (card.types || []).includes("Creature")) {
+    const pt = document.createElement("div");
+    pt.className = "pt";
+    pt.textContent = card.power + "/" + card.toughness;
+    el.appendChild(pt);
+  }
+  if (card.damage > 0) {
+    const d = document.createElement("div"); d.className = "dmg"; d.textContent = "-" + card.damage; el.appendChild(d);
+  }
+  const counters = Object.entries(card.counters || {});
+  if (counters.length) {
+    const c = document.createElement("div"); c.className = "ctr";
+    c.textContent = counters.map(([k, v]) => v + k[0]).join(" "); el.appendChild(c);
+  }
+  if (card.tapped) el.classList.add("tapped");
+  if (card.summoningSick) el.classList.add("sick");
+  if (card.isAttacking) el.classList.add("attacking");
+  el.title = [name, cost, types, card.text || ""].filter(Boolean).join("\n");
+  if (opts && opts.cls) el.classList.add(opts.cls);
+  if (opts && opts.onClick) el.onclick = opts.onClick;
+  return el;
+}
+
+function render() {
+  if (!state) return;
+  $("mTurn").textContent = state.turn;
+  $("mStep").textContent = state.step || "-";
+  $("mPrio").textContent = state.priorityPlayerId === ME ? "you" : "AI";
+
+  for (const p of state.players || []) {
+    const i = p.id === ME ? 0 : 1;
+    $("life" + i).textContent = p.life;
+    const hand = zoneOf("hand", p.id), lib = zoneOf("library", p.id), gy = zoneOf("graveyard", p.id);
+    $("pips" + i).textContent = `hand ${hand.count}   library ${lib.count}   graveyard ${gy.count}`;
+    $("seat" + i).classList.toggle("active", state.activePlayerId === p.id);
+  }
+
+  const stack = state.stack || [];
+  $("stackitems").innerHTML = "";
+  if (!stack.length) $("stackitems").textContent = "empty";
+  else for (const item of stack) {
+    const s = document.createElement("span"); s.className = "item";
+    s.textContent = typeof item === "string" ? item : (item.name || item.description || "?");
+    $("stackitems").appendChild(s);
+  }
+
+  for (const [slot, pid] of [[0, ME], [1, "player-1"]]) {
+    const host = $("bf" + slot); host.innerHTML = "";
+    for (const c of zoneOf("battlefield", pid).cards || []) host.appendChild(cardEl(c));
+  }
+  const hand = $("hand0"); hand.innerHTML = "";
+  for (const c of zoneOf("hand", ME).cards || []) hand.appendChild(cardEl(c));
+
+  if (pending) decorate(pending.prompt);
+}
+
+// ---------- prompt handling ----------
+
+function ask(text, buttons) {
+  $("ask").innerHTML = "";
+  $("ask").append(...(Array.isArray(text) ? text : [text]));
+  $("btns").innerHTML = "";
+  for (const b of buttons || []) {
+    const el = document.createElement("button");
+    el.textContent = b.label;
+    if (b.primary) el.className = "primary";
+    el.disabled = !!b.disabled;
+    el.onclick = b.onClick;
+    $("btns").appendChild(el);
   }
 }
 
-function render(state) {
-  states++;
-  el("states").textContent = states;
-  if (state.turn !== undefined) el("turn").textContent = state.turn;
-  if (state.phase) el("phase").textContent = state.phase;
-  const ps = state.players || [];
-  if (ps[0]) el("p0").textContent = ps[0].life + " life";
-  if (ps[1]) el("p1").textContent = ps[1].life + " life";
+const findCard = (id) => {
+  for (const z of state.zones || []) for (const c of z.cards || []) if (c.id === id) return c;
+  return null;
+};
+
+function mark(ids, cls, onClick) {
+  for (const id of ids) {
+    for (const el of document.querySelectorAll(`.card[data-id="${CSS.escape(id)}"]`)) {
+      el.classList.add(cls);
+      if (onClick) el.onclick = () => onClick(id);
+    }
+  }
 }
+
+function answer(action) {
+  const p = pending; pending = null; picks = [];
+  answered++; $("mPrompts").textContent = answered;
+  ask("waiting for the engine…", []);
+  p.resolve(action);
+}
+
+// Decorates the board for the live prompt and wires the click targets.
+function decorate(prompt) {
+  const input = prompt.input || {};
+  const auto = { pass: $("optAutoPass").checked, mana: $("optAutoMana").checked, order: $("optAutoOrder").checked };
+
+  switch (input.type) {
+    case "chooseAction": {
+      const acts = input.actions || [];
+      const playable = acts.filter((a) => a.type === "cast" || (a.type === "activateAbility" && !a.isManaAbility));
+      if (!playable.length && auto.pass) return answer({ type: "chooseAction", output: { type: "pass" } });
+      const byCard = new Map();
+      for (const a of playable) if (!byCard.has(a.cardId)) byCard.set(a.cardId, a);
+      mark([...byCard.keys()], "actionable", (id) => {
+        const a = byCard.get(id);
+        const c = findCard(id);
+        log("you: " + (a.label || ((c && c.identity && c.identity.name) || id)), "me");
+        answer({ type: "chooseAction", output: { type: "act", actionId: a.id } });
+      });
+      ask(playable.length
+            ? `Your priority — ${playable.length} play${playable.length > 1 ? "s" : ""} available. Click a highlighted card.`
+            : "Your priority.",
+          [{ label: "Pass ⎵", primary: true, onClick: () => answer({ type: "chooseAction", output: { type: "pass" } }) }]);
+      return;
+    }
+
+    case "payManaCost": {
+      const sources = (input.actions || []).filter((a) => a.isManaAbility);
+      if (input.canConfirmFromPool) {
+        if (auto.mana) return answer({ type: "payManaCost", output: { type: "pay" } });
+        return ask(`Cost covered for <b>${input.cardName || ""}</b>.`,
+          [{ label: "Pay", primary: true, onClick: () => answer({ type: "payManaCost", output: { type: "pay" } }) },
+           { label: "Cancel", onClick: () => answer({ type: "payManaCost", output: { type: "cancel" } }) }]);
+      }
+      if (auto.mana && sources.length) {
+        return answer({ type: "payManaCost", output: { type: "act", actionId: sources[0].id } });
+      }
+      mark(sources.map((a) => a.cardId), "actionable", (id) => {
+        const a = sources.find((s) => s.cardId === id);
+        answer({ type: "payManaCost", output: { type: "act", actionId: a.id } });
+      });
+      ask(`Pay <b>${input.manaCost || ""}</b> for <b>${input.cardName || ""}</b> — tap a source.`,
+        [{ label: "Cancel", onClick: () => answer({ type: "payManaCost", output: { type: "cancel" } }) }]);
+      return;
+    }
+
+    case "chooseBoardTargets": {
+      const cands = input.candidates || [];
+      const cardIds = cands.filter((c) => c.kind !== "player").map((c) => c.id);
+      mark(cardIds, "targetable", (id) => {
+        const t = cands.find((c) => c.id === id);
+        answer({ type: "chooseBoardTargets", output: { chosen: [{ kind: t.kind, id: t.id }] } });
+      });
+      for (const c of cands.filter((c) => c.kind === "player")) {
+        const seat = c.id === ME ? $("seat0") : $("seat1");
+        seat.classList.add("targetable");
+        seat.onclick = () => answer({ type: "chooseBoardTargets", output: { chosen: [{ kind: c.kind, id: c.id }] } });
+      }
+      ask(`Choose a target${input.minTargets > 1 ? "s" : ""} — click a highlighted card or player.`,
+        input.cancellable ? [{ label: "Cancel", onClick: () => answer({ type: "chooseBoardTargets", output: { type: "cancel" } }) }] : []);
+      return;
+    }
+
+    case "chooseAttackers": {
+      const able = (input.attackers || input.candidates || []).map((a) => a.id || a.cardId).filter(Boolean);
+      const defender = (input.defenders || [])[0];
+      const defId = defender ? (defender.id || defender.cardId) : null;
+      mark(able, "targetable", (id) => {
+        picks = picks.includes(id) ? picks.filter((x) => x !== id) : [...picks, id];
+        render();
+        for (const p of picks) mark([p], "chosen");
+      });
+      for (const p of picks) mark([p], "chosen");
+      ask(`Declare attackers — ${picks.length} selected.`, [
+        { label: "Attack", primary: picks.length > 0, disabled: !able.length,
+          onClick: () => { const chosen = [...picks];
+            log("you: attack with " + chosen.length, "me");
+            answer({ type: "chooseAttackers", output: { assignments: chosen.map((id) => ({ attackerId: id, targetId: defId })) } }); } },
+        { label: "All", disabled: !able.length, onClick: () => { picks = [...able]; decorate(prompt); render(); for (const p of picks) mark([p], "chosen"); } },
+        { label: "None ⎵", onClick: () => answer({ type: "chooseAttackers", output: { assignments: [] } }) },
+      ]);
+      return;
+    }
+
+    case "chooseBlockers": {
+      ask("Declare blockers.", [
+        { label: "No blocks ⎵", primary: true, onClick: () => answer({ type: "chooseBlockers", output: { assignments: [] } }) },
+      ]);
+      return;
+    }
+
+    case "mulligan":
+      return ask(`Opening hand — keep it?`, [
+        { label: "Keep ⎵", primary: true, onClick: () => answer({ type: "mulligan", output: { keep: true } }) },
+        { label: "Mulligan", onClick: () => answer({ type: "mulligan", output: { keep: false } }) },
+      ]);
+
+    case "chooseBoolean":
+      return ask(input.presentation && input.presentation.title ? String(input.presentation.title) : "Yes or no?", [
+        { label: "Yes", primary: true, onClick: () => answer({ type: "chooseBoolean", output: { value: true } }) },
+        { label: "No ⎵", onClick: () => answer({ type: "chooseBoolean", output: { value: false } }) },
+      ]);
+
+    case "diceRolled":
+      return answer({ type: "diceRolled", output: {} });
+    case "revealCards":
+      return ask("Cards revealed.", [{ label: "OK ⎵", primary: true, onClick: () => answer({ type: "revealCards", output: {} }) }]);
+
+    default: {
+      // Ordering and bookkeeping prompts: answer with the identity choice.
+      const ids = (list) => (list || []).map((c) => c && (c.id || c.cardId)).filter(Boolean);
+      const fallbacks = {
+        chooseCards: () => ({ type: "chooseCards", output: { chosenCardIds: ids(input.cards).slice(0, input.min || 0) } }),
+        mulliganPutBack: () => ({ type: "mulliganPutBack", output: { cardIds: ids(input.cards).slice(0, input.count || 0) } }),
+        chooseFromSelection: () => ({ type: "chooseFromSelection", output: { chosenIndices: [0] } }),
+        chooseNumber: () => ({ type: "chooseNumber", output: { chosenNumber: input.min || 0 } }),
+        chooseColor: () => ({ type: "chooseColor", output: { color: (input.colors || ["R"])[0] } }),
+        scry: () => ({ type: "scry", output: { zoneCardIds: [ids(input.cards), []] } }),
+        reorder: () => ({ type: "reorder", output: { orderedIds: ids(input.cards) } }),
+        chooseDamageAssignmentOrder: () => ({ type: "chooseDamageAssignmentOrder", output: { orderedBlockerIds: ids(input.blockers || input.cards) } }),
+      };
+      const make = fallbacks[input.type];
+      if (make && auto.order) return answer(make());
+      if (make) return ask(`<b>${input.type}</b> — using the default answer.`,
+        [{ label: "OK ⎵", primary: true, onClick: () => answer(make()) }]);
+      log("unhandled prompt: " + input.type + " (passing)", "sys");
+      return answer({ type: "chooseAction", output: { type: "pass" } });
+    }
+  }
+}
+
+// Space activates the primary button, or the last one if none is primary.
+addEventListener("keydown", (e) => {
+  if (e.code !== "Space" || !pending) return;
+  e.preventDefault();
+  const btns = [...$("btns").querySelectorAll("button")].filter((b) => !b.disabled);
+  const primary = btns.find((b) => b.classList.contains("primary")) || btns[btns.length - 1];
+  if (primary) primary.click();
+});
+
+// ---------- transport ----------
 
 async function waitFor(sig, want) {
   for (;;) {
@@ -148,40 +397,27 @@ async function waitFor(sig, want) {
 }
 
 async function drive(sab) {
-  const sig = new Int32Array(sab, 0, 2);
-  const data = new Uint8Array(sab, 8);
-  const dec = new TextDecoder(), enc = new TextEncoder();
-  status("playing", "work");
-
+  const sig = new Int32Array(sab, 0, 2), data = new Uint8Array(sab, 8);
+  $("mEngine").textContent = "ready";
   for (;;) {
     await waitFor(sig, SIGNAL_PROMPT_READY);
-    const raw = dec.decode(data.slice(0, Atomics.load(sig, 1)));
     let msg;
-    try { msg = JSON.parse(raw); }
-    catch (e) { log("bad json from engine: " + raw.slice(0, 200)); return; }
+    try { msg = JSON.parse(dec.decode(data.slice(0, Atomics.load(sig, 1)))); }
+    catch { log("bad json from the engine", "sys"); return; }
 
     if (msg.kind !== "prompt") {
-      if (msg.kind === "state") render(msg.state || {});
-      // Non-prompt messages are acknowledged so the engine can send the next.
+      if (msg.kind === "state") { state = msg.state; render(); }
       Atomics.store(sig, 0, SIGNAL_PROMPT_ACKNOWLEDGED);
       Atomics.notify(sig, 0);
       continue;
     }
 
-    const prompt = msg.prompt || {};
-    const action = decide(prompt);
-    el("lastkind").textContent = (prompt.input || {}).type || "?";
-    answered++;
-    el("prompts").textContent = answered;
-    const summary = action.output && action.output.type ? action.output.type : action.type;
-    if (window.__lastPlay) { el("lastplay").textContent = window.__lastPlay; }
-    log("#" + prompt.promptId + " " + ((prompt.input || {}).type || "?") + " -> " + summary +
-        (window.__lastPlay ? " (" + window.__lastPlay + ")" : ""));
-    window.__lastPlay = null;
+    const action = await new Promise((resolve) => {
+      pending = { prompt: msg.prompt, resolve };
+      render();
+    });
 
-    const body = enc.encode(JSON.stringify({
-      kind: "response", promptId: prompt.promptId, action,
-    }));
+    const body = enc.encode(JSON.stringify({ kind: "response", promptId: msg.prompt.promptId, action }));
     data.set(body, 0);
     Atomics.store(sig, 1, body.length);
     Atomics.store(sig, 0, SIGNAL_RESPONSE_READY);
@@ -189,14 +425,25 @@ async function drive(sab) {
   }
 }
 
+$("mIso").textContent = String(crossOriginIsolated);
+if (!crossOriginIsolated) log("not cross-origin isolated: SharedArrayBuffer is unavailable", "sys");
+
 const worker = new Worker("./forge.worker.js");
 worker.onmessage = (e) => {
   const m = e.data || {};
-  if (m.type === "sab") { log("SharedArrayBuffer received from the wasm worker"); drive(m.sab); }
-  else if (m.type === "event" && m.event === "game:over") { status("game over", "ok"); log("GAME OVER"); }
-  else if (m.type === "log") log(m.text);
+  if (m.type === "sab") { log("engine ready", "sys"); drive(m.sab); }
+  else if (m.type === "event" && m.event === "game:over") {
+    $("bannerTitle").textContent = "Game over";
+    const me = (state.players || []).find((p) => p.id === ME);
+    const them = (state.players || []).find((p) => p.id !== ME);
+    $("bannerBody").textContent = me && them ? `You ${me.life} — Forge AI ${them.life}` : "";
+    $("banner").style.display = "grid";
+    ask("Game over.", []);
+  } else if (m.type === "log") {
+    if (/^\[wasm\]/.test(m.text)) { log(m.text.replace("[log] ", ""), "sys"); $("mEngine").textContent = "booting"; }
+  }
 };
-worker.onerror = (e) => { status("worker error", "err"); log("worker error: " + e.message); };
+worker.onerror = (e) => log("worker error: " + e.message, "sys");
 worker.postMessage({ type: "boot" });
-log("worker booted, loading wasm module...");
+log("loading the WebAssembly engine…", "sys");
 </script>

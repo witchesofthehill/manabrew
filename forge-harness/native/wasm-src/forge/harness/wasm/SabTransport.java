@@ -30,6 +30,16 @@ public final class SabTransport implements InteractiveBridge {
         + "return true;")
     static native boolean install(int size);
 
+    /** Binds to a buffer the host allocated, so the app owns the SAB lifecycle. */
+    @JS.Coerce
+    @JS("const sab = globalThis.__forgeSab;"
+        + "if (!sab) throw new Error('globalThis.__forgeSab is not set');"
+        + "globalThis.__mbSab = sab;"
+        + "globalThis.__mbSig = new Int32Array(sab, 0, 2);"
+        + "globalThis.__mbData = new Uint8Array(sab, 8);"
+        + "return true;")
+    static native boolean bind();
+
     @JS.Coerce
     @JS("const sig = globalThis.__mbSig, data = globalThis.__mbData;"
         + "for (;;) {"
@@ -87,8 +97,10 @@ public final class SabTransport implements InteractiveBridge {
     }
 
     private static void sendTagged(final String kind, final String field, final String body) {
-        if (!send("{\"kind\":\"" + kind + "\",\"" + field + "\":" + body + "}")) {
-            System.err.println("[wasm] payload exceeded the shared buffer, dropping a " + kind);
+        final String framed = "{\"kind\":\"" + kind + "\",\"" + field + "\":" + body + "}";
+        if (!send(framed)) {
+            System.err.println("[wasm] " + kind + " payload is " + (framed.length() / 1024)
+                    + " KiB and does not fit the shared buffer, dropping it");
         }
     }
 }

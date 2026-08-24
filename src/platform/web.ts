@@ -400,9 +400,21 @@ class WorkerBridge {
         // `worker:init { stage: 'ready' | 'error' }` when done — we wait
         // for that event instead of pinging, so init has no command-level
         // timeout to fight.
-        this.worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
-          type: "module",
-        });
+        // VITE_FORGE_WASM swaps the Rust engine for Forge compiled to wasm
+        // (forge-harness/build-wasm.sh). Same SAB wire format, so nothing
+        // downstream of this line changes. Classic worker: the generated
+        // launcher is an IIFE loaded with importScripts.
+        this.worker = import.meta.env.VITE_FORGE_WASM
+          ? new Worker("/forge/forge-engine.worker.js")
+          : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
+              type: "module",
+            });
+
+        if (import.meta.env.VITE_FORGE_WASM) {
+          this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) =>
+            console.log("[forge]", p?.text ?? ""),
+          );
+        }
 
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.20.0](https://github.com/witchesofthehill/manabrew/compare/v3.19.1...v3.20.0) (2026-08-24)
+
+### Features
+
+* add premodern format support ([#749](https://github.com/witchesofthehill/manabrew/issues/749)) ([91273d1](https://github.com/witchesofthehill/manabrew/commit/91273d16d68563d3a42e31852655ab71bf0916a8))
+
 ## [3.19.1](https://github.com/witchesofthehill/manabrew/compare/v3.19.0...v3.19.1) (2026-08-24)
 
 ### Fixes

@@ -19,6 +19,9 @@ const ENGINE_GC_COLLECTIONS: &str = "manabrew_node_engine_gc_collections_total";
 const ENGINE_GC_PAUSE_MILLIS: &str = "manabrew_node_engine_gc_pause_millis_total";
 const ENGINE_HEAP_USED_BYTES: &str = "manabrew_node_engine_heap_used_bytes";
 const ENGINE_HEAP_MAX_BYTES: &str = "manabrew_node_engine_heap_max_bytes";
+const ENGINE_STALL_MILLIS: &str = "manabrew_node_engine_stall_millis_total";
+const ENGINE_LONG_STALLS: &str = "manabrew_node_engine_long_stalls_total";
+const ENGINE_STALL_MAX_MILLIS: &str = "manabrew_node_engine_stall_max_millis";
 
 const LABEL_POOL: &str = "pool";
 const LABEL_KIND: &str = "kind";
@@ -176,6 +179,18 @@ pub fn record_engine_gc_collector(collector: &str, collections: u64, pause_milli
     let name = collector.to_string();
     counter!(ENGINE_GC_COLLECTIONS, LABEL_COLLECTOR => name.clone()).absolute(collections);
     counter!(ENGINE_GC_PAUSE_MILLIS, LABEL_COLLECTOR => name).absolute(pause_millis);
+}
+
+/// Wall clock the engine was stopped, from a probe inside the isolate rather
+/// than from the collector. [`record_engine_gc_collector`] is the better signal
+/// where it exists, but Substrate registers collector beans for its Serial GC
+/// only, so on the G1 image it reports nothing at all and this is the only
+/// series that shows a stall. Cumulative, so
+/// `rate(engine_stall_millis_total) / 1000` is the fraction of wall clock lost.
+pub fn record_engine_stall(stalled_millis: u64, max_stall_millis: u64, long_stalls: u64) {
+    counter!(ENGINE_STALL_MILLIS).absolute(stalled_millis);
+    counter!(ENGINE_LONG_STALLS).absolute(long_stalls);
+    gauge!(ENGINE_STALL_MAX_MILLIS).set(max_stall_millis as f64);
 }
 
 pub fn record_relay_reconnect() {

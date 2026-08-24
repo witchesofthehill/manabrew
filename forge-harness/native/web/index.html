@@ -1,0 +1,202 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Forge in WebAssembly</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #101216; color: #d8dee9; margin: 0; padding: 20px; }
+  h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .04em; }
+  .sub { color: #7b8494; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+  .panel { background: #171a20; border: 1px solid #262b34; border-radius: 6px; padding: 12px; }
+  .k { color: #7b8494; }
+  .v { color: #a3d3a0; }
+  #log { height: 60vh; overflow: auto; white-space: pre-wrap; margin: 0; }
+  .row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .big { font-size: 22px; color: #e5c07b; }
+  #status { padding: 6px 10px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+  .ok { background: #1e3a24; color: #a3d3a0; }
+  .work { background: #3a341e; color: #e5c07b; }
+  .err { background: #3a1e1e; color: #d38a8a; }
+</style>
+<h1>Forge running in WebAssembly</h1>
+<div class="sub">GraalVM Web Image module in a worker, driven over the same SharedArrayBuffer protocol as the Rust engine.</div>
+<div id="status" class="work">booting</div>
+<div class="grid">
+  <div class="panel">
+    <div class="row"><span class="k">crossOriginIsolated</span><span class="v" id="coi"></span></div>
+    <div class="row"><span class="k">turn</span><span class="v big" id="turn">-</span></div>
+    <div class="row"><span class="k">phase</span><span class="v" id="phase">-</span></div>
+    <div class="row"><span class="k">you</span><span class="v" id="p0">-</span></div>
+    <div class="row"><span class="k">Forge AI</span><span class="v" id="p1">-</span></div>
+    <hr style="border:0;border-top:1px solid #262b34">
+    <div class="row"><span class="k">prompts answered</span><span class="v" id="prompts">0</span></div>
+    <div class="row"><span class="k">states received</span><span class="v" id="states">0</span></div>
+    <div class="row"><span class="k">last prompt</span><span class="v" id="lastkind">-</span></div>
+    <div class="row"><span class="k">last play</span><span class="v" id="lastplay">-</span></div>
+    <div class="row"><span class="k">unhandled</span><span class="v" id="unhandled">none</span></div>
+  </div>
+  <div class="panel"><pre id="log"></pre></div>
+</div>
+<script>
+const SIGNAL_IDLE = 0, SIGNAL_PROMPT_READY = 1, SIGNAL_RESPONSE_READY = 2, SIGNAL_PROMPT_ACKNOWLEDGED = 3;
+
+const el = (id) => document.getElementById(id);
+const status = (text, cls) => { el("status").textContent = text; el("status").className = cls; };
+let lines = 0;
+function log(msg) {
+  if (lines++ > 400) { el("log").textContent = ""; lines = 0; }
+  el("log").textContent += msg + "\n";
+  el("log").scrollTop = el("log").scrollHeight;
+}
+
+el("coi").textContent = String(crossOriginIsolated);
+if (!crossOriginIsolated) status("not cross-origin isolated, SharedArrayBuffer unavailable", "err");
+
+let answered = 0, states = 0;
+const unhandled = {};
+
+// Answers the human seat. Mirrors the PromptOutput shapes the relay sends.
+function decide(prompt) {
+  const input = prompt.input || {};
+  const ids = (list) => (list || []).map((c) => c && (c.id || c.cardId)).filter(Boolean);
+  switch (input.type) {
+    case "chooseAction": {
+      const acts = (input.actions || []).filter((a) => a && a.type === "cast");
+      if (acts.length) {
+        const pick = acts[Math.floor(Math.random() * acts.length)];
+        window.__lastPlay = pick.label || pick.cardId;
+        return { type: "chooseAction", output: { type: "act", actionId: pick.id } };
+      }
+      return { type: "chooseAction", output: { type: "pass" } };
+    }
+    case "payManaCost": {
+      // Commit once the pool covers the cost, otherwise tap another source.
+      if (input.canConfirmFromPool) return { type: "payManaCost", output: { type: "pay" } };
+      const src = (input.actions || []).find((a) => a && a.isManaAbility);
+      return src
+        ? { type: "payManaCost", output: { type: "act", actionId: src.id } }
+        : { type: "payManaCost", output: { type: "cancel" } };
+    }
+    case "chooseBoardTargets": {
+      const cands = input.candidates || [];
+      const me = prompt.decidingPlayerId;
+      // Point burn at the opponent's face when that is legal.
+      const target = cands.find((c) => c && c.kind === "player" && c.id !== me)
+                  || cands.find((c) => c && c.kind === "player")
+                  || cands[0];
+      if (!target) return { type: "chooseBoardTargets", output: { type: "cancel" } };
+      return { type: "chooseBoardTargets", output: { chosen: [{ kind: target.kind, id: target.id }] } };
+    }
+    case "chooseAttackers": {
+      const defender = (input.defenders || [])[0];
+      const attackers = (input.attackers || input.candidates || []).filter((a) => a && (a.canAttack !== false));
+      return { type: "chooseAttackers", output: {
+        assignments: attackers.map((a) => ({ attackerId: a.id || a.cardId, targetId: defender ? (defender.id || defender.cardId) : null })),
+      } };
+    }
+    case "chooseBlockers":
+      return { type: "chooseBlockers", output: { assignments: [] } };
+    case "mulligan":
+      return { type: "mulligan", output: { keep: true } };
+    case "mulliganPutBack":
+      return { type: "mulliganPutBack", output: { cardIds: ids(input.cards).slice(0, input.count || 0) } };
+    case "chooseCards":
+      return { type: "chooseCards", output: { chosenCardIds: ids(input.cards).slice(0, input.min || input.minCards || 0) } };
+    case "chooseBoolean":
+      return { type: "chooseBoolean", output: { value: false } };
+    case "chooseFromSelection":
+      return { type: "chooseFromSelection", output: { chosenIndices: [0] } };
+    case "chooseNumber":
+      return { type: "chooseNumber", output: { chosenNumber: input.min || input.minValue || 0 } };
+    case "chooseColor":
+      return { type: "chooseColor", output: { color: (input.colors || ["R"])[0] } };
+    case "scry":
+      return { type: "scry", output: { zoneCardIds: [ids(input.cards), []] } };
+    case "reorder":
+      return { type: "reorder", output: { orderedIds: ids(input.cards) } };
+    case "chooseDamageAssignmentOrder":
+      return { type: "chooseDamageAssignmentOrder", output: { orderedBlockerIds: ids(input.blockers || input.cards) } };
+    case "revealCards":
+      return { type: "revealCards", output: {} };
+    case "diceRolled":
+      return { type: "diceRolled", output: {} };
+    default:
+      unhandled[input.type] = (unhandled[input.type] || 0) + 1;
+      el("unhandled").textContent = Object.keys(unhandled).join(", ") || "none";
+      return { type: "chooseAction", output: { type: "pass" } };
+  }
+}
+
+function render(state) {
+  states++;
+  el("states").textContent = states;
+  if (state.turn !== undefined) el("turn").textContent = state.turn;
+  if (state.phase) el("phase").textContent = state.phase;
+  const ps = state.players || [];
+  if (ps[0]) el("p0").textContent = ps[0].life + " life";
+  if (ps[1]) el("p1").textContent = ps[1].life + " life";
+}
+
+async function waitFor(sig, want) {
+  for (;;) {
+    const cur = Atomics.load(sig, 0);
+    if (cur === want) return;
+    const r = Atomics.waitAsync(sig, 0, cur);
+    if (r.async) await r.value;
+  }
+}
+
+async function drive(sab) {
+  const sig = new Int32Array(sab, 0, 2);
+  const data = new Uint8Array(sab, 8);
+  const dec = new TextDecoder(), enc = new TextEncoder();
+  status("playing", "work");
+
+  for (;;) {
+    await waitFor(sig, SIGNAL_PROMPT_READY);
+    const raw = dec.decode(data.slice(0, Atomics.load(sig, 1)));
+    let msg;
+    try { msg = JSON.parse(raw); }
+    catch (e) { log("bad json from engine: " + raw.slice(0, 200)); return; }
+
+    if (msg.kind !== "prompt") {
+      if (msg.kind === "state") render(msg.state || {});
+      // Non-prompt messages are acknowledged so the engine can send the next.
+      Atomics.store(sig, 0, SIGNAL_PROMPT_ACKNOWLEDGED);
+      Atomics.notify(sig, 0);
+      continue;
+    }
+
+    const prompt = msg.prompt || {};
+    const action = decide(prompt);
+    el("lastkind").textContent = (prompt.input || {}).type || "?";
+    answered++;
+    el("prompts").textContent = answered;
+    const summary = action.output && action.output.type ? action.output.type : action.type;
+    if (window.__lastPlay) { el("lastplay").textContent = window.__lastPlay; }
+    log("#" + prompt.promptId + " " + ((prompt.input || {}).type || "?") + " -> " + summary +
+        (window.__lastPlay ? " (" + window.__lastPlay + ")" : ""));
+    window.__lastPlay = null;
+
+    const body = enc.encode(JSON.stringify({
+      kind: "response", promptId: prompt.promptId, action,
+    }));
+    data.set(body, 0);
+    Atomics.store(sig, 1, body.length);
+    Atomics.store(sig, 0, SIGNAL_RESPONSE_READY);
+    Atomics.notify(sig, 0);
+  }
+}
+
+const worker = new Worker("./forge.worker.js");
+worker.onmessage = (e) => {
+  const m = e.data || {};
+  if (m.type === "sab") { log("SharedArrayBuffer received from the wasm worker"); drive(m.sab); }
+  else if (m.type === "event" && m.event === "game:over") { status("game over", "ok"); log("GAME OVER"); }
+  else if (m.type === "log") log(m.text);
+};
+worker.onerror = (e) => { status("worker error", "err"); log("worker error: " + e.message); };
+worker.postMessage({ type: "boot" });
+log("worker booted, loading wasm module...");
+</script>

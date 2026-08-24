@@ -4,6 +4,10 @@
 # native-image compiles the harness to a shared library (`graal-forge`) and every
 # room attaches to one isolate, so the 34k-card database is loaded once per node.
 
+# Declared before the first FROM: an ARG used in a FROM is global only up here,
+# and inside a stage it expands to nothing and the build fails on a blank base.
+ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:21
+
 # ── cargo-chef base + shared dependency recipe ───────────────────────
 # See manabrew-server's Dockerfile for why chef. One planner feeds both Rust
 # stages below (debug deps for gen-protocol, release deps for the node).
@@ -96,7 +100,6 @@ RUN --mount=type=cache,target=/root/.m2/repository \
 # Community offers Serial and Epsilon, and `native-image --help` there lists
 # exactly those two. Free for production under the GraalVM Free Terms and
 # Conditions.
-ARG GRAALVM_IMAGE=container-registry.oracle.com/graalvm/native-image:21
 FROM ${GRAALVM_IMAGE} AS native-builder
 
 WORKDIR /build

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.21.2](https://github.com/witchesofthehill/manabrew/compare/v3.21.1...v3.21.2) (2026-08-24)
+
+### Fixes
+
+* **node:** report engine stall time under g1 ([#757](https://github.com/witchesofthehill/manabrew/issues/757)) ([f16022f](https://github.com/witchesofthehill/manabrew/commit/f16022febfe14d4e1a31f5f094b71227bf3958a8))
+
 ## [3.21.1](https://github.com/witchesofthehill/manabrew/compare/v3.21.0...v3.21.1) (2026-08-24)
 
 ## [3.21.0](https://github.com/witchesofthehill/manabrew/compare/v3.20.0...v3.21.0) (2026-08-24)

@@ -237,7 +237,19 @@ class WorkerBridge {
       case "error":
         this.eventBus.emit("game:error", msg.error);
         break;
-      case "prompt":
+      case "prompt": {
+        const w = window as unknown as {
+          __respondedAt?: number;
+          __promptTimings?: Array<{ ms: number; type?: string }>;
+        };
+        if (w.__respondedAt != null) {
+          w.__promptTimings = w.__promptTimings ?? [];
+          w.__promptTimings.push({
+            ms: performance.now() - w.__respondedAt,
+            type: (msg.prompt as { input?: { type?: string } })?.input?.type,
+          });
+          w.__respondedAt = undefined;
+        }
         this.localAwaitingResponse = true;
         if (this.localPendingDirective) {
           this.writeLocalMessage({
@@ -248,6 +260,7 @@ class WorkerBridge {
         }
         this.eventBus.emit("game:prompt", msg.prompt);
         break;
+      }
     }
   }
 
@@ -351,6 +364,9 @@ class WorkerBridge {
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
   writeResponse(action: PromptOutput, promptId: number): void {
+    // Dev seam: stamp the submit so the next prompt can report engine
+    // turnaround, which is what a hosted round trip is competing against.
+    (window as unknown as { __respondedAt?: number }).__respondedAt = performance.now();
     this.writeLocalMessage({ kind: "response", promptId, action });
   }
 

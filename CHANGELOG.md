@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.19.1](https://github.com/witchesofthehill/manabrew/compare/v3.19.0...v3.19.1) (2026-08-24)
+
+### Fixes
+
+* **harness:** report colorless floating mana instead of always zero ([#753](https://github.com/witchesofthehill/manabrew/issues/753)) ([6bf5800](https://github.com/witchesofthehill/manabrew/commit/6bf5800fb8a95fcfedaf8c53ac786f62168eb8d3))
+
 ## [3.19.0](https://github.com/witchesofthehill/manabrew/compare/v3.18.7...v3.19.0) (2026-08-23)
 
 ### Features

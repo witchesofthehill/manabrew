@@ -76,6 +76,7 @@ const FORMAT_FILTERS = [
   { id: "vintage", label: "Vintage" },
   { id: "commander", label: "Commander" },
   { id: "pauper", label: "Pauper" },
+  { id: "premodern", label: "Premodern" },
   { id: "historic", label: "Historic" },
   { id: "brawl", label: "Brawl" },
   { id: "alchemy", label: "Alchemy" },

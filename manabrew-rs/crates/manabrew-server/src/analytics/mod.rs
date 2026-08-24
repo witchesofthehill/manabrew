@@ -78,7 +78,13 @@ impl AnalyticsHandle {
         }
     }
 
-    pub fn capture_envelope(&self, game_id: &str, from_player: &str, envelope: &Value) {
+    pub fn capture_envelope(
+        &self,
+        game_id: &str,
+        from_player: &str,
+        envelope: &Value,
+        client_rtt_ms: Option<u32>,
+    ) {
         if self.capture.is_none() {
             return;
         }
@@ -86,6 +92,7 @@ impl AnalyticsHandle {
             ts: now_ts(),
             from: from_player,
             envelope,
+            client_rtt_ms,
         });
         self.send_capture(capture::CaptureMessage::Line {
             game_id: game_id.to_string(),

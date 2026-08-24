@@ -110,6 +110,56 @@ public final class ForgeNative {
         }
     }
 
+    // One isolate hosts every room on the node, and a SubstrateVM collection
+    // stops every thread in it, so a collection in one game pauses all of them.
+    // Cumulative counters rather than per-pause samples: the caller differences
+    // them, and pause time over wall time is the number that identified #684.
+    @CEntryPoint(name = "forge_gc_stats")
+    static CCharPointer gcStats(IsolateThread thread) {
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            JsonObject stats = new JsonObject();
+            JsonObject byCollector = new JsonObject();
+            stats.addProperty("heapUsedBytes", runtime.totalMemory() - runtime.freeMemory());
+            stats.addProperty("heapTotalBytes", runtime.totalMemory());
+            stats.addProperty("heapMaxBytes", runtime.maxMemory());
+            long collections = 0;
+            long pauseMillis = 0;
+            // Per collector, because the two are nothing alike. An incremental
+            // young collection is a few milliseconds. A complete one traces the
+            // whole live set, and the live set here is a ~450MB card database
+            // that is permanently reachable, so it costs ~1.3ms per MB whether
+            // it reclaims anything or not (#684, #703). Aggregating them hides
+            // the only number that matters.
+            try {
+                for (java.lang.management.GarbageCollectorMXBean bean :
+                        java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()) {
+                    long count = bean.getCollectionCount();
+                    long millis = bean.getCollectionTime();
+                    if (count > 0) {
+                        collections += count;
+                    }
+                    if (millis > 0) {
+                        pauseMillis += millis;
+                    }
+                    JsonObject per = new JsonObject();
+                    per.addProperty("collections", Math.max(count, 0));
+                    per.addProperty("pauseMillis", Math.max(millis, 0));
+                    byCollector.add(bean.getName(), per);
+                }
+            } catch (Throwable ignored) {
+                collections = -1;
+                pauseMillis = -1;
+            }
+            stats.add("byCollector", byCollector);
+            stats.addProperty("collections", collections);
+            stats.addProperty("pauseMillis", pauseMillis);
+            return ok(stats.toString());
+        } catch (Throwable t) {
+            return err(t);
+        }
+    }
+
     private static String str(CCharPointer ptr) {
         return ptr.isNull() ? null : CTypeConversion.toJavaString(ptr);
     }

@@ -15,6 +15,10 @@ pub struct ConnectedPlayer {
     pub username: String,
     pub room_id: Option<String>,
     pub sender: mpsc::UnboundedSender<Message>,
+    /// Most recent heartbeat round trip for this connection. The aggregate
+    /// histogram cannot answer whether one slow decision sat behind one bad
+    /// link, because it drops the association at the moment it records.
+    pub last_client_rtt_ms: Option<u32>,
     pub connected: bool,
     pub generation: u64,
     pub last_seen: Instant,

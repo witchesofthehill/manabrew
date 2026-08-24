@@ -17,6 +17,7 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Legacy",
   "Vintage",
   "Pauper",
+  "Premodern",
   "Commander",
   "Brawl",
   "Oathbreaker",

@@ -10,6 +10,9 @@ from collections import defaultdict
 from datetime import datetime
 from multiprocessing import Pool
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from state_delta import SeatStates
+
 ERAS = [("A pre-leak-fix      -> 08-01", "0000-00-00", "2026-08-01"),
         ("B leak fix #583     08-02..19", "2026-08-02", "2026-08-19"),
         ("C GraalVM #697      08-20..21", "2026-08-20", "2026-08-21"),
@@ -48,15 +51,32 @@ def one(path):
     era = era_of(os.path.basename(os.path.dirname(path)))
     rows = []
     pending, answered, turn = {}, [], 0
+    seats = SeatStates()
+    patched = b'"kind":"stateDelta"' in raw
     for line in lines[1:]:
-        if b'"kind":"state"' in line:
-            m, sm = TS.search(line), SEAT.search(line)
-            if not m or not sm:
-                continue
-            tm = TURN.search(line)
-            if tm:
-                turn = int(tm.group(1))
-            when, seat = ts(m.group(1)), sm.group(1).decode()
+        is_state = b'"kind":"state"' in line or (patched and b'"kind":"stateDelta"' in line)
+        if is_state:
+            if not patched:
+                m, sm = TS.search(line), SEAT.search(line)
+                if not m or not sm:
+                    continue
+                tm = TURN.search(line)
+                if tm:
+                    turn = int(tm.group(1))
+                when, seat = ts(m.group(1)), sm.group(1).decode()
+            else:
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                env = e.get("envelope") or {}
+                if "ts" not in e or not seats.observe(env):
+                    continue
+                when = ts(e["ts"].encode())
+                seat = env.get("forPlayer") or ""
+                gv = (seats.states.get(seat) or {}).get("gameView") or {}
+                if isinstance(gv.get("turn"), int):
+                    turn = gv["turn"]
             for row in answered:
                 if row[0] == seat and row[1] is not None:
                     d = (when - row[1]) * 1000
@@ -77,6 +97,17 @@ def one(path):
         when = ts(e["ts"].encode())
         if env.get("kind") == "prompt":
             seat = env.get("forPlayer")
+            # The node often answers a decision with the next question and no
+            # board. That prompt is its reply, so it closes the decision (trap
+            # 6). Waiting for a board instead holds the row open across the
+            # player's next think and charges it to the node.
+            for row in answered:
+                if row[0] == seat and row[1] is not None:
+                    d = (when - row[1]) * 1000
+                    if 0 <= d < 120000:
+                        rows.append((era, row[2], row[3], row[4], d, row[5]))
+                    row[1] = None
+                    break
             for row in answered:
                 if row[1] is not None and row[0] != seat:
                     row[5] = True

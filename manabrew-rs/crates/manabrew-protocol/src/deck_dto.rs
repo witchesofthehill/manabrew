@@ -390,6 +390,7 @@ pub enum DeckFormat {
     Legacy,
     Vintage,
     Pauper,
+    Premodern,
     Commander,
     Brawl,
     Oathbreaker,

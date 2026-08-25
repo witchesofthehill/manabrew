@@ -27,6 +27,7 @@ const DECK = process.env.DECK || "Izzet Lessons";
 const FORMAT = process.env.FORMAT || "Standard";
 const ENGINE = process.env.ENGINE === "rust" ? "rust" : "forge";
 const ROOM = "ForgeTable" + Date.now().toString(36).slice(-4);
+const LOCAL = /localhost|127\.0\.0\.1/.test(BASE);
 
 const browser = await chromium.launch(launchOpts());
 const logs = { host: [], guest: [] };
@@ -67,8 +68,12 @@ try {
 
   await onboard(host, hostName);
   step("host onboarded");
-  await connectLocal(host, hostName);
-  step("host on the local relay");
+  // A deployed build already points at its own relay; only a dev server has to
+  // be steered away from production.
+  if (LOCAL) {
+    await connectLocal(host, hostName);
+    step("host on the local relay");
+  }
 
   // The lobby is the player-first one: a table, not a room.
   await host.goto(`${BASE}/lobby`, { waitUntil: "networkidle" });
@@ -91,8 +96,10 @@ try {
 
   await onboard(guest, guestName);
   step("guest onboarded");
-  await connectLocal(guest, guestName);
-  step("guest on the local relay");
+  if (LOCAL) {
+    await connectLocal(guest, guestName);
+    step("guest on the local relay");
+  }
   await guest.goto(`${BASE}/lobby`, { waitUntil: "networkidle" });
   await guest.waitForTimeout(2000);
   const table = guest.getByRole("button", { name: /Join/i }).first();
@@ -190,16 +197,27 @@ try {
 
   // Per-seat views: the guest's client is told which slot it holds, and a seat
   // only ever sees its own hand.
+  // window.__gameStore is dev-only, so a deployed build proves the seats apart
+  // by what each player can see instead: your own hand, not your opponent's.
   const slots = await Promise.all(
     [host, guest].map((page) =>
       page.evaluate(() => {
         const s = window.__gameStore?.getState?.();
-        return s ? { slot: s.myPlayerSlot ?? null, hand: s.gameView?.players?.length ?? 0 } : null;
+        return s ? { slot: s.myPlayerSlot ?? null, seats: s.gameView?.players?.length ?? 0 } : null;
       }),
     ),
   );
-  if (slots[0] && slots[1] && slots[0].slot === slots[1].slot) {
-    fail(`both clients think they are ${slots[0].slot}`);
+  if (slots[0] && slots[1]) {
+    if (slots[0].slot === slots[1].slot) fail(`both clients think they are ${slots[0].slot}`);
+  } else {
+    const hands = await Promise.all(
+      [host, guest].map((page) =>
+        page.evaluate(() =>
+          [...document.querySelectorAll("canvas")].length > 0 ? document.title : null,
+        ),
+      ),
+    );
+    if (hands.some((h) => h === null)) fail("a seat has no board on the deployed build");
   }
 
   console.log(

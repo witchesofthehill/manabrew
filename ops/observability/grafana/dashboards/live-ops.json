@@ -29,6 +29,53 @@
   ],
   "panels": [
     {
+      "id": 109,
+      "type": "timeseries",
+      "title": "Slow decisions per 5m (count, not a quantile)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "How many decisions crossed 1s and 2s, counted. A quantile cannot show this: a game on 2026-08-25 put 12 decisions over 2s and 96 over 1s, and the fleet-wide p99 still read 0.24s because a dozen events sit far above p99 among thousands. Rare events show up in counts and vanish in percentiles. Any sustained non-zero here is worth opening the capture for; the matching game id is in the slow-decision log panel.",
+      "gridPos": {
+        "x": 0,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"2.0\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "over 2s"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"1.0\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "over 1s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 108,
       "type": "timeseries",
       "title": "Outbound socket write and backlog",

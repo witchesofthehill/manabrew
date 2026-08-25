@@ -61,6 +61,24 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
       </Modal.Header>
       <Modal.Body className="space-y-5">
         <SettingRow
+          label="Sort hand"
+          hint="Manual lets you drag cards sideways. Color and mana value keep new cards sorted automatically."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {HAND_ORDER_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setHandOrderMode(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
+        <SettingRow
           label="Priority windows"
           hint="Autopass skips windows where you can only tap for mana, after a short delay — click the sweeping Pass button to hold. Full control stops at every window."
         >
@@ -95,23 +113,6 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
             className="w-full accent-primary"
           />
-        </SettingRow>
-        <SettingRow
-          label="Hand ordering"
-          hint="Drag cards sideways for a custom order. Automatic modes re-sort when cards enter your hand."
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            {HAND_ORDER_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                variant={prefs.handOrderMode === option.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => prefs.setHandOrderMode(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
         </SettingRow>
 
         <SettingRow

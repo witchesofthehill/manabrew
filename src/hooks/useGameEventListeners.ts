@@ -7,6 +7,7 @@ import {
   SELF_HOSTED_NODE_RELAY_PROTOCOL,
 } from "@/game";
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
+import { reportEngineStats } from "@/lib/engineStatsReport";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
@@ -141,6 +142,29 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
  * a prompt or error only becomes actionable when it is addressed to this player.
  */
 export function useGameEventListeners() {
+  // A player who walks out of a game never calls endGame — the view just
+  // unmounts — so the engine's timings for that game would be lost. Reporting
+  // here as well is safe: a game is summarised once and the summary clears
+  // itself, so whichever path gets there first is the only one that reports.
+  useEffect(
+    () => () => {
+      const state = useGameStore.getState();
+      reportEngineStats({
+        multiplayer: state.isMultiplayer,
+        seats: Object.keys(state.gameDecks).length || 2,
+        format: state.gameConfig?.formatId ?? null,
+        endReason: state.gameView?.gameOver ? "gameOver" : "left",
+        gameId: useServerStore.getState().gameId ?? null,
+        send: state.isMultiplayer
+          ? async (stats, gameId) => {
+              await getPlatform().server?.reportEngineStats(stats, gameId);
+            }
+          : undefined,
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
     const platform = getPlatform();
     const runtime = getSelectedGameRuntime();

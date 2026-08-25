@@ -35,8 +35,19 @@ set -e
 	case "$(printf '%s' "${EMAIL_SIGN_IN:-}" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on) flags="${flags} emailSignIn: true," ;;
 	esac
+	# Only advertise the browser engine if this image actually carries it. The
+	# flag reveals a Settings toggle, and a toggle with no engine behind it is
+	# a dead switch a player can flip: the image build has to have run the Web
+	# Image step (see docker-images.yml / staging-deploy.yml).
 	case "$(printf '%s' "${FORGE_WASM:-}" | tr '[:upper:]' '[:lower:]')" in
-	1 | true | yes | on) flags="${flags} forgeWasm: true," ;;
+	1 | true | yes | on)
+		if [ -f /srv/manabrew/forge/forgeharness.js.wasm ]; then
+			flags="${flags} forgeWasm: true,"
+		else
+			echo "[entrypoint] FORGE_WASM is set but this image has no engine at" \
+				"/srv/manabrew/forge/forgeharness.js.wasm; leaving the toggle hidden." >&2
+		fi
+		;;
 	esac
 	if [ -n "${flags}" ]; then
 		echo "  featureFlags: {${flags} },"

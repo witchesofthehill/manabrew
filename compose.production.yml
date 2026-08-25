@@ -56,11 +56,10 @@ services:
       DECK_HUB: "${DECK_HUB:-1}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
       # Forge compiled to wasm. Dark in production: no default, so the
-      # Settings toggle does not appear unless a deploy sets FORGE_WASM.
-      # Turning this on alone is not enough — only the staging image build
-      # produces the engine into public/forge/ (see staging-deploy.yml), so
-      # production would show the toggle with nothing behind it until
-      # docker-images.yml grows the same step.
+      # Settings toggle does not appear unless a deploy sets FORGE_WASM=1.
+      # The engine itself now ships in every web image (docker-images.yml
+      # builds it, same steps as the staging leg), so turning this on is all
+      # it takes — and the engine still stays off until a player opts in.
       FORGE_WASM: "${FORGE_WASM:-}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.

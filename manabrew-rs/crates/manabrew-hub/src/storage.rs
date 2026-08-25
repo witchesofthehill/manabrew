@@ -78,10 +78,11 @@ pub struct AssetReservation<'a> {
     pub now: &'a str,
 }
 
-pub struct ExpiredAsset {
+pub struct PendingAsset {
     pub id: String,
     pub account_id: String,
     pub kind: AssetKind,
+    pub expires_at: String,
 }
 
 pub enum ReserveAssetOutcome {
@@ -2310,19 +2311,20 @@ impl Storage {
         Ok(deleted > 0)
     }
 
-    pub fn expired_pending_assets(&self, now: &str, limit: u32) -> SqlResult<Vec<ExpiredAsset>> {
+    pub fn pending_assets(&self, limit: u32) -> SqlResult<Vec<PendingAsset>> {
         self.conn
             .prepare(
-                "SELECT id, account_id, kind FROM account_assets
-                 WHERE state = 'pending' AND expires_at <= ?1
-                 ORDER BY expires_at ASC LIMIT ?2",
+                "SELECT id, account_id, kind, expires_at FROM account_assets
+                 WHERE state = 'pending'
+                 ORDER BY expires_at ASC LIMIT ?1",
             )?
-            .query_map(params![now, limit], |row| {
+            .query_map(params![limit], |row| {
                 let kind: String = row.get(2)?;
-                Ok(ExpiredAsset {
+                Ok(PendingAsset {
                     id: row.get(0)?,
                     account_id: row.get(1)?,
                     kind: AssetKind::parse(&kind).ok_or_else(|| column_domain_error(2, &kind))?,
+                    expires_at: row.get(3)?,
                 })
             })?
             .collect()
@@ -3634,7 +3636,7 @@ mod tests {
         let (_, asset_id) = reserve_kind(&storage, "acct-1", AssetKind::Playmat, 500);
         assert_eq!(
             storage
-                .expired_pending_assets(LATER, 10)
+                .pending_assets(10)
                 .unwrap()
                 .into_iter()
                 .map(|it| it.id)
@@ -3642,10 +3644,7 @@ mod tests {
             vec![asset_id.clone()]
         );
         storage.confirm_pending_asset(&asset_id, 400).unwrap();
-        assert!(storage
-            .expired_pending_assets(LATER, 10)
-            .unwrap()
-            .is_empty());
+        assert!(storage.pending_assets(10).unwrap().is_empty());
         assert_eq!(
             storage
                 .account_assets("acct-1", QUOTA)
@@ -3863,7 +3862,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 16);
+        assert_eq!(version, 17);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

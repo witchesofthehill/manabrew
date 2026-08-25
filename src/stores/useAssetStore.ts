@@ -96,6 +96,7 @@ export const useAssetStore = create<AssetState>()(
         if (!uploaded) return;
         await setAccountAvatar(uploaded.assetId);
         usePreferencesStore.getState().setCustomAvatar(uploaded.url, uploaded.assetId);
+        await get().refresh();
       },
 
       clearAvatar: async () => {
@@ -148,7 +149,12 @@ function reportUploadFailure(error: unknown): void {
   }
 }
 
-function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   const megabytes = bytes / (1024 * 1024);
-  return megabytes >= 1024 ? `${(megabytes / 1024).toFixed(1)} GB` : `${Math.round(megabytes)} MB`;
+  return megabytes >= 1024
+    ? `${(megabytes / 1024).toFixed(1)} GB`
+    : megabytes >= 10
+      ? `${Math.round(megabytes)} MB`
+      : `${megabytes.toFixed(1)} MB`;
 }

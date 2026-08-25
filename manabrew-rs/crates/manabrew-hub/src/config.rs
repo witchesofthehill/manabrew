@@ -120,7 +120,7 @@ impl AssetConfig {
             secret_access_key: trimmed_var("HUB_S3_SECRET_ACCESS_KEY")?,
             public_base_url: trimmed_var("HUB_S3_PUBLIC_BASE_URL")?,
             path_style: flag_var("HUB_S3_PATH_STYLE"),
-            quota_bytes: parsed_var("HUB_ASSET_QUOTA_BYTES").unwrap_or(1024 * 1024 * 1024),
+            quota_bytes: 100 * 1024 * 1024,
             reservation_ttl_seconds: parsed_var("HUB_ASSET_RESERVATION_TTL_SECONDS")
                 .unwrap_or(24 * 60 * 60),
             uploads_per_hour: parsed_var("HUB_ASSET_UPLOADS_PER_HOUR").unwrap_or(60),

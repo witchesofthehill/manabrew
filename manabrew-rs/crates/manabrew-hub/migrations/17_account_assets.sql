@@ -1,9 +1,9 @@
 CREATE TABLE account_assets (
     id         TEXT PRIMARY KEY,
     account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    kind       TEXT NOT NULL CHECK (kind IN ('avatar', 'playmat')),
+    kind       TEXT NOT NULL,
     byte_size  INTEGER NOT NULL CHECK (byte_size > 0),
-    state      TEXT NOT NULL CHECK (state IN ('pending', 'active')),
+    state      TEXT NOT NULL,
     expires_at TEXT,
     created_at TEXT NOT NULL,
     CHECK ((state = 'pending') = (expires_at IS NOT NULL))

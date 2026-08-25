@@ -17,7 +17,7 @@ import {
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
-import { useAssetStore } from "@/stores/useAssetStore";
+import { useAssetStore, useAssetsAvailable } from "@/stores/useAssetStore";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -25,6 +25,7 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { AccountSection } from "@/components/settings/AccountSection";
+import { MyAssetsSection } from "@/components/settings/MyAssetsSection";
 import { PreferenceCard } from "@/components/settings/PreferenceCard";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
@@ -349,13 +350,14 @@ const FLASH_MAX = 2000;
 const FLASH_STEP = 100;
 export default function Settings() {
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const assetsTabAvailable = useAssetsAvailable();
   const prefs = usePreferencesStore();
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<
-    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account"
+    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache" | "account" | "assets"
   >(() =>
     location.state?.settingsTab === "account" && isFeatureEnabled("accounts")
       ? "account"
@@ -496,6 +498,20 @@ export default function Settings() {
               Account
             </button>
           )}
+          {assetsTabAvailable && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("assets")}
+              className={
+                "pb-2 text-sm font-medium transition-colors border-b-2 shrink-0 whitespace-nowrap " +
+                (activeTab === "assets"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              My assets
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab("preferences")}
@@ -572,6 +588,8 @@ export default function Settings() {
       </section>
 
       {activeTab === "account" && isFeatureEnabled("accounts") && <AccountSection />}
+
+      {activeTab === "assets" && <MyAssetsSection />}
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
 

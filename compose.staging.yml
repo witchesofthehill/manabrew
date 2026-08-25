@@ -99,7 +99,6 @@ services:
       HUB_S3_SECRET_ACCESS_KEY: "${HUB_S3_SECRET_ACCESS_KEY:-}"
       HUB_S3_PUBLIC_BASE_URL: "${HUB_S3_PUBLIC_BASE_URL:-}"
       HUB_S3_PATH_STYLE: "${HUB_S3_PATH_STYLE:-0}"
-      HUB_ASSET_QUOTA_BYTES: "${HUB_ASSET_QUOTA_BYTES:-1073741824}"
       RUST_LOG: "manabrew_hub=info"
       HUB_PUBLIC_URL: "https://staging.manabrew.app"
       WEB_APP_URL: "https://staging.manabrew.app"

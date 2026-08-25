@@ -165,32 +165,33 @@ async fn sweep_expired_assets(state: &AppState) {
         return;
     };
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let expired = state
+    let pending = state
         .storage
         .lock()
         .unwrap()
-        .expired_pending_assets(&now, ASSET_SWEEP_BATCH);
-    let expired = match expired {
-        Ok(expired) => expired,
+        .pending_assets(ASSET_SWEEP_BATCH);
+    let pending = match pending {
+        Ok(pending) => pending,
         Err(error) => {
-            tracing::warn!(%error, "could not list expired asset reservations");
+            tracing::warn!(%error, "could not list pending asset reservations");
             return;
         }
     };
-    for expired in expired {
-        let asset_id = expired.id;
-        let object_key = assets::object_key(&expired.account_id, expired.kind, &asset_id);
+    for pending in pending {
+        let asset_id = pending.id;
+        let object_key = assets::object_key(&pending.account_id, pending.kind, &asset_id);
         let reconciled = match assets.store.size(&object_key).await {
             Ok(Some(byte_size)) => state
                 .storage
                 .lock()
                 .unwrap()
                 .confirm_pending_asset(&asset_id, byte_size),
-            Ok(None) => state
+            Ok(None) if pending.expires_at <= now => state
                 .storage
                 .lock()
                 .unwrap()
                 .discard_pending_asset(&asset_id),
+            Ok(None) => continue,
             Err(error) => {
                 tracing::warn!(%error, asset_id, "could not read the uploaded asset");
                 continue;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ImageUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -92,7 +93,7 @@ export function MyAssetsSection() {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">My Assets</h2>
+      <h2 className="text-lg font-semibold">Manage uploaded assets here</h2>
       <div className="max-w-2xl space-y-4 rounded-lg border bg-card/40 p-5">
         <div className="space-y-2">
           <div className="flex items-baseline justify-between gap-3">
@@ -121,11 +122,6 @@ export function MyAssetsSection() {
               />
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            Images you upload — avatars and playmats — count against your account storage. Deleting
-            an image that&apos;s in use clears it where it&apos;s used; pending uploads that never
-            finished are cleaned up automatically.
-          </p>
         </div>
 
         {loadError ? (
@@ -212,13 +208,8 @@ function AssetTile({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex gap-3 rounded-lg border bg-card/60 p-3">
-      <div
-        className={cn(
-          "h-16 w-16 shrink-0 overflow-hidden border bg-muted",
-          asset.kind === "avatar" ? "rounded-full" : "rounded-md",
-        )}
-      >
+    <div className="flex overflow-hidden rounded-lg border bg-card/60 transition-colors hover:border-primary/40">
+      <div className="h-[72px] w-[72px] shrink-0 bg-muted">
         <img
           src={asset.url}
           alt={`${KIND_LABELS[asset.kind]} image`}
@@ -226,26 +217,34 @@ function AssetTile({
           className="size-full object-cover"
         />
       </div>
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{KIND_LABELS[asset.kind]}</span>
-          {asset.state === "pending" && <Badge variant="secondary">Pending</Badge>}
+      <div className="flex min-w-0 flex-1 items-center gap-1 px-3">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{KIND_LABELS[asset.kind]}</span>
+            {asset.state === "pending" && <Badge variant="secondary">Pending</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">{formatBytes(asset.byteSize)}</p>
         </div>
-        <p className="text-xs text-muted-foreground">{formatBytes(asset.byteSize)}</p>
-        <div className="flex gap-1.5 pt-0.5">
-          <Button variant="outline" size="sm" disabled={busy} onClick={onReplace}>
-            Replace
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            disabled={busy}
-            onClick={onDelete}
-          >
-            Delete
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          title="Replace image"
+          disabled={busy}
+          onClick={onReplace}
+        >
+          <ImageUp className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+          title="Delete image"
+          disabled={busy}
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </div>
   );

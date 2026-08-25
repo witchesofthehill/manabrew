@@ -1283,6 +1283,7 @@ fn handle_client_message(
             state: game_state,
             target_player,
         } => {
+            let handling_started = Instant::now();
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
                 let Some(mut room) = state.rooms.get_mut(&rid) else {
@@ -1317,6 +1318,7 @@ fn handle_client_message(
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
+                let seats = room.players.len();
                 // `observe` has already folded this patch into the cached
                 // board, so an older seat can be handed the state the patch
                 // would have produced rather than an envelope it drops.
@@ -1347,6 +1349,7 @@ fn handle_client_message(
                     );
                 }
                 if !should_deliver {
+                    metrics::record_state_handling(seats, handling_started.elapsed());
                     return;
                 }
                 let ready = || {
@@ -1382,6 +1385,7 @@ fn handle_client_message(
                         broadcast_to_room_except(state, player_id, &rid, &msg);
                     }
                 }
+                metrics::record_state_handling(seats, handling_started.elapsed());
             } else {
                 warn!(
                     "[game] '{}' tried to broadcast state but not in a room",

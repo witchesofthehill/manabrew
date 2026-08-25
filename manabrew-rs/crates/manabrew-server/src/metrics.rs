@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use metrics::{counter, gauge, histogram};
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 
 use crate::analytics::GameEndReason;
 use crate::protocol::{EngineKind, RoomStatus};
@@ -19,12 +19,14 @@ const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
+const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
 const LABEL_HOSTED: &str = "hosted";
 const LABEL_ENGINE: &str = "engine";
 const LABEL_REASON: &str = "reason";
+const LABEL_SEATS: &str = "seats";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
 
@@ -45,14 +47,43 @@ impl ConnectionKind {
     }
 }
 
-pub fn install() -> PrometheusHandle {
+// Only the state-handling metric gets buckets. Everything else stays a summary,
+// whose quantiles are per process and cannot be aggregated.
+const STATE_HANDLING_BUCKETS: &[f64] = &[
+    0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0,
+];
+
+fn builder() -> PrometheusBuilder {
     PrometheusBuilder::new()
+        .set_buckets_for_metric(
+            Matcher::Full(STATE_HANDLING.to_string()),
+            STATE_HANDLING_BUCKETS,
+        )
+        .expect("state handling buckets are a non-empty literal")
+}
+
+pub fn install() -> PrometheusHandle {
+    builder()
         .install_recorder()
         .expect("failed to install metrics recorder")
 }
 
 pub fn detached_handle() -> PrometheusHandle {
-    PrometheusBuilder::new().build_recorder().handle()
+    builder().build_recorder().handle()
+}
+
+/// How long the relay itself spends on one state envelope: folding the patch
+/// into the cached board, deciding whether a full board is needed, and handing
+/// it to the audience. Labelled by seat count because the node emits one
+/// envelope per seat plus an observer, so the work per decision scales with the
+/// room even when the engine's own time does not.
+///
+/// This interval had no metric at all. Replaying captures put a four-seat room
+/// at a p99 of 2.3s outside the rules engine against 0.27s for two seats, and
+/// the only way to see that was to subtract `engineMs` from capture timestamps
+/// in a script, after the fact, on a box.
+pub fn record_state_handling(seats: usize, elapsed: std::time::Duration) {
+    histogram!(STATE_HANDLING, LABEL_SEATS => seats.to_string()).record(elapsed.as_secs_f64());
 }
 
 pub fn record_game_started(engine: EngineKind) {

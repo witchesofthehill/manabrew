@@ -103,13 +103,6 @@ jobs:
       # nothing else produces it, so the web image would ship the Settings
       # toggle with no engine behind it. Web leg only — the other images do not
       # care, and this costs a GraalVM download plus a native-image run.
-      - name: Set up JDK for the Forge harness
-        if: matrix.image == 'manabrew-web'
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
       - name: Cache the Web Image toolchain
         if: matrix.image == 'manabrew-web'
         id: webimage-toolchain
@@ -136,10 +129,16 @@ jobs:
         if: matrix.image == 'manabrew-web'
         run: |
           set -euo pipefail
+          # One JDK for the whole leg: the harness jar is compiled by the same
+          # GraalVM that native-image runs from, so there is no second JDK whose
+          # version has to be reconciled with the one Web Image supports.
           # build-wasm.sh reads WEBIMAGE_GRAALVM_HOME instead of the Community
           # GraalVM that build-native.sh pins.
           export PATH="$HOME/.local/webimage/binaryen-version_${BINARYEN_VERSION}/bin:$PATH"
           export WEBIMAGE_GRAALVM_HOME="$(echo "$HOME"/.local/webimage/graalvm-*)"
+          export JAVA_HOME="$WEBIMAGE_GRAALVM_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
           wasm-as --version
           corepack enable
           yarn install --frozen-lockfile

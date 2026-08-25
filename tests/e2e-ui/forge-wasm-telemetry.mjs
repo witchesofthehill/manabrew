@@ -28,6 +28,10 @@ async function fail(msg) {
 // The hub is not running in a dev checkout, so answer for it and keep what the
 // client tried to send.
 const posted = [];
+const seenRequests = [];
+page.on("request", (request) => {
+  if (/\/api\//.test(request.url())) seenRequests.push(`${request.method()} ${request.url()}`);
+});
 await page.route("**/api/stats/engine", async (route) => {
   posted.push(JSON.parse(route.request().postData() ?? "{}"));
   await route.fulfill({ status: 204, body: "" });
@@ -101,20 +105,29 @@ if (hasStore) {
   // A production build has no store seam, so play it the way a person does.
   // The same control set the offline test drives with: the board's answer is
   // rarely the same word twice.
-  const CLICKS = [
-    /^Keep$/i,
-    /^Continue$/i,
-    /^OK$/i,
-    /^Done$/i,
-    /^No Blocks$/i,
-    // Prefix, not exact: the board's buttons carry their keybinding chip, so
-    // the accessible name is "PASS Space" rather than "PASS".
-    /^Pass/i,
-    /^End Turn/i,
-  ];
+  const CLICKS = [/^Keep$/i, /^Continue$/i, /^OK$/i, /^Done$/i, /^No Blocks$/i];
   let clicks = 0;
   for (let round = 0; round < 60 && clicks < 20; round += 1) {
     let acted = false;
+    // Priority first, and by hand: the board's buttons carry their keybinding
+    // chip, so the accessible name is "PASS Space" — and while autopass is
+    // counting the same button reads "PASSING", where a click *holds*
+    // priority instead of passing it. Clicking that is how a driver answers
+    // nothing at all for a whole game.
+    const passed = await page.evaluate(() => {
+      const button = [...document.querySelectorAll("button")].find((candidate) => {
+        const text = (candidate.textContent || "").trim().toUpperCase();
+        return text.startsWith("PASS") && !text.startsWith("PASSING") && !candidate.disabled;
+      });
+      if (!button) return false;
+      button.click();
+      return true;
+    });
+    if (passed) {
+      clicks += 1;
+      await page.waitForTimeout(600);
+      continue;
+    }
     for (const name of CLICKS) {
       const button = page.getByRole("button", { name }).first();
       if (!(await button.count().catch(() => 0))) continue;
@@ -168,6 +181,7 @@ if (!posted.length && !queued.length) {
     };
   });
   console.log("diagnostics:", JSON.stringify(diag));
+  console.log("api calls:", JSON.stringify(seenRequests.slice(-6)));
   await fail("the game ended and reported nothing");
 }
 const report = posted[0] ?? queued[0]?.stats;

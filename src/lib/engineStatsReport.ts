@@ -14,6 +14,7 @@ import { recordEngineStats } from "@/api/hub";
 import { HubRequestError } from "@/api/hub";
 import { getPlatform } from "@/platform";
 import { getSelectedGameRuntimeKind } from "@/game/runtimeRegistry";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { APP_VERSION, STORAGE_KEYS } from "@/lib/constants";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import { summariseGame } from "@/lib/engineTelemetry";
@@ -36,6 +37,11 @@ interface PendingReport {
 export function currentEngineLabel(): string {
   const kind = getSelectedGameRuntimeKind();
   const platform = getPlatform().type;
+  // The browser Forge build runs under the "manabrew" runtime — it is the
+  // local engine, whatever the room calls it — so the label has to come from
+  // the engine selection rather than the runtime kind, or every wasm game
+  // would be filed as the Rust one.
+  if (kind === "manabrew" && isForgeWasmSelected()) return "forge-wasm";
   if (kind === "forge") return platform === "tauri" ? "forge-desktop" : "forge-hosted";
   return kind;
 }

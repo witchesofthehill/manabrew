@@ -6,6 +6,7 @@
  */
 
 import type { EngineGameStats } from "@/lib/engineTelemetry";
+import { noteEngineThinkTime } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -474,7 +475,12 @@ class WorkerBridge {
           };
           dec.__engineDecisions = dec.__engineDecisions ?? [];
           this.eventBus.on<{ ms: number; type: string }>("forge:decision", (p) => {
-            if (p) dec.__engineDecisions?.push(p);
+            if (!p) return;
+            dec.__engineDecisions?.push(p);
+            // The engine's own measure of itself, which no other engine
+            // reports: the interval from the answer landing to the next
+            // prompt being ready, with no client polling in it.
+            noteEngineThinkTime(p.ms);
           });
           // Forge prints Java stack traces a line at a time, which is hundreds
           // of console entries for one message. Every line is kept for the

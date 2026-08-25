@@ -5,6 +5,7 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import type { EngineGameStats } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -1206,6 +1207,10 @@ class WebServerApi implements IServerApi {
     this.stopAllBots();
     clearSpawnedBots();
     this.send({ type: "EndGame", game_id: gameId });
+  }
+
+  async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    this.send({ type: "ReportEngineStats", game_id: gameId ?? null, stats });
   }
 
   async requestResync(): Promise<void> {

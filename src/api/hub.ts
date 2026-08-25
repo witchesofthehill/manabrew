@@ -1,3 +1,4 @@
+import type { EngineGameStats } from "@/lib/engineTelemetry";
 import { getHubApiUrl } from "@/config/webRuntimeConfig";
 import { platformFetch } from "@/lib/platformFetch";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
@@ -263,6 +264,18 @@ export function fetchTopDeckBuckets(): Promise<TopDeckBucket[]> {
 export function fetchTopDeckSnapshot(bucket: string, date?: string): Promise<TopDeckSnapshot> {
   const query = date ? `?date=${encodeURIComponent(date)}` : "";
   return hubJson<TopDeckSnapshot>(`/api/deckhub/top/${encodeURIComponent(bucket)}${query}`);
+}
+
+/**
+ * One game's engine timings. The shape is the client's own summary, which is
+ * the same struct the hub parses (manabrew_protocol::telemetry).
+ */
+export async function recordEngineStats(stats: EngineGameStats): Promise<void> {
+  await hubRequest("/api/stats/engine", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(stats),
+  });
 }
 
 export async function recordDeckPlay(request: DeckPlayReportRequest): Promise<void> {

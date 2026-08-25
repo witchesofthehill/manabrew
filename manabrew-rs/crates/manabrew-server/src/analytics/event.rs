@@ -82,6 +82,37 @@ pub enum AnalyticsEvent {
         conceded: Vec<String>,
         fatal_message: Option<String>,
     },
+    /// How the engine performed in one game, as reported by the client that
+    /// ran it. The hosted node publishes its own timings to Prometheus; this
+    /// is the same question asked of the engines that run on players'
+    /// machines, including the browser Forge build. Aggregates only.
+    EngineStats {
+        ts: String,
+        room_id: String,
+        username: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        game_id: Option<String>,
+        engine: String,
+        client_version: String,
+        platform: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        format: Option<String>,
+        seats: u32,
+        multiplayer: bool,
+        duration_s: u32,
+        end_reason: String,
+        decisions: u32,
+        turnaround_p50: u32,
+        turnaround_p90: u32,
+        turnaround_max: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_p50: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_p90: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        engine_max: Option<u32>,
+    },
+
     DeckSelected {
         ts: String,
         room_id: String,

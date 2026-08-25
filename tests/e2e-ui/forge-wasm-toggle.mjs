@@ -30,7 +30,8 @@ if (!workers.some((u) => u.includes("game-engine.worker"))) {
   console.log("note: the Rust worker was not built at startup; the race may not reproduce");
 }
 
-// Now turn it on the way a player does.
+// Now turn it on the way a player does. This is the last full load; from here
+// the run stays in the SPA so the startup worker is still the live one.
 await page.goto(`${BASE}/settings`, { waitUntil: "networkidle" });
 const card = page.locator("text=Forge engine in the browser").first();
 await card.waitFor({ timeout: 15000 }).catch(() => null);
@@ -43,7 +44,21 @@ await page
   .click();
 await page.waitForTimeout(500);
 
-await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
+// Reach Play by clicking, not by navigating: a reload would build a fresh
+// worker from the new preference and hide the very bug this covers, which is
+// the startup worker outliving the choice.
+await page.getByRole("button", { name: "Play Offline" }).first().click();
+await page.waitForTimeout(1500);
+if (!/\/play\/offline/.test(page.url())) {
+  await page
+    .getByRole("link", { name: /Play Offline/i })
+    .first()
+    .click()
+    .catch(() => {});
+  await page.waitForTimeout(1500);
+}
+if (!/\/play\/offline/.test(page.url()))
+  await fail(`did not reach Play Offline (url ${page.url()})`);
 await page.getByRole("button", { name: "Standard", exact: true }).click();
 await page.waitForTimeout(600);
 for (const deck of [DECK, AI_DECK]) {

@@ -29,6 +29,70 @@
   ],
   "panels": [
     {
+      "id": 108,
+      "type": "timeseries",
+      "title": "Outbound socket write and backlog",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "The last unmeasured segment between the engine and the player. The outbound channel is unbounded and the writer awaits the sink, so a client that stops draining applies backpressure and every later message queues behind it. Backlog is how many messages were already waiting when this one was written. A rising backlog with flat handling time means the cost is a slow consumer, not the relay's own work. Backlog is a count, not seconds; read it against the right axis.",
+      "gridPos": {
+        "x": 12,
+        "y": 74,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(manabrew_relay_socket_write_seconds_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "write p99 (s)"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(manabrew_relay_outbound_backlog_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "backlog p99 (messages)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "backlog p99 (messages)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": 107,
       "type": "timeseries",
       "title": "Relay state handling p99 by seats",

@@ -108,7 +108,11 @@ fn authorize_game_message(
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
     while let Some(msg) = rx.recv().await {
-        if sink.send(msg).await.is_err() {
+        let backlog = rx.len();
+        let started = Instant::now();
+        let sent = sink.send(msg).await;
+        metrics::record_socket_write(backlog, started.elapsed());
+        if sent.is_err() {
             break;
         }
     }

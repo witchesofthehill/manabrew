@@ -31,6 +31,22 @@ const LOCAL = /localhost|127\.0\.0\.1/.test(BASE);
 
 const browser = await chromium.launch(launchOpts());
 const logs = { host: [], guest: [] };
+
+/** The seat's deck button, whatever this build calls it. */
+async function pickDeck(page, who) {
+  const opener = page
+    .getByRole("button", { name: /^(Choose a deck|Change deck|Select Deck)$/i })
+    .first();
+  if (!(await opener.count())) {
+    const seen = await page.evaluate(() =>
+      [...document.querySelectorAll("button")]
+        .map((b) => (b.textContent || "").trim())
+        .filter(Boolean),
+    );
+    throw new Error(`${who} has no deck button; buttons: ${JSON.stringify(seen)}`);
+  }
+  await pickPreset(page, () => opener.click(), DECK);
+}
 const seatOn = async (forge, who) => {
   const page = await (
     await browser.newContext({ viewport: { width: 1300, height: 850 } })
@@ -91,7 +107,7 @@ try {
   await host.waitForTimeout(3000);
   step("table created");
 
-  await pickPreset(host, () => host.getByRole("button", { name: /Choose a deck/i }).click(), DECK);
+  await pickDeck(host, "host");
   step("host deck picked");
 
   await onboard(guest, guestName);
@@ -102,16 +118,36 @@ try {
   }
   await guest.goto(`${BASE}/lobby`, { waitUntil: "networkidle" });
   await guest.waitForTimeout(2000);
-  const table = guest.getByRole("button", { name: /Join/i }).first();
-  await table.waitFor({ timeout: 20000 });
-  await table.click();
+  // A shared relay carries other people's tables — the hosted node keeps four
+  // of its own on staging — and every row's button just says "Join table", so
+  // click the one whose row names this host. Done in the page, because the
+  // accessible name of those buttons covers the whole card and indexes drift.
+  const joined = await guest.evaluate((name) => {
+    // The smallest element that mentions both this host and a join control is
+    // the table's own row: walking up from the button hits a container that
+    // holds every row, and clicking there joins somebody else's table.
+    const rows = [...document.querySelectorAll("div, li, article, section")].filter((el) => {
+      const text = el.textContent || "";
+      return text.includes(name) && /join table/i.test(text);
+    });
+    rows.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length);
+    const row = rows[0];
+    const button = row
+      ? [...row.querySelectorAll("button")].find((b) => /join table/i.test(b.textContent || ""))
+      : null;
+    if (!button) return false;
+    button.click();
+    return true;
+  }, hostName);
+  if (!joined) {
+    const text = await guest.evaluate(() =>
+      document.body.innerText.replace(/\s+/g, " ").slice(0, 500),
+    );
+    throw new Error(`no table row for ${hostName}; lobby says: ${text}`);
+  }
   await guest.waitForTimeout(2500);
   step("guest joined");
-  await pickPreset(
-    guest,
-    () => guest.getByRole("button", { name: /Choose a deck/i }).click(),
-    DECK,
-  );
+  await pickDeck(guest, "guest");
   const ready = guest.getByRole("button", { name: /^Ready( up)?$/i }).first();
   await ready.waitFor({ timeout: 20000 });
   await ready.click();

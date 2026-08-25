@@ -82,8 +82,40 @@ if (!hasStore) {
   const frames = await page.evaluate(() => (window.__forgeFrames || []).slice(0, 6));
   if (!framed)
     await fail(`the engine sent no state frame; frames so far: ${JSON.stringify(frames)}`);
+
+  // The board itself says who is on what life, and that survives a build.
+  const summary = await page
+    .waitForFunction(
+      () => {
+        const text = document.body.innerText.replace(/\s+/g, " ");
+        const lives = [...text.matchAll(/([A-Za-z0-9 ,'-]+): (\d+) life/g)].map((m) => ({
+          who: m[1].trim(),
+          life: Number(m[2]),
+        }));
+        return lives.length >= 2 ? lives : null;
+      },
+      { timeout: 60000 },
+    )
+    .then((h) => h.jsonValue())
+    .catch(() => null);
+  if (!summary) await fail("the board never reported both players' life totals");
+  const notForty = summary.filter((s) => s.life !== 40);
+  if (notForty.length) await fail(`commander life should be 40, got ${JSON.stringify(summary)}`);
+
+  const missing = await page
+    .evaluate(() =>
+      (window.__forgeLog || [])
+        .filter((line) => /unsupported card was requested/i.test(String(line)))
+        .map((line) => String(line).trim()),
+    )
+    .catch(() => []);
+  if (missing.length)
+    await fail(`the engine could not find ${missing.length} card(s): ${missing.join(" | ")}`);
+
   console.log(
-    `PASS (frames only): engine is producing state — ${frames.length} frames, first ${JSON.stringify(frames[0])}`,
+    `PASS (deployed build): commander rules applied — ${summary
+      .map((s) => `${s.who} ${s.life}`)
+      .join(", ")}; no unsupported cards`,
   );
   await browser.close();
   process.exit(0);

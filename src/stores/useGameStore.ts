@@ -32,6 +32,7 @@ import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 
@@ -142,6 +143,9 @@ async function initializeGame({
   const platformType = getPlatform().type;
   if (
     engine === "Forge" &&
+    // The wasm build is Forge running in-process; it needs no node, and on a
+    // deployment that has one this would otherwise route around it.
+    !isForgeWasmSelected() &&
     opponentDecks?.length &&
     (platformType === "tauri" || (platformType === "web" && isHostedEngineAvailable()))
   ) {

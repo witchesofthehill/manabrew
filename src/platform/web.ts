@@ -45,8 +45,7 @@ import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta } from "@/lib/stateDelta";
-import { isFeatureEnabled } from "@/featureFlags";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 
 const DEBUG_TRANSPORT = false;
 
@@ -122,16 +121,6 @@ type RelayMessage = {
 /**
  * Bridge for communicating with the game engine worker.
  */
-/**
- * The wasm Forge engine is used only when the deployment ships the flag and the
- * player has opted in from Settings, matching how the Ironsmith runtime is
- * gated. Read at worker-construction time, so flipping it takes effect on the
- * next game rather than mid-session.
- */
-function forgeWasmSelected(): boolean {
-  return isFeatureEnabled("forgeWasm") && usePreferencesStore.getState().forgeWasmEnabled;
-}
-
 class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
@@ -232,7 +221,7 @@ class WorkerBridge {
     logComms("engine", msg);
     // Dev seam for tests/e2e-ui/forge-wasm-offline.mjs, matching the
     // window.__gameStore seam the other UI e2e uses.
-    if (forgeWasmSelected()) {
+    if (isForgeWasmSelected()) {
       const w = window as unknown as { __forgeFrames?: string[] };
       w.__forgeFrames = w.__forgeFrames ?? [];
       w.__forgeFrames.push(
@@ -442,13 +431,13 @@ class WorkerBridge {
         // Same SAB wire format, so nothing downstream of this line changes.
         // Classic worker: the generated launcher is an IIFE loaded with
         // importScripts, which module workers forbid.
-        this.worker = forgeWasmSelected()
+        this.worker = isForgeWasmSelected()
           ? new Worker("/forge/forge-engine.worker.js")
           : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
               type: "module",
             });
 
-        if (forgeWasmSelected()) {
+        if (isForgeWasmSelected()) {
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
           const dec = window as unknown as {

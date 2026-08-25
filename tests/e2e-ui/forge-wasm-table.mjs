@@ -29,7 +29,8 @@ const ENGINE = process.env.ENGINE === "rust" ? "rust" : "forge";
 const ROOM = "ForgeTable" + Date.now().toString(36).slice(-4);
 
 const browser = await chromium.launch(launchOpts());
-const seatOn = async (forge) => {
+const logs = { host: [], guest: [] };
+const seatOn = async (forge, who) => {
   const page = await (
     await browser.newContext({ viewport: { width: 1300, height: 850 } })
   ).newPage();
@@ -43,6 +44,10 @@ const seatOn = async (forge) => {
       // First load on a fresh origin; the store writes its own defaults.
     }
   }, forge);
+  page.on("console", (m) => {
+    const text = m.text();
+    if (/remote|seat|relay|prompt|forge|error/i.test(text)) logs[who].push(text.slice(0, 200));
+  });
   return page;
 };
 
@@ -55,8 +60,8 @@ const fail = (msg) => {
 
 try {
   // Only the host runs an engine, so only the host's choice matters.
-  const host = await seatOn(ENGINE === "forge");
-  const guest = await seatOn(false);
+  const host = await seatOn(ENGINE === "forge", "host");
+  const guest = await seatOn(false, "guest");
   const hostName = uniqueName("Host");
   const guestName = uniqueName("Guest");
 
@@ -137,7 +142,15 @@ try {
   await start.click();
   step("host started the table");
   await host.waitForTimeout(15000);
-  await guest.waitForTimeout(5000);
+
+  // Forge asks one seat at a time, so the host has to actually play for the
+  // table to move. Keep the opening hand if it asks.
+  const keep = host.getByRole("button", { name: /^Keep$/i }).first();
+  if (await keep.count()) {
+    await keep.click();
+    await host.waitForTimeout(3000);
+  }
+  await guest.waitForTimeout(6000);
 
   const ranForge = await host.evaluate(() => Array.isArray(window.__engineDecisions));
   if (ranForge !== (ENGINE === "forge")) {
@@ -170,6 +183,7 @@ try {
         .catch(() => []);
       for (const line of bridge) console.log("   host seat log:", String(line).slice(0, 160));
       for (const line of log) console.log(`   ${who} log:`, String(line).slice(0, 160));
+      for (const line of logs[who].slice(-14)) console.log(`   ${who} console:`, line);
       fail(`${who} never reached a board (${page.url()})`);
     }
   }

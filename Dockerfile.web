@@ -95,6 +95,9 @@ COPY forge/forge-gui/res/lists/ ./forge/forge-gui/res/lists/
 COPY forge/forge-gui/res/formats/ ./forge/forge-gui/res/formats/
 COPY forge/forge-gui/res/defaults/ ./forge/forge-gui/res/defaults/
 COPY forge/forge-gui/res/effects/ ./forge/forge-gui/res/effects/
+# The AI profiles. Without them Forge logs "can't find AI profile directory"
+# and every opponent plays on built-in defaults.
+COPY forge/forge-gui/res/ai/ ./forge/forge-gui/res/ai/
 COPY public/preset_decks/ ./public/preset_decks/
 # Production build defaults — the prod compose passes these as build args
 # so the static bundle bakes in the public relay endpoint. Dev builds (yarn

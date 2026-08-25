@@ -257,6 +257,34 @@ public final class WasmMain {
         SabTransport.post("game:over", "{\"gameId\":\"" + GAME_ID + "\"}");
     }
 
+    private static final String FORGE_HOME = "/forge-home";
+
+    /**
+     * The files Forge opens at startup, seeded so the reads succeed.
+     *
+     * <p>Three of them are XML documents with a {@code <preferences>} root
+     * ({@code CardPreferences}, {@code DeckPreferences},
+     * {@code ItemManagerConfig}) — an empty file is not "no preferences", it is
+     * a parse error, and Forge prints a fatal-looking SAX trace for each.
+     * {@code forge.preferences} is a plain key=value file, where empty is
+     * exactly right.
+     */
+    private static void prepareHome() throws Exception {
+        Path preferences = Path.of(FORGE_HOME, ".forge", "preferences");
+        Files.createDirectories(preferences);
+        String emptyXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<preferences/>\n";
+        writeIfAbsent(preferences.resolve("card.preferences"), emptyXml);
+        writeIfAbsent(preferences.resolve("deck.preferences"), emptyXml);
+        writeIfAbsent(preferences.resolve("item_view.preferences"), emptyXml);
+        writeIfAbsent(preferences.resolve("forge.preferences"), "");
+    }
+
+    private static void writeIfAbsent(final Path path, final String body) throws Exception {
+        if (!Files.exists(path)) {
+            Files.writeString(path, body);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         // Must be set before any forge class initializes: ThreadUtil reads it in
         // a static initializer. native-image's own -D only reaches the builder.
@@ -264,6 +292,13 @@ public final class WasmMain {
         // PresetDecks resolves its default dirs relative to the process CWD,
         // which is meaningless in the VFS.
         System.setProperty("preset.decks.dir", "/forge-gui/parity_decks");
+        // There is no home directory in a browser, so Forge fell back to a
+        // placeholder it could not read or write: every boot printed a stack
+        // trace per preferences file it failed to open. Give it a real one in
+        // the VFS. It lives as long as the worker does, which is one session:
+        // nothing here survives a reload.
+        System.setProperty("user.home", FORGE_HOME);
+        prepareHome();
 
         long t0 = System.currentTimeMillis();
         System.out.println("[wasm] availableProcessors=" + Runtime.getRuntime().availableProcessors());

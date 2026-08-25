@@ -19,7 +19,7 @@ pub const ARCHIVE_FORMAT_VERSION: u32 = 6;
 /// Directories under `res/` carried verbatim in [`CardArchive::extras`]. Forge's
 /// `FModel.initialize` reads all of them and throws without them, so every
 /// builder should pass the same list rather than inventing its own.
-pub const DEFAULT_EXTRA_DIRS: &[&str] = &["formats", "lists", "defaults", "effects"];
+pub const DEFAULT_EXTRA_DIRS: &[&str] = &["formats", "lists", "defaults", "effects", "ai"];
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[archive(check_bytes)]

@@ -99,6 +99,10 @@ public final class SabTransport implements InteractiveBridge {
     @JS("postMessage({ type: 'event', event: name, payload: JSON.parse(json) });")
     static native void post(String name, String json);
 
+    @JS.Coerce
+    @JS("return (globalThis.__mbSeats || []).length;")
+    static native int seatCount();
+
     private final java.util.function.IntFunction<String> snapshots;
     private long checkpoint;
     private long lastRecvAt;
@@ -134,14 +138,21 @@ public final class SabTransport implements InteractiveBridge {
                     + ",\"type\":\"" + inputType(promptJson) + "\"}");
         }
 
-        // Each seat sees the board through its own eyes: hidden zones are cut
-        // per viewer, so hosting a table must not publish seat 0's view to
-        // everyone.
-        final String view = snapshots == null ? null : snapshots.apply(seat);
-        if (view != null && !view.isEmpty()) {
+        // The board goes to every seat, each through its own eyes: hidden zones
+        // are cut per viewer, so hosting a table must not publish seat 0's view
+        // to everyone. It also has to reach seats that are not being asked —
+        // the Rust engine keeps every seat's board current, and a guest whose
+        // board only arrives with their own first prompt stares at nothing
+        // while the host mulligans.
+        final int seats = Math.max(1, seatCount());
+        for (int viewer = 0; viewer < seats; viewer++) {
+            final String view = snapshots == null ? null : snapshots.apply(viewer);
+            if (view == null || view.isEmpty()) {
+                continue;
+            }
             // The client reads state.gameView, matching GameSnapshotEventDto on
             // the Rust side; a bare game view leaves the board unmounted.
-            sendTagged(seat, "state", "state", "{\"checkpointId\":" + (++checkpoint)
+            sendTagged(viewer, "state", "state", "{\"checkpointId\":" + (++checkpoint)
                     + ",\"label\":\"forge\",\"gameView\":" + view
                     + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
         }

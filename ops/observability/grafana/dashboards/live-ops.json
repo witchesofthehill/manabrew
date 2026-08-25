@@ -29,6 +29,53 @@
   ],
   "panels": [
     {
+      "id": 107,
+      "type": "timeseries",
+      "title": "Relay state handling p99 by seats",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "How long the relay spends on one state envelope: folding the patch into the cached board, deciding whether a full board is needed, and handing it to the audience. Labelled by seat count because the node emits one envelope per seat plus an observer, so the work per decision scales with the room even when the engine's own time does not. This interval previously had no metric: replaying captures put a four-seat room at a p99 of 2.3s outside the rules engine against 0.27s for two seats, and seeing that meant subtracting engineMs from capture timestamps in a script after the fact. Compare against 'Engine decision p99 by room shape': engine flat while this rises is relay-side cost.",
+      "gridPos": {
+        "x": 0,
+        "y": 74,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le, seats) (rate(manabrew_relay_state_handling_seconds_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "p99 {{seats}} seats"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.5, sum by (le, seats) (rate(manabrew_relay_state_handling_seconds_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "p50 {{seats}} seats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 105,
       "type": "timeseries",
       "title": "Engine decision p99 by room shape",

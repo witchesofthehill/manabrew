@@ -63,7 +63,10 @@ public final class WasmMain {
      * byte[] has no address a SharedArrayBuffer could alias.
      */
     @JS.Coerce
-    @JS("if (typeof require === 'function') {"
+    @JS(// The browser host builds the bundle from cardset.rkyv and leaves it
+        // here, so nothing is packed or shipped a second time.
+        "if (typeof self !== 'undefined' && self.__forgeAssets) return self.__forgeAssets;"
+        + "if (typeof require === 'function') {"
         + "  const fs = require('fs'); const zlib = require('zlib');"
         + "  return zlib.gunzipSync(fs.readFileSync(path)).toString('utf8');"
         + "}"

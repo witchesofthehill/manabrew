@@ -14,7 +14,7 @@ mod build;
 #[cfg(feature = "build")]
 pub use build::{build_archive_from_sources, ArchiveSources, BuildStats};
 
-pub const ARCHIVE_FORMAT_VERSION: u32 = 5;
+pub const ARCHIVE_FORMAT_VERSION: u32 = 6;
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[archive(check_bytes)]
@@ -35,6 +35,14 @@ pub struct Edition {
 /// Free-form text resource — e.g. files from `forge/forge-gui/res/blockdata/`
 /// such as `boosters-special.txt`. Same shape as `Edition` but separated for
 /// clarity and to keep schema growth obvious in diffs.
+/// A file carried verbatim, addressed by its path relative to `res/`.
+#[derive(Archive, Serialize, Deserialize, Debug, Clone)]
+#[archive(check_bytes)]
+pub struct AssetFile {
+    pub path: String,
+    pub raw: String,
+}
+
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[archive(check_bytes)]
 pub struct BlockData {
@@ -53,6 +61,10 @@ pub struct CardArchive {
     /// Raw `res/lists/TypeLists.txt`. The web build has no filesystem, so this
     /// is the only channel by which `TypeRegistry::load` gets its data there.
     pub type_lists: String,
+    /// Everything else under `res/` that a consumer may need verbatim, keyed by
+    /// path relative to `res/`. Forge's `FModel.initialize` reads `formats/`,
+    /// `defaults/` and the rest of `lists/`, and fails without them.
+    pub extras: Vec<AssetFile>,
 }
 
 impl ArchivedCardArchive {
@@ -103,6 +115,7 @@ pub fn build_test_archive(scripts: &[(&str, &str)]) -> Vec<u8> {
         editions: Vec::new(),
         block_data: Vec::new(),
         type_lists: String::new(),
+        extras: Vec::new(),
     };
     to_bytes(&archive)
         .expect("test archive serialization")

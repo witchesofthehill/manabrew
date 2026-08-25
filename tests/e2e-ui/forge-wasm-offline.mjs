@@ -30,7 +30,9 @@ async function dump() {
   return page
     .evaluate(() => ({
       frames: (window.__forgeFrames || []).slice(0, 400),
-      log: (window.__forgeLog || []).filter((l) => !/^\s+at /.test(l)).slice(-25),
+      log: (window.__forgeLog || [])
+        .filter((l) => !/^\s+at (genBacktrace|_Files|_FileInput|func\.bridge)/.test(l))
+        .slice(-30),
     }))
     .catch(() => ({ frames: [], log: [] }));
 }
@@ -94,6 +96,9 @@ if (!/\/play/.test(page.url()))
 
 if (SHOT) await page.screenshot({ path: `${SHOT}/forge-wasm-offline-board.png` });
 console.log(`board reached, ${d.frames.length} frames`);
+for (const line of d.log.filter((l) => /\[assets\]|\[wasm\]|Read cards/.test(l))) {
+  console.log("   ", line);
+}
 
 // Play far enough to prove the loop turns over: keep the hand, then answer
 // whatever the engine asks for a while and check the turn counter moves.

@@ -42,7 +42,7 @@ fn main() {
         block_data: Some(&block_data_dir),
         type_lists: &type_lists,
         res_root: res_root.as_deref(),
-        extra_dirs: &["formats", "lists", "defaults", "effects"],
+        extra_dirs: forge_cardset_archive::DEFAULT_EXTRA_DIRS,
     };
     match build_archive_from_sources(sources, &out_path) {
         Ok(stats) => {

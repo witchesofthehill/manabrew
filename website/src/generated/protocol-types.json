@@ -130,8 +130,8 @@
       "refs": ["CardImageUris"]
     },
     "CardChoiceDto": {
-      "ts": "type CardChoiceDto =\n  | { kind: \"color\"; colors: Array<ManaColor> }\n  | { kind: \"type\"; values: Array<string> }\n  | { kind: \"namedCard\"; names: Array<string> }\n  | { kind: \"number\"; value: number }\n  | { kind: \"player\"; playerId: string; name: string };",
-      "rust": "#[serde(\n    tag = \"kind\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardChoiceDto {\n    Color { colors: Vec<ManaColor> },\n    Type { values: Vec<String> },\n    NamedCard { names: Vec<String> },\n    Number { value: i32 },\n    Player { player_id: String, name: String },\n}",
+      "ts": "type CardChoiceDto =\n  | { kind: \"color\"; colors: Array<ManaColor> }\n  | { kind: \"type\"; values: Array<string> }\n  | { kind: \"namedCard\"; names: Array<string> }\n  | { kind: \"chosenCard\"; count: number }\n  | { kind: \"number\"; value: number }\n  | { kind: \"mode\"; value: string }\n  | { kind: \"player\"; playerId: string; name: string };",
+      "rust": "#[serde(\n    tag = \"kind\",\n    rename_all = \"camelCase\",\n    rename_all_fields = \"camelCase\"\n)]\npub enum CardChoiceDto {\n    Color { colors: Vec<ManaColor> },\n    Type { values: Vec<String> },\n    NamedCard { names: Vec<String> },\n    ChosenCard { count: usize },\n    Number { value: i32 },\n    Mode { value: String },\n    Player { player_id: String, name: String },\n}",
       "refs": ["ManaColor"]
     },
     "CardDto": {

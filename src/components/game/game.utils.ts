@@ -128,12 +128,30 @@ export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): Card
           colors: [],
         };
       }
+      case "chosenCard": {
+        const label = `${choice.count} ${choice.count === 1 ? "card" : "cards"}`;
+        return {
+          key: `chosen-card-${index}`,
+          kind: choice.kind,
+          label,
+          description: `Chosen cards: ${choice.count}`,
+          colors: [],
+        };
+      }
       case "number":
         return {
           key: `number-${index}`,
           kind: choice.kind,
           label: `#${choice.value}`,
           description: `Chosen number: ${choice.value}`,
+          colors: [],
+        };
+      case "mode":
+        return {
+          key: `mode-${index}`,
+          kind: choice.kind,
+          label: choice.value,
+          description: `Chosen mode: ${choice.value}`,
           colors: [],
         };
       case "player":

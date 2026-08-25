@@ -252,8 +252,23 @@ fn card_choices(game: &GameState, card: &Card, viewer: Option<PlayerId>) -> Vec<
             names: card.named_cards.clone(),
         });
     }
-    if let Some(value) = card.chosen_number {
-        choices.push(CardChoiceDto::Number { value });
+    if !card.chosen_cards.is_empty() {
+        choices.push(CardChoiceDto::ChosenCard {
+            count: card.chosen_cards.len(),
+        });
+    }
+    if card.chosen_number_revealed
+        || card.chosen_number_controller.is_none()
+        || card.chosen_number_controller == viewer
+    {
+        if let Some(value) = card.chosen_number {
+            choices.push(CardChoiceDto::Number { value });
+        }
+    }
+    if let Some(value) = card.chosen_mode.as_ref().filter(|value| !value.is_empty()) {
+        choices.push(CardChoiceDto::Mode {
+            value: value.clone(),
+        });
     }
     if card.chosen_player_revealed
         || card.chosen_player_controller.is_none()

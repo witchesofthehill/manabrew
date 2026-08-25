@@ -2,8 +2,10 @@ package forge.harness.host;
 
 import forge.harness.common.SnapshotExtractor;
 import forge.harness.protocol.CardChoiceDto;
+import forge.harness.protocol.CardChoiceDto_chosenCard;
 import forge.harness.protocol.CardChoiceDto_color;
 import forge.harness.protocol.CardChoiceDto_namedCard;
+import forge.harness.protocol.CardChoiceDto_mode;
 import forge.harness.protocol.CardChoiceDto_number;
 import forge.harness.protocol.CardChoiceDto_player;
 import forge.harness.protocol.CardChoiceDto_type;
@@ -427,8 +429,14 @@ public final class InteractiveSnapshotExtractor {
         if (namedCards != null && !namedCards.isEmpty()) {
             choices.add(new CardChoiceDto_namedCard(new ArrayList<>(namedCards)));
         }
+        if (!card.getView().getChosenCards().isEmpty()) {
+            choices.add(new CardChoiceDto_chosenCard(card.getView().getChosenCards().size()));
+        }
         if (!card.getView().getChosenNumber().isEmpty()) {
             choices.add(new CardChoiceDto_number(Integer.parseInt(card.getView().getChosenNumber())));
+        }
+        if (!card.getView().getChosenMode().isEmpty()) {
+            choices.add(new CardChoiceDto_mode(card.getView().getChosenMode()));
         }
         if (card.getView().getChosenPlayer() != null && card.getChosenPlayer() != null) {
             final Player player = card.getChosenPlayer();

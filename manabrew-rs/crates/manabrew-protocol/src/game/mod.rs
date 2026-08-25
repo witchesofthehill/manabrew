@@ -33,7 +33,9 @@ pub enum CardChoiceDto {
     Color { colors: Vec<ManaColor> },
     Type { values: Vec<String> },
     NamedCard { names: Vec<String> },
+    ChosenCard { count: usize },
     Number { value: i32 },
+    Mode { value: String },
     Player { player_id: String, name: String },
 }
 

@@ -1,3 +1,5 @@
+import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
+import { reportEngineStats } from "@/lib/engineStatsReport";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -253,6 +255,7 @@ async function initializeGame({
     debugInfo: "Starting engine...",
   });
 
+  beginGame();
   const result = await runtime.api.startGame({
     deck,
     startingLife,
@@ -563,6 +566,7 @@ export const useGameStore = create<GameState>()(
           ((output.type === "declareAttackers" || output.type === "declareBlockers") &&
             output.assignments.length === 0);
         try {
+          noteAnswerSent();
           set({
             isWaitingForResponse: true,
             relinquishedPriority,
@@ -607,6 +611,21 @@ export const useGameStore = create<GameState>()(
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
+        // Before the state is cleared: how the engine performed. A game the
+        // relay knows about is reported to it; anything else goes to the hub.
+        // Never throws, never blocks the teardown.
+        reportEngineStats({
+          multiplayer: wasMultiplayer,
+          seats: Object.keys(get().gameDecks).length || 2,
+          format: get().gameConfig?.formatId ?? null,
+          endReason: get().gameView?.gameOver ? "gameOver" : "left",
+          gameId: useServerStore.getState().gameId ?? null,
+          send: wasMultiplayer
+            ? async (stats, gameId) => {
+                await getPlatform().server?.reportEngineStats(stats, gameId);
+              }
+            : undefined,
+        });
         set({
           isGameActive: false,
           gameView: null,

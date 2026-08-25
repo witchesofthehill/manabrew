@@ -1237,6 +1237,49 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::ReportEngineStats { game_id, stats } => {
+            // A client says how its own engine did. Nothing here changes game
+            // state and nothing is forwarded to other seats, so the only harm
+            // a bad report can do is skew a chart: drop the implausible ones
+            // and record the rest against the room the sender is actually in.
+            if !stats.is_plausible() {
+                debug!(
+                    "[analytics] '{}' sent an implausible engine report",
+                    username
+                );
+                return;
+            }
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let Some(room_id) = room_id else {
+                debug!(
+                    "[analytics] '{}' reported engine stats outside a room",
+                    username
+                );
+                return;
+            };
+            state.analytics.emit(AnalyticsEvent::EngineStats {
+                ts: analytics::now_ts(),
+                room_id,
+                username: username.to_string(),
+                game_id,
+                engine: stats.engine,
+                client_version: stats.client_version,
+                platform: stats.platform,
+                format: stats.format,
+                seats: stats.seats,
+                multiplayer: stats.multiplayer,
+                duration_s: stats.duration_s,
+                end_reason: stats.end_reason,
+                decisions: stats.turnaround.n,
+                turnaround_p50: stats.turnaround.p50,
+                turnaround_p90: stats.turnaround.p90,
+                turnaround_max: stats.turnaround.max,
+                engine_p50: stats.engine_think.as_ref().map(|t| t.p50),
+                engine_p90: stats.engine_think.as_ref().map(|t| t.p90),
+                engine_max: stats.engine_think.as_ref().map(|t| t.max),
+            });
+        }
+
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             let replayed = room_id.and_then(|rid| {
@@ -1489,6 +1532,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
+        ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",

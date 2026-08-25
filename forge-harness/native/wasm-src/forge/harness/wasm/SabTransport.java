@@ -76,6 +76,17 @@ public final class SabTransport implements InteractiveBridge {
 
     private final java.util.function.IntFunction<String> snapshots;
     private long checkpoint;
+    private long lastRecvAt;
+
+    private static String inputType(final String promptJson) {
+        try {
+            final JsonObject input = JsonParser.parseString(promptJson)
+                    .getAsJsonObject().getAsJsonObject("input");
+            return input.get("type").getAsString();
+        } catch (RuntimeException unknown) {
+            return "?";
+        }
+    }
 
     public SabTransport(final java.util.function.IntFunction<String> snapshots) {
         this.snapshots = snapshots;
@@ -83,6 +94,15 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public String exchange(final String promptJson) {
+        // Engine think time: from the client's answer landing to the next
+        // prompt being ready. This is the analogue of the hosted node-side
+        // figure, and unlike a client-side measurement it is not quantised by
+        // the reader's requestAnimationFrame loop.
+        if (lastRecvAt > 0) {
+            post("forge:decision", "{\"ms\":" + (System.currentTimeMillis() - lastRecvAt)
+                    + ",\"type\":\"" + inputType(promptJson) + "\"}");
+        }
+
         final String view = snapshots == null ? null : snapshots.apply(0);
         if (view != null && !view.isEmpty()) {
             // The client reads state.gameView, matching GameSnapshotEventDto on
@@ -94,6 +114,7 @@ public final class SabTransport implements InteractiveBridge {
         sendTagged("prompt", "prompt", promptJson);
 
         final JsonObject message = JsonParser.parseString(recv()).getAsJsonObject();
+        lastRecvAt = System.currentTimeMillis();
         // ClientToServerMessage::Response -> {"kind":"response","promptId":N,"action":{...}}
         if (message.has("action")) {
             return message.get("action").toString();

@@ -438,6 +438,13 @@ class WorkerBridge {
         if (import.meta.env.VITE_FORGE_WASM) {
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
+          const dec = window as unknown as {
+            __engineDecisions?: Array<{ ms: number; type: string }>;
+          };
+          dec.__engineDecisions = dec.__engineDecisions ?? [];
+          this.eventBus.on<{ ms: number; type: string }>("forge:decision", (p) => {
+            if (p) dec.__engineDecisions?.push(p);
+          });
           this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
             w.__forgeLog?.push(p?.text ?? "");
             console.log("[forge]", p?.text ?? "");

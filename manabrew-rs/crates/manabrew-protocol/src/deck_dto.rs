@@ -152,8 +152,11 @@ struct DeckCardWire {
     name: Option<String>,
     #[serde(flatten)]
     rules: CardRulesSummary,
+    // Option, not just `default`: a default only covers a missing key, and a
+    // deck that carries `"uris": null` — community decks are user-authored —
+    // otherwise fails the whole parse with "invalid type: unit value".
     #[serde(default)]
-    uris: CardImageUris,
+    uris: Option<CardImageUris>,
     #[serde(default)]
     all_parts: Option<Vec<CardPart>>,
 }
@@ -171,7 +174,7 @@ impl<'de> Deserialize<'de> for DeckCard {
         Ok(DeckCard {
             identity,
             rules: wire.rules,
-            uris: wire.uris,
+            uris: wire.uris.unwrap_or_default(),
             all_parts: wire.all_parts,
         })
     }

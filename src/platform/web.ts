@@ -131,6 +131,9 @@ class WorkerBridge {
   private initPromise: Promise<void> | null = null;
 
   gameBuffer: SharedArrayBuffer | null = null;
+  /** Which engine the live worker was built for, so a Settings change cannot
+   *  leave routing and the worker disagreeing. */
+  workerIsForgeWasm = false;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
   private localAwaitingResponse = false;
@@ -431,7 +434,8 @@ class WorkerBridge {
         // Same SAB wire format, so nothing downstream of this line changes.
         // Classic worker: the generated launcher is an IIFE loaded with
         // importScripts, which module workers forbid.
-        this.worker = isForgeWasmSelected()
+        this.workerIsForgeWasm = isForgeWasmSelected();
+        this.worker = this.workerIsForgeWasm
           ? new Worker("/forge/forge-engine.worker.js")
           : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
               type: "module",
@@ -500,6 +504,12 @@ class WorkerBridge {
    * Invoke a command on the worker.
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+    // The engine is chosen in Settings, and the worker outlives a single game,
+    // so a player who flips it mid-session would otherwise start the next game
+    // on the previous engine while routing had already moved to the new one.
+    if (this.worker && this.workerIsForgeWasm !== isForgeWasmSelected()) {
+      this.terminate();
+    }
     await this.init();
 
     if (!this.worker) {

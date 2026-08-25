@@ -221,24 +221,32 @@ fn room_player_id(
     room_id: &str,
     target_username: &str,
 ) -> Option<String> {
-    state.rooms.get(room_id).and_then(|room| {
-        if room.host_username == target_username && room.host_connected() {
-            Some(room.host_player_id.clone())
-        } else {
-            room.players
-                .iter()
-                .find(|p| p.connected && p.username == target_username)
-                .map(|p| p.player_id.clone())
-        }
-    })
+    state
+        .rooms
+        .get(room_id)
+        .and_then(|room| room_player_id_in(&room, target_username))
+}
+
+fn room_player_id_in(room: &Room, target_username: &str) -> Option<String> {
+    if room.host_username == target_username && room.host_connected() {
+        Some(room.host_player_id.clone())
+    } else {
+        room.players
+            .iter()
+            .find(|p| p.connected && p.username == target_username)
+            .map(|p| p.player_id.clone())
+    }
 }
 
 /// Whether every client that would receive this envelope ships the `stateDelta`
 /// applier. One seat that does not is enough to fall back to a full state: a
 /// dropped patch leaves that player's board frozen for the rest of the game.
+/// Takes the room rather than looking it up, so it can be asked while the room
+/// guard is held. That is what lets the caller decide whether it needs the
+/// folded board before cloning one.
 fn state_patch_audience_ready(
     state: &Arc<ServerState>,
-    room_id: &str,
+    room: &Room,
     sender_player_id: &str,
     target_username: Option<&str>,
 ) -> bool {
@@ -250,13 +258,12 @@ fn state_patch_audience_ready(
     };
     match target_username {
         // An unresolvable target means the send is about to be dropped anyway.
-        Some(target) => room_player_id(state, room_id, target).is_none_or(|pid| applies(&pid)),
-        None => state.rooms.get(room_id).is_some_and(|room| {
-            room.connected_player_ids()
-                .iter()
-                .filter(|pid| pid.as_str() != sender_player_id)
-                .all(|pid| applies(pid))
-        }),
+        Some(target) => room_player_id_in(room, target).is_none_or(|pid| applies(&pid)),
+        None => room
+            .connected_player_ids()
+            .iter()
+            .filter(|pid| pid.as_str() != sender_player_id)
+            .all(|pid| applies(pid)),
     }
 }
 
@@ -1317,16 +1324,26 @@ fn handle_client_message(
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
-                // `observe` has already folded this patch into the cached
-                // board, so an older seat can be handed the state the patch
-                // would have produced rather than an envelope it drops.
-                let folded_state = is_state_patch(&game_state)
-                    .then(|| {
-                        room.replay
-                            .as_ref()
-                            .and_then(|replay| replay.state_after(&game_state).cloned())
-                    })
-                    .flatten();
+                // `observe` has already folded this patch into the cached board,
+                // so an older seat can be handed the state the patch would have
+                // produced rather than an envelope it drops. Only take a copy
+                // when such a seat is present: the fold is a whole board, and
+                // copying it for every envelope meant copying it once per seat
+                // per decision and throwing it away, because current clients all
+                // apply patches.
+                let folded_state = (is_state_patch(&game_state)
+                    && !state_patch_audience_ready(
+                        state,
+                        &room,
+                        player_id,
+                        canonical_target.as_deref(),
+                    ))
+                .then(|| {
+                    room.replay
+                        .as_ref()
+                        .and_then(|replay| replay.state_after(&game_state).cloned())
+                })
+                .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
                     // Only a player's own envelope carries a link that is theirs.
@@ -1349,15 +1366,12 @@ fn handle_client_message(
                 if !should_deliver {
                     return;
                 }
-                let ready = || {
-                    state_patch_audience_ready(state, &rid, player_id, canonical_target.as_deref())
-                };
                 let game_state = match folded_state {
-                    Some(full) if !ready() => {
+                    Some(full) => {
                         metrics::record_state_patch_downgrade();
                         full
                     }
-                    _ => game_state,
+                    None => game_state,
                 };
                 let msg = ServerMessage::StateUpdate {
                     from_player: username.to_string(),

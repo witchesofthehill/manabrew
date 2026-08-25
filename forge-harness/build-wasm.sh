@@ -74,5 +74,26 @@ cd "$OUT"
   "$@" \
   "$ENTRY"
 
+# The generated launcher derives the module URL from whatever file is executing
+# (`runtime.getCurrentFile() + ".wasm"`), which in a worker is the worker's own
+# name, not this module's. Pin it instead, so the host is free to name its
+# worker anything and no duplicate copy of the module is needed.
+echo "==> pinning wasm_path in the launcher"
+python3 - "$OUT/forgeharness.js" <<'PIN'
+import sys
+path = sys.argv[1]
+src = open(path).read()
+needle = "const config = new GraalVM.Config();"
+if "wasm_path" in src.split(needle)[-1][:200]:
+    print("    already pinned")
+else:
+    pin = (needle + '\nconfig.wasm_path = new URL("forgeharness.js.wasm", '
+           'typeof document !== "undefined" && document.currentScript '
+           '? document.currentScript.src : self.location.href).href;')
+    assert needle in src, "launcher bootstrap not found"
+    open(path, "w").write(src.replace(needle, pin, 1))
+    print("    pinned")
+PIN
+
 echo "==> built:"
 ls -la "$OUT"

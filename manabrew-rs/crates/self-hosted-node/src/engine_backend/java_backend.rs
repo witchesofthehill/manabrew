@@ -1650,11 +1650,7 @@ fn run_hosted_engine_game_inner(
                 if let Some(started) = decision_received.take() {
                     let elapsed = started.elapsed();
                     crate::metrics::record_forge_decision_stage("decision_total", elapsed);
-                    crate::metrics::record_forge_decision(
-                        player_names.len(),
-                        ai_player_indices.len(),
-                        elapsed,
-                    );
+                    crate::metrics::record_forge_decision(player_names.len(), elapsed);
                     // The metric alone cannot say which game was slow, and these
                     // are rare enough that finding one afterwards meant replaying
                     // captures by hand. Named so a log query can list them.

@@ -10,7 +10,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import forge.ai.LobbyPlayerAi;
+import forge.StaticData;
 import forge.card.CardDb;
+import forge.card.CardEdition;
 import forge.deck.CardPool;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
@@ -214,7 +216,11 @@ public final class ManaBrewEngineAdapter {
     }
 
     static String cardRequest(final CardIdentity card) {
-        final String name = CardDb.CardRequest.compose(card.getName(), card.isFoil());
+        return cardRequest(card, staticDataNames());
+    }
+
+    static String cardRequest(final CardIdentity card, final CardNameIndex names) {
+        final String name = CardDb.CardRequest.compose(resolveCardName(card, names), card.isFoil());
         if (card.getSetCode() == null || card.getSetCode().isBlank()) {
             return name;
         }
@@ -222,6 +228,92 @@ public final class ManaBrewEngineAdapter {
             return CardDb.CardRequest.compose(name, card.getSetCode());
         }
         return CardDb.CardRequest.compose(name, card.getSetCode(), card.getCollectorNumber());
+    }
+
+    /**
+     * The name Forge files a card under, given the name a deck asked for.
+     *
+     * <p>Scryfall names an alt-art printing by its flavor name — FCA #40 is a
+     * Lightning Bolt called "Thrum of the Vestige" — and decks reach us carrying
+     * that name. Forge has no card by it, so the deck lookup misses and Forge
+     * substitutes a placeholder that says the card is unsupported: the game then
+     * plays on around a dead card instead of failing.
+     *
+     * <p>The edition file is the source of truth, and it is also the only one
+     * that works here — Forge's own flavor-name index is built as cards load, so
+     * under {@code LOAD_CARD_SCRIPTS_LAZILY} it is empty for a card no game has
+     * touched yet. Ask the edition what it prints at that collector number, and
+     * take its name only when the flavor name is the one the deck asked for, so
+     * a genuinely mistyped card is never silently swapped for its neighbour.
+     * The printing is still requested by set and number, so the art is unchanged.
+     */
+    static String resolveCardName(final CardIdentity card, final CardNameIndex names) {
+        final String requested = card.getName();
+        if (requested == null || requested.isBlank() || names == null) {
+            return requested;
+        }
+        if (names.knowsCard(requested)) {
+            return requested;
+        }
+        final String printed = names.cardNamePrintedAs(
+                card.getSetCode(), card.getCollectorNumber(), requested);
+        if (printed != null && !printed.isBlank()) {
+            return printed;
+        }
+        // No printing to go on: Forge's flavor index still answers for a card
+        // whose script is already loaded.
+        final String byFlavorName = names.cardNameForFlavorName(requested);
+        return byFlavorName == null || byFlavorName.isBlank() ? requested : byFlavorName;
+    }
+
+    /** The card-database questions {@link #resolveCardName} asks, so a test can answer them. */
+    interface CardNameIndex {
+        boolean knowsCard(String name);
+
+        /** The card at this printing, when the edition files it under the given flavor name. */
+        String cardNamePrintedAs(String setCode, String collectorNumber, String flavorName);
+
+        String cardNameForFlavorName(String flavorName);
+    }
+
+    private static CardNameIndex staticDataNames() {
+        final StaticData data = StaticData.instance();
+        final CardDb cards = data == null ? null : data.getCommonCards();
+        if (cards == null) {
+            return null;
+        }
+        return new CardNameIndex() {
+            @Override
+            public boolean knowsCard(final String name) {
+                return !cards.getAllCards(name).isEmpty();
+            }
+
+            @Override
+            public String cardNamePrintedAs(
+                    final String setCode, final String collectorNumber, final String flavorName) {
+                if (setCode == null || setCode.isBlank()
+                        || collectorNumber == null || collectorNumber.isBlank()) {
+                    return null;
+                }
+                final CardEdition edition =
+                        data.getEditions().get(setCode.toUpperCase(Locale.ROOT));
+                if (edition == null) {
+                    return null;
+                }
+                final CardEdition.EditionEntry entry =
+                        edition.getCardFromCollectorNumber(collectorNumber);
+                if (entry == null) {
+                    return null;
+                }
+                return flavorName.equalsIgnoreCase(entry.getFlavorName()) ? entry.name() : null;
+            }
+
+            @Override
+            public String cardNameForFlavorName(final String flavorName) {
+                final PaperCard card = cards.getUniqueByName(flavorName);
+                return card == null ? null : card.getName();
+            }
+        };
     }
 
     private static void requireSessionId(final String sessionId) {

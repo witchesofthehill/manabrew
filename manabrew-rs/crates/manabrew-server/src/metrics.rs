@@ -20,6 +20,8 @@ const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
+const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
+const OUTBOUND_BACKLOG: &str = "manabrew_relay_outbound_backlog";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
@@ -53,6 +55,8 @@ const STATE_HANDLING_BUCKETS: &[f64] = &[
     0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0,
 ];
 
+const BACKLOG_BUCKETS: &[f64] = &[1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 512.0, 2048.0];
+
 fn builder() -> PrometheusBuilder {
     PrometheusBuilder::new()
         .set_buckets_for_metric(
@@ -60,6 +64,13 @@ fn builder() -> PrometheusBuilder {
             STATE_HANDLING_BUCKETS,
         )
         .expect("state handling buckets are a non-empty literal")
+        .set_buckets_for_metric(
+            Matcher::Full(SOCKET_WRITE.to_string()),
+            STATE_HANDLING_BUCKETS,
+        )
+        .expect("socket write buckets are a non-empty literal")
+        .set_buckets_for_metric(Matcher::Full(OUTBOUND_BACKLOG.to_string()), BACKLOG_BUCKETS)
+        .expect("backlog buckets are a non-empty literal")
 }
 
 pub fn install() -> PrometheusHandle {
@@ -84,6 +95,20 @@ pub fn detached_handle() -> PrometheusHandle {
 /// in a script, after the fact, on a box.
 pub fn record_state_handling(seats: usize, elapsed: std::time::Duration) {
     histogram!(STATE_HANDLING, LABEL_SEATS => seats.to_string()).record(elapsed.as_secs_f64());
+}
+
+/// The websocket write itself, and how many messages were already waiting when
+/// this one was taken off the queue.
+///
+/// Everything else between the engine and the player is now measured; this was
+/// the last gap. The outbound channel is unbounded and the writer awaits the
+/// sink, so a client that stops draining applies backpressure and every later
+/// message queues behind it. That is invisible in the handling metric, which
+/// stops at the hand-off, and it grows with seat count because a four-seat room
+/// enqueues five envelopes per decision where a two-seat room enqueues three.
+pub fn record_socket_write(backlog: usize, elapsed: std::time::Duration) {
+    histogram!(SOCKET_WRITE).record(elapsed.as_secs_f64());
+    histogram!(OUTBOUND_BACKLOG).record(backlog as f64);
 }
 
 pub fn record_game_started(engine: EngineKind) {

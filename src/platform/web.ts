@@ -46,6 +46,8 @@ import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/sp
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta } from "@/lib/stateDelta";
 import { isForgeWasmSelected } from "@/lib/forgeWasm";
+import { buildForgeAssetBundle } from "@/lib/forgeAssets";
+import type { Deck } from "@/protocol/deck";
 
 const DEBUG_TRANSPORT = false;
 
@@ -511,6 +513,17 @@ class WorkerBridge {
       this.terminate();
     }
     await this.init();
+
+    // The Forge worker is plain JS served from public/, so it cannot resolve a
+    // bundled module to read cardset.rkyv itself. Frame the assets here, where
+    // the bundler can, and hand them over with the game.
+    if (command === "start_game" && this.workerIsForgeWasm) {
+      const decks = [
+        args?.deck as Deck | undefined,
+        ...((args?.opponentDecks as Deck[] | undefined) ?? []),
+      ];
+      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
+    }
 
     if (!this.worker) {
       throw new Error("Worker not initialized");

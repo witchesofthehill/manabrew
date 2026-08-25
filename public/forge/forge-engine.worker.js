@@ -14,7 +14,6 @@
  */
 const SAB_SIZE = 256 * 1024;
 const ENGINE_BASE = "/forge";
-const CARD_ARCHIVE_MANIFEST = "/wasm/cardset.manifest.json";
 
 let booting = null;
 let gameRunning = false;
@@ -53,28 +52,6 @@ function boot() {
 }
 
 /**
- * Builds Forge's asset tree out of cardset.rkyv — the same archive the Rust
- * engine uses and the client already caches, so nothing is shipped twice.
- *
- * Forge cannot read rkyv and cannot share linear memory with that module, so
- * the Rust side frames the files it needs into one string and it crosses into
- * the Java heap as a string. Only the cards actually in the decks are framed:
- * Forge reads its whole cardsfolder at init, so all 33k scripts would cost
- * seconds of boot for cards no game will touch.
- */
-async function assetBundle(names) {
-  const rust = await import(/* webpackIgnore: true */ "/src/wasm/wasm.js");
-  await rust.default();
-  const manifest = await (await fetch(CARD_ARCHIVE_MANIFEST, { cache: "no-cache" })).json();
-  const archiveUrl = `/wasm/${manifest.archive}`;
-  const resp = await fetch(archiveUrl);
-  if (!resp.ok) throw new Error(`card archive fetch failed: ${resp.status}`);
-  const bytes = new Uint8Array(await resp.arrayBuffer());
-  console.log(`[assets] read ${(bytes.length / 1048576).toFixed(1)} MiB from ${manifest.archive}`);
-  return rust.forge_asset_bundle(bytes, names);
-}
-
-/**
  * Deck.cards is already one entry per copy, and the printing lives under
  * identity. Older shapes carried a bare name plus a count, so accept both.
  */
@@ -102,15 +79,15 @@ async function startGame(requestId, args) {
     return postError(requestId, "start_game requires a deck and opponent deck");
   }
 
-  // The bundle has to exist before boot: the module reads its assets while
-  // importScripts runs main().
-  try {
-    const names = [...new Set([humanDeck, ...aiDecks].flatMap((d) => flatten(d).map((c) => c.name)))];
-    self.__forgeAssets = await assetBundle(names);
-    console.log(`[assets] framed ${(self.__forgeAssets.length / 1024) | 0} KiB from cardset.rkyv`);
-  } catch (e) {
-    return postError(requestId, `could not build the asset bundle: ${e && e.message ? e.message : e}`);
+  // Framed by the host from cardset.rkyv and handed over with the game: this
+  // worker is plain JS served from public/, so it cannot resolve the bundled
+  // module that reads the archive. It has to exist before boot, because the
+  // engine reads its assets while importScripts runs main().
+  if (!args.forgeAssets) {
+    return postError(requestId, "start_game arrived without the framed Forge assets");
   }
+  self.__forgeAssets = args.forgeAssets;
+  console.log(`[assets] received ${(self.__forgeAssets.length / 1024) | 0} KiB from the host`);
 
   try {
     await boot();

@@ -4,12 +4,19 @@
 // and the whole game ran on the Rust engine.
 //
 //   BASE=http://localhost:5199 node tests/e2e-ui/forge-wasm-toggle.mjs
+//
+// Worth running against a production build too, not just the dev server: the
+// engine's asset path differs between the two, and a dev-only module URL will
+// pass here and 404 to index.html in a build.
 import { chromium } from "playwright";
 import { launchOpts, onboard, uniqueName } from "../e2e-ironsmith/lib.mjs";
 
 const BASE = process.env.BASE || "http://localhost:5199";
 const DECK = process.env.DECK || "Izzet Lessons";
 const AI_DECK = process.env.AI_DECK || "Esper Pixie";
+// Keep in step with lib/termsContent.ts and OnboardingWelcome.
+const TERMS_VERSION = process.env.TERMS_VERSION || "1.5.0";
+const ONBOARDING_VERSION = process.env.ONBOARDING_VERSION || "1.0";
 
 const browser = await chromium.launch(launchOpts());
 const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
@@ -23,9 +30,54 @@ async function fail(msg) {
   process.exit(1);
 }
 
+// Seed the acknowledgements rather than clicking through onboarding: the
+// nickname step validates against the Hub, which a local production build
+// cannot reach, and none of it is what this test is about.
+await page.addInitScript(
+  ([terms, guide, name]) => {
+    try {
+      const record = (version) => JSON.stringify({ version, acceptedAt: new Date().toISOString() });
+      localStorage.setItem("manabrew.termsAcceptance", record(terms));
+      localStorage.setItem("manabrew.onboarding", record(guide));
+      const raw = localStorage.getItem("manabrew-preferences");
+      const doc = raw ? JSON.parse(raw) : { state: {}, version: 0 };
+      doc.state = { ...(doc.state || {}), serverUsername: name };
+      localStorage.setItem("manabrew-preferences", JSON.stringify(doc));
+    } catch {
+      // First load on a fresh origin; the stores write their own defaults.
+    }
+  },
+  [TERMS_VERSION, ONBOARDING_VERSION, uniqueName("Tog")],
+);
+
 // Start with the engine OFF, so app startup builds the Rust worker first.
 await onboard(page, uniqueName("Tog"));
-await page.waitForTimeout(2500);
+// A production bundle hydrates slower than the helper's fixed waits, so finish
+// whatever step of onboarding is still on screen before going further.
+for (let i = 0; i < 20; i++) {
+  const agree = page.locator("text=I have read and agree").first();
+  if (await agree.count().catch(() => 0)) {
+    await agree.click().catch(() => {});
+    await page
+      .getByRole("button", { name: /Accept and continue/i })
+      .first()
+      .click()
+      .catch(() => {});
+  }
+  const nick = page.locator('input[placeholder*="StormCrow"]').first();
+  if (await nick.count().catch(() => 0)) {
+    await nick.fill(uniqueName("Tog")).catch(() => {});
+    await page
+      .getByRole("button", { name: /Let's brew/i })
+      .first()
+      .click()
+      .catch(() => {});
+  }
+  const text = await page.evaluate(() => document.body.innerText).catch(() => "");
+  if (!/Accept and continue|Let's brew/.test(text)) break;
+  await page.waitForTimeout(700);
+}
+await page.waitForTimeout(2000);
 if (!workers.some((u) => u.includes("game-engine.worker"))) {
   console.log("note: the Rust worker was not built at startup; the race may not reproduce");
 }

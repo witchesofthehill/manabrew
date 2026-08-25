@@ -1126,7 +1126,7 @@ class WebServerApi implements IServerApi {
   }
 
   async createRoom(params: CreateRoomParams): Promise<string | null> {
-    if (params.engine === "Forge") {
+    if (params.engine === "Forge" && !isForgeWasmSelected()) {
       throw new Error("Forge engine is not supported on the web");
     }
     this.send({

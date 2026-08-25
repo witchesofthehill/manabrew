@@ -91,17 +91,18 @@ try {
     step("host on the local relay");
   }
 
-  // The lobby is the player-first one: a table, not a room.
   await host.goto(`${BASE}/lobby`, { waitUntil: "networkidle" });
   await host.getByRole("button", { name: /Set up a table/i }).click();
   await host.waitForTimeout(1200);
-  await host.getByRole("button", { name: /Create new table/i }).click();
-  await host.waitForTimeout(1200);
-  // Standard is the default; anything else lives under Advanced table options.
-  const formatButton = host.getByRole("button", { name: new RegExp(`^${FORMAT}$`) }).first();
-  if (await formatButton.count()) await formatButton.click();
+  // Standard is the default; anything else is one dropdown away on the
+  // setup page.
+  await host.locator("#room-format").click();
   await host
-    .getByRole("button", { name: /^Create Table$/ })
+    .getByRole("menuitem", { name: new RegExp(`^${FORMAT}$`) })
+    .first()
+    .click();
+  await host
+    .getByRole("button", { name: /^Create table$/i })
     .last()
     .click();
   await host.waitForTimeout(3000);

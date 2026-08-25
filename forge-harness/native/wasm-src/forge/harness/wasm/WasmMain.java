@@ -217,9 +217,12 @@ public final class WasmMain {
                 }
                 String gameId = com.google.gson.JsonParser.parseString(requestJson)
                         .getAsJsonObject().get("gameId").getAsString();
-                ManaBrewInteractiveSession.setBridge(
-                        new SabTransport(viewer -> adapter.getSnapshot(gameId, viewer)));
-                return org.graalvm.webimage.api.JSString.of(adapter.startGameJson(requestJson));
+                SabTransport transport =
+                        new SabTransport(viewer -> adapter.getSnapshot(gameId, viewer));
+                ManaBrewInteractiveSession.setBridge(transport);
+                String result = adapter.startGameJson(requestJson);
+                transport.publishGameOver();
+                return org.graalvm.webimage.api.JSString.of(result);
             } catch (RuntimeException error) {
                 error.printStackTrace(System.err);
                 return org.graalvm.webimage.api.JSString.of(

@@ -13,6 +13,7 @@ import {
 import type { CardDto } from "@/protocol/game";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
+import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
 import { cardFrameTintHex, readableTextColor, withAlpha } from "@/themes/gameTheme";
@@ -334,6 +335,8 @@ export class CardSprite extends Container {
   private badgeContainer: Container;
   private badgeBg: Graphics;
   private badgeText: Text;
+  private choiceContainer: Container;
+  private lastChoices: CardDto["choices"] | undefined | null = null;
   private railContainer: Container;
   private railBgGfx: Graphics;
   private railTrackGfx: Graphics;
@@ -472,6 +475,10 @@ export class CardSprite extends Container {
     this.badgeContainer.addChild(this.badgeText);
     this.badgeContainer.visible = false;
     this.addChild(this.badgeContainer);
+
+    this.choiceContainer = new Container();
+    this.choiceContainer.visible = false;
+    this.addChild(this.choiceContainer);
 
     this.railContainer = new Container();
     this.railContainer.visible = false;
@@ -705,6 +712,7 @@ export class CardSprite extends Container {
     this.updateRail(true);
     this.updateKeywords();
     this.updateMana();
+    this.updateChoice(true);
   }
 
   private updateMana(): void {
@@ -849,6 +857,7 @@ export class CardSprite extends Container {
     this.updatePT();
     this.updateDamage();
     this.updateBadge();
+    this.updateChoice();
     this.updateCounters();
     this.updateKeywords();
     this.updateFoil();
@@ -1047,7 +1056,8 @@ export class CardSprite extends Container {
     if (shown.length === 0) return;
 
     const rowH = KEYWORD_ROW_H;
-    let offsetY = Math.round(this.ch * 0.3);
+    const keywordTop = (this.card.choices?.length ?? 0) > 0 ? 0.42 : 0.3;
+    let offsetY = Math.round(this.ch * keywordTop);
     const shadowNum = hexToNum(activeTheme.gameTheme.canvas.shadow);
 
     const addChip = (text: string) => {
@@ -1205,6 +1215,69 @@ export class CardSprite extends Container {
     const titleBandY = Math.round(this.ch * BADGE_TITLE_BAND_FRAC);
     this.badgeContainer.x = (this.cw - bw) / 2;
     this.badgeContainer.y = titleBandY;
+  }
+
+  private updateChoice(force = false): void {
+    if (!force && this.lastChoices === this.card.choices) return;
+    this.lastChoices = this.card.choices;
+    this.choiceContainer.removeChildren().forEach((child) => child.destroy());
+
+    const indicators = deriveCardChoiceIndicators(this.card);
+    const indicator = indicators[0];
+    if (!indicator) {
+      this.choiceContainer.visible = false;
+      return;
+    }
+
+    this.choiceContainer.visible = true;
+    const background = new Graphics();
+    const content = new Container();
+    const hidden = indicators.length - 1;
+    let contentWidth = 0;
+    const contentHeight = 10;
+
+    if (indicator.kind === "color") {
+      const size = 9;
+      const gap = 1;
+      for (const color of indicator.colors) {
+        const symbol = new Sprite(Texture.EMPTY);
+        applyManaSymbol(symbol, color, size);
+        symbol.x = contentWidth;
+        symbol.y = (contentHeight - size) / 2;
+        content.addChild(symbol);
+        contentWidth += size + gap;
+      }
+      if (contentWidth > 0) contentWidth -= gap;
+    } else {
+      const text = new Text({
+        text: truncateChipLabel(indicator.label),
+        style: BADGE_STYLE,
+      });
+      text.resolution = TEXT_RASTER_RESOLUTION;
+      text.y = (contentHeight - text.height) / 2;
+      content.addChild(text);
+      contentWidth = text.width;
+    }
+
+    if (hidden > 0) {
+      const overflow = new Text({ text: `+${hidden}`, style: BADGE_STYLE });
+      overflow.resolution = TEXT_RASTER_RESOLUTION;
+      overflow.x = contentWidth + 2;
+      overflow.y = (contentHeight - overflow.height) / 2;
+      content.addChild(overflow);
+      contentWidth += overflow.width + 2;
+    }
+
+    const width = contentWidth + 6;
+    background.roundRect(0, 0, width, contentHeight + 2, CHIP_RADIUS);
+    background.fill({
+      color: hexToNum(activeTheme.gameTheme.cardStatus.choice),
+      alpha: 0.95,
+    });
+    content.position.set(3, 1);
+    this.choiceContainer.addChild(background);
+    this.choiceContainer.addChild(content);
+    this.choiceContainer.position.set((this.cw - width) / 2, Math.round(this.ch * 0.18));
   }
 
   private updateRail(force = false): void {

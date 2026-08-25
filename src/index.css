@@ -66,6 +66,7 @@
   --color-card-status-madness: var(--card-status-madness);
   --color-card-status-warped: var(--card-status-warped);
   --color-card-status-copy: var(--card-status-copy);
+  --color-card-status-choice: var(--card-status-choice);
   --color-canvas-background: var(--canvas-background);
   --color-canvas-shadow: var(--canvas-shadow);
   --color-canvas-neutral: var(--canvas-neutral);

@@ -5,6 +5,7 @@ import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { PtBadge } from "@/components/game/PtBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
 import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -170,8 +171,15 @@ function CardComponent({
                   style={CARD_BADGES.token.style}
                 />
               ) : null}
+              <CardChoiceIndicators
+                card={card}
+                className="absolute left-1 right-1 top-[18%] z-10"
+              />
               {card.keywords && card.keywords.length > 0 && (
-                <KeywordChips keywords={card.keywords} />
+                <KeywordChips
+                  keywords={card.keywords}
+                  className={(card.choices?.length ?? 0) > 0 ? "top-[42%]" : undefined}
+                />
               )}
               {visibleCounters && (
                 <CounterDisplay

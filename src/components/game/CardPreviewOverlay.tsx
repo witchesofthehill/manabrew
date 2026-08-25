@@ -5,6 +5,7 @@ import { CounterDisplay } from "@/components/game/CounterBadge";
 import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
 import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -93,7 +94,8 @@ export function CardPreviewOverlay({
     ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]"
     : undefined;
   const railRightStyle = compactRail ? "calc(5.5% + var(--card-rail-width) + 0.35rem)" : "5.5%";
-  const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
+  const showTopStrip =
+    statusBadges.length > 0 || (card.choices?.length ?? 0) > 0 || keywords.length > 0;
   const showPT = creature && !horizontal && !!card.power && !!card.toughness;
 
   const overlayCounters = useMemo(() => {
@@ -137,6 +139,7 @@ export function CardPreviewOverlay({
               ))}
             </div>
           )}
+          <CardChoiceIndicators card={card} expanded />
           {keywords.length > 0 && (
             <div className="flex flex-wrap gap-1 justify-center">
               {visibleKeywords.map((kw, i) => {

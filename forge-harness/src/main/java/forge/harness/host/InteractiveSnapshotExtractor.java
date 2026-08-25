@@ -1,10 +1,17 @@
 package forge.harness.host;
 
 import forge.harness.common.SnapshotExtractor;
+import forge.harness.protocol.CardChoiceDto;
+import forge.harness.protocol.CardChoiceDto_color;
+import forge.harness.protocol.CardChoiceDto_namedCard;
+import forge.harness.protocol.CardChoiceDto_number;
+import forge.harness.protocol.CardChoiceDto_player;
+import forge.harness.protocol.CardChoiceDto_type;
 import forge.harness.protocol.CardDto;
 import forge.harness.protocol.CardIdentity;
 import forge.harness.protocol.ClassLevelDto;
 import forge.harness.protocol.SagaChapterDto;
+import forge.harness.protocol.ManaColor;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -298,6 +305,7 @@ public final class InteractiveSnapshotExtractor {
         dto.classLevel = null;
         dto.classLevels = Collections.emptyList();
         dto.sagaChapters = Collections.emptyList();
+        dto.choices = Collections.emptyList();
         dto.identity = new CardIdentity("", "", "", false, null);
         dto.text = "";
         dto.manaCost = "";
@@ -366,6 +374,71 @@ public final class InteractiveSnapshotExtractor {
         return ids;
     }
 
+    private static ManaColor manaColor(final String color) {
+        if (color.equalsIgnoreCase("W") || color.equalsIgnoreCase("White")) {
+            return ManaColor.W;
+        }
+        if (color.equalsIgnoreCase("U") || color.equalsIgnoreCase("Blue")) {
+            return ManaColor.U;
+        }
+        if (color.equalsIgnoreCase("B") || color.equalsIgnoreCase("Black")) {
+            return ManaColor.B;
+        }
+        if (color.equalsIgnoreCase("R") || color.equalsIgnoreCase("Red")) {
+            return ManaColor.R;
+        }
+        if (color.equalsIgnoreCase("G") || color.equalsIgnoreCase("Green")) {
+            return ManaColor.G;
+        }
+        if (color.equalsIgnoreCase("C") || color.equalsIgnoreCase("Colorless")) {
+            return ManaColor.C;
+        }
+        return null;
+    }
+
+    private static List<CardChoiceDto> choices(final Game game, final Card card) {
+        final List<CardChoiceDto> choices = new ArrayList<>();
+        final List<ManaColor> colors = new ArrayList<>();
+        final List<String> chosenColors = card.getView().getChosenColors();
+        if (chosenColors != null) {
+            for (final String color : chosenColors) {
+                final ManaColor parsed = manaColor(color);
+                if (parsed != null) {
+                    colors.add(parsed);
+                }
+            }
+            if (!colors.isEmpty()) {
+                choices.add(new CardChoiceDto_color(colors));
+            }
+        }
+
+        final List<String> types = new ArrayList<>();
+        if (!card.getView().getChosenType().isEmpty()) {
+            types.add(card.getView().getChosenType());
+        }
+        if (!card.getView().getChosenType2().isEmpty()) {
+            types.add(card.getView().getChosenType2());
+        }
+        if (!types.isEmpty()) {
+            choices.add(new CardChoiceDto_type(types));
+        }
+
+        final List<String> namedCards = card.getView().getNamedCard();
+        if (namedCards != null && !namedCards.isEmpty()) {
+            choices.add(new CardChoiceDto_namedCard(new ArrayList<>(namedCards)));
+        }
+        if (!card.getView().getChosenNumber().isEmpty()) {
+            choices.add(new CardChoiceDto_number(Integer.parseInt(card.getView().getChosenNumber())));
+        }
+        if (card.getView().getChosenPlayer() != null && card.getChosenPlayer() != null) {
+            final Player player = card.getChosenPlayer();
+            choices.add(new CardChoiceDto_player(
+                    "player-" + SnapshotExtractor.playerIndex(game, player),
+                    player.getName()));
+        }
+        return choices;
+    }
+
     private static CardDto toCard(
             final Game game,
             final Card card,
@@ -406,6 +479,7 @@ public final class InteractiveSnapshotExtractor {
         dto.classLevels = classLevels(card);
         dto.sagaChapters = sagaChapters(card);
         dto.text = normalizedOracle(card);
+        dto.choices = choices(game, card);
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
         dto.tapped = card.isTapped();

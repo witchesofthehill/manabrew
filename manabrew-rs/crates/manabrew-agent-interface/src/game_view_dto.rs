@@ -198,6 +198,77 @@ fn mana_pool_to_map(pool: &ManaPool) -> BTreeMap<ManaColor, u32> {
     m
 }
 
+fn mana_color_from_name(value: &str) -> Option<ManaColor> {
+    if value.eq_ignore_ascii_case("W") || value.eq_ignore_ascii_case("White") {
+        Some(ManaColor::White)
+    } else if value.eq_ignore_ascii_case("U") || value.eq_ignore_ascii_case("Blue") {
+        Some(ManaColor::Blue)
+    } else if value.eq_ignore_ascii_case("B") || value.eq_ignore_ascii_case("Black") {
+        Some(ManaColor::Black)
+    } else if value.eq_ignore_ascii_case("R") || value.eq_ignore_ascii_case("Red") {
+        Some(ManaColor::Red)
+    } else if value.eq_ignore_ascii_case("G") || value.eq_ignore_ascii_case("Green") {
+        Some(ManaColor::Green)
+    } else if value.eq_ignore_ascii_case("C") || value.eq_ignore_ascii_case("Colorless") {
+        Some(ManaColor::Colorless)
+    } else {
+        None
+    }
+}
+
+fn card_choices(game: &GameState, card: &Card, viewer: Option<PlayerId>) -> Vec<CardChoiceDto> {
+    if card.face_down {
+        return Vec::new();
+    }
+
+    let mut choices = Vec::new();
+    let colors: Vec<ManaColor> = card
+        .chosen_colors
+        .iter()
+        .filter_map(|color| mana_color_from_name(color))
+        .collect();
+    if !colors.is_empty() {
+        choices.push(CardChoiceDto::Color { colors });
+    }
+
+    let mut types = Vec::new();
+    if card.chosen_type_revealed
+        || card.chosen_type_controller.is_none()
+        || card.chosen_type_controller == viewer
+    {
+        if let Some(chosen_type) = card.chosen_type.as_ref().filter(|value| !value.is_empty()) {
+            types.push(chosen_type.clone());
+        }
+    }
+    if let Some(chosen_type) = card.chosen_type2.as_ref().filter(|value| !value.is_empty()) {
+        types.push(chosen_type.clone());
+    }
+    if !types.is_empty() {
+        choices.push(CardChoiceDto::Type { values: types });
+    }
+
+    if !card.named_cards.is_empty() {
+        choices.push(CardChoiceDto::NamedCard {
+            names: card.named_cards.clone(),
+        });
+    }
+    if let Some(value) = card.chosen_number {
+        choices.push(CardChoiceDto::Number { value });
+    }
+    if card.chosen_player_revealed
+        || card.chosen_player_controller.is_none()
+        || card.chosen_player_controller == viewer
+    {
+        if let Some(player_id) = card.chosen_player {
+            choices.push(CardChoiceDto::Player {
+                player_id: player_id_str(player_id),
+                name: game.player(player_id).name.clone(),
+            });
+        }
+    }
+    choices
+}
+
 fn phase_to_step(phase: forge_foundation::PhaseType) -> StepKind {
     use forge_foundation::PhaseType::*;
     match phase {
@@ -433,6 +504,10 @@ fn visible_saga_chapters(card: &Card) -> Vec<SagaChapterDto> {
 }
 
 pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
+    card_to_dto_for_viewer(game, cid, None)
+}
+
+fn card_to_dto_for_viewer(game: &GameState, cid: CardId, viewer: Option<PlayerId>) -> CardDto {
     let card = game.card(cid);
     let types: Vec<String> = card
         .type_line
@@ -557,6 +632,7 @@ pub fn card_to_dto(game: &GameState, cid: CardId) -> CardDto {
         class_levels,
         saga_chapters,
         text,
+        choices: card_choices(game, card, viewer),
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),
         tapped: card.tapped,
@@ -674,7 +750,9 @@ impl GameViewDtoExt for GameViewDto {
             let cards: Vec<CardView> = game
                 .cards_in_zone(zone, pid)
                 .iter()
-                .map(|&cid| CardView::Visible(card_to_dto(game, cid)))
+                .map(|&cid| {
+                    CardView::Visible(card_to_dto_for_viewer(game, cid, Some(human_player)))
+                })
                 .collect();
             let count = cards.len();
             ZoneDto {
@@ -701,7 +779,7 @@ impl GameViewDtoExt for GameViewDto {
                 .iter()
                 .copied()
                 .filter(|&cid| should_show_command_zone_card(game, cid))
-                .map(|cid| CardView::Visible(card_to_dto(game, cid)))
+                .map(|cid| CardView::Visible(card_to_dto_for_viewer(game, cid, Some(human_player))))
                 .collect();
             zones.push(ZoneDto {
                 zone: ZoneKind::Command,
@@ -760,7 +838,11 @@ impl GameViewDtoExt for GameViewDto {
                 battlefield_by_controller
                     .entry(controller_id)
                     .or_default()
-                    .push(CardView::Visible(card_to_dto(game, cid)));
+                    .push(CardView::Visible(card_to_dto_for_viewer(
+                        game,
+                        cid,
+                        Some(human_player),
+                    )));
             }
         }
         for &pid in &game.player_order {

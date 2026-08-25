@@ -32,7 +32,7 @@ export function KeywordChip({ kw }: { kw: string }) {
   );
 }
 
-export function KeywordChips({ keywords }: { keywords: string[] }) {
+export function KeywordChips({ keywords, className }: { keywords: string[]; className?: string }) {
   if (!keywords || keywords.length === 0) return null;
   const visible = keywords.slice(0, 4);
   const hidden = keywords.length - visible.length;
@@ -41,7 +41,12 @@ export function KeywordChips({ keywords }: { keywords: string[] }) {
   // `overflow-hidden` is the second line of defence against a stray
   // long chip; the per-chip `max-w-full truncate` handles the common case.
   return (
-    <div className="absolute top-[10%] left-1 right-1 flex flex-wrap gap-0.5 z-10 overflow-hidden">
+    <div
+      className={cn(
+        "absolute top-[10%] left-1 right-1 flex flex-wrap gap-0.5 z-10 overflow-hidden",
+        className,
+      )}
+    >
       {visible.map((kw) => (
         <KeywordChip key={kw} kw={kw} />
       ))}

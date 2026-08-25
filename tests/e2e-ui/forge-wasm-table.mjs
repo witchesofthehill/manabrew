@@ -195,6 +195,30 @@ try {
   }
   await guest.waitForTimeout(6000);
 
+  // Both seats have to be able to act, not just see a board: the guest's
+  // answer travels over the relay into the host's worker, which is the half a
+  // "both boards mounted" check never exercises.
+  const decide = async (page, who) => {
+    for (let round = 0; round < 6; round += 1) {
+      const button = page.getByRole("button", { name: /^(Keep|Continue|OK|Done)$/i }).first();
+      if (!(await button.count())) return round;
+      // A prompt can be replaced while the click is in flight, which is not a
+      // failure: it means the seat already moved on.
+      try {
+        await button.click({ timeout: 8000 });
+      } catch {
+        return round;
+      }
+      await page.waitForTimeout(2500);
+    }
+    return 6;
+  };
+  const acted = { host: await decide(host, "host"), guest: await decide(guest, "guest") };
+  step(`prompts answered: host ${acted.host}, guest ${acted.guest}`);
+  if (acted.guest === 0) {
+    fail("the guest was never asked anything, so nothing proves their seat can act");
+  }
+
   const ranForge = await host.evaluate(() => Array.isArray(window.__engineDecisions));
   if (ranForge !== (ENGINE === "forge")) {
     fail(`the host ran the ${ranForge ? "forge" : "rust"} engine, expected ${ENGINE}`);

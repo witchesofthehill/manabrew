@@ -20,12 +20,15 @@ let gameRunning = false;
 
 const postEvent = (event, payload) => self.postMessage({ type: "event", event, payload });
 
-// The module logs its boot progress through console; mirror it to the page so
-// it is visible without opening the worker's own console.
+// Forge writes to stderr, the generated launcher turns stderr into
+// console.error, and a console.error from deep inside wasm makes DevTools
+// attach the whole wasm stack to every single line — a printed Java stack
+// trace becomes hundreds of entries. So the worker does not write to its own
+// console at all: every level is forwarded to the page, which logs one plain
+// line per message (see the forge:log handler in src/platform/web.ts) and
+// keeps the level for anyone who wants to filter on it.
 for (const level of ["log", "warn", "error"]) {
-  const original = console[level].bind(console);
   console[level] = (...args) => {
-    original(...args);
     try { postEvent("forge:log", { level, text: args.join(" ") }); } catch { /* ignore */ }
   };
 }

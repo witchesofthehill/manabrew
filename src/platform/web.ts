@@ -123,6 +123,26 @@ type RelayMessage = {
 /**
  * Bridge for communicating with the game engine worker.
  */
+/**
+ * The commands the engine itself owns: a game's lifecycle and the SAB traffic
+ * around it. Everything else the app asks a worker — card database queries, the
+ * limited/draft surface, the desktop-only host controls — has no Forge
+ * implementation, so with Forge selected it is served by the Rust worker.
+ */
+const FORGE_ENGINE_COMMANDS = new Set([
+  "start_game",
+  "start_multiplayer_game",
+  "respond",
+  "end_game",
+  "get_prompt",
+  "get_game_view",
+  "restore_snapshot",
+  "wasm_init",
+  "ensure_card_data",
+  "ping",
+  "echo",
+]);
+
 class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
@@ -136,6 +156,8 @@ class WorkerBridge {
   /** Which engine the live worker was built for, so a Settings change cannot
    *  leave routing and the worker disagreeing. */
   workerIsForgeWasm = false;
+  /** The Rust worker, kept for what Forge cannot answer. See queryWorker(). */
+  private fallbackWorker: Worker | null = null;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
   private localAwaitingResponse = false;
@@ -453,9 +475,23 @@ class WorkerBridge {
           this.eventBus.on<{ ms: number; type: string }>("forge:decision", (p) => {
             if (p) dec.__engineDecisions?.push(p);
           });
+          // Forge prints Java stack traces a line at a time, which is hundreds
+          // of console entries for one message. Every line is kept for the
+          // tests; the console gets the message and a count of the frames
+          // under it.
+          let frames = 0;
           this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
-            w.__forgeLog?.push(p?.text ?? "");
-            console.log("[forge]", p?.text ?? "");
+            const text = p?.text ?? "";
+            w.__forgeLog?.push(text);
+            if (/^\s*(at\s|@)/.test(text)) {
+              frames += 1;
+              return;
+            }
+            if (frames > 0) {
+              console.log(`[forge] … ${frames} stack frame${frames === 1 ? "" : "s"}`);
+              frames = 0;
+            }
+            console.log("[forge]", text);
           });
         }
 
@@ -503,6 +539,25 @@ class WorkerBridge {
   }
 
   /**
+   * The Rust worker, kept alongside Forge for the commands Forge cannot
+   * answer. It is created on first use, so a player who never opens Limited
+   * never pays for it.
+   */
+  private queryWorker(): Worker {
+    if (this.fallbackWorker) return this.fallbackWorker;
+    const worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
+      type: "module",
+    });
+    // Responses only. Its lifecycle events would race the Forge worker's, and
+    // no game ever runs on it while Forge is selected.
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      if (e.data?.type === "response") this.handleMessage(e);
+    };
+    this.fallbackWorker = worker;
+    return worker;
+  }
+
+  /**
    * Invoke a command on the worker.
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -529,6 +584,16 @@ class WorkerBridge {
       throw new Error("Worker not initialized");
     }
 
+    // Forge answers the game itself. It has no implementation of the card
+    // database queries or the limited/draft surface, and answering those with
+    // `null` is what took the Limited page down with "Cannot read properties
+    // of null": route them to the Rust worker instead, which is the same
+    // engine that answers them when Forge is off.
+    const target =
+      this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
+        ? this.queryWorker()
+        : this.worker;
+
     const requestId = crypto.randomUUID();
 
     return new Promise((resolve, reject) => {
@@ -544,12 +609,16 @@ class WorkerBridge {
         args,
       };
 
-      this.worker!.postMessage(message);
+      target.postMessage(message);
 
       // start_game blocks for the whole game; everything else is a quick
       // dispatch over a worker that has already finished initialization
       // (we `await this.init()` above, which waits for the ready event).
-      const timeout = command === "start_game" ? 3600000 : 30000;
+      // The query worker is the exception: its first card-data command pays
+      // for the whole archive download, which a Forge player never otherwise
+      // pays, and 30s is not enough for 34 MB on an ordinary connection.
+      const timeout =
+        command === "start_game" ? 3600000 : target === this.fallbackWorker ? 300000 : 30000;
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
@@ -579,6 +648,8 @@ class WorkerBridge {
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
     this.initPromise = null;
+    // The query worker holds no game state, so it survives a game ending and
+    // is only torn down with the bridge itself.
   }
 }
 

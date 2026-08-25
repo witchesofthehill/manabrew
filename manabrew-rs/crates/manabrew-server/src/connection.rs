@@ -108,7 +108,11 @@ fn authorize_game_message(
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
     while let Some(msg) = rx.recv().await {
-        if sink.send(msg).await.is_err() {
+        let backlog = rx.len();
+        let started = Instant::now();
+        let sent = sink.send(msg).await;
+        metrics::record_socket_write(backlog, started.elapsed());
+        if sent.is_err() {
             break;
         }
     }
@@ -241,9 +245,6 @@ fn room_player_id_in(room: &Room, target_username: &str) -> Option<String> {
 /// Whether every client that would receive this envelope ships the `stateDelta`
 /// applier. One seat that does not is enough to fall back to a full state: a
 /// dropped patch leaves that player's board frozen for the rest of the game.
-/// Takes the room rather than looking it up, so it can be asked while the room
-/// guard is held. That is what lets the caller decide whether it needs the
-/// folded board before cloning one.
 fn state_patch_audience_ready(
     state: &Arc<ServerState>,
     room: &Room,
@@ -1290,6 +1291,7 @@ fn handle_client_message(
             state: game_state,
             target_player,
         } => {
+            let handling_started = Instant::now();
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
                 let Some(mut room) = state.rooms.get_mut(&rid) else {
@@ -1324,13 +1326,7 @@ fn handle_client_message(
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
-                // `observe` has already folded this patch into the cached board,
-                // so an older seat can be handed the state the patch would have
-                // produced rather than an envelope it drops. Only take a copy
-                // when such a seat is present: the fold is a whole board, and
-                // copying it for every envelope meant copying it once per seat
-                // per decision and throwing it away, because current clients all
-                // apply patches.
+                let seats = room.players.len();
                 let folded_state = (is_state_patch(&game_state)
                     && !state_patch_audience_ready(
                         state,
@@ -1364,6 +1360,7 @@ fn handle_client_message(
                     );
                 }
                 if !should_deliver {
+                    metrics::record_state_handling(seats, handling_started.elapsed());
                     return;
                 }
                 let game_state = match folded_state {
@@ -1396,6 +1393,7 @@ fn handle_client_message(
                         broadcast_to_room_except(state, player_id, &rid, &msg);
                     }
                 }
+                metrics::record_state_handling(seats, handling_started.elapsed());
             } else {
                 warn!(
                     "[game] '{}' tried to broadcast state but not in a room",

@@ -73,9 +73,6 @@ impl GameReplayCache {
             // reads gameOver out of it.
             Some("stateDelta") => {
                 let slot = envelope.get("forPlayer").and_then(Value::as_str);
-                // Taken by value, not borrowed and cloned: this is the whole
-                // cached board, it is rebuilt once per seat per decision, and a
-                // four-seat Commander room does that five times a decision.
                 let previous = match slot {
                     Some(slot) => self.last_state_by_slot.remove(slot),
                     None => self.last_state.take(),

@@ -33,7 +33,6 @@ const LABEL_STAGE: &str = "stage";
 const LABEL_COLLECTOR: &str = "collector";
 const LABEL_VERSION: &str = "version";
 const LABEL_SEATS: &str = "seats";
-const LABEL_BOTS: &str = "bots";
 
 const ENV_PUSH_URL: &str = "SELF_HOSTED_NODE_METRICS_PUSH_URL";
 const ENV_PUSH_USERNAME: &str = "SELF_HOSTED_NODE_METRICS_PUSH_USERNAME";
@@ -41,8 +40,12 @@ const ENV_PUSH_PASSWORD: &str = "SELF_HOSTED_NODE_METRICS_PUSH_PASSWORD";
 
 const PUSH_INTERVAL: Duration = Duration::from_secs(15);
 
+// Boundaries are close together through the range decisions actually land in.
+// `histogram_quantile` interpolates linearly inside a bucket, so a wide one
+// flatters the quantile upward: with 2.0 and 5.0 adjacent, a window holding a
+// single decision somewhere between them reported 4.58s.
 const DECISION_BUCKETS: &[f64] = &[
-    0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0,
+    0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0,
 ];
 
 #[derive(Clone, Copy)]
@@ -213,19 +216,18 @@ pub fn record_forge_decision_stage(stage: &'static str, elapsed: Duration) {
 }
 
 /// The rules work between a seat answering and the next prompt appearing, split
-/// by room shape. Measured over two days of captures, a room with four seats and
-/// three bots runs this at a p99 of about 2.9s against 0.35s for every other
-/// shape, and puts 2-5% of decisions over two seconds where the others put none.
-/// A fleet-wide quantile averages the many clean rooms against the few bad ones
-/// and shows neither. Bot decision time is not the problem and is not recorded
-/// here: it sits at a p99 of 0.75s in exactly those rooms.
-pub fn record_forge_decision(seats: usize, bots: usize, elapsed: Duration) {
-    histogram!(
-        FORGE_DECISION_SECONDS,
-        LABEL_SEATS => seats.to_string(),
-        LABEL_BOTS => bots.to_string()
-    )
-    .record(elapsed.as_secs_f64());
+/// by seat count. Measured over two days of captures, four seats run this at a
+/// p99 of about 2.9s against 0.35s for two, and put 2-5% of decisions over two
+/// seconds where two seats put none. A fleet-wide quantile averages the many
+/// clean rooms against the few bad ones and shows neither.
+///
+/// There is no bot count. It was recorded from the engine's own AI seat list,
+/// which is empty for every hosted game because bots join as ordinary relay
+/// clients, so the label read zero on every series it ever produced. Only the
+/// relay knows which seats are bots, and the node is not told.
+pub fn record_forge_decision(seats: usize, elapsed: Duration) {
+    histogram!(FORGE_DECISION_SECONDS, LABEL_SEATS => seats.to_string())
+        .record(elapsed.as_secs_f64());
 }
 
 pub fn record_engine_session_started() {

@@ -9,7 +9,15 @@ import { FORMAT_DISPLAY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { MANA_LETTERS } from "@/themes/gameTheme";
 
-const DEFAULT_FORMATS = ["commander", "standard", "pioneer", "modern", "pauper", "brawl"];
+const DEFAULT_FORMATS = [
+  "commander",
+  "standard",
+  "pioneer",
+  "modern",
+  "pauper",
+  "premodern",
+  "brawl",
+];
 const FILTER_DEBOUNCE_MS = 300;
 
 interface DeckHubFilterPanelProps {

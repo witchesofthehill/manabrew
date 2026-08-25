@@ -16,6 +16,7 @@ import org.graalvm.word.WordFactory;
 
 public final class ForgeNative {
     private static final ManaBrewEngineAdapter ADAPTER = new ManaBrewEngineAdapter();
+    private static final StallProbe STALL = new StallProbe();
 
     private ForgeNative() {
     }
@@ -23,6 +24,7 @@ public final class ForgeNative {
     @CEntryPoint(name = "forge_initialize")
     static CCharPointer initialize(IsolateThread thread, CCharPointer assetsDir) {
         try {
+            STALL.start();
             ADAPTER.initialize(str(assetsDir));
             return ok("");
         } catch (Throwable t) {
@@ -119,13 +121,18 @@ public final class ForgeNative {
         try {
             Runtime runtime = Runtime.getRuntime();
             JsonObject stats = new JsonObject();
+            JsonObject byCollector = new JsonObject();
             stats.addProperty("heapUsedBytes", runtime.totalMemory() - runtime.freeMemory());
             stats.addProperty("heapTotalBytes", runtime.totalMemory());
             stats.addProperty("heapMaxBytes", runtime.maxMemory());
             long collections = 0;
             long pauseMillis = 0;
-            // Absent or partial in some native-image configurations; the heap
-            // figures above are always available and are worth reporting alone.
+            // Per collector, because the two are nothing alike. An incremental
+            // young collection is a few milliseconds. A complete one traces the
+            // whole live set, and the live set here is a ~450MB card database
+            // that is permanently reachable, so it costs ~1.3ms per MB whether
+            // it reclaims anything or not (#684, #703). Aggregating them hides
+            // the only number that matters.
             try {
                 for (java.lang.management.GarbageCollectorMXBean bean :
                         java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -137,13 +144,21 @@ public final class ForgeNative {
                     if (millis > 0) {
                         pauseMillis += millis;
                     }
+                    JsonObject per = new JsonObject();
+                    per.addProperty("collections", Math.max(count, 0));
+                    per.addProperty("pauseMillis", Math.max(millis, 0));
+                    byCollector.add(bean.getName(), per);
                 }
             } catch (Throwable ignored) {
                 collections = -1;
                 pauseMillis = -1;
             }
+            stats.add("byCollector", byCollector);
             stats.addProperty("collections", collections);
             stats.addProperty("pauseMillis", pauseMillis);
+            stats.addProperty("stalledMillis", STALL.stalledMillis.get());
+            stats.addProperty("maxStallMillis", STALL.maxStallMillis.get());
+            stats.addProperty("longStalls", STALL.longStalls.get());
             return ok(stats.toString());
         } catch (Throwable t) {
             return err(t);
@@ -152,6 +167,60 @@ public final class ForgeNative {
 
     private static String str(CCharPointer ptr) {
         return ptr.isNull() ? null : CTypeConversion.toJavaString(ptr);
+    }
+
+    // Substrate registers collector beans for its Serial GC only, so under G1
+    // getGarbageCollectorMXBeans() is empty and every pause metric above reads
+    // zero on a G1 image. This measures the same thing without asking the
+    // collector: a thread that sleeps a fixed tick cannot be resumed during a
+    // stop-the-world pause, so sleep overshoot is time the engine was stopped.
+    // It counts scheduler preemption too, which is why the tick is coarse and
+    // sub-threshold overshoot is discarded.
+    private static final class StallProbe implements Runnable {
+        private static final long TICK_MILLIS = 20;
+        private static final long NOISE_FLOOR_MILLIS = 3;
+        private static final long LONG_STALL_MILLIS = 100;
+
+        private final java.util.concurrent.atomic.AtomicLong stalledMillis =
+                new java.util.concurrent.atomic.AtomicLong();
+        private final java.util.concurrent.atomic.AtomicLong maxStallMillis =
+                new java.util.concurrent.atomic.AtomicLong();
+        private final java.util.concurrent.atomic.AtomicLong longStalls =
+                new java.util.concurrent.atomic.AtomicLong();
+        private boolean started;
+
+        synchronized void start() {
+            if (started) {
+                return;
+            }
+            started = true;
+            Thread probe = new Thread(this, "forge-stall-probe");
+            probe.setDaemon(true);
+            probe.setPriority(Thread.MAX_PRIORITY);
+            probe.start();
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                long before = System.nanoTime();
+                try {
+                    Thread.sleep(TICK_MILLIS);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                long overshoot = ((System.nanoTime() - before) / 1_000_000L) - TICK_MILLIS;
+                if (overshoot < NOISE_FLOOR_MILLIS) {
+                    continue;
+                }
+                stalledMillis.addAndGet(overshoot);
+                maxStallMillis.accumulateAndGet(overshoot, Math::max);
+                if (overshoot >= LONG_STALL_MILLIS) {
+                    longStalls.incrementAndGet();
+                }
+            }
+        }
     }
 
     private static CCharPointer ok(String result) {

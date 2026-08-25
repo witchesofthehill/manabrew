@@ -733,6 +733,30 @@ pub struct GcStats {
     pub heap_max_bytes: u64,
     pub collections: i64,
     pub pause_millis: i64,
+    /// Keyed by collector name. An incremental collection is a few milliseconds;
+    /// a complete one traces the whole live set, which here is a permanently
+    /// reachable card database, so it costs the same whether it reclaims
+    /// anything or not. The totals above hide that difference.
+    #[serde(default)]
+    pub by_collector: std::collections::HashMap<String, GcCollector>,
+    /// Wall clock the engine was stopped, measured inside the isolate by sleep
+    /// overshoot rather than by the collector, because a G1 image registers no
+    /// collector beans and leaves every field above at zero. Counts scheduler
+    /// preemption as well as collection pauses.
+    #[serde(default)]
+    pub stalled_millis: u64,
+    #[serde(default)]
+    pub max_stall_millis: u64,
+    #[serde(default)]
+    pub long_stalls: u64,
+}
+
+#[cfg(feature = "graal-forge")]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GcCollector {
+    pub collections: u64,
+    pub pause_millis: u64,
 }
 
 #[cfg(feature = "graal-forge")]
@@ -769,9 +793,24 @@ static SHARED_GRAAL_ISOLATE: std::sync::Mutex<Option<SharedIsolate>> = std::sync
 // isolate-per-game shape.
 #[cfg(feature = "graal-forge")]
 fn shared_isolate_enabled() -> bool {
-    env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
+    let asked = env::var("SELF_HOSTED_NODE_SHARED_ISOLATE")
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
+        .unwrap_or(false);
+    // G1 permits one isolate per process and aborts the process on the second:
+    //   guarantee(SVMIsolateData::_heap_base == nullptr) failed:
+    //   G1 doesn't support multiple isolates at the moment.
+    // The published image is built with G1, and the collector is fixed at build
+    // time and not visible from here, so isolate-per-game cannot be honoured
+    // without risking that abort on the second room. One isolate is correct for
+    // a Serial build too — it is what production has run since the card
+    // database became shared — so this is forced rather than merely defaulted.
+    if !asked {
+        warn!(
+            "isolate-per-game is not available: the engine image is built with G1, \
+             which aborts on a second isolate. Hosting every room in one isolate."
+        );
+    }
+    true
 }
 
 #[cfg(feature = "graal-forge")]
@@ -852,6 +891,11 @@ impl Drop for GraalBridge {
         if self.attached {
             unsafe { graal_ffi::graal_detach_thread(self.thread) };
         } else {
+            // Reachable only from the isolate-per-game path, which
+            // `shared_isolate_enabled` forces off. Teardown refuses while any
+            // thread is still attached, and the engine now keeps a permanent
+            // stall-probe thread inside the isolate, so restoring that path
+            // means giving the probe a way to be stopped first.
             unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
         }
     }
@@ -866,7 +910,8 @@ struct GraalEngineHandle {
 #[cfg(feature = "graal-forge")]
 impl GraalEngineHandle {
     fn create(assets_dir: &Path) -> Result<Self, String> {
-        let bridge = if shared_isolate_enabled() {
+        let shared = shared_isolate_enabled();
+        let bridge = if shared {
             GraalBridge::create_in_shared_isolate(assets_dir)?
         } else {
             let bridge = GraalBridge::create()?;
@@ -875,6 +920,9 @@ impl GraalEngineHandle {
                 .decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
             bridge
         };
+        if shared {
+            start_engine_gc_sampler();
+        }
         Ok(Self {
             bridge: std::rc::Rc::new(bridge),
         })
@@ -904,10 +952,7 @@ impl GraalEngineHandle {
     /// Cumulative collections, pause time and heap for the whole isolate. Every
     /// room on this node shares it, so a collection here stops all of them.
     fn gc_stats(&self) -> Result<GcStats, String> {
-        let raw = self
-            .bridge
-            .decode(unsafe { graal_ffi::forge_gc_stats(self.bridge.thread) })?;
-        serde_json::from_str(&raw).map_err(|err| format!("malformed gcStats response: {err}"))
+        gc_stats_via(&self.bridge)
     }
 
     fn get_prompt(&self, session_id: &str, player_index: usize) -> Result<Option<String>, String> {
@@ -1059,19 +1104,82 @@ pub fn run_concurrent_self_play(
     )
 }
 
-/// Sampled once per completed decision, which is the cadence the stalls happen
-/// at and cheap enough not to need its own timer.
 #[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
 fn report_engine_gc(engine: &ForgeEngine) {
     match engine.gc_stats() {
-        Ok(stats) => crate::metrics::record_engine_gc(
-            stats.collections,
-            stats.pause_millis,
-            stats.heap_used_bytes,
-            stats.heap_max_bytes,
-        ),
+        Ok(stats) => publish_engine_gc(&stats),
         Err(err) => debug!(%err, "engine gc stats unavailable"),
     }
+}
+
+#[cfg(feature = "graal-forge")]
+fn publish_engine_gc(stats: &GcStats) {
+    crate::metrics::record_engine_gc(
+        stats.collections,
+        stats.pause_millis,
+        stats.heap_used_bytes,
+        stats.heap_max_bytes,
+    );
+    crate::metrics::record_engine_stall(
+        stats.stalled_millis,
+        stats.max_stall_millis,
+        stats.long_stalls,
+    );
+    for (name, per) in &stats.by_collector {
+        crate::metrics::record_engine_gc_collector(name, per.collections, per.pause_millis);
+    }
+}
+
+#[cfg(feature = "graal-forge")]
+fn gc_stats_via(bridge: &GraalBridge) -> Result<GcStats, String> {
+    let raw = bridge.decode(unsafe { graal_ffi::forge_gc_stats(bridge.thread) })?;
+    serde_json::from_str(&raw).map_err(|err| format!("malformed gcStats response: {err}"))
+}
+
+#[cfg(feature = "graal-forge")]
+const ENGINE_GC_SAMPLE_INTERVAL: Duration = Duration::from_secs(15);
+
+/// Sampling on the decision path made an idle node and a wedged node look the
+/// same: both stop reporting. A node that is stalling is exactly the node that
+/// stops completing decisions, so the sample has to come from a thread that is
+/// not on that path. It attaches its own isolate thread because the handles the
+/// rooms hold are bound to their creating thread.
+#[cfg(feature = "graal-forge")]
+fn start_engine_gc_sampler() {
+    static STARTED: std::sync::Once = std::sync::Once::new();
+    STARTED.call_once(|| {
+        let spawned = std::thread::Builder::new()
+            .name("engine-gc-sampler".to_string())
+            .spawn(|| {
+                let isolate = match SHARED_GRAAL_ISOLATE.lock() {
+                    Ok(guard) => guard.as_ref().map(|shared| shared.0),
+                    Err(_) => None,
+                };
+                let Some(isolate) = isolate else {
+                    return;
+                };
+                let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+                let rc = unsafe { graal_ffi::graal_attach_thread(isolate, &mut thread) };
+                if rc != 0 {
+                    warn!(rc, "gc sampler could not attach to the engine isolate");
+                    return;
+                }
+                let bridge = GraalBridge {
+                    thread,
+                    attached: true,
+                };
+                loop {
+                    std::thread::sleep(ENGINE_GC_SAMPLE_INTERVAL);
+                    match gc_stats_via(&bridge) {
+                        Ok(stats) => publish_engine_gc(&stats),
+                        Err(err) => debug!(%err, "engine gc stats unavailable"),
+                    }
+                }
+            });
+        if let Err(err) = spawned {
+            warn!(%err, "could not start the engine gc sampler");
+        }
+    });
 }
 
 /// The subprocess backend already reports this by parsing its own GC log.
@@ -1316,6 +1424,25 @@ pub fn run_hosted_engine_game(
 }
 
 #[cfg(forge_backend)]
+const SLOW_DECISION: Duration = Duration::from_secs(10);
+
+/// Serde tag of the prompt variant, for the slow-decision log. `PromptInput` is
+/// internally tagged, so this is the same string the captures carry. Only called
+/// on the rare slow path, so the trip through a `Value` is not worth avoiding.
+#[cfg(forge_backend)]
+fn prompt_input_name(input: &PromptInput) -> String {
+    serde_json::to_value(input)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+#[cfg(forge_backend)]
 #[allow(clippy::too_many_arguments)]
 fn run_hosted_engine_game_inner(
     game_id: String,
@@ -1521,10 +1648,27 @@ fn run_hosted_engine_game_inner(
                     crate::metrics::record_forge_decision_stage("next_prompt", started.elapsed());
                 }
                 if let Some(started) = decision_received.take() {
-                    crate::metrics::record_forge_decision_stage(
-                        "decision_total",
-                        started.elapsed(),
+                    let elapsed = started.elapsed();
+                    crate::metrics::record_forge_decision_stage("decision_total", elapsed);
+                    crate::metrics::record_forge_decision(
+                        player_names.len(),
+                        ai_player_indices.len(),
+                        elapsed,
                     );
+                    // The metric alone cannot say which game was slow, and these
+                    // are rare enough that finding one afterwards meant replaying
+                    // captures by hand. Named so a log query can list them.
+                    if elapsed >= SLOW_DECISION {
+                        warn!(
+                            game_id,
+                            session_id,
+                            seats = player_names.len(),
+                            bots = ai_player_indices.len(),
+                            elapsed_ms = elapsed.as_millis() as u64,
+                            prompt = prompt_input_name(&prompt.input),
+                            "slow engine decision"
+                        );
+                    }
                     report_engine_gc(&engine);
                 }
                 last_prompt = Some(prompt.clone());

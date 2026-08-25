@@ -432,6 +432,7 @@ pub enum GameFormat {
     Legacy,
     Vintage,
     Pauper,
+    Premodern,
     Commander,
     Brawl,
     Oathbreaker,

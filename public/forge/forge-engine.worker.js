@@ -177,23 +177,116 @@ async function startGame(requestId, args) {
   }
 }
 
+/**
+ * Hosts a table: every seat is a person, so every seat gets its own buffer and
+ * its own view of the board. Same contract as the Rust worker's
+ * start_multiplayer_game — game:sab for the local seat, game:remote_sab tagged
+ * with the player slot for each of the others — so nothing downstream of the
+ * bridge can tell the two engines apart.
+ */
+async function startMultiplayerGame(requestId, args) {
+  if (gameRunning) return postError(requestId, "Game already active.");
+
+  const decks = (args && args.decks) || [];
+  const playerNames = (args && args.playerNames) || [];
+  const commanders = (args && args.commanderNames) || [];
+  const localPlayerIndex = (args && args.enginePlayerIndex) | 0;
+  if (decks.length < 2) {
+    return postError(requestId, "start_multiplayer_game requires at least two decks");
+  }
+  if (playerNames.length !== decks.length) {
+    return postError(requestId, "playerNames length must match decks length");
+  }
+  if (localPlayerIndex < 0 || localPlayerIndex >= decks.length) {
+    return postError(requestId, "enginePlayerIndex out of range");
+  }
+  if (!args.forgeAssets) {
+    return postError(requestId, "start_multiplayer_game arrived without the framed Forge assets");
+  }
+  self.__forgeAssets = args.forgeAssets;
+  console.log(`[assets] received ${(self.__forgeAssets.length / 1024) | 0} KiB from the host`);
+
+  try {
+    await boot();
+  } catch (e) {
+    return postError(requestId, `forge engine failed to load: ${e && e.message ? e.message : e}`);
+  }
+
+  // Indexed by the engine's own player index, which is what the session hands
+  // the bridge when it publishes a prompt.
+  const seatBuffers = decks.map(() => new SharedArrayBuffer(SAB_SIZE));
+  self.__forgeSeatSabs = seatBuffers;
+  self.__forgeSab = seatBuffers[localPlayerIndex];
+  gameRunning = true;
+
+  postEvent("game:sab", { buffer: seatBuffers[localPlayerIndex] });
+  seatBuffers.forEach((buffer, index) => {
+    if (index === localPlayerIndex) return;
+    postEvent("game:remote_sab", { buffer, playerSlot: `player-${index}` });
+  });
+  postResponse(requestId, "multiplayer-started");
+
+  const variant = forgeVariant(decks[0]);
+  const commanderGame = variant !== "Constructed";
+  const request = {
+    gameId: `forge-${Date.now()}`,
+    variant,
+    startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),
+    seed: Date.now() % 2147483647,
+    players: decks.map((deck, index) => ({
+      name: playerNames[index] || `Player ${index + 1}`,
+      ai: false,
+      deck: flatten(deck),
+      commanderNames: commanderGame ? commanderNames(deck, commanders[index] ?? null) : [],
+    })),
+  };
+  console.log(
+    `[wasm] hosting a ${variant} table: ${decks.length} seats, local seat ${localPlayerIndex}`,
+  );
+
+  try {
+    self.__forgeStartGame(JSON.stringify(request));
+    gameRunning = false;
+    postEvent("game:over", {});
+  } catch (e) {
+    gameRunning = false;
+    postEvent("game:forced_end", {
+      reason: "worker_error",
+      message: e && e.message ? e.message : String(e),
+    });
+  }
+}
+
 self.onmessage = (e) => {
   const msg = e.data;
   if (!msg || msg.type !== "command") return;
   if (msg.command === "start_game") return void startGame(msg.requestId, msg.args);
+  if (msg.command === "start_multiplayer_game") {
+    return void startMultiplayerGame(msg.requestId, msg.args);
+  }
   if (msg.command === "wasm_init" || msg.command === "ensure_card_data") {
     return void boot().then(
       () => postResponse(msg.requestId, "ok"),
       (err) => postError(msg.requestId, String(err)),
     );
   }
-  // Everything else is a query the Rust worker also answers with null:
-  // prompts and state flow through the SAB, not through commands.
+  // Prompts and state flow through the SAB, not through commands, so these are
+  // the same no-ops the Rust worker answers with. Anything else does not belong
+  // here at all: the bridge routes non-engine commands to the Rust worker, and
+  // a command that reaches this worker anyway is a routing bug, not something
+  // to paper over with a null the caller will dereference.
   if (msg.command === "end_game") {
     gameRunning = false;
+    self.__forgeSeatSabs = null;
     return postResponse(msg.requestId, null);
   }
-  postResponse(msg.requestId, null);
+  if (msg.command === "respond" || msg.command === "get_prompt" || msg.command === "get_game_view") {
+    return postResponse(msg.requestId, null);
+  }
+  postError(
+    msg.requestId,
+    `the Forge engine does not implement "${msg.command}" — it should have gone to the Rust worker`,
+  );
 };
 
 // The bridge waits for this before sending any command. Booting the module

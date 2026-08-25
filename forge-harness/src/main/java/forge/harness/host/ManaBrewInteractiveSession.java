@@ -1785,7 +1785,7 @@ public final class ManaBrewInteractiveSession {
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
             if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
-                submitAction(bridge.exchange(latestPromptJson));
+                submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
             }
             final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
             if (action == null) {

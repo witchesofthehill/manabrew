@@ -572,11 +572,14 @@ class WorkerBridge {
     // The Forge worker is plain JS served from public/, so it cannot resolve a
     // bundled module to read cardset.rkyv itself. Frame the assets here, where
     // the bundler can, and hand them over with the game.
-    if (command === "start_game" && this.workerIsForgeWasm) {
-      const decks = [
-        args?.deck as Deck | undefined,
-        ...((args?.opponentDecks as Deck[] | undefined) ?? []),
-      ];
+    if (
+      (command === "start_game" || command === "start_multiplayer_game") &&
+      this.workerIsForgeWasm
+    ) {
+      const decks =
+        command === "start_game"
+          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
+          : ((args?.decks as Deck[] | undefined) ?? []);
       args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
     }
 

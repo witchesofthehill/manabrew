@@ -26,6 +26,8 @@ public final class SabTransport implements InteractiveBridge {
     @JS("globalThis.__mbSab = new SharedArrayBuffer(size);"
         + "globalThis.__mbSig = new Int32Array(globalThis.__mbSab, 0, 2);"
         + "globalThis.__mbData = new Uint8Array(globalThis.__mbSab, 8);"
+        + "globalThis.__mbSeats = [{ sig: globalThis.__mbSig, data: globalThis.__mbData }];"
+        + "globalThis.__mbSeatOf = () => 0;"
         + "postMessage({ type: 'sab', sab: globalThis.__mbSab });"
         + "return true;")
     static native boolean install(int size);
@@ -37,11 +39,33 @@ public final class SabTransport implements InteractiveBridge {
         + "globalThis.__mbSab = sab;"
         + "globalThis.__mbSig = new Int32Array(sab, 0, 2);"
         + "globalThis.__mbData = new Uint8Array(sab, 8);"
+        + "globalThis.__mbSeats = [{ sig: globalThis.__mbSig, data: globalThis.__mbData }];"
+        + "globalThis.__mbSeatOf = () => 0;"
         + "return true;")
     static native boolean bind();
 
+    /**
+     * Binds one buffer per seat, for a table this browser is hosting.
+     *
+     * <p>`globalThis.__forgeSeatSabs` is an array indexed by the engine's own
+     * player index, so a prompt for player-2 is published on the buffer the
+     * host handed that seat and nowhere else.
+     */
     @JS.Coerce
-    @JS("const sig = globalThis.__mbSig, data = globalThis.__mbData;"
+    @JS("const sabs = globalThis.__forgeSeatSabs;"
+        + "if (!Array.isArray(sabs) || !sabs.length) throw new Error('globalThis.__forgeSeatSabs is not set');"
+        + "globalThis.__mbSeats = sabs.map((sab) => sab && ({"
+        + "  sig: new Int32Array(sab, 0, 2), data: new Uint8Array(sab, 8) }));"
+        + "const first = globalThis.__mbSeats.findIndex((s) => s);"
+        + "globalThis.__mbSeatOf = (seat) => (globalThis.__mbSeats[seat] ? seat : first);"
+        + "globalThis.__mbSig = globalThis.__mbSeats[first].sig;"
+        + "globalThis.__mbData = globalThis.__mbSeats[first].data;"
+        + "return globalThis.__mbSeats.filter((s) => s).length;")
+    static native int bindSeats();
+
+    @JS.Coerce
+    @JS("const s = globalThis.__mbSeats[globalThis.__mbSeatOf(seat)];"
+        + "const sig = s.sig, data = s.data;"
         + "for (;;) {"
         + "  const cur = Atomics.load(sig, 0);"
         + "  if (cur === 0 || cur === 2 || cur === 3) break;"
@@ -54,10 +78,11 @@ public final class SabTransport implements InteractiveBridge {
         + "Atomics.store(sig, 0, 1);"
         + "Atomics.notify(sig, 0);"
         + "return true;")
-    static native boolean send(String json);
+    static native boolean send(int seat, String json);
 
     @JS.Coerce
-    @JS("const sig = globalThis.__mbSig, data = globalThis.__mbData;"
+    @JS("const s = globalThis.__mbSeats[globalThis.__mbSeatOf(seat)];"
+        + "const sig = s.sig, data = s.data;"
         + "for (;;) {"
         + "  const cur = Atomics.load(sig, 0);"
         + "  if (cur === 2) break;"
@@ -68,7 +93,7 @@ public final class SabTransport implements InteractiveBridge {
         + "Atomics.store(sig, 0, 0);"
         + "Atomics.notify(sig, 0);"
         + "return out;")
-    static native String recv();
+    static native String recv(int seat);
 
     @JS.Coerce
     @JS("postMessage({ type: 'event', event: name, payload: JSON.parse(json) });")
@@ -94,6 +119,12 @@ public final class SabTransport implements InteractiveBridge {
 
     @Override
     public String exchange(final String promptJson) {
+        return exchange(0, promptJson);
+    }
+
+    @Override
+    public String exchange(final int playerIndex, final String promptJson) {
+        final int seat = playerIndex < 0 ? 0 : playerIndex;
         // Engine think time: from the client's answer landing to the next
         // prompt being ready. This is the analogue of the hosted node-side
         // figure, and unlike a client-side measurement it is not quantised by
@@ -103,17 +134,20 @@ public final class SabTransport implements InteractiveBridge {
                     + ",\"type\":\"" + inputType(promptJson) + "\"}");
         }
 
-        final String view = snapshots == null ? null : snapshots.apply(0);
+        // Each seat sees the board through its own eyes: hidden zones are cut
+        // per viewer, so hosting a table must not publish seat 0's view to
+        // everyone.
+        final String view = snapshots == null ? null : snapshots.apply(seat);
         if (view != null && !view.isEmpty()) {
             // The client reads state.gameView, matching GameSnapshotEventDto on
             // the Rust side; a bare game view leaves the board unmounted.
-            sendTagged("state", "state", "{\"checkpointId\":" + (++checkpoint)
+            sendTagged(seat, "state", "state", "{\"checkpointId\":" + (++checkpoint)
                     + ",\"label\":\"forge\",\"gameView\":" + view
                     + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
         }
-        sendTagged("prompt", "prompt", promptJson);
+        sendTagged(seat, "prompt", "prompt", promptJson);
 
-        final JsonObject message = JsonParser.parseString(recv()).getAsJsonObject();
+        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
         lastRecvAt = System.currentTimeMillis();
         // ClientToServerMessage::Response -> {"kind":"response","promptId":N,"action":{...}}
         if (message.has("action")) {
@@ -122,9 +156,10 @@ public final class SabTransport implements InteractiveBridge {
         return message.toString();
     }
 
-    private static void sendTagged(final String kind, final String field, final String body) {
+    private static void sendTagged(
+            final int seat, final String kind, final String field, final String body) {
         final String framed = "{\"kind\":\"" + kind + "\",\"" + field + "\":" + body + "}";
-        if (!send(framed)) {
+        if (!send(seat, framed)) {
             System.err.println("[wasm] " + kind + " payload is " + (framed.length() / 1024)
                     + " KiB and does not fit the shared buffer, dropping it");
         }

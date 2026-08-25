@@ -677,8 +677,17 @@ export const useGameStore = create<GameState>()(
           return;
         }
         const runtime = getSelectedGameRuntime();
-        await runtime.api.restoreSnapshot({ checkpointId });
-        set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
+        try {
+          await runtime.api.restoreSnapshot({ checkpointId });
+          set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
+        } catch (error) {
+          // Not every engine can rewind: the browser Forge build rejects it
+          // outright. Say so rather than leaving the click looking successful
+          // or throwing out of a handler.
+          set({
+            debugInfo: `Snapshot restore is not available on this engine (${String(error)}).`,
+          });
+        }
       },
     }),
     { name: "game", enabled: import.meta.env.DEV },

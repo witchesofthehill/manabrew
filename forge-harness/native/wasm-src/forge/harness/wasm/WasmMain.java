@@ -186,6 +186,10 @@ public final class WasmMain {
     @JS(args = {"fn"}, value = "globalThis.__forgeStartGame = fn;")
     private static native void exportStartGame(java.util.function.Function<org.graalvm.webimage.api.JSString, org.graalvm.webimage.api.JSString> fn);
 
+    @JS.Coerce
+    @JS("return Array.isArray(globalThis.__forgeSeatSabs) && globalThis.__forgeSeatSabs.length > 0;")
+    private static native boolean hasSeatBuffers();
+
     @JS("globalThis.__forgeReady = true;"
         + "postMessage({ type: 'event', event: 'forge:ready', payload: {} });")
     private static native void announceReady();
@@ -203,7 +207,14 @@ public final class WasmMain {
         exportStartGame((request) -> {
             String requestJson = request.asString();
             try {
-                SabTransport.bind();
+                // A table this browser hosts hands over one buffer per seat;
+                // a game against the AI hands over one. Either way the host
+                // owns the buffers and the engine only binds to them.
+                if (hasSeatBuffers()) {
+                    SabTransport.bindSeats();
+                } else {
+                    SabTransport.bind();
+                }
                 String gameId = com.google.gson.JsonParser.parseString(requestJson)
                         .getAsJsonObject().get("gameId").getAsString();
                 ManaBrewInteractiveSession.setBridge(

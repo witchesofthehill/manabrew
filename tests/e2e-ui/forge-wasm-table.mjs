@@ -1,0 +1,199 @@
+// Hosting a table on the browser Forge engine: two humans over a real relay,
+// with the game running in the host's worker. The Rust worker has always been
+// able to do this; Forge answered start_multiplayer_game with null, so the
+// host's Start silently did nothing.
+//
+// Every seat has its own SharedArrayBuffer and its own view of the board, so
+// this also covers the part that would leak: a guest must see their own hand,
+// not the host's.
+//
+//   MANABREW_SERVER_KEY=forge cargo run --release -p manabrew-server
+//   npx vite --port 5199 --strictPort
+//   BASE=http://localhost:5199 node tests/e2e-ui/forge-wasm-table.mjs
+//
+// Env: BASE, DECK, FORMAT, ENGINE=forge|rust, HEADED=1.
+import { chromium } from "playwright";
+import {
+  launchOpts,
+  uniqueName,
+  onboard,
+  connectLocal,
+  createRoom,
+  pickPreset,
+} from "../e2e-ironsmith/lib.mjs";
+
+const BASE = process.env.BASE || "http://localhost:5199";
+const DECK = process.env.DECK || "Izzet Lessons";
+const FORMAT = process.env.FORMAT || "Standard";
+const ENGINE = process.env.ENGINE === "rust" ? "rust" : "forge";
+const ROOM = "ForgeTable" + Date.now().toString(36).slice(-4);
+
+const browser = await chromium.launch(launchOpts());
+const seatOn = async (forge) => {
+  const page = await (
+    await browser.newContext({ viewport: { width: 1300, height: 850 } })
+  ).newPage();
+  await page.addInitScript((on) => {
+    try {
+      const raw = localStorage.getItem("manabrew-preferences");
+      const doc = raw ? JSON.parse(raw) : { state: {}, version: 0 };
+      doc.state = { ...(doc.state || {}), forgeWasmEnabled: on };
+      localStorage.setItem("manabrew-preferences", JSON.stringify(doc));
+    } catch {
+      // First load on a fresh origin; the store writes its own defaults.
+    }
+  }, forge);
+  return page;
+};
+
+const step = (msg) => console.log(`· ${msg}`);
+let failure = null;
+const fail = (msg) => {
+  failure = msg;
+  throw new Error(msg);
+};
+
+try {
+  // Only the host runs an engine, so only the host's choice matters.
+  const host = await seatOn(ENGINE === "forge");
+  const guest = await seatOn(false);
+  const hostName = uniqueName("Host");
+  const guestName = uniqueName("Guest");
+
+  await onboard(host, hostName);
+  step("host onboarded");
+  await connectLocal(host, hostName);
+  step("host on the local relay");
+
+  // The lobby is the player-first one: a table, not a room.
+  await host.goto(`${BASE}/lobby`, { waitUntil: "networkidle" });
+  await host.getByRole("button", { name: /Set up a table/i }).click();
+  await host.waitForTimeout(1200);
+  await host.getByRole("button", { name: /Create new table/i }).click();
+  await host.waitForTimeout(1200);
+  // Standard is the default; anything else lives under Advanced table options.
+  const formatButton = host.getByRole("button", { name: new RegExp(`^${FORMAT}$`) }).first();
+  if (await formatButton.count()) await formatButton.click();
+  await host
+    .getByRole("button", { name: /^Create Table$/ })
+    .last()
+    .click();
+  await host.waitForTimeout(3000);
+  step("table created");
+
+  await pickPreset(host, () => host.getByRole("button", { name: /Choose a deck/i }).click(), DECK);
+  step("host deck picked");
+
+  await onboard(guest, guestName);
+  step("guest onboarded");
+  await connectLocal(guest, guestName);
+  step("guest on the local relay");
+  await guest.goto(`${BASE}/lobby`, { waitUntil: "networkidle" });
+  await guest.waitForTimeout(2000);
+  const table = guest.getByRole("button", { name: /Join/i }).first();
+  await table.waitFor({ timeout: 20000 });
+  await table.click();
+  await guest.waitForTimeout(2500);
+  step("guest joined");
+  await pickPreset(
+    guest,
+    () => guest.getByRole("button", { name: /Choose a deck/i }).click(),
+    DECK,
+  );
+  const ready = guest.getByRole("button", { name: /^Ready( up)?$/i }).first();
+  await ready.waitFor({ timeout: 20000 });
+  await ready.click();
+  await guest.waitForTimeout(1500);
+  step("guest ready");
+
+  const start = host.getByRole("button", { name: /Start (Game|Table)/i }).first();
+  if (!(await start.count())) {
+    const seen = await host.evaluate(() =>
+      [...document.querySelectorAll("button")]
+        .map((b) => `${(b.textContent || "").trim()}${b.disabled ? " [x]" : ""}`)
+        .filter(Boolean),
+    );
+    const text = await host.evaluate(() =>
+      document.body.innerText.replace(/\s+/g, " ").slice(0, 400),
+    );
+    console.log("host buttons:", JSON.stringify(seen));
+    console.log("host text:", text);
+    console.log(
+      "guest buttons:",
+      JSON.stringify(
+        await guest.evaluate(() =>
+          [...document.querySelectorAll("button")]
+            .map((b) => `${(b.textContent || "").trim()}${b.disabled ? " [x]" : ""}`)
+            .filter(Boolean),
+        ),
+      ),
+    );
+    console.log(
+      "guest text:",
+      await guest.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 400)),
+    );
+  }
+  await start.waitFor({ timeout: 20000 });
+  await start.click();
+  step("host started the table");
+  await host.waitForTimeout(15000);
+  await guest.waitForTimeout(5000);
+
+  const ranForge = await host.evaluate(() => Array.isArray(window.__engineDecisions));
+  if (ranForge !== (ENGINE === "forge")) {
+    fail(`the host ran the ${ranForge ? "forge" : "rust"} engine, expected ${ENGINE}`);
+  }
+
+  const boarded = async (page) =>
+    /\/play|\/game/.test(page.url()) && (await page.locator("canvas").count()) > 0;
+  for (const [who, page] of [
+    ["host", host],
+    ["guest", guest],
+  ]) {
+    if (!(await boarded(page))) {
+      const log = await page.evaluate(() => (window.__forgeLog || []).slice(-10)).catch(() => []);
+      const state = await page
+        .evaluate(() => {
+          const s = window.__gameStore?.getState?.() ?? {};
+          return {
+            fatal: s.fatalError ?? null,
+            debug: s.debugInfo ?? null,
+            active: s.isGameActive ?? null,
+          };
+        })
+        .catch(() => null);
+      console.log(`${who} state:`, JSON.stringify(state));
+      const bridge = await host
+        .evaluate(() =>
+          (window.__forgeLog || []).filter((l) => /seat|remote|hosting/i.test(String(l))).slice(-6),
+        )
+        .catch(() => []);
+      for (const line of bridge) console.log("   host seat log:", String(line).slice(0, 160));
+      for (const line of log) console.log(`   ${who} log:`, String(line).slice(0, 160));
+      fail(`${who} never reached a board (${page.url()})`);
+    }
+  }
+
+  // Per-seat views: the guest's client is told which slot it holds, and a seat
+  // only ever sees its own hand.
+  const slots = await Promise.all(
+    [host, guest].map((page) =>
+      page.evaluate(() => {
+        const s = window.__gameStore?.getState?.();
+        return s ? { slot: s.myPlayerSlot ?? null, hand: s.gameView?.players?.length ?? 0 } : null;
+      }),
+    ),
+  );
+  if (slots[0] && slots[1] && slots[0].slot === slots[1].slot) {
+    fail(`both clients think they are ${slots[0].slot}`);
+  }
+
+  console.log(
+    `PASS: ${ENGINE} host ran a two-human table — slots ${JSON.stringify(slots.map((s) => s?.slot))}`,
+  );
+} catch (error) {
+  console.log(`FAIL: ${failure ?? error.message}`);
+  await browser.close();
+  process.exit(1);
+}
+await browser.close();

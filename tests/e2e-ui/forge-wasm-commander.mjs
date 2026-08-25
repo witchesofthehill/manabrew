@@ -80,8 +80,11 @@ if (!hasStore) {
     .then(() => true)
     .catch(() => false);
   const frames = await page.evaluate(() => (window.__forgeFrames || []).slice(0, 6));
-  if (!framed) await fail(`the engine sent no state frame; frames so far: ${JSON.stringify(frames)}`);
-  console.log(`PASS (frames only): engine is producing state — ${frames.length} frames, first ${JSON.stringify(frames[0])}`);
+  if (!framed)
+    await fail(`the engine sent no state frame; frames so far: ${JSON.stringify(frames)}`);
+  console.log(
+    `PASS (frames only): engine is producing state — ${frames.length} frames, first ${JSON.stringify(frames[0])}`,
+  );
   await browser.close();
   process.exit(0);
 }
@@ -134,6 +137,19 @@ if (!seats) {
   console.log("engine log tail:");
   for (const line of log) console.log("   ", String(line).slice(0, 160));
   await fail(`no commander reached a command zone — seats: ${JSON.stringify(state)}`);
+}
+
+// Forge substitutes a placeholder for any card it cannot find, and the game
+// plays on around it. That is a silent loss of a card, so it fails the run.
+const unsupported = await page
+  .evaluate(() =>
+    (window.__forgeLog || [])
+      .filter((line) => /unsupported card was requested/i.test(String(line)))
+      .map((line) => String(line).trim()),
+  )
+  .catch(() => []);
+if (unsupported.length) {
+  await fail(`the engine could not find ${unsupported.length} card(s): ${unsupported.join(" | ")}`);
 }
 
 const wrongLife = seats.filter((s) => s.life !== 40);

@@ -13,25 +13,57 @@
 use forge_cardset_archive::load_checked;
 use wasm_bindgen::prelude::*;
 
-/// Name a card script by the same rule Forge files them under: lowercase, no
-/// punctuation, underscores between words.
+/// Name a card script the way Forge does, because with lazily loaded card
+/// scripts the *filename* is how Forge finds a card: it strips the accents and
+/// transforms the name (`CardStorageReader.attemptToLoadCard`), then looks for
+/// that base name. A file written under any other spelling is invisible, and
+/// the game reports the card as unsupported — which is what happened to
+/// "Lim-Dûl's Vault" and "Palantír of Orthanc".
 fn script_name(name_lower: &str) -> String {
     let mut out = String::with_capacity(name_lower.len());
-    let mut pending_sep = false;
-    for ch in name_lower.chars() {
-        if ch.is_ascii_alphanumeric() {
-            if pending_sep && !out.is_empty() {
-                out.push('_');
-            }
-            pending_sep = false;
-            out.push(ch);
-        } else if ch == '\'' || ch == '"' || ch == ',' || ch == '.' {
-            // Dropped outright rather than turned into a separator.
-        } else {
-            pending_sep = true;
+    for ch in strip_accents(name_lower) {
+        let ch = ch.to_ascii_lowercase();
+        if ch == '\'' {
+            continue;
         }
+        if ch.is_ascii_lowercase() || ch.is_ascii_digit() {
+            out.push(ch);
+            continue;
+        }
+        if out.ends_with('_') {
+            continue;
+        }
+        // A comma inside a number is dropped, not separated: "Borrowing
+        // 100,000 Arrows".
+        if ch == ',' && out.chars().last().is_some_and(|prev| prev.is_ascii_digit()) {
+            continue;
+        }
+        out.push('_');
+    }
+    while out.ends_with('_') {
+        out.pop();
     }
     out
+}
+
+/// The ASCII letter behind an accented one, as Apache Commons'
+/// `StringUtils.stripAccents` gives Forge: decompose, then drop the combining
+/// marks. Anything with no ASCII behind it is left for `script_name` to turn
+/// into a separator.
+fn strip_accents(name: &str) -> impl Iterator<Item = char> + '_ {
+    name.chars().filter_map(|ch| match ch {
+        // Combining diacritical marks, i.e. an already-decomposed spelling.
+        '\u{0300}'..='\u{036f}' => None,
+        'à'..='å' | 'À'..='Å' => Some('a'),
+        'è'..='ë' | 'È'..='Ë' => Some('e'),
+        'ì'..='ï' | 'Ì'..='Ï' => Some('i'),
+        'ò'..='ö' | 'Ò'..='Ö' | 'ø' | 'Ø' => Some('o'),
+        'ù'..='ü' | 'Ù'..='Ü' => Some('u'),
+        'ç' | 'Ç' => Some('c'),
+        'ñ' | 'Ñ' => Some('n'),
+        'ý' | 'ÿ' | 'Ý' => Some('y'),
+        _ => Some(ch),
+    })
 }
 
 fn push(out: &mut String, path: &str, body: &str) {
@@ -221,6 +253,19 @@ mod tests {
         );
         // A line with no flavor tail is not an entry.
         assert!(!index.values().any(|name| name.contains("najeela")));
+    }
+
+    #[test]
+    fn files_an_accented_card_where_forge_looks_for_it() {
+        // The real filenames in Forge's cardsfolder.
+        assert_eq!(super::script_name("lim-dûl's vault"), "lim_duls_vault");
+        assert_eq!(super::script_name("palantír of orthanc"), "palantir_of_orthanc");
+        // The same names spelled with combining marks instead.
+        assert_eq!(super::script_name("lim-du\u{0302}l's vault"), "lim_duls_vault");
+        assert_eq!(super::script_name("palanti\u{0301}r of orthanc"), "palantir_of_orthanc");
+        // Unaccented names are unchanged, and a number keeps its comma out.
+        assert_eq!(super::script_name("lightning bolt"), "lightning_bolt");
+        assert_eq!(super::script_name("borrowing 100,000 arrows"), "borrowing_100000_arrows");
     }
 
     #[test]

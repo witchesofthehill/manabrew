@@ -11,4 +11,15 @@ public interface InteractiveBridge {
 
     /** Publishes the prompt and blocks until the client answers it. */
     String exchange(String promptJson);
+
+    /**
+     * Same, for the seat the prompt is addressed to.
+     *
+     * <p>Hosting a table means every seat has its own transport, so a bridge
+     * that serves more than one player needs to know which one is being asked.
+     * A single-seat bridge can ignore it.
+     */
+    default String exchange(int playerIndex, String promptJson) {
+        return exchange(promptJson);
+    }
 }

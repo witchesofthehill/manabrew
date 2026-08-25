@@ -176,6 +176,19 @@ const prompts = after.frames.filter((f) => f.startsWith("prompt:")).length;
 if (prompts < 5)
   await fail(`the engine only issued ${prompts} prompts; the loop is not turning over`);
 
+// Forge substitutes a placeholder for any card it cannot find, and the game
+// plays on around it. That is a silent loss of a card, so it fails the run.
+const unsupported = await page
+  .evaluate(() =>
+    (window.__forgeLog || [])
+      .filter((line) => /unsupported card was requested/i.test(String(line)))
+      .map((line) => String(line).trim()),
+  )
+  .catch(() => []);
+if (unsupported.length) {
+  await fail(`the engine could not find ${unsupported.length} card(s): ${unsupported.join(" | ")}`);
+}
+
 console.log(
   `PASS: forge wasm offline is playable — turn ${turn}, ${prompts} prompts, ${states} states, ${acted} clicks`,
 );

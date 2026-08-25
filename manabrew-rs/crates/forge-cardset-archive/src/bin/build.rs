@@ -31,12 +31,18 @@ fn main() {
     );
 
     let started = Instant::now();
+    // res/ is the parent of the cardsfolder argument; the extra dirs ride
+    // along verbatim so a consumer with no filesystem can still reconstruct
+    // what Forge's FModel.initialize insists on reading.
+    let res_root = cards_dir.parent().map(|p| p.to_path_buf());
     let sources = ArchiveSources {
         cardsfolder: &cards_dir,
         tokenscripts: Some(&tokens_dir),
         editions: Some(&editions_dir),
         block_data: Some(&block_data_dir),
         type_lists: &type_lists,
+        res_root: res_root.as_deref(),
+        extra_dirs: &["formats", "lists", "defaults", "effects"],
     };
     match build_archive_from_sources(sources, &out_path) {
         Ok(stats) => {

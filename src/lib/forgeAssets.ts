@@ -20,9 +20,16 @@ export async function buildForgeAssetBundle(decks: Array<Deck | undefined>): Pro
     ...new Set(
       decks
         .filter((deck): deck is Deck => Boolean(deck))
-        .flatMap((deck) => deck.cards ?? [])
-        .map((card: DeckCard) => card?.identity?.name)
-        .filter((name): name is string => Boolean(name)),
+        .flatMap((deck) => deckCards(deck))
+        .flatMap((card: DeckCard) => {
+          const name = card?.identity?.name;
+          if (!name) return [];
+          // The archive may key a double-faced card either way, and a missing
+          // script is silent: Forge substitutes a placeholder that says the
+          // card is unsupported, and the game plays on around it.
+          const cut = name.indexOf(" // ");
+          return cut < 0 ? [name] : [name, name.slice(0, cut)];
+        }),
     ),
   ];
 
@@ -34,4 +41,21 @@ export async function buildForgeAssetBundle(decks: Array<Deck | undefined>): Pro
   if (!response.ok) throw new Error(`card archive fetch failed: ${response.status}`);
 
   return wasm.forge_asset_bundle(new Uint8Array(await response.arrayBuffer()), names);
+}
+
+/**
+ * Every card that can enter the game, not just the main deck: a commander left
+ * out of the bundle reaches the command zone as an unsupported placeholder.
+ */
+function deckCards(deck: Deck): DeckCard[] {
+  return [
+    ...(deck.cards ?? []),
+    ...(deck.commanders ?? []),
+    ...(deck.sideboard ?? []),
+    ...(deck.attractions ?? []),
+    ...(deck.contraptions ?? []),
+    ...(deck.schemes ?? []),
+    ...(deck.planes ?? []),
+    ...(deck.companion ? [deck.companion] : []),
+  ];
 }

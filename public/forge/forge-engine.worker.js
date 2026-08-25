@@ -57,16 +57,48 @@ function boot() {
  */
 function flatten(deck) {
   const out = [];
-  for (const card of (deck && deck.cards) || []) {
+  const cards = [...((deck && deck.cards) || []), ...((deck && deck.commanders) || [])];
+  for (const card of cards) {
     const identity = card.identity || card;
     const name = identity.name;
     if (!name) continue;
-    const entry = { name };
+    const entry = { name: frontFace(name) };
     if (identity.setCode) entry.setCode = identity.setCode;
     if (identity.cardNumber) entry.collectorNumber = identity.cardNumber;
     for (let i = 0; i < (card.count ?? 1); i++) out.push(entry);
   }
   return out;
+}
+
+/** Forge knows a double-faced card by its front face, the way the node sends it. */
+function frontFace(name) {
+  const cut = String(name).indexOf(" // ");
+  return cut < 0 ? String(name) : String(name).slice(0, cut);
+}
+
+/**
+ * Forge applies commander rules from the game variant, not from the presence of
+ * a commander, so a commander deck started as "Constructed" plays as a 100-card
+ * singleton pile with no command zone. The offline client passes no format, so
+ * the deck's own format decides — same mapping as java_game_variant() in the
+ * node (crates/self-hosted-node/src/host.rs).
+ */
+function forgeVariant(deck) {
+  const format = String((deck && deck.format) || "").toLowerCase();
+  if (format === "commander") return "Commander";
+  if (format.includes("brawl")) return "Brawl";
+  if (format === "oathbreaker") return "Oathbreaker";
+  return "Constructed";
+}
+
+/** Each seat's commanders, falling back to the name the client passed for the human seat. */
+function commanderNames(deck, fallback) {
+  const names = ((deck && deck.commanders) || [])
+    .map((card) => frontFace(((card.identity || card).name) || ""))
+    .filter(Boolean);
+  if (names.length) return names;
+  const single = fallback ? frontFace(fallback) : "";
+  return single ? [single] : [];
 }
 
 async function startGame(requestId, args) {
@@ -103,20 +135,29 @@ async function startGame(requestId, args) {
   postResponse(requestId, "game-started");
 
 
+  const variant = forgeVariant(humanDeck);
+  const commanderGame = variant !== "Constructed";
   const request = {
     gameId: `forge-${Date.now()}`,
-    variant: "Constructed",
-    startingLife: (args && args.startingLife) || 20,
+    variant,
+    startingLife: (args && args.startingLife) || (commanderGame ? 40 : 20),
     seed: Date.now() % 2147483647,
     players: [
-      { name: "You", ai: false, deck: flatten(humanDeck) },
+      {
+        name: "You",
+        ai: false,
+        deck: flatten(humanDeck),
+        commanderNames: commanderGame ? commanderNames(humanDeck, args && args.commanderName) : [],
+      },
       ...aiDecks.map((deck, i) => ({
         name: i > 0 ? `Forge AI ${i + 1}` : "Forge AI",
         ai: true,
         deck: flatten(deck),
+        commanderNames: commanderGame ? commanderNames(deck, null) : [],
       })),
     ],
   };
+  console.log(`[wasm] starting a ${variant} game at ${request.startingLife} life`);
 
   // Blocks the worker for the whole game, which is the point: the engine parks
   // on Atomics.wait whenever the human seat has to decide.

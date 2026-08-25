@@ -48,6 +48,20 @@ async function fail(msg) {
   process.exit(1);
 }
 
+// The engine is behind a deployment flag plus a Settings opt-in. Set the opt-in
+// from an init script so it survives every navigation the run makes.
+// The flag itself is already on against a dev server; only the opt-in is needed.
+await page.addInitScript(() => {
+  try {
+    const raw = localStorage.getItem("manabrew-preferences");
+    const doc = raw ? JSON.parse(raw) : { state: {}, version: 0 };
+    doc.state = { ...(doc.state || {}), forgeWasmEnabled: true };
+    localStorage.setItem("manabrew-preferences", JSON.stringify(doc));
+  } catch {
+    // First load on a fresh origin; the store writes its own defaults.
+  }
+});
+
 await onboard(page, uniqueName("Forge"));
 
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });

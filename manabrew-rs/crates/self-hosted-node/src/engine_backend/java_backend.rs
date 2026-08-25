@@ -1424,6 +1424,25 @@ pub fn run_hosted_engine_game(
 }
 
 #[cfg(forge_backend)]
+const SLOW_DECISION: Duration = Duration::from_secs(10);
+
+/// Serde tag of the prompt variant, for the slow-decision log. `PromptInput` is
+/// internally tagged, so this is the same string the captures carry. Only called
+/// on the rare slow path, so the trip through a `Value` is not worth avoiding.
+#[cfg(forge_backend)]
+fn prompt_input_name(input: &PromptInput) -> String {
+    serde_json::to_value(input)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("type")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+#[cfg(forge_backend)]
 #[allow(clippy::too_many_arguments)]
 fn run_hosted_engine_game_inner(
     game_id: String,
@@ -1629,10 +1648,27 @@ fn run_hosted_engine_game_inner(
                     crate::metrics::record_forge_decision_stage("next_prompt", started.elapsed());
                 }
                 if let Some(started) = decision_received.take() {
-                    crate::metrics::record_forge_decision_stage(
-                        "decision_total",
-                        started.elapsed(),
+                    let elapsed = started.elapsed();
+                    crate::metrics::record_forge_decision_stage("decision_total", elapsed);
+                    crate::metrics::record_forge_decision(
+                        player_names.len(),
+                        ai_player_indices.len(),
+                        elapsed,
                     );
+                    // The metric alone cannot say which game was slow, and these
+                    // are rare enough that finding one afterwards meant replaying
+                    // captures by hand. Named so a log query can list them.
+                    if elapsed >= SLOW_DECISION {
+                        warn!(
+                            game_id,
+                            session_id,
+                            seats = player_names.len(),
+                            bots = ai_player_indices.len(),
+                            elapsed_ms = elapsed.as_millis() as u64,
+                            prompt = prompt_input_name(&prompt.input),
+                            "slow engine decision"
+                        );
+                    }
                     report_engine_gc(&engine);
                 }
                 last_prompt = Some(prompt.clone());

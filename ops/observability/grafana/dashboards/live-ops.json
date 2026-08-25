@@ -29,6 +29,74 @@
   ],
   "panels": [
     {
+      "id": 105,
+      "type": "timeseries",
+      "title": "Engine decision p99 by room shape",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Rules work between a seat answering and the next prompt appearing, split by seats and bots. A fleet-wide quantile hides this: measured over two days of captures, 4 seats with 3 bots ran a p99 near 2.9s and put 2-5% of decisions over two seconds, while every other shape sat at 0.35s with none. Bot decision time is not the problem, it is about 0.75s at p99 in those same rooms. Needs node 0.21.3 or newer; earlier nodes publish only the unlabelled summary.",
+      "gridPos": {
+        "x": 0,
+        "y": 66,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le, seats, bots) (rate(manabrew_node_forge_decision_seconds_bucket[5m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{seats}} seats / {{bots}} bots"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 106,
+      "type": "logs",
+      "title": "Slow decisions (10s or more), with game id",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Every decision at or above 10s, named. The metric can say a node was slow but never which game, so finding one previously meant replaying captures by hand. Match a spike on the panel to the left against a line here, then pull the capture by game_id.",
+      "gridPos": {
+        "x": 12,
+        "y": 66,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{service=\"self-hosted-node\"} |= \"slow engine decision\""
+        }
+      ],
+      "options": {
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
       "id": 1,
       "type": "stat",
       "title": "Humans connected",

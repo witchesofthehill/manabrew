@@ -59,51 +59,105 @@ await page.waitForTimeout(15000);
 
 // Play enough decisions that the report is worth sending: a game nobody
 // played is deliberately not reported, so a handful of clicks is not enough.
-// Answered through the store, which is the same path the UI takes.
-await page.evaluate(async () => {
-  const store = window.__gameStore;
-  const answerFor = (input) => {
-    switch (input?.type) {
-      case "chooseAction":
-        return { type: "pass", exhaustStack: false };
-      case "mulligan":
-        return { type: "mulliganDecision", keep: true };
-      case "revealCards":
-        return { type: "revealCardsAcknowledged" };
-      case "diceRolled":
-        return { type: "diceRolledAcknowledged" };
-      case "chooseBoolean":
-        return { type: "decision", value: false };
-      case "chooseAttackers":
-        return { type: "declareAttackers", assignments: [] };
-      case "chooseBlockers":
-        return { type: "declareBlockers", assignments: [] };
-      case "payManaCost":
-        return { type: "cancel" };
-      default:
-        return null;
+const hasStore = await page.evaluate(() => Boolean(window.__gameStore)).catch(() => false);
+if (hasStore) {
+  // Through the store, which is the same path the UI takes, and quicker.
+  await page.evaluate(async () => {
+    const store = window.__gameStore;
+    const answerFor = (input) => {
+      switch (input?.type) {
+        case "chooseAction":
+          return { type: "pass", exhaustStack: false };
+        case "mulligan":
+          return { type: "mulliganDecision", keep: true };
+        case "revealCards":
+          return { type: "revealCardsAcknowledged" };
+        case "diceRolled":
+          return { type: "diceRolledAcknowledged" };
+        case "chooseBoolean":
+          return { type: "decision", value: false };
+        case "chooseAttackers":
+          return { type: "declareAttackers", assignments: [] };
+        case "chooseBlockers":
+          return { type: "declareBlockers", assignments: [] };
+        case "payManaCost":
+          return { type: "cancel" };
+        default:
+          return null;
+      }
+    };
+    for (let step = 0; step < 60; step += 1) {
+      const state = store.getState();
+      if (!state.isGameActive) break;
+      const answer =
+        state.currentPrompt && !state.isWaitingForResponse
+          ? answerFor(state.currentPrompt.input)
+          : null;
+      if (answer) await state.respond(answer);
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
-  };
-  for (let step = 0; step < 60; step += 1) {
-    const state = store.getState();
-    if (!state.isGameActive) break;
-    const answer =
-      state.currentPrompt && !state.isWaitingForResponse
-        ? answerFor(state.currentPrompt.input)
-        : null;
-    if (answer) await state.respond(answer);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
+} else {
+  // A production build has no store seam, so play it the way a person does.
+  // The same control set the offline test drives with: the board's answer is
+  // rarely the same word twice.
+  const CLICKS = [
+    /^Keep$/i,
+    /^Continue$/i,
+    /^OK$/i,
+    /^Done$/i,
+    /^No Blocks$/i,
+    // Prefix, not exact: the board's buttons carry their keybinding chip, so
+    // the accessible name is "PASS Space" rather than "PASS".
+    /^Pass/i,
+    /^End Turn/i,
+  ];
+  let clicks = 0;
+  for (let round = 0; round < 60 && clicks < 20; round += 1) {
+    let acted = false;
+    for (const name of CLICKS) {
+      const button = page.getByRole("button", { name }).first();
+      if (!(await button.count().catch(() => 0))) continue;
+      if (!(await button.isEnabled().catch(() => false))) continue;
+      await button.click({ timeout: 5000 }).catch(() => {});
+      clicks += 1;
+      acted = true;
+      await page.waitForTimeout(600);
+      break;
+    }
+    if (!acted) {
+      if (round === 3) {
+        const seen = await page.evaluate(() =>
+          [...document.querySelectorAll("button")]
+            .map((b) => (b.textContent || "").trim().replace(/\s+/g, " "))
+            .filter(Boolean)
+            .slice(0, 20),
+        );
+        console.log("· board offers:", JSON.stringify(seen));
+      }
+      await page.waitForTimeout(900);
+    }
   }
-});
+  console.log(`· answered ${clicks} prompt(s) through the UI`);
+}
 await page.waitForTimeout(1500);
 
-// Leave the game the way a player does.
-await page.evaluate(() => window.__gameStore?.getState?.().endGame?.());
-await page.waitForTimeout(3000);
+// Leave the game the way a player does. Navigating away ends it on either
+// build; the store seam is only a shortcut where it exists.
+if (hasStore) {
+  await page.evaluate(() => window.__gameStore?.getState?.().endGame?.());
+} else {
+  await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
+}
+await page.waitForTimeout(4000);
 
-const queued = await page.evaluate(() =>
-  JSON.parse(localStorage.getItem("manabrew-engine-stats-reports") ?? "[]"),
-);
+const queued = await page.evaluate(() => {
+  try {
+    return JSON.parse(localStorage.getItem("manabrew-engine-stats-reports") ?? "[]");
+  } catch {
+    return [];
+  }
+});
 if (!posted.length && !queued.length) {
   const diag = await page.evaluate(() => {
     const store = window.__gameStore?.getState?.();

@@ -222,6 +222,12 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "tab" },
   },
   {
+    id: "cycle-hand-order",
+    label: "Cycle hand order",
+    category: "Battlefield",
+    defaultCombo: { key: "h", shift: true },
+  },
+  {
     id: "focus-next-field",
     label: "Focus next opponent field",
     category: "Battlefield",

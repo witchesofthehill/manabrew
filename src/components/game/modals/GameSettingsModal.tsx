@@ -13,6 +13,7 @@ import {
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
 const CARD_STYLES: { value: BattlefieldCardStyle; label: string }[] = [
   { value: "realistic", label: "Realistic" },
@@ -94,6 +95,23 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => prefs.setCardSizeMultiplier(Number(e.target.value) / 100)}
             className="w-full accent-primary"
           />
+        </SettingRow>
+        <SettingRow
+          label="Hand ordering"
+          hint="Drag cards sideways for a custom order. Automatic modes re-sort when cards enter your hand."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {HAND_ORDER_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setHandOrderMode(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
         </SettingRow>
 
         <SettingRow

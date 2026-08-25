@@ -16,6 +16,7 @@ import {
   HOVER_DELAY_MIN,
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
+import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
@@ -880,6 +881,23 @@ export default function Settings() {
                     )}
                   />
                 </div>
+              </div>
+            </PreferenceCard>
+            <PreferenceCard
+              title="Hand Ordering"
+              description="Drag cards sideways for a custom order, or keep every hand sorted automatically by color or mana value."
+            >
+              <div className="flex flex-wrap gap-2">
+                {HAND_ORDER_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setHandOrderMode(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
               </div>
             </PreferenceCard>
 

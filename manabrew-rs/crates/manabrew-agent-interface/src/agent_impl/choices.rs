@@ -14,6 +14,8 @@ use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
+const CARD_NAME_SUGGESTION_LIMIT: usize = 50;
+
 fn card_choice_presentation(title: &str, description: Option<String>) -> PromptPresentation {
     PromptPresentation {
         title: title.to_string(),
@@ -633,6 +635,27 @@ pub(super) fn choose_colors<T: Responder>(
     if valid_colors.is_empty() || max == 0 {
         return Vec::new();
     }
+    if min == max {
+        agent.send_prompt(
+            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+                presentation: card_choice_presentation("Choose colors", None),
+                valid_colors: valid_colors.to_vec(),
+                amount: min as u32,
+                repeat_allowed: false,
+            }),
+            None,
+        );
+        return match agent.recv_action() {
+            PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { chosen_colors }) => {
+                chosen_colors
+                    .into_iter()
+                    .flat_map(|(color, count)| std::iter::repeat_n(color, count as usize))
+                    .take(max)
+                    .collect()
+            }
+            _ => valid_colors.iter().take(min).cloned().collect(),
+        };
+    }
     send_selection(
         agent,
         "Choose colors",
@@ -687,12 +710,26 @@ pub(super) fn choose_card_name<T: Responder>(
     if valid_names.is_empty() {
         return None;
     }
-    send_selection(agent, "Name a card", None, valid_names.to_vec(), 1, 1, None);
-    match recv_selection(agent) {
-        Some(chosen_indices) => chosen_indices
-            .first()
-            .and_then(|index| valid_names.get(*index).cloned()),
-        None => valid_names.first().cloned(),
+    agent.send_prompt(
+        PromptInput::ChooseCardName(ChooseCardNameInput {
+            presentation: card_choice_presentation("Name a card", None),
+            suggestions: valid_names
+                .iter()
+                .take(CARD_NAME_SUGGESTION_LIMIT)
+                .cloned()
+                .collect(),
+        }),
+        None,
+    );
+    match agent.recv_action() {
+        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { name }) => {
+            valid_names
+                .iter()
+                .find(|valid| valid.eq_ignore_ascii_case(&name))
+                .cloned()
+                .or_else(|| valid_names.first().cloned())
+        }
+        _ => valid_names.first().cloned(),
     }
 }
 

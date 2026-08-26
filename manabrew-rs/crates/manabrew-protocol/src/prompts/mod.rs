@@ -8,6 +8,7 @@ pub mod choose_attackers;
 pub mod choose_blockers;
 pub mod choose_board_targets;
 pub mod choose_boolean;
+pub mod choose_card_name;
 pub mod choose_cards;
 pub mod choose_color;
 pub mod choose_combat_damage_assignment;
@@ -28,6 +29,7 @@ pub use choose_attackers::{ChooseAttackersInput, ChooseAttackersOutput};
 pub use choose_blockers::{ChooseBlockersInput, ChooseBlockersOutput};
 pub use choose_board_targets::{ChooseBoardTargetsInput, ChooseBoardTargetsOutput};
 pub use choose_boolean::{ChooseBooleanInput, ChooseBooleanOutput};
+pub use choose_card_name::{ChooseCardNameInput, ChooseCardNameOutput};
 pub use choose_cards::{ChooseCardsInput, ChooseCardsOutput};
 pub use choose_color::{ChooseColorInput, ChooseColorOutput};
 pub use choose_combat_damage_assignment::{
@@ -64,6 +66,7 @@ pub enum PromptInput {
     ChooseBlockers(choose_blockers::ChooseBlockersInput),
     ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput),
     ChooseBoolean(choose_boolean::ChooseBooleanInput),
+    ChooseCardName(choose_card_name::ChooseCardNameInput),
     ChooseFromSelection(choose_from_selection::ChooseFromSelectionInput),
     GameOver(game_over::GameOverInput),
     RevealCards(reveal::RevealCardsInput),
@@ -91,6 +94,7 @@ pub enum PromptOutput {
     ChooseBlockers(choose_blockers::ChooseBlockersOutput),
     ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsOutput),
     ChooseBoolean(choose_boolean::ChooseBooleanOutput),
+    ChooseCardName(choose_card_name::ChooseCardNameOutput),
     ChooseFromSelection(choose_from_selection::ChooseFromSelectionOutput),
     RevealCards(reveal::RevealCardsOutput),
     Scry(scry::ScryOutput),
@@ -148,6 +152,7 @@ impl PromptInput {
             | (I::ChooseAttackers(_), O::ChooseAttackers(_))
             | (I::ChooseBlockers(_), O::ChooseBlockers(_))
             | (I::ChooseBoolean(_), O::ChooseBoolean(_))
+            | (I::ChooseCardName(_), O::ChooseCardName(_))
             | (I::ChooseFromSelection(_), O::ChooseFromSelection(_))
             | (I::RevealCards(_), O::RevealCards(_))
             | (I::Scry(_), O::Scry(_))

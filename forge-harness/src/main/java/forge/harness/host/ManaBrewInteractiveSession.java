@@ -44,6 +44,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public final class ManaBrewInteractiveSession {
+    private static final int CARD_NAME_SUGGESTION_LIMIT = 50;
+
     private final String sessionId;
     private Match match;
     private Game game;
@@ -649,10 +651,22 @@ public final class ManaBrewInteractiveSession {
             final int amount,
             final String sourceName
     ) {
-        publishAgentPrompt("player-" + playerId, null,
+        return awaitColorChoice(playerId, availableColors, amount, true, sourceName, null);
+    }
+
+    List<String> awaitColorChoice(
+            final int playerId,
+            final List<String> availableColors,
+            final int amount,
+            final boolean repeatAllowed,
+            final String sourceName,
+            final String sourceCardId
+    ) {
+        requireAttached();
+        publishAgentPrompt("player-" + playerId, sourceCardId,
                 new ChooseColorInput(
-                        presentation("Choose mana color", null),
-                        new java.util.ArrayList<>(availableColors), amount, true));
+                        presentation(sourceName == null ? "Choose colors" : sourceName, null),
+                        new java.util.ArrayList<>(availableColors), amount, repeatAllowed));
 
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -660,6 +674,10 @@ public final class ManaBrewInteractiveSession {
                 return new ArrayList<>();
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("string_decision".equals(actionKind)) {
+                final String value = action.has("value") ? action.get("value").getAsString() : "";
+                return value.isEmpty() ? new ArrayList<>() : new ArrayList<>(List.of(value));
+            }
             if ("mana_combo_decision".equals(actionKind)) {
                 final List<String> chosen = new ArrayList<>();
                 if (action.has("chosenColors") && action.get("chosenColors").isJsonArray()) {
@@ -1984,13 +2002,18 @@ public final class ManaBrewInteractiveSession {
                             new java.util.ArrayList<>(options), 1, false));
             return;
         }
+        if ("choose_card_name".equals(kind)) {
+            final List<String> suggestions = options.size() <= CARD_NAME_SUGGESTION_LIMIT
+                    ? new ArrayList<>(options)
+                    : new ArrayList<>();
+            publishAgentPrompt("player-" + playerId, sourceCardId,
+                    new ChooseCardNameInput(presentation("Name a card", description), suggestions));
+            return;
+        }
         final String title;
         switch (kind) {
             case "choose_type":
                 title = "Choose a " + (description != null ? description : "type");
-                break;
-            case "choose_card_name":
-                title = "Name a card";
                 break;
             default:
                 throw new UnsupportedOperationException("unsupported option prompt kind: " + kind);

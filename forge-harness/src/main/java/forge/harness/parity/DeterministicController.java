@@ -1089,7 +1089,8 @@ public class DeterministicController extends PlayerController implements Harness
                     if (cp == null) {
                         return false;
                     }
-                    final Card instanceForPlayer = Card.fromPaperCard(cp, player);
+                    final Card instanceForPlayer =
+                            CardFactory.getCard(cp, player, -1, player.getGame());
                     final Player sourceController = source == null ? player : source.getController();
                     return instanceForPlayer.isValid(valid, sourceController, source, sa);
                 })

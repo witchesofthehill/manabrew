@@ -5,6 +5,7 @@
     "choose-blockers": "ChooseBlockersInput",
     "choose-board-targets": "ChooseBoardTargetsInput",
     "choose-boolean": "ChooseBooleanInput",
+    "choose-card-name": "ChooseCardNameInput",
     "choose-cards": "ChooseCardsInput",
     "choose-color": "ChooseColorInput",
     "choose-combat-damage-assignment": "ChooseCombatDamageAssignmentInput",
@@ -192,6 +193,11 @@
     "ChooseBooleanInput": {
       "ts": "interface ChooseBooleanInput {\n  presentation: PromptPresentation;\n  confirmLabel: string;\n  denyLabel: string;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseBooleanInput {\n    pub presentation: PromptPresentation,\n    pub confirm_label: String,\n    pub deny_label: String,\n}",
+      "refs": ["PromptPresentation"]
+    },
+    "ChooseCardNameInput": {
+      "ts": "interface ChooseCardNameInput {\n  presentation: PromptPresentation;\n  suggestions: Array<string>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseCardNameInput {\n    pub presentation: PromptPresentation,\n    pub suggestions: Vec<String>,\n}",
       "refs": ["PromptPresentation"]
     },
     "ChooseCardsInput": {

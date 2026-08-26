@@ -6,6 +6,15 @@ import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { PROMPT_LABELS } from "./game.constants";
 
+const MANA_COLOR_LABEL: Record<ManaColor, string> = {
+  W: "White",
+  U: "Blue",
+  B: "Black",
+  R: "Red",
+  G: "Green",
+  C: "Colorless",
+};
+
 export function isPermanentSpellCard(card: Pick<CardDto, "types">): boolean {
   return !card.types.includes("Instant") && !card.types.includes("Sorcery");
 }
@@ -95,16 +104,23 @@ export interface CardChoiceIndicator {
   colors: ManaColor[];
 }
 
+export function firstChosenColor(card: Pick<CardDto, "choices">): ManaColor | null {
+  for (const choice of card.choices ?? []) {
+    if (choice.kind === "color") return choice.colors[0] ?? null;
+  }
+  return null;
+}
+
 export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): CardChoiceIndicator[] {
   return (card.choices ?? []).map((choice, index) => {
     switch (choice.kind) {
       case "color": {
-        const label = choice.colors.join("");
+        const label = choice.colors.map((color) => MANA_COLOR_LABEL[color]).join(" / ");
         return {
           key: `color-${index}`,
           kind: choice.kind,
           label,
-          description: `Chosen color: ${choice.colors.join(", ")}`,
+          description: `Chosen color: ${label}`,
           colors: choice.colors,
         };
       }

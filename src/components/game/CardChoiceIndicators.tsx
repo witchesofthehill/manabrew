@@ -40,7 +40,7 @@ export function CardChoiceIndicators({
             "bg-card-status-choice/95 text-text-on-tinted",
             expanded
               ? "gap-1.5 px-2 py-1 text-[11px]"
-              : "max-w-full px-1.5 py-0.5 text-[7px] leading-none",
+              : "max-w-full gap-0.5 px-1.5 py-0.5 text-[7px] leading-none",
           )}
         >
           {expanded && (
@@ -51,11 +51,14 @@ export function CardChoiceIndicators({
             </span>
           )}
           {indicator.kind === "color" ? (
-            <ManaSymbols
-              cost={indicator.colors.map((color) => `{${color}}`).join("")}
-              size="em"
-              className={cn("!mx-0", expanded ? "text-base" : "text-[10px]")}
-            />
+            <>
+              <span className="truncate">{indicator.label}</span>
+              <ManaSymbols
+                cost={indicator.colors.map((color) => `{${color}}`).join("")}
+                size="em"
+                className={cn("!mx-0", expanded ? "text-base" : "text-[10px]")}
+              />
+            </>
           ) : (
             <span className={cn("truncate", expanded && "max-w-64")}>{indicator.label}</span>
           )}

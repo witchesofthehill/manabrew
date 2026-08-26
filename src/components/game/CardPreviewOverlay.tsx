@@ -6,12 +6,14 @@ import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
+import { CardChoiceColorRing } from "@/components/game/CardChoiceColorRing";
 import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
 import { cn } from "@/lib/utils";
 import type { CardRailState } from "@/components/game/cardRailState";
+import { isVisibleBattlefieldKeyword } from "@/lib/battlefieldKeywords";
 
 const MAX_PREVIEW_KEYWORDS = 8;
 
@@ -54,7 +56,7 @@ export function CardPreviewOverlay({
     card.identity.isToken,
   ]);
 
-  const keywords = card.keywords ?? [];
+  const keywords = (card.keywords ?? []).filter(isVisibleBattlefieldKeyword);
   const visibleKeywords = keywords.slice(0, MAX_PREVIEW_KEYWORDS);
   const hiddenKeywordCount = keywords.length - visibleKeywords.length;
 
@@ -111,6 +113,7 @@ export function CardPreviewOverlay({
 
   return (
     <>
+      <CardChoiceColorRing card={card} />
       {damage > 0 && (
         <div
           className="absolute inset-0 pointer-events-none"

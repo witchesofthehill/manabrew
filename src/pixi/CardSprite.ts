@@ -10,10 +10,10 @@ import {
   ColorMatrixFilter,
   type DestroyOptions,
 } from "pixi.js";
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, ManaColor } from "@/protocol/game";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
-import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
+import { deriveCardChoiceIndicators, firstChosenColor } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
 import { cardFrameTintHex, readableTextColor, withAlpha } from "@/themes/gameTheme";
@@ -336,6 +336,8 @@ export class CardSprite extends Container {
   private badgeBg: Graphics;
   private badgeText: Text;
   private choiceContainer: Container;
+  private choiceColorRing: Graphics;
+  private lastChoiceColor: ManaColor | null | undefined;
   private lastChoices: CardDto["choices"] | undefined | null = null;
   private railContainer: Container;
   private railBgGfx: Graphics;
@@ -466,6 +468,10 @@ export class CardSprite extends Container {
     this.edgeGlowGfx.visible = false;
     this.edgeGlowGfx.mask = this.edgeGlowMask;
     this.addChild(this.edgeGlowGfx);
+
+    this.choiceColorRing = new Graphics();
+    this.choiceColorRing.visible = false;
+    this.addChild(this.choiceColorRing);
 
     this.badgeContainer = new Container();
     this.badgeBg = new Graphics();
@@ -713,6 +719,7 @@ export class CardSprite extends Container {
     this.updateKeywords();
     this.updateMana();
     this.updateChoice(true);
+    this.updateChoiceColorRing(true);
   }
 
   private updateMana(): void {
@@ -858,6 +865,7 @@ export class CardSprite extends Container {
     this.updateDamage();
     this.updateBadge();
     this.updateChoice();
+    this.updateChoiceColorRing();
     this.updateCounters();
     this.updateKeywords();
     this.updateFoil();
@@ -1215,6 +1223,32 @@ export class CardSprite extends Container {
     const titleBandY = Math.round(this.ch * BADGE_TITLE_BAND_FRAC);
     this.badgeContainer.x = (this.cw - bw) / 2;
     this.badgeContainer.y = titleBandY;
+  }
+
+  private updateChoiceColorRing(force = false): void {
+    const color = this.showsBattlefieldRail ? firstChosenColor(this.card) : null;
+    if (!force && color === this.lastChoiceColor) return;
+    this.lastChoiceColor = color;
+    this.choiceColorRing.clear();
+    if (!color) {
+      this.choiceColorRing.visible = false;
+      return;
+    }
+
+    const inset = 1.5;
+    this.choiceColorRing.visible = true;
+    this.choiceColorRing.roundRect(
+      inset,
+      inset,
+      this.cw - inset * 2,
+      this.ch - inset * 2,
+      CARD_RADIUS - inset,
+    );
+    this.choiceColorRing.stroke({
+      color: hexToNum(activeTheme.gameTheme.mana[color]),
+      width: 3,
+      alpha: 0.95,
+    });
   }
 
   private updateChoice(force = false): void {

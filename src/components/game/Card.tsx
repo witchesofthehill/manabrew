@@ -6,6 +6,7 @@ import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { PtBadge } from "@/components/game/PtBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
+import { CardChoiceColorRing } from "@/components/game/CardChoiceColorRing";
 import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -149,6 +150,7 @@ function CardComponent({
           )}
           {!bare && (
             <>
+              <CardChoiceColorRing card={card} />
               {card.exerted ? (
                 <CardBadge {...CARD_BADGES.exerted} />
               ) : card.isFaceDown ? (

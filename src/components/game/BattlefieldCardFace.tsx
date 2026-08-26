@@ -13,6 +13,7 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
+import { CardChoiceColorRing } from "@/components/game/CardChoiceColorRing";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { deriveCardRailState } from "@/components/game/cardRailState";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
@@ -137,6 +138,7 @@ export function BattlefieldCardFace({
 
   const Overlays = (
     <>
+      <CardChoiceColorRing card={card} strokeWidth={`${Math.max(1.5, 2 * u)}px`} />
       <CardChoiceIndicators
         card={card}
         className="absolute inset-x-1 z-10"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { BattlefieldChoiceDevControls } from "./BattlefieldChoiceDevControls";
 
 const DEV_BATTLEFIELD_KEYWORDS: string[] = [
   "Flying",
@@ -201,6 +202,8 @@ export function BattlefieldKeywordDevControls() {
         Image, type line, and hover preview resolve via Scryfall fuzzy name lookup. Keyword chips +
         card-state overrides below render on top.
       </p>
+
+      <BattlefieldChoiceDevControls />
 
       <div className="grid grid-cols-2 gap-1">
         {DEV_BATTLEFIELD_KEYWORDS.map((kw) => {

@@ -10,7 +10,7 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { CardChoiceDto, CardDto, StackObjectDto } from "@/protocol/game";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
@@ -91,6 +91,7 @@ function buildDebugKeywordCard(
   controllerId: string,
   name: string,
   keywords: string[],
+  choices: CardChoiceDto[],
   mode: "page" | "saga" | "class",
   current: number,
   final: number,
@@ -107,6 +108,7 @@ function buildDebugKeywordCard(
     ownerId: controllerId,
     zoneId: "dev-zone",
     keywords,
+    choices,
     power: null,
     toughness: null,
   };
@@ -1345,6 +1347,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [liveArrowSpecs, debugArrowType, me?.id, opponent?.id]);
 
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
+  const debugCardChoices = useGameDevStore((s) => s.debugCardChoices);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
@@ -1365,6 +1368,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           me.id,
           debugCardName,
           debugBattlefieldKeywords,
+          debugCardChoices,
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
@@ -1380,6 +1384,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardCurrent,
     debugCardFinal,
     debugBattlefieldKeywords,
+    debugCardChoices,
     me?.id,
   ]);
 
@@ -1416,6 +1421,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           me.id,
           debugCardName,
           debugBattlefieldKeywords,
+          debugCardChoices,
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
@@ -1434,6 +1440,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardCurrent,
     debugCardFinal,
     debugBattlefieldKeywords,
+    debugCardChoices,
     regionOwnerOf,
     battlefieldById,
   ]);

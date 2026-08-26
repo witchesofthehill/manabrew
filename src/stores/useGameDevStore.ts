@@ -1,9 +1,29 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { CardDto } from "@/protocol/game";
+import type { CardChoiceDto, CardDto } from "@/protocol/game";
 import type { ArrowType } from "@/pixi/types";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
+
+export const DEV_CARD_CHOICE_KINDS = [
+  "color",
+  "type",
+  "namedCard",
+  "chosenCard",
+  "number",
+  "mode",
+  "player",
+] as const satisfies readonly CardChoiceDto["kind"][];
+
+export const DEV_CARD_CHOICES: Record<CardChoiceDto["kind"], CardChoiceDto> = {
+  color: { kind: "color", colors: ["B"] },
+  type: { kind: "type", values: ["Dragon"] },
+  namedCard: { kind: "namedCard", names: ["Black Vise"] },
+  chosenCard: { kind: "chosenCard", count: 2 },
+  number: { kind: "number", value: 7 },
+  mode: { kind: "mode", value: "Abzan" },
+  player: { kind: "player", playerId: "dev-opponent", name: "Opponent" },
+};
 
 export const PROMPT_ACTION_VIEW_KEYS = [
   "chooseAction",
@@ -178,6 +198,7 @@ interface GameDevState {
   etbGlowVersion: number;
   debugArrowType: ArrowType | null;
   debugBattlefieldKeywords: string[];
+  debugCardChoices: CardChoiceDto[];
   debugCardEnabled: boolean;
   debugCardName: string;
   debugCardMode: DevCardRailMode;
@@ -204,6 +225,9 @@ interface GameDevState {
   setDebugArrowType: (type: ArrowType | null) => void;
   toggleDebugBattlefieldKeyword: (keyword: string) => void;
   clearDebugBattlefieldKeywords: () => void;
+  toggleDebugCardChoice: (kind: CardChoiceDto["kind"]) => void;
+  setAllDebugCardChoices: () => void;
+  clearDebugCardChoices: () => void;
   setDebugCardEnabled: (value: boolean) => void;
   setDebugCardName: (name: string) => void;
   setDebugCardMode: (mode: DevCardRailMode) => void;
@@ -227,6 +251,7 @@ export const useGameDevStore = create<GameDevState>()(
       etbGlowVersion: 0,
       debugArrowType: null,
       debugBattlefieldKeywords: [],
+      debugCardChoices: [],
       debugCardEnabled: false,
       debugCardName: "Raging Goblin",
       debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
@@ -264,6 +289,17 @@ export const useGameDevStore = create<GameDevState>()(
           };
         }),
       clearDebugBattlefieldKeywords: () => set({ debugBattlefieldKeywords: [] }),
+      toggleDebugCardChoice: (kind) =>
+        set((state) => ({
+          debugCardChoices: state.debugCardChoices.some((choice) => choice.kind === kind)
+            ? state.debugCardChoices.filter((choice) => choice.kind !== kind)
+            : [...state.debugCardChoices, DEV_CARD_CHOICES[kind]],
+        })),
+      setAllDebugCardChoices: () =>
+        set({
+          debugCardChoices: DEV_CARD_CHOICE_KINDS.map((kind) => DEV_CARD_CHOICES[kind]),
+        }),
+      clearDebugCardChoices: () => set({ debugCardChoices: [] }),
       setDebugCardEnabled: (value) => set({ debugCardEnabled: value }),
       setDebugCardName: (name) => set({ debugCardName: name }),
       setDebugCardMode: (mode) => set({ debugCardMode: mode }),
@@ -301,6 +337,7 @@ export const useGameDevStore = create<GameDevState>()(
           cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
           debugArrowType: null,
           debugBattlefieldKeywords: [],
+          debugCardChoices: [],
           debugCardEnabled: false,
           debugCardName: "Raging Goblin",
           debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,

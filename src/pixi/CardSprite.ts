@@ -342,7 +342,7 @@ export class CardSprite extends Container {
   private choiceManaPinBg: Graphics;
   private choiceManaPinSymbol: Sprite;
   private lastChoiceColor: ManaColor | null | undefined;
-  private lastChoices: CardDto["choices"] | undefined | null = null;
+  private lastChoiceSignature: string | null = null;
   private railContainer: Container;
   private railBgGfx: Graphics;
   private railTrackGfx: Graphics;
@@ -1262,11 +1262,13 @@ export class CardSprite extends Container {
   }
 
   private updateChoice(force = false): void {
-    if (!force && this.lastChoices === this.card.choices) return;
-    this.lastChoices = this.card.choices;
-    this.choiceContainer.removeChildren().forEach((child) => child.destroy());
-
     const indicators = deriveCardChoiceIndicators(this.card);
+    const signature = indicators
+      .map((indicator) => `${indicator.kind}:${indicator.label}:${indicator.colors.join(",")}`)
+      .join("|");
+    if (!force && signature === this.lastChoiceSignature) return;
+    this.lastChoiceSignature = signature;
+    this.choiceContainer.removeChildren().forEach((child) => child.destroy());
     const indicator = indicators[0];
     if (!indicator) {
       this.choiceContainer.visible = false;

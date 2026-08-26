@@ -6,11 +6,10 @@ import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
-import { CardChoiceManaPin } from "@/components/game/CardChoiceManaPin";
 import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import { firstChosenColor, isCreature, isLethalDamage } from "./game.utils";
+import { isCreature, isLethalDamage } from "./game.utils";
 import { cn } from "@/lib/utils";
 import type { CardRailState } from "@/components/game/cardRailState";
 import { isVisibleBattlefieldKeyword } from "@/lib/battlefieldKeywords";
@@ -31,7 +30,6 @@ export function CardPreviewOverlay({
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
-  const chosenColor = firstChosenColor(card);
 
   const statusBadges = useMemo(() => {
     const out: { key: string; label: string; style: string }[] = [];
@@ -114,7 +112,6 @@ export function CardPreviewOverlay({
 
   return (
     <>
-      <CardChoiceManaPin card={card} />
       {damage > 0 && (
         <div
           className="absolute inset-0 pointer-events-none"
@@ -205,9 +202,8 @@ export function CardPreviewOverlay({
       {overlayCounters && (
         <div
           className={cn(
-            "absolute bottom-1 z-10 max-w-[70%]",
+            "absolute bottom-1 left-1 z-10 max-w-[70%]",
             "flex flex-wrap gap-0.5 pointer-events-none",
-            chosenColor ? "left-[calc(5.5%+2rem)]" : "left-1",
             compactRail
               ? "pr-[calc(3rem+var(--card-rail-width)+0.35rem)]"
               : showPT || showLoyalty

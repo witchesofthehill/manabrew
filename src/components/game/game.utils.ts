@@ -104,13 +104,6 @@ export interface CardChoiceIndicator {
   colors: ManaColor[];
 }
 
-export function firstChosenColor(card: Pick<CardDto, "choices">): ManaColor | null {
-  for (const choice of card.choices ?? []) {
-    if (choice.kind === "color") return choice.colors[0] ?? null;
-  }
-  return null;
-}
-
 export function deriveCardChoiceIndicators(card: Pick<CardDto, "choices">): CardChoiceIndicator[] {
   return (card.choices ?? []).map((choice, index) => {
     switch (choice.kind) {

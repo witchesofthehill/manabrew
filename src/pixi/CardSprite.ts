@@ -10,10 +10,10 @@ import {
   ColorMatrixFilter,
   type DestroyOptions,
 } from "pixi.js";
-import type { CardDto, ManaColor } from "@/protocol/game";
+import type { CardDto } from "@/protocol/game";
 import { deriveCardRailState, type CardRailState } from "@/components/game/cardRailState";
 import { CARD_W, CARD_H, CARD_RADIUS, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
-import { deriveCardChoiceIndicators, firstChosenColor } from "@/components/game/game.utils";
+import { deriveCardChoiceIndicators } from "@/components/game/game.utils";
 import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
 import { cardFrameTintHex, readableTextColor, withAlpha } from "@/themes/gameTheme";
@@ -153,8 +153,6 @@ const COUNTER_HEIGHT = 16;
 const COUNTER_RADIUS = 8;
 const KEYWORD_ROW_H = 12;
 const MANA_PIP_SIZE = 9;
-const CHOICE_MANA_PIN_SIZE = 12;
-const CHOICE_MANA_PIN_DIAMETER = 14;
 const MAX_VISIBLE_KEYWORDS = 4;
 const RAIL_ANIM_MS = 0.3;
 const RAIL_W = 15;
@@ -338,10 +336,6 @@ export class CardSprite extends Container {
   private badgeBg: Graphics;
   private badgeText: Text;
   private choiceContainer: Container;
-  private choiceManaPin: Container;
-  private choiceManaPinBg: Graphics;
-  private choiceManaPinSymbol: Sprite;
-  private lastChoiceColor: ManaColor | null | undefined;
   private lastChoiceSignature: string | null = null;
   private railContainer: Container;
   private railBgGfx: Graphics;
@@ -472,14 +466,6 @@ export class CardSprite extends Container {
     this.edgeGlowGfx.visible = false;
     this.edgeGlowGfx.mask = this.edgeGlowMask;
     this.addChild(this.edgeGlowGfx);
-
-    this.choiceManaPin = new Container();
-    this.choiceManaPinBg = new Graphics();
-    this.choiceManaPinSymbol = new Sprite(Texture.EMPTY);
-    this.choiceManaPin.addChild(this.choiceManaPinBg);
-    this.choiceManaPin.addChild(this.choiceManaPinSymbol);
-    this.choiceManaPin.visible = false;
-    this.addChild(this.choiceManaPin);
 
     this.badgeContainer = new Container();
     this.badgeBg = new Graphics();
@@ -727,7 +713,6 @@ export class CardSprite extends Container {
     this.updateKeywords();
     this.updateMana();
     this.updateChoice(true);
-    this.updateChoiceManaPin(true);
   }
 
   private updateMana(): void {
@@ -873,7 +858,6 @@ export class CardSprite extends Container {
     this.updateDamage();
     this.updateBadge();
     this.updateChoice();
-    this.updateChoiceManaPin();
     this.updateCounters();
     this.updateKeywords();
     this.updateFoil();
@@ -1233,34 +1217,6 @@ export class CardSprite extends Container {
     this.badgeContainer.y = titleBandY;
   }
 
-  private updateChoiceManaPin(force = false): void {
-    const color = this.showsBattlefieldRail ? firstChosenColor(this.card) : null;
-    if (!force && color === this.lastChoiceColor) return;
-    this.lastChoiceColor = color;
-    this.choiceManaPinBg.clear();
-    if (!color) {
-      this.choiceManaPin.visible = false;
-      return;
-    }
-
-    this.choiceManaPin.visible = true;
-    const radius = CHOICE_MANA_PIN_DIAMETER / 2;
-    this.choiceManaPinBg.circle(radius, radius, radius);
-    this.choiceManaPinBg.fill({
-      color: hexToNum(activeTheme.gameTheme.canvas.shadow),
-      alpha: 0.82,
-    });
-    this.choiceManaPinSymbol.position.set(1, 1);
-    applyManaSymbol(this.choiceManaPinSymbol, color, CHOICE_MANA_PIN_SIZE);
-    this.choiceManaPin.position.set(
-      3,
-      this.ch -
-        CHOICE_MANA_PIN_DIAMETER -
-        3 -
-        (this.frameCounterReserve > 0 ? this.frameCounterReserve + 1 : 0),
-    );
-  }
-
   private updateChoice(force = false): void {
     const indicators = deriveCardChoiceIndicators(this.card);
     const signature = indicators
@@ -1515,7 +1471,7 @@ export class CardSprite extends Container {
       3 -
       (this.frameCounterReserve > 0 ? this.frameCounterReserve + 1 : 0);
 
-    let offsetX = this.lastChoiceColor ? 3 + CHOICE_MANA_PIN_DIAMETER + 2 : 3;
+    let offsetX = 3;
     for (const [type, count] of entries) {
       const color = getCounterColor(type);
       const iconName = COUNTER_ICON_NAMES[type];

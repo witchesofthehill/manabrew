@@ -1500,6 +1500,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             labels.add(colorName(color));
             atoms.add(color.getColorMask());
         }
+        if (min == 1 && max == 1) {
+            final String chosen =
+                    session.awaitStringChoice("choose_color", me(), labels, sourceCardId(sa), message);
+            return ColorSet.fromMask(colorMask(chosen));
+        }
         final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, max, sourceName(sa));
         int mask = 0;
         for (final Integer index : chosen) {

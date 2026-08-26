@@ -13,10 +13,10 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
-import { CardChoiceColorRing } from "@/components/game/CardChoiceColorRing";
+import { CardChoiceManaPin } from "@/components/game/CardChoiceManaPin";
 import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { deriveCardRailState } from "@/components/game/cardRailState";
-import { isCreature, isLethalDamage } from "@/components/game/game.utils";
+import { firstChosenColor, isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 
 export type BattlefieldCardFaceVariant = "frame" | "art";
@@ -47,6 +47,7 @@ export function BattlefieldCardFace({
   const u = width / 70;
   const height = width * (98 / 70);
   const rail = deriveCardRailState(card);
+  const chosenColor = firstChosenColor(card);
 
   const colors = cardColors(colorIdentity);
   const colorless = colors.length === 0;
@@ -138,7 +139,7 @@ export function BattlefieldCardFace({
 
   const Overlays = (
     <>
-      <CardChoiceColorRing card={card} strokeWidth={`${Math.max(1.5, 2 * u)}px`} />
+      <CardChoiceManaPin card={card} style={{ left: 3 * u, bottom: 3 * u, fontSize: 10 * u }} />
       <CardChoiceIndicators
         card={card}
         className="absolute inset-x-1 z-10"
@@ -233,6 +234,7 @@ export function BattlefieldCardFace({
           className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-1"
           style={{
             padding: pad,
+            paddingLeft: chosenColor ? 18 * u : pad,
             paddingTop: 10 * u,
             background: `linear-gradient(to top, ${withAlpha(theme.canvas.shadow, 0.94)} 0%, ${withAlpha(theme.canvas.shadow, 0.6)} 60%, transparent 100%)`,
           }}
@@ -334,7 +336,7 @@ export function BattlefieldCardFace({
         )}
         {damageEffect}
         {counterBadges && (
-          <div className="absolute z-10" style={{ left: pad, bottom: pad }}>
+          <div className="absolute z-10" style={{ left: chosenColor ? 18 * u : pad, bottom: pad }}>
             {counterBadges}
           </div>
         )}

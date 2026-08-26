@@ -6,11 +6,11 @@ import { CardRail, CARD_RAIL_WIDTH } from "@/components/game/CardRail";
 import { PtBadge } from "@/components/game/PtBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CardChoiceIndicators } from "@/components/game/CardChoiceIndicators";
-import { CardChoiceColorRing } from "@/components/game/CardChoiceColorRing";
+import { CardChoiceManaPin } from "@/components/game/CardChoiceManaPin";
 import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
+import { firstChosenColor, isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
 import { CARD_BADGES, CARD_BACK_IMAGE_URL } from "./game.constants";
 import { isFacelessCard } from "@/lib/gameCard";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
@@ -77,6 +77,7 @@ function CardComponent({
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
   const onBattlefield = card.zoneId === "battlefield";
+  const chosenColor = onBattlefield ? firstChosenColor(card) : null;
   const rail = deriveCardRailState(card);
   const railRightClass = rail ? "!right-[calc(5.5cqw+var(--card-rail-width)+0.35rem)]" : undefined;
   const visibleCounters =
@@ -150,7 +151,7 @@ function CardComponent({
           )}
           {!bare && (
             <>
-              <CardChoiceColorRing card={card} />
+              {onBattlefield && <CardChoiceManaPin card={card} />}
               {card.exerted ? (
                 <CardBadge {...CARD_BADGES.exerted} />
               ) : card.isFaceDown ? (
@@ -187,7 +188,7 @@ function CardComponent({
                 <CounterDisplay
                   counters={visibleCounters}
                   size="sm"
-                  className="absolute bottom-1 left-1 z-10"
+                  className={cn("absolute bottom-1 z-10", chosenColor ? "left-7" : "left-1")}
                 />
               )}
               {creature && card.power && card.toughness && (

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { DevCardSearch } from "./DevCardSearch";
 
 import {
@@ -72,9 +73,12 @@ export function BattlefieldKeywordDevControls() {
   const clear = useGameDevStore((s) => s.clearDebugBattlefieldKeywords);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
+  const debugCardDefinition = useGameDevStore((s) => s.debugCardDefinition);
   const setDebugCardEnabled = useGameDevStore((s) => s.setDebugCardEnabled);
   const setDebugCard = useGameDevStore((s) => s.setDebugCard);
   const [keywordQuery, setKeywordQuery] = useState("");
+  const [loadingCard, setLoadingCard] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const normalizedQuery = keywordQuery.trim().toLocaleLowerCase();
   const visibleKeywords = normalizedQuery
@@ -82,6 +86,31 @@ export function BattlefieldKeywordDevControls() {
         keyword.toLocaleLowerCase().includes(normalizedQuery),
       )
     : DEV_BATTLEFIELD_KEYWORDS;
+  const toggleDebugCard = async () => {
+    if (debugCardEnabled) {
+      setDebugCardEnabled(false);
+      return;
+    }
+    if (debugCardDefinition) {
+      setDebugCardEnabled(true);
+      return;
+    }
+
+    const requestedName = debugCardName;
+    setLoadingCard(true);
+    setCardError(null);
+    try {
+      const card = await useScryfallStore.getState().getCard({ name: requestedName });
+      const current = useGameDevStore.getState();
+      if (current.debugCardName !== requestedName || current.debugCardDefinition) return;
+      setDebugCard(scryfallToDeckCard(card.info));
+      setDebugCardEnabled(true);
+    } catch {
+      setCardError(`Could not load ${requestedName} from Scryfall.`);
+    } finally {
+      setLoadingCard(false);
+    }
+  };
 
   return (
     <section className={DEV_SECTION}>
@@ -97,9 +126,11 @@ export function BattlefieldKeywordDevControls() {
           role="switch"
           aria-checked={debugCardEnabled}
           className="flex shrink-0 items-center gap-2 rounded-md text-[10px] font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          onClick={() => setDebugCardEnabled(!debugCardEnabled)}
+          disabled={loadingCard}
+          onClick={() => void toggleDebugCard()}
         >
-          {debugCardEnabled ? "On board" : "Hidden"}
+          {loadingCard ? "Loading" : debugCardEnabled ? "On board" : "Hidden"}
+          {loadingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           <span
             className={cn(
               "relative h-6 w-11 rounded-full border transition-colors",
@@ -115,6 +146,7 @@ export function BattlefieldKeywordDevControls() {
           </span>
         </button>
       </div>
+      {cardError ? <p className="mt-2 text-xs text-destructive">{cardError}</p> : null}
 
       <div className="mt-3">
         <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">

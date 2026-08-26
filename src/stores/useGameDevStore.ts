@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { ArrowType } from "@/pixi/types";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
+export const DEFAULT_DEBUG_CARD_NAME = "Raging Goblin";
 
 export const PROMPT_ACTION_VIEW_KEYS = [
   "chooseAction",
@@ -33,6 +35,7 @@ export const DEV_PROMPT_ACTION_OVERRIDES = [
 export type DevPromptActionOverride = (typeof DEV_PROMPT_ACTION_OVERRIDES)[number];
 
 export type DevCardRailMode = "page" | "saga" | "class";
+export type DevViewportPreset = "native" | "phone" | "tablet" | "desktop" | "ultrawide";
 
 const DEFAULT_DEV_CARD_RAIL_MODE: DevCardRailMode = "page";
 const DEFAULT_DEV_CARD_RAIL_CURRENT = 1;
@@ -180,9 +183,12 @@ interface GameDevState {
   debugBattlefieldKeywords: string[];
   debugCardEnabled: boolean;
   debugCardName: string;
+  debugCardDefinition: DeckCard | null;
+  debugCardRailEnabled: boolean;
   debugCardMode: DevCardRailMode;
   debugCardCurrent: number;
   debugCardFinal: number;
+  debugViewportPreset: DevViewportPreset;
   showHoverAreas: boolean;
   setShowHoverAreas: (value: boolean) => void;
   showGridSkeleton: boolean;
@@ -205,12 +211,14 @@ interface GameDevState {
   toggleDebugBattlefieldKeyword: (keyword: string) => void;
   clearDebugBattlefieldKeywords: () => void;
   setDebugCardEnabled: (value: boolean) => void;
-  setDebugCardName: (name: string) => void;
+  setDebugCard: (card: DeckCard) => void;
+  setDebugCardRailEnabled: (value: boolean) => void;
   setDebugCardMode: (mode: DevCardRailMode) => void;
   setDebugCardRail: (current: number, final: number) => void;
   setDebugCardCurrent: (value: number) => void;
   setDebugCardFinal: (value: number) => void;
   resetDebugCardRail: () => void;
+  setDebugViewportPreset: (preset: DevViewportPreset) => void;
   resetDevSettings: () => void;
 }
 
@@ -228,10 +236,13 @@ export const useGameDevStore = create<GameDevState>()(
       debugArrowType: null,
       debugBattlefieldKeywords: [],
       debugCardEnabled: false,
-      debugCardName: "Raging Goblin",
+      debugCardName: DEFAULT_DEBUG_CARD_NAME,
+      debugCardDefinition: null,
+      debugCardRailEnabled: false,
       debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
       debugCardCurrent: DEFAULT_DEV_CARD_RAIL_CURRENT,
       debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
+      debugViewportPreset: "native",
       showHoverAreas: false,
       setShowHoverAreas: (value) => set({ showHoverAreas: value }),
       showGridSkeleton: false,
@@ -265,7 +276,8 @@ export const useGameDevStore = create<GameDevState>()(
         }),
       clearDebugBattlefieldKeywords: () => set({ debugBattlefieldKeywords: [] }),
       setDebugCardEnabled: (value) => set({ debugCardEnabled: value }),
-      setDebugCardName: (name) => set({ debugCardName: name }),
+      setDebugCard: (card) => set({ debugCardName: card.identity.name, debugCardDefinition: card }),
+      setDebugCardRailEnabled: (value) => set({ debugCardRailEnabled: value }),
       setDebugCardMode: (mode) => set({ debugCardMode: mode }),
       setDebugCardRail: (current, final) =>
         set(() => {
@@ -289,10 +301,12 @@ export const useGameDevStore = create<GameDevState>()(
         }),
       resetDebugCardRail: () =>
         set({
+          debugCardRailEnabled: false,
           debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
           debugCardCurrent: DEFAULT_DEV_CARD_RAIL_CURRENT,
           debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
         }),
+      setDebugViewportPreset: (debugViewportPreset) => set({ debugViewportPreset }),
       resetDevSettings: () =>
         set({
           promptActionOverride: null,
@@ -302,10 +316,13 @@ export const useGameDevStore = create<GameDevState>()(
           debugArrowType: null,
           debugBattlefieldKeywords: [],
           debugCardEnabled: false,
-          debugCardName: "Raging Goblin",
+          debugCardName: DEFAULT_DEBUG_CARD_NAME,
+          debugCardDefinition: null,
+          debugCardRailEnabled: false,
           debugCardMode: DEFAULT_DEV_CARD_RAIL_MODE,
           debugCardCurrent: DEFAULT_DEV_CARD_RAIL_CURRENT,
           debugCardFinal: DEFAULT_DEV_CARD_RAIL_FINAL,
+          debugViewportPreset: "native",
           showHoverAreas: false,
           showGridSkeleton: false,
           showAttackRows: false,

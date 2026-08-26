@@ -46,8 +46,10 @@ await page.addInitScript((on) => {
 
 await onboard(page, uniqueName("Over"));
 await page.goto(`${BASE}/play/offline/constructed`, { waitUntil: "networkidle" });
-if (!(await page.evaluate(() => Boolean(window.__gameStore))))
-  await fail("window.__gameStore is dev-only, so this test needs a dev server");
+// window.__gameStore is dev-only. Against a deployed build the game has to be
+// played through the board, which is slower but is the only way to check the
+// thing where it actually broke.
+const hasStore = await page.evaluate(() => Boolean(window.__gameStore));
 await page.getByRole("button", { name: FORMAT, exact: true }).click();
 await page.waitForTimeout(700);
 for (const deck of [DECK, AI_DECK]) {
@@ -60,70 +62,115 @@ await page.getByRole("button", { name: /^Fight!$/ }).click();
 await page.waitForTimeout(15000);
 
 // Take no actions beyond what a prompt demands: the point is to lose fast.
-const over = await page
-  .waitForFunction(
-    // Synchronous on purpose: an async predicate returns a Promise, which
-    // Playwright reads as truthy, and the wait ends before the game does.
-    () => {
-      const store = window.__gameStore;
-      const state = store.getState();
-      if (state.gameView?.gameOver || state.currentPrompt?.input?.type === "gameOver") return true;
-      if (!state.currentPrompt || state.isWaitingForResponse) return false;
-      const input = state.currentPrompt.input;
-      const ids = (list) => (list || []).map((c) => c && (c.id || c.cardId)).filter(Boolean);
-      const answers = {
-        chooseAction: { type: "pass", exhaustStack: false },
-        mulligan: { type: "mulliganDecision", keep: true },
-        mulliganPutBack: {
-          type: "mulliganPutBackDecision",
-          cardIds: ids(input.cards).slice(0, input.count || 0),
-        },
-        revealCards: { type: "revealCardsAcknowledged" },
-        diceRolled: { type: "diceRolledAcknowledged" },
-        chooseBoolean: { type: "decision", value: false },
-        chooseAttackers: { type: "declareAttackers", assignments: [] },
-        chooseBlockers: { type: "declareBlockers", assignments: [] },
-        payManaCost: { type: "cancel" },
-        chooseCards: {
-          type: "chooseCardsDecision",
-          chosenCardIds: ids(input.cards).slice(0, input.min || 0),
-        },
-        chooseFromSelection: {
-          type: "selectionDecision",
-          chosenIndices: Array.from({ length: Math.max(0, input.minTotal || 0) }, (_, i) => i),
-        },
-        chooseNumber: { type: "numberDecision", chosenNumber: input.min ?? 0 },
-        chooseColor: {
-          type: "colorDecision",
-          chosenColors: (input.validColors || [])[0]
-            ? { [(input.validColors || [])[0]]: input.amount || 1 }
-            : {},
-        },
-        scry: {
-          type: "scryDecision",
-          zoneCardIds: (input.zones || []).map((_, index) => (index === 0 ? ids(input.cards) : [])),
-        },
-        reorder: {
-          type: "reorderDecision",
-          orderedIds: (input.items || []).map((i) => i && (i.id || i.cardId)).filter(Boolean),
-        },
-        chooseBoardTargets: { type: "cancel" },
-        chooseDamageAssignmentOrder: {
-          type: "damageAssignmentOrderDecision",
-          orderedBlockerIds: ids(input.blockers),
-        },
-      };
-      const answer = answers[input.type];
-      if (answer) void state.respond(answer);
-      return false;
-    },
-    { timeout: BUDGET_MS, polling: 400 },
-  )
-  .then(() => true)
-  .catch(() => false);
+const over = hasStore ? await storeDrivenEnding() : await boardDrivenEnding();
+
+async function boardDrivenEnding() {
+  const deadline = Date.now() + BUDGET_MS;
+  while (Date.now() < deadline) {
+    const ended = await page.evaluate(() => {
+      const text = document.body.innerText;
+      return /you win|you lose|game over|victory|defeat/i.test(text);
+    });
+    if (ended) return true;
+    // Priority first, and never "PASSING": that button holds priority.
+    const passed = await page.evaluate(() => {
+      const button = [...document.querySelectorAll("button")].find((candidate) => {
+        const label = (candidate.textContent || "").trim().toUpperCase();
+        return label.startsWith("PASS") && !label.startsWith("PASSING") && !candidate.disabled;
+      });
+      if (!button) return false;
+      button.click();
+      return true;
+    });
+    if (!passed) {
+      let acted = false;
+      for (const name of [/^Keep$/i, /^Continue$/i, /^OK$/i, /^Done$/i, /^No Blocks$/i]) {
+        const button = page.getByRole("button", { name }).first();
+        if (!(await button.count().catch(() => 0))) continue;
+        await button.click({ timeout: 5000 }).catch(() => {});
+        acted = true;
+        break;
+      }
+      if (!acted) await page.waitForTimeout(800);
+    }
+    await page.waitForTimeout(400);
+  }
+  return false;
+}
+
+async function storeDrivenEnding() {
+  return page
+    .waitForFunction(
+      // Synchronous on purpose: an async predicate returns a Promise, which
+      // Playwright reads as truthy, and the wait ends before the game does.
+      () => {
+        const store = window.__gameStore;
+        const state = store.getState();
+        if (state.gameView?.gameOver || state.currentPrompt?.input?.type === "gameOver")
+          return true;
+        if (!state.currentPrompt || state.isWaitingForResponse) return false;
+        const input = state.currentPrompt.input;
+        const ids = (list) => (list || []).map((c) => c && (c.id || c.cardId)).filter(Boolean);
+        const answers = {
+          chooseAction: { type: "pass", exhaustStack: false },
+          mulligan: { type: "mulliganDecision", keep: true },
+          mulliganPutBack: {
+            type: "mulliganPutBackDecision",
+            cardIds: ids(input.cards).slice(0, input.count || 0),
+          },
+          revealCards: { type: "revealCardsAcknowledged" },
+          diceRolled: { type: "diceRolledAcknowledged" },
+          chooseBoolean: { type: "decision", value: false },
+          chooseAttackers: { type: "declareAttackers", assignments: [] },
+          chooseBlockers: { type: "declareBlockers", assignments: [] },
+          payManaCost: { type: "cancel" },
+          chooseCards: {
+            type: "chooseCardsDecision",
+            chosenCardIds: ids(input.cards).slice(0, input.min || 0),
+          },
+          chooseFromSelection: {
+            type: "selectionDecision",
+            chosenIndices: Array.from({ length: Math.max(0, input.minTotal || 0) }, (_, i) => i),
+          },
+          chooseNumber: { type: "numberDecision", chosenNumber: input.min ?? 0 },
+          chooseColor: {
+            type: "colorDecision",
+            chosenColors: (input.validColors || [])[0]
+              ? { [(input.validColors || [])[0]]: input.amount || 1 }
+              : {},
+          },
+          scry: {
+            type: "scryDecision",
+            zoneCardIds: (input.zones || []).map((_, index) =>
+              index === 0 ? ids(input.cards) : [],
+            ),
+          },
+          reorder: {
+            type: "reorderDecision",
+            orderedIds: (input.items || []).map((i) => i && (i.id || i.cardId)).filter(Boolean),
+          },
+          chooseBoardTargets: { type: "cancel" },
+          chooseDamageAssignmentOrder: {
+            type: "damageAssignmentOrderDecision",
+            orderedBlockerIds: ids(input.blockers),
+          },
+        };
+        const answer = answers[input.type];
+        if (answer) void state.respond(answer);
+        return false;
+      },
+      { timeout: BUDGET_MS, polling: 400 },
+    )
+    .then(() => true)
+    .catch(() => false);
+}
 
 const state = await page.evaluate(() => {
-  const s = window.__gameStore.getState();
+  const s = window.__gameStore?.getState?.();
+  if (!s) {
+    const text = document.body.innerText.replace(/\s+/g, " ");
+    return { deployed: true, says: text.slice(0, 160) };
+  }
   return {
     gameOver: s.gameView?.gameOver ?? null,
     winner: s.gameView?.winnerId ?? null,

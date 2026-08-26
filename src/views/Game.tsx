@@ -92,6 +92,11 @@ function isManualTabletopApi(
 ): runtime is GameRuntime & { api: ManualTabletopApi } {
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
+function numericPrintedStat(value: string | undefined): number | undefined {
+  if (value == null) return undefined;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : undefined;
+}
 
 function buildDebugKeywordCard(
   controllerId: string,
@@ -124,6 +129,8 @@ function buildDebugKeywordCard(
     keywords,
     power: definition?.power ?? null,
     toughness: definition?.toughness ?? null,
+    basePower: numericPrintedStat(definition?.power),
+    baseToughness: numericPrintedStat(definition?.toughness),
   };
   if (!railEnabled) return base;
 

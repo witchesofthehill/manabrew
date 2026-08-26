@@ -370,12 +370,22 @@ export function hasActiveCardOverride(o: DevCardOverrides): boolean {
     o.damage != null
   );
 }
+function applyCounterDeltaToStat(stat: string | null, counterDelta: number): string | null {
+  if (stat == null || counterDelta === 0) return stat;
+  const numericStat = Number(stat);
+  return Number.isFinite(numericStat) ? String(numericStat + counterDelta) : stat;
+}
 
 export function applyCardOverrides(card: CardDto, o: DevCardOverrides): CardDto {
   if (!hasActiveCardOverride(o)) return card;
   const counters = { ...(card.counters ?? {}) };
   if (o.p1p1 != null) counters.P1P1 = o.p1p1;
   if (o.m1m1 != null) counters.M1M1 = o.m1m1;
+  const previousP1P1 = card.counters?.P1P1 ?? 0;
+  const previousM1M1 = card.counters?.M1M1 ?? 0;
+  const nextP1P1 = o.p1p1 ?? previousP1P1;
+  const nextM1M1 = o.m1m1 ?? previousM1M1;
+  const counterDelta = nextP1P1 - nextM1M1 - (previousP1P1 - previousM1M1);
   if (o.loyalty != null) counters.Loyalty = o.loyalty;
   if (o.charge != null) counters.Charge = o.charge;
   if (o.quest != null) counters.Quest = o.quest;
@@ -392,6 +402,8 @@ export function applyCardOverrides(card: CardDto, o: DevCardOverrides): CardDto 
   if (o.page != null) counters.Page = o.page;
   return {
     ...card,
+    power: applyCounterDeltaToStat(card.power, counterDelta),
+    toughness: applyCounterDeltaToStat(card.toughness, counterDelta),
     tapped: o.forceTapped || card.tapped,
     summoningSick: o.forceSummoningSick || card.summoningSick,
     exerted: o.forceExerted || card.exerted,

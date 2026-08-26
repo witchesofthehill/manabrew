@@ -1,11 +1,8 @@
 const KEYWORD_LABEL_MAX_LEN = 14;
-const INTERNAL_KEYWORD_LABELS: Record<string, true> = { ETBReplacement: true };
 
 export function isVisibleBattlefieldKeyword(keyword: string): boolean {
   const label = keyword.split(":")[0]!.trim();
-  return (
-    label.length > 0 && label.length <= KEYWORD_LABEL_MAX_LEN && !INTERNAL_KEYWORD_LABELS[label]
-  );
+  return label.length > 0 && label.length <= KEYWORD_LABEL_MAX_LEN;
 }
 
 export function battlefieldKeywords(

@@ -16,7 +16,6 @@ export interface LastRoomSetup {
   kind: "match" | "limited";
   limitedKind: "draft" | "sealed" | "winston" | "cube";
   format: GameFormat;
-  engine: EngineKind;
   players: number | null;
 }
 

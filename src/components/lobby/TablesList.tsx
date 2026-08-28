@@ -6,25 +6,16 @@ import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { MultiplayerStartPanel } from "@/components/lobby/MultiplayerStartPanel";
 import { OpenTableCard } from "@/components/lobby/OpenTableCard";
-import { SetUpTableDialog } from "@/components/lobby/SetUpTableDialog";
 import { TableRoom } from "@/components/lobby/TableRoom";
 import { needsFormatChoice } from "@/components/lobby/tables.utils";
-import { pickRandomDistinct } from "@/lib/utils";
 import { RefreshCw, Search } from "lucide-react";
 import type { GameFormat, RoomInfo } from "@/types/server";
-import { PROTOCOL_VERSION } from "@/protocol";
-import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
+import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type { ServerErrorCode } from "@/types/server";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const HIDDEN_ROOM_NAMES = new Set(["free room", "free pod"]);
-
-const HOSTED_JOIN_RETRY_CODES: ReadonlySet<string> = new Set([
-  SERVER_ERROR_CODE.RoomFull,
-  SERVER_ERROR_CODE.RoomNotFound,
-  SERVER_ERROR_CODE.GameAlreadyStarted,
-]);
 
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -82,9 +73,7 @@ export function TablesList({
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
-  const [hostedFormatRooms, setHostedFormatRooms] = useState<RoomInfo[] | null>(null);
   const [formatAfterJoin, setFormatAfterJoin] = useState(false);
-  const [setupOpen, setSetupOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
@@ -101,30 +90,7 @@ export function TablesList({
     }
   }
 
-  async function handleJoinHostedRooms(roomCandidates: RoomInfo[], format: GameFormat) {
-    if (joiningRoomId) return;
-    try {
-      for (const room of pickRandomDistinct(roomCandidates, roomCandidates.length)) {
-        setJoiningRoomId(room.room_id);
-        try {
-          await onJoinRoom(room.room_id, undefined, format);
-          return;
-        } catch (error) {
-          const code = error instanceof Error ? error.message : "";
-          if (HOSTED_JOIN_RETRY_CODES.has(code)) continue;
-          const message = USER_FACING_ERROR_MESSAGES[code as ServerErrorCode];
-          toast.error(message ?? "Couldn't join the hosted table.");
-          return;
-        }
-      }
-      toast.error("Hosted capacity changed. Choose a table again.");
-    } finally {
-      setJoiningRoomId(null);
-    }
-  }
-
   function requestJoin(room: RoomInfo) {
-    setHostedFormatRooms(null);
     if (room.password_protected) {
       setPasswordRoom(room);
     } else if (needsFormatChoice(room)) {
@@ -133,14 +99,6 @@ export function TablesList({
     } else {
       void handleJoinRoom(room.room_id);
     }
-  }
-
-  function requestHostedJoin(roomCandidates: RoomInfo[]) {
-    const targetRoom = roomCandidates[0];
-    if (!targetRoom) return;
-    setFormatAfterJoin(false);
-    setHostedFormatRooms(roomCandidates);
-    setFormatRoom(targetRoom);
   }
 
   async function joinThenChooseFormat(room: RoomInfo, password: string) {
@@ -154,15 +112,10 @@ export function TablesList({
   const formatDialog = (
     <ChooseFormatDialog
       room={formatRoom}
-      onClose={() => {
-        setFormatRoom(null);
-        setHostedFormatRooms(null);
-      }}
+      onClose={() => setFormatRoom(null)}
       onSelect={(room, format) => {
         if (formatAfterJoin) {
           onSetFormat?.(format);
-        } else if (hostedFormatRooms) {
-          void handleJoinHostedRooms(hostedFormatRooms, format);
         } else {
           void handleJoinRoom(room.room_id, undefined, format);
         }
@@ -197,29 +150,7 @@ export function TablesList({
   }
 
   const trimmedSearch = search.trim().toLowerCase();
-  const hostedRoomsByEngine = rooms.reduce<Map<RoomInfo["engine"], RoomInfo[]>>((groups, room) => {
-    const canAggregate =
-      room.official &&
-      room.hosted &&
-      room.status === "Lobby" &&
-      room.players.length === 0 &&
-      !room.password_protected &&
-      !room.draft_config &&
-      !room.sealed_config &&
-      room.format === "Any" &&
-      room.protocol_version === PROTOCOL_VERSION;
-    if (!canAggregate) return groups;
-    const engineRooms = groups.get(room.engine) ?? [];
-    engineRooms.push(room);
-    groups.set(room.engine, engineRooms);
-    return groups;
-  }, new Map());
-  const hostedRoomGroups = [...hostedRoomsByEngine.entries()];
-  const aggregatedRoomIds = new Set(
-    hostedRoomGroups.flatMap(([, engineRooms]) => engineRooms.map((r) => r.room_id)),
-  );
   const ordinaryRooms = rooms
-    .filter((room) => !aggregatedRoomIds.has(room.room_id))
     .filter((room) => !HIDDEN_ROOM_NAMES.has(room.room_name.trim().toLowerCase()))
     .filter((room) => room.status === "Lobby")
     .filter((room) => !room.official || room.players.length > 0);
@@ -235,7 +166,7 @@ export function TablesList({
     <div className="flex h-full flex-col">
       <ScrollArea className="flex-1">
         <div className="space-y-6 px-4 pb-6 pt-3 sm:px-6 lg:px-8">
-          <MultiplayerStartPanel disabled={disabled} onSetUp={() => setSetupOpen(true)} />
+          <MultiplayerStartPanel disabled={disabled} onSetUp={onNewGame} />
 
           <section className="space-y-3">
             <div>
@@ -300,14 +231,6 @@ export function TablesList({
         room={passwordRoom}
         onClose={() => setPasswordRoom(null)}
         onJoin={(room, password) => joinThenChooseFormat(room, password)}
-      />
-
-      <SetUpTableDialog
-        open={setupOpen}
-        onOpenChange={setSetupOpen}
-        hostedRoomGroups={hostedRoomGroups}
-        onJoinHosted={requestHostedJoin}
-        onCreate={onNewGame}
       />
 
       {formatDialog}

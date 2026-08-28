@@ -29,6 +29,164 @@
   ],
   "panels": [
     {
+      "id": 109,
+      "type": "timeseries",
+      "title": "Slow decisions per 5m (count, not a quantile)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "How many decisions crossed 1s and 2s, counted. A quantile cannot show this: a game on 2026-08-25 put 12 decisions over 2s and 96 over 1s, and the fleet-wide p99 still read 0.24s because a dozen events sit far above p99 among thousands. Rare events show up in counts and vanish in percentiles. Any sustained non-zero here is worth opening the capture for; the matching game id is in the slow-decision log panel.",
+      "gridPos": {
+        "x": 0,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"2.0\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "over 2s"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"+Inf\"}[5m])) - sum(increase(manabrew_node_forge_decision_seconds_bucket{le=\"1.0\"}[5m]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "over 1s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 108,
+      "type": "timeseries",
+      "title": "Outbound socket write and backlog",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "The last unmeasured segment between the engine and the player. The outbound channel is unbounded and the writer awaits the sink, so a client that stops draining applies backpressure and every later message queues behind it. Backlog is how many messages were already waiting when this one was written. A rising backlog with flat handling time means the cost is a slow consumer, not the relay's own work. Backlog is a count, not seconds; read it against the right axis.",
+      "gridPos": {
+        "x": 12,
+        "y": 74,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(manabrew_relay_socket_write_seconds_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "write p99 (s)"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(manabrew_relay_outbound_backlog_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "backlog p99 (messages)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "backlog p99 (messages)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 107,
+      "type": "timeseries",
+      "title": "Relay state handling p99 by seats",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "How long the relay spends on one state envelope: folding the patch into the cached board, deciding whether a full board is needed, and handing it to the audience. Labelled by seat count because the node emits one envelope per seat plus an observer, so the work per decision scales with the room even when the engine's own time does not. This interval previously had no metric: replaying captures put a four-seat room at a p99 of 2.3s outside the rules engine against 0.27s for two seats, and seeing that meant subtracting engineMs from capture timestamps in a script after the fact. Compare against 'Engine decision p99 by room shape': engine flat while this rises is relay-side cost.",
+      "gridPos": {
+        "x": 0,
+        "y": 74,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le, seats) (rate(manabrew_relay_state_handling_seconds_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "p99 {{seats}} seats"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.5, sum by (le, seats) (rate(manabrew_relay_state_handling_seconds_bucket[30m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "p50 {{seats}} seats"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 105,
       "type": "timeseries",
       "title": "Engine decision p99 by room shape",
@@ -36,7 +194,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Rules work between a seat answering and the next prompt appearing, split by seats and bots. A fleet-wide quantile hides this: measured over two days of captures, 4 seats with 3 bots ran a p99 near 2.9s and put 2-5% of decisions over two seconds, while every other shape sat at 0.35s with none. Bot decision time is not the problem, it is about 0.75s at p99 in those same rooms. Needs node 0.21.3 or newer; earlier nodes publish only the unlabelled summary.",
+      "description": "Rules work between a seat answering and the next prompt appearing, split by seat count. A fleet-wide quantile hides this: measured over two days of captures, 4 seats ran a p99 near 2.9s and put 2-5% of decisions over two seconds, while 2 seats sat at 0.35s with none. Bot decision time is not the problem, it is about 0.75s at p99 in those same rooms. Read over 30m rather than 5m on purpose: a quiet window holding 15 decisions makes its single worst one the p99, which is how one decision between 2s and 5s once drew a 4.58s peak. Needs node 0.22.0 or newer.",
       "gridPos": {
         "x": 0,
         "y": 66,
@@ -46,12 +204,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.99, sum by (le, seats, bots) (rate(manabrew_node_forge_decision_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, seats) (rate(manabrew_node_forge_decision_seconds_bucket[30m])))",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "legendFormat": "{{seats}} seats / {{bots}} bots"
+          "legendFormat": "{{seats}} seats"
         }
       ],
       "fieldConfig": {

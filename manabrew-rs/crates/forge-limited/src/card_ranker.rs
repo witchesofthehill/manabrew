@@ -149,7 +149,7 @@ mod tests {
         let red = card("Best", Rarity::Common);
         let blue = card("Mid", Rarity::Common);
         let order = r.rank_cards_in_pack(
-            &vec![red.clone(), blue.clone()],
+            &[red.clone(), blue.clone()],
             &[],
             ColorSet::WHITE,
             false,

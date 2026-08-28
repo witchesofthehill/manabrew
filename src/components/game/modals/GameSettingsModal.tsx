@@ -6,20 +6,15 @@ import {
   CARD_SIZE_MULTIPLIER_MIN,
   usePreferencesStore,
 } from "@/stores/usePreferencesStore";
-import type { BattlefieldCardStyle, CardPreviewMode } from "@/stores/usePreferencesStore";
+import type { CardPreviewMode } from "@/stores/usePreferencesStore";
 import {
   HOVER_DELAY_MAX,
   HOVER_DELAY_MIN,
   HOVER_DELAY_STEP,
 } from "@/components/game/game.constants";
+import { BATTLEFIELD_CARD_STYLE_OPTIONS } from "@/components/game/battlefieldCardStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
-
-const CARD_STYLES: { value: BattlefieldCardStyle; label: string }[] = [
-  { value: "realistic", label: "Realistic" },
-  { value: "art", label: "Art-forward" },
-  { value: "frame", label: "Mini-frame" },
-];
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "hover", label: "Hover" },
@@ -120,7 +115,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
           hint="How battlefield cards are drawn. Hand, stack, and previews always use the full card image."
         >
           <div className="flex items-center gap-2">
-            {CARD_STYLES.map((s) => (
+            {BATTLEFIELD_CARD_STYLE_OPTIONS.map((s) => (
               <Button
                 key={s.value}
                 variant={prefs.battlefieldCardStyle === s.value ? "default" : "outline"}

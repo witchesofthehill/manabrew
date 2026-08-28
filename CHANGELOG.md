@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.22.0](https://github.com/witchesofthehill/manabrew/compare/v3.21.10...v3.22.0) (2026-08-28)
+
+### Features
+
+* **ui:** expand battlefield dev lab ([#775](https://github.com/witchesofthehill/manabrew/issues/775)) ([0f8a9b4](https://github.com/witchesofthehill/manabrew/commit/0f8a9b407aad22663a776f1263e108126c52342e))
+
 ## [3.21.10](https://github.com/witchesofthehill/manabrew/compare/v3.21.9...v3.21.10) (2026-08-25)
 
 ## [3.21.9](https://github.com/witchesofthehill/manabrew/compare/v3.21.8...v3.21.9) (2026-08-25)

@@ -46,12 +46,11 @@ export function GameLoadingScreen({ debugInfo, onComplete }: GameLoadingScreenPr
   }, [stage, onComplete]);
 
   useEffect(() => {
-    if (stage === target) return;
-    const backwards = stage > target;
-    const wait = backwards ? 0 : Math.max(0, STEP_MIN_MS - (Date.now() - lastAdvanceAt.current));
+    if (stage >= target) return;
+    const wait = Math.max(0, STEP_MIN_MS - (Date.now() - lastAdvanceAt.current));
     const timer = setTimeout(() => {
       lastAdvanceAt.current = Date.now();
-      setStage((current) => (backwards ? target : current + 1));
+      setStage((current) => current + 1);
     }, wait);
     return () => clearTimeout(timer);
   }, [stage, target]);

@@ -41,15 +41,13 @@ function boot() {
     // The launcher reads argv from scriptArgs in non-node runtimes, and derives
     // the wasm URL from this worker's own filename.
     self.scriptArgs = ["--serve"];
+    self.__forgeBootResolve = resolve;
     try {
       importScripts(`${ENGINE_BASE}/forgeharness.js`);
     } catch (e) {
+      self.__forgeBootResolve = null;
       reject(e);
-      return;
     }
-    // serve() sets this once its exported start function is installed.
-    const poll = () => (self.__forgeReady ? resolve() : setTimeout(poll, 50));
-    poll();
   });
   return booting;
 }

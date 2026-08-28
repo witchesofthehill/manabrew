@@ -191,6 +191,9 @@ public final class WasmMain {
     private static native boolean hasSeatBuffers();
 
     @JS("globalThis.__forgeReady = true;"
+        + "const resolve = globalThis.__forgeBootResolve;"
+        + "globalThis.__forgeBootResolve = null;"
+        + "if (resolve) resolve();"
         + "postMessage({ type: 'event', event: 'forge:ready', payload: {} });")
     private static native void announceReady();
 

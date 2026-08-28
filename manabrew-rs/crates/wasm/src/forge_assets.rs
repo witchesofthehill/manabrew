@@ -162,7 +162,11 @@ pub fn forge_asset_bundle(bytes: &[u8], wanted: Vec<String>) -> Result<String, J
     }
     let filter = filter;
 
-    let mut out = String::with_capacity(if filter.is_some() { 1 << 20 } else { bytes.len() * 2 });
+    let mut out = String::with_capacity(if filter.is_some() {
+        1 << 20
+    } else {
+        bytes.len() * 2
+    });
 
     for card in archive.cards.iter() {
         if let Some(keep) = &filter {
@@ -259,13 +263,25 @@ mod tests {
     fn files_an_accented_card_where_forge_looks_for_it() {
         // The real filenames in Forge's cardsfolder.
         assert_eq!(super::script_name("lim-dûl's vault"), "lim_duls_vault");
-        assert_eq!(super::script_name("palantír of orthanc"), "palantir_of_orthanc");
+        assert_eq!(
+            super::script_name("palantír of orthanc"),
+            "palantir_of_orthanc"
+        );
         // The same names spelled with combining marks instead.
-        assert_eq!(super::script_name("lim-du\u{0302}l's vault"), "lim_duls_vault");
-        assert_eq!(super::script_name("palanti\u{0301}r of orthanc"), "palantir_of_orthanc");
+        assert_eq!(
+            super::script_name("lim-du\u{0302}l's vault"),
+            "lim_duls_vault"
+        );
+        assert_eq!(
+            super::script_name("palanti\u{0301}r of orthanc"),
+            "palantir_of_orthanc"
+        );
         // Unaccented names are unchanged, and a number keeps its comma out.
         assert_eq!(super::script_name("lightning bolt"), "lightning_bolt");
-        assert_eq!(super::script_name("borrowing 100,000 arrows"), "borrowing_100000_arrows");
+        assert_eq!(
+            super::script_name("borrowing 100,000 arrows"),
+            "borrowing_100000_arrows"
+        );
     }
 
     #[test]

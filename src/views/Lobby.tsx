@@ -1,6 +1,7 @@
 import { TablesList } from "@/components/lobby/TablesList";
 import { UserList, type ConnectionState } from "@/components/lobby/UserList";
-import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
+import { TableSetup } from "@/components/lobby/TableSetup";
+import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
 import { Button } from "@/components/ui/button";
@@ -125,7 +126,8 @@ export default function Lobby() {
       ? "connecting"
       : "disconnected";
   const savedDecks = useOwnedDecks();
-  const [createRoomOpen, setCreateRoomOpen] = useState(false);
+  const [settingUp, setSettingUp] = useState(false);
+  const [creatingLabel, setCreatingLabel] = useState<string | null>(null);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
   const [preferredHubDeckId] = useState(initialPreferredHubDeckId);
   const lastPlayedSavedDeck = savedDecks.find((saved) => saved.id === prefs.lastPlayedDeckId);
@@ -148,7 +150,10 @@ export default function Lobby() {
   const [confirmLeaveHostedGame, setConfirmLeaveHostedGame] = useState(false);
 
   useEffect(() => {
-    if (currentRoom) setPlayersDrawerOpen(false);
+    if (currentRoom) {
+      setPlayersDrawerOpen(false);
+      setSettingUp(false);
+    }
   }, [currentRoom]);
 
   useEffect(() => {
@@ -486,31 +491,41 @@ export default function Lobby() {
         )}
 
         <div className="flex-1 min-h-0">
-          <TablesList
-            rooms={rooms}
-            currentRoom={currentRoom}
-            roomPassword={roomPassword}
-            username={username}
-            onNewGame={() => setCreateRoomOpen(true)}
-            onRefresh={refreshLobbyData}
-            refreshing={refreshingLobby}
-            refreshDisabled={!connected || connecting}
-            disabled={!connected || connecting}
-            onJoinRoom={handleJoinRoom}
-            onLeaveRoom={handleLeaveRoom}
-            onSetReady={setReady}
-            onSetFormat={setFormat}
-            onSetMaxPlayers={handleSetMaxPlayers}
-            onOpenDeckDialog={() => setDeckDialogOpen(true)}
-            onStartGame={handleStartGame}
-            onStartDraft={handleStartDraft}
-            onStartSealed={handleStartSealed}
-            startingLimited={startingLimited}
-            startingGame={startingGame}
-            onAddBot={handleAddAiBot}
-            onRemoveBot={handleRemoveBot}
-            mySpawnedBots={mySpawnedBots}
-          />
+          {settingUp && !currentRoom ? (
+            <TableSetup
+              username={myUsername}
+              onClose={() => setSettingUp(false)}
+              onCreatingChange={setCreatingLabel}
+            />
+          ) : creatingLabel ? (
+            <TableCreatingSplash label={creatingLabel} />
+          ) : (
+            <TablesList
+              rooms={rooms}
+              currentRoom={currentRoom}
+              roomPassword={roomPassword}
+              username={username}
+              onNewGame={() => setSettingUp(true)}
+              onRefresh={refreshLobbyData}
+              refreshing={refreshingLobby}
+              refreshDisabled={!connected || connecting}
+              disabled={!connected || connecting}
+              onJoinRoom={handleJoinRoom}
+              onLeaveRoom={handleLeaveRoom}
+              onSetReady={setReady}
+              onSetFormat={setFormat}
+              onSetMaxPlayers={handleSetMaxPlayers}
+              onOpenDeckDialog={() => setDeckDialogOpen(true)}
+              onStartGame={handleStartGame}
+              onStartDraft={handleStartDraft}
+              onStartSealed={handleStartSealed}
+              startingLimited={startingLimited}
+              startingGame={startingGame}
+              onAddBot={handleAddAiBot}
+              onRemoveBot={handleRemoveBot}
+              mySpawnedBots={mySpawnedBots}
+            />
+          )}
         </div>
       </div>
 
@@ -547,7 +562,6 @@ export default function Lobby() {
         </Sheet>
       )}
 
-      <CreateRoomDialog open={createRoomOpen} onOpenChange={setCreateRoomOpen} />
       <CreateGameDialog
         open={deckDialogOpen}
         onOpenChange={setDeckDialogOpen}

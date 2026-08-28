@@ -192,7 +192,7 @@ mod tests {
             .iter()
             .filter(|c| c.rarity == Rarity::BasicLand)
             .count();
-        assert!(lands >= 17 && lands <= 18, "lands = {lands}");
+        assert!((17..=18).contains(&lands), "lands = {lands}");
     }
 
     #[test]

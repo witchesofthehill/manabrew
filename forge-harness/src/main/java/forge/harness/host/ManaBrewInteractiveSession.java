@@ -1825,6 +1825,7 @@ public final class ManaBrewInteractiveSession {
             return;
         }
         player.concede();
+        game.getAction().checkGameOverCondition();
     }
 
     private boolean gameDecided() {

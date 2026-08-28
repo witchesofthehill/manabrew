@@ -140,12 +140,25 @@ public final class SabTransport implements InteractiveBridge {
                     + ",\"type\":\"" + inputType(promptJson) + "\"}");
         }
 
-        // The board goes to every seat, each through its own eyes: hidden zones
-        // are cut per viewer, so hosting a table must not publish seat 0's view
-        // to everyone. It also has to reach seats that are not being asked —
-        // the Rust engine keeps every seat's board current, and a guest whose
-        // board only arrives with their own first prompt stares at nothing
-        // while the host mulligans.
+        broadcastState();
+        sendTagged(seat, "prompt", "prompt", promptJson);
+
+        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
+        lastRecvAt = System.currentTimeMillis();
+        if (message.has("action")) {
+            return message.get("action").toString();
+        }
+        if (message.has("directive")) {
+            final JsonObject canonical = new JsonObject();
+            canonical.addProperty("type", "directive");
+            canonical.add("directive", message.get("directive"));
+            canonical.addProperty("player", seat);
+            return canonical.toString();
+        }
+        return message.toString();
+    }
+
+    private void broadcastState() {
         final int seats = Math.max(1, seatCount());
         for (int viewer = 0; viewer < seats; viewer++) {
             final String view = snapshots == null ? null : snapshots.apply(viewer);
@@ -158,15 +171,6 @@ public final class SabTransport implements InteractiveBridge {
                     + ",\"label\":\"forge\",\"gameView\":" + view
                     + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
         }
-        sendTagged(seat, "prompt", "prompt", promptJson);
-
-        final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
-        lastRecvAt = System.currentTimeMillis();
-        // ClientToServerMessage::Response -> {"kind":"response","promptId":N,"action":{...}}
-        if (message.has("action")) {
-            return message.get("action").toString();
-        }
-        return message.toString();
     }
 
     /**

@@ -31,6 +31,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  # Web Image is only in Oracle GraalVM 25.1+, which is still an EA build.
+  # Keep these in step with staging-deploy.yml: the two legs build the same
+  # engine, and a version that only exists in one of them is how staging and
+  # production quietly diverge.
+  GRAALVM_EA_TAG: jdk-25i3-25.0.4.1-ea.03
+  BINARYEN_VERSION: "123"
+
 jobs:
   build:
     name: Build & push ${{ matrix.image }}
@@ -86,6 +94,53 @@ jobs:
             type=ref,event=tag
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event.inputs.tag != '' }}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
+
+      # The wasm Forge engine is not in the repo (build outputs are ignored) and
+      # nothing else produces it, so the image would carry the Settings toggle
+      # with no engine behind it. Same steps as the staging leg. The engine
+      # ships in every web image; whether a player can reach it is the
+      # FORGE_WASM runtime flag, which production leaves unset.
+      - name: Cache the Web Image toolchain
+        if: matrix.image == 'manabrew-web'
+        id: webimage-toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/webimage
+          key: webimage-${{ env.GRAALVM_EA_TAG }}-binaryen-${{ env.BINARYEN_VERSION }}
+
+      - name: Install the Web Image toolchain
+        if: matrix.image == 'manabrew-web' && steps.webimage-toolchain.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/webimage" && cd "$HOME/.local/webimage"
+          curl -fsSL -o graalvm.tar.gz \
+            "https://github.com/graalvm/oracle-graalvm-ea-builds/releases/download/${GRAALVM_EA_TAG}/graalvm-jdk-${GRAALVM_EA_TAG#jdk-}_linux-x64_bin.tar.gz"
+          tar xzf graalvm.tar.gz && rm graalvm.tar.gz
+          curl -fsSL -o binaryen.tar.gz \
+            "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz"
+          tar xzf binaryen.tar.gz && rm binaryen.tar.gz
+
+      - name: Build the wasm Forge engine
+        if: matrix.image == 'manabrew-web'
+        run: |
+          set -euo pipefail
+          # One JDK for the whole leg: the harness jar is compiled by the same
+          # GraalVM that native-image runs from, so there is no second JDK whose
+          # version has to be reconciled with the one Web Image supports.
+          export PATH="$HOME/.local/webimage/binaryen-version_${BINARYEN_VERSION}/bin:$PATH"
+          export WEBIMAGE_GRAALVM_HOME="$(echo "$HOME"/.local/webimage/graalvm-*)"
+          export JAVA_HOME="$WEBIMAGE_GRAALVM_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+          wasm-as --version
+          corepack enable
+          yarn install --frozen-lockfile
+          node scripts/harness.mjs build
+          forge-harness/build-wasm.sh
+          mkdir -p public/forge
+          cp forge-harness/native/wasm/forgeharness.js \
+             forge-harness/native/wasm/forgeharness.js.wasm public/forge/
+          ls -la public/forge/
 
       - name: Build & push
         uses: docker/build-push-action@v6

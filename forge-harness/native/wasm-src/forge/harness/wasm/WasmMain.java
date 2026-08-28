@@ -217,10 +217,14 @@ public final class WasmMain {
                 }
                 String gameId = com.google.gson.JsonParser.parseString(requestJson)
                         .getAsJsonObject().get("gameId").getAsString();
-                SabTransport transport =
+                final SabTransport transport =
                         new SabTransport(viewer -> adapter.getSnapshot(gameId, viewer));
                 ManaBrewInteractiveSession.setBridge(transport);
-                String result = adapter.startGameJson(requestJson);
+                final String result = adapter.startGameJson(requestJson);
+                // startGameJson blocks for the whole game, so reaching this
+                // line means the game is over and every seat is still waiting
+                // on an answer that will never come.
+                System.out.println("[wasm] game over, publishing the final board");
                 transport.publishGameOver();
                 return org.graalvm.webimage.api.JSString.of(result);
             } catch (RuntimeException error) {

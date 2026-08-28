@@ -1,0 +1,150 @@
+/**
+ * Where a game's engine timings go once the game is over.
+ *
+ * Two routes, because the games worth measuring live in two different places.
+ * A game the relay already knows about is reported over the relay, which files
+ * it beside the rest of that room's analytics. Offline play has no server in
+ * the loop at all, so it queues and goes to the hub — the same
+ * queue-and-flush shape the deck play reports use, because a game can end with
+ * no connection and the report should survive until there is one.
+ *
+ * Nothing here carries a deck, a card, an opponent or a name.
+ */
+import { recordEngineStats } from "@/api/hub";
+import { HubRequestError } from "@/api/hub";
+import { getPlatform } from "@/platform";
+import { getSelectedGameRuntimeKind } from "@/game/runtimeRegistry";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
+import { APP_VERSION, STORAGE_KEYS } from "@/lib/constants";
+import type { EngineGameStats } from "@/lib/engineTelemetry";
+import { summariseGame } from "@/lib/engineTelemetry";
+
+const MAX_PENDING = 100;
+const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const MAX_PER_FLUSH = 20;
+let flushing: Promise<void> | null = null;
+
+interface PendingReport {
+  stats: EngineGameStats;
+  queuedAt: number;
+}
+
+/**
+ * Which engine actually ran. Not the same question as which engine the room
+ * asked for: a desktop build hosts Forge locally, and a browser with the
+ * wasm engine enabled runs Forge for a room that calls itself Manabrew.
+ */
+export function currentEngineLabel(): string {
+  const kind = getSelectedGameRuntimeKind();
+  const platform = getPlatform().type;
+  // The browser Forge build runs under the "manabrew" runtime — it is the
+  // local engine, whatever the room calls it — so the label has to come from
+  // the engine selection rather than the runtime kind, or every wasm game
+  // would be filed as the Rust one.
+  if (kind === "manabrew" && isForgeWasmSelected()) return "forge-wasm";
+  if (kind === "forge") return platform === "tauri" ? "forge-desktop" : "forge-hosted";
+  return kind;
+}
+
+function loadPending(): PendingReport[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const value: unknown = JSON.parse(
+      window.localStorage.getItem(STORAGE_KEYS.ENGINE_STATS_REPORTS) ?? "[]",
+    );
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+      (item): item is PendingReport =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof item.queuedAt === "number" &&
+        typeof item.stats === "object" &&
+        item.stats !== null &&
+        typeof item.stats.reportId === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function savePending(reports: PendingReport[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEYS.ENGINE_STATS_REPORTS, JSON.stringify(reports));
+  } catch {
+    // A full or blocked store is not worth failing a game over.
+  }
+}
+
+/** Send what is queued. Stops at the first network failure and keeps the rest. */
+export async function flushEngineStatsReports(): Promise<void> {
+  if (flushing) return flushing;
+  flushing = (async () => {
+    const cutoff = Date.now() - MAX_AGE_MS;
+    let pending = loadPending().filter((report) => report.queuedAt >= cutoff);
+    savePending(pending);
+    for (const report of pending.slice(0, MAX_PER_FLUSH)) {
+      try {
+        await recordEngineStats(report.stats);
+        pending = pending.filter((item) => item.stats.reportId !== report.stats.reportId);
+        savePending(pending);
+      } catch (error) {
+        // A report the hub refuses will never be accepted, so drop it rather
+        // than retrying it forever; anything else is worth another go later.
+        if (error instanceof HubRequestError && (error.status === 404 || error.status === 422)) {
+          pending = pending.filter((item) => item.stats.reportId !== report.stats.reportId);
+          savePending(pending);
+          continue;
+        }
+        break;
+      }
+    }
+  })().finally(() => {
+    flushing = null;
+  });
+  return flushing;
+}
+
+function queue(stats: EngineGameStats): void {
+  const pending = [...loadPending(), { stats, queuedAt: Date.now() }].slice(-MAX_PENDING);
+  savePending(pending);
+}
+
+/**
+ * Close the book on a game. Never throws and never blocks the caller: a game
+ * ending must not depend on telemetry working.
+ */
+export function reportEngineStats(meta: {
+  multiplayer: boolean;
+  seats: number;
+  format: string | null;
+  endReason: EngineGameStats["endReason"];
+  gameId?: string | null;
+  send?: (stats: EngineGameStats, gameId?: string | null) => Promise<void>;
+}): void {
+  let stats: EngineGameStats | null = null;
+  try {
+    stats = summariseGame({
+      engine: currentEngineLabel(),
+      clientVersion: APP_VERSION,
+      platform: getPlatform().type,
+      format: meta.format,
+      seats: meta.seats,
+      multiplayer: meta.multiplayer,
+      endReason: meta.endReason,
+      reportId: crypto.randomUUID(),
+    });
+  } catch {
+    return;
+  }
+  if (!stats) return;
+  if (meta.multiplayer && meta.send) {
+    void meta.send(stats, meta.gameId).catch(() => {
+      // The relay went away mid-report; the hub can have it instead.
+      queue(stats);
+    });
+    return;
+  }
+  queue(stats);
+  void flushEngineStatsReports();
+}

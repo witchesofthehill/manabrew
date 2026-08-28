@@ -5,6 +5,7 @@ pub mod deck_dto;
 pub mod display;
 pub mod game;
 pub mod prompts;
+pub mod telemetry;
 pub mod token;
 pub mod transport;
 

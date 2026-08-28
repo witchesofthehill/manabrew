@@ -106,6 +106,8 @@ public final class SabTransport implements InteractiveBridge {
     private final java.util.function.IntFunction<String> snapshots;
     private long checkpoint;
     private long lastRecvAt;
+    /** Kept clear of the in-game sequence, which the session owns. */
+    private long finalPromptId = 1_000_000;
 
     private static String inputType(final String promptJson) {
         try {
@@ -171,13 +173,29 @@ public final class SabTransport implements InteractiveBridge {
         }
     }
 
+    /**
+     * The last thing a game says.
+     *
+     * <p>The engine runs the whole game inside one blocking call, so when that
+     * call returns there is nobody left to answer anything: a client still
+     * waiting on its last answer waits forever, and a concede written into the
+     * buffer is never read. Publishing the final board — which carries
+     * gameOver and the winner — and a gameOver prompt to every seat is what
+     * the Rust engine does at the same point, and it is what lets the client
+     * show the result instead of "waiting for the opponent".
+     */
     public void publishGameOver() {
-        broadcastState();
         final int seats = Math.max(1, seatCount());
-        final String prompt = "{\"promptId\":" + 0xFFFFFFFFL
-                + ",\"decidingPlayerId\":\"player-0\",\"input\":{\"type\":\"gameOver\"}}";
         for (int seat = 0; seat < seats; seat++) {
-            sendTagged(seat, "prompt", "prompt", prompt);
+            final String view = snapshots == null ? null : snapshots.apply(seat);
+            if (view != null && !view.isEmpty()) {
+                sendTagged(seat, "state", "state", "{\"checkpointId\":" + (++checkpoint)
+                        + ",\"label\":\"forge\",\"gameView\":" + view
+                        + ",\"timestampMs\":" + System.currentTimeMillis() + "}");
+            }
+            sendTagged(seat, "prompt", "prompt", "{\"promptId\":" + (++finalPromptId)
+                    + ",\"decidingPlayerId\":\"player-" + seat
+                    + "\",\"input\":{\"type\":\"gameOver\"}}");
         }
     }
 

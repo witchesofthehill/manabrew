@@ -18,8 +18,9 @@ Two numbers describe this protocol. They answer different questions.
 **The release version** is the [semantic version](https://semver.org/) of the
 [`manabrew-protocol`](https://crates.io/crates/manabrew-protocol) crate and of
 the [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol) npm
-package generated from it. One job publishes both at the same number, so a
-version pins the same message shapes on either side of the wire. It moves on
+package generated from it. One job publishes both at the same number, and the
+package re-exports it as `VERSION`, so a version pins the same message shapes on
+either side of the wire. It moves on
 every change to these messages, additive ones included. This page documents the
 current release; the crates.io link gives what that is today.
 

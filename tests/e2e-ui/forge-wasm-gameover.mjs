@@ -72,6 +72,22 @@ async function boardDrivenEnding() {
       return /you win|you lose|game over|victory|defeat/i.test(text);
     });
     if (ended) return true;
+
+    // A selection modal gates its Confirm on a count, so pick cards until it
+    // frees up. A discard the driver cannot answer stalls the whole game at
+    // 20 life and looks exactly like the engine hanging.
+    const confirm = page.getByRole("button", { name: /^Confirm$/i }).first();
+    if (await confirm.count().catch(() => 0)) {
+      if (await confirm.isEnabled().catch(() => false)) {
+        await confirm.click({ timeout: 3000 }).catch(() => {});
+      } else {
+        const card = page.locator("[role=dialog] img, [role=dialog] [data-card-id]").first();
+        if (await card.count().catch(() => 0)) await card.click({ timeout: 3000 }).catch(() => {});
+      }
+      await page.waitForTimeout(400);
+      continue;
+    }
+
     // Priority first, and never "PASSING": that button holds priority.
     const passed = await page.evaluate(() => {
       const button = [...document.querySelectorAll("button")].find((candidate) => {

@@ -52,7 +52,7 @@ export async function onboard(page, nickname) {
   if (await agree.count()) {
     await agree.click();
     await page.getByRole("button", { name: /Accept and continue/i }).click();
-    await page.waitForTimeout(1200);
+    await page.locator('input[placeholder*="StormCrow"]').first().waitFor({ timeout: 10000 });
   }
   const nick = page.locator('input[placeholder*="StormCrow"]').first();
   if (await nick.count()) {

@@ -11,6 +11,7 @@ import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResol
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardChoiceDto, CardDto, StackObjectDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { ClientCardDto, ClientPlayerDto } from "@/stores/gameStore.types";
 import { GameModals } from "@/components/game/GameModals";
 import { LandscapeGate } from "@/components/LandscapeGate";
@@ -18,6 +19,7 @@ import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
+import { DevViewportFrame } from "@/components/dev/DevViewportFrame";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import {
@@ -63,7 +65,11 @@ import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
-import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
+import {
+  useGameDevStore,
+  DEBUG_KEYWORD_CARD_ID,
+  DEFAULT_DEBUG_CARD_NAME,
+} from "@/stores/useGameDevStore";
 import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
 import { createPortal } from "react-dom";
 import { Card } from "@/components/game/Card";
@@ -86,32 +92,49 @@ function isManualTabletopApi(
 ): runtime is GameRuntime & { api: ManualTabletopApi } {
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
+function numericPrintedStat(value: string | undefined): number | undefined {
+  if (value == null) return undefined;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : undefined;
+}
 
 function buildDebugKeywordCard(
   controllerId: string,
   name: string,
+  definition: DeckCard | null,
   keywords: string[],
   choices: CardChoiceDto[],
+  railEnabled: boolean,
   mode: "page" | "saga" | "class",
   current: number,
   final: number,
 ): ClientCardDto {
-  const base = {
+  const base: ClientCardDto = {
     ...GAME_CARD_DEFAULTS,
+    ...(definition ?? {}),
     id: DEBUG_KEYWORD_CARD_ID,
-    identity: { name: name.trim() || "Raging Goblin", setCode: "", cardNumber: "", isToken: false },
-    color: "C",
-    manaCost: "",
-    cmc: 0,
-    text: "Dev debug card.",
+    identity: {
+      ...(definition?.identity ?? {}),
+      name: (definition?.identity.name ?? name.trim()) || DEFAULT_DEBUG_CARD_NAME,
+      setCode: definition?.identity.setCode ?? "",
+      cardNumber: definition?.identity.cardNumber ?? "",
+      isToken: false,
+    },
+    color: definition?.color ?? "C",
+    manaCost: definition?.manaCost ?? "",
+    cmc: definition?.cmc ?? 0,
+    text: definition?.text ?? "Dev debug card.",
     controllerId,
     ownerId: controllerId,
     zoneId: "dev-zone",
     keywords,
     choices,
-    power: null,
-    toughness: null,
+    power: definition?.power ?? null,
+    toughness: definition?.toughness ?? null,
+    basePower: numericPrintedStat(definition?.power),
+    baseToughness: numericPrintedStat(definition?.toughness),
   };
+  if (!railEnabled) return base;
 
   if (mode === "saga") {
     return {
@@ -1350,6 +1373,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const debugCardChoices = useGameDevStore((s) => s.debugCardChoices);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
+  const debugCardDefinition = useGameDevStore((s) => s.debugCardDefinition);
+  const debugCardRailEnabled = useGameDevStore((s) => s.debugCardRailEnabled);
   const debugCardMode = useGameDevStore((s) => s.debugCardMode);
   const debugCardCurrent = useGameDevStore((s) => s.debugCardCurrent);
   const debugCardFinal = useGameDevStore((s) => s.debugCardFinal);
@@ -1367,8 +1392,10 @@ export default function Game({ exitTo }: GameProps = {}) {
         buildDebugKeywordCard(
           me.id,
           debugCardName,
+          debugCardDefinition,
           debugBattlefieldKeywords,
           debugCardChoices,
+          debugCardRailEnabled,
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
@@ -1380,6 +1407,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView,
     debugCardEnabled,
     debugCardName,
+    debugCardDefinition,
+    debugCardRailEnabled,
     debugCardMode,
     debugCardCurrent,
     debugCardFinal,
@@ -1420,8 +1449,10 @@ export default function Game({ exitTo }: GameProps = {}) {
         buildDebugKeywordCard(
           me.id,
           debugCardName,
+          debugCardDefinition,
           debugBattlefieldKeywords,
           debugCardChoices,
+          debugCardRailEnabled,
           debugCardMode,
           debugCardCurrent,
           debugCardFinal,
@@ -1436,6 +1467,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     attackAssignments,
     debugCardEnabled,
     debugCardName,
+    debugCardDefinition,
+    debugCardRailEnabled,
     debugCardMode,
     debugCardCurrent,
     debugCardFinal,
@@ -1740,7 +1773,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       }
     >
       <LandscapeGate />
-      <div className="flex min-h-0 flex-1 overflow-visible">
+      <DevViewportFrame>
         <GameBoard
           boardSceneRef={boardSceneRef}
           onLayoutChange={setBoardLayout}
@@ -1878,7 +1911,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               : undefined
           }
         />
-      </div>
+      </DevViewportFrame>
 
       {manualApi && <ManualTabletopControls gameView={gameView} api={manualApi} />}
 

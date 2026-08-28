@@ -74,18 +74,18 @@ impl GameReplayCache {
             Some("stateDelta") => {
                 let slot = envelope.get("forPlayer").and_then(Value::as_str);
                 let previous = match slot {
-                    Some(slot) => self.last_state_by_slot.get(slot),
-                    None => self.last_state.as_ref(),
+                    Some(slot) => self.last_state_by_slot.remove(slot),
+                    None => self.last_state.take(),
                 };
-                let Some(previous) = previous else {
+                let Some(mut rebuilt) = previous else {
                     return;
                 };
                 let Some(patch) = envelope.get("patch") else {
+                    self.restore_state(slot, rebuilt);
                     return;
                 };
-                let base = previous.get("state").cloned().unwrap_or(Value::Null);
-                let mut rebuilt = previous.clone();
                 if let Some(object) = rebuilt.as_object_mut() {
+                    let base = object.remove("state").unwrap_or(Value::Null);
                     object.insert(
                         "state".to_string(),
                         manabrew_relay_protocol::state_delta::apply(&base, patch),
@@ -95,12 +95,7 @@ impl GameReplayCache {
                     }
                 }
                 self.observe_outcome(&rebuilt);
-                match slot {
-                    Some(slot) => {
-                        self.last_state_by_slot.insert(slot.to_string(), rebuilt);
-                    }
-                    None => self.last_state = Some(rebuilt),
-                }
+                self.restore_state(slot, rebuilt);
             }
             Some("prompt") => {
                 if let Some(slot) = envelope.get("forPlayer").and_then(Value::as_str) {
@@ -120,6 +115,15 @@ impl GameReplayCache {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn restore_state(&mut self, slot: Option<&str>, state: Value) {
+        match slot {
+            Some(slot) => {
+                self.last_state_by_slot.insert(slot.to_string(), state);
+            }
+            None => self.last_state = Some(state),
         }
     }
 

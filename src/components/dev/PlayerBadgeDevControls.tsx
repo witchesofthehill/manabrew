@@ -1,9 +1,12 @@
-import { cn } from "@/lib/utils";
 import {
   DEFAULT_DEV_PLAYER_OVERRIDES,
   useGameDevStore,
   type DevPlayerOverrides,
 } from "@/stores/useGameDevStore";
+
+import { DevCounterControl } from "./DevCounterControl";
+import { DevToggleButton } from "./DevToggleButton";
+import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 
 type BoolOverrideKey = {
   [K in keyof DevPlayerOverrides]: DevPlayerOverrides[K] extends boolean ? K : never;
@@ -16,231 +19,123 @@ type NumericOverrideKey = {
 const LIFE_BUMP_BASE = 20;
 const NUMERIC_BUMP_BASE = 0;
 
-/** Dev helper surface that forces every player badge/state so the operator
- *  can inspect visuals without a live game. Injected into the "Dev" tab of
- *  `RightActionPanel`; overrides flow through `useGameDevStore` and are folded
- *  into every player's Pixi HUD spec in `GameBoard` (self + all opponents). */
+interface ToggleRow {
+  key: BoolOverrideKey;
+  label: string;
+}
+
+const PLAYER_BADGE_ROWS: ToggleRow[] = [
+  { key: "forceMonarch", label: "Monarch" },
+  { key: "forceInitiative", label: "Initiative" },
+  { key: "forceCityBlessing", label: "City's Blessing" },
+  { key: "forceEnduringStory", label: "Enduring Story" },
+];
+
+const PLAYER_STATE_ROWS: ToggleRow[] = [
+  { key: "forceActiveTurn", label: "Active turn" },
+  { key: "forcePriority", label: "Priority" },
+  { key: "forceTargetable", label: "Targetable" },
+  { key: "forceSelectedTarget", label: "Selected" },
+  { key: "forceFlashing", label: "Turn flash" },
+  { key: "forceEliminated", label: "Eliminated" },
+  { key: "forceDisconnected", label: "Disconnected" },
+];
+
+interface CounterRow {
+  key: NumericOverrideKey;
+  label: string;
+  base: number;
+}
+
+const COUNTER_ROWS: CounterRow[] = [
+  { key: "poison", label: "Poison", base: NUMERIC_BUMP_BASE },
+  { key: "energy", label: "Energy", base: NUMERIC_BUMP_BASE },
+  { key: "cmdDamage", label: "Commander damage", base: NUMERIC_BUMP_BASE },
+  { key: "radiation", label: "Radiation", base: NUMERIC_BUMP_BASE },
+  { key: "experience", label: "Experience", base: NUMERIC_BUMP_BASE },
+  { key: "ticket", label: "Ticket", base: NUMERIC_BUMP_BASE },
+  { key: "ringLevel", label: "Ring", base: NUMERIC_BUMP_BASE },
+  { key: "speed", label: "Speed", base: NUMERIC_BUMP_BASE },
+  { key: "handCount", label: "Hand", base: NUMERIC_BUMP_BASE },
+  { key: "life", label: "Life", base: LIFE_BUMP_BASE },
+];
 export function PlayerBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.playerOverrides);
   const setOverride = useGameDevStore((s) => s.setPlayerOverride);
   const reset = useGameDevStore((s) => s.resetPlayerOverrides);
-
   const toggleBool = (key: BoolOverrideKey) => setOverride(key, !overrides[key]);
 
   const bumpNumeric = (key: NumericOverrideKey, base: number, delta: number) => {
     const curr = overrides[key] ?? base;
-    const next = Math.max(0, curr + delta);
-    setOverride(key, next);
+    setOverride(key, Math.max(0, curr + delta));
   };
 
   const dirty = (Object.keys(DEFAULT_DEV_PLAYER_OVERRIDES) as (keyof DevPlayerOverrides)[]).some(
-    (k) => overrides[k] !== DEFAULT_DEV_PLAYER_OVERRIDES[k],
+    (key) => overrides[key] !== DEFAULT_DEV_PLAYER_OVERRIDES[key],
   );
 
   return (
-    <div className="flex flex-col gap-2 mt-2 rounded-md border border-border/70 p-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Player states (all)
-        </span>
-        {dirty && (
+    <section className={DEV_SECTION}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className={DEV_SECTION_HEADING}>Player HUD</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Apply the same badge and status checks to every player.
+          </p>
+        </div>
+        {dirty ? (
           <button
-            className="text-[10px] uppercase text-muted-foreground hover:text-destructive"
+            type="button"
+            className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
             onClick={reset}
           >
-            Reset
+            Reset players
           </button>
-        )}
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-1.5">
-        <ToggleButton
-          label="Monarch"
-          active={overrides.forceMonarch}
-          onClick={() => toggleBool("forceMonarch")}
-        />
-        <ToggleButton
-          label="Initiative"
-          active={overrides.forceInitiative}
-          onClick={() => toggleBool("forceInitiative")}
-        />
-        <ToggleButton
-          label="City's Blessing"
-          active={overrides.forceCityBlessing}
-          onClick={() => toggleBool("forceCityBlessing")}
-        />
-        <ToggleButton
-          label="Enduring Story"
-          active={overrides.forceEnduringStory}
-          onClick={() => toggleBool("forceEnduringStory")}
-        />
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Game badges
+      </p>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {PLAYER_BADGE_ROWS.map((row) => (
+          <DevToggleButton
+            key={row.key}
+            label={row.label}
+            active={overrides[row.key]}
+            onClick={() => toggleBool(row.key)}
+          />
+        ))}
       </div>
 
-      <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         States
-      </span>
-      <div className="grid grid-cols-2 gap-1.5">
-        <ToggleButton
-          label="Active turn"
-          active={overrides.forceActiveTurn}
-          onClick={() => toggleBool("forceActiveTurn")}
-        />
-        <ToggleButton
-          label="Priority"
-          active={overrides.forcePriority}
-          onClick={() => toggleBool("forcePriority")}
-        />
-        <ToggleButton
-          label="Targetable"
-          active={overrides.forceTargetable}
-          onClick={() => toggleBool("forceTargetable")}
-        />
-        <ToggleButton
-          label="Selected"
-          active={overrides.forceSelectedTarget}
-          onClick={() => toggleBool("forceSelectedTarget")}
-        />
-        <ToggleButton
-          label="Turn flash"
-          active={overrides.forceFlashing}
-          onClick={() => toggleBool("forceFlashing")}
-        />
-        <ToggleButton
-          label="Eliminated"
-          active={overrides.forceEliminated}
-          onClick={() => toggleBool("forceEliminated")}
-        />
-        <ToggleButton
-          label="Disconnected"
-          active={overrides.forceDisconnected}
-          onClick={() => toggleBool("forceDisconnected")}
-        />
+      </p>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {PLAYER_STATE_ROWS.map((row) => (
+          <DevToggleButton
+            key={row.key}
+            label={row.label}
+            active={overrides[row.key]}
+            onClick={() => toggleBool(row.key)}
+          />
+        ))}
       </div>
 
-      <BadgeCounter
-        label="Poison"
-        value={overrides.poison}
-        onChange={(v) => setOverride("poison", v)}
-        onBump={(d) => bumpNumeric("poison", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Energy"
-        value={overrides.energy}
-        onChange={(v) => setOverride("energy", v)}
-        onBump={(d) => bumpNumeric("energy", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Cmd dmg"
-        value={overrides.cmdDamage}
-        onChange={(v) => setOverride("cmdDamage", v)}
-        onBump={(d) => bumpNumeric("cmdDamage", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Radiation"
-        value={overrides.radiation}
-        onChange={(v) => setOverride("radiation", v)}
-        onBump={(d) => bumpNumeric("radiation", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Experience"
-        value={overrides.experience}
-        onChange={(v) => setOverride("experience", v)}
-        onBump={(d) => bumpNumeric("experience", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Ticket"
-        value={overrides.ticket}
-        onChange={(v) => setOverride("ticket", v)}
-        onBump={(d) => bumpNumeric("ticket", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Ring"
-        value={overrides.ringLevel}
-        onChange={(v) => setOverride("ringLevel", v)}
-        onBump={(d) => bumpNumeric("ringLevel", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Speed"
-        value={overrides.speed}
-        onChange={(v) => setOverride("speed", v)}
-        onBump={(d) => bumpNumeric("speed", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Hand"
-        value={overrides.handCount}
-        onChange={(v) => setOverride("handCount", v)}
-        onBump={(d) => bumpNumeric("handCount", NUMERIC_BUMP_BASE, d)}
-      />
-      <BadgeCounter
-        label="Life"
-        value={overrides.life}
-        onChange={(v) => setOverride("life", v)}
-        onBump={(d) => bumpNumeric("life", LIFE_BUMP_BASE, d)}
-      />
-    </div>
-  );
-}
-
-function ToggleButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "px-2 py-1.5 rounded text-xs font-medium border transition-colors",
-        active
-          ? "border-primary text-primary bg-primary/10"
-          : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50",
-      )}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
-}
-
-function BadgeCounter({
-  label,
-  value,
-  onChange,
-  onBump,
-}: {
-  label: string;
-  value: number | null;
-  onChange: (value: number | null) => void;
-  onBump: (delta: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-medium w-16">{label}</span>
-      <button
-        className="px-1.5 py-0.5 rounded text-[10px] border border-border/70 hover:bg-accent/50"
-        onClick={() => onBump(-1)}
-      >
-        −
-      </button>
-      <span className="text-xs font-mono tabular-nums w-8 text-center">{value ?? "—"}</span>
-      <button
-        className="px-1.5 py-0.5 rounded text-[10px] border border-border/70 hover:bg-accent/50"
-        onClick={() => onBump(1)}
-      >
-        +
-      </button>
-      {value != null && (
-        <button
-          className="text-[10px] text-muted-foreground hover:text-destructive"
-          onClick={() => onChange(null)}
-        >
-          clear
-        </button>
-      )}
-    </div>
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Values
+      </p>
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {COUNTER_ROWS.map((row) => (
+          <DevCounterControl
+            key={row.key}
+            label={row.label}
+            value={overrides[row.key]}
+            onClear={() => setOverride(row.key, null)}
+            onBump={(delta) => bumpNumeric(row.key, row.base, delta)}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

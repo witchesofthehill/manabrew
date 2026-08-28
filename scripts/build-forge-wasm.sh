@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the wasm Forge engine and stage it at public/forge/, the path
 # forge-engine.worker.js loads it from. Used locally (yarn build:forge-wasm)
-# and by the web leg of staging-deploy.yml. The harness jar is built with the
+# and by the web legs of staging-deploy.yml and docker-images.yml. The harness jar is built with the
 # same GraalVM that native-image runs from, so no second JDK version has to be
 # reconciled with the one Web Image supports.
 set -euo pipefail

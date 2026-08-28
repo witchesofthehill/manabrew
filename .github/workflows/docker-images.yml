@@ -97,9 +97,9 @@ jobs:
 
       # The wasm Forge engine is not in the repo (build outputs are ignored) and
       # nothing else produces it, so the image would carry the Settings toggle
-      # with no engine behind it. Same steps as the staging leg. The engine
-      # ships in every web image; whether a player can reach it is the
-      # FORGE_WASM runtime flag, which production leaves unset.
+      # with no engine behind it. The same script builds the staging image. The
+      # engine ships in every web image and the runtime flag exposes its opt-in
+      # toggle in both staging and production.
       - name: Cache the Web Image toolchain
         if: matrix.image == 'manabrew-web'
         id: webimage-toolchain
@@ -124,22 +124,13 @@ jobs:
         if: matrix.image == 'manabrew-web'
         run: |
           set -euo pipefail
-          # One JDK for the whole leg: the harness jar is compiled by the same
-          # GraalVM that native-image runs from, so there is no second JDK whose
-          # version has to be reconciled with the one Web Image supports.
           export PATH="$HOME/.local/webimage/binaryen-version_${BINARYEN_VERSION}/bin:$PATH"
-          export WEBIMAGE_GRAALVM_HOME="$(echo "$HOME"/.local/webimage/graalvm-*)"
-          export JAVA_HOME="$WEBIMAGE_GRAALVM_HOME"
-          export PATH="$JAVA_HOME/bin:$PATH"
-          java -version
+          WEBIMAGE_GRAALVM_HOME="$(echo "$HOME"/.local/webimage/graalvm-*)"
+          export WEBIMAGE_GRAALVM_HOME
           wasm-as --version
           corepack enable
           yarn install --frozen-lockfile
-          node scripts/harness.mjs build
-          forge-harness/build-wasm.sh
-          mkdir -p public/forge
-          cp forge-harness/native/wasm/forgeharness.js \
-             forge-harness/native/wasm/forgeharness.js.wasm public/forge/
+          scripts/build-forge-wasm.sh
           ls -la public/forge/
 
       - name: Build & push

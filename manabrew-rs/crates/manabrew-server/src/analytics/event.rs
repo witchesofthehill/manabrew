@@ -111,4 +111,9 @@ pub struct CaptureLine<'a> {
     pub ts: String,
     pub from: &'a str,
     pub envelope: &'a Value,
+    /// Set only on envelopes a player sent, where `from` is that player and the
+    /// figure is theirs. Lets a decision be read against the link it crossed
+    /// rather than against a fleet-wide average.
+    #[serde(rename = "clientRttMs", skip_serializing_if = "Option::is_none")]
+    pub client_rtt_ms: Option<u32>,
 }

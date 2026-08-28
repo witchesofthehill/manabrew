@@ -634,6 +634,7 @@ pub fn start_game_sync(
             | GameFormat::Legacy
             | GameFormat::Vintage
             | GameFormat::Pauper
+            | GameFormat::Premodern
             | GameFormat::Oathbreaker
             | GameFormat::Draft
             | GameFormat::Sealed => 20,

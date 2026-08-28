@@ -1,5 +1,47 @@
 # Changelog
 
+## [3.21.10](https://github.com/witchesofthehill/manabrew/compare/v3.21.9...v3.21.10) (2026-08-25)
+
+## [3.21.9](https://github.com/witchesofthehill/manabrew/compare/v3.21.8...v3.21.9) (2026-08-25)
+
+## [3.21.8](https://github.com/witchesofthehill/manabrew/compare/v3.21.7...v3.21.8) (2026-08-25)
+
+## [3.21.7](https://github.com/witchesofthehill/manabrew/compare/v3.21.6...v3.21.7) (2026-08-25)
+
+## [3.21.6](https://github.com/witchesofthehill/manabrew/compare/v3.21.5...v3.21.6) (2026-08-25)
+
+## [3.21.5](https://github.com/witchesofthehill/manabrew/compare/v3.21.4...v3.21.5) (2026-08-25)
+
+## [3.21.4](https://github.com/witchesofthehill/manabrew/compare/v3.21.3...v3.21.4) (2026-08-25)
+
+## [3.21.3](https://github.com/witchesofthehill/manabrew/compare/v3.21.2...v3.21.3) (2026-08-25)
+
+## [3.21.2](https://github.com/witchesofthehill/manabrew/compare/v3.21.1...v3.21.2) (2026-08-24)
+
+### Fixes
+
+* **node:** report engine stall time under g1 ([#757](https://github.com/witchesofthehill/manabrew/issues/757)) ([f16022f](https://github.com/witchesofthehill/manabrew/commit/f16022febfe14d4e1a31f5f094b71227bf3958a8))
+
+## [3.21.1](https://github.com/witchesofthehill/manabrew/compare/v3.21.0...v3.21.1) (2026-08-24)
+
+## [3.21.0](https://github.com/witchesofthehill/manabrew/compare/v3.20.0...v3.21.0) (2026-08-24)
+
+### Features
+
+* measure each leg of hosted latency separately ([#754](https://github.com/witchesofthehill/manabrew/issues/754)) ([31f1378](https://github.com/witchesofthehill/manabrew/commit/31f1378c899ed19654b3f7937408058a4450a868))
+
+## [3.20.0](https://github.com/witchesofthehill/manabrew/compare/v3.19.1...v3.20.0) (2026-08-24)
+
+### Features
+
+* add premodern format support ([#749](https://github.com/witchesofthehill/manabrew/issues/749)) ([91273d1](https://github.com/witchesofthehill/manabrew/commit/91273d16d68563d3a42e31852655ab71bf0916a8))
+
+## [3.19.1](https://github.com/witchesofthehill/manabrew/compare/v3.19.0...v3.19.1) (2026-08-24)
+
+### Fixes
+
+* **harness:** report colorless floating mana instead of always zero ([#753](https://github.com/witchesofthehill/manabrew/issues/753)) ([6bf5800](https://github.com/witchesofthehill/manabrew/commit/6bf5800fb8a95fcfedaf8c53ac786f62168eb8d3))
+
 ## [3.19.0](https://github.com/witchesofthehill/manabrew/compare/v3.18.7...v3.19.0) (2026-08-23)
 
 ### Features

@@ -112,3 +112,7 @@ src-tauri/gen/apple/assets/
 
 
 # Early-deploy manifest hold marker (deploy.sh, prod host only)
+
+# Python bytecode from the latency scripts
+__pycache__/
+*.pyc

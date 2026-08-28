@@ -529,7 +529,10 @@ impl Client {
         if let Some(kind) = state.get("kind").and_then(serde_json::Value::as_str) {
             self.envelope_kinds.insert(kind.to_string());
         }
-        let Ok(StateEnvelope::Prompt { for_player, prompt }) = serde_json::from_value(state) else {
+        let Ok(StateEnvelope::Prompt {
+            for_player, prompt, ..
+        }) = serde_json::from_value(state)
+        else {
             return Ok(None);
         };
         if self.slot.as_deref() != Some(for_player.as_str()) {

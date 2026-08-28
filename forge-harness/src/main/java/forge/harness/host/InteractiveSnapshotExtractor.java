@@ -13,6 +13,7 @@ import forge.ImageKeys;
 import forge.card.ColorSet;
 import forge.card.CardStateName;
 import forge.card.MagicColor;
+import forge.card.mana.ManaAtom;
 import forge.game.Game;
 import forge.game.GameEntity;
 import forge.ai.ComputerUtilCombat;
@@ -332,7 +333,9 @@ public final class InteractiveSnapshotExtractor {
         pool.put("B", player.getManaPool().getAmountOfColor(MagicColor.BLACK));
         pool.put("R", player.getManaPool().getAmountOfColor(MagicColor.RED));
         pool.put("G", player.getManaPool().getAmountOfColor(MagicColor.GREEN));
-        pool.put("C", player.getManaPool().getAmountOfColor(MagicColor.COLORLESS));
+        // ManaPool keys colorless by ManaAtom.COLORLESS (1 << 5), not
+        // MagicColor.COLORLESS (0, "the absence of any color").
+        pool.put("C", player.getManaPool().getAmountOfColor((byte) ManaAtom.COLORLESS));
         return pool;
     }
 

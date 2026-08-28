@@ -103,3 +103,5 @@ export const defaultMatchPlayers = (format: GameFormat) => (format === "Commande
 
 // Capped at 90s: the engine auto-passes a silent seat after 120s
 export const RECONNECT_TIMEOUT_OPTIONS = [30, 60, 90] as const;
+
+export const CREATE_SPLASH_MIN_MS = 1200;

@@ -9,7 +9,9 @@ import { EngineMark } from "@/components/lobby/EngineMark";
 import { OpenTableSeats } from "@/components/lobby/OpenTableSeats";
 import { TableSetupGameCard } from "@/components/lobby/TableSetupGameCard";
 import { TableSetupHostingCard } from "@/components/lobby/TableSetupHostingCard";
+import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import {
+  CREATE_SPLASH_MIN_MS,
   LIMITED_KINDS,
   PLAYER_OPTIONS_LIMITED,
   PLAYER_OPTIONS_MATCH,
@@ -22,7 +24,9 @@ import { useServerStore } from "@/stores/useServerStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useForgeRoomAvailabilityStore } from "@/stores/useForgeRoomAvailabilityStore";
 import { getPlatformType } from "@/platform";
+import { claimHostedTable } from "@/game/hostedAiPlay";
 import { isFeatureEnabled } from "@/featureFlags";
+import { cn } from "@/lib/utils";
 import { IRONSMITH_WASM_AVAILABLE } from "@/game/ironsmithWasmAvailable";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type {
@@ -37,9 +41,10 @@ import type { CubeImportResult } from "@/types/limited";
 interface TableSetupProps {
   username: string | null;
   onClose: () => void;
+  onCreatingChange: (label: string | null) => void;
 }
 
-export function TableSetup({ username, onClose }: TableSetupProps) {
+export function TableSetup({ username, onClose, onCreatingChange }: TableSetupProps) {
   const { connected, createRoom } = useServerStore();
   const isTauri = getPlatformType() === "tauri";
   const forgeRoomAvailable = useForgeRoomAvailabilityStore((state) => state.available);
@@ -48,7 +53,8 @@ export function TableSetup({ username, onClose }: TableSetupProps) {
     isFeatureEnabled("ironsmithRuntime") && IRONSMITH_WASM_AVAILABLE && ironsmithOptedIn;
   const forgeWasmOptedIn = usePreferencesStore((s) => s.forgeWasmEnabled);
   const forgeWasm = isFeatureEnabled("forgeWasm") && forgeWasmOptedIn;
-  const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm;
+  const hostedNode = !isTauri && !forgeWasm;
+  const canHostForge = (isTauri && forgeRoomAvailable) || forgeWasm || hostedNode;
 
   const [engine, setEngine] = useState<EngineKind>(canHostForge ? "Forge" : "Manabrew");
   const [kind, setKind] = useState<RoomKind>(
@@ -58,7 +64,7 @@ export function TableSetup({ username, onClose }: TableSetupProps) {
     () => usePreferencesStore.getState().lastRoomSetup?.limitedKind ?? "draft",
   );
   const [format, setFormat] = useState<GameFormat>(
-    () => usePreferencesStore.getState().lastRoomSetup?.format ?? "Standard",
+    () => usePreferencesStore.getState().lastRoomSetup?.format ?? "Commander",
   );
   const [matchPlayersOverride, setMatchPlayersOverride] = useState<number | null>(() => {
     const last = usePreferencesStore.getState().lastRoomSetup;
@@ -158,9 +164,13 @@ export function TableSetup({ username, onClose }: TableSetupProps) {
           : isSealed && !sealedUseCube && (!sealedSet || sealedPool.unsupported === sealedSet)
             ? "Pick a set for sealed below."
             : null;
-  const openTableHint = roomPassword.trim()
-    ? "People with the password can join."
-    : "Anyone in the lobby can take a seat.";
+  const onNode = submittedEngine === "Forge" && hostedNode;
+  const splashLabel = onNode ? "Finding you a table\u2026" : "Setting the table\u2026";
+  const openTableHint = onNode
+    ? "A Manabrew node hosts this table, under its own name. Anyone in the lobby can take a seat."
+    : roomPassword.trim()
+      ? "People with the password can join."
+      : "Anyone in the lobby can take a seat.";
 
   const hostUsername = username ?? "You";
   const hostPlayer: RoomPlayerInfo = { username: hostUsername, ready: true, connected: true };
@@ -168,6 +178,8 @@ export function TableSetup({ username, onClose }: TableSetupProps) {
   async function handleCreate() {
     if (!canSubmit) return;
     setCreating(true);
+    onCreatingChange(splashLabel);
+    const splashUntil = Date.now() + CREATE_SPLASH_MIN_MS;
     try {
       const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
       let draftConfig: DraftConfig | undefined;
@@ -194,37 +206,45 @@ export function TableSetup({ username, onClose }: TableSetupProps) {
           base_seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         };
       }
-      const password = roomPassword.trim() || undefined;
-      await createRoom(
-        roomName.trim() || defaultName,
-        maxPlayers,
-        submittedFormat,
-        submittedEngine,
-        draftConfig,
-        sealedConfig,
-        reconnectTimeoutS,
-        password,
-      );
+      if (onNode) {
+        await claimHostedTable(submittedFormat, maxPlayers);
+      } else {
+        const password = roomPassword.trim() || undefined;
+        await createRoom(
+          roomName.trim() || defaultName,
+          maxPlayers,
+          submittedFormat,
+          submittedEngine,
+          draftConfig,
+          sealedConfig,
+          reconnectTimeoutS,
+          password,
+        );
+      }
       usePreferencesStore.getState().setLastRoomSetup({
         kind,
         limitedKind,
         format,
         players: kind === "limited" ? limitedPlayers : matchPlayersOverride,
       });
+      await new Promise((resolve) => setTimeout(resolve, splashUntil - Date.now()));
       onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't create the table.");
     } finally {
       setCreating(false);
+      onCreatingChange(null);
     }
   }
+
+  if (creating) return <TableCreatingSplash label={splashLabel} />;
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
       <div className="flex min-h-full flex-col gap-5">
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <section className="flex min-h-[30rem] flex-col overflow-hidden rounded-2xl border border-primary/30 bg-card/85 shadow-xl backdrop-blur-md">
-            <div className="border-b border-border/60 px-5 py-4">
+            <div className={cn("border-b border-border/60 px-5 py-4", onNode && "hidden")}>
               <input
                 id="table-name"
                 aria-label="Table name"
@@ -340,6 +360,7 @@ export function TableSetup({ username, onClose }: TableSetupProps) {
               onEngineChange={setEngine}
               canHostForge={canHostForge}
               isTauri={isTauri}
+              hostedNode={hostedNode}
               forgeRoomAvailable={forgeRoomAvailable}
               ironsmithEnabled={ironsmithEnabled}
               reconnectTimeoutS={reconnectTimeoutS}

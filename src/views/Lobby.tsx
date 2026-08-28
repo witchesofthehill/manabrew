@@ -1,6 +1,7 @@
 import { TablesList } from "@/components/lobby/TablesList";
 import { UserList, type ConnectionState } from "@/components/lobby/UserList";
 import { TableSetup } from "@/components/lobby/TableSetup";
+import { TableCreatingSplash } from "@/components/lobby/TableCreatingSplash";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
 import { LeaveGameModal } from "@/components/game/modals";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,7 @@ export default function Lobby() {
       : "disconnected";
   const savedDecks = useOwnedDecks();
   const [settingUp, setSettingUp] = useState(false);
+  const [creatingLabel, setCreatingLabel] = useState<string | null>(null);
   const [preferredSavedDeckId] = useState(initialPreferredSavedDeckId);
   const [preferredHubDeckId] = useState(initialPreferredHubDeckId);
   const lastPlayedSavedDeck = savedDecks.find((saved) => saved.id === prefs.lastPlayedDeckId);
@@ -490,7 +492,13 @@ export default function Lobby() {
 
         <div className="flex-1 min-h-0">
           {settingUp && !currentRoom ? (
-            <TableSetup username={myUsername} onClose={() => setSettingUp(false)} />
+            <TableSetup
+              username={myUsername}
+              onClose={() => setSettingUp(false)}
+              onCreatingChange={setCreatingLabel}
+            />
+          ) : creatingLabel ? (
+            <TableCreatingSplash label={creatingLabel} />
           ) : (
             <TablesList
               rooms={rooms}

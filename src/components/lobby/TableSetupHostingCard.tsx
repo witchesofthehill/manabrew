@@ -4,7 +4,6 @@ import { Label } from "@/components/ui/label";
 import { GameIcon } from "@/components/game/GameIcon";
 import { EngineMark } from "@/components/lobby/EngineMark";
 import { RECONNECT_TIMEOUT_OPTIONS, type RoomKind } from "@/components/lobby/tableSetup.constants";
-import { DOCS_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { EngineKind } from "@/types/server";
 
@@ -14,6 +13,7 @@ interface TableSetupHostingCardProps {
   onEngineChange: (engine: EngineKind) => void;
   canHostForge: boolean;
   isTauri: boolean;
+  hostedNode: boolean;
   forgeRoomAvailable: boolean;
   ironsmithEnabled: boolean;
   reconnectTimeoutS: number;
@@ -26,6 +26,7 @@ export function TableSetupHostingCard({
   onEngineChange,
   canHostForge,
   isTauri,
+  hostedNode,
   forgeRoomAvailable,
   ironsmithEnabled,
   reconnectTimeoutS,
@@ -71,48 +72,17 @@ export function TableSetupHostingCard({
                   label="Forge"
                   badge={
                     <Badge variant="outline" className="text-[9px]">
-                      {isTauri ? "on this device" : "in this browser"}
+                      {isTauri ? "on this device" : hostedNode ? "on a node" : "in this browser"}
                     </Badge>
                   }
                   description={
                     isTauri
                       ? "Full card support, hosted in-app on this device. Others join from the lobby."
-                      : "Full card support, hosted in this browser tab. Others join from the lobby."
+                      : hostedNode
+                        ? "Full card support, hosted on a Manabrew node. Others join from the lobby."
+                        : "Full card support, hosted in this browser tab. Others join from the lobby."
                   }
                 />
-              )}
-              {!canHostForge && !isTauri && (
-                <div className="flex flex-col items-start gap-0.5 rounded-lg bg-muted/40 p-2.5 text-left">
-                  <span className="flex items-center gap-1.5">
-                    <EngineMark engine="Forge" className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium">Forge</span>
-                    <Badge variant="outline" className="text-[9px]">
-                      hosted
-                    </Badge>
-                  </span>
-                  <span className="text-[10px] leading-tight text-muted-foreground">
-                    Full card support. Available on{" "}
-                    <a
-                      href={`${DOCS_URL}/getting-started/`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2"
-                    >
-                      Desktop
-                    </a>
-                    {". "}
-                    Or join a Forge table from the list, alternatively,{" "}
-                    <a
-                      href={`${DOCS_URL}/self-hosting/`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2"
-                    >
-                      host your own
-                    </a>
-                    .
-                  </span>
-                </div>
               )}
               <EngineOption
                 selected={engine === "Manabrew"}
@@ -181,7 +151,7 @@ export function TableSetupHostingCard({
             <p>{warningText}</p>
           </div>
         )}
-        {kind === "match" && (
+        {kind === "match" && !(engine === "Forge" && hostedNode) && (
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Reconnect timeout</Label>
             <div className="flex items-center gap-2">

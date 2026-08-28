@@ -23,5 +23,7 @@ import type { Prompt, PromptInput, PromptOutput } from "@manabrew/protocol";
 import { VERSION, PROTOCOL_VERSION } from "@manabrew/protocol";
 ```
 
-`VERSION` is the package version; `PROTOCOL_VERSION` is the integer wire version
-a client must match to interoperate.
+`PROTOCOL_VERSION` is the integer wire version a client must report to a relay
+to interoperate. It is the major of `manabrew-relay-protocol`, so it only moves
+on a breaking wire change. `VERSION` is the version of the crate the bindings
+were generated from; it is not the version of this package.

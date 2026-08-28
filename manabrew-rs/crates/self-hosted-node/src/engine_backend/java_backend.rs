@@ -1423,8 +1423,12 @@ pub fn run_hosted_engine_game(
     Err(unsupported_message().to_string())
 }
 
+// 10s missed the ones that actually happen. A real game on 2026-08-25 ran 4094
+// decisions with a median of 96ms and put 96 of them over a second and 12 over
+// two, and none of it logged. The expensive ones are `chooseAction` on a large
+// board: ~125 legal actions across 140 permanents cost 2.8s.
 #[cfg(forge_backend)]
-const SLOW_DECISION: Duration = Duration::from_secs(10);
+const SLOW_DECISION: Duration = Duration::from_millis(1500);
 
 /// Serde tag of the prompt variant, for the slow-decision log. `PromptInput` is
 /// internally tagged, so this is the same string the captures carry. Only called
@@ -1650,11 +1654,7 @@ fn run_hosted_engine_game_inner(
                 if let Some(started) = decision_received.take() {
                     let elapsed = started.elapsed();
                     crate::metrics::record_forge_decision_stage("decision_total", elapsed);
-                    crate::metrics::record_forge_decision(
-                        player_names.len(),
-                        ai_player_indices.len(),
-                        elapsed,
-                    );
+                    crate::metrics::record_forge_decision(player_names.len(), elapsed);
                     // The metric alone cannot say which game was slow, and these
                     // are rare enough that finding one afterwards meant replaying
                     // captures by hand. Named so a log query can list them.

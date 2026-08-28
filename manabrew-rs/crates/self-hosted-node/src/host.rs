@@ -156,12 +156,18 @@ enum LoopExit {
 }
 
 pub async fn cli_entry() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "self_hosted_node=info".into()),
-        )
-        .init();
+    {
+        use tracing_subscriber::layer::SubscriberExt;
+        use tracing_subscriber::util::SubscriberInitExt;
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "self_hosted_node=info".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .with(crate::logs::layer_from_env())
+            .init();
+    }
     crate::metrics::init_from_env();
 
     if std::env::var("SELF_HOSTED_NODE_JAVA_SMOKE").is_ok() {

@@ -3804,7 +3804,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.21.2"
+version = "3.21.10"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3925,7 +3925,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.18.0"
+version = "0.20.1"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -6371,7 +6371,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.21.2"
+version = "0.23.1"
 dependencies = [
  "forge-carddb",
  "forge-foundation",

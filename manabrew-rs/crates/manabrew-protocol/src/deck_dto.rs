@@ -152,9 +152,6 @@ struct DeckCardWire {
     name: Option<String>,
     #[serde(flatten)]
     rules: CardRulesSummary,
-    // Option, not just `default`: a default only covers a missing key, and a
-    // deck that carries `"uris": null` — community decks are user-authored —
-    // otherwise fails the whole parse with "invalid type: unit value".
     #[serde(default)]
     uris: Option<CardImageUris>,
     #[serde(default)]

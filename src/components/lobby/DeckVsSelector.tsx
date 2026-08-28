@@ -118,8 +118,6 @@ export function DeckVsSelector({
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
-  // While the wasm engine is on it is the only offline engine there is, so the
-  // menu reports what is running rather than offering a choice it cannot honour.
   const forgeWasm = isForgeWasmSelected();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(

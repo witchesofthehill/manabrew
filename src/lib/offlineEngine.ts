@@ -6,8 +6,6 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { EngineKind } from "@/types/server";
 
 export function resolveOfflineEngine(lastOfflineEngine?: EngineKind | null): EngineKind {
-  // Forge compiled to wasm is Forge: report it as such so the label, the preset
-  // filter and the legality rules all match what is actually adjudicating.
   if (isForgeWasmSelected()) return "Forge";
   if (getPlatform().type === "tauri") {
     return isTauriForgeRoomAvailable() ? "Forge" : "Manabrew";

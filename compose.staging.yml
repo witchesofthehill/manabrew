@@ -22,8 +22,6 @@ services:
       ACCOUNTS: "${ACCOUNTS:-1}"
       DECK_HUB: "${DECK_HUB:-1}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
-      # Forge compiled to wasm, on in staging so it can be exercised. Only
-      # exposes the Settings toggle; the engine stays off until a player opts in.
       FORGE_WASM: "${FORGE_WASM:-1}"
       # Hub API is same-origin (path-routed in ops/staging.Caddyfile).
       HUB_API_URL: "https://staging.manabrew.app"

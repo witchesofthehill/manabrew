@@ -36,9 +36,6 @@ export function useResolveSourceCard(source: CardDto | undefined): DeckCard | un
   const deckCard = useMemo(() => {
     if (source?.identity.name) {
       const resolved = asDeckCard(gameDecks[source.ownerId], source);
-      // A deck-sourced card is not guaranteed to carry uris — community decks
-      // are user-authored — and this is only asking whether it already has an
-      // image. Without one, fall through and resolve it by name.
       if (resolved.uris?.normal || resolved.uris?.border_crop) return resolved;
     }
     if (!identity?.name) return undefined;
@@ -57,8 +54,6 @@ export function useResolveSourceCard(source: CardDto | undefined): DeckCard | un
           card.identity.name === identity.name ||
           card.identity.name.split(" // ").includes(identity.name),
       );
-    // Callers index uris directly, so only hand back a match that can actually
-    // be rendered; anything else falls through to the Scryfall lookup below.
     return match?.uris?.normal || match?.uris?.border_crop ? match : undefined;
   }, [gameDecks, identity, source]);
   const exact = useCard(

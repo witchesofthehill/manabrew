@@ -125,12 +125,6 @@ type RelayMessage = {
 /**
  * Bridge for communicating with the game engine worker.
  */
-/**
- * The commands the engine itself owns: a game's lifecycle and the SAB traffic
- * around it. Everything else the app asks a worker — card database queries, the
- * limited/draft surface, the desktop-only host controls — has no Forge
- * implementation, so with Forge selected it is served by the Rust worker.
- */
 const FORGE_ENGINE_COMMANDS = new Set([
   "start_game",
   "start_multiplayer_game",
@@ -155,10 +149,7 @@ class WorkerBridge {
   private initPromise: Promise<void> | null = null;
 
   gameBuffer: SharedArrayBuffer | null = null;
-  /** Which engine the live worker was built for, so a Settings change cannot
-   *  leave routing and the worker disagreeing. */
   workerIsForgeWasm = false;
-  /** The Rust worker, kept for what Forge cannot answer. See queryWorker(). */
   private fallbackWorker: Worker | null = null;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
@@ -248,8 +239,6 @@ class WorkerBridge {
     error?: unknown;
   }): void {
     logComms("engine", msg);
-    // Dev seam for tests/e2e-ui/forge-wasm-offline.mjs, matching the
-    // window.__gameStore seam the other UI e2e uses.
     if (isForgeWasmSelected()) {
       const w = window as unknown as { __forgeFrames?: string[] };
       w.__forgeFrames = w.__forgeFrames ?? [];
@@ -394,8 +383,6 @@ class WorkerBridge {
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
   writeResponse(action: PromptOutput, promptId: number): void {
-    // Dev seam: stamp the submit so the next prompt can report engine
-    // turnaround, which is what a hosted round trip is competing against.
     (window as unknown as { __respondedAt?: number }).__respondedAt = performance.now();
     this.writeLocalMessage({ kind: "response", promptId, action });
   }
@@ -455,11 +442,6 @@ class WorkerBridge {
         // `worker:init { stage: 'ready' | 'error' }` when done — we wait
         // for that event instead of pinging, so init has no command-level
         // timeout to fight.
-        // Forge compiled to wasm (forge-harness/build-wasm.sh) swaps in for the
-        // Rust engine when the deployment ships the flag and the player opts in.
-        // Same SAB wire format, so nothing downstream of this line changes.
-        // Classic worker: the generated launcher is an IIFE loaded with
-        // importScripts, which module workers forbid.
         this.workerIsForgeWasm = isForgeWasmSelected();
         this.worker = this.workerIsForgeWasm
           ? new Worker("/forge/forge-engine.worker.js")
@@ -545,18 +527,11 @@ class WorkerBridge {
     }
   }
 
-  /**
-   * The Rust worker, kept alongside Forge for the commands Forge cannot
-   * answer. It is created on first use, so a player who never opens Limited
-   * never pays for it.
-   */
   private queryWorker(): Worker {
     if (this.fallbackWorker) return this.fallbackWorker;
     const worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
       type: "module",
     });
-    // Responses only. Its lifecycle events would race the Forge worker's, and
-    // no game ever runs on it while Forge is selected.
     worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
       if (e.data?.type === "response") this.handleMessage(e);
     };
@@ -568,17 +543,11 @@ class WorkerBridge {
    * Invoke a command on the worker.
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-    // The engine is chosen in Settings, and the worker outlives a single game,
-    // so a player who flips it mid-session would otherwise start the next game
-    // on the previous engine while routing had already moved to the new one.
     if (this.worker && this.workerIsForgeWasm !== isForgeWasmSelected()) {
       this.terminate();
     }
     await this.init();
 
-    // The Forge worker is plain JS served from public/, so it cannot resolve a
-    // bundled module to read cardset.rkyv itself. Frame the assets here, where
-    // the bundler can, and hand them over with the game.
     if (
       (command === "start_game" || command === "start_multiplayer_game") &&
       this.workerIsForgeWasm

@@ -16,29 +16,6 @@ import forge.harness.host.ManaBrewInteractiveSession;
 
 /**
  * Web Image entry point for the Forge harness.
- *
- * Two Web Image constraints shape this class, both measured rather than assumed:
- *
- *  1. The image gets an empty in-memory filesystem (jimfs) with no host mount,
- *     so Forge's assets must be pushed in before {@code FModel.initialize} runs.
- *  2. {@code java.util.zip} is dead. Inflater fails with
- *     "UnsatisfiedLinkError: Can't load library: zip", which also kills Forge's
- *     own cardsfolder.zip reader. Decompression has to happen on the JS side,
- *     where both Node (zlib) and browsers (DecompressionStream) do it natively.
- *
- * There is also no typed-array to byte[] coercion, so bulk bytes cross the
- * boundary inside a String. Both encodings are kept here to keep the
- * measurement reproducible: latin1 by default, base64 under
- * -Dwasm.assets.base64.
- *
- * This is boot-time only. Per-move traffic never uses either path — it goes
- * over the SharedArrayBuffer, same protocol as
- * manabrew-rs/crates/wasm/src/wasm_transport.rs.
- *
- * The archive is read through Node's fs purely so the spike runs on the command
- * line. In the browser the same bytes come from fetch() plus the Cache API,
- * which is already how src/workers/game-engine.worker.ts ships the Rust
- * engine's card archive.
  */
 public final class WasmMain {
 
@@ -54,13 +31,6 @@ public final class WasmMain {
 
     /**
      * Assets as one NUL-framed "path\0body\0..." string.
-     *
-     * Everything Forge reads here is text, so this stays out of binary entirely:
-     * the browser decodes it as ordinary UTF-8 rather than paying for the
-     * x-user-defined byte-per-char trick, which dominated boot time. String is
-     * the only bulk type that crosses the @JS boundary cheaply anyway, since
-     * WasmGC keeps Java objects in GC structs rather than linear memory, so a
-     * byte[] has no address a SharedArrayBuffer could alias.
      */
     @JS.Coerce
     @JS(// The browser host builds the bundle from cardset.rkyv and leaves it

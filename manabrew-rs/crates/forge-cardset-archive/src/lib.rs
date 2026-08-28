@@ -16,9 +16,6 @@ pub use build::{build_archive_from_sources, ArchiveSources, BuildStats};
 
 pub const ARCHIVE_FORMAT_VERSION: u32 = 6;
 
-/// Directories under `res/` carried verbatim in [`CardArchive::extras`]. Forge's
-/// `FModel.initialize` reads all of them and throws without them, so every
-/// builder should pass the same list rather than inventing its own.
 pub const DEFAULT_EXTRA_DIRS: &[&str] = &["formats", "lists", "defaults", "effects", "ai"];
 
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
@@ -66,9 +63,6 @@ pub struct CardArchive {
     /// Raw `res/lists/TypeLists.txt`. The web build has no filesystem, so this
     /// is the only channel by which `TypeRegistry::load` gets its data there.
     pub type_lists: String,
-    /// Everything else under `res/` that a consumer may need verbatim, keyed by
-    /// path relative to `res/`. Forge's `FModel.initialize` reads `formats/`,
-    /// `defaults/` and the rest of `lists/`, and fails without them.
     pub extras: Vec<AssetFile>,
 }
 

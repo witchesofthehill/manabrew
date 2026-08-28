@@ -82,10 +82,6 @@ pub enum AnalyticsEvent {
         conceded: Vec<String>,
         fatal_message: Option<String>,
     },
-    /// How the engine performed in one game, as reported by the client that
-    /// ran it. The hosted node publishes its own timings to Prometheus; this
-    /// is the same question asked of the engines that run on players'
-    /// machines, including the browser Forge build. Aggregates only.
     EngineStats {
         ts: String,
         room_id: String,

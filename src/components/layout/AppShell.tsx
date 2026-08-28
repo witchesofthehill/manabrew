@@ -85,9 +85,6 @@ export function AppShell() {
     return () => window.removeEventListener("online", flush);
   }, [deckHubEnabled]);
 
-  // Engine timings from games that ended while offline, or while the hub was
-  // unreachable. Queued locally, sent when there is a connection to send them
-  // on, and dropped after a fortnight rather than kept forever.
   useEffect(() => {
     const flush = () => void flushEngineStatsReports();
     flush();

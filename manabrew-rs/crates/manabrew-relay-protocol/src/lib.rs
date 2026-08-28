@@ -171,9 +171,6 @@ pub enum ClientMessage {
         game_id: String,
     },
 
-    /// How the engine performed in a game this client ran, sent once when the
-    /// game ends. The relay records it and forwards nothing: it is analytics,
-    /// not state, and no other seat needs it.
     ReportEngineStats {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         game_id: Option<String>,

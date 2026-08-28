@@ -39,7 +39,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Web Image is only in Oracle GraalVM 25.1+, which is still an EA build.
   GRAALVM_EA_TAG: jdk-25i3-25.0.4.1-ea.03
   BINARYEN_VERSION: "123"
 
@@ -99,10 +98,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The wasm Forge engine is not in the repo (build outputs are ignored) and
-      # nothing else produces it, so the web image would ship the Settings
-      # toggle with no engine behind it. Web leg only — the other images do not
-      # care, and this costs a GraalVM download plus a native-image run.
       - name: Cache the Web Image toolchain
         if: matrix.image == 'manabrew-web'
         id: webimage-toolchain

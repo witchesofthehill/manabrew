@@ -232,20 +232,6 @@ public final class ManaBrewEngineAdapter {
 
     /**
      * The name Forge files a card under, given the name a deck asked for.
-     *
-     * <p>Scryfall names an alt-art printing by its flavor name — FCA #40 is a
-     * Lightning Bolt called "Thrum of the Vestige" — and decks reach us carrying
-     * that name. Forge has no card by it, so the deck lookup misses and Forge
-     * substitutes a placeholder that says the card is unsupported: the game then
-     * plays on around a dead card instead of failing.
-     *
-     * <p>The edition file is the source of truth, and it is also the only one
-     * that works here — Forge's own flavor-name index is built as cards load, so
-     * under {@code LOAD_CARD_SCRIPTS_LAZILY} it is empty for a card no game has
-     * touched yet. Ask the edition what it prints at that collector number, and
-     * take its name only when the flavor name is the one the deck asked for, so
-     * a genuinely mistyped card is never silently swapped for its neighbour.
-     * The printing is still requested by set and number, so the art is unchanged.
      */
     static String resolveCardName(final CardIdentity card, final CardNameIndex names) {
         final String requested = card.getName();
@@ -260,8 +246,6 @@ public final class ManaBrewEngineAdapter {
         if (printed != null && !printed.isBlank()) {
             return printed;
         }
-        // No printing to go on: Forge's flavor index still answers for a card
-        // whose script is already loaded.
         final String byFlavorName = names.cardNameForFlavorName(requested);
         return byFlavorName == null || byFlavorName.isBlank() ? requested : byFlavorName;
     }

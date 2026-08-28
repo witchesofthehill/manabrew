@@ -20,8 +20,6 @@ pub struct ArchiveSources<'a> {
     pub editions: Option<&'a Path>,
     pub block_data: Option<&'a Path>,
     pub type_lists: &'a Path,
-    /// `res/` itself. Directories named here are carried verbatim into
-    /// `extras`, addressed by path relative to `res/`.
     pub res_root: Option<&'a Path>,
     pub extra_dirs: &'a [&'a str],
 }
@@ -79,8 +77,6 @@ pub fn build_archive_from_sources(
                     continue;
                 }
                 let Ok(raw) = std::fs::read_to_string(entry.path()) else {
-                    // Binary files under res/ are not something any consumer
-                    // asks for verbatim; skipping keeps the archive text-only.
                     stats.skipped += 1;
                     continue;
                 };

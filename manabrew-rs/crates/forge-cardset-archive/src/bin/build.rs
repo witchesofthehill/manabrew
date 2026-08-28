@@ -31,9 +31,6 @@ fn main() {
     );
 
     let started = Instant::now();
-    // res/ is the parent of the cardsfolder argument; the extra dirs ride
-    // along verbatim so a consumer with no filesystem can still reconstruct
-    // what Forge's FModel.initialize insists on reading.
     let res_root = cards_dir.parent().map(|p| p.to_path_buf());
     let sources = ArchiveSources {
         cardsfolder: &cards_dir,

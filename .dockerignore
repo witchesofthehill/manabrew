@@ -11,8 +11,6 @@ src-tauri/target/
 forge-harness/native/build/
 forge-harness/native/classes/
 forge-harness/native/gen-config/
-# Web Image outputs. The engine CI stages into public/forge/, which is what the
-# image copies; the build tree itself is 47MB of intermediates nothing needs.
 forge-harness/native/wasm/
 forge-harness/native/wasm-classes/
 forge-harness/native/gen-config-wasm/

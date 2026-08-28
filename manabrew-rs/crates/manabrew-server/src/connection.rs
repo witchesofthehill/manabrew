@@ -1238,10 +1238,6 @@ fn handle_client_message(
         }
 
         ClientMessage::ReportEngineStats { game_id, stats } => {
-            // A client says how its own engine did. Nothing here changes game
-            // state and nothing is forwarded to other seats, so the only harm
-            // a bad report can do is skew a chart: drop the implausible ones
-            // and record the rest against the room the sender is actually in.
             if !stats.is_plausible() {
                 debug!(
                     "[analytics] '{}' sent an implausible engine report",

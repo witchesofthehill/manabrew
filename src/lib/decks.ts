@@ -12,17 +12,7 @@ function normalizeTokenName(name: string): string {
 }
 
 export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
-  return withImages(resolveDeckCard(deck, gameCard));
-}
-
-/**
- * Renderers index `deckCard.uris[resolution]` directly, and the type says a
- * deck card always has them. A user-authored deck does not have to: a card with
- * no `uris` at all reaches the board and takes the whole Play view down with
- * "can't access property border_crop". Give every resolved card the object.
- */
-function withImages(card: DeckCard): DeckCard {
-  return card.uris ? card : { ...card, uris: {} as DeckCard["uris"] };
+  return resolveDeckCard(deck, gameCard);
 }
 
 function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {

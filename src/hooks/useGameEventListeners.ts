@@ -142,10 +142,6 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
  * a prompt or error only becomes actionable when it is addressed to this player.
  */
 export function useGameEventListeners() {
-  // A player who walks out of a game never calls endGame — the view just
-  // unmounts — so the engine's timings for that game would be lost. Reporting
-  // here as well is safe: a game is summarised once and the summary clears
-  // itself, so whichever path gets there first is the only one that reports.
   useEffect(() => {
     const report = () => {
       const state = useGameStore.getState();
@@ -162,10 +158,6 @@ export function useGameEventListeners() {
           : undefined,
       });
     };
-    // `pagehide` covers the tab being closed or the browser navigated away,
-    // where no React cleanup runs at all. Queueing is a synchronous
-    // localStorage write, so it survives the page going away and goes out on
-    // the next start.
     window.addEventListener("pagehide", report);
     return () => {
       window.removeEventListener("pagehide", report);

@@ -82,8 +82,6 @@ public final class ManaBrewInteractiveSession {
         requireAttached();
         Objects.requireNonNull(rng, "rng");
         if (bridge != null) {
-            // Web Image has one thread: the game runs here and blocks in
-            // takeAction until the client answers, so this returns at game over.
             forge.util.MyRandom.setRandom(rng);
             try {
                 match.startGame(game);

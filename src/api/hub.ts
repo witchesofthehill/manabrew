@@ -266,10 +266,6 @@ export function fetchTopDeckSnapshot(bucket: string, date?: string): Promise<Top
   return hubJson<TopDeckSnapshot>(`/api/deckhub/top/${encodeURIComponent(bucket)}${query}`);
 }
 
-/**
- * One game's engine timings. The shape is the client's own summary, which is
- * the same struct the hub parses (manabrew_protocol::telemetry).
- */
 export async function recordEngineStats(stats: EngineGameStats): Promise<void> {
   await hubRequest("/api/stats/engine", {
     method: "POST",

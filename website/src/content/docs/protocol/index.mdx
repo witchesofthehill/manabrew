@@ -13,9 +13,25 @@ that implements it can host the Manabrew engine. This section documents the
 protocol so you can implement it for your own engine.
 
 :::note[Versioning]
-This is **v1** of the protocol, versioned as the
-[`manabrew-protocol`](https://crates.io/crates/manabrew-protocol) crate under
-[semantic versioning](https://semver.org/).
+Two numbers describe this protocol. They answer different questions.
+
+**The release version** is the [semantic version](https://semver.org/) of the
+[`manabrew-protocol`](https://crates.io/crates/manabrew-protocol) crate and of
+the [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol) npm
+package generated from it. One job publishes both at the same number, so a
+version pins the same message shapes on either side of the wire. It moves on
+every change to these messages, additive ones included. This page documents the
+current release; the crates.io link gives what that is today.
+
+**The wire version** is the `PROTOCOL_VERSION` integer in the relay handshake.
+A client and a relay must report the same one to talk at all. It is the major
+of the [`manabrew-relay-protocol`](https://crates.io/crates/manabrew-relay-protocol)
+crate, which owns the envelopes on [Transport](/protocol/transport/), so a
+breaking wire change ships as a major release of that crate and never as a
+separate constant. Most releases leave it untouched.
+
+A high release version does not mean the protocol has been rewritten that many
+times. It means the message set has grown.
 :::
 
 ## Goals

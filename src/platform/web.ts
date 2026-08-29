@@ -166,7 +166,7 @@ class WorkerBridge {
       this.gameBuffer = payload.buffer;
       this.gameSignal = new Int32Array(this.gameBuffer, 0, 2);
       this.gameData = new Uint8Array(this.gameBuffer, 8);
-      console.log("[WorkerBridge] Received local SAB, starting prompt poll");
+      if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting prompt poll");
       this.pollForPrompts();
     });
 
@@ -182,9 +182,10 @@ class WorkerBridge {
         pendingDirective: null,
       };
       this.remoteSeats.set(payload.playerSlot, seat);
-      console.log(
-        `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
-      );
+      if (DEBUG_TRANSPORT)
+        console.log(
+          `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
+        );
       this.pollForRemotePromptsSeat(payload.playerSlot, seat);
     });
 
@@ -495,7 +496,7 @@ class WorkerBridge {
           (payload) => {
             if (payload?.stage === "ready") {
               unsubscribe();
-              console.log("[WorkerBridge] Worker reported ready");
+              if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
               resolve();
             } else if (payload?.stage === "error") {
               unsubscribe();

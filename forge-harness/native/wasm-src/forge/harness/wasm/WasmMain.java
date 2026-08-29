@@ -39,11 +39,9 @@ public final class WasmMain {
         // can hand bytes back: fetch is async and this must return a value.
         // The wire stays compressed because the server sets Content-Encoding.
         + "const url = new URL(path.replace(/\\.gz$/, ''), self.location.href).href;"
-        + "console.log('[assets] GET ' + url);"
         + "const xhr = new XMLHttpRequest();"
         + "xhr.open('GET', url, false);"
         + "xhr.send(null);"
-        + "console.log('[assets] status ' + xhr.status + ', ' + xhr.responseText.length + ' chars');"
         + "if (xhr.status !== 200 && xhr.status !== 0) throw new Error('asset fetch failed: ' + xhr.status);"
         + "return xhr.responseText;")
     static native String hostReadAssets(String path);

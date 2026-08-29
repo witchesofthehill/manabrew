@@ -1,7 +1,7 @@
 [submodule "forge"]
 	path = forge
 	url = https://github.com/witchesofthehill/forge.git
-	branch = manabrew-staging
+	branch = manabrew
 	# Fresh clones fetch depth-1 (~590MB working tree, years of upstream
 	# history skipped) — CI checks out this submodule in most jobs. Existing
 	# clones are unaffected; `git fetch --unshallow` inside forge/ restores

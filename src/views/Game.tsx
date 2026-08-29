@@ -1,3 +1,4 @@
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
@@ -1916,7 +1917,12 @@ export default function Game({ exitTo }: GameProps = {}) {
         resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
         snapshots={snapshots}
-        canRestoreSnapshots={(!isMultiplayer || isHost) && promptType === "chooseAction"}
+        // The browser Forge engine cannot rewind — the harness rejects
+        // restoreSnapshot outright — so the control is offered only by an
+        // engine that can honour it.
+        canRestoreSnapshots={
+          (!isMultiplayer || isHost) && promptType === "chooseAction" && !isForgeWasmSelected()
+        }
         onRestoreSnapshot={restoreSnapshot}
       />
 

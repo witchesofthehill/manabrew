@@ -93,7 +93,7 @@ function SingleColor({
           <div className="flex items-center gap-3">
             {sourceCard && (
               <ScryfallImg
-                src={sourceCard.uris.border_crop ?? sourceCard.uris.normal}
+                src={sourceCard.uris?.border_crop ?? sourceCard.uris?.normal}
                 alt={sourceCard.identity.name}
                 className={MODAL_CARD_THUMBNAIL}
               />
@@ -178,7 +178,7 @@ function ColorCombo({
         <div className="flex items-center gap-3">
           {sourceCard && (
             <ScryfallImg
-              src={sourceCard.uris.border_crop ?? sourceCard.uris.normal}
+              src={sourceCard.uris?.border_crop ?? sourceCard.uris?.normal}
               alt={sourceCard.identity.name}
               className={MODAL_CARD_THUMBNAIL}
             />

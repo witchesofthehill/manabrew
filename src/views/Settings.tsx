@@ -1011,6 +1011,30 @@ export default function Settings() {
               </PreferenceCard>
             )}
 
+            {isFeatureEnabled("forgeWasm") && (
+              <PreferenceCard
+                title="Forge engine in the browser (experimental)"
+                description="Runs Forge itself, compiled to WebAssembly, as the offline engine instead of the Rust one — no hosted node, so no round trip. Experimental and off by default."
+              >
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={prefs.forgeWasmEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setForgeWasmEnabled(true)}
+                  >
+                    On
+                  </Button>
+                  <Button
+                    variant={!prefs.forgeWasmEnabled ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setForgeWasmEnabled(false)}
+                  >
+                    Off
+                  </Button>
+                </div>
+              </PreferenceCard>
+            )}
+
             {getPlatform().type === "web" && (
               <PreferenceCard
                 title="Ask which engine before AI games"

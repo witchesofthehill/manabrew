@@ -49,6 +49,7 @@
     "test:manabrew-engine": "cargo test --release -pmanabrew-engine  --lib --test cards",
     "test:networking": "cargo build -p manabrew-server -p self-hosted-node && cargo test -p networking-tests --test networking_regression -- --ignored --nocapture --test-threads=1",
     "build:wasm": "node scripts/build-wasm.mjs",
+    "build:forge-wasm": "./scripts/build-forge-wasm.sh",
     "dev:web": "yarn gen:types && yarn ensure:wasm && vite",
     "website:dev": "npm --prefix website run dev",
     "website:dev:docs": "npm --prefix website run dev:docs",

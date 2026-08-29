@@ -53,6 +53,7 @@ public final class ManaBrewInteractiveSession {
     private long promptSeq;
     private volatile boolean closed;
     private volatile Thread gameThread;
+    private static volatile InteractiveBridge bridge;
     private volatile SpellAbility castingAbility;
 
     ManaBrewInteractiveSession(final String sessionId) {
@@ -68,6 +69,10 @@ public final class ManaBrewInteractiveSession {
         return sessionId;
     }
 
+    public static void setBridge(final InteractiveBridge value) {
+        bridge = value;
+    }
+
     public Game getGame() {
         requireAttached();
         return game;
@@ -76,6 +81,16 @@ public final class ManaBrewInteractiveSession {
     public void start(final Random rng) {
         requireAttached();
         Objects.requireNonNull(rng, "rng");
+        if (bridge != null) {
+            forge.util.MyRandom.setRandom(rng);
+            try {
+                match.startGame(game);
+            } catch (RuntimeException error) {
+                System.err.println("[mana-brew] interactive game error: " + error.getMessage());
+                error.printStackTrace(System.err);
+            }
+            return;
+        }
         gameThread = new Thread(() -> {
             forge.util.MyRandom.setRandom(rng);
             try {
@@ -1767,6 +1782,9 @@ public final class ManaBrewInteractiveSession {
 
     private JsonObject takeAction() throws InterruptedException {
         while (true) {
+            if (bridge != null && actions.isEmpty() && !closed && !game.isGameOver()) {
+                submitAction(bridge.exchange(promptedPlayerIndex, latestPromptJson));
+            }
             final JsonObject action = actions.poll(1, java.util.concurrent.TimeUnit.SECONDS);
             if (action == null) {
                 if (closed || game.isGameOver()) {
@@ -1805,6 +1823,7 @@ public final class ManaBrewInteractiveSession {
             return;
         }
         player.concede();
+        game.getAction().checkGameOverCondition();
     }
 
     private boolean gameDecided() {

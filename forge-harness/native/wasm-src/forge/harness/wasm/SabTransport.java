@@ -129,10 +129,35 @@ public final class SabTransport implements InteractiveBridge {
         }
 
         broadcastState();
+        if ("diceRolled".equals(inputType(promptJson))) {
+            return exchangeWithAllSeats(promptJson);
+        }
         sendTagged(seat, "prompt", "prompt", promptJson);
 
         final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
         lastRecvAt = System.currentTimeMillis();
+        return decodeMessage(seat, message);
+    }
+
+    private String exchangeWithAllSeats(final String promptJson) {
+        final int seats = Math.max(1, seatCount());
+        final JsonObject prompt = JsonParser.parseString(promptJson).getAsJsonObject();
+        for (int seat = 0; seat < seats; seat++) {
+            prompt.addProperty("decidingPlayerId", "player-" + seat);
+            sendTagged(seat, "prompt", "prompt", prompt.toString());
+        }
+        String result = null;
+        for (int seat = 0; seat < seats; seat++) {
+            final JsonObject message = JsonParser.parseString(recv(seat)).getAsJsonObject();
+            if (result == null || message.has("directive")) {
+                result = decodeMessage(seat, message);
+            }
+        }
+        lastRecvAt = System.currentTimeMillis();
+        return result;
+    }
+
+    private static String decodeMessage(final int seat, final JsonObject message) {
         if (message.has("action")) {
             return message.get("action").toString();
         }

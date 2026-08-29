@@ -108,7 +108,11 @@ fn authorize_game_message(
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
     while let Some(msg) = rx.recv().await {
-        if sink.send(msg).await.is_err() {
+        let backlog = rx.len();
+        let started = Instant::now();
+        let sent = sink.send(msg).await;
+        metrics::record_socket_write(backlog, started.elapsed());
+        if sent.is_err() {
             break;
         }
     }
@@ -221,16 +225,21 @@ fn room_player_id(
     room_id: &str,
     target_username: &str,
 ) -> Option<String> {
-    state.rooms.get(room_id).and_then(|room| {
-        if room.host_username == target_username && room.host_connected() {
-            Some(room.host_player_id.clone())
-        } else {
-            room.players
-                .iter()
-                .find(|p| p.connected && p.username == target_username)
-                .map(|p| p.player_id.clone())
-        }
-    })
+    state
+        .rooms
+        .get(room_id)
+        .and_then(|room| room_player_id_in(&room, target_username))
+}
+
+fn room_player_id_in(room: &Room, target_username: &str) -> Option<String> {
+    if room.host_username == target_username && room.host_connected() {
+        Some(room.host_player_id.clone())
+    } else {
+        room.players
+            .iter()
+            .find(|p| p.connected && p.username == target_username)
+            .map(|p| p.player_id.clone())
+    }
 }
 
 /// Whether every client that would receive this envelope ships the `stateDelta`
@@ -238,7 +247,7 @@ fn room_player_id(
 /// dropped patch leaves that player's board frozen for the rest of the game.
 fn state_patch_audience_ready(
     state: &Arc<ServerState>,
-    room_id: &str,
+    room: &Room,
     sender_player_id: &str,
     target_username: Option<&str>,
 ) -> bool {
@@ -250,13 +259,12 @@ fn state_patch_audience_ready(
     };
     match target_username {
         // An unresolvable target means the send is about to be dropped anyway.
-        Some(target) => room_player_id(state, room_id, target).is_none_or(|pid| applies(&pid)),
-        None => state.rooms.get(room_id).is_some_and(|room| {
-            room.connected_player_ids()
-                .iter()
-                .filter(|pid| pid.as_str() != sender_player_id)
-                .all(|pid| applies(pid))
-        }),
+        Some(target) => room_player_id_in(room, target).is_none_or(|pid| applies(&pid)),
+        None => room
+            .connected_player_ids()
+            .iter()
+            .filter(|pid| pid.as_str() != sender_player_id)
+            .all(|pid| applies(pid)),
     }
 }
 
@@ -1229,6 +1237,45 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::ReportEngineStats { game_id, stats } => {
+            if !stats.is_plausible() {
+                debug!(
+                    "[analytics] '{}' sent an implausible engine report",
+                    username
+                );
+                return;
+            }
+            let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
+            let Some(room_id) = room_id else {
+                debug!(
+                    "[analytics] '{}' reported engine stats outside a room",
+                    username
+                );
+                return;
+            };
+            state.analytics.emit(AnalyticsEvent::EngineStats {
+                ts: analytics::now_ts(),
+                room_id,
+                username: username.to_string(),
+                game_id,
+                engine: stats.engine,
+                client_version: stats.client_version,
+                platform: stats.platform,
+                format: stats.format,
+                seats: stats.seats,
+                multiplayer: stats.multiplayer,
+                duration_s: stats.duration_s,
+                end_reason: stats.end_reason,
+                decisions: stats.turnaround.n,
+                turnaround_p50: stats.turnaround.p50,
+                turnaround_p90: stats.turnaround.p90,
+                turnaround_max: stats.turnaround.max,
+                engine_p50: stats.engine_think.as_ref().map(|t| t.p50),
+                engine_p90: stats.engine_think.as_ref().map(|t| t.p90),
+                engine_max: stats.engine_think.as_ref().map(|t| t.max),
+            });
+        }
+
         ClientMessage::RequestResync => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             let replayed = room_id.and_then(|rid| {
@@ -1283,6 +1330,7 @@ fn handle_client_message(
             state: game_state,
             target_player,
         } => {
+            let handling_started = Instant::now();
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
                 let Some(mut room) = state.rooms.get_mut(&rid) else {
@@ -1317,16 +1365,20 @@ fn handle_client_message(
                         .capture_enabled()
                         .then(|| replay.game_id.clone())
                 });
-                // `observe` has already folded this patch into the cached
-                // board, so an older seat can be handed the state the patch
-                // would have produced rather than an envelope it drops.
-                let folded_state = is_state_patch(&game_state)
-                    .then(|| {
-                        room.replay
-                            .as_ref()
-                            .and_then(|replay| replay.state_after(&game_state).cloned())
-                    })
-                    .flatten();
+                let seats = room.players.len();
+                let folded_state = (is_state_patch(&game_state)
+                    && !state_patch_audience_ready(
+                        state,
+                        &room,
+                        player_id,
+                        canonical_target.as_deref(),
+                    ))
+                .then(|| {
+                    room.replay
+                        .as_ref()
+                        .and_then(|replay| replay.state_after(&game_state).cloned())
+                })
+                .flatten();
                 drop(room);
                 if let Some(game_id) = capture_game_id {
                     // Only a player's own envelope carries a link that is theirs.
@@ -1347,17 +1399,15 @@ fn handle_client_message(
                     );
                 }
                 if !should_deliver {
+                    metrics::record_state_handling(seats, handling_started.elapsed());
                     return;
                 }
-                let ready = || {
-                    state_patch_audience_ready(state, &rid, player_id, canonical_target.as_deref())
-                };
                 let game_state = match folded_state {
-                    Some(full) if !ready() => {
+                    Some(full) => {
                         metrics::record_state_patch_downgrade();
                         full
                     }
-                    _ => game_state,
+                    None => game_state,
                 };
                 let msg = ServerMessage::StateUpdate {
                     from_player: username.to_string(),
@@ -1382,6 +1432,7 @@ fn handle_client_message(
                         broadcast_to_room_except(state, player_id, &rid, &msg);
                     }
                 }
+                metrics::record_state_handling(seats, handling_started.elapsed());
             } else {
                 warn!(
                     "[game] '{}' tried to broadcast state but not in a room",
@@ -1477,6 +1528,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame { .. } => "EndGame",
+        ClientMessage::ReportEngineStats { .. } => "ReportEngineStats",
         ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",

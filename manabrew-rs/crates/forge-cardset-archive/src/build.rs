@@ -2,7 +2,7 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
-use super::{to_bytes, BlockData, Card, CardArchive, Edition, ARCHIVE_FORMAT_VERSION};
+use super::{to_bytes, AssetFile, BlockData, Card, CardArchive, Edition, ARCHIVE_FORMAT_VERSION};
 
 #[derive(Debug, Default)]
 pub struct BuildStats {
@@ -20,6 +20,8 @@ pub struct ArchiveSources<'a> {
     pub editions: Option<&'a Path>,
     pub block_data: Option<&'a Path>,
     pub type_lists: &'a Path,
+    pub res_root: Option<&'a Path>,
+    pub extra_dirs: &'a [&'a str],
 }
 
 pub fn build_archive_from_sources(
@@ -63,6 +65,32 @@ pub fn build_archive_from_sources(
     }
     stats.editions = editions.len();
 
+    let mut extras = Vec::new();
+    if let Some(res_root) = sources.res_root {
+        for dir in sources.extra_dirs {
+            let full = res_root.join(dir);
+            if !full.exists() {
+                continue;
+            }
+            for entry in WalkDir::new(&full).into_iter().filter_map(Result::ok) {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let Ok(raw) = std::fs::read_to_string(entry.path()) else {
+                    stats.skipped += 1;
+                    continue;
+                };
+                let Ok(rel) = entry.path().strip_prefix(res_root) else {
+                    continue;
+                };
+                extras.push(AssetFile {
+                    path: rel.to_string_lossy().replace('\\', "/"),
+                    raw,
+                });
+            }
+        }
+    }
+
     let mut block_data = Vec::new();
     if let Some(block_data_dir) = sources.block_data {
         if block_data_dir.exists() {
@@ -85,6 +113,7 @@ pub fn build_archive_from_sources(
         editions,
         block_data,
         type_lists,
+        extras,
     };
     let bytes = to_bytes(&archive)?;
     stats.bytes_written = bytes.len();

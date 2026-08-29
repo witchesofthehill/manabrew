@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.23.0](https://github.com/witchesofthehill/manabrew/compare/v3.22.0...v3.23.0) (2026-08-29)
+
+### Features
+
+* **forge:** run Forge in the browser via GraalVM Web Image ([#759](https://github.com/witchesofthehill/manabrew/issues/759)) ([3c61382](https://github.com/witchesofthehill/manabrew/commit/3c613822870f30f5378f3b8cf03376c758b913f7))
+
+## [3.22.0](https://github.com/witchesofthehill/manabrew/compare/v3.21.10...v3.22.0) (2026-08-28)
+
+### Features
+
+* **ui:** expand battlefield dev lab ([#775](https://github.com/witchesofthehill/manabrew/issues/775)) ([0f8a9b4](https://github.com/witchesofthehill/manabrew/commit/0f8a9b407aad22663a776f1263e108126c52342e))
+
+## [3.21.10](https://github.com/witchesofthehill/manabrew/compare/v3.21.9...v3.21.10) (2026-08-25)
+
+## [3.21.9](https://github.com/witchesofthehill/manabrew/compare/v3.21.8...v3.21.9) (2026-08-25)
+
+## [3.21.8](https://github.com/witchesofthehill/manabrew/compare/v3.21.7...v3.21.8) (2026-08-25)
+
+## [3.21.7](https://github.com/witchesofthehill/manabrew/compare/v3.21.6...v3.21.7) (2026-08-25)
+
+## [3.21.6](https://github.com/witchesofthehill/manabrew/compare/v3.21.5...v3.21.6) (2026-08-25)
+
+## [3.21.5](https://github.com/witchesofthehill/manabrew/compare/v3.21.4...v3.21.5) (2026-08-25)
+
+## [3.21.4](https://github.com/witchesofthehill/manabrew/compare/v3.21.3...v3.21.4) (2026-08-25)
+
+## [3.21.3](https://github.com/witchesofthehill/manabrew/compare/v3.21.2...v3.21.3) (2026-08-25)
+
 ## [3.21.2](https://github.com/witchesofthehill/manabrew/compare/v3.21.1...v3.21.2) (2026-08-24)
 
 ### Fixes

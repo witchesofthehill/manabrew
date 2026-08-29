@@ -55,6 +55,7 @@ services:
       ACCOUNTS: "${ACCOUNTS:-1}"
       DECK_HUB: "${DECK_HUB:-1}"
       EMAIL_SIGN_IN: "${EMAIL_SIGN_IN:-1}"
+      FORGE_WASM: "${FORGE_WASM:-1}"
     # No depends_on for manabrew-hub: the site must deploy/restart even if the
     # hub image is broken; caddy just 502s api. until the hub comes up.
     depends_on:

@@ -265,15 +265,11 @@ impl CardScriptParser {
                 }
             }
             Some(b'V') if key == "Variant" => {
-                // Functional variants (Attractions, Un-cards) — store raw for now
-                // We parse the variant line recursively like Java does
                 if let Some(val) = value {
                     let variant_colon = val.find(':');
                     if let Some(pos) = variant_colon {
                         let _variant_name = &val[..pos];
                         let _variant_line = &val[pos + 1..];
-                        // For now, we skip functional variants — they're rare
-                        // and can be added later without architecture changes
                     }
                 }
             }

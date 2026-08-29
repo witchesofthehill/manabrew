@@ -1,3 +1,4 @@
+import type { EngineGameStats } from "@/lib/engineTelemetry";
 import type {
   DraftConfig,
   EngineKind,
@@ -138,6 +139,7 @@ export interface IServerApi {
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(gameId: string): Promise<void>;
+  reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void>;
   requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>, targetPlayer?: string): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;

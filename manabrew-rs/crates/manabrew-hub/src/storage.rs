@@ -450,6 +450,45 @@ impl Storage {
         })
     }
 
+    /// One game's engine timings. Returns false when the report id is already
+    /// on file, which is a retry rather than a second game.
+    #[allow(clippy::too_many_arguments)]
+    pub fn record_engine_play_stats(
+        &self,
+        report: &manabrew_protocol::telemetry::EnginePlayStats,
+        reported_at: &str,
+    ) -> SqlResult<bool> {
+        let by_type = serde_json::to_string(&report.by_type).unwrap_or_else(|_| "[]".to_string());
+        let inserted = self.conn.execute(
+            "INSERT OR IGNORE INTO engine_play_stats
+                (id, reported_at, engine, client_version, platform, format, seats,
+                 multiplayer, duration_s, end_reason, decisions, turnaround_p50,
+                 turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, by_type)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+            params![
+                report.report_id,
+                reported_at,
+                report.engine,
+                report.client_version,
+                report.platform,
+                report.format,
+                report.seats,
+                report.multiplayer,
+                report.duration_s,
+                report.end_reason,
+                report.turnaround.n,
+                report.turnaround.p50,
+                report.turnaround.p90,
+                report.turnaround.max,
+                report.engine_think.as_ref().map(|t| t.p50),
+                report.engine_think.as_ref().map(|t| t.p90),
+                report.engine_think.as_ref().map(|t| t.max),
+                by_type,
+            ],
+        )?;
+        Ok(inserted > 0)
+    }
+
     pub fn record_relay_game_started(
         &self,
         game_id: &str,
@@ -3751,6 +3790,85 @@ mod tests {
         );
     }
 
+    fn engine_report(id: &str) -> manabrew_protocol::telemetry::EnginePlayStats {
+        manabrew_protocol::telemetry::EnginePlayStats {
+            report_id: id.to_string(),
+            engine: "forge-wasm".to_string(),
+            client_version: "3.18.5".to_string(),
+            platform: "web".to_string(),
+            format: Some("standard".to_string()),
+            seats: 2,
+            multiplayer: false,
+            duration_s: 421,
+            end_reason: "gameOver".to_string(),
+            turnaround: manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 46,
+                p90: 78,
+                max: 320,
+            },
+            engine_think: Some(manabrew_protocol::telemetry::EngineTurnaround {
+                n: 180,
+                p50: 8,
+                p90: 18,
+                max: 96,
+            }),
+            by_type: vec![manabrew_protocol::telemetry::EngineTypeTurnaround {
+                prompt_type: "chooseAction".to_string(),
+                n: 120,
+                p50: 44,
+                max: 300,
+            }],
+        }
+    }
+
+    #[test]
+    fn engine_play_stats_are_recorded_once_per_report() {
+        let storage = Storage::open_memory().unwrap();
+        let report = engine_report("11111111-2222-3333-4444-555555555555");
+
+        assert!(storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:00Z")
+            .unwrap());
+        // A retry carries the same client-generated id, and a game counted
+        // twice would quietly skew every percentile drawn from this table.
+        assert!(!storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:05Z")
+            .unwrap());
+
+        let (engine, p50, think, by_type): (String, i64, Option<i64>, String) = storage
+            .conn
+            .query_row(
+                "SELECT engine, turnaround_p50, engine_p50, by_type FROM engine_play_stats",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(engine, "forge-wasm");
+        assert_eq!(p50, 46);
+        assert_eq!(think, Some(8));
+        assert!(by_type.contains("chooseAction"));
+    }
+
+    #[test]
+    fn engine_play_stats_keep_an_engine_that_reports_no_think_time() {
+        let storage = Storage::open_memory().unwrap();
+        let mut report = engine_report("22222222-3333-4444-5555-666666666666");
+        report.engine = "manabrew".to_string();
+        report.engine_think = None;
+
+        assert!(storage
+            .record_engine_play_stats(&report, "2026-08-26T00:00:00Z")
+            .unwrap());
+        let think: Option<i64> = storage
+            .conn
+            .query_row("SELECT engine_p50 FROM engine_play_stats", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(think, None);
+    }
+
     #[test]
     fn card_collection_accepts_legacy_unversioned_writes() {
         let storage = Storage::open_memory().unwrap();
@@ -3862,7 +3980,8 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 17);
+        let latest = MIGRATIONS.last().map(|(version, _, _)| *version).unwrap();
+        assert_eq!(version as u32, latest);
         assert_eq!(cards, 1);
         assert_eq!(mismatch, 0);
         assert!(!obsolete_table_exists);

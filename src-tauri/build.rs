@@ -54,6 +54,9 @@ fn build_cardset_archive_if_stale() {
     let editions = manifest_dir.join("../forge/forge-gui/res/editions");
     let block_data = manifest_dir.join("../forge/forge-gui/res/blockdata");
     let type_lists = manifest_dir.join("../forge/forge-gui/res/lists/TypeLists.txt");
+    // Carried verbatim into the archive's `extras`; consumers with no
+    // filesystem read these too.
+    let res_root = manifest_dir.join("../forge/forge-gui/res");
     let archive_path = manifest_dir.join("resources/cardset.rkyv");
 
     println!("cargo:rerun-if-changed={}", cardsfolder.display());
@@ -96,6 +99,8 @@ fn build_cardset_archive_if_stale() {
         editions: editions.exists().then_some(editions.as_path()),
         block_data: block_data.exists().then_some(block_data.as_path()),
         type_lists: &type_lists,
+        res_root: res_root.exists().then_some(res_root.as_path()),
+        extra_dirs: forge_cardset_archive::DEFAULT_EXTRA_DIRS,
     };
     match forge_cardset_archive::build_archive_from_sources(sources, &archive_path) {
         Ok(stats) => {

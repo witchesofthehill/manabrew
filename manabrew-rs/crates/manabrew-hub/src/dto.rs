@@ -214,6 +214,8 @@ pub struct DeckPlayReportRequest {
     pub format: Option<DeckFormat>,
 }
 
+pub use manabrew_protocol::telemetry::{EnginePlayStats, EngineTurnaround, EngineTypeTurnaround};
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]

@@ -14,8 +14,8 @@ export function useResolvedGameCard(card: CardDto) {
   });
   const imageUrl = (faceIndex: number, size: ScryfallImageSize) =>
     faceIndex === 0
-      ? (deckCard.uris[size] ?? cardFaces.faces[0]?.imageUris?.[size])
-      : (cardFaces.faces[faceIndex]?.imageUris?.[size] ?? deckCard.uris[size]);
+      ? (deckCard.uris?.[size] ?? cardFaces.faces[0]?.imageUris?.[size])
+      : (cardFaces.faces[faceIndex]?.imageUris?.[size] ?? deckCard.uris?.[size]);
 
   return { deckCard, cardFaces, imageUrl };
 }

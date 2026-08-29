@@ -56,6 +56,14 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
   return joinHostedRoomAndPlay(room.room_id, format, request, username);
 }
 
+export async function claimHostedTable(format: GameFormat, maxPlayers: number): Promise<void> {
+  const room = await findHostedRoom(format, maxPlayers);
+  await leaveCurrentRoomIfNeeded(room.room_id);
+  await useServerStore.getState().joinRoom(room.room_id);
+  await useServerStore.getState().setFormat(format);
+  await useServerStore.getState().setMaxPlayers(maxPlayers);
+}
+
 // The Tauri (graalvm) build has no pool of self-hosted rooms to discover: the
 // desktop app hosts its own Forge room locally via `start_forge_host`
 // (createRoom with engine "Forge"), then joins it and spawns the bot through

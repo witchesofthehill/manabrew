@@ -37,8 +37,8 @@ export function PayManaCost({
           {payManaCostInfo.sourceCard && (
             <ScryfallImg
               src={
-                payManaCostInfo.sourceCard.uris.border_crop ??
-                payManaCostInfo.sourceCard.uris.normal
+                payManaCostInfo.sourceCard.uris?.border_crop ??
+                payManaCostInfo.sourceCard.uris?.normal
               }
               alt={payManaCostInfo.sourceCard.identity.name}
               className={MODAL_CARD_THUMBNAIL}
@@ -71,7 +71,7 @@ export function PayManaCost({
       {minimal && payManaCostInfo?.sourceCard && (
         <ScryfallImg
           src={
-            payManaCostInfo.sourceCard.uris.border_crop ?? payManaCostInfo.sourceCard.uris.normal
+            payManaCostInfo.sourceCard.uris?.border_crop ?? payManaCostInfo.sourceCard.uris?.normal
           }
           alt={payManaCostInfo.sourceCard.identity.name}
           className={cn(MODAL_CARD_THUMBNAIL, "mx-auto")}

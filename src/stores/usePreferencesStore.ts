@@ -16,7 +16,6 @@ export interface LastRoomSetup {
   kind: "match" | "limited";
   limitedKind: "draft" | "sealed" | "winston" | "cube";
   format: GameFormat;
-  engine: EngineKind;
   players: number | null;
 }
 
@@ -95,7 +94,9 @@ interface PreferencesState {
   // the compile flag + `IRONSMITH_WASM_AVAILABLE`, so this only surfaces it
   // where the real wasm is bundled.
   ironsmithRuntimeEnabled: boolean;
+  forgeWasmEnabled: boolean;
   setIronsmithRuntimeEnabled: (value: boolean) => void;
+  setForgeWasmEnabled: (value: boolean) => void;
 
   askEngineOnAiPlay: boolean;
   setAskEngineOnAiPlay: (value: boolean) => void;
@@ -155,6 +156,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
+  "forgeWasmEnabled",
   "askEngineOnAiPlay",
   "hideAccountSaveNudge",
   "cardPreviewMode",
@@ -271,6 +273,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           ironsmithRuntimeEnabled: false,
           setIronsmithRuntimeEnabled: (ironsmithRuntimeEnabled) => set({ ironsmithRuntimeEnabled }),
+          forgeWasmEnabled: false,
+          setForgeWasmEnabled: (forgeWasmEnabled) => set({ forgeWasmEnabled }),
 
           askEngineOnAiPlay: false,
           setAskEngineOnAiPlay: (askEngineOnAiPlay) => set({ askEngineOnAiPlay }),

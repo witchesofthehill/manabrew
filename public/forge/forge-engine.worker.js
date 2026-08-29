@@ -10,7 +10,7 @@
  * loaded with importScripts, which module workers forbid.
  *
  * Expects forge-harness/build-wasm.sh output plus the packed assets in
- * public/forge/ (see forge-harness/native/web/pack-assets.mjs).
+ * public/forge/.
  */
 const SAB_SIZE = 256 * 1024;
 const ENGINE_BASE = "/forge";

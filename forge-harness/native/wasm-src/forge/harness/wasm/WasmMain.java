@@ -7,11 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 import forge.harness.host.ManaBrewInteractiveSession;
 
 /**
@@ -127,32 +122,6 @@ public final class WasmMain {
         return value;
     }
 
-    private static final String GAME_ID = "web-image-demo";
-
-    /** Expands a parity deck (name + count) into the flat deck the adapter wants. */
-    private static JsonArray deckFrom(String path) throws Exception {
-        JsonObject root = JsonParser.parseString(Files.readString(Path.of(path))).getAsJsonObject();
-        JsonArray out = new JsonArray();
-        for (JsonElement entry : root.getAsJsonArray("cards")) {
-            JsonObject card = entry.getAsJsonObject();
-            int count = card.has("count") ? card.get("count").getAsInt() : 1;
-            for (int i = 0; i < count; i++) {
-                JsonObject identity = new JsonObject();
-                identity.addProperty("name", card.get("name").getAsString());
-                out.add(identity);
-            }
-        }
-        return out;
-    }
-
-    private static JsonObject seat(String name, JsonArray deck, boolean ai) {
-        JsonObject player = new JsonObject();
-        player.addProperty("name", name);
-        player.addProperty("ai", ai);
-        player.add("deck", deck);
-        return player;
-    }
-
     @JS(args = {"fn"}, value = "globalThis.__forgeStartGame = fn;")
     private static native void exportStartGame(java.util.function.Function<org.graalvm.webimage.api.JSString, org.graalvm.webimage.api.JSString> fn);
 
@@ -207,34 +176,6 @@ public final class WasmMain {
             }
         });
         announceReady();
-    }
-
-    private static void runBrowserGame(String[] args) throws Exception {
-        SabTransport.install(SabTransport.DEFAULT_BUFFER_SIZE);
-
-        forge.harness.host.ManaBrewEngineAdapter adapter = new forge.harness.host.ManaBrewEngineAdapter();
-        adapter.initialize("/forge-gui/");
-        System.out.println("[wasm] forge initialized, starting game");
-
-        ManaBrewInteractiveSession.setBridge(
-                new SabTransport(viewer -> adapter.getSnapshot(GAME_ID, viewer)));
-
-        JsonArray players = new JsonArray();
-        players.add(seat("You", deckFrom("/forge-gui/parity_decks/red_burn.json"), false));
-        players.add(seat("Forge AI", deckFrom("/forge-gui/parity_decks/green_stompy.json"), true));
-
-        JsonObject request = new JsonObject();
-        request.addProperty("gameId", GAME_ID);
-        request.addProperty("variant", "Constructed");
-        request.addProperty("startingLife", 20);
-        request.addProperty("seed", 42L);
-        request.add("players", players);
-
-        // Blocks until the game ends: the bridge keeps the loop on this thread.
-        adapter.startGameJson(request.toString());
-
-        System.out.println("[wasm] game over");
-        SabTransport.post("game:over", "{\"gameId\":\"" + GAME_ID + "\"}");
     }
 
     private static final String FORGE_HOME = "/forge-home";
@@ -311,11 +252,6 @@ public final class WasmMain {
             serve();
             return;
         }
-        if (args.length > 0 && "--browser".equals(args[0])) {
-            runBrowserGame(args);
-            return;
-        }
-
         String[] forwarded = new String[args.length + 2];
         forwarded[0] = "--forge-home";
         forwarded[1] = "/forge-gui/";

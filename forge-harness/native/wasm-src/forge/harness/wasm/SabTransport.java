@@ -20,18 +20,6 @@ import org.graalvm.webimage.api.JS;
  */
 public final class SabTransport implements InteractiveBridge {
 
-    public static final int DEFAULT_BUFFER_SIZE = 256 * 1024;
-
-    @JS.Coerce
-    @JS("globalThis.__mbSab = new SharedArrayBuffer(size);"
-        + "globalThis.__mbSig = new Int32Array(globalThis.__mbSab, 0, 2);"
-        + "globalThis.__mbData = new Uint8Array(globalThis.__mbSab, 8);"
-        + "globalThis.__mbSeats = [{ sig: globalThis.__mbSig, data: globalThis.__mbData }];"
-        + "globalThis.__mbSeatOf = () => 0;"
-        + "postMessage({ type: 'sab', sab: globalThis.__mbSab });"
-        + "return true;")
-    static native boolean install(int size);
-
     /** Binds to a buffer the host allocated, so the app owns the SAB lifecycle. */
     @JS.Coerce
     @JS("const sab = globalThis.__forgeSab;"

@@ -27,18 +27,19 @@ the engine host and the remote clients (the reference relay is
 opaque `state` value inside the relay's own envelope, discriminated by a `kind`
 field:
 
-| `kind`      | Direction                      | Payload                                                                                            |
-| ----------- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `state`     | engine host → remote client    | `{ "kind": "state", "forPlayer": "player-N"?, "state": <StateUpdate> }`                             |
-| `display`   | engine host → all              | `{ "kind": "display", "event": <DisplayEvent> }`                                                    |
-| `prompt`    | engine host → remote client    | `{ "kind": "prompt", "forPlayer": "player-N", "prompt": <AgentPrompt> }`                            |
-| `error`     | engine host → remote client    | `{ "kind": "error", "forPlayer": "player-N", "error": <ProtocolError> }`                            |
-| `response`  | remote client → engine host    | `{ "kind": "response", "fromPlayer": "player-N", "promptId": <n>, "action": <PromptOutput> }`       |
-| `directive` | remote client → engine host    | `{ "kind": "directive", "fromPlayer": "player-N", "directive": <DirectiveInput> }`                  |
-| `log`       | engine host → all              | `{ "kind": "log", "fromPlayer": "player-N", "entry": <GameLogEntry> }`                              |
-| `snapshot`  | engine host → joining observer | `{ "kind": "snapshot", "fromPlayer": "player-N", "entry": <GameSnapshot> }`                         |
-| `fatal`     | engine host → all              | `{ "kind": "fatal", "message": <string> }` — the engine died; the session is over                   |
-| `roomRelay` | any → any                      | room-control messages (e.g. bot lifecycle) — implementation defined                                 |
+| `kind`       | Direction                      | Payload                                                                                                           |
+| ------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `state`      | engine host → remote client    | `{ "kind": "state", "forPlayer": "player-N"?, "state": <StateUpdate>, "fingerprint": <string>? }`                 |
+| `stateDelta` | engine host → remote client    | `{ "kind": "stateDelta", "forPlayer": "player-N"?, "base": <string>, "fingerprint": <string>, "patch": <Patch> }` |
+| `display`    | engine host → all              | `{ "kind": "display", "event": <DisplayEvent> }`                                                                  |
+| `prompt`     | engine host → remote client    | `{ "kind": "prompt", "forPlayer": "player-N", "prompt": <AgentPrompt> }`                                          |
+| `error`      | engine host → remote client    | `{ "kind": "error", "forPlayer": "player-N", "error": <ProtocolError> }`                                          |
+| `response`   | remote client → engine host    | `{ "kind": "response", "fromPlayer": "player-N", "promptId": <n>, "action": <PromptOutput> }`                     |
+| `directive`  | remote client → engine host    | `{ "kind": "directive", "fromPlayer": "player-N", "directive": <DirectiveInput> }`                                |
+| `log`        | engine host → all              | `{ "kind": "log", "fromPlayer": "player-N", "entry": <GameLogEntry> }`                                            |
+| `snapshot`   | engine host → joining observer | `{ "kind": "snapshot", "fromPlayer": "player-N", "entry": <GameSnapshot> }`                                       |
+| `fatal`      | engine host → all              | `{ "kind": "fatal", "message": <string> }` — the engine died; the session is over                                 |
+| `roomRelay`  | any → any                      | room-control messages (e.g. bot lifecycle) — implementation defined                                               |
 
 `prompt` and `error` envelopes are private. Engine hosts send them with the
 relay's `BroadcastState.target_player` set to the deciding player's username;
@@ -57,9 +58,60 @@ the rest of the game. Prompts and errors are likewise acted on only when
 
 The reference relay can deliver an envelope to a single room member instead of
 broadcasting, and caches the last state per seat so a reconnecting client
-resyncs into its own view. Relays never read inside `state`.
+resyncs into its own view. Relays route on the envelope, not on the game state
+inside it. A relay that caches states also folds patches into that cache, as
+described below, so what it holds for a seat is always a whole board.
 
 The lobby/room-control layer that wraps this (authentication, room creation,
 ready state, …) is specific to the reference relay and beyond the scope of the
 wire protocol itself. Implementations MAY define additional `kind` values;
 consumers MUST ignore unknown `kind` values rather than treating them as errors.
+
+## State patches
+
+A full board is large and most updates change little of it, so an engine host
+MAY send a `stateDelta` instead of a `state`. A `stateDelta` is a patch against
+the last state that seat received, not a board.
+
+Both envelopes carry a `fingerprint`: a content hash of the `state` value they
+resolve to. A `stateDelta` also carries `base`, the fingerprint of the state it
+was diffed against. For each seat it tracks, a client keeps the fingerprint of
+the last state it applied. When `base` does not match the fingerprint it holds,
+the client MUST drop the patch and keep the board it already has. It recovers on
+the next full `state`. The reference hash is FNV-1a over key-sorted JSON, so both
+sides agree without depending on map iteration order.
+
+Patches are optional on both sides. An engine host MAY always send full states.
+A client that does not implement them ignores the `stateDelta` kind, like any
+other unknown kind, and a relay that caches states SHOULD fold a patch back into
+a full `state` for any recipient that cannot apply one. The reference relay
+decides that from the client build reported in the handshake.
+
+### Patch encoding
+
+A patch mirrors the shape of the value it edits. Four reserved keys, all
+prefixed with `$`, carry the operations:
+
+| Key  | Meaning                                                                |
+| ---- | ---------------------------------------------------------------------- |
+| `$v` | Literal replacement. The value under it replaces the target outright.  |
+| `$d` | Removal. An array of object keys, or of array element keys, to delete. |
+| `$k` | Keyed array edits. An object of element key to patch.                  |
+| `$o` | Keyed array order. The full list of element keys, in their new order.  |
+
+Objects merge: every other key is a patch applied to the value at that key, and
+a key absent from the patch is unchanged. Values that are not objects appear as
+themselves, so `null` and numbers survive without a sentinel. An object that
+must replace rather than merge is wrapped in `$v`.
+
+Arrays take one of two forms. Where every element carries a **stable key**, the
+patch edits them one by one under `$k`, with `$d` for removals and `$o` when the
+order changes; `$o` is omitted when the order is unchanged. The element key
+is the element's `id`, or `"<zone>/<ownerId>"` for zone entries, which have no
+id of their own. Any other array is replaced whole, as a literal.
+
+Applying `$k` for a key that is not present inserts the element and appends it
+to the order, so a patch can add cards as well as change them.
+
+The reference implementation of both sides is `state_delta` in
+[`manabrew-relay-protocol`](https://crates.io/crates/manabrew-relay-protocol).

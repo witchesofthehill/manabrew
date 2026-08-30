@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.23.1](https://github.com/witchesofthehill/manabrew/compare/v3.23.0...v3.23.1) (2026-08-30)
+
+### Fixes
+
+* app re-mints and downgrades token ([#751](https://github.com/witchesofthehill/manabrew/issues/751)) ([6ff0950](https://github.com/witchesofthehill/manabrew/commit/6ff0950510b43af7977fb76d988e3aad0d365649))
+
 ## [3.23.0](https://github.com/witchesofthehill/manabrew/compare/v3.22.0...v3.23.0) (2026-08-29)
 
 ### Features

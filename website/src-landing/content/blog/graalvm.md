@@ -53,9 +53,9 @@ The browser is also the only place Forge is WebAssembly. In the desktop app the 
 Rust one, running in the webview, with Forge beside it as a native library.
 
 So nothing is translated and there is no second Forge-compatible implementation to keep in step.
-During development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through the browser
-build and through the reference build our parity harness tests against, which is the last thing here
-that still runs on a JVM. The callback streams were byte-identical.
+During development we ran identical games on seeds 7, 42 and 99 for up to 40 turns through the
+browser build and through the reference build our parity harness tests against. The callback streams
+were byte-identical. That reference build is the last thing here that still runs on a JVM.
 
 ## Keeping a synchronous engine synchronous
 
@@ -108,7 +108,8 @@ remaining gap sits outside the engine, in the hosted path.
 Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, which
 makes it a fixed charge rather than a scaling one. The browser sampled 54 activations at a p50 near
 20 ms, on a development server rather than in production, so read that as an order of magnitude and
-not a benchmark. The median gap is already about six-fold. Activations widen it.
+not a benchmark. The median player-visible gap is already about six-fold. Activations suggest the
+difference gets larger on expensive decisions.
 
 ## The protocol did most of the work
 
@@ -184,11 +185,11 @@ every time. Over a seven-minute four-seat game each guest pulled about 29 MB, an
 patch. That pipeline is the next thing to build.
 
 None of this retires the hosted fleet. When a browser hosts, the whole game runs in that browser, so
-every seat's hidden information is only as private as the host's client. A node is a neutral third
-party, it does not park itself when a tab goes to the background, and it does not take the table down
-when somebody closes a window. It also plays for people whose machine will not: a 35 MB engine and
-four seats of board state is a lot to ask of a phone. Hosting in the browser is another option, not a
-replacement.
+every seat's hidden information is only as private as the host's client. A hosted node keeps hidden
+information out of another player's browser, does not park when a tab is backgrounded, and does not
+take the table down when somebody closes a window. It also plays for people whose machine will not:
+a 35 MB engine and four seats of board state is a lot to ask of a phone. Hosting in the browser is
+another option, not a replacement.
 
 ## Shipped, and switched off
 

@@ -1205,6 +1205,13 @@ class WebServerApi implements IServerApi {
   }
 
   async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    // `send` swallows a closed socket, which for a report means losing it
+    // silently: the caller queues for the hub only when this rejects, and a
+    // game that ends with the relay already gone is exactly the case the queue
+    // exists for.
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Relay is not connected; queue the engine report instead.");
+    }
     this.send({ type: "ReportEngineStats", game_id: gameId ?? null, stats });
   }
 

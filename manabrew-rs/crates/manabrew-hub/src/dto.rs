@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use manabrew_protocol::deck_dto::{Deck, DeckFormat};
 use manabrew_protocol::game::EngineKind;
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,163 @@ pub struct HubCapabilities {
     pub tags: bool,
     pub favorites: bool,
     pub top_deck_snapshots: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub assets: Option<AssetCapabilities>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AssetCapabilities {
+    #[ts(type = "number")]
+    pub max_avatar_bytes: u64,
+    #[ts(type = "number")]
+    pub max_playmat_bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub enum Capability {
+    Assets,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct MissingCapabilityError {
+    pub capability: Capability,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub enum AssetKind {
+    Avatar,
+    Playmat,
+}
+
+impl AssetKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AssetKind::Avatar => "avatar",
+            AssetKind::Playmat => "playmat",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "avatar" => Some(AssetKind::Avatar),
+            "playmat" => Some(AssetKind::Playmat),
+            _ => None,
+        }
+    }
+
+    /// Path segment under the owner's account id.
+    pub fn folder(self) -> &'static str {
+        match self {
+            AssetKind::Avatar => "avatar",
+            AssetKind::Playmat => "playmats",
+        }
+    }
+
+    pub fn max_bytes(self) -> u64 {
+        match self {
+            AssetKind::Avatar => MAX_AVATAR_BYTES,
+            AssetKind::Playmat => MAX_PLAYMAT_BYTES,
+        }
+    }
+}
+
+pub const MAX_AVATAR_BYTES: u64 = 256 * 1024;
+pub const MAX_PLAYMAT_BYTES: u64 = 3 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub enum AssetState {
+    Pending,
+    Active,
+}
+
+impl AssetState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AssetState::Pending => "pending",
+            AssetState::Active => "active",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "pending" => Some(AssetState::Pending),
+            "active" => Some(AssetState::Active),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct CreateAssetUploadRequest {
+    pub kind: AssetKind,
+    #[ts(type = "number")]
+    pub byte_size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AssetUpload {
+    pub asset_id: String,
+    pub upload_url: String,
+    pub public_url: String,
+    #[ts(type = "Record<string, string>")]
+    pub headers: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountAsset {
+    pub id: String,
+    pub url: String,
+    pub kind: AssetKind,
+    #[ts(type = "number")]
+    pub byte_size: u64,
+    pub state: AssetState,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AccountAssetList {
+    pub assets: Vec<AccountAsset>,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub quota: AssetQuota,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct AssetQuota {
+    #[ts(type = "number")]
+    pub used_bytes: u64,
+    #[ts(type = "number")]
+    pub quota_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct SetAccountAvatarRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub asset_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -399,6 +558,12 @@ pub struct AuthAccount {
     pub handle: String,
     pub handle_pending: bool,
     pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub avatar_asset_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -461,7 +626,7 @@ pub struct AccountExportProfile {
     pub email: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub avatar_url: Option<String>,
+    pub provider_avatar_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub updated_at: Option<String>,

@@ -13,6 +13,20 @@ pub struct HubConfig {
     pub ranking_refresh_seconds: u64,
     pub auth: AuthConfig,
     pub scryfall_bulk_path: String,
+    pub assets: Option<AssetConfig>,
+}
+
+#[derive(Clone)]
+pub struct AssetConfig {
+    pub endpoint: String,
+    pub region: String,
+    pub bucket: String,
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub public_base_url: String,
+    pub quota_bytes: u64,
+    pub reservation_ttl_seconds: i64,
+    pub uploads_per_hour: u32,
 }
 
 #[derive(Clone)]
@@ -90,7 +104,25 @@ impl HubConfig {
                 .unwrap_or(15 * 60),
             auth: AuthConfig::from_env(),
             scryfall_bulk_path,
+            assets: AssetConfig::from_env(),
         }
+    }
+}
+
+impl AssetConfig {
+    fn from_env() -> Option<Self> {
+        Some(AssetConfig {
+            endpoint: trimmed_var("HUB_S3_ENDPOINT")?,
+            region: trimmed_var("HUB_S3_REGION").unwrap_or_else(|| "auto".into()),
+            bucket: trimmed_var("HUB_S3_BUCKET")?,
+            access_key_id: trimmed_var("HUB_S3_ACCESS_KEY_ID")?,
+            secret_access_key: trimmed_var("HUB_S3_SECRET_ACCESS_KEY")?,
+            public_base_url: trimmed_var("HUB_S3_PUBLIC_BASE_URL")?,
+            quota_bytes: 100 * 1024 * 1024,
+            reservation_ttl_seconds: parsed_var("HUB_ASSET_RESERVATION_TTL_SECONDS")
+                .unwrap_or(24 * 60 * 60),
+            uploads_per_hour: parsed_var("HUB_ASSET_UPLOADS_PER_HOUR").unwrap_or(60),
+        })
     }
 }
 
@@ -127,6 +159,10 @@ fn trimmed_var(name: &str) -> Option<String> {
         .ok()
         .map(|value| value.trim_end_matches('/').to_string())
         .filter(|value| !value.is_empty())
+}
+
+fn parsed_var<T: std::str::FromStr>(name: &str) -> Option<T> {
+    std::env::var(name).ok()?.trim().parse().ok()
 }
 
 fn oauth_client(id_var: &str, secret_var: &str) -> Option<OAuthClient> {

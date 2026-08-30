@@ -472,11 +472,7 @@ pub fn print_summary() {
     }
     let calls = CONTINUOUS_EFFECTS_CALLS.load(Ordering::Relaxed);
     let continuous_ns = CONTINUOUS_EFFECTS_NS.load(Ordering::Relaxed);
-    let continuous_avg_us = if calls == 0 {
-        0
-    } else {
-        continuous_ns / calls / 1_000
-    };
+    let continuous_avg_us = continuous_ns.checked_div(calls).unwrap_or(0) / 1_000;
     let turn_wall_ms = turn_wall_ms_summary();
     eprintln!(
         concat!(

@@ -660,8 +660,8 @@ export function GameBoard({
 
   const gameDecks = useGameStore((s) => s.gameDecks);
   const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
-  const myAvatar = usePreferencesStore((s) => s.customAvatar);
-  const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymat);
+  const myAvatar = usePreferencesStore((s) => s.customAvatarUrl);
+  const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymatUrl);
   const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
   const playerDecks = useServerStore((s) => s.playerDecks);
 
@@ -670,7 +670,7 @@ export function GameBoard({
     if (myAvatar) map.set(me.id, myAvatar);
     for (const op of opponents) {
       const entry = playerDecks.find((d) => d.username === op.name);
-      if (entry?.avatar) map.set(op.id, entry.avatar);
+      if (entry?.avatar_url) map.set(op.id, entry.avatar_url);
     }
     return map;
   }, [myAvatar, playerDecks, me.id, opponents]);
@@ -1215,7 +1215,7 @@ export function GameBoard({
     const myDeck = gameDecks[me.id];
     // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
     // resolved here too; multiplayer decks already carry it from the relay.
-    const myDeckHasPlaymat = !!myDeck?.playmat || !!myDeck?.playmatSettings?.color;
+    const myDeckHasPlaymat = !!myDeck?.playmatUrl || !!myDeck?.playmatSettings?.color;
     return [
       {
         playerId: me.id,
@@ -1229,7 +1229,7 @@ export function GameBoard({
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat
-            ? myDeck?.playmat
+            ? myDeck?.playmatUrl
             : defaultPlaymat,
         playmatSettings: hiddenPlaymats.has(me.id)
           ? undefined
@@ -1244,7 +1244,7 @@ export function GameBoard({
           ...oppState(cardsByController.get(op.id) ?? [], combatRowByDefender.get(op.id)),
           ownerRingByCard,
         },
-        playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
+        playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatUrl,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
       })),

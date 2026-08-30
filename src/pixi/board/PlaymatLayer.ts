@@ -226,6 +226,9 @@ export class PlaymatLayer {
       return;
     }
     const img = new Image();
+    // The blur and brightness filters read this texture back through WebGL,
+    // which throws on a tainted cross-origin image.
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       if (this.url !== next) return;
       this.imageTexture?.destroy(true);

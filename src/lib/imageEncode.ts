@@ -36,7 +36,7 @@ async function encodeUnderBudget(
   baseW: number,
   baseH: number,
   maxBytes: number,
-): Promise<string> {
+): Promise<Blob> {
   let scale = 1;
   for (let step = 0; step <= SHRINK_STEPS; step++) {
     const width = Math.max(1, Math.round(baseW * scale));
@@ -46,7 +46,7 @@ async function encodeUnderBudget(
     for (const quality of QUALITY_LADDER) {
       const blob = await canvasToWebp(canvas, quality);
       if (blob.type !== WEBP_MIME) throw new Error("WebP encoding unsupported");
-      if (blob.size <= maxBytes) return await blobToDataUrl(blob);
+      if (blob.size <= maxBytes) return blob;
     }
     scale *= SHRINK_FACTOR;
   }
@@ -56,7 +56,7 @@ async function encodeUnderBudget(
 export async function normalizeToWebp(
   source: Blob,
   { maxPx, maxBytes }: NormalizeImageOptions,
-): Promise<string> {
+): Promise<Blob> {
   const bitmap = await createImageBitmap(source);
   try {
     const scale = Math.min(1, maxPx / Math.max(bitmap.width, bitmap.height));
@@ -89,14 +89,5 @@ async function canvasToWebp(
       WEBP_MIME,
       quality,
     );
-  });
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("FileReader failed"));
-    reader.readAsDataURL(blob);
   });
 }

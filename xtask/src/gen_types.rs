@@ -9,14 +9,15 @@ use std::process::Command;
 
 use anyhow::{ensure, Context, Result};
 use manabrew_hub::dto::{
-    AccessTokenResponse, AccountDeckDetail, AccountDeckList, AccountDeckSummary, AccountExport,
-    AdminTopDeckSnapshotRequest, AuthProviders, AuthSessionResponse, CardCollection,
-    CreateAccountDeckRequest, DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary,
-    DeckHubFacets, DeckHubTag, DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary,
-    EmailVerifyRequest, ExchangeCodeRequest, FavoriteResponse, GuestTokenRequest, HubCapabilities,
-    MagicLinkRequest, MeResponse, OAuthStartRequest, OAuthStartResponse,
-    PublishDeckHubEntryRequest, RevocationRequest, SaveDeckVersionRequest, TokenRequest,
-    TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
+    AccessTokenResponse, AccountAssetList, AccountDeckDetail, AccountDeckList, AccountDeckSummary,
+    AccountExport, AdminTopDeckSnapshotRequest, AssetUpload, AuthProviders, AuthSessionResponse,
+    Capability, CardCollection, CreateAccountDeckRequest, CreateAssetUploadRequest,
+    DeckHubEntryDetail, DeckHubEntryList, DeckHubEntrySummary, DeckHubFacets, DeckHubTag,
+    DeckPlayReportRequest, DeckVersionDetail, DeckVersionSummary, EmailVerifyRequest,
+    ExchangeCodeRequest, FavoriteResponse, GuestTokenRequest, HubCapabilities, MagicLinkRequest,
+    MeResponse, MissingCapabilityError, OAuthStartRequest, OAuthStartResponse,
+    PublishDeckHubEntryRequest, RevocationRequest, SaveDeckVersionRequest, SetAccountAvatarRequest,
+    TokenRequest, TopDeckBucket, TopDeckSnapshot, UpdateDeckHubEntryRequest, UpdateHandleRequest,
     VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
 };
 use ts_rs::TS;
@@ -46,6 +47,8 @@ pub fn generate(root: &Path) -> Result<()> {
 
     let out = root.join(HUB_OUT);
     HubCapabilities::export_all_to(&out).context("export HubCapabilities")?;
+    Capability::export_all_to(&out).context("export Capability")?;
+    MissingCapabilityError::export_all_to(&out).context("export MissingCapabilityError")?;
     CardCollection::export_all_to(&out).context("export CardCollection")?;
     VerifyCardPrintingsRequest::export_all_to(&out).context("export VerifyCardPrintingsRequest")?;
     VerifyCardPrintingsResponse::export_all_to(&out)
@@ -71,6 +74,11 @@ pub fn generate(root: &Path) -> Result<()> {
     TopDeckSnapshot::export_all_to(&out).context("export TopDeckSnapshot")?;
     AdminTopDeckSnapshotRequest::export_all_to(&out)
         .context("export AdminTopDeckSnapshotRequest")?;
+
+    CreateAssetUploadRequest::export_all_to(&out).context("export CreateAssetUploadRequest")?;
+    AssetUpload::export_all_to(&out).context("export AssetUpload")?;
+    AccountAssetList::export_all_to(&out).context("export AccountAssetList")?;
+    SetAccountAvatarRequest::export_all_to(&out).context("export SetAccountAvatarRequest")?;
 
     AuthProviders::export_all_to(&out).context("export AuthProviders")?;
     OAuthStartRequest::export_all_to(&out).context("export OAuthStartRequest")?;

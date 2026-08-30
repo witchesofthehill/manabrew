@@ -9,6 +9,7 @@ import {
 import { teardownForgeAiSession } from "@/game/hostedAiPlay";
 import { reportEngineStats } from "@/lib/engineStatsReport";
 import { useGameStore } from "@/stores/useGameStore";
+import type { GameState } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { SELF_RECONNECT_WINDOW_S } from "@/hooks/useMultiplayerInterruption";
 import { clearActiveGameSession, peekActiveGameSession } from "@/lib/activeGameSession";
@@ -134,6 +135,27 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
   }
 }
 
+function isOver(state: Pick<GameState, "gameView" | "currentPrompt">): boolean {
+  return (state.gameView?.gameOver ?? false) || isGameOverPrompt(state.currentPrompt);
+}
+
+/** Close the book on the current game. Safe to call more than once. */
+function reportEngineGame(): void {
+  const state = useGameStore.getState();
+  reportEngineStats({
+    multiplayer: state.isMultiplayer,
+    seats: Object.keys(state.gameDecks).length || 2,
+    format: state.gameConfig?.formatId ?? null,
+    endReason: state.gameView?.gameOver ? "gameOver" : "left",
+    gameId: useServerStore.getState().gameId ?? null,
+    send: state.isMultiplayer
+      ? async (stats, gameId) => {
+          await getPlatform().server?.reportEngineStats(stats, gameId);
+        }
+      : undefined,
+  });
+}
+
 /**
  * Sets up platform event listeners for the four engine→UI message families:
  * `state` (game view), `display` (animations), `prompt` (decisions) and
@@ -143,25 +165,18 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
  */
 export function useGameEventListeners() {
   useEffect(() => {
-    const report = () => {
-      const state = useGameStore.getState();
-      reportEngineStats({
-        multiplayer: state.isMultiplayer,
-        seats: Object.keys(state.gameDecks).length || 2,
-        format: state.gameConfig?.formatId ?? null,
-        endReason: state.gameView?.gameOver ? "gameOver" : "left",
-        gameId: useServerStore.getState().gameId ?? null,
-        send: state.isMultiplayer
-          ? async (stats, gameId) => {
-              await getPlatform().server?.reportEngineStats(stats, gameId);
-            }
-          : undefined,
-      });
-    };
-    window.addEventListener("pagehide", report);
+    window.addEventListener("pagehide", reportEngineGame);
+    // A finished game is reported the moment it finishes, not at teardown:
+    // teardown is three seconds later, and by then the tab may be gone, the
+    // socket closed or a pooled hosted room recycled out from under the seat.
+    // Reporting twice is free — the summary is drained by the first caller.
+    const unsubscribe = useGameStore.subscribe((state, previous) => {
+      if (isOver(state) && !isOver(previous)) reportEngineGame();
+    });
     return () => {
-      window.removeEventListener("pagehide", report);
-      report();
+      window.removeEventListener("pagehide", reportEngineGame);
+      unsubscribe();
+      reportEngineGame();
     };
   }, []);
 

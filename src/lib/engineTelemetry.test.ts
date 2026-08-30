@@ -13,7 +13,6 @@ import {
 } from "@/lib/engineTelemetry";
 
 const meta = {
-  engine: "forge-wasm",
   clientVersion: "test",
   platform: "web",
   format: "standard",
@@ -43,7 +42,7 @@ describe("engine telemetry", () => {
   });
 
   it("measures the gap from an answer to the next prompt, and nothing else", () => {
-    beginGame();
+    beginGame("forge-wasm");
     // A prompt with no answer behind it is the engine speaking first, not a
     // turnaround: the opening prompt would otherwise report the whole boot.
     notePromptArrived("mulligan");
@@ -58,10 +57,11 @@ describe("engine telemetry", () => {
     expect(stats?.engineThink?.n).toBe(1);
     expect(stats?.byType[0]?.type).toBe("chooseAction");
     expect(stats?.clientVersion).toBe("test");
+    expect(stats?.engine).toBe("forge-wasm");
   });
 
   it("reports nothing for a game that barely started", () => {
-    beginGame();
+    beginGame("manabrew");
     noteAnswerSent();
     notePromptArrived("chooseAction");
     expect(summariseGame(meta)).toBeNull();
@@ -70,8 +70,17 @@ describe("engine telemetry", () => {
 
 describe("engine label", () => {
   it("names what actually ran, not what the room asked for", async () => {
-    const { currentEngineLabel } = await import("@/lib/engineStatsReport");
+    const { localEngineLabel, roomEngineLabel, forgeHostLabel } =
+      await import("@/lib/engineStatsReport");
     // The registry defaults to the Rust engine in a fresh module graph.
-    expect(currentEngineLabel()).toBe("manabrew");
+    expect(localEngineLabel()).toBe("manabrew");
+    // A hosted room is driven through that same runtime, so only the room's
+    // engine says Forge ran — this is the case that was filed as "manabrew"
+    // for every hosted game in production.
+    expect(roomEngineLabel("Forge", false)).toBe("forge-hosted");
+    expect(roomEngineLabel("Forge", true)).toBe("forge-desktop");
+    expect(roomEngineLabel("Ironsmith", false)).toBe("ironsmith");
+    expect(roomEngineLabel("Manabrew", false)).toBe("manabrew");
+    expect(forgeHostLabel(false)).toBe("forge-hosted");
   });
 });

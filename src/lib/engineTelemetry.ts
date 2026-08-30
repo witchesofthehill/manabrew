@@ -18,6 +18,7 @@ export interface Turnaround {
 export interface EngineGameStats {
   /** Client-generated, so a retry cannot double-count the game. */
   reportId: string;
+  /** Which engine actually ran; recorded at launch, see `beginGame`. */
   engine: string;
   clientVersion: string;
   platform: string;
@@ -48,6 +49,7 @@ let samples: Sample[] = [];
 let engineThink: number[] = [];
 let answeredAt: number | null = null;
 let startedAtMs: number | null = null;
+let engineLabel = "unknown";
 
 /** Percentiles over a copy, so the caller's array keeps its order. */
 export function summarise(values: number[]): Turnaround {
@@ -81,11 +83,20 @@ export function byPromptType(
     .slice(0, MAX_TYPES);
 }
 
-export function beginGame(): void {
+/**
+ * Start the clock for one game, and record which engine is about to run it.
+ *
+ * The label belongs here rather than at the end because only the launch knows
+ * it: a hosted game runs Forge on a node while the client still drives the
+ * relay through the Manabrew runtime, and the launch resets that runtime on the
+ * way in. Read afterwards, every hosted game looks like the Rust engine.
+ */
+export function beginGame(engine: string): void {
   samples = [];
   engineThink = [];
   answeredAt = null;
   startedAtMs = Date.now();
+  engineLabel = engine;
 }
 
 export function noteAnswerSent(): void {
@@ -106,7 +117,6 @@ export function noteEngineThinkTime(ms: number): void {
 }
 
 export function summariseGame(meta: {
-  engine: string;
   clientVersion: string;
   platform: string;
   format: string | null;
@@ -119,7 +129,7 @@ export function summariseGame(meta: {
   if (startedAtMs === null || samples.length < 5) return null;
   const stats: EngineGameStats = {
     reportId: meta.reportId,
-    engine: meta.engine,
+    engine: engineLabel,
     clientVersion: meta.clientVersion,
     platform: meta.platform,
     format: meta.format,

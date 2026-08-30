@@ -16,6 +16,7 @@ import { getPlatform } from "@/platform";
 import { getSelectedGameRuntimeKind } from "@/game/runtimeRegistry";
 import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { APP_VERSION, STORAGE_KEYS } from "@/lib/constants";
+import type { EngineKind } from "@/types/server";
 import type { EngineGameStats } from "@/lib/engineTelemetry";
 import { summariseGame } from "@/lib/engineTelemetry";
 
@@ -30,20 +31,39 @@ interface PendingReport {
 }
 
 /**
- * Which engine actually ran. Not the same question as which engine the room
- * asked for: a desktop build hosts Forge locally, and a browser with the
- * wasm engine enabled runs Forge for a room that calls itself Manabrew.
+ * Which engine actually ran, for a game whose rules engine is in this process.
+ *
+ * The browser Forge build runs under the "manabrew" runtime — it is the local
+ * engine, whatever the room calls it — so the label has to come from the engine
+ * selection rather than the runtime kind, or every wasm game would be filed as
+ * the Rust one.
  */
-export function currentEngineLabel(): string {
+export function localEngineLabel(): string {
   const kind = getSelectedGameRuntimeKind();
-  const platform = getPlatform().type;
-  // The browser Forge build runs under the "manabrew" runtime — it is the
-  // local engine, whatever the room calls it — so the label has to come from
-  // the engine selection rather than the runtime kind, or every wasm game
-  // would be filed as the Rust one.
   if (kind === "manabrew" && isForgeWasmSelected()) return "forge-wasm";
-  if (kind === "forge") return platform === "tauri" ? "forge-desktop" : "forge-hosted";
   return kind;
+}
+
+/**
+ * Forge, running outside this tab: on one of the hosted nodes, or on this
+ * machine when the desktop build hosts the room itself.
+ */
+export function forgeHostLabel(onThisMachine: boolean): string {
+  return onThisMachine ? "forge-desktop" : "forge-hosted";
+}
+
+/**
+ * The engine behind a relay room. The "forge" runtime kind is never selectable
+ * — a hosted room is driven through the Manabrew runtime like any other — so
+ * the room's own engine is the only thing that says Forge ran.
+ */
+export function roomEngineLabel(
+  engine: EngineKind | null | undefined,
+  hostedHere: boolean,
+): string {
+  if (engine === "Forge") return forgeHostLabel(hostedHere);
+  if (engine === "Ironsmith") return "ironsmith";
+  return localEngineLabel();
 }
 
 function loadPending(): PendingReport[] {
@@ -125,7 +145,6 @@ export function reportEngineStats(meta: {
   let stats: EngineGameStats | null = null;
   try {
     stats = summariseGame({
-      engine: currentEngineLabel(),
       clientVersion: APP_VERSION,
       platform: getPlatform().type,
       format: meta.format,
@@ -140,8 +159,11 @@ export function reportEngineStats(meta: {
   if (!stats) return;
   if (meta.multiplayer && meta.send) {
     void meta.send(stats, meta.gameId).catch(() => {
-      // The relay went away mid-report; the hub can have it instead.
+      // The relay went away mid-report; the hub can have it instead, and it can
+      // have it now — a closed websocket says nothing about the network, and a
+      // report left in the queue waits for the next time the app starts.
       queue(stats);
+      void flushEngineStatsReports();
     });
     return;
   }

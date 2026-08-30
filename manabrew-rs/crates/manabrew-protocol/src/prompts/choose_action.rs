@@ -17,6 +17,8 @@ pub struct ChooseActionInput {
 pub struct PassUntil {
     pub player_id: String,
     pub phase: StepKind,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub through_combat: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

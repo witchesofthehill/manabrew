@@ -635,13 +635,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     toggleDamageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
-    awaitingAttackTarget,
     playerIsTargetable,
     handleTargetPlayer,
     handleBattlefieldClick,
     handleAttackerClick,
     selectAllAttackersForPick,
-    cancelAttackTargetPick,
   } = useCombatState({
     promptType,
     targetCard: casting.wrappedTargetCard,
@@ -2073,22 +2071,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           onConfirm={handleConcedeConfirm}
           onCancel={() => setConcedeModalOpen(false)}
         />
-      )}
-
-      {awaitingAttackTarget && (
-        <div className="pointer-events-none absolute top-[calc(1rem+var(--safe-area-inset-top))] left-1/2 z-50 -translate-x-1/2">
-          <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">
-              Pick a target — click an opponent or planeswalker
-            </span>
-            <button
-              className="text-xs font-medium uppercase text-muted-foreground hover:text-destructive"
-              onClick={cancelAttackTargetPick}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
 
       {promptType === "chooseBoardTargets" &&

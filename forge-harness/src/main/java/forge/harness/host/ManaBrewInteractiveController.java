@@ -79,6 +79,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final HarnessPlayPlumbing playPlumbing;
     private String passUntilPlayer;
     private String passUntilPhase;
+    private boolean passUntilThroughCombat;
     private int passUntilDeclaredTurn;
     private int passUntilObservedTurn;
     private PhaseType passUntilMaxPhase;
@@ -167,12 +168,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     || PriorityFastForward.invalidatedByExtraPhase(currentPhase, passUntilMaxPhase)) {
                 passUntilPlayer = null;
                 passUntilPhase = null;
+                passUntilThroughCombat = false;
             } else {
                 if (currentPhase != null
                         && (passUntilMaxPhase == null || passUntilMaxPhase.isBefore(currentPhase))) {
                     passUntilMaxPhase = currentPhase;
                 }
-                if (PriorityFastForward.canSkip(game)) {
+                if (PriorityFastForward.canSkip(game, passUntilThroughCombat)) {
                     return null;
                 }
             }
@@ -195,6 +197,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             passUntilPlayer = choice.untilPlayer();
             passUntilPhase = choice.untilPhase();
+            passUntilThroughCombat = choice.throughCombat();
             passUntilDeclaredTurn = game.getPhaseHandler().getTurn();
             passUntilObservedTurn = passUntilDeclaredTurn;
             passUntilMaxPhase = game.getPhaseHandler().getPhase();

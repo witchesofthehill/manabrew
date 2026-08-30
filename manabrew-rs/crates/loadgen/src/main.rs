@@ -1,10 +1,15 @@
-//! Load generator for the hosted-room fleet.
+//! Load generator for whatever is hosting a game.
 //!
-//! Each client is a real seat: it claims an empty hosted room, asks the node for
-//! an AI opponent, plays a real game with `manabot`'s `SimpleAi`, and records the
-//! turnaround between answering a prompt and being asked the next one. That
-//! number is what a player waits, so it includes the opponent's turn and two
-//! network crossings, not engine time alone.
+//! Each client is a real seat: it takes a room, plays a real game with
+//! `manabot`'s `SimpleAi`, and records the turnaround between answering a prompt
+//! and being asked the next one. That number is what a player waits, so it
+//! includes the opponent's turn and two network crossings, not engine time
+//! alone. `engineMs`, where the host stamps it, is recorded beside it.
+//!
+//! Default is the hosted fleet: claim an empty hosted room and ask the node for
+//! an AI opponent. With `ROOM` it instead joins a named room and waits for its
+//! controller to start. That is how a browser hosting a table, on Forge wasm or
+//! on the Rust engine, gets measured with the same tool.
 //!
 //! Seats join as bots so the games never land in distinct-player analytics.
 //! Configured entirely by environment; see the crate README.
@@ -53,6 +58,7 @@ struct Stats {
     join_to_start_ms: u128,
     first_prompt_ms: u128,
     turnarounds_ms: Vec<u128>,
+    engine_ms: Vec<u128>,
     bytes_in: usize,
     frames_in: usize,
     delta_frames: usize,
@@ -77,6 +83,12 @@ async fn main() {
         .map(str::to_string)
         .collect();
     let per_host: usize = var("PER_HOST", "4").parse().unwrap_or(4);
+    let wanted_rooms: Vec<String> = var("ROOM", "")
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect();
     let duration = Duration::from_secs(var("DURATION_S", "300").parse().unwrap_or(300));
     let stagger = Duration::from_millis(var("STAGGER_MS", "500").parse().unwrap_or(500));
     let deck_path = var(
@@ -101,8 +113,20 @@ async fn main() {
     let mut per_host_count: std::collections::HashMap<String, usize> = Default::default();
     for room in rooms
         .into_iter()
-        .filter(|r| r.hosted && r.status == RoomStatus::Lobby && r.players.is_empty())
+        .filter(|r| r.status == RoomStatus::Lobby && r.players.len() < r.max_players as usize)
     {
+        if !wanted_rooms.is_empty() {
+            if wanted_rooms
+                .iter()
+                .any(|w| room.room_id.contains(w.as_str()) || room.room_name.contains(w.as_str()))
+            {
+                picked.push(room);
+            }
+            continue;
+        }
+        if !room.hosted || !room.players.is_empty() {
+            continue;
+        }
         if !hosts.is_empty() && !hosts.iter().any(|h| room.host.contains(h.as_str())) {
             continue;
         }
@@ -162,7 +186,7 @@ async fn main() {
 fn report(all: &[Stats], elapsed: Duration) {
     println!("\n=== run finished in {:.0}s ===", elapsed.as_secs_f64());
     println!(
-        "{:<14} {:<24} {:>7} {:>8} {:>8} {:>7} {:>7} {:>7} {:>7} {:>9} {:>6}",
+        "{:<14} {:<24} {:>7} {:>8} {:>8} {:>7} {:>7} {:>7} {:>7} {:>8} {:>9} {:>6}",
         "user",
         "host",
         "prompts",
@@ -172,6 +196,7 @@ fn report(all: &[Stats], elapsed: Duration) {
         "p90_ms",
         "p99_ms",
         "max_ms",
+        "eng_p50",
         "MB_in",
         "over"
     );
@@ -186,8 +211,14 @@ fn report(all: &[Stats], elapsed: Duration) {
             }
             lat[((lat.len() as f64 - 1.0) * p).round() as usize]
         };
+        let mut engine = s.engine_ms.clone();
+        engine.sort_unstable();
+        let engine_p50 = match engine.len() {
+            0 => "-".to_string(),
+            n => engine[(n - 1) / 2].to_string(),
+        };
         println!(
-            "{:<14} {:<24} {:>7} {:>8.1} {:>8.1} {:>7} {:>7} {:>7} {:>7} {:>9.2} {:>6}",
+            "{:<14} {:<24} {:>7} {:>8.1} {:>8.1} {:>7} {:>7} {:>7} {:>7} {:>8} {:>9.2} {:>6}",
             s.user,
             &s.host[..s.host.len().min(24)],
             lat.len(),
@@ -197,6 +228,7 @@ fn report(all: &[Stats], elapsed: Duration) {
             q(0.9),
             q(0.99),
             lat.last().copied().unwrap_or(0),
+            engine_p50,
             s.bytes_in as f64 / 1_048_576.0,
             s.games
         );
@@ -290,6 +322,7 @@ async fn play(
         join_to_start_ms: 0,
         first_prompt_ms: 0,
         turnarounds_ms: Vec::new(),
+        engine_ms: Vec::new(),
         bytes_in: 0,
         frames_in: 0,
         delta_frames: 0,
@@ -331,20 +364,21 @@ async fn play(
             break;
         }
 
-        // Ask the node for an AI opponent, then take a seat.
-        let bot_envelope = StateEnvelope::RoomRelay {
-            protocol: "self-hosted-node".to_string(),
-            version: 1,
-            message_id: uuid::Uuid::new_v4().to_string(),
-            from_player: Some(user.clone()),
-            target_player: None,
-            room_id: Some(room.room_id.clone()),
-            payload: json!({
-                "type": "spawnBot",
-                "deck": { "deckName": "Loadtest AI", "deck": deck, "commanderName": null },
-            }),
-        };
-        let _ = broadcast(&mut write, &bot_envelope).await;
+        if room.hosted {
+            let bot_envelope = StateEnvelope::RoomRelay {
+                protocol: "self-hosted-node".to_string(),
+                version: 1,
+                message_id: uuid::Uuid::new_v4().to_string(),
+                from_player: Some(user.clone()),
+                target_player: None,
+                room_id: Some(room.room_id.clone()),
+                payload: json!({
+                    "type": "spawnBot",
+                    "deck": { "deckName": "Loadtest AI", "deck": deck, "commanderName": null },
+                }),
+            };
+            let _ = broadcast(&mut write, &bot_envelope).await;
+        }
         let _ = send(
             &mut write,
             &ClientMessage::SetDeckSelection {
@@ -366,7 +400,8 @@ async fn play(
         let mut slot: Option<String> = None;
         let mut sent_start = false;
         let mut closed = false;
-        let start_deadline = Instant::now() + Duration::from_secs(120);
+        let start_deadline =
+            Instant::now() + Duration::from_secs(var("START_WAIT_S", "120").parse().unwrap_or(120));
         while slot.is_none() {
             if Instant::now() > start_deadline {
                 stats.error = Some("game never started".into());
@@ -394,7 +429,17 @@ async fn play(
                             .players
                             .iter()
                             .all(|p| p.connected && p.ready && p.selected_deck_name.is_some());
-                    if !sent_start && info.status == RoomStatus::Lobby && ready {
+                    let controller = info
+                        .players
+                        .iter()
+                        .find(|p| !p.is_bot)
+                        .or_else(|| info.players.first())
+                        .map(|p| p.username.as_str());
+                    if !sent_start
+                        && controller == Some(user.as_str())
+                        && info.status == RoomStatus::Lobby
+                        && ready
+                    {
                         sent_start = true;
                         let _ = send(
                             &mut write,
@@ -491,7 +536,10 @@ async fn play(
                 break;
             }
             let Ok(StateEnvelope::Prompt {
-                for_player, prompt, ..
+                for_player,
+                prompt,
+                engine_ms,
+                ..
             }) = serde_json::from_value(state)
             else {
                 continue;
@@ -515,6 +563,9 @@ async fn play(
                 stats.first_prompt_ms = game_started.elapsed().as_millis();
             }
             stats.turnarounds_ms.push(turnaround);
+            if let Some(engine) = engine_ms {
+                stats.engine_ms.push(engine as u128);
+            }
             if let Ok(path) = std::env::var("RAW") {
                 use std::io::Write as _;
                 if let Ok(mut fh) = std::fs::OpenOptions::new()
@@ -522,7 +573,11 @@ async fn play(
                     .append(true)
                     .open(&path)
                 {
-                    let line = format!("{user},{},{turnaround}\n", stats.turnarounds_ms.len());
+                    let line = format!(
+                        "{user},{},{turnaround},{}\n",
+                        stats.turnarounds_ms.len(),
+                        engine_ms.map(|ms| ms.to_string()).unwrap_or_default()
+                    );
                     let _ = fh.write_all(line.as_bytes());
                 }
             }

@@ -35,7 +35,7 @@ Limited, draft, and sealed still use the Rust worker. Rollback is unavailable on
 so a player cannot return to an earlier game state. Cancelling a mana payment still works, because
 Forge answers that itself and never asks for a snapshot.
 
-## Why run Forge locally?
+## The same engine, one more target
 
 Manabrew already has a Rust rules engine that runs in WebAssembly. Forge has more than fifteen years
 of rules and card support behind it, which is the reason to bring it into the browser as well.
@@ -54,7 +54,8 @@ one, running in the same webview, with Forge sitting next to it as a native libr
 
 So there is no card-script translation and no second Forge-compatible implementation to keep in
 step. During development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through the
-browser build and the reference one, and compared the callback streams. They were byte-identical.
+browser build and the reference build, the one our parity harness tests against and the last place a
+JVM still runs here, and compared the callback streams. They were byte-identical.
 
 ## Keeping a synchronous engine synchronous
 
@@ -96,11 +97,16 @@ existing game UI for Forge.
 
 What a player waits for is the gap between answering a prompt and seeing the next one. Seven
 production games on the browser engine, 399 decisions, put that at 47 ms p50. The engine itself
-accounts for 16 ms of it, and nothing in the path leaves the tab.
+accounts for 16 ms of it, and nothing in the path leaves the tab. The other 31 ms is the client
+picking the answer up on a requestAnimationFrame poll and rendering the board, so a 60 Hz screen
+sets the floor rather than the engine. The whole exchange fits in about three frames.
 
 Two hosted commander games played by real people on the same day measured 277 ms and 306 ms for the
-same gap. The engine is not the reason. It answers in 77 ms p50 on the fleet; the rest is the round
-trip out to a server and back.
+same gap. The engine is not the reason. The fleet's own decision metric is node time rather than
+engine think time, counting from a seat's answer to that seat's next prompt going out, which is the
+rules work plus the node's step of packing the board for the wire, over real games with larger
+boards than our seven. It sits at 77 ms p50. The rest of those 300 ms is the round trip out to a
+server and back.
 
 The tail is where this gets interesting. Activating an ability costs the hosted fleet a p50 of
 385 ms, and it barely grows with board size, so it reads as a fixed charge rather than a scaling
@@ -145,8 +151,8 @@ scripts instead of the 33,645 Forge ships. Boot on a development server fell fro
 The deployed build boots in about 642 ms, because it fetches the archive over the network.
 
 Forge could start without some resources even though their absence changed game behaviour. Removing
-`res/lists`, for example, changed card legality and caused parity to diverge. Side-by-side JVM and
-WebAssembly traces exposed the difference.
+`res/lists`, for example, changed card legality and caused parity to diverge. Side-by-side traces
+from the reference build and the WebAssembly one exposed the difference.
 
 ## Where Java meets WebAssembly
 
@@ -156,7 +162,7 @@ dependencies that don't hold in this environment:
 - `Thread.start()` could appear to start a thread even though the work never ran.
 - `java.util.zip` wasn't available on the path we needed, so archive decompression moved outside
   Java.
-- Java object deserialization reached unsupported low-level memory behaviour and could crash the
+- Java object deserialisation reached unsupported low-level memory behaviour and could crash the
   runtime.
 - Some Guava code selected an `Unsafe`-based implementation and had to be initialised differently.
 
@@ -190,9 +196,8 @@ server enables the feature, after which the player can opt in under Settings.
 This allows browser telemetry and compatibility testing on long games before the engine is enabled
 more broadly.
 
-Seven production games so far, across pioneer, standard and commander, report a turnaround p50 of
-47 ms and an engine-think p50 of 16 ms. A development run on a longer game measured 38 ms
-turnaround and 8 ms engine-side.
+The figures above came through that path. A longer development run did better still, at 38 ms of
+turnaround and 8 ms inside the engine, so what production reports is not the best this can do.
 
 ## What remains
 
@@ -223,7 +228,7 @@ the engine we had been reimplementing walked into the browser on its own.
 Over the past 30 days 96% of Manabrew games ran on Forge, nearly all of them on the hosted fleet.
 Those machines exist for one reason, which is that the engine needed somewhere to live. For a game
 played this way, that reason is gone. Fifteen years of card support, no account, no install, no
-server in the loop, and the tab does the rules.
+hosted engine in the loop, and the tab does the rules.
 
 The Rust port keeps its work. It answers limited and draft, it is a fifth of the download, and its
 disagreements with Forge are still how we find out which of the two is wrong. But the wall it was

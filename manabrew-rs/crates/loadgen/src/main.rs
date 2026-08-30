@@ -490,7 +490,9 @@ async fn play(
                 stats.game_over = true;
                 break;
             }
-            let Ok(StateEnvelope::Prompt { for_player, prompt }) = serde_json::from_value(state)
+            let Ok(StateEnvelope::Prompt {
+                for_player, prompt, ..
+            }) = serde_json::from_value(state)
             else {
                 continue;
             };

@@ -11,6 +11,9 @@ src-tauri/target/
 forge-harness/native/build/
 forge-harness/native/classes/
 forge-harness/native/gen-config/
+forge-harness/native/wasm/
+forge-harness/native/wasm-classes/
+forge-harness/native/gen-config-wasm/
 
 # Node / Tauri dev artifacts
 node_modules/

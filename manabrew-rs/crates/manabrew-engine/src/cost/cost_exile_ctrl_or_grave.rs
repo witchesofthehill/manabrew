@@ -35,13 +35,12 @@ pub fn can_pay(
         return false;
     };
     let resolved_amount = amount.resolve(game, source, player);
-    let static_source_cards = super::static_ability_source_cards(game);
     let base_filter = super::normalize_exile_base_filter(type_filter);
     let bf = super::get_zone_targets(game, player, ZoneType::Battlefield, &base_filter)
         .into_iter()
         .filter(|&cid| {
             !crate::staticability::static_ability_cant_exile::cant_exile(
-                &static_source_cards,
+                &game.cards,
                 game.card(cid),
                 ability,
                 true,
@@ -52,7 +51,7 @@ pub fn can_pay(
         .into_iter()
         .filter(|&cid| {
             !crate::staticability::static_ability_cant_exile::cant_exile(
-                &static_source_cards,
+                &game.cards,
                 game.card(cid),
                 ability,
                 true,

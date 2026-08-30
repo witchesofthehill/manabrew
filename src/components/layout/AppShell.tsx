@@ -21,6 +21,7 @@ import { useEngineHostCloseGuard } from "@/hooks/useEngineHostCloseGuard";
 import { useLocalDeckAccountSync } from "@/hooks/useLocalDeckAccountSync";
 import { ROUTES } from "@/lib/constants";
 import { flushPublishedDeckPlayReports } from "@/lib/deckPlayEvidence";
+import { flushEngineStatsReports } from "@/lib/engineStatsReport";
 
 // Drives previous/next page shortcuts.
 const NAV_ROUTES = [
@@ -83,6 +84,13 @@ export function AppShell() {
     window.addEventListener("online", flush);
     return () => window.removeEventListener("online", flush);
   }, [deckHubEnabled]);
+
+  useEffect(() => {
+    const flush = () => void flushEngineStatsReports();
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, []);
 
   useGameSessionResume();
   useStatusBanner();

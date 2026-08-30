@@ -45,7 +45,6 @@ pub fn can_pay(
     part: &super::CostPart,
 ) -> bool {
     let card = game.card(source);
-    let static_source_cards = super::static_ability_source_cards(game);
     match part {
         super::CostPart::Exile {
             amount,
@@ -60,7 +59,7 @@ pub fn can_pay(
                     return false;
                 }
                 return !crate::staticability::static_ability_cant_exile::cant_exile(
-                    &static_source_cards,
+                    &game.cards,
                     card,
                     ability,
                     true,
@@ -73,7 +72,7 @@ pub fn can_pay(
                     .into_iter()
                     .filter(|&cid| {
                         !crate::staticability::static_ability_cant_exile::cant_exile(
-                            &static_source_cards,
+                            &game.cards,
                             game.card(cid),
                             ability,
                             true,
@@ -166,7 +165,7 @@ pub fn can_pay(
                 let src = game.card(source);
                 let is_eligible = src.zone == forge_foundation::ZoneType::Graveyard
                     && !crate::staticability::static_ability_cant_exile::cant_exile(
-                        &static_source_cards,
+                        &game.cards,
                         src,
                         ability,
                         true,
@@ -190,7 +189,7 @@ pub fn can_pay(
                             &[],
                         ))
                         && !crate::staticability::static_ability_cant_exile::cant_exile(
-                            &static_source_cards,
+                            &game.cards,
                             game.card(cid),
                             ability,
                             true,
@@ -218,7 +217,7 @@ pub fn can_pay(
                         )
                     {
                         if crate::staticability::static_ability_cant_exile::cant_exile(
-                            &static_source_cards,
+                            &game.cards,
                             game.card(cid),
                             ability,
                             true,

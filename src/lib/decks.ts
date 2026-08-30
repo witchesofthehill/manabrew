@@ -12,6 +12,10 @@ function normalizeTokenName(name: string): string {
 }
 
 export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
+  return resolveDeckCard(deck, gameCard);
+}
+
+function resolveDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
   const { name, setCode, cardNumber, isToken, tokenScript } = gameCard.identity;
   const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(

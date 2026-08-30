@@ -2574,6 +2574,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final Card source = sa == null ? null : sa.getHostCard();
         final Predicate<ICardFace> faceFilter = cpp == null ? x -> true : cpp;
         final List<ICardFace> faces = new ArrayList<>();
+        forge.StaticData.instance().ensureAllCardsLoaded();
         forge.StaticData.instance().getCommonCards().streamAllFaces()
                 .filter(faceFilter)
                 .filter(face -> {

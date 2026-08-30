@@ -153,7 +153,7 @@ struct DeckCardWire {
     #[serde(flatten)]
     rules: CardRulesSummary,
     #[serde(default)]
-    uris: CardImageUris,
+    uris: Option<CardImageUris>,
     #[serde(default)]
     all_parts: Option<Vec<CardPart>>,
 }
@@ -171,7 +171,7 @@ impl<'de> Deserialize<'de> for DeckCard {
         Ok(DeckCard {
             identity,
             rules: wire.rules,
-            uris: wire.uris,
+            uris: wire.uris.unwrap_or_default(),
             all_parts: wire.all_parts,
         })
     }
@@ -390,6 +390,7 @@ pub enum DeckFormat {
     Legacy,
     Vintage,
     Pauper,
+    Premodern,
     Commander,
     Brawl,
     Oathbreaker,

@@ -78,11 +78,17 @@ fn main() {
     )
     .expect("write transport/index.ts");
 
+    // `VERSION` is the npm package's own version, so it must come from
+    // `manabrew-protocol` (which `publish-protocol.yml` publishes the package
+    // at), NOT from `CARGO_PKG_VERSION` of this generator crate. Those are
+    // different crates on independent version lines, and using this one made
+    // `VERSION` disagree with the installed package version (#777).
     fs::write(
         out.join("version.ts"),
         format!(
-            "{HEADER}export const VERSION = \"{}\";\nexport const PROTOCOL_VERSION = {PROTOCOL_VERSION};\n",
-            env!("CARGO_PKG_VERSION")
+            "{HEADER}export const VERSION = \"{}\";\nexport const RELAY_PROTOCOL_VERSION = \"{}\";\nexport const PROTOCOL_VERSION = {PROTOCOL_VERSION};\n",
+            manabrew_protocol::VERSION,
+            env!("CARGO_PKG_VERSION"),
         ),
     )
     .expect("write version.ts");

@@ -246,6 +246,11 @@ fn in_game_room_expired(state: &Arc<ServerState>, room: &Room, now: Instant) -> 
 }
 
 pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generation: u64) {
+    mark_disconnected_inner(state, player_id, our_generation);
+    crate::connection::broadcast_player_list(state);
+}
+
+fn mark_disconnected_inner(state: &Arc<ServerState>, player_id: &str, our_generation: u64) {
     let (username, room_id) = {
         if let Some(mut player) = state.players.get_mut(player_id) {
             if player.generation != our_generation {

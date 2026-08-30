@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use metrics::{counter, gauge};
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use metrics::{counter, gauge, histogram};
+use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 
 use crate::analytics::GameEndReason;
 use crate::protocol::{EngineKind, RoomStatus};
@@ -18,12 +18,17 @@ const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
+const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
+const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
+const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
+const OUTBOUND_BACKLOG: &str = "manabrew_relay_outbound_backlog";
 
 const LABEL_KIND: &str = "kind";
 const LABEL_STATUS: &str = "status";
 const LABEL_HOSTED: &str = "hosted";
 const LABEL_ENGINE: &str = "engine";
 const LABEL_REASON: &str = "reason";
+const LABEL_SEATS: &str = "seats";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
 
@@ -44,14 +49,66 @@ impl ConnectionKind {
     }
 }
 
-pub fn install() -> PrometheusHandle {
+// Only the state-handling metric gets buckets. Everything else stays a summary,
+// whose quantiles are per process and cannot be aggregated.
+const STATE_HANDLING_BUCKETS: &[f64] = &[
+    0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0,
+];
+
+const BACKLOG_BUCKETS: &[f64] = &[1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 512.0, 2048.0];
+
+fn builder() -> PrometheusBuilder {
     PrometheusBuilder::new()
+        .set_buckets_for_metric(
+            Matcher::Full(STATE_HANDLING.to_string()),
+            STATE_HANDLING_BUCKETS,
+        )
+        .expect("state handling buckets are a non-empty literal")
+        .set_buckets_for_metric(
+            Matcher::Full(SOCKET_WRITE.to_string()),
+            STATE_HANDLING_BUCKETS,
+        )
+        .expect("socket write buckets are a non-empty literal")
+        .set_buckets_for_metric(Matcher::Full(OUTBOUND_BACKLOG.to_string()), BACKLOG_BUCKETS)
+        .expect("backlog buckets are a non-empty literal")
+}
+
+pub fn install() -> PrometheusHandle {
+    builder()
         .install_recorder()
         .expect("failed to install metrics recorder")
 }
 
 pub fn detached_handle() -> PrometheusHandle {
-    PrometheusBuilder::new().build_recorder().handle()
+    builder().build_recorder().handle()
+}
+
+/// How long the relay itself spends on one state envelope: folding the patch
+/// into the cached board, deciding whether a full board is needed, and handing
+/// it to the audience. Labelled by seat count because the node emits one
+/// envelope per seat plus an observer, so the work per decision scales with the
+/// room even when the engine's own time does not.
+///
+/// This interval had no metric at all. Replaying captures put a four-seat room
+/// at a p99 of 2.3s outside the rules engine against 0.27s for two seats, and
+/// the only way to see that was to subtract `engineMs` from capture timestamps
+/// in a script, after the fact, on a box.
+pub fn record_state_handling(seats: usize, elapsed: std::time::Duration) {
+    histogram!(STATE_HANDLING, LABEL_SEATS => seats.to_string()).record(elapsed.as_secs_f64());
+}
+
+/// The websocket write itself, and how many messages were already waiting when
+/// this one was taken off the queue.
+///
+/// Everything else between the engine and the player is now measured; this was
+/// the last gap. The outbound channel is unbounded and the writer awaits the
+/// sink, so a client that stops draining applies backpressure and every later
+/// message queues behind it. That is invisible in the handling metric, which
+/// stops at the hand-off, and it grows with seat count because a four-seat room
+/// enqueues five envelopes per decision where a two-seat room enqueues three.
+pub fn record_socket_write(backlog: usize, elapsed: std::time::Duration) {
+    histogram!(SOCKET_WRITE).record(elapsed.as_secs_f64());
+    histogram!(OUTBOUND_BACKLOG).record(backlog as f64);
 }
 
 pub fn record_game_started(engine: EngineKind) {
@@ -71,6 +128,14 @@ pub fn record_rejection(reason: &'static str) {
 /// `SELF_HOSTED_NODE_STATE_DELTA` is saving bandwidth for everyone.
 pub fn record_state_patch_downgrade() {
     counter!(STATE_PATCH_DOWNGRADES).increment(1);
+}
+
+/// Round trip from the relay to a client and back, taken from the websocket
+/// heartbeat. The heartbeat carries the send time and RFC 6455 requires the
+/// peer to echo a ping's payload, so this is measured entirely on the relay's
+/// own clock and needs nothing from the client.
+pub fn record_client_rtt(ms: f64) {
+    histogram!(CLIENT_RTT).record(ms);
 }
 
 pub fn record_resync() {

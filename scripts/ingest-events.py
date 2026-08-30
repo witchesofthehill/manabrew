@@ -83,6 +83,29 @@ CREATE INDEX IF NOT EXISTS idx_game_players_publication
   WHERE is_bot = 0 AND published_deck_id IS NOT NULL AND deck_fingerprint IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_cards_name ON deck_cards(name);
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+CREATE TABLE IF NOT EXISTS engine_stats (
+  report_id TEXT PRIMARY KEY,
+  ts TEXT NOT NULL,
+  source TEXT NOT NULL,
+  game_id TEXT,
+  engine TEXT NOT NULL,
+  client_version TEXT,
+  platform TEXT,
+  format TEXT,
+  seats INTEGER,
+  multiplayer INTEGER,
+  duration_s INTEGER,
+  end_reason TEXT,
+  decisions INTEGER,
+  turnaround_p50 INTEGER,
+  turnaround_p90 INTEGER,
+  turnaround_max INTEGER,
+  engine_p50 INTEGER,
+  engine_p90 INTEGER,
+  engine_max INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_engine_stats_ts ON engine_stats(ts);
+CREATE INDEX IF NOT EXISTS idx_engine_stats_engine ON engine_stats(engine, ts);
 CREATE TABLE IF NOT EXISTS hub_sync_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   synced_at TEXT NOT NULL,
@@ -226,6 +249,43 @@ def ingest_deck_selected(db, ev):
         )
 
 
+ENGINE_STATS_COLUMNS = (
+    "report_id, ts, source, game_id, engine, client_version, platform, format, "
+    "seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50, "
+    "turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max"
+)
+
+
+def ingest_engine_stats(db, ev):
+    db.execute(
+        f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
+           VALUES ({", ".join("?" * 19)})""",
+        (
+            # A relay from before the report id was forwarded still identifies a
+            # report well enough to keep re-ingestion idempotent.
+            ev.get("report_id") or f"{ev.get('room_id')}:{ev.get('ts')}",
+            ev.get("ts"),
+            "relay",
+            ev.get("game_id"),
+            ev.get("engine"),
+            ev.get("client_version"),
+            ev.get("platform"),
+            ev.get("format"),
+            ev.get("seats"),
+            int(bool(ev.get("multiplayer"))),
+            ev.get("duration_s"),
+            ev.get("end_reason"),
+            ev.get("decisions"),
+            ev.get("turnaround_p50"),
+            ev.get("turnaround_p90"),
+            ev.get("turnaround_max"),
+            ev.get("engine_p50"),
+            ev.get("engine_p90"),
+            ev.get("engine_max"),
+        ),
+    )
+
+
 def ingest_client_connected(db, ev):
     db.execute(
         """INSERT INTO client_connections (ts, username, platform, reconnected)
@@ -244,6 +304,7 @@ INGESTERS = {
     "game_started": ingest_game_started,
     "game_ended": ingest_game_ended,
     "deck_selected": ingest_deck_selected,
+    "engine_stats": ingest_engine_stats,
 }
 
 
@@ -351,6 +412,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
             "top_deck_buckets",
             "top_deck_snapshots",
             "deck_play_reports",
+            "engine_play_stats",
             "card_collection",
             "card_collection_versions",
             "data_migrations",
@@ -405,6 +467,20 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
                 if day is not None
             )
 
+        mirrored_through = db.execute(
+            "SELECT coalesce(max(ts), '') FROM engine_stats WHERE source = 'hub'"
+        ).fetchone()[0]
+        engine_reports = hub_rows(
+            hub,
+            """SELECT id, reported_at, engine, client_version, platform, format,
+                      seats, multiplayer, duration_s, end_reason, decisions,
+                      turnaround_p50, turnaround_p90, turnaround_max,
+                      engine_p50, engine_p90, engine_max
+               FROM engine_play_stats
+               WHERE reported_at > ?""",
+            (mirrored_through,),
+        )
+
         collection_cards = hub_rows(
             hub,
             """SELECT card_key, count(DISTINCT account_id), sum(quantity)
@@ -437,6 +513,11 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         db.executemany(
             "INSERT INTO hub_daily_metrics (day, metric, dimension, value) VALUES (?, ?, ?, ?)",
             daily,
+        )
+        db.executemany(
+            f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
+                VALUES (?, ?, 'hub', NULL, {", ".join("?" * 15)})""",
+            engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")
         db.executemany(

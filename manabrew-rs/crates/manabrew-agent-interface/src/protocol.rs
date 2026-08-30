@@ -19,6 +19,22 @@ pub enum StateEnvelope {
         #[serde(rename = "forPlayer", default, skip_serializing_if = "Option::is_none")]
         for_player: Option<String>,
         state: Value,
+        /// Milliseconds the engine host spent between receiving the response
+        /// that caused this state and sending it. Lets a receiver separate
+        /// engine work from the hop to the engine host, which is otherwise
+        /// impossible: only the relay stamps these envelopes, and comparing
+        /// clocks across hosts is not something we want to rely on.
+        #[serde(rename = "engineMs", default, skip_serializing_if = "Option::is_none")]
+        engine_ms: Option<u32>,
+        /// Milliseconds the engine host then spent building this envelope:
+        /// serialising the state, fingerprinting it, diffing it. Sampled after
+        /// `engine_ms`, so subtracting both from a relay-stamped round trip
+        /// leaves the hop alone. Otherwise that work reads as network, and
+        /// unlike the network it grows with the board. Always `None` here: the
+        /// value is stamped onto the serialised envelope by the sender, which
+        /// cannot know it until the serialising is done.
+        #[serde(rename = "emitMs", default, skip_serializing_if = "Option::is_none")]
+        emit_ms: Option<u32>,
         /// Set only when the sender also emits [`StateEnvelope::StateDelta`],
         /// so a receiver can tell whether a later patch applies to what it
         /// holds. Receivers never compute it: the sender is the only authority,
@@ -36,6 +52,12 @@ pub enum StateEnvelope {
         base: String,
         fingerprint: String,
         patch: Value,
+        #[serde(rename = "engineMs", default, skip_serializing_if = "Option::is_none")]
+        engine_ms: Option<u32>,
+        /// See [`StateEnvelope::State::emit_ms`]. Stamped after the patch is
+        /// built, so it covers the diff that produced this envelope.
+        #[serde(rename = "emitMs", default, skip_serializing_if = "Option::is_none")]
+        emit_ms: Option<u32>,
     },
     Display {
         event: Value,
@@ -47,6 +69,11 @@ pub enum StateEnvelope {
         #[serde(rename = "forPlayer")]
         for_player: String,
         prompt: Value,
+        #[serde(rename = "engineMs", default, skip_serializing_if = "Option::is_none")]
+        engine_ms: Option<u32>,
+        /// See [`StateEnvelope::State::emit_ms`].
+        #[serde(rename = "emitMs", default, skip_serializing_if = "Option::is_none")]
+        emit_ms: Option<u32>,
     },
     /// Player answers a prompt. `action` is `PlayerAction` for Rust; raw value
     Response {
@@ -111,12 +138,24 @@ pub enum StateEnvelope {
 
 impl StateEnvelope {
     pub fn for_agent_message(for_player: String, message: &crate::prompt::AgentMessage) -> Self {
+        Self::for_agent_message_timed(for_player, message, None)
+    }
+
+    /// As [`Self::for_agent_message`], carrying how long the engine host took
+    /// to produce this message.
+    pub fn for_agent_message_timed(
+        for_player: String,
+        message: &crate::prompt::AgentMessage,
+        engine_ms: Option<u32>,
+    ) -> Self {
         use crate::prompt::AgentMessage;
         match message {
             AgentMessage::State(state) => StateEnvelope::State {
                 for_player: Some(for_player),
                 state: serde_json::to_value(state).unwrap_or(Value::Null),
                 fingerprint: None,
+                engine_ms,
+                emit_ms: None,
             },
             AgentMessage::Display(event) => StateEnvelope::Display {
                 event: serde_json::to_value(event).unwrap_or(Value::Null),
@@ -124,6 +163,8 @@ impl StateEnvelope {
             AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {
                 for_player,
                 prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
+                engine_ms,
+                emit_ms: None,
             },
             AgentMessage::Error(error) => StateEnvelope::Error {
                 for_player,

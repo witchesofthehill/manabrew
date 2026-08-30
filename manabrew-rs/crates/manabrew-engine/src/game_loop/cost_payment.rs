@@ -3683,9 +3683,8 @@ fn shares_creature_type(game: &GameState, a: CardId, b: CardId) -> bool {
 }
 
 fn can_exile_for_cost(game: &GameState, card_id: CardId) -> bool {
-    let static_sources = crate::cost::static_ability_source_cards(game);
     !crate::staticability::static_ability_cant_exile::cant_exile(
-        &static_sources,
+        &game.cards,
         game.card(card_id),
         None,
         true,

@@ -11,7 +11,7 @@ The engine is incomplete. Most day-to-day work is **finding parity bugs** with `
 
 ## Local full stack
 
-`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services.
+`./dev start` builds and starts the web app, relay, Hub API, and relay-event ingester through `compose.dev.yaml`. The Hub runs its embedded SQLite migrations before listening and stores the host-visible database at `ops/hub-data/dev/hub.db`; ingested relay analytics live at `ops/hub-data/dev/events/events.db`. `./dev stop` preserves both databases and `./dev clean` deletes them together with the development cache volumes. Keep the Hub events bind writable because SQLite read-only connections still need WAL sidecars. Host tools such as DBeaver must use read-only connections while the stack runs; stop the stack before host-side writes because Docker Desktop does not safely coordinate SQLite write locks across the bind mount. Use `./dev logs` to follow all services. `start`, `stop`, and `logs` take optional service names (`./dev stop relay`, `./dev start relay`); a per-service stop pauses the container without removing it.
 
 Hub migrations are immutable once any environment has applied them. Extend the schema with the next numbered migration so existing and fresh databases converge through the same sequence.
 
@@ -65,6 +65,7 @@ Topic spinoffs (cross-cut multiple folders):
 | `docs/agents/RELAY.md`                  | Any relay (`manabrew-server`) work — trust boundary, reconnect/resync, identity and usernames            |
 | `docs/agents/HUB.md`                    | Any hub (`manabrew-hub`) work — auth and token audiences, migrations, Deck Hub flag                      |
 | `docs/agents/SELF_HOSTED_NODE.md`       | Any self-hosted node work — game-id reconciliation, reconnect, JVM sizing, updater                       |
+| `docs/agents/LATENCY_ANALYSIS.md`       | Measuring hosted latency from capture files — what the timestamps mean, and four traps that skew results |
 | `docs/forge-dsl-semantics.md`           | Any engine work touching abilities, triggers, replacements, static abilities, costs, SVars, or the stack |
 | `docs/forge-dsl-grammar.md`             | Parser / IR changes, or when interpreting card-script syntax                                             |
 
@@ -128,7 +129,6 @@ The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `W
 - **Pull with merge, never rebase.** When integrating `main` into a feature branch, or pulling someone else's work, use `git merge` (or `git pull` with `pull.rebase=false`) — never `git rebase`, never `git pull --rebase`. The repo's history convention is merge-based; rebasing rewrites already-pushed commits and creates divergence for collaborators. This applies to every branch, every time.
 - **No unit tests** unless explicitly asked.
 - **UI work** must reference `docs/STYLE_GUIDELINES.md` (and `docs/agents/UI_THEME_RULES.md` for colors).
-- **Non-trivial tasks** load the `crew-orchestrator` skill first (DISCOVER → PLAN → APPROVAL → EXECUTE → REVIEW → TEST). Trivial tasks (one-liners, simple questions, file renames) skip it.
 
 ## Hygiene
 

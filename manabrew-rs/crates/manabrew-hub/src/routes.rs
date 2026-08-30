@@ -11,8 +11,8 @@ use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use manabrew_hub::dto::{
     AccountDeckList, AdminTopDeckSnapshotRequest, CardCollection, CardCollectionEntry,
-    CreateAccountDeckRequest, DeckHubEntryList, DeckPlayReportRequest, HubCapabilities,
-    PublishDeckHubEntryRequest, SaveDeckVersionRequest, UpdateDeckHubEntryRequest,
+    CreateAccountDeckRequest, DeckHubEntryList, DeckPlayReportRequest, EnginePlayStats,
+    HubCapabilities, PublishDeckHubEntryRequest, SaveDeckVersionRequest, UpdateDeckHubEntryRequest,
     VerifyCardPrintingsRequest, VerifyCardPrintingsResponse,
 };
 use rand::RngCore;
@@ -142,6 +142,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/deckhub/top/buckets", get(top_deck_buckets_handler))
         .route("/api/deckhub/top/:bucket", get(top_deck_snapshot_handler))
         .route("/api/deckhub/plays", post(record_deck_play_handler))
+        .route("/api/stats/engine", post(record_engine_stats_handler))
         .route(
             "/internal/deckhub/relay-games",
             post(relay_deck_game_handler),
@@ -695,6 +696,36 @@ async fn top_deck_buckets_handler(State(state): State<Arc<AppState>>) -> Respons
     }
 }
 
+/// Engine timings for one finished game, from the client that ran it.
+///
+/// Unauthenticated on purpose: the interesting case is offline play, which has
+/// no session and no server in the loop at all. Nothing here identifies a
+/// player, the report id is the client's own so a retry cannot double-count,
+/// and the same per-IP limiter as the deck-play endpoint keeps a loop from
+/// filling the table.
+async fn record_engine_stats_handler(
+    State(state): State<Arc<AppState>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(request): Json<EnginePlayStats>,
+) -> Response {
+    if !request.is_plausible() {
+        return StatusCode::UNPROCESSABLE_ENTITY.into_response();
+    }
+    if !state.play_limiter.allow(&client_ip(&headers, addr)) {
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
+    match state
+        .storage
+        .lock()
+        .unwrap()
+        .record_engine_play_stats(&request, &now_string())
+    {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
 async fn record_deck_play_handler(
     State(state): State<Arc<AppState>>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -1040,6 +1071,7 @@ mod tests {
                 handle: handle.into(),
                 handle_set: false,
                 created_at: "2026-07-01T00:00:00Z".into(),
+                qualification: None,
             })
             .unwrap();
         storage
@@ -1061,8 +1093,13 @@ mod tests {
             )
             .unwrap();
         drop(storage);
-        let access =
-            auth::mint_access_token(&state.identity, &account_id, handle, auth::AUDIENCE_HUB);
+        let access = auth::mint_access_token(
+            &state.identity,
+            &account_id,
+            handle,
+            None,
+            auth::AUDIENCE_HUB,
+        );
         (access.access_token, token)
     }
 
@@ -1091,7 +1128,7 @@ mod tests {
     #[tokio::test]
     async fn card_printing_verification_requires_auth_and_matches_bulk_index() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "verifier", "verifier@example.com");
+        let (token, _) = sign_up(&state, "verifier", "verifier@example.com");
         let router = build_router(state);
         let payload = serde_json::json!({
             "identifiers": [
@@ -1121,7 +1158,7 @@ mod tests {
     #[tokio::test]
     async fn collection_routes_accept_payloads_larger_than_the_default_limit() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "collector", "collector@example.com");
+        let (token, _) = sign_up(&state, "collector", "collector@example.com");
         let router = build_router(state);
         let long_name = "x".repeat(300);
         let identifiers = (0..5_000)
@@ -1171,7 +1208,7 @@ mod tests {
     #[tokio::test]
     async fn collection_writes_are_rate_limited_per_account() {
         let state = test_state(100, 100);
-        let token = sign_up(&state, "limited", "limited@example.com");
+        let (token, _) = sign_up(&state, "limited", "limited@example.com");
         let router = build_router(state);
 
         for _ in 0..100 {
@@ -1496,6 +1533,7 @@ mod tests {
                     handle: "tester".into(),
                     handle_set: true,
                     created_at: "2026-07-01T00:00:00Z".into(),
+                    qualification: None,
                 })
                 .unwrap();
             storage

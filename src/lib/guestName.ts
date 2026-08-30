@@ -1,6 +1,7 @@
 import { AuthRequestError, requestGuestToken } from "@/api/auth";
 import { isFeatureEnabled } from "@/featureFlags";
 import { deviceSecret } from "@/lib/relayIdentity";
+import { resyncRelayIdentity } from "@/lib/resyncRelayIdentity";
 import { ensureUsernameTag } from "@/lib/username";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
@@ -18,4 +19,5 @@ export async function reserveGuestName(base: string): Promise<void> {
     await requestGuestToken(ensureUsernameTag(name, prefs.serverUsername), device);
   }
   prefs.setServerUsername(name);
+  await resyncRelayIdentity();
 }

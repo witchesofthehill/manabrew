@@ -53,7 +53,7 @@ Deck creation, publishing, discovery, collection adoption, and published-deck pl
 
 ### Live Ops (`live-ops.json`)
 
-Datasources: Prometheus (`prometheus`), Loki (`loki`).
+Datasources: Prometheus (`prometheus`), Loki (`loki`). Engine and decision latency live on Engine Health below.
 
 | Panel                                     | Type       | Query                                                                                                                                |
 | ----------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -78,6 +78,33 @@ Datasources: Prometheus (`prometheus`), Loki (`loki`).
 | Concurrent games record                   | stat       | 30-day maximum of `manabrew_relay_rooms{status="in_game"}`                                                                           |
 | Connected humans record                   | stat       | 30-day maximum of `manabrew_relay_connections{kind="human"}`                                                                         |
 | Open rooms record                         | stat       | 30-day maximum of all lobby and in-game relay rooms                                                                                  |
+
+### Engine Health (`engine-health.json`)
+
+Everything about how fast an engine answers, in one place. The hosted half was the `#684` watch section of Live Ops and moved here whole. Datasources: Prometheus (`prometheus`), Loki (`loki`), SQLite (`events-sqlite`).
+
+| Panel                                      | Type       | Query                                                                                                             |
+| ------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| Engine stopped (fraction of wall clock)    | timeseries | `rate(manabrew_node_engine_stall_millis_total[5m])` beside `rate(manabrew_node_engine_gc_pause_millis_total[5m])` |
+| Engine heap used vs ceiling                | timeseries | `manabrew_node_engine_heap_used_bytes / manabrew_node_engine_heap_max_bytes`                                      |
+| Decision stages p99                        | timeseries | `manabrew_node_forge_decision_stage_seconds{quantile="0.99"}` by `stage`                                          |
+| Engine decision p99 by room shape          | timeseries | `histogram_quantile(0.99, …manabrew_node_forge_decision_seconds_bucket…)` by `seats`                              |
+| Slow decisions per 5m                      | timeseries | bucket counts over 1s and 2s, which a quantile cannot show                                                        |
+| Slow decisions (10s or more), with game id | logs       | Loki `{service="self-hosted-node"}` filtered on `slow engine decision`                                            |
+| Relay state handling p99 by seats          | timeseries | `histogram_quantile(…manabrew_relay_state_handling_seconds_bucket…)`                                              |
+| Outbound socket write and backlog          | timeseries | `manabrew_relay_socket_write_seconds_bucket`, `manabrew_relay_outbound_backlog_bucket`                            |
+| Player round trip (heartbeat echo)         | timeseries | `manabrew_relay_client_rtt_ms`                                                                                    |
+| Games measured                             | stat       | `engine_stats` rows in range                                                                                      |
+| Reporting engines                          | stat       | distinct `engine_stats.engine`                                                                                    |
+| forge-wasm / forge-hosted / manabrew p50   | stat       | median across games of `turnaround_p50` for that engine                                                           |
+| Last report age                            | stat       | seconds since the newest `engine_stats.ts`                                                                        |
+| Turnaround p50 / p90 by engine             | timeseries | daily median across games of each game's own percentile                                                           |
+| Engines compared                           | table      | games, decisions, median p50/p90 and worst decision per engine and platform                                       |
+| Games reported per day by engine           | timeseries | `engine_stats` count by day and engine, which is also browser-engine adoption                                     |
+| forge-wasm think time against turnaround   | timeseries | `engine_p50` against `turnaround_p50`; only the browser build reports its own think time                          |
+| Client versions reporting                  | table      | `client_version`, `platform`, `engine`, games, average duration                                                   |
+
+Turnaround is measured on the client: the answer leaving to the next prompt landing. It includes the network for a hosted engine and nothing but the engine for a local one, which is what makes the engines comparable at all. Per-game percentiles are aggregated as medians across games, never as an average of averages. A game reports once, when it ends, and only if it had at least five decisions in it.
 
 ### Analytics Explorer (`product.json`)
 
@@ -164,26 +191,27 @@ variable at a directory instead to write rotating files, for a node that is not 
 
 `scripts/ingest-events.py` tails the relay's analytics JSONL (`MANABREW_EVENTS_DIR`) into SQLite; Grafana reads it via the `events-sqlite` datasource. The same process opens `hub.db` query-only when `--hub-db` is configured and materializes sanitized analytics into `events.db`. Grafana never mounts or queries `hub.db`.
 
-| Table                   | Columns                                                                                                                                                                      |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `games`                 | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner` |
-| `game_players`          | `game_id`, `username`, `is_bot`, `deck_name`, `commander`, `published_deck_id`, `deck_fingerprint`                                                                           |
-| `decks`                 | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                |
-| `deck_cards`            | `deck_id`, `name`, `set_code`, `count`                                                                                                                                       |
-| `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                         |
-| `client_connections`    | `id`, `ts`, `username`, classified `platform`, reconnect flag                                                                                                                |
-| `ingest_state`          | `file`, `byte_offset`                                                                                                                                                        |
-| `hub_sync_state`        | latest successful export time, Hub schema version, export duration                                                                                                           |
-| `hub_metric_snapshots`  | hourly aggregate Hub metrics with a non-identifying dimension                                                                                                                |
-| `hub_daily_metrics`     | recomputed daily account, identity, deck, publication, favorite, and play-evidence aggregates                                                                                |
-| `hub_collection_cards`  | current card ownership totals; cards with fewer than two collectors are omitted                                                                                              |
-| `hub_public_deck_cards` | current aggregate card inclusion across published deck versions                                                                                                              |
+| Table                   | Columns                                                                                                                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `games`                 | `game_id`, `room_id`, `started_at`, `ended_at`, `duration_s`, `format`, `engine`, `hosted`, `official`, `starting_life`, `player_count`, `end_reason`, `game_over`, `winner`                                                 |
+| `game_players`          | `game_id`, `username`, `is_bot`, `deck_name`, `commander`, `published_deck_id`, `deck_fingerprint`                                                                                                                           |
+| `decks`                 | `deck_id`, `ts`, `room_id`, `username`, `is_bot`, `deck_name`, `commander`, `sideboard_count`                                                                                                                                |
+| `deck_cards`            | `deck_id`, `name`, `set_code`, `count`                                                                                                                                                                                       |
+| `events`                | `id`, `ts`, `event`, `room_id`, `payload` (raw JSON)                                                                                                                                                                         |
+| `engine_stats`          | `report_id`, `ts`, `source` (`relay` or `hub`), `game_id`, `engine`, `client_version`, `platform`, `format`, `seats`, `multiplayer`, `duration_s`, `end_reason`, `decisions`, `turnaround_p50/p90/max`, `engine_p50/p90/max` |
+| `client_connections`    | `id`, `ts`, `username`, classified `platform`, reconnect flag                                                                                                                                                                |
+| `ingest_state`          | `file`, `byte_offset`                                                                                                                                                                                                        |
+| `hub_sync_state`        | latest successful export time, Hub schema version, export duration                                                                                                                                                           |
+| `hub_metric_snapshots`  | hourly aggregate Hub metrics with a non-identifying dimension                                                                                                                                                                |
+| `hub_daily_metrics`     | recomputed daily account, identity, deck, publication, favorite, and play-evidence aggregates                                                                                                                                |
+| `hub_collection_cards`  | current card ownership totals; cards with fewer than two collectors are omitted                                                                                                                                              |
+| `hub_public_deck_cards` | current aggregate card inclusion across published deck versions                                                                                                                                                              |
 
-The Hub export covers row counts for `schema_version`, `accounts`, `identities`, `sessions`, `login_tokens`, `oauth_states`, `auth_codes`, `decks`, `deck_versions`, `deck_cards`, `deckhub_entries`, `deckhub_tags`, `deckhub_entry_tags`, `deckhub_favorites`, `top_deck_buckets`, `top_deck_snapshots`, `deck_play_reports`, `card_collection`, `card_collection_versions`, and `data_migrations`. It additionally exports only the aggregates needed for product analysis.
+The Hub export covers row counts for `schema_version`, `accounts`, `identities`, `sessions`, `login_tokens`, `oauth_states`, `auth_codes`, `decks`, `deck_versions`, `deck_cards`, `deckhub_entries`, `deckhub_tags`, `deckhub_entry_tags`, `deckhub_favorites`, `top_deck_buckets`, `top_deck_snapshots`, `deck_play_reports`, `engine_play_stats`, `card_collection`, `card_collection_versions`, and `data_migrations`. It additionally exports only the aggregates needed for product analysis.
 
 The Hub analytics boundary excludes emails, usernames, account IDs, provider user IDs, session/token/code/state hashes, IP addresses, private deck snapshots, raw per-account collections, and Hub game/player keys. Collection-card rankings suppress cards held by fewer than two accounts, and collection-size distributions export only aggregate buckets. Collection history starts when the exporter is deployed because the source schema stores only current collection state and a version counter. Daily source-derived aggregates are rebuilt on every refresh so late data and corrections converge.
 
-Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored.
+Source events (`manabrew-server/src/analytics/event.rs`, snake_case `event` tag): `client_connected`, `game_started`, `game_ended`, `deck_selected`, `seat_joined`, `seat_left`, `engine_stats`. Clients classify themselves as `web`, `pwa`, `desktop`, or `mobile` during relay authentication; older clients appear as `unknown`. Raw user-agent strings are never sent or stored.
 
 Migrations 7 and 8 establish the Hub evidence schema, migration 9 adds the expanded Top Deck categories, and migration 10 tracks the latest refresh even when a category is empty. The first Hub startup after migration 8 performs a one-time import of eligible publication-linked analytics rows into `hub.db.deck_play_reports`. Top Decks has no live analytics-database dependency after that import. New managed-relay starts and outcomes use a dedicated Deck Play evidence channel and write directly to the Hub through `/internal/deckhub/relay-games`; offline and hosted-AI clients use the public play-report endpoint. Hosted Relay rooms are excluded from the dedicated channel to avoid counting the same human play twice, and bot seats never contribute. Ranking refreshes read Hub evidence, favorites, publication dates, and snapshot tables. Stored relay game/player keys are hashed, and no username or card list is retained in the Hub.
 

@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { fetchMe, requestAccessToken, signOutSession, AuthRequestError } from "@/api/auth";
-import { clearIdentityToken } from "@/lib/relayIdentity";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { AuthAccount, AuthIdentity, AuthSessionResponse } from "@/api/authTypes";
 
@@ -73,7 +72,6 @@ export const useAuthStore = create<AuthState>()(
         status: "unknown",
         signIn: (session) => {
           refreshRequestId += 1;
-          clearIdentityToken();
           dropAccessToken();
           holdAccessToken(session.access_token, session.expires_in);
           set({
@@ -86,7 +84,6 @@ export const useAuthStore = create<AuthState>()(
         },
         setAccount: (account) => {
           refreshRequestId += 1;
-          clearIdentityToken();
           set({ account });
           void get().refresh();
         },
@@ -122,7 +119,6 @@ export const useAuthStore = create<AuthState>()(
         signOut: async () => {
           const refreshToken = get().refreshToken;
           refreshRequestId += 1;
-          clearIdentityToken();
           dropAccessToken();
           set({ refreshToken: null, account: null, identities: [], status: "signedOut" });
           if (refreshToken) {
@@ -132,7 +128,7 @@ export const useAuthStore = create<AuthState>()(
       }),
       {
         name: "manabrew-auth-storage",
-        version: 1,
+        version: 2,
         // The refresh token persists in localStorage on purpose: staying signed
         // in across reloads is the product behavior, and any XSS that could
         // read it could call the API directly anyway. It is presented only to
@@ -140,13 +136,23 @@ export const useAuthStore = create<AuthState>()(
         // sha256. Access tokens stay in memory and last ten minutes.
         partialize: (state) => ({
           refreshToken: state.refreshToken,
+          account: state.account,
         }),
         migrate: (persisted, version) => {
           if (version === 0 && persisted && typeof persisted === "object") {
             const legacy = (persisted as { token?: string | null }).token ?? null;
-            return { refreshToken: legacy };
+            return { refreshToken: legacy, account: null };
           }
-          return persisted as { refreshToken: string | null };
+          if (version === 1 && persisted && typeof persisted === "object") {
+            const { refreshToken } = persisted as { refreshToken: string | null };
+            return { refreshToken, account: null };
+          }
+          return persisted as { refreshToken: string | null; account: AuthAccount | null };
+        },
+        onRehydrateStorage: () => (state) => {
+          if (state?.refreshToken && isFeatureEnabled("accounts")) {
+            useAuthStore.setState({ status: "signedIn" });
+          }
         },
       },
     ),

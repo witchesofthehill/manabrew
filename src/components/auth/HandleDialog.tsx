@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateHandle, AuthRequestError } from "@/api/auth";
 import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
+import { resyncRelayIdentity } from "@/lib/resyncRelayIdentity";
 
 interface HandleDialogProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function HandleDialog({ open, onOpenChange }: HandleDialogProps) {
       setAccount(updated);
       toast.success(`Handle updated to @${updated.handle}`);
       onOpenChange(false);
+      void resyncRelayIdentity();
     } catch (err) {
       if (err instanceof AuthRequestError && err.status === 409) {
         setError("That handle is already taken");

@@ -63,6 +63,7 @@ export const GAME_FORMAT_TO_ARCHIDEKT: Record<string, number> = {
   vintage: 5,
   pauper: 6,
   pioneer: 12,
+  premodern: 21,
 };
 
 export const ARCHIDEKT_PAGE_SIZE = 25;

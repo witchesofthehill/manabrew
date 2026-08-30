@@ -25,6 +25,11 @@
       "title": "Decks & Collections",
       "type": "link",
       "url": "/d/manabrew-decks-collections"
+    },
+    {
+      "title": "Engine Health",
+      "type": "link",
+      "url": "/d/manabrew-engine-health"
     }
   ],
   "panels": [

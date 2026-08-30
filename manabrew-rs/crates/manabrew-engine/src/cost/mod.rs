@@ -56,7 +56,7 @@ use forge_foundation::{ManaCost, ZoneType};
 use serde::{Deserialize, Serialize};
 
 use crate::ability::effects::matches_change_type;
-use crate::card::{Card, CounterType};
+use crate::card::CounterType;
 use crate::game::GameState;
 use crate::ids::{CardId, PlayerId};
 use crate::mana::ManaPool;
@@ -878,10 +878,9 @@ pub fn get_sacrifice_targets_for_cost(
     type_filter: &str,
     ability: Option<&SpellAbility>,
 ) -> Vec<CardId> {
-    let static_sources = static_ability_source_cards(game);
     get_sacrifice_targets(game, player, type_filter)
         .into_iter()
-        .filter(|&cid| !cant_sacrifice(&static_sources, game.card(cid), ability, true))
+        .filter(|&cid| !cant_sacrifice(&game.cards, game.card(cid), ability, true))
         .collect()
 }
 
@@ -1404,30 +1403,6 @@ fn can_pay_part_distributed(
             cost_exile_ctrl_or_grave::can_pay(game, source, player, ability, part)
         }
     }
-}
-pub fn static_ability_source_cards(game: &GameState) -> Vec<Card> {
-    use std::collections::HashSet;
-
-    let mut ids: HashSet<CardId> = HashSet::new();
-    for p in &game.players {
-        for &zone in &[
-            ZoneType::Battlefield,
-            ZoneType::Graveyard,
-            ZoneType::Exile,
-            ZoneType::Command,
-        ] {
-            for &cid in game.cards_in_zone(zone, p.id) {
-                ids.insert(cid);
-            }
-        }
-    }
-    for entry in game.stack.iter() {
-        if let Some(cid) = entry.spell_ability.source {
-            ids.insert(cid);
-        }
-    }
-
-    ids.into_iter().map(|cid| game.card(cid).clone()).collect()
 }
 
 pub(crate) fn shares_creature_type(game: &GameState, a: CardId, b: CardId) -> bool {

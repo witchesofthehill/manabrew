@@ -28,7 +28,7 @@ import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asDeckCard } from "@/lib/decks";
 import { isFacelessCard } from "@/lib/gameCard";
 import { fetchImageElement } from "@/api/scryfall";
-import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
+import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
 import { gsap } from "./effects/gsap";
@@ -589,6 +589,10 @@ export class CardSprite extends Container {
   }
 
   private deckCard() {
+    if (this.card.id === DEBUG_KEYWORD_CARD_ID) {
+      const definition = useGameDevStore.getState().debugCardDefinition;
+      if (definition) return definition;
+    }
     return asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
   }
 
@@ -650,8 +654,7 @@ export class CardSprite extends Container {
 
   private async loadImage(): Promise<void> {
     const generation = ++this.loadGeneration;
-    const deck = useGameStore.getState().gameDecks[this.card.ownerId];
-    const deckCard = asDeckCard(deck, this.card);
+    const deckCard = this.deckCard();
     const custom = this.isBattlefield && activeStyle !== "realistic";
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     let tex: Texture;

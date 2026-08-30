@@ -28,6 +28,20 @@ pub struct AssetCapabilities {
     pub max_playmat_bytes: u64,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub enum Capability {
+    Assets,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "hubTypes.ts")]
+pub struct MissingCapabilityError {
+    pub capability: Capability,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "hubTypes.ts")]

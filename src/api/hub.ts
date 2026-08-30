@@ -5,6 +5,7 @@ import { getAccessToken, useAuthStore } from "@/stores/useAuthStore";
 import type {
   AccountDeckDetail,
   AccountDeckList,
+  Capability,
   CardCollection,
   CreateAccountDeckRequest,
   DeckHubEntryDetail,
@@ -51,10 +52,21 @@ export interface DeckHubEntryListParams {
 
 export class HubRequestError extends Error {
   status: number;
+  capability: Capability | null;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, capability: Capability | null = null) {
     super(message);
     this.status = status;
+    this.capability = capability;
+  }
+}
+
+function missingCapabilityFromBody(body: string): Capability | null {
+  try {
+    const parsed = JSON.parse(body) as { capability?: Capability };
+    return parsed.capability ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -91,6 +103,16 @@ export async function hubRequest(path: string, init?: RequestInit): Promise<Resp
         response.status,
         message || "This deck changed on another device. Reload it and try again.",
       );
+    }
+    if (response.status === 501) {
+      const capability = missingCapabilityFromBody(message);
+      if (capability) {
+        throw new HubRequestError(
+          response.status,
+          "Image uploads aren't enabled in this deployment.",
+          capability,
+        );
+      }
     }
     throw new HubRequestError(
       response.status,

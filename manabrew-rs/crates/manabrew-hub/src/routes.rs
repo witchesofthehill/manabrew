@@ -2,20 +2,21 @@ use std::collections::BTreeSet;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, Request, State};
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use chrono::{SecondsFormat, Utc};
 use manabrew_hub::dto::{
     AccountAsset, AccountAssetList, AccountDeckList, AdminTopDeckSnapshotRequest,
-    AssetCapabilities, AssetQuota, AssetUpload, CardCollection, CardCollectionEntry,
+    AssetCapabilities, AssetQuota, AssetUpload, Capability, CardCollection, CardCollectionEntry,
     CreateAccountDeckRequest, CreateAssetUploadRequest, DeckHubEntryList, DeckPlayReportRequest,
-    EnginePlayStats, HubCapabilities, PublishDeckHubEntryRequest, SaveDeckVersionRequest,
-    SetAccountAvatarRequest, UpdateDeckHubEntryRequest, VerifyCardPrintingsRequest,
-    VerifyCardPrintingsResponse, MAX_AVATAR_BYTES, MAX_PLAYMAT_BYTES,
+    EnginePlayStats, HubCapabilities, MissingCapabilityError, PublishDeckHubEntryRequest,
+    SaveDeckVersionRequest, SetAccountAvatarRequest, UpdateDeckHubEntryRequest,
+    VerifyCardPrintingsRequest, VerifyCardPrintingsResponse, MAX_AVATAR_BYTES, MAX_PLAYMAT_BYTES,
 };
 use rand::RngCore;
 use serde::Deserialize;
@@ -94,6 +95,16 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             Method::PATCH,
         ])
         .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
+    let asset_routes = Router::new()
+        .route(
+            "/",
+            get(account_assets_handler).post(create_asset_upload_handler),
+        )
+        .route("/:id", delete(delete_asset_handler))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_assets_capability,
+        ));
     Router::new()
         .route("/health", get(health_handler))
         .route("/api/hub/capabilities", get(capabilities_handler))
@@ -126,11 +137,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/api/decks/:id/versions/:version_no",
             get(deck_version_handler),
         )
-        .route(
-            "/api/assets",
-            get(account_assets_handler).post(create_asset_upload_handler),
-        )
-        .route("/api/assets/:id", delete(delete_asset_handler))
+        .nest("/api/assets", asset_routes)
         .route("/api/presets/:preset_key/fork", post(fork_preset_handler))
         .route(
             "/api/deckhub/entries",
@@ -191,6 +198,26 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(cors)
         .with_state(state)
+}
+
+async fn require_assets_capability(
+    State(state): State<Arc<AppState>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if state.assets.is_some() {
+        next.run(request).await
+    } else {
+        missing_capability(Capability::Assets)
+    }
+}
+
+fn missing_capability(capability: Capability) -> Response {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(MissingCapabilityError { capability }),
+    )
+        .into_response()
 }
 
 async fn verify_card_printings_handler(
@@ -303,7 +330,7 @@ async fn create_asset_upload_handler(
     Json(request): Json<CreateAssetUploadRequest>,
 ) -> Response {
     let Some(assets) = state.assets.as_ref() else {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        return missing_capability(Capability::Assets);
     };
     if request.byte_size == 0 || request.byte_size > request.kind.max_bytes() {
         return StatusCode::PAYLOAD_TOO_LARGE.into_response();
@@ -380,7 +407,7 @@ async fn account_assets_handler(
     auth::SessionAccount(account): auth::SessionAccount,
 ) -> Response {
     let Some(assets) = state.assets.as_ref() else {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        return missing_capability(Capability::Assets);
     };
     match state
         .storage
@@ -420,7 +447,7 @@ async fn delete_asset_handler(
     auth::SessionAccount(account): auth::SessionAccount,
 ) -> Response {
     let Some(assets) = state.assets.as_ref() else {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        return missing_capability(Capability::Assets);
     };
     let kind = state
         .storage
@@ -452,7 +479,7 @@ async fn set_account_avatar_handler(
     Json(request): Json<SetAccountAvatarRequest>,
 ) -> Response {
     if state.assets.is_none() {
-        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+        return missing_capability(Capability::Assets);
     }
     match state
         .storage

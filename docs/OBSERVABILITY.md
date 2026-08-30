@@ -103,8 +103,14 @@ Everything about how fast an engine answers, in one place. The hosted half was t
 | Games reported per day by engine           | timeseries | `engine_stats` count by day and engine, which is also browser-engine adoption                                     |
 | forge-wasm think time against turnaround   | timeseries | `engine_p50` against `turnaround_p50`; only the browser build reports its own think time                          |
 | Client versions reporting                  | table      | `client_version`, `platform`, `engine`, games, average duration                                                   |
+| Games with a player, and how many reported | timeseries | `games` with a human seat against those with an `engine_stats` row, per day                                       |
+| Engine reports at the relay, by outcome    | timeseries | `sum by (outcome) (increase(manabrew_relay_engine_reports_total[1h]))`                                            |
 
 Turnaround is measured on the client: the answer leaving to the next prompt landing. It includes the network for a hosted engine and nothing but the engine for a local one, which is what makes the engines comparable at all. Per-game percentiles are aggregated as medians across games, never as an average of averages. A game reports once, when it ends, and only if it had at least five decisions in it.
+
+`engine` names what ran, not what the room asked for: `forge-hosted` (a self-hosted node), `forge-desktop` (the desktop build hosting its own room), `forge-wasm` (the browser build), `manabrew`, `ironsmith`. The label is fixed when the game starts, because a hosted game is driven through the Manabrew runtime like any other and cannot be recognised afterwards.
+
+The last two panels are the ones to read before believing any of the others. A report that is never sent, or that arrives after the seat is gone, leaves no row anywhere: the engine panels above simply undercount, silently and without a gap in the series.
 
 ### Analytics Explorer (`product.json`)
 
@@ -156,6 +162,7 @@ Defined in `manabrew-rs/crates/manabrew-server/src/metrics.rs`, served on the he
 | `manabrew_relay_players`                        | gauge   | `kind`, `status`                |
 | `manabrew_relay_rooms`                          | gauge   | `status`, `hosted`              |
 | `manabrew_relay_games_started_total`            | counter | `engine`                        |
+| `manabrew_relay_engine_reports_total`           | counter | `outcome`                       |
 | `manabrew_relay_games_ended_total`              | counter | `reason`                        |
 | `manabrew_relay_client_rejections_total`        | counter | `reason` (e.g. `outdated_wire`) |
 | `manabrew_relay_reconnect_resyncs_total`        | counter | —                               |

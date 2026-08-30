@@ -3,6 +3,7 @@
  *
  */
 
+import type { EngineGameStats } from "@/lib/engineTelemetry";
 import { invoke } from "@tauri-apps/api/core";
 import { WebPlatform } from "./web";
 
@@ -96,6 +97,10 @@ class TauriServerApi implements IServerApi {
   startGame(params?: StartServerGameParams): Promise<void> {
     return this.inner.startGame(params);
   }
+  reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    return this.inner.reportEngineStats(stats, gameId);
+  }
+
   endGame(gameId: string): Promise<void> {
     return this.inner.endGame(gameId);
   }

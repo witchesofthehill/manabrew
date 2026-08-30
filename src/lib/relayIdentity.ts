@@ -1,6 +1,12 @@
 import { requestAccessToken, requestGuestToken } from "@/api/auth";
 import { isFeatureEnabled } from "@/featureFlags";
-import { mintUnsignedIdentityToken, tokenHandle } from "@/lib/identityToken";
+import {
+  GUEST_SUBJECT_PREFIX,
+  HUB_ISSUER,
+  mintUnsignedIdentityToken,
+  tokenClaims,
+  tokenHandle,
+} from "@/lib/identityToken";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const RELAY_AUDIENCE = "manabrew-relay";
@@ -16,8 +22,16 @@ export interface RelayIdentityProof {
   device?: string;
 }
 
-let cachedToken: { value: string; expiresAt: number } | null = null;
-let cachedGuestToken: { name: string; value: string; expiresAt: number } | null = null;
+export interface RelayIdentity {
+  proof: RelayIdentityProof;
+  username: string;
+}
+
+export class IdentityMintError extends Error {
+  constructor() {
+    super("account token mint failed; refusing to reconnect with a downgraded identity");
+  }
+}
 
 function encodeSecret(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
@@ -38,29 +52,16 @@ export function deviceSecret(): string | undefined {
   }
 }
 
-export function clearIdentityToken(): void {
-  cachedToken = null;
-  cachedGuestToken = null;
-}
-
 async function identityToken(): Promise<string | undefined> {
   if (!isFeatureEnabled("accounts")) return undefined;
   const refreshToken = useAuthStore.getState().refreshToken;
   if (!refreshToken) return undefined;
-  if (cachedToken && cachedToken.expiresAt - TOKEN_EXPIRY_MARGIN_MS > Date.now()) {
-    return cachedToken.value;
-  }
   try {
     const minted = await Promise.race([
       requestAccessToken(refreshToken, RELAY_AUDIENCE),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), TOKEN_FETCH_TIMEOUT_MS)),
     ]);
-    if (!minted) return undefined;
-    cachedToken = {
-      value: minted.access_token,
-      expiresAt: Date.now() + minted.expires_in * 1000,
-    };
-    return minted.access_token;
+    return minted?.access_token;
   } catch {
     return undefined;
   }
@@ -70,36 +71,29 @@ async function guestToken(name: string): Promise<string | undefined> {
   if (!isFeatureEnabled("accounts")) return undefined;
   const device = deviceSecret();
   if (!device) return undefined;
-  if (
-    cachedGuestToken &&
-    cachedGuestToken.name === name &&
-    cachedGuestToken.expiresAt - TOKEN_EXPIRY_MARGIN_MS > Date.now()
-  ) {
-    return cachedGuestToken.value;
-  }
   try {
     const minted = await Promise.race([
       requestGuestToken(name, device),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), TOKEN_FETCH_TIMEOUT_MS)),
     ]);
-    if (!minted) return undefined;
-    cachedGuestToken = {
-      name,
-      value: minted.access_token,
-      expiresAt: Date.now() + minted.expires_in * 1000,
-    };
-    return minted.access_token;
+    return minted?.access_token;
   } catch {
     return undefined;
   }
 }
 
-export interface RelayIdentity {
-  proof: RelayIdentityProof;
-  username: string;
+function tokenClass(token: string): "account" | "guest" | "unsigned" {
+  const claims = tokenClaims(token);
+  if (!claims || claims.iss !== HUB_ISSUER) return "unsigned";
+  return claims.sub.startsWith(GUEST_SUBJECT_PREFIX) ? "guest" : "account";
 }
 
-export async function relayIdentity(requestedName: string): Promise<RelayIdentity> {
+function tokenCurrent(token: string): boolean {
+  const claims = tokenClaims(token);
+  return claims != null && claims.exp * 1000 - TOKEN_EXPIRY_MARGIN_MS > Date.now();
+}
+
+async function freshIdentity(requestedName: string): Promise<RelayIdentity> {
   const account = await identityToken();
   const signedIn = useAuthStore.getState().status === "signedIn";
   const token =
@@ -110,4 +104,41 @@ export async function relayIdentity(requestedName: string): Promise<RelayIdentit
     proof: { token, device: deviceSecret() },
     username: tokenHandle(token) ?? requestedName,
   };
+}
+
+async function renewedIdentity(previous: RelayIdentity, token: string): Promise<RelayIdentity> {
+  const handle = tokenHandle(token) ?? previous.username;
+  switch (tokenClass(token)) {
+    case "account": {
+      const minted = await identityToken();
+      if (!minted) throw new IdentityMintError();
+      return {
+        proof: { token: minted, device: previous.proof.device },
+        username: tokenHandle(minted) ?? handle,
+      };
+    }
+    case "guest": {
+      const minted = (await guestToken(handle)) ?? mintUnsignedIdentityToken("self", handle);
+      return {
+        proof: { token: minted, device: previous.proof.device },
+        username: tokenHandle(minted) ?? handle,
+      };
+    }
+    case "unsigned":
+      return {
+        proof: { token: mintUnsignedIdentityToken("self", handle), device: previous.proof.device },
+        username: handle,
+      };
+  }
+}
+
+export async function resolveRelayIdentity(
+  previous: RelayIdentity | null,
+  requestedName: string,
+  forceRemint = false,
+): Promise<RelayIdentity> {
+  const token = previous?.proof.token;
+  if (!previous || !token) return freshIdentity(requestedName);
+  if (!forceRemint && tokenCurrent(token)) return previous;
+  return renewedIdentity(previous, token);
 }

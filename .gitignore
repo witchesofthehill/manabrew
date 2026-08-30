@@ -83,6 +83,9 @@ forge-harness/target/
 forge-harness/native/build/
 forge-harness/native/classes/
 forge-harness/native/gen-config/
+forge-harness/native/wasm/
+forge-harness/native/wasm-classes/
+forge-harness/native/gen-config-wasm/
 .mvn/
 
 
@@ -116,3 +119,5 @@ src-tauri/gen/apple/assets/
 # Python bytecode from the latency scripts
 __pycache__/
 *.pyc
+public/forge/forgeharness.js
+public/forge/forgeharness.js.wasm

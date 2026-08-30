@@ -168,7 +168,7 @@ impl BoosterDraft {
         self.next_pack_id = snap.next_pack_id;
         self.pool = snap.pool;
         self.rng = snap.rng;
-        for (seat, snap) in self.seats.iter_mut().zip(snap.seats.into_iter()) {
+        for (seat, snap) in self.seats.iter_mut().zip(snap.seats) {
             seat.picked = snap.picked;
             seat.last_pick = snap.last_pick;
             seat.pack_queue = snap.pack_queue;

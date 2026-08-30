@@ -1,3 +1,4 @@
+import { notePromptArrived } from "@/lib/engineTelemetry";
 import type {
   GameState,
   DeferredSnapshot,
@@ -162,5 +163,6 @@ export function applyPrompt(
   if (isPromptLoggingEnabled()) {
     console.log(`[prompt:${source}] ${prompt.input.type}`, JSON.stringify(prompt, null, 2));
   }
+  notePromptArrived(prompt.input.type);
   route({ displayEvents: [], gameView: null, prompt }, `${source}: ${prompt.input.type}`, set, get);
 }

@@ -1,9 +1,12 @@
-import { cn } from "@/lib/utils";
 import {
   hasActiveCardOverride,
   useGameDevStore,
   type DevCardOverrides,
 } from "@/stores/useGameDevStore";
+
+import { DevCounterControl } from "./DevCounterControl";
+import { DevToggleButton } from "./DevToggleButton";
+import { DEV_SECTION, DEV_SECTION_HEADING } from "./devPanel.styles";
 
 type BoolKey = {
   [K in keyof DevCardOverrides]: DevCardOverrides[K] extends boolean ? K : never;
@@ -67,36 +70,40 @@ export function CardBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.cardOverrides);
   const setOverride = useGameDevStore((s) => s.setCardOverride);
   const reset = useGameDevStore((s) => s.resetCardOverrides);
-  const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
-
   const dirty = hasActiveCardOverride(overrides);
 
   const toggleBool = (key: BoolKey) => setOverride(key, !overrides[key]);
   const bumpNum = (key: NumKey, delta: number) => {
     const curr = overrides[key] ?? 0;
-    const next = Math.max(0, curr + delta);
-    setOverride(key, next);
+    setOverride(key, Math.max(0, curr + delta));
   };
 
   return (
-    <div className="flex flex-col gap-2 mt-2 rounded-md border border-border/70 p-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Card badges (battlefield)
-        </span>
-        {dirty && (
+    <section className={DEV_SECTION}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className={DEV_SECTION_HEADING}>Card appearance</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Force states and counters on the staged card.
+          </p>
+        </div>
+        {dirty ? (
           <button
-            className="text-[10px] uppercase text-muted-foreground hover:text-destructive"
+            type="button"
+            className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground hover:text-destructive"
             onClick={reset}
           >
-            Reset
+            Reset card
           </button>
-        )}
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-1.5">
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        States
+      </p>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
         {STATUS_ROWS.map((row) => (
-          <ToggleButton
+          <DevToggleButton
             key={row.key}
             label={row.label}
             active={overrides[row.key]}
@@ -105,90 +112,20 @@ export function CardBadgeDevControls() {
         ))}
       </div>
 
-      {COUNTER_ROWS.map((row) => (
-        <BadgeCounter
-          key={row.key}
-          label={row.label}
-          value={overrides[row.key]}
-          onChange={(v) => setOverride(row.key, v)}
-          onBump={(d) => bumpNum(row.key, d)}
-        />
-      ))}
-
-      <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-1">
-        <button
-          type="button"
-          className="px-2 py-1.5 rounded text-xs font-medium border border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-          onClick={triggerEtbGlow}
-          title="Re-fires the just-entered glow on every battlefield sprite"
-        >
-          Trigger ETB glow
-        </button>
+      <p className="mb-2 mt-4 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        Counters
+      </p>
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {COUNTER_ROWS.map((row) => (
+          <DevCounterControl
+            key={row.key}
+            label={row.label}
+            value={overrides[row.key]}
+            onClear={() => setOverride(row.key, null)}
+            onBump={(delta) => bumpNum(row.key, delta)}
+          />
+        ))}
       </div>
-    </div>
-  );
-}
-
-function ToggleButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "px-2 py-1.5 rounded text-xs font-medium border transition-colors",
-        active
-          ? "border-primary text-primary bg-primary/10"
-          : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent/50",
-      )}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
-}
-
-function BadgeCounter({
-  label,
-  value,
-  onChange,
-  onBump,
-}: {
-  label: string;
-  value: number | null;
-  onChange: (value: number | null) => void;
-  onBump: (delta: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-medium w-16">{label}</span>
-      <button
-        className="px-1.5 py-0.5 rounded text-[10px] border border-border/70 hover:bg-accent/50"
-        onClick={() => onBump(-1)}
-      >
-        −
-      </button>
-      <span className="text-xs font-mono tabular-nums w-8 text-center">{value ?? "—"}</span>
-      <button
-        className="px-1.5 py-0.5 rounded text-[10px] border border-border/70 hover:bg-accent/50"
-        onClick={() => onBump(1)}
-      >
-        +
-      </button>
-      {value != null && (
-        <button
-          className="text-[10px] text-muted-foreground hover:text-destructive"
-          onClick={() => onChange(null)}
-        >
-          clear
-        </button>
-      )}
-    </div>
+    </section>
   );
 }

@@ -1,6 +1,7 @@
 import contextlib
 import importlib.util
 import io
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -89,6 +90,60 @@ class HubAnalyticsTest(unittest.TestCase):
         ).fetchone()
         self.assertEqual(accounts, (0.0,))
         self.assertIsNone(missing)
+
+    def test_engine_reports_arrive_from_both_routes_once(self):
+        hub = sqlite3.connect(self.hub_path)
+        hub.execute(
+            """INSERT INTO engine_play_stats
+               (id, reported_at, engine, client_version, platform, format, seats,
+                multiplayer, duration_s, end_reason, decisions, turnaround_p50,
+                turnaround_p90, turnaround_max, engine_p50, engine_p90,
+                engine_max, by_type)
+               VALUES ('offline-1', '2026-08-30T04:27:49Z', 'forge-wasm', '3.23.0',
+                       'web', 'standard', 2, 0, 252, 'gameOver', 91, 74, 279, 727,
+                       40, 90, 300, '[]')"""
+        )
+        hub.commit()
+        hub.close()
+
+        relayed = json.dumps(
+            {
+                "event": "engine_stats",
+                "ts": "2026-08-30T10:33:15.887Z",
+                "room_id": "room-1",
+                "username": "player",
+                "report_id": "relayed-1",
+                "game_id": "game-1",
+                "engine": "forge-hosted",
+                "client_version": "3.23.0",
+                "platform": "web",
+                "format": "commander",
+                "seats": 2,
+                "multiplayer": True,
+                "duration_s": 400,
+                "end_reason": "gameOver",
+                "decisions": 180,
+                "turnaround_p50": 46,
+                "turnaround_p90": 78,
+                "turnaround_max": 320,
+            }
+        )
+        for _ in range(2):
+            self.ingester.ingest_line(self.events, relayed)
+            self.assertTrue(
+                self.ingester.refresh_hub_analytics(self.events, self.hub_path)
+            )
+
+        rows = self.events.execute(
+            "SELECT report_id, source, engine, turnaround_p50 FROM engine_stats ORDER BY report_id"
+        ).fetchall()
+        self.assertEqual(
+            rows,
+            [
+                ("offline-1", "hub", "forge-wasm", 74),
+                ("relayed-1", "relay", "forge-hosted", 46),
+            ],
+        )
 
 
 if __name__ == "__main__":

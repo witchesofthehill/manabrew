@@ -1,5 +1,31 @@
 # Changelog
 
+## [3.24.1](https://github.com/witchesofthehill/manabrew/compare/v3.24.0...v3.24.1) (2026-08-30)
+
+## [3.24.0](https://github.com/witchesofthehill/manabrew/compare/v3.23.1...v3.24.0) (2026-08-30)
+
+### Features
+
+* **observability:** make engine telemetry flow, and chart it ([#785](https://github.com/witchesofthehill/manabrew/issues/785)) ([aedab52](https://github.com/witchesofthehill/manabrew/commit/aedab52dd16fdcb588eb95a724c122f1f754a5c7))
+
+## [3.23.1](https://github.com/witchesofthehill/manabrew/compare/v3.23.0...v3.23.1) (2026-08-30)
+
+### Fixes
+
+* app re-mints and downgrades token ([#751](https://github.com/witchesofthehill/manabrew/issues/751)) ([6ff0950](https://github.com/witchesofthehill/manabrew/commit/6ff0950510b43af7977fb76d988e3aad0d365649))
+
+## [3.23.0](https://github.com/witchesofthehill/manabrew/compare/v3.22.0...v3.23.0) (2026-08-29)
+
+### Features
+
+* **forge:** run Forge in the browser via GraalVM Web Image ([#759](https://github.com/witchesofthehill/manabrew/issues/759)) ([3c61382](https://github.com/witchesofthehill/manabrew/commit/3c613822870f30f5378f3b8cf03376c758b913f7))
+
+## [3.22.0](https://github.com/witchesofthehill/manabrew/compare/v3.21.10...v3.22.0) (2026-08-28)
+
+### Features
+
+* **ui:** expand battlefield dev lab ([#775](https://github.com/witchesofthehill/manabrew/issues/775)) ([0f8a9b4](https://github.com/witchesofthehill/manabrew/commit/0f8a9b407aad22663a776f1263e108126c52342e))
+
 ## [3.21.10](https://github.com/witchesofthehill/manabrew/compare/v3.21.9...v3.21.10) (2026-08-25)
 
 ## [3.21.9](https://github.com/witchesofthehill/manabrew/compare/v3.21.8...v3.21.9) (2026-08-25)

@@ -2206,7 +2206,7 @@ dependencies = [
 
 [[package]]
 name = "forge-carddb"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "deunicode",
  "forge-card-script",
@@ -2218,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "forge-cardset-archive"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "forge-card-script",
  "memmap2",
@@ -2236,7 +2236,7 @@ dependencies = [
 
 [[package]]
 name = "forge-limited"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "bitflags 2.11.0",
  "forge-foundation",
@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "manabot"
-version = "0.10.2"
+version = "0.10.4"
 dependencies = [
  "futures-util",
  "js-sys",
@@ -3804,7 +3804,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "3.21.10"
+version = "3.24.1"
 dependencies = [
  "forge-carddb",
  "forge-cardset-archive",
@@ -3832,7 +3832,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-agent-interface"
-version = "0.10.0"
+version = "0.10.2"
 dependencies = [
  "forge-foundation",
  "manabrew-engine",
@@ -3848,7 +3848,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-engine"
-version = "0.7.0"
+version = "0.7.2"
 dependencies = [
  "dyn-clone",
  "forge-card-script",
@@ -3877,7 +3877,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-hub"
-version = "0.10.1"
+version = "0.11.1"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -3903,7 +3903,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-protocol"
-version = "5.2.0"
+version = "5.3.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -3914,7 +3914,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-relay-protocol"
-version = "5.4.1"
+version = "5.5.1"
 dependencies = [
  "base64 0.22.1",
  "manabrew-protocol",
@@ -3925,7 +3925,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-server"
-version = "0.20.1"
+version = "0.22.1"
 dependencies = [
  "aws-lc-rs",
  "axum",
@@ -3952,7 +3952,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew_game_runtime"
-version = "0.3.29"
+version = "0.3.31"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -4965,7 +4965,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "0.4.1"
+version = "0.4.3"
 dependencies = [
  "axum",
  "chrono",
@@ -4992,7 +4992,7 @@ dependencies = [
 
 [[package]]
 name = "parity-debugger"
-version = "0.2.16"
+version = "0.2.18"
 dependencies = [
  "eframe",
  "egui",
@@ -6371,7 +6371,7 @@ dependencies = [
 
 [[package]]
 name = "self-hosted-node"
-version = "0.23.1"
+version = "0.24.1"
 dependencies = [
  "forge-carddb",
  "forge-foundation",
@@ -8466,7 +8466,7 @@ dependencies = [
 
 [[package]]
 name = "wasm"
-version = "0.6.10"
+version = "0.7.1"
 dependencies = [
  "console_error_panic_hook",
  "forge-carddb",

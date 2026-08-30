@@ -1,10 +1,12 @@
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { getPlatform } from "@/platform";
 import { isTauriForgeRoomAvailable } from "@/stores/useForgeRoomAvailabilityStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { EngineKind } from "@/types/server";
 
 export function resolveOfflineEngine(lastOfflineEngine?: EngineKind | null): EngineKind {
+  if (isForgeWasmSelected()) return "Forge";
   if (getPlatform().type === "tauri") {
     return isTauriForgeRoomAvailable() ? "Forge" : "Manabrew";
   }

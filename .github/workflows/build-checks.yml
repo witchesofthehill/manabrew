@@ -31,6 +31,7 @@ jobs:
       run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
       run_node_image: ${{ steps.scope.outputs.run_node_image }}
+      run_website: ${{ steps.scope.outputs.run_website }}
     steps:
       - name: Classify changed files
         id: scope
@@ -59,11 +60,7 @@ jobs:
               '.github/workflows/build-checks.yml',
             ];
 
-            // The node image assembles four stages nothing else exercises: the
-            // GraalVM base, native-image's own output, the glibc the harness is
-            // linked against, and which artefacts reach the runtime layer. Every
-            // one of those has produced an image that builds and then fails to
-            // run, so the only useful check is building it.
+            // Nothing else builds the node image before a release tag does.
             const NODE_IMAGE_PATHS = [
               'manabrew-rs/crates/self-hosted-node/Dockerfile',
               'forge-harness/build-native.sh',
@@ -83,6 +80,22 @@ jobs:
               'tree-sitter-forge-card-script/',
               'xtask/',
               'public/preset_decks/',
+              '.github/workflows/build-checks.yml',
+            ];
+
+            // The landing page + docs site. Nothing else in CI builds it: it is
+            // baked into the web image at release time (Dockerfile.web runs
+            // `yarn build` in website/ and copies dist/landing + dist/docs into
+            // /srv), so before this job a broken MDX page merged green and only
+            // surfaced on the next tag. The site's imports escape website/ —
+            // `../images`, `../public`, `../src` — which is why an asset move
+            // outside it can break the build and belongs in this list.
+            const WEBSITE_PATHS = [
+              'website/',
+              'images/',
+              'src/themes/',
+              'src/assets/manaBrew.png',
+              'public/manabrew_brewery_1.png',
               '.github/workflows/build-checks.yml',
             ];
 
@@ -107,7 +120,14 @@ jobs:
             ];
 
             if (context.eventName !== 'pull_request') {
-              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room', 'run_node_image']) {
+              for (const key of [
+                'run_checks',
+                'run_rust',
+                'run_native',
+                'run_forge_room',
+                'run_node_image',
+                'run_website',
+              ]) {
                 core.setOutput(key, 'true');
               }
               return;
@@ -125,6 +145,41 @@ jobs:
             core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
             core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
             core.setOutput('run_node_image', matches(files, NODE_IMAGE_PATHS) ? 'true' : 'false');
+            core.setOutput('run_website', matches(files, WEBSITE_PATHS) ? 'true' : 'false');
+
+  # ── Website: landing page + docs site ──────────────────────────────
+  # Deliberately NOT gated on `run_checks`. A website-only PR sets that to
+  # false, which is precisely the case where this is the only build that can
+  # fail — gating on it would leave the gap this job exists to close.
+  #
+  # Runs the same `yarn build` (both Astro configs) that Dockerfile.web's
+  # website stage runs, so a green job here means the next image build of the
+  # same tree succeeds.
+  website:
+    name: Website (landing + docs)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_website == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: website/yarn.lock
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Install dependencies
+        working-directory: website
+        run: yarn install --frozen-lockfile
+
+      - name: Build landing + docs
+        working-directory: website
+        run: yarn build
 
   # ── TypeScript type-check ──────────────────────────────────────────
   # Builds the wasm bundle (or restores it from cache) and uploads it as an
@@ -894,17 +949,9 @@ jobs:
         run: cargo xtask plan --github-summary
 
   # ── Node engine image ──────────────────────────────────────────────
-  # Assembles the published node image and starts it. Nothing else covers this:
-  # the PR checks build the harness with Community Edition straight from
-  # build-native.sh, and the Dockerfile itself is only ever built by
-  # docker-images.yml on a `v*` tag — after merge, on the way to production.
-  #
-  # It earns its runtime because the failures here are the kind that build
-  # green: a native-image codegen abort, JDK libraries emitted beside the
-  # harness and left out of the runtime layer, and a glibc mismatch between the
-  # GraalVM base and the Debian stages that fails `dlopen` rather than the link.
-  # `docker build` alone would catch only the first, so the container is started
-  # and has to reach a listening engine before this passes.
+  # Otherwise the Dockerfile is first built by the release that ships it.
+  # The harness is dlopened, so the container is started too: a missing JDK
+  # library or a glibc mismatch builds green and fails on start.
   node-image:
     name: Node engine image
     needs: changes
@@ -931,8 +978,18 @@ jobs:
           tags: manabrew-node:pr
           cache-from: type=registry,ref=ghcr.io/witchesofthehill/manabrew-node:buildcache
 
-      # A built image proves the link, not the load. The harness is dlopened, so
-      # a missing JDK library or a glibc mismatch only shows up on start.
+      # The engine reads card scripts lazily, so nothing in the log says the
+      # card database is there. Count the files in the runtime layer instead.
+      - name: Check the card database shipped
+        run: |
+          cards=$(docker run --rm --entrypoint find manabrew-node:pr \
+            /build/forge/forge-gui/res/cardsfolder -name '*.txt' | wc -l)
+          echo "card scripts in the image: $cards"
+          if [ "$cards" -lt 30000 ]; then
+            echo "expected ~33k card scripts, saw $cards"
+            exit 1
+          fi
+
       - name: Start it and wait for the engine
         run: |
           docker run -d --name node-smoke --memory 2g \
@@ -941,19 +998,7 @@ jobs:
             manabrew-node:pr
           for _ in $(seq 1 60); do
             if docker logs node-smoke 2>&1 | grep -q "shared graal isolate initialized"; then
-              # The isolate alone is not enough. The engine logs two "Read cards"
-              # lines and the small one is second, so a tail shows 838 and hides
-              # whether the card database loaded at all — which is the whole live
-              # set this image is sized around.
-              cards=$(docker logs node-smoke 2>&1 \
-                | sed -n 's/.*Read cards: \([0-9]*\) files.*/\1/p' \
-                | sort -rn | head -1)
-              echo "engine up, largest card read: ${cards:-none}"
-              if [ "${cards:-0}" -lt 30000 ]; then
-                echo "card database did not load: expected ~33k, saw ${cards:-none}"
-                docker logs node-smoke 2>&1 | tail -40
-                exit 1
-              fi
+              echo "engine up"
               exit 0
             fi
             if ! docker ps -q --filter name=node-smoke | grep -q .; then

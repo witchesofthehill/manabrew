@@ -5,6 +5,8 @@
  * The game engine runs in a Web Worker for non-blocking UI.
  */
 
+import type { EngineGameStats } from "@/lib/engineTelemetry";
+import { noteEngineThinkTime } from "@/lib/engineTelemetry";
 import type {
   IPlatformApi,
   IGameApi,
@@ -28,7 +30,11 @@ import type {
   SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
-import { DUPLICATE_USERNAME_ERROR_FRAGMENT, SERVER_ERROR_CODE } from "@/types/server";
+import {
+  DUPLICATE_USERNAME_ERROR_FRAGMENT,
+  SERVER_ERROR_CODE,
+  TOKEN_EXPIRED_ERROR_FRAGMENT,
+} from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
 import type {
@@ -40,11 +46,14 @@ import type {
 } from "@/protocol";
 import { APP_VERSION } from "@/lib/constants";
 import { logComms } from "@/lib/commsLog";
-import { relayIdentity } from "@/lib/relayIdentity";
+import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta } from "@/lib/stateDelta";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
+import { buildForgeAssetBundle } from "@/lib/forgeAssets";
+import type { Deck } from "@/protocol/deck";
 
 const DEBUG_TRANSPORT = false;
 
@@ -120,6 +129,20 @@ type RelayMessage = {
 /**
  * Bridge for communicating with the game engine worker.
  */
+const FORGE_ENGINE_COMMANDS = new Set([
+  "start_game",
+  "start_multiplayer_game",
+  "respond",
+  "end_game",
+  "get_prompt",
+  "get_game_view",
+  "restore_snapshot",
+  "wasm_init",
+  "ensure_card_data",
+  "ping",
+  "echo",
+]);
+
 class WorkerBridge {
   private worker: Worker | null = null;
   private pendingRequests = new Map<
@@ -130,6 +153,8 @@ class WorkerBridge {
   private initPromise: Promise<void> | null = null;
 
   gameBuffer: SharedArrayBuffer | null = null;
+  workerIsForgeWasm = false;
+  private fallbackWorker: Worker | null = null;
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
   private localAwaitingResponse = false;
@@ -145,7 +170,7 @@ class WorkerBridge {
       this.gameBuffer = payload.buffer;
       this.gameSignal = new Int32Array(this.gameBuffer, 0, 2);
       this.gameData = new Uint8Array(this.gameBuffer, 8);
-      console.log("[WorkerBridge] Received local SAB, starting prompt poll");
+      if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Received local SAB, starting prompt poll");
       this.pollForPrompts();
     });
 
@@ -161,9 +186,10 @@ class WorkerBridge {
         pendingDirective: null,
       };
       this.remoteSeats.set(payload.playerSlot, seat);
-      console.log(
-        `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
-      );
+      if (DEBUG_TRANSPORT)
+        console.log(
+          `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
+        );
       this.pollForRemotePromptsSeat(payload.playerSlot, seat);
     });
 
@@ -218,6 +244,13 @@ class WorkerBridge {
     error?: unknown;
   }): void {
     logComms("engine", msg);
+    if (isForgeWasmSelected()) {
+      const w = window as unknown as { __forgeFrames?: string[] };
+      w.__forgeFrames = w.__forgeFrames ?? [];
+      w.__forgeFrames.push(
+        `${msg?.kind}:${msg?.kind === "state" ? Object.keys((msg.state ?? {}) as object).join("|") : ""}`,
+      );
+    }
     switch (msg?.kind) {
       case "state":
         this.eventBus.emit("game:state", msg.state);
@@ -228,7 +261,19 @@ class WorkerBridge {
       case "error":
         this.eventBus.emit("game:error", msg.error);
         break;
-      case "prompt":
+      case "prompt": {
+        const w = window as unknown as {
+          __respondedAt?: number;
+          __promptTimings?: Array<{ ms: number; type?: string }>;
+        };
+        if (w.__respondedAt != null) {
+          w.__promptTimings = w.__promptTimings ?? [];
+          w.__promptTimings.push({
+            ms: performance.now() - w.__respondedAt,
+            type: (msg.prompt as { input?: { type?: string } })?.input?.type,
+          });
+          w.__respondedAt = undefined;
+        }
         this.localAwaitingResponse = true;
         if (this.localPendingDirective) {
           this.writeLocalMessage({
@@ -239,6 +284,7 @@ class WorkerBridge {
         }
         this.eventBus.emit("game:prompt", msg.prompt);
         break;
+      }
     }
   }
 
@@ -342,6 +388,7 @@ class WorkerBridge {
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
   writeResponse(action: PromptOutput, promptId: number): void {
+    (window as unknown as { __respondedAt?: number }).__respondedAt = performance.now();
     this.writeLocalMessage({ kind: "response", promptId, action });
   }
 
@@ -400,9 +447,47 @@ class WorkerBridge {
         // `worker:init { stage: 'ready' | 'error' }` when done — we wait
         // for that event instead of pinging, so init has no command-level
         // timeout to fight.
-        this.worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
-          type: "module",
-        });
+        this.workerIsForgeWasm = isForgeWasmSelected();
+        this.worker = this.workerIsForgeWasm
+          ? new Worker("/forge/forge-engine.worker.js")
+          : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
+              type: "module",
+            });
+
+        if (isForgeWasmSelected()) {
+          const w = window as unknown as { __forgeLog?: string[] };
+          w.__forgeLog = w.__forgeLog ?? [];
+          const dec = window as unknown as {
+            __engineDecisions?: Array<{ ms: number; type: string }>;
+          };
+          dec.__engineDecisions = dec.__engineDecisions ?? [];
+          this.eventBus.on<{ ms: number; type: string }>("forge:decision", (p) => {
+            if (!p) return;
+            dec.__engineDecisions?.push(p);
+            // The engine's own measure of itself, which no other engine
+            // reports: the interval from the answer landing to the next
+            // prompt being ready, with no client polling in it.
+            noteEngineThinkTime(p.ms);
+          });
+          // Forge prints Java stack traces a line at a time, which is hundreds
+          // of console entries for one message. Every line is kept for the
+          // tests; the console gets the message and a count of the frames
+          // under it.
+          let frames = 0;
+          this.eventBus.on<{ level?: string; text?: string }>("forge:log", (p) => {
+            const text = p?.text ?? "";
+            w.__forgeLog?.push(text);
+            if (/^\s*(at\s|@)/.test(text)) {
+              frames += 1;
+              return;
+            }
+            if (frames > 0) {
+              console.log(`[forge] … ${frames} stack frame${frames === 1 ? "" : "s"}`);
+              frames = 0;
+            }
+            console.log("[forge]", text);
+          });
+        }
 
         this.worker.onmessage = this.handleMessage.bind(this);
         this.worker.onerror = (e) => {
@@ -415,7 +500,7 @@ class WorkerBridge {
           (payload) => {
             if (payload?.stage === "ready") {
               unsubscribe();
-              console.log("[WorkerBridge] Worker reported ready");
+              if (DEBUG_TRANSPORT) console.log("[WorkerBridge] Worker reported ready");
               resolve();
             } else if (payload?.stage === "error") {
               unsubscribe();
@@ -447,15 +532,51 @@ class WorkerBridge {
     }
   }
 
+  private queryWorker(): Worker {
+    if (this.fallbackWorker) return this.fallbackWorker;
+    const worker = new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
+      type: "module",
+    });
+    worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      if (e.data?.type === "response") this.handleMessage(e);
+    };
+    this.fallbackWorker = worker;
+    return worker;
+  }
+
   /**
    * Invoke a command on the worker.
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+    if (this.worker && this.workerIsForgeWasm !== isForgeWasmSelected()) {
+      this.terminate();
+    }
     await this.init();
+
+    if (
+      (command === "start_game" || command === "start_multiplayer_game") &&
+      this.workerIsForgeWasm
+    ) {
+      const decks =
+        command === "start_game"
+          ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
+          : ((args?.decks as Deck[] | undefined) ?? []);
+      args = { ...args, forgeAssets: await buildForgeAssetBundle(decks) };
+    }
 
     if (!this.worker) {
       throw new Error("Worker not initialized");
     }
+
+    // Forge answers the game itself. It has no implementation of the card
+    // database queries or the limited/draft surface, and answering those with
+    // `null` is what took the Limited page down with "Cannot read properties
+    // of null": route them to the Rust worker instead, which is the same
+    // engine that answers them when Forge is off.
+    const target =
+      this.workerIsForgeWasm && !FORGE_ENGINE_COMMANDS.has(command)
+        ? this.queryWorker()
+        : this.worker;
 
     const requestId = crypto.randomUUID();
 
@@ -472,12 +593,16 @@ class WorkerBridge {
         args,
       };
 
-      this.worker!.postMessage(message);
+      target.postMessage(message);
 
       // start_game blocks for the whole game; everything else is a quick
       // dispatch over a worker that has already finished initialization
       // (we `await this.init()` above, which waits for the ready event).
-      const timeout = command === "start_game" ? 3600000 : 30000;
+      // The query worker is the exception: its first card-data command pays
+      // for the whole archive download, which a Forge player never otherwise
+      // pays, and 30s is not enough for 34 MB on an ordinary connection.
+      const timeout =
+        command === "start_game" ? 3600000 : target === this.fallbackWorker ? 300000 : 30000;
       setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
@@ -507,6 +632,8 @@ class WorkerBridge {
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
     this.initPromise = null;
+    // The query worker holds no game state, so it survives a game ending and
+    // is only torn down with the bridge itself.
   }
 }
 
@@ -703,6 +830,8 @@ class WebServerApi implements IServerApi {
   private relayUrl: string | null = null;
   private serverPassword: string | null = null;
   private authedUsername: string | null = null;
+  private sessionIdentity: RelayIdentity | null = null;
+  private sessionTokenRejected = false;
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
@@ -774,20 +903,28 @@ class WebServerApi implements IServerApi {
     this.manualDisconnect = false;
     this.connectParams = params;
     this.reconnectAttempt = 0;
+    this.sessionIdentity = null;
+    this.sessionTokenRejected = false;
     return this.openSocket(params);
   }
 
   private async openSocket(params: ServerConnectParams): Promise<void> {
-    const { proof, username } = await relayIdentity(params.username);
+    const forceRemint = this.sessionTokenRejected;
+    this.sessionTokenRejected = false;
+    const identity = await resolveRelayIdentity(this.sessionIdentity, params.username, forceRemint);
+    this.sessionIdentity = identity;
+    const { proof, username } = identity;
     this.authedUsername = username;
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
 
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(url);
+      const socket = new WebSocket(url);
+      this.ws = socket;
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (this.ws !== socket) return;
         this.connectedAt = Date.now();
         this.send({
           type: "Authenticate",
@@ -801,15 +938,17 @@ class WebServerApi implements IServerApi {
         resolve();
       };
 
-      this.ws.onerror = () => {
+      socket.onerror = () => {
         reject(new Error(`Failed to connect to ${url}`));
       };
 
-      this.ws.onclose = (event) => {
+      socket.onclose = (event) => {
+        if (this.ws !== socket) return;
         this.handleSocketClose(event);
       };
 
-      this.ws.onmessage = (e: MessageEvent) => {
+      socket.onmessage = (e: MessageEvent) => {
+        if (this.ws !== socket) return;
         this.lastInboundAt = Date.now();
         if (typeof e.data !== "string") return;
         try {
@@ -946,6 +1085,8 @@ class WebServerApi implements IServerApi {
     this.serverShutdownPending = null;
     this.reconnectAttempt = 0;
     this.connectParams = null;
+    this.sessionIdentity = null;
+    this.sessionTokenRejected = false;
     this.stopKeepalive();
     this.stopAllBots();
     const ws = this.ws;
@@ -969,6 +1110,7 @@ class WebServerApi implements IServerApi {
       ws.addEventListener("error", done);
       ws.close();
     });
+    this.eventBus.emit("server:disconnected", { terminal: true });
   }
 
   async listRooms(): Promise<void> {
@@ -980,7 +1122,7 @@ class WebServerApi implements IServerApi {
   }
 
   async createRoom(params: CreateRoomParams): Promise<string | null> {
-    if (params.engine === "Forge") {
+    if (params.engine === "Forge" && !isForgeWasmSelected()) {
       throw new Error("Forge engine is not supported on the web");
     }
     this.send({
@@ -1060,6 +1202,10 @@ class WebServerApi implements IServerApi {
     this.stopAllBots();
     clearSpawnedBots();
     this.send({ type: "EndGame", game_id: gameId });
+  }
+
+  async reportEngineStats(stats: EngineGameStats, gameId?: string | null): Promise<void> {
+    this.send({ type: "ReportEngineStats", game_id: gameId ?? null, stats });
   }
 
   async requestResync(): Promise<void> {
@@ -1392,6 +1538,9 @@ class WebServerApi implements IServerApi {
       // of the backoff instead of retrying every 2s.
       if (typeof msg.error === "string" && msg.error.includes(DUPLICATE_USERNAME_ERROR_FRAGMENT)) {
         this.reconnectAttempt = Math.max(this.reconnectAttempt, 4);
+      }
+      if (typeof msg.error === "string" && msg.error.includes(TOKEN_EXPIRED_ERROR_FRAGMENT)) {
+        this.sessionTokenRejected = true;
       }
     }
 

@@ -39,3 +39,7 @@ export function formatCommsLog(): string {
     .map((entry) => `${new Date(entry.at).toISOString()} ${DIR_MARKERS[entry.dir]} ${entry.text}`)
     .join("\n");
 }
+
+if (typeof window !== "undefined") {
+  (window as unknown as { __mbComms?: () => string }).__mbComms = formatCommsLog;
+}

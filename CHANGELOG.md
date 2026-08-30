@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.24.2](https://github.com/witchesofthehill/manabrew/compare/v3.24.1...v3.24.2) (2026-08-30)
+
+### Fixes
+
+* **telemetry:** label the engine that ran, and stop losing reports ([#789](https://github.com/witchesofthehill/manabrew/issues/789)) ([4382b36](https://github.com/witchesofthehill/manabrew/commit/4382b36c5d0748722ec92bb85df0abf72ba6efc1))
+
 ## [3.24.1](https://github.com/witchesofthehill/manabrew/compare/v3.24.0...v3.24.1) (2026-08-30)
 
 ## [3.24.0](https://github.com/witchesofthehill/manabrew/compare/v3.23.1...v3.24.0) (2026-08-30)

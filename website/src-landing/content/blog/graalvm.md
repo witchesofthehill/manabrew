@@ -10,9 +10,12 @@ Forge now runs in the browser. We've compiled the Java engine itself to WebAssem
 to the Manabrew client using the same protocol and UI as our Rust engine.
 
 [Forge](https://github.com/Card-Forge/forge) is the Magic: The Gathering rules engine Manabrew has
-used as its reference implementation and hosted backend. Until now, playing with Forge meant running
-it on a server or self-hosted node. With GraalVM Web Image, the same engine can run inside a browser.
-As far as we can tell, this is the first playable browser build of Forge itself.
+used as its reference implementation and hosted backend. Until now, playing with Forge meant a
+server somewhere running it for you. With GraalVM Web Image, the same engine runs inside the tab.
+
+A Java desktop application with fifteen years of card support arrives over the wire in about 12 MB.
+The binary is 35.3 MB and the server sends it compressed with zstd. It downloads once and the
+browser keeps it. Booting it on the deployed build, assets included, takes around 642 ms.
 
 The feature is in production behind a server flag and an explicit opt-in under Settings. It's still
 experimental, but it already supports:
@@ -29,50 +32,22 @@ Limited, draft, and sealed still use the Rust worker. Rollback is unavailable on
 so a player cannot return to an earlier game state. Cancelling a mana payment still works, because
 Forge answers that itself and never asks for a snapshot.
 
-The WebAssembly binary is 35.3 MB. The server compresses it with zstd, so a browser downloads about
-12 MB. Booting it on the deployed build, assets included, takes around 642 ms. Across seven
-production games the engine's own think time had a median p50 of 16 ms.
-
 ## Why run Forge locally?
 
 Manabrew already has a Rust rules engine that runs in WebAssembly. Forge has more than fifteen years
 of rules and card support behind it, which is the reason to bring it into the browser as well.
 
 The browser currently runs the Rust implementation, whose card support grows through parity work
-against Forge. The mature Forge implementation previously required the JVM on a hosted or
-self-hosted node. Web Image allows the original Forge code to run in the browser.
+against Forge. Forge itself needed a machine somewhere else.
 
-There is no card-script translation and no second Forge-compatible implementation involved. The
-same Java engine that runs on the JVM is compiled through a different GraalVM backend. During
-development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through both builds and
-compared the callback streams. They were byte-identical.
+We were already halfway here without noticing. The hosted fleet stopped running a JVM some time ago:
+`native-image` compiles the Forge harness to a shared library and the Rust node calls it in process,
+so those servers ship no Java runtime at all. Web Image is the same compiler with a different
+backend. One target is a `.so` on a server, the other is WebAssembly in a tab.
 
-## The latency win is mostly in the tail
-
-Three spans appear below, and they are not interchangeable.
-
-- Turnaround is measured in the client: the player answers, and the next prompt appears on screen.
-  For a hosted game it contains the network. For a local engine it contains nothing else.
-- Engine think time is measured inside the worker: the answer arrives, and the next prompt is ready.
-- Node time is the hosted equivalent, stamped by the relay: a seat answers, and that seat's next
-  board goes out.
-
-Seven production games on the browser engine, 399 decisions, give a turnaround p50 of 47 ms and a
-p90 of 79 ms. The engine's own think time inside those games was 16 ms p50 and 51 ms p90. Nothing
-in that path leaves the tab.
-
-The hosted fleet answers a decision in 77 ms p50, measured node-side over a day. The relay-to-node
-hop adds about 47 ms, and the player's own leg adds a median 41 ms on top. Two hosted commander
-games played by real people on the same day measured 277 ms and 306 ms of turnaround, which is what
-a player actually waits.
-
-The gap widens on expensive decisions. Ability activation on the hosted fleet is a p50 of 385 ms
-node-side on boards under 40 permanents, and it barely grows with board size, so it behaves as a
-fixed charge rather than a scaling one. The browser sampled 54 activations at a p50 near 20 ms, on
-a development server rather than in production. The populations differ, so read that as an order of
-magnitude, not a benchmark.
-
-The benefit is concentrated in decisions where the hosted path is expensive.
+So there is no card-script translation and no second Forge-compatible implementation. It is the same
+bytecode. During development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through both
+builds and compared the callback streams. They were byte-identical.
 
 ## Keeping a synchronous engine synchronous
 
@@ -109,6 +84,22 @@ Forge resumes
 
 Manabrew already used this transport for its Rust WebAssembly engine, so the browser uses the
 existing game UI for Forge.
+
+## The latency win is mostly in the tail
+
+What a player waits for is the gap between answering a prompt and seeing the next one. Seven
+production games on the browser engine, 399 decisions, put that at 47 ms p50. The engine itself
+accounts for 16 ms of it, and nothing in the path leaves the tab.
+
+Two hosted commander games played by real people on the same day measured 277 ms and 306 ms for the
+same gap. The engine is not the reason. It answers in 77 ms p50 on the fleet; the rest is the round
+trip out to a server and back.
+
+The tail is where this gets interesting. Activating an ability costs the hosted fleet a p50 of
+385 ms, and it barely grows with board size, so it reads as a fixed charge rather than a scaling
+one. The browser sampled 54 activations at a p50 near 20 ms, on a development server rather than in
+production, so take that as an order of magnitude and not a benchmark. The cheap decisions were
+never the problem. The expensive ones were.
 
 ## The protocol did most of the work
 
@@ -211,11 +202,21 @@ described above also remains. Web Image itself is still an experimental GraalVM 
 
 The feature remains opt-in while these gaps are being measured and tested.
 
-## A slightly unexpected destination
+## Where this leaves the port
 
-Manabrew started as a self-hosted way for a group of friends to play Magic online. We evaluated XMage
-and Forge before beginning the Rust port of Forge's engine for browser use.
+Manabrew started as a self-hosted way for a group of friends to play Magic online. We looked at
+XMage and Forge, then began porting Forge's engine to Rust, because a Java desktop application could
+not run in a browser and we wanted one that could.
 
-Forge became the parity oracle and a hosted backend. Over the past 30 days 96% of Manabrew games ran
-on Forge rather than on the Rust engine, and almost all of them on the hosted fleet. This build is
-the first version of that path with no server in it.
+That premise carried years of work. It stopped being true this month, and not because anyone
+rewrote anything. A compiler backend that did not exist when we started now emits WebAssembly, and
+the engine we had been reimplementing walked into the browser on its own.
+
+Over the past 30 days 96% of Manabrew games ran on Forge, nearly all of them on the hosted fleet.
+Those machines exist for one reason, which is that the engine needed somewhere to live. For a game
+played this way, that reason is gone. Fifteen years of card support, no account, no install, no
+server in the loop, and the tab does the rules.
+
+The Rust port keeps its work. It answers limited and draft, it is a fifth of the download, and its
+disagreements with Forge are still how we find out which of the two is wrong. But the wall it was
+built to get around turned out to have a door in it.

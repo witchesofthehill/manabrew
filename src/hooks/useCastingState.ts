@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { Prompt } from "@/protocol";
 import type { PromptOutput } from "@/protocol";
 import { TargetingIntent } from "@/types/promptType";
-import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 
 const CASTING_PROMPT_TYPES = new Set(["chooseBoardTargets", "payManaCost"]);
 
@@ -32,38 +31,35 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
   const promptIntent =
     targetingInput?.intent ?? (promptHostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
 
+  const [prevPrompt, setPrevPrompt] = useState(currentPrompt);
   const [prevCastingCardId, setPrevCastingCardId] = useState(castingCardId);
-  if (prevCastingCardId !== castingCardId) {
+  if (prevPrompt !== currentPrompt) {
+    setPrevPrompt(currentPrompt);
     setPrevCastingCardId(castingCardId);
-    setTargetId(null);
-    setTargetHostile(false);
-    setTargetIntent(TargetingIntent.Hostile);
+    if (promptType === "chooseBoardTargets" || castingCardId !== prevCastingCardId) {
+      setTargetId(null);
+      setTargetHostile(false);
+      setTargetIntent(TargetingIntent.Hostile);
+    }
   }
-  useEffect(() => {
-    return () => {
-      if (castingCardId) useTargetIntentStore.getState().clearIntent(castingCardId);
-    };
-  }, [castingCardId]);
-
   const isTargeting = promptType === "chooseBoardTargets";
 
   const arrowHostile = targetId ? targetHostile : promptHostile;
   const arrowIntent: TargetingIntent = targetId ? targetIntent : promptIntent;
 
   const lockTarget = useCallback(
-    (kind: "card" | "player", id: string) => {
+    (id: string) => {
       if (!castingCardId) return;
       setTargetId(id);
       setTargetHostile(promptHostile);
       setTargetIntent(promptIntent);
-      useTargetIntentStore.getState().setIntent(castingCardId, { kind, id });
     },
     [castingCardId, promptHostile, promptIntent],
   );
 
   const wrappedTargetCard = useCallback(
     (cardId: string | null) => {
-      if (cardId) lockTarget("card", cardId);
+      if (cardId) lockTarget(cardId);
       respond({ type: "boardTargets", chosen: cardId ? [{ kind: "card", id: cardId }] : [] });
     },
     [respond, lockTarget],
@@ -71,7 +67,7 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
 
   const wrappedTargetPlayer = useCallback(
     (playerId: string) => {
-      lockTarget("player", playerId);
+      lockTarget(playerId);
       respond({ type: "boardTargets", chosen: [{ kind: "player", id: playerId }] });
     },
     [respond, lockTarget],

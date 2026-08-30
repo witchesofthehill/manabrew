@@ -2,7 +2,14 @@
 
 export type AccessTokenResponse = { access_token: string; token_type: string; expires_in: number };
 
-export type AuthAccount = { id: string; handle: string; handlePending: boolean; createdAt: string };
+export type AuthAccount = {
+  id: string;
+  handle: string;
+  handlePending: boolean;
+  createdAt: string;
+  avatarAssetId?: string;
+  avatarUrl?: string;
+};
 
 export type AuthIdentity = { provider: string; email?: string };
 

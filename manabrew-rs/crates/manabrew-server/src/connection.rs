@@ -1085,7 +1085,7 @@ fn handle_client_message(
             deck,
             published_deck_id,
             commander_name,
-            avatar,
+            avatar_url,
         } => {
             info!(
                 "[lobby] '{}' selected deck '{}' ({} cards)",
@@ -1104,7 +1104,7 @@ fn handle_client_message(
                 deck,
                 published_deck_id,
                 commander_name.clone(),
-                avatar,
+                avatar_url,
             ) {
                 Ok(room_id) => {
                     if let Some((cards, sideboard_count)) = deck_summary {

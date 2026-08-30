@@ -1351,7 +1351,7 @@ fn calculate_available_mana_excluding_with_reserved_impl(
         };
     }
 
-    for card_id in battlefield.iter().copied().chain(hand_cards.into_iter()) {
+    for card_id in battlefield.iter().copied().chain(hand_cards) {
         if excluded_source == Some(card_id) {
             continue;
         }

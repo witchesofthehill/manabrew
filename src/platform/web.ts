@@ -1207,7 +1207,7 @@ class WebServerApi implements IServerApi {
       deck: params.deck,
       published_deck_id: params.publishedDeckId ?? null,
       commander_name: params.commanderName,
-      avatar: params.avatar ?? null,
+      avatar_url: params.avatarUrl ?? null,
     });
   }
 

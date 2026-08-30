@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.25.0](https://github.com/witchesofthehill/manabrew/compare/v3.24.4...v3.25.0) (2026-08-30)
+
+### Features
+
+* s3 compatible astorage module ([#783](https://github.com/witchesofthehill/manabrew/issues/783)) ([4cd9450](https://github.com/witchesofthehill/manabrew/commit/4cd94502674e455e6284e4bf3f02c2592baac8e7))
+
+## [3.24.4](https://github.com/witchesofthehill/manabrew/compare/v3.24.3...v3.24.4) (2026-08-30)
+
+### Fixes
+
+* shitty targeting cache ([#787](https://github.com/witchesofthehill/manabrew/issues/787)) ([3c18458](https://github.com/witchesofthehill/manabrew/commit/3c184580d678ee507281463665195796e4269742))
+
+## [3.24.3](https://github.com/witchesofthehill/manabrew/compare/v3.24.2...v3.24.3) (2026-08-30)
+
+### Fixes
+
+* multiple attachments ([#786](https://github.com/witchesofthehill/manabrew/issues/786)) ([99c0755](https://github.com/witchesofthehill/manabrew/commit/99c075549a0dfb56fe911d9cf9f7446d795c78ab))
+* q630 ([#788](https://github.com/witchesofthehill/manabrew/issues/788)) ([e172fbd](https://github.com/witchesofthehill/manabrew/commit/e172fbdd9cedcbe33e95906e68ec0c21460c7e12))
+
+## [3.24.2](https://github.com/witchesofthehill/manabrew/compare/v3.24.1...v3.24.2) (2026-08-30)
+
+### Fixes
+
+* **telemetry:** label the engine that ran, and stop losing reports ([#789](https://github.com/witchesofthehill/manabrew/issues/789)) ([4382b36](https://github.com/witchesofthehill/manabrew/commit/4382b36c5d0748722ec92bb85df0abf72ba6efc1))
+
 ## [3.24.1](https://github.com/witchesofthehill/manabrew/compare/v3.24.0...v3.24.1) (2026-08-30)
 
 ## [3.24.0](https://github.com/witchesofthehill/manabrew/compare/v3.23.1...v3.24.0) (2026-08-30)

@@ -1085,9 +1085,9 @@ pub fn parse_static_ability(raw: &str) -> Option<StaticAbility> {
     // Parse "|"-separated "Key$ Value" pairs using central parser.
     let params = Params::from_raw(body);
 
-    let modes = match params.get(keys::MODE) {
-        Some(value) => static_ability_mode::set_value_of(value),
-        None => return None,
+    let modes = {
+        let value = params.get(keys::MODE)?;
+        static_ability_mode::set_value_of(value)
     };
     if modes.is_empty() {
         return None;

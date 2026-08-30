@@ -87,7 +87,7 @@ pub fn install(ctx: &egui::Context) {
 pub fn panel_frame() -> egui::Frame {
     egui::Frame::default()
         .fill(BG_0)
-        .stroke(egui::Stroke::new(1.0, BORDER))
+        .stroke(egui::Stroke::new(1.0_f32, BORDER))
         .inner_margin(egui::Margin::ZERO)
 }
 
@@ -107,14 +107,14 @@ fn visuals() -> egui::Visuals {
     visuals.panel_fill = BG_0;
     visuals.window_fill = BG_0;
     visuals.selection.bg_fill = ACCENT_BG;
-    visuals.selection.stroke = egui::Stroke::new(1.0, ACCENT);
+    visuals.selection.stroke = egui::Stroke::new(1.0_f32, ACCENT);
     visuals.hyperlink_color = ACCENT;
     visuals.widgets.noninteractive = widget_visuals(BG_0, BORDER, FG_1);
     visuals.widgets.inactive = widget_visuals(BG_1, BORDER, FG_1);
     visuals.widgets.hovered = widget_visuals(BG_HOVER, BORDER_STRONG, FG_0);
     visuals.widgets.active = widget_visuals(BG_SEL, ACCENT, FG_0);
     visuals.widgets.open = widget_visuals(BG_2, BORDER_STRONG, FG_0);
-    visuals.window_stroke = egui::Stroke::new(1.0, BORDER);
+    visuals.window_stroke = egui::Stroke::new(1.0_f32, BORDER);
     visuals.menu_rounding = egui::Rounding::ZERO;
     visuals.window_rounding = egui::Rounding::ZERO;
     visuals
@@ -128,9 +128,9 @@ fn widget_visuals(
     egui::style::WidgetVisuals {
         weak_bg_fill: bg_fill,
         bg_fill,
-        bg_stroke: egui::Stroke::new(1.0, stroke),
+        bg_stroke: egui::Stroke::new(1.0_f32, stroke),
         rounding: egui::Rounding::ZERO,
-        fg_stroke: egui::Stroke::new(1.0, fg_stroke),
+        fg_stroke: egui::Stroke::new(1.0_f32, fg_stroke),
         expansion: 0.0,
     }
 }

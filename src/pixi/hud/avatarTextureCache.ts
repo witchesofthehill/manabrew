@@ -4,12 +4,8 @@ const MAX_RASTER = 256;
 const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
 
-/** Load a player avatar (data URL, blob URL, or CORS-enabled http URL) into a
- *  Pixi texture by drawing it onto a canvas — the same path the mana/icon
- *  caches use. `Assets.load` can't infer a loader for extension-less data URLs
- *  (exactly how uploaded avatars are stored: `normalizeToWebp` → data URL), and
- *  setting `crossOrigin` on a data URL breaks the load in some webviews, so we
- *  only set it for real cross-origin http URLs. */
+/** Load a player avatar into a Pixi texture by drawing it onto a canvas — the
+ *  same path the mana/icon caches use. */
 export function loadAvatarTexture(url: string): Promise<Texture> {
   const cached = textures.get(url);
   if (cached && !cached.destroyed) return Promise.resolve(cached);
@@ -18,7 +14,7 @@ export function loadAvatarTexture(url: string): Promise<Texture> {
 
   const promise = new Promise<Texture>((resolve, reject) => {
     const img = new Image();
-    if (/^https?:/i.test(url)) img.crossOrigin = "anonymous";
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const iw = img.naturalWidth || MAX_RASTER;
       const ih = img.naturalHeight || MAX_RASTER;

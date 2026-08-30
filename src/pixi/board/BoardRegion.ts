@@ -32,7 +32,10 @@ import {
   DEBUG_KEYWORD_CARD_ID,
 } from "@/stores/useGameDevStore";
 import {
+  ATTACH_FAN_STEP_Y,
   ATTACH_OFFSET_Y,
+  ATTACH_PEEK_MAX,
+  ATTACH_PEEK_Y,
   BATTLEFIELD_LERP,
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
@@ -68,6 +71,7 @@ import {
   SNAP_SCALE,
   STACK_MAX_SLIDE_CARDS,
   TABLE_RADIUS,
+  Z_ATTACH_FAN,
   Z_COMBAT_STAGED,
   Z_GRID_SKELETON,
   Z_OVERLAY_OFFSET,
@@ -157,10 +161,12 @@ export class BoardRegion {
   private combatRowLabels: Text[] = [];
   private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null }[] = [];
   private effectiveChildrenMap = new Map<string, string[]>();
+  private cardById = new Map<string, CardDto>();
   private lastState: BattlefieldState | null = null;
   private pendingDrop: { cardId: string; slot: { col: number; row: number } } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
   private hoveredCardId: string | null = null;
+  private hoveredStackRoot: string | null = null;
   private dropActive = false;
   private autoSort = false;
   private combatDim = false;
@@ -484,7 +490,12 @@ export class BoardRegion {
   }
 
   setHoveredCard(cardId: string | null): void {
+    if (this.hoveredCardId === cardId) return;
     this.hoveredCardId = cardId;
+    const root = this.attachmentStackRoot(cardId);
+    const needsRelayout = root !== this.hoveredStackRoot || root !== null;
+    this.hoveredStackRoot = root;
+    if (needsRelayout && this.lastState) this.updateBattlefield(this.lastState);
   }
 
   setCombatDim(active: boolean): void {
@@ -711,6 +722,7 @@ export class BoardRegion {
     this.combatRowBlockerIds = new Set(this.combatRowBlocks.map((b) => b.blockerId));
     this.combatRowGroups = state.combatRowGroups ?? [];
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
+    this.cardById = cardMap;
     const currentIds = new Set(state.cards.map((c) => c.id));
 
     for (const childId of this.nameGroupChildren) {
@@ -782,22 +794,44 @@ export class BoardRegion {
       const center = positions.get(card.id) ?? { x: this.zoneCenterX(), y: this.zoneCenterY() };
       const guest = this.combatRowAttackerIds.has(card.id);
       const childIds = effectiveChildren.get(card.id) ?? [];
-      const attachments = childIds
+      const children = childIds
         .map((id) => cardMap.get(id))
         .filter((c): c is CardDto => c !== undefined);
-      const visibleSteps = Math.min(attachments.length, STACK_MAX_SLIDE_CARDS - 1);
-      const attachStep = ATTACH_OFFSET_Y * this.cardScale;
-      const totalOffset = visibleSteps * attachStep;
-      const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
+      const expanded = this.hoveredStackRoot === card.id;
+      const groupSteps = Math.min(children.length, STACK_MAX_SLIDE_CARDS - 1);
+      let attachIdx = 0;
+      const steps = new Map<string, number>();
+      for (const child of children) {
+        const isAttach = child.attachedTo === card.id;
+        let step: number;
+        if (isAttach) {
+          step = expanded
+            ? (attachIdx + 1) * ATTACH_FAN_STEP_Y
+            : this.attachCollapsedStep(attachIdx);
+          attachIdx += 1;
+        } else {
+          step = ATTACH_OFFSET_Y * Math.min(children.length - attachIdx, groupSteps);
+        }
+        steps.set(child.id, step);
+      }
+      const hostCenterY = center.y;
 
-      for (let i = 0; i < attachments.length; i++) {
-        const att = attachments[i]!;
-        const stepsAbove = Math.min(attachments.length - i, visibleSteps);
+      const topZ = Z_ATTACH_FAN + children.length;
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i]!;
+        const isAttach = child.attachedTo === card.id;
+        const zIndex = !isAttach
+          ? i + 1
+          : this.hoveredCardId === child.id
+            ? topZ + 2
+            : expanded
+              ? Z_ATTACH_FAN + (children.length - 1 - i)
+              : children.length - i;
         this.placeBattlefieldCard(
-          att,
+          child,
           center.x,
-          topLeftY + totalOffset - stepsAbove * attachStep + (CARD_H * this.cardScale) / 2,
-          i + 1,
+          hostCenterY - steps.get(child.id)! * this.cardScale,
+          zIndex,
           state,
           guest,
         );
@@ -806,8 +840,8 @@ export class BoardRegion {
       this.placeBattlefieldCard(
         card,
         center.x,
-        topLeftY + totalOffset + (CARD_H * this.cardScale) / 2,
-        attachments.length + 1,
+        hostCenterY,
+        expanded ? topZ + 1 : children.length + 1,
         state,
         guest,
       );
@@ -1674,6 +1708,31 @@ export class BoardRegion {
     for (const entry of this.entries.values()) entry.sprite.redrawHoverDebug();
   }
 
+  private attachCollapsedStep(attachIdx: number): number {
+    return ATTACH_OFFSET_Y + Math.min(attachIdx, ATTACH_PEEK_MAX) * ATTACH_PEEK_Y;
+  }
+
+  private attachmentStackRoot(cardId: string | null): string | null {
+    if (!cardId) return null;
+    let cur = cardId;
+    const seen = new Set<string>();
+    while (!seen.has(cur)) {
+      seen.add(cur);
+      const parent = this.uiParent.get(cur) ?? this.effectiveParentOf(cur);
+      if (!parent) break;
+      cur = parent;
+    }
+    const children = this.effectiveChildrenMap.get(cur) ?? [];
+    const hasAttachments = children.some((id) => this.cardById.get(id)?.attachedTo === cur);
+    return hasAttachments ? cur : null;
+  }
+
+  private effectiveParentOf(cardId: string): string | undefined {
+    const card = this.cardById.get(cardId);
+    if (!card?.attachedTo) return undefined;
+    return this.cardById.has(card.attachedTo) ? card.attachedTo : undefined;
+  }
+
   getEffectiveChildren(parentId: string): string[] {
     const parent = this.lastState?.cards.find((c) => c.id === parentId);
     const result: string[] = [];
@@ -1697,19 +1756,23 @@ export class BoardRegion {
   followAttachmentsDuringDrag(parentId: string, parentCenter: Point): void {
     const children = this.getEffectiveChildren(parentId);
     if (children.length === 0) return;
-    const visibleSteps = Math.min(children.length, STACK_MAX_SLIDE_CARDS - 1);
+    const groupSteps = Math.min(children.length, STACK_MAX_SLIDE_CARDS - 1);
     const parentEntry = this.entries.get(parentId);
     if (parentEntry) {
       parentEntry.targetY = parentCenter.y;
       parentEntry.sprite.y = parentCenter.y;
       if (parentEntry.overlay?.visible) parentEntry.overlay.y = parentCenter.y;
     }
+    let attachIdx = 0;
     for (let i = 0; i < children.length; i++) {
       const childId = children[i]!;
       const child = this.entries.get(childId);
       if (!child) continue;
-      const stepsAbove = Math.min(children.length - i, visibleSteps);
-      const cy = parentCenter.y - stepsAbove * ATTACH_OFFSET_Y * this.cardScale;
+      const isAttach = this.cardById.get(childId)?.attachedTo === parentId;
+      const step = isAttach
+        ? this.attachCollapsedStep(attachIdx++)
+        : ATTACH_OFFSET_Y * Math.min(children.length - i, groupSteps);
+      const cy = parentCenter.y - step * this.cardScale;
       child.targetX = parentCenter.x;
       child.targetY = cy;
       child.sprite.x = parentCenter.x;

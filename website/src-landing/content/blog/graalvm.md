@@ -13,6 +13,10 @@ to the Manabrew client using the same protocol and UI as our Rust engine.
 used as its reference implementation and hosted backend. Until now, playing with Forge meant a
 server somewhere running it for you. With GraalVM Web Image, the same engine runs inside the tab.
 
+As far as we can tell this is the first playable browser build of Forge itself. The other ways to
+play Forge in a browser run the engine on a machine elsewhere and send you the game. This one is the
+engine.
+
 A Java desktop application with fifteen years of card support arrives over the wire in about 12 MB.
 The binary is 35.3 MB and the server sends it compressed with zstd. It downloads once and the
 browser keeps it. Booting it on the deployed build, assets included, takes around 642 ms.

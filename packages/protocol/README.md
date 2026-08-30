@@ -20,10 +20,13 @@ npm install @manabrew/protocol
 
 ```ts
 import type { Prompt, PromptInput, PromptOutput } from "@manabrew/protocol";
-import { VERSION, PROTOCOL_VERSION } from "@manabrew/protocol";
+import { VERSION, PROTOCOL_VERSION, RELAY_PROTOCOL_VERSION } from "@manabrew/protocol";
 ```
+
+`VERSION` is this package's own version, matching what you installed.
 
 `PROTOCOL_VERSION` is the integer wire version a client must report to a relay
 to interoperate. It is the major of `manabrew-relay-protocol`, so it only moves
-on a breaking wire change. `VERSION` is the version of the crate the bindings
-were generated from; it is not the version of this package.
+on a breaking wire change, and most releases leave it alone.
+`RELAY_PROTOCOL_VERSION` is that crate's full version, for anyone who needs to
+tell two releases apart at the same wire version.

@@ -20,7 +20,6 @@ export type AutoResolution =
 
 export interface ResolveCtx {
   prefs: PromptPreferencesSnapshot;
-  targetIntents: Record<string, { kind: "card" | "player" | "spell"; id: string }>;
 }
 
 export interface PromptPreferencesSnapshot {

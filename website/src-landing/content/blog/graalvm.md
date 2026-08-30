@@ -13,9 +13,8 @@ to the Manabrew client using the same protocol and UI as our Rust engine.
 used as its reference implementation and hosted backend. Until now, playing with Forge meant a
 server somewhere running it for you. With GraalVM Web Image, the same engine runs inside the tab.
 
-As far as we can tell this is the first playable browser build of Forge itself. The other ways to
-play Forge in a browser run the engine on a machine elsewhere and send you the game. This one is the
-engine.
+As far as we can tell this is the first playable browser build of Forge itself. Other Forge-based
+services run Forge on a server and send the game to your browser. We run Forge in your browser.
 
 A Java desktop application with fifteen years of card support arrives over the wire in about 12 MB.
 The binary is 35.3 MB and the server sends it compressed with zstd. It downloads once and the
@@ -46,9 +45,12 @@ against Forge. The browser was the one place we could not offer Forge itself.
 
 We were already halfway here without noticing. Nothing we ship runs a JVM any more. `native-image`
 compiles the Forge harness into a shared library, and both the hosted node and the desktop app load
-it in process and call it over FFI: a `.so` on the servers, a `.dll` next to the executable on
-Windows. Web Image is that same compiler with a different backend, so the browser is the third
-target rather than a new engine. Same bytecode, three shapes.
+it in process and call it over FFI: a `.so` on the servers, a `.dll` beside the executable on
+Windows, a `.dylib` inside the app bundle on macOS. Web Image is that same compiler with a different
+backend. Same bytecode, one more shape.
+
+The browser is the only place Forge is WebAssembly. On the desktop the wasm engine is our own Rust
+one, running in the same webview, with Forge sitting next to it as a native library.
 
 So there is no card-script translation and no second Forge-compatible implementation to keep in
 step. During development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through the
@@ -123,7 +125,8 @@ now gives us several interchangeable runtimes behind one client:
              ┌───────────┴───────────┐
              │                       │
          Rust engine               Forge
-            (wasm)        server .so, desktop .dll, wasm
+            (wasm)         server .so, desktop .dll or .dylib,
+                                 browser wasm
 ```
 
 Compiling Forge for a new runtime changed nothing in the game wire format. The engine publishes the

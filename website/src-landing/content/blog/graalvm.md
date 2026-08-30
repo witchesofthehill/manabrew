@@ -38,16 +38,16 @@ answers that itself and never asks for a snapshot.
 ## The same engine, one more target
 
 Manabrew already has a Rust rules engine in WebAssembly. Forge has fifteen years of rules and card
-coverage that the port is still working through. That is the whole reason to want it here.
+coverage that the port is still working through. That is why we want it here.
 
-The Rust engine's card support grows by running it against Forge and fixing whatever differs. The
-browser was the one place we could not simply hand a player Forge.
+The Rust engine's card support grows by running it against Forge and fixing whatever differs. Until
+now nobody could run Forge in a browser, so a browser player got the port instead.
 
 We were already halfway here without noticing. Nothing we ship runs a JVM any more. `native-image`
 compiles the Forge harness into a shared library, and both the hosted node and the desktop app load
 it in process and call it over FFI: a `.so` on the servers, a `.dll` beside the executable on
 Windows, a `.dylib` inside the app bundle on macOS. Web Image is that compiler with a different
-backend. Same Java code, one more compilation target, not a new engine.
+backend. The browser build is the same Java code compiled for one more target.
 
 The browser is also the only place Forge is WebAssembly. In the desktop app the wasm engine is our
 Rust one, running in the webview, with Forge beside it as a native library.
@@ -59,10 +59,9 @@ were byte-identical. That reference build is the last thing here that still runs
 
 ## Keeping a synchronous engine synchronous
 
-The hard part was Forge's blocking controller model.
-
-The engine reaches a decision, asks a player for input, and waits on the same call stack until the
-answer arrives. Web Image gives us one Java thread, so Forge's usual threading model is no help.
+Forge's controller model blocks. The engine reaches a decision, asks a player for input, and waits on
+the same call stack until the answer arrives. Web Image gives us one Java thread, so Forge's usual
+threading model is no help.
 
 So we kept the blocking model. Forge runs in a Web Worker. When it needs input, it writes a prompt to
 a `SharedArrayBuffer` and parks the WebAssembly stack with `Atomics.wait`. The client reads the
@@ -89,7 +88,7 @@ SharedArrayBuffer
 Forge resumes
 ```
 
-The Rust engine already used this transport, so Forge arrived behind the game UI we had.
+The Rust engine already used this transport, so Forge could reuse the game UI we had.
 
 ## What the player actually waits for
 
@@ -100,9 +99,9 @@ requestAnimationFrame poll and then renders the board, so the screen sets the fl
 engine. The whole exchange fits in about three frames.
 
 Two hosted commander games played by real people that day measured 277 ms and 306 ms for the same
-gap. The engine is not why. The fleet figure of 77 ms p50 is node time, not think time. It runs from
-a seat's answer to that seat's next prompt going out, so it holds the rules work plus the node
-packing the board for the wire, across real games on bigger boards than our seven. Most of the
+gap. Little of that is engine time. The fleet figure of 77 ms p50 is node time, not think time. It
+runs from a seat's answer to that seat's next prompt going out, so it holds the rules work plus the
+node packing the board for the wire, across real games on bigger boards than our seven. Most of the
 remaining gap sits outside the engine, in the hosted path.
 
 Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, which
@@ -147,9 +146,9 @@ lazily, and the bundle frames only the cards the chosen decks name, so a game st
 instead of the 33,645 Forge ships. Boot on a development server fell from 960 ms to 462 ms. The
 deployed build boots in about 642 ms, because it fetches the archive over the network.
 
-Forge starts happily without some of those files and plays a different game for it. Drop `res/lists`
-and card legality changes, which showed up immediately as a parity divergence. Side-by-side traces
-from the reference build and the WebAssembly one found it.
+Forge starts without some of those files, but game behaviour changes. Drop `res/lists` and card
+legality changes, which showed up immediately as a parity divergence. We found it in side-by-side
+traces from the reference build and the WebAssembly one.
 
 ## What Web Image does not give you
 
@@ -187,8 +186,8 @@ patch. That pipeline is the next thing to build.
 None of this retires the hosted fleet. When a browser hosts, the whole game runs in that browser, so
 every seat's hidden information is only as private as the host's client. A hosted node keeps hidden
 information out of another player's browser, does not park when a tab is backgrounded, and does not
-take the table down when somebody closes a window. It also plays for people whose machine will not:
-a 35 MB engine and four seats of board state is a lot to ask of a phone. Hosting in the browser is
+take the table down when somebody closes a window. It also plays for people whose machine will not. A
+35 MB engine and four seats of board state is a lot to ask of a phone. Hosting in the browser is
 another option, not a replacement.
 
 ## Shipped, and switched off
@@ -221,18 +220,15 @@ The engine stays opt-in until we are comfortable with those gaps.
 
 ## Where this leaves the port
 
-Manabrew started as a self-hosted way for a group of friends to play Magic online. We looked at
-XMage and Forge, then began porting Forge's engine to Rust, because a Java desktop application could
-not run in a browser and we wanted one that could.
+We began porting Forge's engine to Rust because a Java desktop application could not run in a
+browser and we wanted one that could. That premise shaped the whole port. It no longer holds. A
+compiler backend that did not exist when we started now emits WebAssembly, and the engine we were
+reimplementing compiled straight into the browser.
 
-That premise carried years of work. It stopped being true this month, and not because anyone rewrote
-anything. A compiler backend that did not exist when we started now emits WebAssembly, and the engine
-we were reimplementing compiled straight into the browser.
+The port still answers limited and draft, it is a fifth of the download, and its disagreements with
+Forge are still how we find bugs in both. It just no longer has to stand in for Forge in a browser.
 
 Over the past 30 days 96% of Manabrew games ran on Forge, nearly all of them on the hosted fleet.
-Those machines exist because the engine needed somewhere to live. For a game played this way it does
-not. Fifteen years of card support, no install, no account, and the rules run in the tab.
-
-The port is not out of a job. It answers limited and draft, it is a fifth of the download, and its
-disagreements with Forge are still how we find bugs in both. It just no longer has to stand in for
-Forge in a browser.
+Every one of those games needed a server to run the engine. A browser game does not. Fifteen years of
+card support run in the tab, with no install and no account. That is a better result than the one we
+set out to build.

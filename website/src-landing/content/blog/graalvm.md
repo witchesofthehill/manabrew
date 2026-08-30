@@ -230,5 +230,5 @@ Forge are still how we find bugs in both. It just no longer has to stand in for 
 
 Over the past 30 days 96% of Manabrew games ran on Forge, nearly all of them on the hosted fleet.
 Every one of those games needed a server to run the engine. A browser game does not. Fifteen years of
-card support run in the tab, with no install and no account. That is a better result than the one we
-set out to build.
+card support run in the tab, with no install and no account. It is not the route we expected to get
+there.

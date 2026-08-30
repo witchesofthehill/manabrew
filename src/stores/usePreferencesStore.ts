@@ -45,12 +45,14 @@ interface PreferencesState {
   addSavedServer: (server: KnownRelay) => void;
   removeSavedServer: (name: string) => void;
 
-  customAvatar?: string;
-  setCustomAvatar: (dataUrl: string | undefined) => void;
+  customAvatarUrl?: string;
+  customAvatarAssetId?: string;
+  setCustomAvatar: (url: string | undefined, assetId: string | undefined) => void;
 
-  defaultPlaymat?: string;
+  defaultPlaymatUrl?: string;
+  defaultPlaymatAssetId?: string;
   defaultPlaymatSettings?: PlaymatSettings;
-  setDefaultPlaymat: (dataUrl: string | undefined) => void;
+  setDefaultPlaymat: (url: string | undefined, assetId: string | undefined) => void;
   setDefaultPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 
   zonePanelOrder: ZonePanelItem[];
@@ -141,8 +143,10 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "savedServers",
-  "customAvatar",
-  "defaultPlaymat",
+  "customAvatarUrl",
+  "customAvatarAssetId",
+  "defaultPlaymatUrl",
+  "defaultPlaymatAssetId",
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
@@ -227,12 +231,16 @@ export const usePreferencesStore = create<PreferencesState>()(
               savedServers: state.savedServers.filter((s) => s.name !== name),
             })),
 
-          customAvatar: undefined,
-          setCustomAvatar: (customAvatar) => set({ customAvatar }),
+          customAvatarUrl: undefined,
+          customAvatarAssetId: undefined,
+          setCustomAvatar: (customAvatarUrl, customAvatarAssetId) =>
+            set({ customAvatarUrl, customAvatarAssetId }),
 
-          defaultPlaymat: undefined,
+          defaultPlaymatUrl: undefined,
+          defaultPlaymatAssetId: undefined,
           defaultPlaymatSettings: undefined,
-          setDefaultPlaymat: (defaultPlaymat) => set({ defaultPlaymat }),
+          setDefaultPlaymat: (defaultPlaymatUrl, defaultPlaymatAssetId) =>
+            set({ defaultPlaymatUrl, defaultPlaymatAssetId }),
           setDefaultPlaymatSettings: (defaultPlaymatSettings) => set({ defaultPlaymatSettings }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],

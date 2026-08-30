@@ -863,9 +863,9 @@ pub fn parse_replacement_effect(raw: &str) -> Option<ReplacementEffect> {
     // Parse "|"-separated "Key$ Value" pairs.
     let params = Params::from_raw(body);
 
-    let event = match params.get(keys::EVENT) {
-        Some(s) => ReplacementType::smart_value_of(s),
-        None => return None,
+    let event = {
+        let s = params.get(keys::EVENT)?;
+        ReplacementType::smart_value_of(s)
     };
 
     // Parse the layer (defaults to Other if not specified).

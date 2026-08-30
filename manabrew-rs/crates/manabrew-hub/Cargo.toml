@@ -24,6 +24,7 @@ server = [
     "dep:aws-lc-rs",
     "dep:base64",
     "dep:flate2",
+    "dep:aws-sdk-s3",
 ]
 
 [[bin]]
@@ -51,6 +52,7 @@ maud = { version = "0.26", features = ["axum"], optional = true }
 aws-lc-rs = { version = "1", optional = true }
 base64 = { version = "0.22", optional = true }
 flate2 = { version = "1", optional = true }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["default-https-client", "rt-tokio", "rustls", "behavior-version-latest"], optional = true }
 
 [dev-dependencies]
 tower = { version = "0.4", features = ["util"] }

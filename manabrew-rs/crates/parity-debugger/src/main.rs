@@ -2462,7 +2462,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
 
         egui::Frame::none()
             .fill(theme::BG_0)
-            .stroke(egui::Stroke::new(1.0, theme::BORDER))
+            .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 let primary_label = if app.trace_collecting_context {
@@ -2506,7 +2506,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
                     )
                     .frame(true)
                     .fill(if *primary { theme::ACCENT } else { theme::BG_0 })
-                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
                     .min_size(egui::vec2(if *primary { 32.0 } else { 24.0 }, 22.0));
                     let response = ui.add_enabled(*enabled, button);
                     response.clone().on_hover_text(*tooltip);
@@ -2532,7 +2532,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
         if toolbar_width > 1280.0 {
             egui::Frame::none()
                 .fill(theme::BG_0)
-                .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
                 .inner_margin(egui::Margin {
                     left: 8.0,
                     right: 8.0,
@@ -2577,7 +2577,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
             };
             let response = egui::Frame::none()
                 .fill(theme::BG_0)
-                .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
                 .inner_margin(egui::Margin {
                     left: 8.0,
                     right: 8.0,
@@ -2601,7 +2601,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
 
         egui::Frame::none()
             .fill(theme::BG_0)
-            .stroke(egui::Stroke::new(1.0, theme::BORDER))
+            .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
             .inner_margin(egui::Margin {
                 left: 4.0,
                 right: 6.0,
@@ -2636,7 +2636,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
                                 .color(theme::JAVA),
                         )
                         .fill(theme::BG_0)
-                        .stroke(egui::Stroke::new(1.0, theme::JAVA))
+                        .stroke(egui::Stroke::new(1.0_f32, theme::JAVA))
                         .min_size(egui::vec2(168.0, 22.0)),
                     );
                     if java_button.clicked() {
@@ -2699,7 +2699,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
                 let search_width = if toolbar_width > 1500.0 { 148.0 } else { 116.0 };
                 let search_frame = egui::Frame::none()
                     .fill(theme::BG_1)
-                    .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                    .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
                     .inner_margin(egui::Margin {
                         left: 6.0,
                         right: 4.0,
@@ -2742,7 +2742,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
                             .color(theme::BG_0),
                     )
                     .fill(theme::ACCENT)
-                    .stroke(egui::Stroke::new(1.0, theme::ACCENT))
+                    .stroke(egui::Stroke::new(1.0_f32, theme::ACCENT))
                     .min_size(egui::vec2(96.0, 22.0)),
                 )
                 .clicked()
@@ -2767,7 +2767,7 @@ fn render_toolbar(ui: &mut egui::Ui, app: &mut App) {
                         .extra_letter_spacing(0.8),
                 )
                 .fill(theme::BG_0)
-                .stroke(egui::Stroke::new(1.0, theme::BORDER))
+                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER))
                 .min_size(egui::vec2(170.0, 22.0)),
             );
             if run_config_button.clicked() {
@@ -2829,7 +2829,7 @@ fn render_run_config_popup(ui: &mut egui::Ui, app: &mut App) {
     let deck_names = available_deck_names(app);
     egui::Frame::none()
         .fill(theme::BG_1)
-        .stroke(egui::Stroke::new(1.0, theme::BORDER_STRONG))
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER_STRONG))
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing = egui::vec2(12.0, 8.0);
             ui.vertical(|ui| {
@@ -2995,7 +2995,7 @@ fn render_java_popup(ui: &mut egui::Ui, app: &mut App) {
     ui.set_min_width(360.0);
     egui::Frame::none()
         .fill(theme::BG_1)
-        .stroke(egui::Stroke::new(1.0, theme::BORDER_STRONG))
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER_STRONG))
         .show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.colored_label(
@@ -3126,7 +3126,7 @@ fn render_java_popup_row(
     ui.painter().hline(
         rect.x_range(),
         rect.bottom(),
-        egui::Stroke::new(1.0, theme::BORDER),
+        egui::Stroke::new(1.0_f32, theme::BORDER),
     );
 }
 
@@ -3456,7 +3456,7 @@ fn render_deck_modal(ctx: &egui::Context, app: &mut App) {
         .show(ctx, |ui| {
             egui::Frame::none()
                 .fill(theme::BG_1)
-                .stroke(egui::Stroke::new(1.0, theme::BORDER_STRONG))
+                .stroke(egui::Stroke::new(1.0_f32, theme::BORDER_STRONG))
                 .inner_margin(egui::Margin {
                     left: 14.0,
                     right: 14.0,
@@ -3668,7 +3668,7 @@ fn render_section_frame_with_meta(
     let (rect, _) = ui.allocate_exact_size(panel_size, egui::Sense::hover());
     ui.painter().rect_filled(rect, 0.0, theme::BG_FLOAT);
     ui.painter()
-        .rect_stroke(rect, 0.0, egui::Stroke::new(1.0, theme::BORDER_SUBTLE));
+        .rect_stroke(rect, 0.0, egui::Stroke::new(1.0_f32, theme::BORDER_SUBTLE));
 
     let header_rect = egui::Rect::from_min_size(
         rect.min,
@@ -3678,7 +3678,7 @@ fn render_section_frame_with_meta(
     ui.painter().hline(
         header_rect.x_range(),
         header_rect.bottom(),
-        egui::Stroke::new(1.0, theme::BORDER_SUBTLE),
+        egui::Stroke::new(1.0_f32, theme::BORDER_SUBTLE),
     );
 
     let body_rect = egui::Rect::from_min_max(
@@ -3752,7 +3752,7 @@ fn drag_height_handle(ui: &mut egui::Ui, height: &mut f32) {
     ui.painter().hline(
         line_rect.x_range(),
         line_rect.center().y,
-        egui::Stroke::new(1.0, stroke_color),
+        egui::Stroke::new(1.0_f32, stroke_color),
     );
 }
 
@@ -3783,8 +3783,11 @@ fn render_trace(
         let box_rect = egui::Rect::from_center_size(center, egui::vec2(436.0, 108.0));
         ui.allocate_rect(rect, egui::Sense::hover());
         ui.painter().rect_filled(box_rect, 0.0, theme::BG_1);
-        ui.painter()
-            .rect_stroke(box_rect, 0.0, egui::Stroke::new(1.0, theme::BORDER_SUBTLE));
+        ui.painter().rect_stroke(
+            box_rect,
+            0.0,
+            egui::Stroke::new(1.0_f32, theme::BORDER_SUBTLE),
+        );
         let mut empty_ui = ui.new_child(
             egui::UiBuilder::new()
                 .max_rect(box_rect.shrink2(egui::vec2(14.0, 12.0)))
@@ -3867,7 +3870,7 @@ pub(crate) fn render_selection_highlight_frame(
         .fill(if selected { theme::BG_1 } else { theme::BG_0 })
         .inner_margin(egui::Margin::same(6.0))
         .stroke(egui::Stroke::new(
-            if selected { 1.5 } else { 1.0 },
+            if selected { 1.5_f32 } else { 1.0_f32 },
             if selected {
                 theme::ACCENT
             } else {
@@ -4074,7 +4077,7 @@ fn render_trace_minimap(
             ui.painter().rect_stroke(
                 tick_rect.shrink(0.5),
                 0.0,
-                egui::Stroke::new(1.0, theme::ACCENT),
+                egui::Stroke::new(1.0_f32, theme::ACCENT),
             );
         }
     }
@@ -4170,7 +4173,7 @@ fn render_compare_trace_minimap(
             ui.painter().rect_stroke(
                 tick_rect.shrink(0.5),
                 0.0,
-                egui::Stroke::new(1.0, theme::ACCENT),
+                egui::Stroke::new(1.0_f32, theme::ACCENT),
             );
         }
     }
@@ -4254,7 +4257,7 @@ fn render_timeline_rows(
             ui.painter().hline(
                 divider_rect.x_range(),
                 divider_rect.bottom(),
-                egui::Stroke::new(1.0, theme::BORDER),
+                egui::Stroke::new(1.0_f32, theme::BORDER),
             );
             let mut divider_ui = ui.new_child(
                 egui::UiBuilder::new()
@@ -4300,7 +4303,7 @@ fn render_timeline_rows(
             ui.painter().rect_stroke(
                 row_rect.shrink(0.5),
                 0.0,
-                egui::Stroke::new(1.0, theme::BORDER_STRONG),
+                egui::Stroke::new(1.0_f32, theme::BORDER_STRONG),
             );
         }
         let mut row_ui = ui.new_child(
@@ -4418,7 +4421,7 @@ fn render_compare_timeline_rows(
             ui.painter().hline(
                 divider_rect.x_range(),
                 divider_rect.bottom(),
-                egui::Stroke::new(1.0, theme::BORDER),
+                egui::Stroke::new(1.0_f32, theme::BORDER),
             );
             let mut divider_ui = ui.new_child(
                 egui::UiBuilder::new()
@@ -4815,9 +4818,9 @@ fn render_snapshot_player_block(
         .fill(theme::BG_1)
         .stroke(egui::Stroke::new(
             if player.index == active_player {
-                2.0
+                2.0_f32
             } else {
-                1.0
+                1.0_f32
             },
             if player.index == active_player {
                 theme::ACCENT
@@ -4882,7 +4885,7 @@ fn render_snapshot_pill(
 ) {
     egui::Frame::none()
         .fill(theme::BG_0)
-        .stroke(egui::Stroke::new(1.0, border_color))
+        .stroke(egui::Stroke::new(1.0_f32, border_color))
         .inner_margin(egui::Margin {
             left: 5.0,
             right: 5.0,
@@ -4956,7 +4959,7 @@ fn render_event_card_frame(
 ) {
     let response = egui::Frame::none()
         .fill(theme::BG_0)
-        .stroke(egui::Stroke::new(1.0, theme::BORDER_SUBTLE))
+        .stroke(egui::Stroke::new(1.0_f32, theme::BORDER_SUBTLE))
         .inner_margin(egui::Margin::same(6.0))
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
@@ -5434,9 +5437,9 @@ fn pair_investigation_rows(
 fn render_investigation_row(ui: &mut egui::Ui, row: &(Option<String>, Option<String>, bool)) {
     let (rust_text, java_text, unmatched) = row;
     let stroke = if *unmatched {
-        egui::Stroke::new(1.0, theme::RED)
+        egui::Stroke::new(1.0_f32, theme::RED)
     } else {
-        egui::Stroke::new(1.0, theme::BORDER_SUBTLE)
+        egui::Stroke::new(1.0_f32, theme::BORDER_SUBTLE)
     };
     egui::Frame::none()
         .fill(if *unmatched { theme::BG_1 } else { theme::BG_0 })

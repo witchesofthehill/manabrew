@@ -62,6 +62,8 @@ fn account_dto(account: &AccountRow) -> AuthAccount {
         handle: account.handle.clone(),
         handle_pending: !account.handle_set,
         created_at: account.created_at.clone(),
+        avatar_asset_id: account.avatar_asset_id.clone(),
+        avatar_url: account.avatar_url.clone(),
     }
 }
 
@@ -171,6 +173,8 @@ fn create_account_with_identity(
             handle: format!("brewer-{}", generate_code(HANDLE_SUFFIX_LEN).to_lowercase()),
             handle_set: false,
             created_at: now.clone(),
+            avatar_asset_id: None,
+            avatar_url: None,
             qualification: None,
         };
         match storage.create_account(&account) {

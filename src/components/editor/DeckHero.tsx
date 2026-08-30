@@ -31,7 +31,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
   const [editorOpen, setEditorOpen] = useState(false);
   const cancelNameEditRef = useRef(false);
 
-  const playmat = currentDeck.playmat;
+  const playmat = currentDeck.playmatUrl;
   const playmatColor = currentDeck.playmatSettings?.color;
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
 
@@ -112,6 +112,7 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
           onClose={() => setEditorOpen(false)}
           playmat={playmat}
           storedSettings={currentDeck.playmatSettings}
+          playmatAssetId={currentDeck.playmatAssetId}
           setPlaymat={setPlaymat}
           setPlaymatSettings={setPlaymatSettings}
         />

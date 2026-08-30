@@ -34,10 +34,9 @@ impl CompareExpr {
             (CompareOp::LessThan, rest)
         } else if let Some(rest) = expr.strip_prefix("NE") {
             (CompareOp::NotEqual, rest)
-        } else if let Some(rest) = expr.strip_prefix("EQ") {
-            (CompareOp::Equal, rest)
         } else {
-            return None;
+            let rest = expr.strip_prefix("EQ")?;
+            (CompareOp::Equal, rest)
         };
         Some(Self {
             op,

@@ -204,6 +204,7 @@ async function initializeGame({
         gameDecks: hostedDecks,
         debugInfo: "Joining Forge engine...",
       });
+      beginGame();
       await hostedRuntime.api.startMultiplayerGame({
         playerNames: hostedLaunch.playerOrder,
         decks: hostedLaunch.decks,
@@ -504,6 +505,7 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
+          beginGame();
           await runtime.api.startMultiplayerGame({
             playerNames,
             decks,

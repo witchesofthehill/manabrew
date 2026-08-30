@@ -86,6 +86,7 @@ pub enum AnalyticsEvent {
         ts: String,
         room_id: String,
         username: String,
+        report_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         game_id: Option<String>,
         engine: String,

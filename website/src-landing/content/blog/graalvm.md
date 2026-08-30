@@ -17,8 +17,8 @@ As far as we can tell this is the first playable browser build of Forge itself. 
 services run Forge on a server and send the game to your browser. We run Forge in your browser.
 
 A Java desktop application with fifteen years of card support arrives over the wire in about 12 MB.
-The binary is 35.3 MB and the server sends it compressed with zstd. It downloads once and the
-browser keeps it. Booting it on the deployed build, assets included, takes around 642 ms.
+The binary is 35.3 MB and the server sends it compressed with zstd. The browser caches it. Booting
+it on the deployed build, assets included, takes around 642 ms.
 
 The feature is in production behind a server flag and an explicit opt-in under Settings. It is still
 experimental. What works today:
@@ -47,7 +47,7 @@ We were already halfway here without noticing. Nothing we ship runs a JVM any mo
 compiles the Forge harness into a shared library, and both the hosted node and the desktop app load
 it in process and call it over FFI: a `.so` on the servers, a `.dll` beside the executable on
 Windows, a `.dylib` inside the app bundle on macOS. Web Image is that compiler with a different
-backend. The browser is one more target for the same bytecode, not a new engine.
+backend. Same Java code, one more compilation target, not a new engine.
 
 The browser is also the only place Forge is WebAssembly. In the desktop app the wasm engine is our
 Rust one, running in the webview, with Forge beside it as a native library.
@@ -102,8 +102,8 @@ engine. The whole exchange fits in about three frames.
 Two hosted commander games played by real people that day measured 277 ms and 306 ms for the same
 gap. The engine is not why. The fleet figure of 77 ms p50 is node time, not think time. It runs from
 a seat's answer to that seat's next prompt going out, so it holds the rules work plus the node
-packing the board for the wire, across real games on bigger boards than our seven. The rest of those
-300 ms is the trip out to a server and back.
+packing the board for the wire, across real games on bigger boards than our seven. Most of the
+remaining gap sits outside the engine, in the hosted path.
 
 Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, which
 makes it a fixed charge rather than a scaling one. The browser sampled 54 activations at a p50 near
@@ -207,7 +207,7 @@ Backgrounding the hosting tab can stall relay polling and park the game. Both br
 that bug, and it matters more when the browser is hosting the whole table. Rollback is still missing.
 Web Image itself is still an experimental GraalVM technology.
 
-The engine stays opt-in until those are closed.
+The engine stays opt-in until we are comfortable with those gaps.
 
 ## Where this leaves the port
 

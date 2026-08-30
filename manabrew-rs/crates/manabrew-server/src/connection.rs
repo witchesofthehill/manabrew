@@ -1249,6 +1249,7 @@ fn handle_client_message(
 
         ClientMessage::ReportEngineStats { game_id, stats } => {
             if !stats.is_plausible() {
+                metrics::record_engine_report(metrics::ENGINE_REPORT_IMPLAUSIBLE);
                 debug!(
                     "[analytics] '{}' sent an implausible engine report",
                     username
@@ -1257,12 +1258,14 @@ fn handle_client_message(
             }
             let room_id = state.players.get(player_id).and_then(|p| p.room_id.clone());
             let Some(room_id) = room_id else {
+                metrics::record_engine_report(metrics::ENGINE_REPORT_OUTSIDE_ROOM);
                 debug!(
                     "[analytics] '{}' reported engine stats outside a room",
                     username
                 );
                 return;
             };
+            metrics::record_engine_report(metrics::ENGINE_REPORT_ACCEPTED);
             state.analytics.emit(AnalyticsEvent::EngineStats {
                 ts: analytics::now_ts(),
                 room_id,

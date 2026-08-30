@@ -1,25 +1,14 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
-import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 import { resolvePrompt } from "./promptHandlers";
 
 export function useAutoResolvePrompt(paused = false): void {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
-  const isGameActive = useGameStore((s) => s.isGameActive);
   const respond = useGameStore((s) => s.respond);
 
   const showOverrides = usePromptPreferencesStore((s) => s.show);
-  const targetIntents = useTargetIntentStore((s) => s.intents);
-
-  const wasActive = useRef(false);
-  useEffect(() => {
-    if (isGameActive && !wasActive.current) {
-      useTargetIntentStore.getState().clearAll();
-    }
-    wasActive.current = isGameActive;
-  }, [isGameActive]);
 
   useLayoutEffect(() => {
     if (paused) return;
@@ -28,7 +17,6 @@ export function useAutoResolvePrompt(paused = false): void {
 
     const result = resolvePrompt(currentPrompt, {
       prefs: { show: showOverrides },
-      targetIntents,
     });
     if (result.kind !== "auto") return;
 
@@ -37,7 +25,7 @@ export function useAutoResolvePrompt(paused = false): void {
     }
     appendAutoResolutionLog(currentPrompt.input.type, result.reason);
     void respond(result.respond);
-  }, [paused, currentPrompt, isWaitingForResponse, respond, showOverrides, targetIntents]);
+  }, [paused, currentPrompt, isWaitingForResponse, respond, showOverrides]);
 }
 
 function appendAutoResolutionLog(promptType: string, reason: string): void {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.24.3](https://github.com/witchesofthehill/manabrew/compare/v3.24.2...v3.24.3) (2026-08-30)
+
+### Fixes
+
+* multiple attachments ([#786](https://github.com/witchesofthehill/manabrew/issues/786)) ([99c0755](https://github.com/witchesofthehill/manabrew/commit/99c075549a0dfb56fe911d9cf9f7446d795c78ab))
+* q630 ([#788](https://github.com/witchesofthehill/manabrew/issues/788)) ([e172fbd](https://github.com/witchesofthehill/manabrew/commit/e172fbdd9cedcbe33e95906e68ec0c21460c7e12))
+
 ## [3.24.2](https://github.com/witchesofthehill/manabrew/compare/v3.24.1...v3.24.2) (2026-08-30)
 
 ### Fixes

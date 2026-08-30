@@ -50,7 +50,7 @@ import { resolveRelayIdentity, type RelayIdentity } from "@/lib/relayIdentity";
 import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
-import { applyStateDelta } from "@/lib/stateDelta";
+import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
 import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
@@ -843,7 +843,11 @@ class WebServerApi implements IServerApi {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private serverShutdownPending: { reconnectInS: number } | null = null;
-  private lastRelayStates = new Map<string, string>();
+  private lastRelayStates = new Map<
+    string,
+    { state: StateUpdate; json: string; fingerprint: string }
+  >();
+  private relayStateSequence = 0;
   private deltaBases = new Map<string, { state: StateUpdate; fingerprint: string }>();
   private lastRelayDisplay: string | null = null;
   private resumeToken: string | null = null;
@@ -856,12 +860,33 @@ class WebServerApi implements IServerApi {
     // Relay engine messages (state/display/prompt) to remote players via WebSocket.
     eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
       if (msg.kind === "state") {
-        const json = JSON.stringify(msg.state);
-        if (json === this.lastRelayStates.get(forPlayer)) return;
-        this.lastRelayStates.set(forPlayer, json);
+        const state = msg.state as StateUpdate;
+        const json = JSON.stringify(state);
+        const previous = this.lastRelayStates.get(forPlayer);
+        if (json === previous?.json) return;
+        const patch = previous ? diffStateDelta(previous.state, state) : undefined;
+        if (previous && patch === undefined) return;
+        const fingerprint = `browser-${++this.relayStateSequence}`;
+        this.lastRelayStates.set(forPlayer, { state, json, fingerprint });
         const targetPlayer = this.enginePlayerName(forPlayer);
         if (targetPlayer) {
-          void this.broadcastState({ kind: "state", forPlayer, state: msg.state }, targetPlayer);
+          if (previous) {
+            void this.broadcastState(
+              {
+                kind: "stateDelta",
+                forPlayer,
+                base: previous.fingerprint,
+                fingerprint,
+                patch,
+              },
+              targetPlayer,
+            );
+          } else {
+            void this.broadcastState(
+              { kind: "state", forPlayer, state, fingerprint },
+              targetPlayer,
+            );
+          }
         }
       } else if (msg.kind === "display") {
         const json = JSON.stringify(msg.event);
@@ -1517,11 +1542,11 @@ class WebServerApi implements IServerApi {
     }
 
     if (type === "RoomResumed") {
-      for (const [playerSlot, state] of this.lastRelayStates) {
+      for (const [playerSlot, { state, fingerprint }] of this.lastRelayStates) {
         const targetPlayer = this.enginePlayerName(playerSlot);
         if (targetPlayer) {
           void this.broadcastState(
-            { kind: "state", forPlayer: playerSlot, state: JSON.parse(state) },
+            { kind: "state", forPlayer: playerSlot, state, fingerprint },
             targetPlayer,
           );
         }

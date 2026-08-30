@@ -645,9 +645,8 @@ export function GameBoard({
     const ids = opponents.map((o) => o.id);
     setManualFocusId((cur) => {
       const i = cur ? ids.indexOf(cur) : -1;
-      if (i < 0) return dir === 1 ? ids[0]! : ids[ids.length - 1]!;
-      const next = i + dir;
-      return next < 0 || next >= ids.length ? null : ids[next]!;
+      const next = i < 0 ? (dir === 1 ? 0 : ids.length - 1) : (i + dir + ids.length) % ids.length;
+      return ids[next]!;
     });
   };
   useKeybindings({

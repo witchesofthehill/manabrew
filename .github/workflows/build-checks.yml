@@ -30,6 +30,7 @@ jobs:
       run_rust: ${{ steps.scope.outputs.run_rust }}
       run_native: ${{ steps.scope.outputs.run_native }}
       run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
+      run_website: ${{ steps.scope.outputs.run_website }}
     steps:
       - name: Classify changed files
         id: scope
@@ -73,6 +74,22 @@ jobs:
               '.github/workflows/build-checks.yml',
             ];
 
+            // The landing page + docs site. Nothing else in CI builds it: it is
+            // baked into the web image at release time (Dockerfile.web runs
+            // `yarn build` in website/ and copies dist/landing + dist/docs into
+            // /srv), so before this job a broken MDX page merged green and only
+            // surfaced on the next tag. The site's imports escape website/ —
+            // `../images`, `../public`, `../src` — which is why an asset move
+            // outside it can break the build and belongs in this list.
+            const WEBSITE_PATHS = [
+              'website/',
+              'images/',
+              'src/themes/',
+              'src/assets/manaBrew.png',
+              'public/manabrew_brewery_1.png',
+              '.github/workflows/build-checks.yml',
+            ];
+
             // The mobile shells: the tauri crate plus everything the native
             // binaries link (the Rust workspace + card data) and the JS
             // toolchain that drives `tauri build` itself. Pure UI changes are
@@ -94,7 +111,13 @@ jobs:
             ];
 
             if (context.eventName !== 'pull_request') {
-              for (const key of ['run_checks', 'run_rust', 'run_native', 'run_forge_room']) {
+              for (const key of [
+                'run_checks',
+                'run_rust',
+                'run_native',
+                'run_forge_room',
+                'run_website',
+              ]) {
                 core.setOutput(key, 'true');
               }
               return;
@@ -111,6 +134,41 @@ jobs:
             core.setOutput('run_rust', matches(files, RUST_PATHS) ? 'true' : 'false');
             core.setOutput('run_native', matches(files, NATIVE_PATHS) ? 'true' : 'false');
             core.setOutput('run_forge_room', matches(files, FORGE_ROOM_PATHS) ? 'true' : 'false');
+            core.setOutput('run_website', matches(files, WEBSITE_PATHS) ? 'true' : 'false');
+
+  # ── Website: landing page + docs site ──────────────────────────────
+  # Deliberately NOT gated on `run_checks`. A website-only PR sets that to
+  # false, which is precisely the case where this is the only build that can
+  # fail — gating on it would leave the gap this job exists to close.
+  #
+  # Runs the same `yarn build` (both Astro configs) that Dockerfile.web's
+  # website stage runs, so a green job here means the next image build of the
+  # same tree succeeds.
+  website:
+    name: Website (landing + docs)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_website == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: website/yarn.lock
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Install dependencies
+        working-directory: website
+        run: yarn install --frozen-lockfile
+
+      - name: Build landing + docs
+        working-directory: website
+        run: yarn build
 
   # ── TypeScript type-check ──────────────────────────────────────────
   # Builds the wasm bundle (or restores it from cache) and uploads it as an

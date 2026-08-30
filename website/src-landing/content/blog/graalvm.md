@@ -91,7 +91,7 @@ Forge resumes
 
 The Rust engine already used this transport, so Forge arrived behind the game UI we had.
 
-## The latency win is mostly in the tail
+## What the player actually waits for
 
 The wait that matters is between answering a prompt and seeing the next one. Seven production games
 on the browser engine, 399 decisions, put that at 47 ms p50, of which the engine is 16 ms. Nothing in
@@ -108,7 +108,7 @@ remaining gap sits outside the engine, in the hosted path.
 Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, which
 makes it a fixed charge rather than a scaling one. The browser sampled 54 activations at a p50 near
 20 ms, on a development server rather than in production, so read that as an order of magnitude and
-not a benchmark. Cheap decisions were never the ones that hurt.
+not a benchmark. The median gap is already about six-fold. Activations widen it.
 
 ## The protocol did most of the work
 
@@ -126,8 +126,9 @@ identical from the outside. It now holds several runtimes behind one client:
              ┌───────────┴───────────┐
              │                       │
          Rust engine               Forge
-            (wasm)         server .so, desktop .dll or .dylib,
-                                 browser wasm
+            (wasm)               server   .so
+                                 desktop  .dll / .dylib
+                                 browser  wasm
 ```
 
 Compiling Forge for a new runtime changed nothing in the game wire format. The engine publishes the
@@ -182,6 +183,13 @@ against the previous one. The browser workers cannot do that yet, so every seat 
 every time. Over a seven-minute four-seat game each guest pulled about 29 MB, and not one frame was a
 patch. That pipeline is the next thing to build.
 
+None of this retires the hosted fleet. When a browser hosts, the whole game runs in that browser, so
+every seat's hidden information is only as private as the host's client. A node is a neutral third
+party, it does not park itself when a tab goes to the background, and it does not take the table down
+when somebody closes a window. It also plays for people whose machine will not: a 35 MB engine and
+four seats of board state is a lot to ask of a phone. Hosting in the browser is another option, not a
+replacement.
+
 ## Shipped, and switched off
 
 The binary ships in the production web image with the feature off. The server turns it on, and only
@@ -190,8 +198,9 @@ then can a player opt in under Settings.
 That gives us telemetry and compatibility reports from real games before anyone gets the engine by
 default.
 
-The figures above arrived that way. A longer development run did better still, 38 ms of turnaround
-and 8 ms inside the engine, so production is not the ceiling here.
+The seven production games measured above were played through that path. A longer development run
+did better still, 38 ms of turnaround and 8 ms inside the engine, so production is not the ceiling
+here.
 
 ## What is not done
 

@@ -1,6 +1,6 @@
 {
   "uid": "manabrew-engine-health",
-  "title": "Manabrew \u2014 Engine Health",
+  "title": "Manabrew — Engine Health",
   "tags": ["manabrew", "ops", "engine"],
   "schemaVersion": 39,
   "editable": true,
@@ -26,7 +26,7 @@
     {
       "id": 200,
       "type": "row",
-      "title": "Hosted engine \u2014 node fleet (#684 watch)",
+      "title": "Hosted engine — node fleet (#684 watch)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -485,7 +485,7 @@
     {
       "id": 220,
       "type": "row",
-      "title": "Player-side engines \u2014 one report per finished game",
+      "title": "Player-side engines — one report per finished game",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -926,6 +926,95 @@
       ],
       "fieldConfig": {
         "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 240,
+      "type": "row",
+      "title": "Are the reports arriving?",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 71,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 241,
+      "type": "timeseries",
+      "title": "Games with a player, and how many of them reported",
+      "description": "The denominator for everything above. A client reports once per finished game with at least five decisions in it, so the two lines never meet — but a wide, persistent gap means reports are being lost, not that games are short. Games with only bots in them are excluded; they have no client to report. Reports that reach the hub instead of the relay carry no game id and cannot be joined, so they count in the panels above and not here.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "events-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryText": "SELECT CAST(strftime('%s', date(g.started_at)) AS INTEGER) AS t, count(*) AS \"games with a player\", sum(CASE WHEN s.game_id IS NOT NULL THEN 1 ELSE 0 END) AS \"games reported\" FROM games g LEFT JOIN (SELECT DISTINCT game_id FROM engine_stats WHERE game_id IS NOT NULL) s ON s.game_id = g.game_id WHERE EXISTS (SELECT 1 FROM game_players p WHERE p.game_id = g.game_id AND p.is_bot = 0) AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 1",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(g.started_at)) AS INTEGER) AS t, count(*) AS \"games with a player\", sum(CASE WHEN s.game_id IS NOT NULL THEN 1 ELSE 0 END) AS \"games reported\" FROM games g LEFT JOIN (SELECT DISTINCT game_id FROM engine_stats WHERE game_id IS NOT NULL) s ON s.game_id = g.game_id WHERE EXISTS (SELECT 1 FROM game_players p WHERE p.game_id = g.game_id AND p.is_bot = 0) AND CAST(strftime('%s', g.started_at) AS INTEGER) > $__from / 1000 AND CAST(strftime('%s', g.started_at) AS INTEGER) <= $__to / 1000 GROUP BY 1 ORDER BY 1",
+          "queryType": "table",
+          "timeColumns": ["t"]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 242,
+      "type": "timeseries",
+      "title": "Engine reports at the relay, by outcome",
+      "description": "What the relay did with the reports it was sent. Both drop paths are silent to the player by design: `outside_room` is a report that arrived after the seat was gone, `implausible` is a malformed or hostile one. Anything but `accepted` is invisible in every other panel here — the report simply never becomes a row. Offline games and games reported after the relay went away go to the hub and never appear on this panel at all.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (increase(manabrew_relay_engine_reports_total[1h]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60
+          }
+        },
         "overrides": []
       },
       "options": {}

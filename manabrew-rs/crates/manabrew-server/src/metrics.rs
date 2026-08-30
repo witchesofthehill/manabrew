@@ -18,6 +18,7 @@ const SESSION_TAKEOVERS: &str = "manabrew_relay_session_takeovers_total";
 const ANALYTICS_DROPPED: &str = "manabrew_relay_analytics_dropped_total";
 const DECK_PLAY_EVENTS_DROPPED: &str = "manabrew_relay_deck_play_events_dropped_total";
 const STATE_PATCH_DOWNGRADES: &str = "manabrew_relay_state_patch_downgrades_total";
+const ENGINE_REPORTS: &str = "manabrew_relay_engine_reports_total";
 const CLIENT_RTT: &str = "manabrew_relay_client_rtt_ms";
 const STATE_HANDLING: &str = "manabrew_relay_state_handling_seconds";
 const SOCKET_WRITE: &str = "manabrew_relay_socket_write_seconds";
@@ -29,8 +30,13 @@ const LABEL_HOSTED: &str = "hosted";
 const LABEL_ENGINE: &str = "engine";
 const LABEL_REASON: &str = "reason";
 const LABEL_SEATS: &str = "seats";
+const LABEL_OUTCOME: &str = "outcome";
 
 pub const REJECTION_OUTDATED_WIRE: &str = "outdated_wire";
+
+pub const ENGINE_REPORT_ACCEPTED: &str = "accepted";
+pub const ENGINE_REPORT_OUTSIDE_ROOM: &str = "outside_room";
+pub const ENGINE_REPORT_IMPLAUSIBLE: &str = "implausible";
 
 #[derive(Clone, Copy)]
 enum ConnectionKind {
@@ -128,6 +134,14 @@ pub fn record_rejection(reason: &'static str) {
 /// `SELF_HOSTED_NODE_STATE_DELTA` is saving bandwidth for everyone.
 pub fn record_state_patch_downgrade() {
     counter!(STATE_PATCH_DOWNGRADES).increment(1);
+}
+
+/// What became of a client's end-of-game engine report. Both drop paths are
+/// silent by design — a report is not worth an error to a player — so without
+/// a count the only visible symptom is a dashboard that undercounts games and
+/// no way to tell a client that never sent from a relay that threw it away.
+pub fn record_engine_report(outcome: &'static str) {
+    counter!(ENGINE_REPORTS, LABEL_OUTCOME => outcome).increment(1);
 }
 
 /// Round trip from the relay to a client and back, taken from the websocket

@@ -1,5 +1,10 @@
 import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
-import { reportEngineStats } from "@/lib/engineStatsReport";
+import {
+  forgeHostLabel,
+  localEngineLabel,
+  reportEngineStats,
+  roomEngineLabel,
+} from "@/lib/engineStatsReport";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -204,7 +209,10 @@ async function initializeGame({
         gameDecks: hostedDecks,
         debugInfo: "Joining Forge engine...",
       });
-      beginGame();
+      // Forge runs on the node, or in the desktop app's own host — never in
+      // this tab, and never under a "forge" runtime, so the launch is the only
+      // place that can name it.
+      beginGame(forgeHostLabel(platformType === "tauri"));
       await hostedRuntime.api.startMultiplayerGame({
         playerNames: hostedLaunch.playerOrder,
         decks: hostedLaunch.decks,
@@ -260,7 +268,7 @@ async function initializeGame({
     debugInfo: "Starting engine...",
   });
 
-  beginGame();
+  beginGame(localEngineLabel());
   const result = await runtime.api.startGame({
     deck,
     startingLife,
@@ -505,7 +513,7 @@ export const useGameStore = create<GameState>()(
           const runtime =
             engine === "Ironsmith" ? selectGameRuntime("ironsmith") : resetSelectedGameRuntime();
           set({ debugInfo: "Starting engine..." });
-          beginGame();
+          beginGame(roomEngineLabel(engine, getPlatform().type === "tauri" && localIsHost));
           await runtime.api.startMultiplayerGame({
             playerNames,
             decks,

@@ -800,26 +800,21 @@ export class BoardRegion {
       const expanded = this.hoveredStackRoot === card.id;
       const groupSteps = Math.min(children.length, STACK_MAX_SLIDE_CARDS - 1);
       let attachIdx = 0;
-      let pushDown = 0;
       const steps = new Map<string, number>();
       for (const child of children) {
         const isAttach = child.attachedTo === card.id;
         let step: number;
-        let collapsedStep: number;
         if (isAttach) {
-          collapsedStep = this.attachCollapsedStep(attachIdx);
-          step = expanded ? (attachIdx + 1) * ATTACH_FAN_STEP_Y : collapsedStep;
+          step = expanded
+            ? (attachIdx + 1) * ATTACH_FAN_STEP_Y
+            : this.attachCollapsedStep(attachIdx);
           attachIdx += 1;
         } else {
-          collapsedStep = ATTACH_OFFSET_Y * Math.min(children.length - attachIdx, groupSteps);
-          step = collapsedStep;
+          step = ATTACH_OFFSET_Y * Math.min(children.length - attachIdx, groupSteps);
         }
         steps.set(child.id, step);
-        if (collapsedStep > pushDown) pushDown = collapsedStep;
       }
-      const stepPx = pushDown * this.cardScale;
-      const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
-      const hostCenterY = topLeftY + stepPx + (CARD_H * this.cardScale) / 2;
+      const hostCenterY = center.y;
 
       const topZ = Z_ATTACH_FAN + children.length;
       for (let i = 0; i < children.length; i++) {

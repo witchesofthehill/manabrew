@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.24.0](https://github.com/witchesofthehill/manabrew/compare/v3.23.1...v3.24.0) (2026-08-30)
+
+### Features
+
+* **observability:** make engine telemetry flow, and chart it ([#785](https://github.com/witchesofthehill/manabrew/issues/785)) ([aedab52](https://github.com/witchesofthehill/manabrew/commit/aedab52dd16fdcb588eb95a724c122f1f754a5c7))
+
 ## [3.23.1](https://github.com/witchesofthehill/manabrew/compare/v3.23.0...v3.23.1) (2026-08-30)
 
 ### Fixes

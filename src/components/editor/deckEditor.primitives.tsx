@@ -40,7 +40,7 @@ export function CardThumbnail({
   return (
     <div className={cn("relative w-full", foil && "draft-tile-foil")}>
       <ScryfallImg
-        src={card.uris[imageSize]}
+        src={card.uris?.[imageSize]}
         alt={name}
         loading={loading}
         decoding={loading === "lazy" ? "async" : undefined}

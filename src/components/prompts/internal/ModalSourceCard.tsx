@@ -23,7 +23,7 @@ export function useModalSourceCard(
     preview: sourceCard ? (
       <div className="pointer-events-none absolute top-0 left-full ml-6 drop-shadow-2xl">
         <ScryfallImg
-          src={sourceCard.uris.border_crop ?? sourceCard.uris.normal}
+          src={sourceCard.uris?.border_crop ?? sourceCard.uris?.normal}
           alt={sourceCard.identity.name}
           className="w-[240px] rounded-xl"
         />

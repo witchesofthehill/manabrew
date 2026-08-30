@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.23.0](https://github.com/witchesofthehill/manabrew/compare/v3.22.0...v3.23.0) (2026-08-29)
+
+### Features
+
+* **forge:** run Forge in the browser via GraalVM Web Image ([#759](https://github.com/witchesofthehill/manabrew/issues/759)) ([3c61382](https://github.com/witchesofthehill/manabrew/commit/3c613822870f30f5378f3b8cf03376c758b913f7))
+
 ## [3.22.0](https://github.com/witchesofthehill/manabrew/compare/v3.21.10...v3.22.0) (2026-08-28)
 
 ### Features

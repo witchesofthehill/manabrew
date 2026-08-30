@@ -21,6 +21,7 @@ import { GAME_FORMATS, getFormat, validateDeckSections } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { resolveOfflineEngine } from "@/lib/offlineEngine";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 import { hubEntryEngines, supportsEngine } from "@/lib/engines";
 import { savePresetToAccountOnUse } from "@/lib/presetDeckAccount";
 import { useAccountDecks } from "@/hooks/useAccountDecks";
@@ -117,6 +118,7 @@ export function DeckVsSelector({
   const isWeb = getPlatform().type === "web";
   const hostedAvailable = isHostedEngineAvailable();
   const offlineEngine = resolveOfflineEngine(lastOfflineEngine);
+  const forgeWasm = isForgeWasmSelected();
   const { details: accountDeckDetails } = useAccountDecks();
   const forkedPresetKeys = new Set(
     Object.values(accountDeckDetails)
@@ -762,18 +764,23 @@ export function DeckVsSelector({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   onSelect={() => setLastOfflineEngine("Forge")}
-                  disabled={!hostedAvailable}
+                  disabled={!hostedAvailable && !forgeWasm}
                   className="gap-1.5 text-xs"
                 >
                   <EngineMark engine="Forge" className="h-3.5 w-3.5" />
                   Forge
-                  {hostedAvailable && (
-                    <span className="text-[9px] text-muted-foreground">recommended</span>
+                  {forgeWasm ? (
+                    <span className="text-[9px] text-muted-foreground">in browser</span>
+                  ) : (
+                    hostedAvailable && (
+                      <span className="text-[9px] text-muted-foreground">recommended</span>
+                    )
                   )}
                   {offlineEngine === "Forge" && <Check className="ml-auto h-3 w-3" />}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setLastOfflineEngine("Manabrew")}
+                  disabled={forgeWasm}
                   className="gap-1.5 text-xs"
                 >
                   <EngineMark engine="Manabrew" className="h-3.5 w-3.5" />

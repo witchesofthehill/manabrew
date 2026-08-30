@@ -49,7 +49,7 @@ export function PromptLabel({
     >
       {sourceCard && (
         <ScryfallImg
-          src={sourceCard.uris.border_crop ?? sourceCard.uris.normal}
+          src={sourceCard.uris?.border_crop ?? sourceCard.uris?.normal}
           alt={sourceCard.identity.name}
           className={cn(MODAL_CARD_THUMBNAIL, minimal && "mx-auto")}
         />

@@ -1,3 +1,5 @@
+import { beginGame, noteAnswerSent } from "@/lib/engineTelemetry";
+import { reportEngineStats } from "@/lib/engineStatsReport";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { toast } from "sonner";
@@ -32,6 +34,7 @@ import type { EngineKind } from "@/types/server";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 import { withResolvedDeckName } from "@/lib/deckName";
+import { isForgeWasmSelected } from "@/lib/forgeWasm";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 
@@ -142,6 +145,9 @@ async function initializeGame({
   const platformType = getPlatform().type;
   if (
     engine === "Forge" &&
+    // The wasm build is Forge running in-process; it needs no node, and on a
+    // deployment that has one this would otherwise route around it.
+    !isForgeWasmSelected() &&
     opponentDecks?.length &&
     (platformType === "tauri" || (platformType === "web" && isHostedEngineAvailable()))
   ) {
@@ -253,6 +259,7 @@ async function initializeGame({
     debugInfo: "Starting engine...",
   });
 
+  beginGame();
   const result = await runtime.api.startGame({
     deck,
     startingLife,
@@ -563,6 +570,7 @@ export const useGameStore = create<GameState>()(
           ((output.type === "declareAttackers" || output.type === "declareBlockers") &&
             output.assignments.length === 0);
         try {
+          noteAnswerSent();
           set({
             isWaitingForResponse: true,
             relinquishedPriority,
@@ -607,6 +615,21 @@ export const useGameStore = create<GameState>()(
         clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
+        // Before the state is cleared: how the engine performed. A game the
+        // relay knows about is reported to it; anything else goes to the hub.
+        // Never throws, never blocks the teardown.
+        reportEngineStats({
+          multiplayer: wasMultiplayer,
+          seats: Object.keys(get().gameDecks).length || 2,
+          format: get().gameConfig?.formatId ?? null,
+          endReason: get().gameView?.gameOver ? "gameOver" : "left",
+          gameId: useServerStore.getState().gameId ?? null,
+          send: wasMultiplayer
+            ? async (stats, gameId) => {
+                await getPlatform().server?.reportEngineStats(stats, gameId);
+              }
+            : undefined,
+        });
         set({
           isGameActive: false,
           gameView: null,
@@ -673,8 +696,17 @@ export const useGameStore = create<GameState>()(
           return;
         }
         const runtime = getSelectedGameRuntime();
-        await runtime.api.restoreSnapshot({ checkpointId });
-        set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
+        try {
+          await runtime.api.restoreSnapshot({ checkpointId });
+          set({ debugInfo: `Requested snapshot restore: #${checkpointId}` });
+        } catch (error) {
+          // Not every engine can rewind: the browser Forge build rejects it
+          // outright. Say so rather than leaving the click looking successful
+          // or throwing out of a handler.
+          set({
+            debugInfo: `Snapshot restore is not available on this engine (${String(error)}).`,
+          });
+        }
       },
     }),
     { name: "game", enabled: import.meta.env.DEV },

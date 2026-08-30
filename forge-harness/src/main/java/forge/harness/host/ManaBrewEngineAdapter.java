@@ -10,7 +10,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import forge.ai.LobbyPlayerAi;
+import forge.StaticData;
 import forge.card.CardDb;
+import forge.card.CardEdition;
 import forge.deck.CardPool;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
@@ -21,6 +23,7 @@ import forge.game.Match;
 import forge.game.player.RegisteredPlayer;
 import forge.gui.GuiBase;
 import forge.item.PaperCard;
+import forge.localinstance.properties.ForgePreferences;
 import forge.model.FModel;
 
 import java.util.ArrayList;
@@ -58,7 +61,11 @@ public final class ManaBrewEngineAdapter {
             throw new IllegalArgumentException("assetsDir is required");
         }
         GuiBase.setInterface(new HeadlessGuiBase(assetsDir));
-        FModel.initialize(null, null);
+        FModel.initialize(null, prefs -> {
+            prefs.setPref(ForgePreferences.FPref.LOAD_CARD_SCRIPTS_LAZILY, true);
+            prefs.setPref(ForgePreferences.FPref.DECKGEN_CARDBASED, false);
+            return null;
+        });
         initialized = true;
     }
 
@@ -79,6 +86,8 @@ public final class ManaBrewEngineAdapter {
         // multiplexed processes only reset between idle periods.
         if (sessions.isEmpty()) {
             ForgeEngineReset.resetAllIdCounters();
+            forge.StaticData.instance().resetLazyLoadedCards();
+            forge.ImageKeys.clearCaches();
         }
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
@@ -207,7 +216,11 @@ public final class ManaBrewEngineAdapter {
     }
 
     static String cardRequest(final CardIdentity card) {
-        final String name = CardDb.CardRequest.compose(card.getName(), card.isFoil());
+        return cardRequest(card, staticDataNames());
+    }
+
+    static String cardRequest(final CardIdentity card, final CardNameIndex names) {
+        final String name = CardDb.CardRequest.compose(resolveCardName(card, names), card.isFoil());
         if (card.getSetCode() == null || card.getSetCode().isBlank()) {
             return name;
         }
@@ -215,6 +228,76 @@ public final class ManaBrewEngineAdapter {
             return CardDb.CardRequest.compose(name, card.getSetCode());
         }
         return CardDb.CardRequest.compose(name, card.getSetCode(), card.getCollectorNumber());
+    }
+
+    /**
+     * The name Forge files a card under, given the name a deck asked for.
+     */
+    static String resolveCardName(final CardIdentity card, final CardNameIndex names) {
+        final String requested = card.getName();
+        if (requested == null || requested.isBlank() || names == null) {
+            return requested;
+        }
+        if (names.knowsCard(requested)) {
+            return requested;
+        }
+        final String printed = names.cardNamePrintedAs(
+                card.getSetCode(), card.getCollectorNumber(), requested);
+        if (printed != null && !printed.isBlank()) {
+            return printed;
+        }
+        final String byFlavorName = names.cardNameForFlavorName(requested);
+        return byFlavorName == null || byFlavorName.isBlank() ? requested : byFlavorName;
+    }
+
+    /** The card-database questions {@link #resolveCardName} asks, so a test can answer them. */
+    interface CardNameIndex {
+        boolean knowsCard(String name);
+
+        /** The card at this printing, when the edition files it under the given flavor name. */
+        String cardNamePrintedAs(String setCode, String collectorNumber, String flavorName);
+
+        String cardNameForFlavorName(String flavorName);
+    }
+
+    private static CardNameIndex staticDataNames() {
+        final StaticData data = StaticData.instance();
+        final CardDb cards = data == null ? null : data.getCommonCards();
+        if (cards == null) {
+            return null;
+        }
+        return new CardNameIndex() {
+            @Override
+            public boolean knowsCard(final String name) {
+                return !cards.getAllCards(name).isEmpty();
+            }
+
+            @Override
+            public String cardNamePrintedAs(
+                    final String setCode, final String collectorNumber, final String flavorName) {
+                if (setCode == null || setCode.isBlank()
+                        || collectorNumber == null || collectorNumber.isBlank()) {
+                    return null;
+                }
+                final CardEdition edition =
+                        data.getEditions().get(setCode.toUpperCase(Locale.ROOT));
+                if (edition == null) {
+                    return null;
+                }
+                final CardEdition.EditionEntry entry =
+                        edition.getCardFromCollectorNumber(collectorNumber);
+                if (entry == null) {
+                    return null;
+                }
+                return flavorName.equalsIgnoreCase(entry.getFlavorName()) ? entry.name() : null;
+            }
+
+            @Override
+            public String cardNameForFlavorName(final String flavorName) {
+                final PaperCard card = cards.getUniqueByName(flavorName);
+                return card == null ? null : card.getName();
+            }
+        };
     }
 
     private static void requireSessionId(final String sessionId) {

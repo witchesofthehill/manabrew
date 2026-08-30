@@ -52,7 +52,7 @@ export async function onboard(page, nickname) {
   if (await agree.count()) {
     await agree.click();
     await page.getByRole("button", { name: /Accept and continue/i }).click();
-    await page.waitForTimeout(1200);
+    await page.locator('input[placeholder*="StormCrow"]').first().waitFor({ timeout: 10000 });
   }
   const nick = page.locator('input[placeholder*="StormCrow"]').first();
   if (await nick.count()) {
@@ -70,12 +70,18 @@ export async function onboard(page, nickname) {
 export async function connectLocal(page, username) {
   await page.goto(BASE() + "/settings", { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
+  // The tab bar mounts after the account panel settles, so wait for the tab
+  // rather than sampling once and moving on with the page half-built.
   const serverTab = page.getByRole("button", { name: /^Server$/ }).first();
-  if (await serverTab.count()) await serverTab.click();
-  await page.locator("#server-host").waitFor({ timeout: 10000 });
+  await serverTab.waitFor({ timeout: 20000 });
+  await serverTab.click();
+  await page.locator("#server-host").waitFor({ timeout: 20000 });
   await page.fill("#server-host", process.env.RELAY_HOST || "localhost");
   await page.fill("#server-port", process.env.RELAY_PORT || "9443");
-  await page.fill("#server-username", username);
+  // The relay takes its name from onboarding now; the field only exists on
+  // older builds, and waiting for it stalls the whole suite.
+  const nameField = page.locator("#server-username");
+  if (await nameField.count()) await nameField.fill(username);
   await page.fill("#server-password", process.env.RELAY_PW || "forge");
   await page.getByRole("button", { name: /Save & Reconnect/i }).click();
   await page.waitForTimeout(2500);
@@ -84,21 +90,31 @@ export async function connectLocal(page, username) {
 /** Create a Match room on the given engine + format, waiting for the relay to be connected first. */
 export async function createRoom(page, { name, engine = "Ironsmith", format } = {}) {
   await page.goto(BASE() + "/lobby", { waitUntil: "networkidle" });
-  const newRoom = page.getByRole("button", { name: /New Room/i });
-  for (let i = 0; i < 30 && (await newRoom.isDisabled().catch(() => true)); i++) {
+  const setUp = page.getByRole("button", { name: /Set up a table/i });
+  for (let i = 0; i < 30 && (await setUp.isDisabled().catch(() => true)); i++) {
     await page.waitForTimeout(500);
   }
-  await newRoom.click();
-  const dlg = page.locator("[role=dialog]");
-  await dlg.getByRole("button", { name: new RegExp(engine, "i") }).first().click();
+  await setUp.click();
+  await page.waitForTimeout(600);
+  // The engine picker starts collapsed on the setup page.
+  const engineSummary = page.locator("summary", { hasText: /engine/i }).first();
+  if (await engineSummary.count()) await engineSummary.click();
+  await page.waitForTimeout(300);
+  await page
+    .getByRole("button", { name: new RegExp(engine, "i") })
+    .first()
+    .click();
   await page.waitForTimeout(300);
   if (format) {
-    await dlg.getByRole("button", { name: new RegExp(`^${format}`) }).first().click();
+    await page.locator("#room-format").click();
+    await page
+      .getByRole("menuitem", { name: new RegExp(`^${format}$`) })
+      .first()
+      .click();
     await page.waitForTimeout(300);
   }
-  const nameInput = page.locator('input[value*="Room"], input[placeholder*="Room"]').first();
-  if ((await nameInput.count()) && name) await nameInput.fill(name);
-  await dlg.getByRole("button", { name: /Create Room/i }).click();
+  if (name) await page.locator("#table-name").fill(name);
+  await page.getByRole("button", { name: /^Create table$/i }).click();
   await page.waitForTimeout(2500);
 }
 
@@ -122,7 +138,10 @@ export async function listPresets(page) {
   const dlg = page.locator("[role=dialog]");
   await dlg.waitFor();
   const names = (
-    await dlg.getByRole("button").filter({ hasText: /Preset deck/ }).allTextContents()
+    await dlg
+      .getByRole("button")
+      .filter({ hasText: /Preset deck/ })
+      .allTextContents()
   ).map((p) => p.replace("Preset deck", "").trim());
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);

@@ -24,7 +24,6 @@ pub struct AssetConfig {
     pub access_key_id: String,
     pub secret_access_key: String,
     pub public_base_url: String,
-    pub path_style: bool,
     pub quota_bytes: u64,
     pub reservation_ttl_seconds: i64,
     pub uploads_per_hour: u32,
@@ -119,7 +118,6 @@ impl AssetConfig {
             access_key_id: trimmed_var("HUB_S3_ACCESS_KEY_ID")?,
             secret_access_key: trimmed_var("HUB_S3_SECRET_ACCESS_KEY")?,
             public_base_url: trimmed_var("HUB_S3_PUBLIC_BASE_URL")?,
-            path_style: flag_var("HUB_S3_PATH_STYLE"),
             quota_bytes: 100 * 1024 * 1024,
             reservation_ttl_seconds: parsed_var("HUB_ASSET_RESERVATION_TTL_SECONDS")
                 .unwrap_or(24 * 60 * 60),
@@ -165,15 +163,6 @@ fn trimmed_var(name: &str) -> Option<String> {
 
 fn parsed_var<T: std::str::FromStr>(name: &str) -> Option<T> {
     std::env::var(name).ok()?.trim().parse().ok()
-}
-
-fn flag_var(name: &str) -> bool {
-    std::env::var(name).is_ok_and(|value| {
-        matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
 }
 
 fn oauth_client(id_var: &str, secret_var: &str) -> Option<OAuthClient> {

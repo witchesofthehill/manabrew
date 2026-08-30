@@ -60,7 +60,7 @@ impl ObjectStore {
                 .behavior_version(BehaviorVersion::latest())
                 .region(Region::new(config.region.clone()))
                 .endpoint_url(&config.endpoint)
-                .force_path_style(config.path_style)
+                .force_path_style(true)
                 .credentials_provider(credentials)
                 .build(),
         );
@@ -142,11 +142,10 @@ mod tests {
         ObjectStore::new(&AssetConfig {
             endpoint: "https://account.r2.cloudflarestorage.com".into(),
             region: "auto".into(),
-            bucket: "manabrew-assets".into(),
+            bucket: "manabrew-assets-dev".into(),
             access_key_id: "access-key".into(),
             secret_access_key: "secret-key".into(),
             public_base_url: "https://assets.manabrew.app".into(),
-            path_style: false,
             quota_bytes: 1024,
             reservation_ttl_seconds: 60,
             uploads_per_hour: 60,

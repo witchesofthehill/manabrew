@@ -1257,6 +1257,7 @@ fn handle_client_message(
                 ts: analytics::now_ts(),
                 room_id,
                 username: username.to_string(),
+                report_id: stats.report_id,
                 game_id,
                 engine: stats.engine,
                 client_version: stats.client_version,

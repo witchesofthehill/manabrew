@@ -1,6 +1,0 @@
-[
-  {
-    "command": "--deck1 replacement_comprehensive --deck2 green_stompy --seed 104 --max-turns 40",
-    "reason": "Java Forge incorrectly puts cleanup hand-size discards into the graveyard instead of exiling them under Leyline of the Void."
-  }
-]

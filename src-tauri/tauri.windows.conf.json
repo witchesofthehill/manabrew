@@ -1,9 +1,0 @@
-{
-  "bundle": {
-    "resources": {
-      "resources/forge-runtime": "engine/forge",
-      "resources/cardset.rkyv": "cardset.rkyv",
-      "../forge-harness/native/build/forgeharness.dll": "forgeharness.dll"
-    }
-  }
-}

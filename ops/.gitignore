@@ -1,8 +1,0 @@
-# Never commit production secrets — they live only on the deploy host.
-production.secrets
-parity.htpasswd.hash
-*.env
-
-# SideStore artifacts are generated per release by CI and rsync'd to the host.
-sidestore/*.ipa
-sidestore/apps.json

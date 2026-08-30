@@ -1,5 +1,0 @@
-{
-  "build": {
-    "beforeBuildCommand": "yarn vite:build"
-  }
-}

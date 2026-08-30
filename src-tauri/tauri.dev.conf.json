@@ -1,8 +1,0 @@
-{
-  "bundle": {
-    "resources": {
-      "../forge-harness/native/build/libforgeharness.dylib": null,
-      "../forge-harness/native/build/forgeharness.dll": null
-    }
-  }
-}

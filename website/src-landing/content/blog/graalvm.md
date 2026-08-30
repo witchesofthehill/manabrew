@@ -42,16 +42,17 @@ Manabrew already has a Rust rules engine that runs in WebAssembly. Forge has mor
 of rules and card support behind it, which is the reason to bring it into the browser as well.
 
 The browser currently runs the Rust implementation, whose card support grows through parity work
-against Forge. Forge itself needed a machine somewhere else.
+against Forge. The browser was the one place we could not offer Forge itself.
 
-We were already halfway here without noticing. The hosted fleet stopped running a JVM some time ago:
-`native-image` compiles the Forge harness to a shared library and the Rust node calls it in process,
-so those servers ship no Java runtime at all. Web Image is the same compiler with a different
-backend. One target is a `.so` on a server, the other is WebAssembly in a tab.
+We were already halfway here without noticing. Nothing we ship runs a JVM any more. `native-image`
+compiles the Forge harness into a shared library, and both the hosted node and the desktop app load
+it in process and call it over FFI: a `.so` on the servers, a `.dll` next to the executable on
+Windows. Web Image is that same compiler with a different backend, so the browser is the third
+target rather than a new engine. Same bytecode, three shapes.
 
-So there is no card-script translation and no second Forge-compatible implementation. It is the same
-bytecode. During development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through both
-builds and compared the callback streams. They were byte-identical.
+So there is no card-script translation and no second Forge-compatible implementation to keep in
+step. During development we ran full games on seeds 7, 42 and 99 to a 40-turn limit through the
+browser build and the reference one, and compared the callback streams. They were byte-identical.
 
 ## Keeping a synchronous engine synchronous
 
@@ -122,7 +123,7 @@ now gives us several interchangeable runtimes behind one client:
              ┌───────────┴───────────┐
              │                       │
          Rust engine               Forge
-          (Wasm)              JVM / Native / Wasm
+            (wasm)        server .so, desktop .dll, wasm
 ```
 
 Compiling Forge for a new runtime changed nothing in the game wire format. The engine publishes the

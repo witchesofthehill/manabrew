@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.24.4](https://github.com/witchesofthehill/manabrew/compare/v3.24.3...v3.24.4) (2026-08-30)
+
+### Fixes
+
+* shitty targeting cache ([#787](https://github.com/witchesofthehill/manabrew/issues/787)) ([3c18458](https://github.com/witchesofthehill/manabrew/commit/3c184580d678ee507281463665195796e4269742))
+
 ## [3.24.3](https://github.com/witchesofthehill/manabrew/compare/v3.24.2...v3.24.3) (2026-08-30)
 
 ### Fixes

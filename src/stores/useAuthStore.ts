@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { fetchMe, requestAccessToken, signOutSession, AuthRequestError } from "@/api/auth";
 import { isFeatureEnabled } from "@/featureFlags";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { AuthAccount, AuthIdentity, AuthSessionResponse } from "@/api/authTypes";
 
 export type AuthStatus = "unknown" | "signedOut" | "signedIn";
@@ -63,13 +62,6 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
-function adoptAccountAvatar(account: AuthAccount): void {
-  if (!account.avatarUrl) return;
-  const prefs = usePreferencesStore.getState();
-  if (prefs.customAvatarAssetId === account.avatarAssetId) return;
-  prefs.setCustomAvatar(account.avatarUrl, account.avatarAssetId);
-}
-
 export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
@@ -112,7 +104,6 @@ export const useAuthStore = create<AuthState>()(
             const me = await fetchMe(token);
             if (get().refreshToken !== refreshToken || requestId !== refreshRequestId) return;
             set({ account: me.account, identities: me.identities, status: "signedIn" });
-            adoptAccountAvatar(me.account);
           } catch (err) {
             if (
               get().refreshToken === refreshToken &&

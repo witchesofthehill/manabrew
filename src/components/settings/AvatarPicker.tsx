@@ -1,10 +1,10 @@
 import { useRef } from "react";
 import { Camera, CircleUserRound, X } from "lucide-react";
 import { useAssetsAvailable, useAssetStore } from "@/stores/useAssetStore";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export function AvatarPicker() {
-  const avatarSrc = usePreferencesStore((s) => s.customAvatarUrl);
+  const avatarSrc = useAuthStore((s) => s.account?.avatarUrl);
   const uploadAvatar = useAssetStore((s) => s.uploadAvatar);
   const clearAvatar = useAssetStore((s) => s.clearAvatar);
   const busy = useAssetStore((s) => s.busy);

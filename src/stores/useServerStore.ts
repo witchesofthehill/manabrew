@@ -6,6 +6,8 @@ import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { assetUrlById } from "@/stores/useAssetStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import {
   isActiveGameSessionAbandonmentPending,
   peekActiveGameSession,
@@ -395,19 +397,22 @@ export const useServerStore = create<ServerState>()(
         if (!platform.server) return;
         const prefs = usePreferencesStore.getState();
         const deckHasPlaymat = !!deck.playmatUrl || !!deck.playmatSettings?.color;
+        const defaultPlaymatUrl = deckHasPlaymat
+          ? undefined
+          : await assetUrlById(prefs.defaultPlaymatAssetId);
         await platform.server.setDeckSelection({
           deckName,
           deck: deckHasPlaymat
             ? deck
             : {
                 ...deck,
-                playmatUrl: prefs.defaultPlaymatUrl,
-                playmatAssetId: prefs.defaultPlaymatAssetId,
+                playmatUrl: defaultPlaymatUrl,
+                playmatAssetId: defaultPlaymatUrl ? prefs.defaultPlaymatAssetId : undefined,
                 playmatSettings: prefs.defaultPlaymatSettings,
               },
           publishedDeckId,
           commanderName: commanderName ?? null,
-          avatarUrl: prefs.customAvatarUrl,
+          avatarUrl: useAuthStore.getState().account?.avatarUrl,
         });
       },
 

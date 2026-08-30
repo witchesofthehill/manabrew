@@ -17,6 +17,8 @@ import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useAssetUrl } from "@/stores/useAssetStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
@@ -660,8 +662,9 @@ export function GameBoard({
 
   const gameDecks = useGameStore((s) => s.gameDecks);
   const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
-  const myAvatar = usePreferencesStore((s) => s.customAvatarUrl);
-  const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymatUrl);
+  const myAvatar = useAuthStore((s) => s.account?.avatarUrl);
+  const defaultPlaymatAssetId = usePreferencesStore((s) => s.defaultPlaymatAssetId);
+  const defaultPlaymat = useAssetUrl(defaultPlaymatAssetId);
   const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
   const playerDecks = useServerStore((s) => s.playerDecks);
 

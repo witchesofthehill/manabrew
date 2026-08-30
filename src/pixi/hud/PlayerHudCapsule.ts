@@ -384,7 +384,15 @@ export class PlayerHudCapsule {
   }
 
   private updateAvatarTexture(url: string | undefined): void {
-    if (!url || url === this.avatarUrl) return;
+    if (!url) {
+      this.avatarUrl = null;
+      if (this.avatarTex) {
+        this.avatarTex = null;
+        this.render();
+      }
+      return;
+    }
+    if (url === this.avatarUrl) return;
     this.avatarUrl = url;
     loadAvatarTexture(url)
       .then((tex) => {

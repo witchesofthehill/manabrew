@@ -1021,6 +1021,9 @@ export class BoardScene {
   updateHand(state: HandState): void {
     this.hand?.updateHand(state);
   }
+  getHandBounds(): BlockingRect | null {
+    return this.hand?.getBlockerRect() ?? null;
+  }
 
   holdHandHover(): void {
     this.hand?.holdHover();
@@ -1752,7 +1755,9 @@ export class BoardScene {
       return;
     }
 
-    const dragging = this.dragHandler.draggingCardIds.size > 0 || hand.isDraggingFromHand();
+    const draggingFromHand = hand.isDraggingFromHand();
+    if (draggingFromHand) hand.updateReorderAt(pos.x, pos.y);
+    const dragging = this.dragHandler.draggingCardIds.size > 0 || draggingFromHand;
     if (!dragging) {
       hand.updateHoverAt(pos.x, pos.y);
     } else if (hand.hasActiveHover()) {
@@ -1838,6 +1843,15 @@ export class BoardScene {
     if (this.blockDragBlockerId) {
       this.callbacks.onUnassignBlock?.(this.blockDragBlockerId);
       this.setBlockDragId(null);
+      return;
+    }
+    if (e && this.hand?.isDraggingFromHand()) {
+      const pos = this.root.toLocal(e.global);
+      this.hand.updateReorderAt(pos.x, pos.y);
+    }
+    const handReorder = this.hand?.finishReorder();
+    if (handReorder) {
+      this.callbacks.onReorderHand?.(handReorder.cardId, handReorder.toIndex);
       return;
     }
     const local = this.localRegion();

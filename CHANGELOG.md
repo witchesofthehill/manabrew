@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.26.0](https://github.com/witchesofthehill/manabrew/compare/v3.25.0...v3.26.0) (2026-08-31)
+
+### Features
+
+* **ui:** add hand ordering ([#764](https://github.com/witchesofthehill/manabrew/issues/764)) ([bcaab40](https://github.com/witchesofthehill/manabrew/commit/bcaab40015ddbfbd4a25829d598d483830cb02c1))
+
+## [3.25.0](https://github.com/witchesofthehill/manabrew/compare/v3.24.4...v3.25.0) (2026-08-30)
+
+### Features
+
+* s3 compatible astorage module ([#783](https://github.com/witchesofthehill/manabrew/issues/783)) ([4cd9450](https://github.com/witchesofthehill/manabrew/commit/4cd94502674e455e6284e4bf3f02c2592baac8e7))
+
 ## [3.24.4](https://github.com/witchesofthehill/manabrew/compare/v3.24.3...v3.24.4) (2026-08-30)
 
 ### Fixes

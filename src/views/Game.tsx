@@ -593,16 +593,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
-    if (manualApi) {
-      preview.showSticky(card, e.clientX, e.clientY);
-      return;
-    }
     const actions = getHandActionOptions(card);
-    if (actions.length > 1 || actions.some((action) => action.kind === "ability")) {
-      handleHandCardAction(card, e);
-      return;
-    }
-    if (playableIds.has(card.id)) startHandCardDrag(card, e);
+    const canCast =
+      !manualApi &&
+      playableIds.has(card.id) &&
+      actions.length <= 1 &&
+      !actions.some((action) => action.kind === "ability");
+    startHandCardDrag(card, e, { canCast });
   };
 
   const handleBattlefieldCardAction = (card: CardDto, e?: React.MouseEvent) => {
@@ -943,21 +940,24 @@ export default function Game({ exitTo }: GameProps = {}) {
   const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
-  const { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag } = useHandDrag({
-    battlefieldContainerRef,
-    handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
-    onCastSpell: handleCastSpell,
-    onBattlefieldDrop: (card, position) => {
-      if (
-        isPermanentSpellCard(card) &&
-        boardSceneRef.current?.commitPendingDrop(card.id, position.clientX, position.clientY)
-      ) {
-        placementIntentRef.current = { cardId: card.id, castStarted: false };
-      }
-    },
-    dismissHover: preview.dismiss,
-    onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
-  });
+  const { draggingHandCard, ghostPos, isOverBattlefield, isOverHand, startHandCardDrag } =
+    useHandDrag({
+      battlefieldContainerRef,
+      handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
+      getHandBounds: () => boardSceneRef.current?.getHandBounds() ?? null,
+      onClickCard: handleHandCardAction,
+      onCastSpell: handleCastSpell,
+      onBattlefieldDrop: (card, position) => {
+        if (
+          isPermanentSpellCard(card) &&
+          boardSceneRef.current?.commitPendingDrop(card.id, position.clientX, position.clientY)
+        ) {
+          placementIntentRef.current = { cardId: card.id, castStarted: false };
+        }
+      },
+      dismissHover: preview.dismiss,
+      onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
+    });
 
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
@@ -1815,12 +1815,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}
           isOverBattlefield={isOverBattlefield}
+          isOverHand={isOverHand}
           battlefieldContainerRef={battlefieldContainerRef}
           draggingCardId={draggingHandCard?.id}
           draggingIsPermanent={draggingIsPermanent}
           castingCardId={casting.castingCardId}
           onHandCardDragStart={handleHandCardDragStart}
-          onHandCardClick={handleHandCardAction}
           onHoverCard={handleHoverCardGuarded}
           onDismissHoverPreview={preview.dismiss}
           onLongPressCard={(card, rect) =>
@@ -2166,7 +2166,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       />
 
       {draggingHandCard &&
-        !draggingIsPermanent &&
+        (!draggingIsPermanent || isOverHand) &&
         createPortal(
           <div
             className="fixed pointer-events-none z-[9999]"

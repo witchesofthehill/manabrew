@@ -7,6 +7,7 @@ import type { AiOpponentRef } from "@/lib/aiOpponent";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { EngineKind, GameFormat } from "@/types/server";
+import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
@@ -45,12 +46,14 @@ interface PreferencesState {
   addSavedServer: (server: KnownRelay) => void;
   removeSavedServer: (name: string) => void;
 
-  customAvatar?: string;
-  setCustomAvatar: (dataUrl: string | undefined) => void;
+  customAvatarUrl?: string;
+  customAvatarAssetId?: string;
+  setCustomAvatar: (url: string | undefined, assetId: string | undefined) => void;
 
-  defaultPlaymat?: string;
+  defaultPlaymatUrl?: string;
+  defaultPlaymatAssetId?: string;
   defaultPlaymatSettings?: PlaymatSettings;
-  setDefaultPlaymat: (dataUrl: string | undefined) => void;
+  setDefaultPlaymat: (url: string | undefined, assetId: string | undefined) => void;
   setDefaultPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 
   zonePanelOrder: ZonePanelItem[];
@@ -58,6 +61,8 @@ interface PreferencesState {
 
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
+  handOrderMode: HandOrderMode;
+  setHandOrderMode: (mode: HandOrderMode) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -141,11 +146,14 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "savedServers",
-  "customAvatar",
-  "defaultPlaymat",
+  "customAvatarUrl",
+  "customAvatarAssetId",
+  "defaultPlaymatUrl",
+  "defaultPlaymatAssetId",
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
+  "handOrderMode",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -227,12 +235,16 @@ export const usePreferencesStore = create<PreferencesState>()(
               savedServers: state.savedServers.filter((s) => s.name !== name),
             })),
 
-          customAvatar: undefined,
-          setCustomAvatar: (customAvatar) => set({ customAvatar }),
+          customAvatarUrl: undefined,
+          customAvatarAssetId: undefined,
+          setCustomAvatar: (customAvatarUrl, customAvatarAssetId) =>
+            set({ customAvatarUrl, customAvatarAssetId }),
 
-          defaultPlaymat: undefined,
+          defaultPlaymatUrl: undefined,
+          defaultPlaymatAssetId: undefined,
           defaultPlaymatSettings: undefined,
-          setDefaultPlaymat: (defaultPlaymat) => set({ defaultPlaymat }),
+          setDefaultPlaymat: (defaultPlaymatUrl, defaultPlaymatAssetId) =>
+            set({ defaultPlaymatUrl, defaultPlaymatAssetId }),
           setDefaultPlaymatSettings: (defaultPlaymatSettings) => set({ defaultPlaymatSettings }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],
@@ -240,6 +252,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
+          handOrderMode: "manual",
+          setHandOrderMode: (handOrderMode) => set({ handOrderMode }),
 
           cardSizeMultiplier: 1,
           setCardSizeMultiplier: (cardSizeMultiplier) =>

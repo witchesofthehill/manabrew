@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use super::attack_requirement::{self, AttackRequirement};
@@ -390,7 +391,7 @@ impl AttackConstraints {
         }
 
         // Sort descending by requirements (highest priority first)
-        result.sort_by(|a, b| b.requirements.cmp(&a.requirements));
+        result.sort_by_key(|attack| Reverse(attack.requirements));
         result
     }
 }

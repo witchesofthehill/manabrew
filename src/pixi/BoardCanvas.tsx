@@ -248,6 +248,7 @@ export function BoardCanvas({
       onShowBoardMenu: (...a) => callbacksRef.current.onShowBoardMenu?.(...a),
       onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
+      onReorderHand: (...a) => callbacksRef.current.onReorderHand?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
       onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
       onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
@@ -276,7 +277,10 @@ export function BoardCanvas({
       reserveRef.current = px;
       const base = latestLayoutRef.current;
       if (!base) return;
-      const updated = { ...base, selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current) };
+      const updated = {
+        ...base,
+        selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current),
+      };
       latestLayoutRef.current = updated;
       onLayoutRef.current?.(updated);
     });

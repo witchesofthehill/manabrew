@@ -5,6 +5,7 @@ import type { ClientPlayerDto } from "@/stores/gameStore.types";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
 import { stripUsernameTag } from "@/lib/username";
+import { nextHandOrderMode } from "@/lib/handOrder";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
@@ -28,6 +29,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useIsMobileGame } from "@/hooks/useBreakpoints";
+import { useHandOrder } from "@/hooks/useHandOrder";
 import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ZONE_TILE_KEY } from "@/components/game/game.constants";
@@ -91,12 +93,12 @@ interface GameBoardProps {
   zonePanelOrder: ZonePanelItem[];
 
   isOverBattlefield: boolean;
+  isOverHand: boolean;
   draggingCardId?: string;
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
 
   onHandCardDragStart: (card: CardDto, e: HandDragStart) => void;
-  onHandCardClick: (card: CardDto, e?: { clientX: number; clientY: number }) => void;
   onHoverCard: (
     card: CardDto | null,
     e?: React.MouseEvent,
@@ -192,11 +194,11 @@ export function GameBoard({
   initiativeHolderId,
   turnFlashPlayerId,
   isOverBattlefield,
+  isOverHand,
   draggingCardId,
   draggingIsPermanent,
   castingCardId,
   onHandCardDragStart,
-  onHandCardClick,
   onHoverCard,
   onDismissHoverPreview,
   onLongPressCard,
@@ -463,20 +465,30 @@ export function GameBoard({
     ],
   );
 
+  const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
+  const handOrderMode = usePreferencesStore((s) => s.handOrderMode);
+  const setHandOrderMode = usePreferencesStore((s) => s.setHandOrderMode);
+  const {
+    cards: orderedHand,
+    moveCard: moveHandCard,
+    setMode: setHandOrderModeFromBoard,
+  } = useHandOrder(myHand, handOrderMode, setHandOrderMode);
   const pixiHand = useMemo(
     (): import("@/pixi/types").HandState => ({
-      cards: myHand,
+      cards: orderedHand,
       playableIds,
       draggingCardId,
+      reorderingCardId: isOverHand ? draggingCardId : undefined,
       draggingIsPermanent,
       castingCardId,
       selectionMode: handSelectionMode,
       selectedIds: handSelectedIds,
     }),
     [
-      myHand,
+      orderedHand,
       playableIds,
       draggingCardId,
+      isOverHand,
       draggingIsPermanent,
       castingCardId,
       handSelectionMode,
@@ -504,9 +516,9 @@ export function GameBoard({
       onStartDrag: (card, _screenPos, pointer) => {
         onHandCardDragStart(card, pointer);
       },
-      onClickCard_Hand: (card, pointer) => {
+      onReorderHand: moveHandCard,
+      onClickCard_Hand: (card) => {
         if (handSelectionMode) onHandCardToggle?.(card.id);
-        else onHandCardClick(card, pointer);
       },
       onDismissHoverPreview,
       onTapLand,
@@ -542,7 +554,7 @@ export function GameBoard({
       onHoverCard,
       onDismissHoverPreview,
       onHandCardDragStart,
-      onHandCardClick,
+      moveHandCard,
       handSelectionMode,
       onHandCardToggle,
       onTapLand,
@@ -606,7 +618,6 @@ export function GameBoard({
     [boardSurfaceRef],
   );
 
-  const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
@@ -652,6 +663,10 @@ export function GameBoard({
   useKeybindings({
     "focus-next-field": () => cycleField(1),
     "focus-prev-field": () => cycleField(-1),
+    "cycle-hand-order": () => {
+      if (document.querySelector('[role="dialog"]')) return;
+      setHandOrderModeFromBoard(nextHandOrderMode(handOrderMode));
+    },
   });
 
   // Which opponent's battleground the mouse is over (from the scene's hover
@@ -660,8 +675,8 @@ export function GameBoard({
 
   const gameDecks = useGameStore((s) => s.gameDecks);
   const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
-  const myAvatar = usePreferencesStore((s) => s.customAvatar);
-  const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymat);
+  const myAvatar = usePreferencesStore((s) => s.customAvatarUrl);
+  const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymatUrl);
   const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
   const playerDecks = useServerStore((s) => s.playerDecks);
 
@@ -670,7 +685,7 @@ export function GameBoard({
     if (myAvatar) map.set(me.id, myAvatar);
     for (const op of opponents) {
       const entry = playerDecks.find((d) => d.username === op.name);
-      if (entry?.avatar) map.set(op.id, entry.avatar);
+      if (entry?.avatar_url) map.set(op.id, entry.avatar_url);
     }
     return map;
   }, [myAvatar, playerDecks, me.id, opponents]);
@@ -1215,7 +1230,7 @@ export function GameBoard({
     const myDeck = gameDecks[me.id];
     // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
     // resolved here too; multiplayer decks already carry it from the relay.
-    const myDeckHasPlaymat = !!myDeck?.playmat || !!myDeck?.playmatSettings?.color;
+    const myDeckHasPlaymat = !!myDeck?.playmatUrl || !!myDeck?.playmatSettings?.color;
     return [
       {
         playerId: me.id,
@@ -1229,7 +1244,7 @@ export function GameBoard({
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat
-            ? myDeck?.playmat
+            ? myDeck?.playmatUrl
             : defaultPlaymat,
         playmatSettings: hiddenPlaymats.has(me.id)
           ? undefined
@@ -1244,7 +1259,7 @@ export function GameBoard({
           ...oppState(cardsByController.get(op.id) ?? [], combatRowByDefender.get(op.id)),
           ownerRingByCard,
         },
-        playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
+        playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatUrl,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
       })),

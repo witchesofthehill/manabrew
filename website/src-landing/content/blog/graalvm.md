@@ -20,8 +20,8 @@ A Java desktop application with fifteen years of card support arrives over the w
 The binary is 35.3 MB and the server sends it compressed with zstd. The browser caches it. Booting
 it on the deployed build, assets included, takes around 642 ms.
 
-The feature is in production behind a server flag and an explicit opt-in under Settings. It is still
-experimental. What works today:
+The feature is in production. Play vs AI runs on the browser build by default. Hosting a multiplayer
+table from your own browser is an opt-in under Settings. It is still experimental. What works today:
 
 - Play vs AI
 - Constructed
@@ -43,10 +43,9 @@ coverage that the port is still working through. That is why we want it here.
 The Rust engine's card support grows by running it against Forge and fixing whatever differs. Until
 now nobody could run Forge in a browser, so a browser player got the port instead.
 
-We were already halfway here without noticing. Nothing we ship runs a JVM any more. `native-image`
-compiles the Forge harness into a shared library, and both the hosted node and the desktop app load
-it in process and call it over FFI: a `.so` on the servers, a `.dll` beside the executable on
-Windows, a `.dylib` inside the app bundle on macOS. Web Image is that compiler with a different
+Nothing we ship runs a JVM any more. `native-image` compiles the Forge harness into a shared library,
+and both the hosted node and the desktop app load it in process and call it over FFI: a `.so` on the
+servers, a `.dll` beside the executable on Windows, a `.dylib` inside the app bundle on macOS. Web Image is that compiler with a different
 backend. The browser build is the same Java code compiled for one more target.
 
 The browser is also the only place Forge is WebAssembly. In the desktop app the wasm engine is our
@@ -95,8 +94,8 @@ The Rust engine already used this transport, so Forge could reuse the game UI we
 The wait that matters is between answering a prompt and seeing the next one. Seven production games
 on the browser engine, 399 decisions, put that at 47 ms p50, of which the engine is 16 ms. Nothing in
 that path leaves the tab. The other 31 ms belongs to the client, which collects the answer on a
-requestAnimationFrame poll and then renders the board, so the screen sets the floor rather than the
-engine. The whole exchange fits in about three frames.
+requestAnimationFrame poll and then renders the board. The frame rate sets the floor. The whole
+exchange fits in about three frames.
 
 Two hosted commander games played by real people that day measured 277 ms and 306 ms for the same
 gap. Little of that is engine time. The fleet figure of 77 ms p50 is node time, not think time. It
@@ -104,11 +103,11 @@ runs from a seat's answer to that seat's next prompt going out, so it holds the 
 node packing the board for the wire, across real games on bigger boards than our seven. Most of the
 remaining gap sits outside the engine, in the hosted path.
 
-Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, which
-makes it a fixed charge rather than a scaling one. The browser sampled 54 activations at a p50 near
-20 ms, on a development server rather than in production, so read that as an order of magnitude and
-not a benchmark. The median player-visible gap is already about six-fold. Activations suggest the
-difference gets larger on expensive decisions.
+Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, so it
+reads as a fixed charge. The browser sampled 54 activations at a p50 near 20 ms, on a development
+server rather than in production, so treat that figure as an order of magnitude. The median
+player-visible gap is already about six-fold. Activations suggest the difference gets larger on
+expensive decisions.
 
 ## The protocol did most of the work
 
@@ -152,8 +151,8 @@ traces from the reference build and the WebAssembly one.
 
 ## What Web Image does not give you
 
-Web Image is not a JVM in a browser. Forge and its dependencies make assumptions that stop being true
-here:
+Web Image compiles Java ahead of time. It does not give Forge a JVM, and Forge and its dependencies
+make assumptions that stop being true here:
 
 - `Thread.start()` could appear to start a thread even though the work never ran.
 - `java.util.zip` wasn't available on the path we needed, so archive decompression moved outside
@@ -187,48 +186,10 @@ None of this retires the hosted fleet. When a browser hosts, the whole game runs
 every seat's hidden information is only as private as the host's client. A hosted node keeps hidden
 information out of another player's browser, does not park when a tab is backgrounded, and does not
 take the table down when somebody closes a window. It also plays for people whose machine will not. A
-35 MB engine and four seats of board state is a lot to ask of a phone. Hosting in the browser is
-another option, not a replacement.
+35 MB engine and four seats of board state is a lot to ask of a phone.
 
-## Shipped, and switched off
+Rollback is missing, our automated tests only drive Chrome, and Web Image is still an experimental
+GraalVM technology. Hosting a multiplayer table from the browser stays behind a setting for now.
 
-The binary ships in the production web image with the feature off. The server turns it on, and only
-then can a player opt in under Settings.
-
-That gives us telemetry and compatibility reports from real games before anyone gets the engine by
-default.
-
-The seven production games measured above were played through that path. A longer development run
-did better still, 38 ms of turnaround and 8 ms inside the engine, so production is not the ceiling
-here.
-
-## What is not done
-
-Our automated tests only drive Chrome. Firefox works when we try it by hand, but nothing guards it,
-and Safari is untested. The multiplayer tests show every seat receiving state and acting, and a
-four-seat commander game has run several hundred decisions, but nobody has played a four-player game
-to the end.
-
-We have not measured peak heap for a four-seat table, and that number decides whether one fits on an
-ordinary laptop.
-
-Backgrounding the hosting tab can stall relay polling and park the game. Both browser engines have
-that bug, and it matters more when the browser is hosting the whole table. Rollback is still missing.
-Web Image itself is still an experimental GraalVM technology.
-
-The engine stays opt-in until we are comfortable with those gaps.
-
-## Where this leaves the port
-
-We began porting Forge's engine to Rust because a Java desktop application could not run in a
-browser and we wanted one that could. That premise shaped the whole port. It no longer holds. A
-compiler backend that did not exist when we started now emits WebAssembly, and the engine we were
-reimplementing compiled straight into the browser.
-
-The port still answers limited and draft, it is a fifth of the download, and its disagreements with
-Forge are still how we find bugs in both. It just no longer has to stand in for Forge in a browser.
-
-Over the past 30 days 96% of Manabrew games ran on Forge, nearly all of them on the hosted fleet.
-Every one of those games needed a server to run the engine. A browser game does not. Fifteen years of
-card support run in the tab, with no install and no account. That is a better result than the one we
-set out to build.
+Over the past 30 days 96% of Manabrew games ran on Forge, and every one of them needed a server to
+run the engine. Play vs AI is about 80% of what people play, and it now runs in the tab.

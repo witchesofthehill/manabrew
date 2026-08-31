@@ -285,11 +285,17 @@ the ordinary room flow. Nothing about the room model changes, which is the point
 `RoomTransport` names the same data plane, and the only difference is that every address in it is
 a private one.
 
-Two seats are worth separating. The host's own engine and its bots are native on both ends, so
-they get a genuinely direct path. A guest desktop's client runs in a webview, so its iroh is
-`wasm_browser` and **relay-only** exactly like a browser; it reaches the host through the host's
-iroh relay. That is one hop across a switch and nothing leaves the network, but it is not
-peer-to-peer and should not be described as such.
+A desktop seat binds its endpoint **in the shell, not the webview**. That matters: a webview is
+`wasm32-unknown-unknown`, where iroh compiles its IP transports out and everything goes through a
+relay, so a desktop that seated itself from the webview would have been relayed on its own LAN.
+`src-tauri/src/direct_seat.rs` binds natively instead and the webview drives it over commands,
+receiving the host's envelopes as events. Four desktops therefore reach each other directly,
+across the switch, with nothing in between. The iroh relay the host process runs is a fallback
+that a LAN should never need.
+
+`src/game/directSeat.ts` holds both backends behind one seam and picks on
+`getPlatform().type`. Nothing above it knows which it got, which is the same reason the inbound
+envelope is handed to `handleServerMessage` as a `StateUpdate`.
 
 Card art is the one thing still missing offline; there is no image cache today (#811).
 

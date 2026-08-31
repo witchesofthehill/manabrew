@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.27.0](https://github.com/witchesofthehill/manabrew/compare/v3.26.3...v3.27.0) (2026-08-31)
+
+### Features
+
+* **engine:** always run forge offline and vs ai ([#797](https://github.com/witchesofthehill/manabrew/issues/797)) ([eaf692a](https://github.com/witchesofthehill/manabrew/commit/eaf692ae58103621e2184b3c58133938270f2ef1))
+
+## [3.26.3](https://github.com/witchesofthehill/manabrew/compare/v3.26.2...v3.26.3) (2026-08-31)
+
+### Fixes
+
+* attack pass, attack cells ([#790](https://github.com/witchesofthehill/manabrew/issues/790)) ([b6b526a](https://github.com/witchesofthehill/manabrew/commit/b6b526a5e29fc512b71fd03bba498b9d5e0a6b26))
+
 ## [3.26.2](https://github.com/witchesofthehill/manabrew/compare/v3.26.1...v3.26.2) (2026-08-31)
 
 ### Fixes

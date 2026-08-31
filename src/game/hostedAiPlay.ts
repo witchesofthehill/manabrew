@@ -1,25 +1,17 @@
 import { getPlatform } from "@/platform";
 import type { ActiveGameSession } from "@/lib/activeGameSession";
-import {
-  getHostedAiServerConnectionDefaults,
-  isHostedEngineAvailable,
-} from "@/config/webRuntimeConfig";
+import { getHostedAiServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import type { ServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
 import { relayUsername } from "@/lib/relayUsername";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { EngineKind, GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
+import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
 import type {} from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 
 const HOSTED_AI_TIMEOUT_MS = 20_000;
-
-export function getDefaultAiEngine(): EngineKind {
-  if (getPlatform().type === "tauri") return "Forge";
-  return isHostedEngineAvailable() ? "Forge" : "Manabrew";
-}
 
 interface HostedAiGameRequest {
   playerDeck: Deck;

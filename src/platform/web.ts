@@ -51,7 +51,7 @@ import { getClientPlatform } from "./clientPlatform";
 import { rememberSpawnedBot, forgetSpawnedBot, clearSpawnedBots } from "@/lib/spawnedBots";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 import { applyStateDelta, diffStateDelta } from "@/lib/stateDelta";
-import { isForgeWasmSelected } from "@/lib/forgeWasm";
+import { isForgeWasmHostingEnabled, setForgeWasmActive } from "@/lib/forgeWasm";
 import { buildForgeAssetBundle } from "@/lib/forgeAssets";
 import type { Deck } from "@/protocol/deck";
 
@@ -244,7 +244,7 @@ class WorkerBridge {
     error?: unknown;
   }): void {
     logComms("engine", msg);
-    if (isForgeWasmSelected()) {
+    if (this.workerIsForgeWasm) {
       const w = window as unknown as { __forgeFrames?: string[] };
       w.__forgeFrames = w.__forgeFrames ?? [];
       w.__forgeFrames.push(
@@ -428,18 +428,18 @@ class WorkerBridge {
   /**
    * Initialize the worker lazily.
    */
-  async init(): Promise<void> {
+  async init(forgeWasm = isForgeWasmHostingEnabled()): Promise<void> {
     if (this.worker) return;
 
     if (this.initPromise) {
       return this.initPromise;
     }
 
-    this.initPromise = this.doInit();
+    this.initPromise = this.doInit(forgeWasm);
     return this.initPromise;
   }
 
-  private async doInit(): Promise<void> {
+  private async doInit(forgeWasm: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
         // Create worker using Vite's worker import pattern. The worker
@@ -447,14 +447,15 @@ class WorkerBridge {
         // `worker:init { stage: 'ready' | 'error' }` when done — we wait
         // for that event instead of pinging, so init has no command-level
         // timeout to fight.
-        this.workerIsForgeWasm = isForgeWasmSelected();
+        this.workerIsForgeWasm = forgeWasm;
+        setForgeWasmActive(forgeWasm);
         this.worker = this.workerIsForgeWasm
           ? new Worker("/forge/forge-engine.worker.js")
           : new Worker(new URL("../workers/game-engine.worker.ts", import.meta.url), {
               type: "module",
             });
 
-        if (isForgeWasmSelected()) {
+        if (forgeWasm) {
           const w = window as unknown as { __forgeLog?: string[] };
           w.__forgeLog = w.__forgeLog ?? [];
           const dec = window as unknown as {
@@ -548,15 +549,15 @@ class WorkerBridge {
    * Invoke a command on the worker.
    */
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-    if (this.worker && this.workerIsForgeWasm !== isForgeWasmSelected()) {
+    const startsGame = command === "start_game" || command === "start_multiplayer_game";
+    let forgeWasm = this.worker ? this.workerIsForgeWasm : isForgeWasmHostingEnabled();
+    if (startsGame) forgeWasm = args?.engine === "Forge";
+    if (startsGame && this.worker && this.workerIsForgeWasm !== forgeWasm) {
       this.terminate();
     }
-    await this.init();
+    await this.init(forgeWasm);
 
-    if (
-      (command === "start_game" || command === "start_multiplayer_game") &&
-      this.workerIsForgeWasm
-    ) {
+    if (startsGame && this.workerIsForgeWasm) {
       const decks =
         command === "start_game"
           ? [args?.deck as Deck | undefined, ...((args?.opponentDecks as Deck[] | undefined) ?? [])]
@@ -632,6 +633,7 @@ class WorkerBridge {
     // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
     this.initPromise = null;
+    setForgeWasmActive(false);
     // The query worker holds no game state, so it survives a game ending and
     // is only torn down with the bridge itself.
   }
@@ -660,6 +662,7 @@ class WebGameApi implements IGameApi {
       startingLife: params.startingLife,
       commanderName: params.commanderName,
       opponentDecks: params.opponentDecks,
+      engine: params.engine,
     });
   }
 
@@ -679,6 +682,7 @@ class WebGameApi implements IGameApi {
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         startingLife: params.startingLife,
+        engine: params.engine,
       });
     }
     // Non-host: prompts arrive via game:remote_prompt WebSocket events.
@@ -1138,7 +1142,7 @@ class WebServerApi implements IServerApi {
   }
 
   async createRoom(params: CreateRoomParams): Promise<string | null> {
-    if (params.engine === "Forge" && !isForgeWasmSelected()) {
+    if (params.engine === "Forge" && !isForgeWasmHostingEnabled()) {
       throw new Error("Forge engine is not supported on the web");
     }
     this.send({

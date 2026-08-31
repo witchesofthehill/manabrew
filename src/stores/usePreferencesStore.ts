@@ -6,7 +6,7 @@ import { ensureUsernameTag, hasUsernameTag } from "@/lib/username";
 import type { AiOpponentRef } from "@/lib/aiOpponent";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
-import type { EngineKind, GameFormat } from "@/types/server";
+import type { GameFormat } from "@/types/server";
 import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
@@ -96,9 +96,6 @@ interface PreferencesState {
   setIronsmithRuntimeEnabled: (value: boolean) => void;
   setForgeWasmEnabled: (value: boolean) => void;
 
-  askEngineOnAiPlay: boolean;
-  setAskEngineOnAiPlay: (value: boolean) => void;
-
   hideAccountSaveNudge: boolean;
   setHideAccountSaveNudge: (value: boolean) => void;
 
@@ -119,9 +116,6 @@ interface PreferencesState {
   lastPlayedDeckId: string | null;
   lastPlayedAtByDeck: Record<string, number>;
   setLastPlayedDeckId: (id: string | null) => void;
-
-  lastOfflineEngine: EngineKind | null;
-  setLastOfflineEngine: (engine: EngineKind) => void;
 
   lastOfflineFormatId: string | null;
   setLastOfflineFormatId: (formatId: string) => void;
@@ -153,7 +147,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "chooseOrderOnMultipleTriggers",
   "ironsmithRuntimeEnabled",
   "forgeWasmEnabled",
-  "askEngineOnAiPlay",
   "hideAccountSaveNudge",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -161,7 +154,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "gameThemeColorOverrides",
   "lastPlayedDeckId",
   "lastPlayedAtByDeck",
-  "lastOfflineEngine",
   "lastOfflineFormatId",
   "lastAiOpponent",
   "lastRoomSetup",
@@ -267,9 +259,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           forgeWasmEnabled: false,
           setForgeWasmEnabled: (forgeWasmEnabled) => set({ forgeWasmEnabled }),
 
-          askEngineOnAiPlay: false,
-          setAskEngineOnAiPlay: (askEngineOnAiPlay) => set({ askEngineOnAiPlay }),
-
           hideAccountSaveNudge: false,
           setHideAccountSaveNudge: (hideAccountSaveNudge) => set({ hideAccountSaveNudge }),
 
@@ -305,9 +294,6 @@ export const usePreferencesStore = create<PreferencesState>()(
                 ? { ...state.lastPlayedAtByDeck, [lastPlayedDeckId]: Date.now() }
                 : state.lastPlayedAtByDeck,
             })),
-
-          lastOfflineEngine: null,
-          setLastOfflineEngine: (lastOfflineEngine) => set({ lastOfflineEngine }),
 
           lastOfflineFormatId: null,
           setLastOfflineFormatId: (lastOfflineFormatId) => set({ lastOfflineFormatId }),

@@ -1912,11 +1912,8 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
-    this.phaseStrip.container.alpha = lerp(
-      this.phaseStrip.container.alpha,
-      this.phaseStripAlphaTarget,
-      0.2,
-      0.01,
+    this.phaseStrip.setDimAlpha(
+      lerp(this.phaseStrip.getDimAlpha(), this.phaseStripAlphaTarget, 0.2, 0.01),
     );
     this.animateFloaters(frameRatio);
     this.captureStackSeeds();

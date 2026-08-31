@@ -31,6 +31,10 @@ interface AccountDecksState {
     deck: EditorDeck,
     notes?: string,
   ) => Promise<AccountDeckDetail>;
+  replacePlaymatAsset: (
+    previousAssetId: string,
+    next: { assetId: string; url: string } | undefined,
+  ) => Promise<void>;
   remove: (id: string) => Promise<void>;
   loadVersions: (id: string) => Promise<DeckVersionSummary[]>;
   clear: () => void;
@@ -212,6 +216,36 @@ export const useAccountDecksStore = create<AccountDecksState>((set, get) => ({
       set((state) => cacheDetail(state, accountId, detail, true));
     }
     return detail;
+  },
+  replacePlaymatAsset: async (previousAssetId, next) => {
+    const affected = Object.values(get().details).filter(
+      (detail) => detail.deck.playmatAssetId === previousAssetId,
+    );
+    if (affected.length === 0) return;
+    set((state) => ({
+      details: Object.fromEntries(
+        Object.entries(state.details).map(([id, detail]) => [
+          id,
+          detail.deck.playmatAssetId === previousAssetId
+            ? {
+                ...detail,
+                deck: { ...detail.deck, playmatUrl: next?.url, playmatAssetId: next?.assetId },
+              }
+            : detail,
+        ]),
+      ),
+    }));
+    for (const detail of affected) {
+      try {
+        await get().save(detail.id, detail.currentVersionNo, {
+          ...detail.deck,
+          playmatUrl: next?.url,
+          playmatAssetId: next?.assetId,
+        } as EditorDeck);
+      } catch {
+        void get().refresh();
+      }
+    }
   },
   remove: async (id) => {
     const accountId = requireAccountId();

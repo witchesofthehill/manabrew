@@ -365,6 +365,29 @@ mod tests {
         );
     }
 
+    /// The cases `src/lib/stateDelta.test.ts` runs against the TypeScript
+    /// implementation. A browser host writes patches the relay and the other
+    /// seats read, so both sides must emit the same bytes, not merely agree on
+    /// the board. Absent when the crate is built outside the repo.
+    #[test]
+    fn shared_cases_match_the_typescript_implementation() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../src/lib/stateDelta.cases.json"
+        );
+        let Ok(raw) = std::fs::read_to_string(path) else {
+            return;
+        };
+        let cases: Vec<Value> = serde_json::from_str(&raw).expect("cases json");
+        assert!(!cases.is_empty());
+        for case in &cases {
+            let name = case["name"].as_str().unwrap_or_default();
+            let (before, after, patch) = (&case["before"], &case["after"], &case["patch"]);
+            assert_eq!(diff(before, after).as_ref(), Some(patch), "{name}: patch");
+            assert_eq!(&apply(before, patch), after, "{name}: apply");
+        }
+    }
+
     #[test]
     fn fingerprint_separates_different_states() {
         assert_ne!(fingerprint(&json!({"a": 1})), fingerprint(&json!({"a": 2})));

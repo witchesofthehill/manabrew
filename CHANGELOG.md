@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.32.2](https://github.com/witchesofthehill/manabrew/compare/v3.32.1...v3.32.2) (2026-08-31)
+
+### Fixes
+
+* autopass click ([#809](https://github.com/witchesofthehill/manabrew/issues/809)) ([3542c3b](https://github.com/witchesofthehill/manabrew/commit/3542c3bcb2c683ff9e5ada41cd70450c277d28b1))
+
 ## [3.32.1](https://github.com/witchesofthehill/manabrew/compare/v3.32.0...v3.32.1) (2026-08-31)
 
 ### Fixes

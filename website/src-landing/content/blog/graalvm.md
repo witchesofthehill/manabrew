@@ -21,16 +21,17 @@ A Java desktop application with fifteen years of card support arrives over the w
 The binary is 35.3 MB and the server sends it compressed with zstd. The browser caches it. Booting
 it on the deployed build, assets included, takes around 642 ms.
 
-The feature is in production. Play vs AI runs on the browser build by default. Hosting a multiplayer
-table from your own browser is an opt-in under Settings. It is still experimental. What works today:
+The feature is in production. Play vs AI runs on the browser build by default. What works there
+today:
 
-- Play vs AI
 - Constructed
 - Commander
 - Brawl
 - Oathbreaker
-- Multiplayer tables with up to four human players
 - Manabrew autopass
+
+Hosting a multiplayer table of up to four human players uses the same build, but it stays behind an
+opt-in under Settings. All of it is still experimental.
 
 Limited, draft, and sealed still use the Rust worker. Rollback goes away once Forge owns a game, so a
 player cannot step back to an earlier state. Cancelling a mana payment still works, because Forge
@@ -44,13 +45,14 @@ coverage that the port is still working through. That is why we want it here.
 The Rust engine's card support grows by running it against Forge and fixing whatever differs. Until
 now nobody could run Forge in a browser, so a browser player got the port instead.
 
-Nothing we ship runs a JVM any more. `native-image` compiles the Forge harness into a shared library,
-and both the hosted node and the desktop app load it in process and call it over FFI: a `.so` on the
-servers, a `.dll` beside the executable on Windows, a `.dylib` inside the app bundle on macOS. Web Image is that compiler with a different
+None of the deployed runtimes we ship require a JVM any more. `native-image` compiles the Forge
+harness into a shared library, and both the hosted node and the desktop app load it in process and
+call it over FFI: a `.so` on the servers, a `.dll` beside the executable on Windows, a `.dylib`
+inside the app bundle on macOS. Web Image is that compiler with a different
 backend. The browser build is the same Java code compiled for one more target.
 
-The browser is also the only place Forge is WebAssembly. In the desktop app the wasm engine is our
-Rust one, running in the webview, with Forge beside it as a native library.
+The browser is also the only place Forge is WebAssembly. In the desktop app the WebAssembly engine is
+our Rust one, running in the webview, with Forge beside it as a native library.
 
 So nothing is translated and there is no second Forge-compatible implementation to keep in step.
 During development we ran identical games on seeds 7, 42 and 99 for up to 40 turns through the
@@ -94,9 +96,9 @@ The Rust engine already used this transport, so Forge could reuse the game UI we
 
 The wait that matters is between answering a prompt and seeing the next one. Seven production games
 on the browser engine, 399 decisions, put that at 47 ms p50, of which the engine is 16 ms. Nothing in
-that path leaves the tab. The other 31 ms belongs to the client, which collects the answer on a
-requestAnimationFrame poll and then renders the board. The frame rate sets the floor. The whole
-exchange fits in about three frames.
+that path leaves the tab. The other 31 ms belongs to the client: it collects the answer on a
+requestAnimationFrame poll and then renders the board, so the client render loop accounts for most of
+the remaining interval. The whole exchange fits in about three frames.
 
 Two hosted commander games played by real people that day measured 277 ms and 306 ms for the same
 gap. Little of that is engine time. The fleet figure of 77 ms p50 is node time, not think time. It
@@ -104,8 +106,8 @@ runs from a seat's answer to that seat's next prompt going out, so it holds the 
 node packing the board for the wire, across real games on bigger boards than our seven. Most of the
 remaining gap sits outside the engine, in the hosted path.
 
-Activating an ability costs the hosted fleet a p50 of 385 ms. It barely grows with board size, so it
-reads as a fixed charge. The browser sampled 54 activations at a p50 near 20 ms, on a development
+The hosted fleet measures ability activations at 385 ms p50. That figure barely grows with board
+size, so it reads as a fixed charge. The browser sampled 54 activations at a p50 near 20 ms, on a development
 server rather than in production, so treat that figure as an order of magnitude. The median
 player-visible gap is already about six-fold. Activations suggest the difference gets larger on
 expensive decisions.
@@ -126,9 +128,9 @@ identical from the outside. It now holds several runtimes behind one client:
              ┌───────────┴───────────┐
              │                       │
          Rust engine               Forge
-            (wasm)               server   .so
+        (WebAssembly)            server   .so
                                  desktop  .dll / .dylib
-                                 browser  wasm
+                                 browser  WebAssembly
 ```
 
 Compiling Forge for a new runtime changed nothing in the game wire format. The engine publishes the
@@ -186,8 +188,9 @@ patch. That pipeline is the next thing to build.
 None of this retires the hosted fleet. When a browser hosts, the whole game runs in that browser, so
 every seat's hidden information is only as private as the host's client. A hosted node keeps hidden
 information out of another player's browser, does not park when a tab is backgrounded, and does not
-take the table down when somebody closes a window. It also plays for people whose machine will not. A
-35 MB engine and four seats of board state is a lot to ask of a phone.
+take the table down when somebody closes a window. It also lets players use Forge on devices that
+cannot comfortably host the engine themselves. A 35 MB engine and four seats of board state is a lot
+to ask of a phone.
 
 Rollback is missing, our automated tests only drive Chrome, and Web Image is still an experimental
 GraalVM technology. Hosting a multiplayer table from the browser stays behind a setting for now.

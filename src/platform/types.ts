@@ -14,6 +14,7 @@ export interface StartGameParams {
   startingLife: number;
   commanderName: string | null;
   opponentDecks: Deck[] | null;
+  engine?: EngineKind;
 }
 
 export interface StartMultiplayerGameParams {
@@ -23,6 +24,7 @@ export interface StartMultiplayerGameParams {
   enginePlayerIndex: number;
   localIsHost: boolean;
   startingLife: number;
+  engine?: EngineKind;
   format?: GameFormat | null;
   hostPlayerSlot?: string | null;
   botPlayerSlots?: string[];

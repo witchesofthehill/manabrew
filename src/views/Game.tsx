@@ -1,4 +1,4 @@
-import { isForgeWasmSelected } from "@/lib/forgeWasm";
+import { isForgeWasmActive } from "@/lib/forgeWasm";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { asDeckCard } from "@/lib/decks";
@@ -1919,7 +1919,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         // restoreSnapshot outright — so the control is offered only by an
         // engine that can honour it.
         canRestoreSnapshots={
-          (!isMultiplayer || isHost) && promptType === "chooseAction" && !isForgeWasmSelected()
+          (!isMultiplayer || isHost) && promptType === "chooseAction" && !isForgeWasmActive()
         }
         onRestoreSnapshot={restoreSnapshot}
       />

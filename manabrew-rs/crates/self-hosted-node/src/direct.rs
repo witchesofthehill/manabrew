@@ -43,6 +43,7 @@ pub struct DirectPlane {
     endpoint: NetEndpoint,
     seats: SeatTable,
     gossip_joined: AtomicBool,
+    has_relay: bool,
 }
 
 impl DirectPlane {
@@ -72,6 +73,7 @@ impl DirectPlane {
                         endpoint,
                         seats: SeatTable::default(),
                         gossip_joined: AtomicBool::new(false),
+                        has_relay: config.iroh_relay_url.is_some(),
                     },
                     seats,
                 ))
@@ -87,9 +89,13 @@ impl DirectPlane {
     /// announcement is useful to peers that cannot reach us directly; a timeout
     /// still leaves the direct addresses, which is all a LAN peer needs.
     pub async fn local_endpoint(&self) -> TransportEndpoint {
-        self.endpoint
-            .wait_online(std::time::Duration::from_secs(5))
-            .await;
+        // Without a relay configured there is no home relay to wait for, and
+        // waiting would delay hosting the room by the whole timeout.
+        if self.has_relay {
+            self.endpoint
+                .wait_online(std::time::Duration::from_secs(5))
+                .await;
+        }
         self.endpoint.local()
     }
 

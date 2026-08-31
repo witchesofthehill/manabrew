@@ -64,6 +64,7 @@ export const PIXI_MAX_FPS = 60;
 
 export const BATTLEFIELD_LERP = 0.15;
 export const HAND_LERP = 0.18;
+export const HAND_REORDER_LERP = 0.34;
 export const HOVER_SCALE_LERP = 0.2;
 export const ROTATION_LERP = 0.22;
 export const OVERLAY_FADE_LERP = 0.2;

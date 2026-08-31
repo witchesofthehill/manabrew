@@ -64,6 +64,7 @@ export interface GameCanvasCallbacks {
     screenPos: ScreenPos,
     pointer: { pointerId: number; pointerType: string; clientX: number; clientY: number },
   ) => void;
+  onReorderHand?: (cardId: string, toIndex: number) => void;
   onClickCard_Hand?: (card: CardDto, pointer?: { clientX: number; clientY: number }) => void;
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
@@ -129,6 +130,7 @@ export interface HandState {
   cards: CardDto[];
   playableIds?: Set<string>;
   draggingCardId?: string;
+  reorderingCardId?: string;
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
   selectionMode?: boolean;

@@ -6,6 +6,7 @@ import type { HandState, ScreenBounds, ScreenPos } from "../types";
 import { hexToNum } from "../colorUtils";
 import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "../HandLayout";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { HandReorderIndicator } from "../HandReorderIndicator";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import {
   CAST_DRAG_CARD_DROP_PX,
@@ -16,6 +17,7 @@ import {
   HAND_BOTTOM_SINK_FRAC_COMPACT,
   HAND_HOVER_HOLD_MS,
   HAND_LERP,
+  HAND_REORDER_LERP,
   PLAYABLE_RING_ALPHA,
   SNAP_HAND_SCALE,
   SNAP_PX,
@@ -45,7 +47,9 @@ export class HandController {
   private vScale = 1;
   private compact = false;
   private dropActive = false;
+  private reorderIndex: number | null = null;
   private hoverDebugGfx: Graphics;
+  private reorderIndicator: HandReorderIndicator;
   private hoverDebug = false;
 
   constructor(host: HandHost, parent: Container) {
@@ -55,6 +59,9 @@ export class HandController {
     this.container.sortableChildren = true;
     this.container.zIndex = Z_HAND_CONTAINER;
     parent.addChild(this.container);
+    this.reorderIndicator = new HandReorderIndicator();
+    this.reorderIndicator.view.zIndex = 0;
+    this.container.addChild(this.reorderIndicator.view);
 
     this.hoverDebugGfx = new Graphics();
     this.hoverDebugGfx.eventMode = "none";
@@ -125,22 +132,30 @@ export class HandController {
       return;
     }
     this.lastState = state;
-    if (this.hoveredIndex !== null && this.hoveredIndex >= state.cards.length) {
+    if (
+      this.reorderIndex !== null &&
+      (state.draggingCardId == null ||
+        !state.cards.some((card) => card.id === state.draggingCardId))
+    ) {
+      this.reorderIndex = null;
+    }
+    const cards = this.cardsForLayout(state);
+    if (this.hoveredIndex !== null && this.hoveredIndex >= cards.length) {
       this.hoveredIndex = null;
     }
-    this.pruneRemovedSprites(new Set(state.cards.map((c) => c.id)));
+    this.pruneRemovedSprites(new Set(state.cards.map((card) => card.id)));
     this.host.setHandExclusion(this.getBlockerRect());
 
     const dims = this.getDimensions();
     const baseLayout = computeBaseLayout(
-      state.cards.length,
+      cards.length,
       dims.cardW,
       dims.maxSpread,
       dims.minSpread,
       dims.spreadWidth,
     );
     const layout = computeHandLayout(
-      state.cards.length,
+      cards.length,
       dims.cardW,
       dims.cardH,
       dims.maxSpread,
@@ -155,6 +170,7 @@ export class HandController {
     const centerX = zone.x + zone.width / 2;
     const bottomY = this.getBottomY();
     const hitZones: HandHitZone[] = [];
+    let reorderIndicatorShown = false;
 
     // The fan only reshapes for a drag that originates from the hand. A card
     // dragged from the command zone sets `draggingCardId` too, but must not sink
@@ -162,8 +178,8 @@ export class HandController {
     const draggingInHand =
       state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);
 
-    for (let i = 0; i < state.cards.length; i++) {
-      const card = state.cards[i]!;
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i]!;
       const l = layout[i]!;
       const base = baseLayout[i]!;
       const isHovered = this.hoveredIndex === i;
@@ -182,10 +198,10 @@ export class HandController {
       }
 
       const isCastDrag = !selectionMode && card.id === state.draggingCardId;
-      const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
-      const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
-      const reshapeFan =
-        !selectionMode && draggingInHand && (state.draggingIsPermanent === true || this.dropActive);
+      const isReordering = !selectionMode && card.id === state.reorderingCardId;
+      const isCastingPermanent = isCastDrag && !isReordering && state.draggingIsPermanent === true;
+      const isCastingSpell = isCastDrag && !isReordering && state.draggingIsPermanent !== true;
+      const reshapeFan = !selectionMode && !isReordering && draggingInHand && this.dropActive;
       const castOffset = reshapeFan
         ? Math.round(
             (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,
@@ -193,13 +209,10 @@ export class HandController {
         : 0;
       const castScale = isCastingPermanent ? CAST_DRAG_SCALE : 1;
 
-      const isHidden = !selectionMode && (card.id === state.castingCardId || isCastingSpell);
+      const isHidden =
+        !selectionMode && (card.id === state.castingCardId || isCastingSpell || isReordering);
       sprite.alpha = isHidden ? 0 : 1;
-      sprite.cursor = selectionMode
-        ? "pointer"
-        : state.playableIds?.has(card.id)
-          ? "grab"
-          : "default";
+      sprite.cursor = selectionMode ? "pointer" : "grab";
 
       // Horizontal-frame cards (Battle / Plane / …) sit upright (rotated a
       // quarter-turn) so they fit the portrait fan; hovering + flipping turns
@@ -207,6 +220,17 @@ export class HandController {
       const verticalInHand = sprite.horizontalFrame && this.flippedHorizontalId !== card.id;
       let rot = isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180;
       if (verticalInHand) rot -= Math.PI / 2;
+      if (isReordering) {
+        this.reorderIndicator.show(
+          centerX + l.x,
+          bottomY + l.y - l.scaleH / 2,
+          l.scaleW,
+          l.scaleH,
+          rot,
+          this.host.getTheme(),
+        );
+        reorderIndicatorShown = true;
+      }
       this.targets.set(card.id, {
         x: centerX + l.x,
         y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
@@ -237,23 +261,26 @@ export class HandController {
 
       this.applyHighlight(sprite, card, selectionMode, isSelected);
     }
+    if (!reorderIndicatorShown) this.reorderIndicator.hide();
     this.hitZones = hitZones;
     this.drawHoverDebug();
   }
 
   animate(): void {
+    const positionLerp = this.reorderIndex === null ? HAND_LERP : HAND_REORDER_LERP;
     for (const [id, target] of this.targets) {
       const sprite = this.sprites.get(id);
       if (!sprite) continue;
-      sprite.x = lerp(sprite.x, target.x, HAND_LERP, SNAP_PX);
-      sprite.y = lerp(sprite.y, target.y, HAND_LERP, SNAP_PX);
-      sprite.rotation = lerp(sprite.rotation, target.rot, HAND_LERP, SNAP_ROT);
+      sprite.x = lerp(sprite.x, target.x, positionLerp, SNAP_PX);
+      sprite.y = lerp(sprite.y, target.y, positionLerp, SNAP_PX);
+      sprite.rotation = lerp(sprite.rotation, target.rot, positionLerp, SNAP_ROT);
       sprite.scale.set(
-        lerp(sprite.scale.x, target.scaleX, HAND_LERP, SNAP_HAND_SCALE),
-        lerp(sprite.scale.y, target.scaleY, HAND_LERP, SNAP_HAND_SCALE),
+        lerp(sprite.scale.x, target.scaleX, positionLerp, SNAP_HAND_SCALE),
+        lerp(sprite.scale.y, target.scaleY, positionLerp, SNAP_HAND_SCALE),
       );
       sprite.zIndex = target.zIndex;
     }
+    this.reorderIndicator.animate();
   }
 
   getCardPosition(cardId: string): ScreenPos | null {
@@ -276,7 +303,67 @@ export class HandController {
   }
 
   isDraggingFromHand(): boolean {
-    return !!this.lastState?.draggingCardId;
+    const state = this.lastState;
+    return (
+      state?.draggingCardId != null && state.cards.some((card) => card.id === state.draggingCardId)
+    );
+  }
+
+  updateReorderAt(x: number, y: number): void {
+    const state = this.lastState;
+    const draggedId = state?.draggingCardId;
+    const bounds = this.getBlockerRect();
+    if (
+      !state ||
+      state.selectionMode ||
+      draggedId == null ||
+      !bounds ||
+      y < bounds.y ||
+      y > bounds.y + bounds.height
+    ) {
+      this.setReorderIndex(null);
+      return;
+    }
+
+    const remaining = state.cards.filter((card) => card.id !== draggedId);
+    const dims = this.getDimensions();
+    const layout = computeBaseLayout(
+      remaining.length,
+      dims.cardW,
+      dims.maxSpread,
+      dims.minSpread,
+      dims.spreadWidth,
+    );
+    const zone = this.host.getPlayZone();
+    const centerX = zone.x + zone.width / 2;
+    let nextIndex = remaining.length;
+    for (let i = 0; i < layout.length; i++) {
+      if (x < centerX + layout[i]!.x) {
+        nextIndex = i;
+        break;
+      }
+    }
+    this.setReorderIndex(nextIndex);
+  }
+
+  finishReorder(): { cardId: string; toIndex: number } | null {
+    const state = this.lastState;
+    const draggedId = state?.draggingCardId;
+    const targetIndex = this.reorderIndex;
+    this.reorderIndex = null;
+    this.reorderIndicator.hide();
+    if (!state || draggedId == null || targetIndex == null) return null;
+
+    const currentIndex = state.cards.findIndex((card) => card.id === draggedId);
+    if (currentIndex < 0) return null;
+    const next = state.cards.filter((card) => card.id !== draggedId);
+    const toIndex = Math.max(0, Math.min(targetIndex, next.length));
+    next.splice(toIndex, 0, state.cards[currentIndex]!);
+    if (next.every((card, index) => card.id === state.cards[index]?.id)) {
+      this.relayout();
+      return null;
+    }
+    return { cardId: draggedId, toIndex };
   }
 
   updateHoverAt(x: number, y: number): void {
@@ -413,6 +500,22 @@ export class HandController {
     this.hitZones = [];
     this.container.destroy({ children: true });
   }
+  private cardsForLayout(state: HandState): CardDto[] {
+    const draggedId = state.draggingCardId;
+    if (draggedId == null || this.reorderIndex == null) return state.cards;
+    const dragged = state.cards.find((card) => card.id === draggedId);
+    if (!dragged) return state.cards;
+    const cards = state.cards.filter((card) => card.id !== draggedId);
+    cards.splice(Math.max(0, Math.min(this.reorderIndex, cards.length)), 0, dragged);
+    return cards;
+  }
+
+  private setReorderIndex(index: number | null): void {
+    if (this.reorderIndex === index) return;
+    this.reorderIndex = index;
+    if (index === null) this.reorderIndicator.hide();
+    this.relayout();
+  }
 
   private pruneRemovedSprites(currentIds: Set<string>): void {
     for (const [id, sprite] of this.sprites) {
@@ -427,7 +530,7 @@ export class HandController {
   private createSprite(card: CardDto): CardSprite {
     const sprite = new CardSprite(card, "hand");
     sprite.eventMode = "static";
-    sprite.cursor = this.lastState?.playableIds?.has(card.id) ? "grab" : "default";
+    sprite.cursor = "grab";
     sprite.onReorient = () => this.relayout();
 
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
@@ -436,22 +539,16 @@ export class HandController {
         this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
         return;
       }
-      if (this.lastState?.playableIds?.has(sprite.card.id)) {
-        this.host.getCallbacks().onStartDrag?.(
-          sprite.card,
-          { x: e.globalX, y: e.globalY },
-          {
-            pointerId: e.pointerId,
-            pointerType: e.pointerType,
-            clientX: e.clientX,
-            clientY: e.clientY,
-          },
-        );
-      } else {
-        this.host
-          .getCallbacks()
-          .onClickCard_Hand?.(sprite.card, { clientX: e.clientX, clientY: e.clientY });
-      }
+      this.host.getCallbacks().onStartDrag?.(
+        sprite.card,
+        { x: e.globalX, y: e.globalY },
+        {
+          pointerId: e.pointerId,
+          pointerType: e.pointerType,
+          clientX: e.clientX,
+          clientY: e.clientY,
+        },
+      );
     });
 
     this.container.addChild(sprite);

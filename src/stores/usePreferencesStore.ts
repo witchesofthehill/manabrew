@@ -7,6 +7,7 @@ import type { AiOpponentRef } from "@/lib/aiOpponent";
 import type { KnownRelay } from "@/config/knownRelays";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { EngineKind, GameFormat } from "@/types/server";
+import type { HandOrderMode } from "@/lib/handOrder";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
@@ -55,6 +56,8 @@ interface PreferencesState {
 
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
+  handOrderMode: HandOrderMode;
+  setHandOrderMode: (mode: HandOrderMode) => void;
 
   // One knob for card size: battlefield cards on ALL fields plus the hand
   // fan. 1 = the classic 3-row board; 1.5 = the 2-row fill that is the
@@ -142,6 +145,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
+  "handOrderMode",
   "cardSizeMultiplier",
   "lockZoneTiles",
   "battlefieldCardStyle",
@@ -233,6 +237,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
+          handOrderMode: "manual",
+          setHandOrderMode: (handOrderMode) => set({ handOrderMode }),
 
           cardSizeMultiplier: 1,
           setCardSizeMultiplier: (cardSizeMultiplier) =>

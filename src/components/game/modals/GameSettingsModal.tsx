@@ -14,6 +14,7 @@ import {
 } from "@/components/game/game.constants";
 import { BATTLEFIELD_CARD_STYLE_OPTIONS } from "@/components/game/battlefieldCardStyles";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { HAND_ORDER_OPTIONS } from "@/lib/handOrder";
 
 const PREVIEW_MODES: { value: CardPreviewMode; label: string }[] = [
   { value: "hover", label: "Hover" },
@@ -54,6 +55,24 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
         <h2 className="text-base font-semibold">Board settings</h2>
       </Modal.Header>
       <Modal.Body className="space-y-5">
+        <SettingRow
+          label="Sort hand"
+          hint="Manual lets you drag cards sideways. Color and mana value keep new cards sorted automatically."
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {HAND_ORDER_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={prefs.handOrderMode === option.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => prefs.setHandOrderMode(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </SettingRow>
+
         <SettingRow
           label="Priority windows"
           hint="Autopass skips windows where you can only tap for mana, after a short delay — click the sweeping Pass button to hold. Full control stops at every window."

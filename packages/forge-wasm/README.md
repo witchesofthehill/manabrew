@@ -78,6 +78,12 @@ Call `dispose()` to terminate the worker. A running Forge game is synchronous in
 
 `directive()` sends an out-of-band instruction such as a concession. The engine can only read it while blocked on that seat, so a directive raised between prompts is held and delivered at the seat's next prompt.
 
+## Types
+
+Messages are typed by [`@manabrew/protocol`](https://www.npmjs.com/package/@manabrew/protocol), which the package depends on: `onState` hands you a `StateUpdate`, `onPrompt` a `Prompt`, `onDisplay` a `DisplayEvent`, and `respond` takes a `PromptOutput`. The range tracks the protocol's major version, which is the wire compatibility boundary.
+
+`ForgeDeck` is looser than the protocol's `Deck`, so a deck can be built from card names alone. A `Deck` satisfies it, so one fetched from a relay can be passed straight to `startGame`.
+
 ## Multiplayer seats
 
 `startMultiplayerGame()` creates one SharedArrayBuffer-backed seat per player. Messages for the browser's local seat have no `playerSlot`; remote messages carry `player-0`, `player-1` and so on. Pass that slot back to `respond()` after relaying a remote player's answer.

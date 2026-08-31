@@ -128,20 +128,34 @@ writeFileSync(
 writeFileSync(
   join(consumer, "usage.ts"),
   [
-    // A deck with every zone filled has to satisfy ForgeDeck: dropping a zone
-    // from the type would silently narrow every bundle.
     'import { ForgeEngine, VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";',
+    'import type { ForgeDeck } from "@manabrew/forge-wasm";',
     'import { deckCardNames } from "@manabrew/forge-wasm/deckCards";',
     'import { createSeat, SAB_SIZE } from "@manabrew/forge-wasm/seat";',
+    'import type { Deck, GameViewDto, Prompt } from "@manabrew/protocol";',
     "const build: string[] = [VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT];",
     "void build;",
+    // A deck with every zone filled has to satisfy ForgeDeck: dropping a zone
+    // from the type would silently narrow every bundle.
     'const deck = { cards: [{ identity: { name: "Lightning Bolt" } }], sideboard: [], attractions: [],',
     "  contraptions: [], schemes: [], planes: [], commanders: [], companion: undefined };",
-    'const engine = new ForgeEngine({ assets: "" });',
-    "void engine.startGame({ deck });",
-    'engine.directive({ kind: "concede" });',
     "void deckCardNames([deck]);",
     "void createSeat(new SharedArrayBuffer(SAB_SIZE));",
+    // A protocol Deck has to be usable as a ForgeDeck, or a caller holding one
+    // from the relay would have to rebuild it to start a game.
+    "const fromProtocol: ForgeDeck = null as unknown as Deck;",
+    "void fromProtocol;",
+    // The callbacks must hand back protocol types, not opaque blobs: these
+    // annotations do not compile if the package types them as unknown.
+    "const engine = new ForgeEngine({",
+    '  assets: "",',
+    "  onState: (state) => { const view: GameViewDto = state.gameView; void view; },",
+    "  onPrompt: (prompt) => { const p: Prompt = prompt; void p; },",
+    '  onDisplay: (event) => { void (event.kind === "cardPlayed" ? event.cardName : ""); },',
+    "});",
+    "void engine.startGame({ deck });",
+    'engine.respond(1, { type: "chooseBoolean", output: { type: "decision", value: true } });',
+    'engine.directive({ type: "concede" });',
     "",
   ].join("\n"),
 );

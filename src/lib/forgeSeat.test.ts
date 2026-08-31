@@ -87,16 +87,16 @@ describe("forge seat", () => {
 
     // The engine is thinking: nothing may be written, or it would be
     // overwritten before the engine ever read it.
-    deliverSeatDirective(local, { kind: "concede" });
+    deliverSeatDirective(local, { type: "concede" });
     expect(Atomics.load(local.signal, 0)).toBe(SIGNAL_IDLE);
-    expect(local.pendingDirective).toEqual({ kind: "concede" });
+    expect(local.pendingDirective).toEqual({ type: "concede" });
 
     engineWrites(local, { kind: "prompt", prompt: { id: 3 } });
     await tick();
     await tick();
 
     // Flushed the moment the engine blocked, ahead of the prompt being shown.
-    expect(engineReads(local)).toEqual({ kind: "directive", directive: { kind: "concede" } });
+    expect(engineReads(local)).toEqual({ kind: "directive", directive: { type: "concede" } });
     expect(Atomics.load(local.signal, 0)).toBe(SIGNAL_RESPONSE_READY);
     expect(local.pendingDirective).toBeNull();
     expect(seen).toEqual([{ kind: "prompt", prompt: { id: 3 } }]);
@@ -110,9 +110,9 @@ describe("forge seat", () => {
     await tick();
     await tick();
 
-    deliverSeatDirective(local, { kind: "concede" });
+    deliverSeatDirective(local, { type: "concede" });
     expect(local.pendingDirective).toBeNull();
-    expect(engineReads(local)).toEqual({ kind: "directive", directive: { kind: "concede" } });
+    expect(engineReads(local)).toEqual({ kind: "directive", directive: { type: "concede" } });
   });
 
   it("reports a malformed message instead of ending the poll loop", async () => {

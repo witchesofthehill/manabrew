@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.30.0](https://github.com/witchesofthehill/manabrew/compare/v3.29.0...v3.30.0) (2026-08-31)
+
+### Features
+
+* **relay:** count solo games in the lobby and the live gauges ([#800](https://github.com/witchesofthehill/manabrew/issues/800)) ([f420d66](https://github.com/witchesofthehill/manabrew/commit/f420d66b593d467e54a7f4c90f949408dc9c9b28))
+
 ## [3.29.0](https://github.com/witchesofthehill/manabrew/compare/v3.28.0...v3.29.0) (2026-08-31)
 
 ### Features

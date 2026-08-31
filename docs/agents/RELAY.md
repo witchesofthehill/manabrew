@@ -40,6 +40,12 @@ A session with no proof at all keeps the pre-identity behaviour — the old dupl
 
 `/metrics` (Prometheus) on the health port (incl. `manabrew_relay_session_takeovers_total`); env-gated analytics JSONL + per-game zstd stream capture (`MANABREW_EVENTS_DIR`, `MANABREW_GAME_CAPTURE_DIR`).
 
+## Games the relay cannot see
+
+`SetLocalGame` is the one thing on the wire the relay does not observe but only believes. A game against the AI runs on the player's machine with no room and no state, so the client says it is happening; the relay holds the `LocalGameKind` on `ConnectedPlayer`, reports it in `PlayerInfo.local_game` and counts it in `manabrew_relay_local_games{kind}`. It is session state, so a dropped socket clears it and the client re-asserts after re-authenticating, and it is only reported while `connected` so a half-open socket cannot leave a player playing forever. Keep it out of `manabrew_relay_rooms`: those gauges are what the relay saw, and merging a claim into them would quietly make the fleet-sizing numbers unfalsifiable.
+
+An unknown `ClientMessage` is answered with a parse error rather than a disconnect, and the client turns a relay error into a toast, so a newer client must not blind-fire a message at an older relay. `AuthResult.features` is how it finds out: the relay lists what it understands (`protocol::FEATURES`), a relay predating the list sends nothing, and the client stays quiet. Add a `FEATURE_*` constant with any new client message an older relay would reject.
+
 ## Cosmetics
 
 `SetDeckSelection.avatar_url` and `Deck.playmat_url` carry the image URL the hub handed the uploader, and the relay passes them through untouched — it holds no bucket configuration, resolves nothing, and validates nothing. That is the same trust level the deck's card art already travels at: `Deck.cards[].uris` reaches `useScryfallStore` and renders unvalidated, so a cosmetic URL is not a new surface and a relay-side allowlist would only have covered half of one. Whether a URL is worth loading is the receiving client's call. `Deck.playmat_asset_id` rides along for the hub's foreign key and means nothing to the relay.

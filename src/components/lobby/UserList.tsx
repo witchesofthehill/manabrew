@@ -8,7 +8,7 @@ import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import { Wifi, WifiOff, Loader2, Search } from "lucide-react";
 import { GameIcon, type GameIconKey } from "@/components/companion/GameIcon";
 import { USER_FACING_ERROR_MESSAGES } from "@/types/server";
-import type { PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
+import type { LocalGameKind, PlayerInfo, RoomInfo, ServerErrorCode } from "@/types/server";
 import { cn } from "@/lib/utils";
 import { stripUsernameTag } from "@/lib/username";
 import { toast } from "sonner";
@@ -67,8 +67,12 @@ function QualificationBadge({ qualification }: { qualification: string | undefin
   return <IconBadge icon={badge.icon} label={badge.label} color={badge.color} />;
 }
 
-function playerStatus(room: RoomInfo | undefined): string {
-  if (!room) return "Available";
+const LOCAL_GAME_LABEL: Record<LocalGameKind, string> = {
+  Singleplayer: "Playing solo",
+};
+
+function playerStatus(room: RoomInfo | undefined, localGame?: LocalGameKind): string {
+  if (!room) return localGame ? LOCAL_GAME_LABEL[localGame] : "Available";
   return room.status === "InGame" ? "In game" : "At a table";
 }
 
@@ -121,7 +125,9 @@ export function UserList({
 
   const bucketOf = (p: PlayerInfo): "playing" | "atTable" | "available" => {
     const room = rooms.find((r) => r.room_id === p.room_id);
-    if (!room) return "available";
+    // A game on the player's own machine has no room behind it, so the relay
+    // only knows about it because the client said so.
+    if (!room) return p.local_game ? "playing" : "available";
     return room.status === "InGame" ? "playing" : "atTable";
   };
   const byName = (a: PlayerInfo, b: PlayerInfo) =>
@@ -204,7 +210,7 @@ export function UserList({
             </span>
           ) : (
             <span className="text-[10px] text-muted-foreground" title={room?.room_name}>
-              {playerStatus(room)}
+              {playerStatus(room, player.local_game)}
             </span>
           )}
         </div>

@@ -54,6 +54,9 @@ export interface RoomPlayerInfo {
   selected_deck_name?: string;
 }
 
+/** A game on the player's own machine, which the relay never sees. */
+export type LocalGameKind = "Singleplayer";
+
 export interface PlayerInfo {
   username: string;
   player_id: string;
@@ -62,6 +65,7 @@ export interface PlayerInfo {
   qualification?: string;
   avatar_url?: string;
   room_id?: string;
+  local_game?: LocalGameKind;
 }
 
 export interface AuthResultPayload {
@@ -70,6 +74,8 @@ export interface AuthResultPayload {
   reconnected: boolean | null;
   error: string | null;
   username: string | null;
+  /** Wire features the relay understands. Absent from relays predating the list. */
+  features?: string[];
 }
 
 export interface RoomListPayload {

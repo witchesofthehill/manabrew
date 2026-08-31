@@ -34,6 +34,7 @@ import {
   DUPLICATE_USERNAME_ERROR_FRAGMENT,
   SERVER_ERROR_CODE,
   TOKEN_EXPIRED_ERROR_FRAGMENT,
+  type LocalGameKind,
 } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import { PROTOCOL_VERSION } from "@/protocol";
@@ -1141,6 +1142,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "ListPlayers" });
   }
 
+  async setLocalGame(kind: LocalGameKind | null): Promise<void> {
+    this.send({ type: "SetLocalGame", kind });
+  }
+
   async createRoom(params: CreateRoomParams): Promise<string | null> {
     if (params.engine === "Forge" && !isForgeWasmHostingEnabled()) {
       throw new Error("Forge engine is not supported on the web");
@@ -1586,6 +1591,7 @@ class WebServerApi implements IServerApi {
           reconnected: msg.reconnected,
           error: msg.error,
           username: this.authedUsername,
+          features: msg.features,
         },
       ],
       RoomList: ["server:room_list", { rooms: msg.rooms }],

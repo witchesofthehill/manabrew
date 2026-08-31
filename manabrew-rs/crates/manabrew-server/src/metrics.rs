@@ -1,15 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use metrics::{counter, gauge, histogram};
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 
 use crate::analytics::GameEndReason;
-use crate::protocol::{EngineKind, RoomStatus};
+use crate::protocol::{EngineKind, LocalGameKind, RoomStatus};
 use crate::state::ServerState;
 
 const CONNECTIONS: &str = "manabrew_relay_connections";
 const PLAYERS: &str = "manabrew_relay_players";
 const ROOMS: &str = "manabrew_relay_rooms";
+const LOCAL_GAMES: &str = "manabrew_relay_local_games";
 const GAMES_STARTED: &str = "manabrew_relay_games_started_total";
 const GAMES_ENDED: &str = "manabrew_relay_games_ended_total";
 const CLIENT_REJECTIONS: &str = "manabrew_relay_client_rejections_total";
@@ -205,10 +206,16 @@ pub fn refresh_gauges(state: &ServerState) {
     let mut human = 0u32;
     let mut service = 0u32;
     let mut bot = 0u32;
+    let mut local_games: BTreeMap<&'static str, u32> = BTreeMap::new();
     for entry in state.players.iter() {
         let player = entry.value();
         if !player.connected {
             continue;
+        }
+        // A seat in a room is counted by the room gauges; this is the play the
+        // relay would otherwise never see.
+        if let Some(kind) = player.local_game.filter(|_| player.room_id.is_none()) {
+            *local_games.entry(kind.as_str()).or_insert(0) += 1;
         }
         if player.is_service {
             service += 1;
@@ -238,6 +245,10 @@ pub fn refresh_gauges(state: &ServerState) {
     set_rooms(RoomStatus::Lobby, true, lobby_hosted);
     set_rooms(RoomStatus::InGame, false, in_game_player);
     set_rooms(RoomStatus::InGame, true, in_game_hosted);
+    for kind in LocalGameKind::ALL {
+        let count = local_games.get(kind.as_str()).copied().unwrap_or(0);
+        gauge!(LOCAL_GAMES, LABEL_KIND => kind.as_str()).set(count as f64);
+    }
 }
 
 fn set_connections(kind: ConnectionKind, count: u32) {

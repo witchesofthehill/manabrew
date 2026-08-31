@@ -43,6 +43,21 @@ pub struct EnginePlayStats {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub engine_think: Option<EngineTurnaround>,
+    /// `engine_think` split by whether an opponent turn happened inside the
+    /// window. A window is answer-received to next-prompt-ready, so in a game
+    /// against the AI the cross-turn half carries whole opponent turns and is
+    /// not a measure of one decision.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub engine_think_same_turn: Option<EngineTurnaround>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub engine_think_cross_turn: Option<EngineTurnaround>,
+    /// Windows dropped because the tab was backgrounded for part of them: the
+    /// engine times itself in wall clock, which keeps running while the worker
+    /// is descheduled.
+    #[serde(default)]
+    pub think_samples_hidden: u32,
     #[serde(default)]
     pub by_type: Vec<EngineTypeTurnaround>,
 }
@@ -235,6 +250,9 @@ mod tests {
                 max: 320,
             },
             engine_think: None,
+            engine_think_same_turn: None,
+            engine_think_cross_turn: None,
+            think_samples_hidden: 0,
             by_type: vec![],
         }
     }

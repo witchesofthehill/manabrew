@@ -102,7 +102,14 @@ CREATE TABLE IF NOT EXISTS engine_stats (
   turnaround_max INTEGER,
   engine_p50 INTEGER,
   engine_p90 INTEGER,
-  engine_max INTEGER
+  engine_max INTEGER,
+  engine_same_p50 INTEGER,
+  engine_same_p90 INTEGER,
+  engine_same_max INTEGER,
+  engine_cross_p50 INTEGER,
+  engine_cross_p90 INTEGER,
+  engine_cross_max INTEGER,
+  think_hidden INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_engine_stats_ts ON engine_stats(ts);
 CREATE INDEX IF NOT EXISTS idx_engine_stats_engine ON engine_stats(engine, ts);
@@ -155,6 +162,17 @@ def open_db(path: Path) -> sqlite3.Connection:
     ensure_column(db, "game_players", "published_deck_id", "TEXT")
     ensure_column(db, "game_players", "deck_fingerprint", "TEXT")
     # Anything predating the `source` column is by definition a relay game.
+    # An events.db created before the split still has the old engine_stats.
+    for column in (
+        "engine_same_p50",
+        "engine_same_p90",
+        "engine_same_max",
+        "engine_cross_p50",
+        "engine_cross_p90",
+        "engine_cross_max",
+    ):
+        ensure_column(db, "engine_stats", column, "INTEGER")
+    ensure_column(db, "engine_stats", "think_hidden", "INTEGER NOT NULL DEFAULT 0")
     ensure_column(db, "games", "source", "TEXT")
     ensure_column(db, "games", "reported_at", "TEXT")
     db.execute("UPDATE games SET source = 'relay' WHERE source IS NULL")
@@ -257,14 +275,16 @@ def ingest_deck_selected(db, ev):
 ENGINE_STATS_COLUMNS = (
     "report_id, ts, source, game_id, engine, client_version, platform, format, "
     "seats, multiplayer, duration_s, end_reason, decisions, turnaround_p50, "
-    "turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max"
+    "turnaround_p90, turnaround_max, engine_p50, engine_p90, engine_max, "
+    "engine_same_p50, engine_same_p90, engine_same_max, "
+    "engine_cross_p50, engine_cross_p90, engine_cross_max, think_hidden"
 )
 
 
 def ingest_engine_stats(db, ev):
     db.execute(
         f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-           VALUES ({", ".join("?" * 19)})""",
+           VALUES ({", ".join("?" * 26)})""",
         (
             # A relay from before the report id was forwarded still identifies a
             # report well enough to keep re-ingestion idempotent.
@@ -287,6 +307,13 @@ def ingest_engine_stats(db, ev):
             ev.get("engine_p50"),
             ev.get("engine_p90"),
             ev.get("engine_max"),
+            ev.get("engine_same_p50"),
+            ev.get("engine_same_p90"),
+            ev.get("engine_same_max"),
+            ev.get("engine_cross_p50"),
+            ev.get("engine_cross_p90"),
+            ev.get("engine_cross_max"),
+            ev.get("think_hidden") or 0,
         ),
     )
 
@@ -625,7 +652,10 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
             """SELECT id, reported_at, engine, client_version, platform, format,
                       seats, multiplayer, duration_s, end_reason, decisions,
                       turnaround_p50, turnaround_p90, turnaround_max,
-                      engine_p50, engine_p90, engine_max
+                      engine_p50, engine_p90, engine_max,
+                      engine_same_p50, engine_same_p90, engine_same_max,
+                      engine_cross_p50, engine_cross_p90, engine_cross_max,
+                      coalesce(think_hidden, 0)
                FROM engine_play_stats
                WHERE reported_at > ?""",
             (mirrored_through,),
@@ -670,7 +700,7 @@ def refresh_hub_analytics(db, hub_path: Path) -> bool:
         )
         db.executemany(
             f"""INSERT OR IGNORE INTO engine_stats ({ENGINE_STATS_COLUMNS})
-                VALUES (?, ?, 'hub', NULL, {", ".join("?" * 15)})""",
+                VALUES (?, ?, 'hub', NULL, {", ".join("?" * 22)})""",
             engine_reports,
         )
         db.execute("DELETE FROM hub_collection_cards")

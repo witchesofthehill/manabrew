@@ -219,6 +219,13 @@ is the other, and it needs no rewrite to qualify.
 
 ## Observability
 
+**The relay only records what it carries.** A seat on the direct plane is missing from the
+relay's game capture and from its replay cache, so a captured hosted game covers the seats that
+stayed on the relay and no others, and a resync for a direct seat returns the last board the
+relay saw until the next relayed envelope corrects it. Anyone reading capture files for latency
+work (`docs/agents/LATENCY_ANALYSIS.md`) needs to know which seats were direct. This is why the
+flag is off in production.
+
 `TransportStatus` reports, per seat: attempted, connected or failed; `TransportKind` of
 `Relay`, `IrohDirect` or `IrohRelayed`; whether the selected path's remote address is
 RFC1918/link-local (`lan: bool`); the relay url in use; RTT; setup latency; reconnect count;
@@ -259,8 +266,10 @@ itself:
 - **Phase 2 (done).** Seat to hosted-Forge-node traffic over iroh. `self-hosted-node` binds an
   endpoint per room, announces it, installs the roster, joins the gossip topic, and accepts seat
   streams; per-seat envelopes for a connected seat leave over QUIC instead of `BroadcastState`.
-  Gated on `SELF_HOSTED_NODE_IROH=1`. The seat set is frozen at `GameStarted` and any failure
-  falls back to the relay. See `docs/agents/SELF_HOSTED_NODE.md`.
+  Gated on `SELF_HOSTED_NODE_IROH=1`, on for staging and off in production. The seat set is
+  frozen at `GameStarted` and any failure falls back to the relay. `manabot` is the first seat
+  that dials, which is what puts real games on the direct plane on the preview.
+  See `docs/agents/SELF_HOSTED_NODE.md`.
 - **Phase 3.** Re-prime the relay's replay cache when a seat falls back (a resync is currently
   one envelope stale for a seat that was direct), reconnect hardening, and live migration at a
   resync boundary. Then the client half, so a real player seat can take the direct plane.

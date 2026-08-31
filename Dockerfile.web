@@ -8,7 +8,9 @@
 # forge/forge-gui/res/cardsfolder/, public/preset_decks/, package.json, vite.config.ts)
 
 # --- Base: Rust + Node toolchain shared by the planner and builder stages ---
-FROM rust:1.88-slim AS base
+# Kept in step with the node image: the workspace lockfile carries crates that
+# declare rust-version 1.91.
+FROM rust:1.94-slim AS base
 
 # Install Node.js 20 and build tools. The NodeSource script is downloaded to a
 # file, not piped: a piped curl failure exits 0 (no pipefail in /bin/sh), apt

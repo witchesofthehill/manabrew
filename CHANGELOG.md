@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.28.0](https://github.com/witchesofthehill/manabrew/compare/v3.27.1...v3.28.0) (2026-08-31)
+
+### Features
+
+* avatars in lobby ([#798](https://github.com/witchesofthehill/manabrew/issues/798)) ([1a104c7](https://github.com/witchesofthehill/manabrew/commit/1a104c754b2f6ea0e1dcff71dd5df72a3059a6d8))
+
 ## [3.27.1](https://github.com/witchesofthehill/manabrew/compare/v3.27.0...v3.27.1) (2026-08-31)
 
 ### Performance

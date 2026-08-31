@@ -76,6 +76,12 @@ run(wasmPack, [
   "manabrew-rs/crates/wasm",
 ]);
 
+// The direct data plane ships as its own module, loaded only when a room offers
+// a direct transport: iroh is about 1.3MB gzipped and most games never need it.
+// It needs a clang that can target wasm32 (`ring` compiles C), so a machine
+// without one skips it rather than failing the whole web build.
+buildNetWasm();
+
 for (const file of [".gitignore", "package.json", "README.md"]) {
   const path = join(outputDir, file);
   if (existsSync(path)) {
@@ -174,3 +180,41 @@ console.log(`[build-wasm] cardset → ${archiveName} (sha256 ${shortSha}…)`);
 console.log("\nBuild complete!");
 console.log(`WASM output: ${outputDir}`);
 console.log(`Card data:   ${cardsetDir}`);
+
+function buildNetWasm() {
+  const outDir = join(projectRoot, "src", "wasm-net");
+  const env = {
+    ...process.env,
+    RUSTFLAGS: [process.env.RUSTFLAGS, '--cfg getrandom_backend="wasm_js"']
+      .filter(Boolean)
+      .join(" "),
+  };
+  if (!env.CC_wasm32_unknown_unknown && !commandExists("clang")) {
+    console.warn(
+      "[build-wasm] no clang that targets wasm32; skipping the direct data plane module.\n" +
+        "            macOS: brew install llvm, then " +
+        "CC_wasm32_unknown_unknown=/opt/homebrew/opt/llvm/bin/clang",
+    );
+    return;
+  }
+  run(
+    wasmPack,
+    [
+      "build",
+      "--target",
+      "web",
+      "--out-dir",
+      outDir,
+      "--out-name",
+      "net",
+      "manabrew-rs/crates/manabrew-net-wasm",
+    ],
+    { env },
+  );
+  for (const file of [".gitignore", "package.json", "README.md"]) {
+    const path = join(outDir, file);
+    if (existsSync(path)) {
+      rmSync(path, { force: true });
+    }
+  }
+}

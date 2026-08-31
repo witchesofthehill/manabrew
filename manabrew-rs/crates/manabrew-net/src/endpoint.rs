@@ -1,8 +1,8 @@
 //! iroh endpoint lifecycle and the direct seat channel.
 
+use n0_future::time::{Duration, Instant};
 use std::net::IpAddr;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant};
 
 use iroh::address_lookup::memory::MemoryLookup;
 use iroh::endpoint::{Connection, PathEvent, RecvStream, SendStream};
@@ -84,6 +84,9 @@ impl NetEndpoint {
         let mut builder = Endpoint::builder(iroh::endpoint::presets::Minimal)
             .relay_mode(config.relay_mode.unwrap_or(RelayMode::Disabled))
             .address_lookup(known_addrs.clone());
+        // A browser endpoint has no IP transports to begin with, so the knob
+        // only exists where they do.
+        #[cfg(not(wasm_browser))]
         if config.relay_only {
             builder = builder.clear_ip_transports();
         }
@@ -139,7 +142,7 @@ impl NetEndpoint {
     /// announcing. Returns false on timeout; the caller can still announce its
     /// direct addresses, which is all a LAN peer needs.
     pub async fn wait_online(&self, timeout: Duration) -> bool {
-        tokio::time::timeout(timeout, self.endpoint.online())
+        n0_future::time::timeout(timeout, self.endpoint.online())
             .await
             .is_ok()
     }
@@ -186,7 +189,7 @@ impl NetEndpoint {
         )
         .await?;
 
-        match tokio::time::timeout(HELLO_TIMEOUT, read_frame(&mut recv)).await {
+        match n0_future::time::timeout(HELLO_TIMEOUT, read_frame(&mut recv)).await {
             Ok(Ok(SessionFrame::Welcome { accepted: true, .. })) => {}
             Ok(Ok(SessionFrame::Welcome { reason, .. })) => {
                 return Err(NetError::Rejected(
@@ -218,7 +221,7 @@ impl ProtocolHandler for GameAcceptor {
         let remote = conn.remote_id();
         let (mut send, mut recv) = conn.accept_bi().await?;
 
-        let hello = match tokio::time::timeout(HELLO_TIMEOUT, read_frame(&mut recv)).await {
+        let hello = match n0_future::time::timeout(HELLO_TIMEOUT, read_frame(&mut recv)).await {
             Ok(Ok(frame)) => frame,
             _ => {
                 conn.close(1u8.into(), b"no hello");
@@ -263,7 +266,7 @@ impl ProtocolHandler for GameAcceptor {
             let _ = send.finish();
             // Give the peer time to read the rejection. Closing straight away
             // races it, and it would only see "connection lost".
-            let _ = tokio::time::timeout(REJECT_LINGER, conn.closed()).await;
+            let _ = n0_future::time::timeout(REJECT_LINGER, conn.closed()).await;
             conn.close(1u8.into(), reason.as_bytes());
             return Ok(());
         }
@@ -309,7 +312,7 @@ fn pump(
     let (status_tx, status_rx) = watch::channel(status_of(&conn, setup, 0));
 
     let writer_conn = conn.clone();
-    let writer = tokio::spawn(async move {
+    let writer = n0_future::task::spawn(async move {
         while let Some(frame) = out_rx.recv().await {
             if write_frame(&mut send, &frame).await.is_err() {
                 break;
@@ -319,7 +322,7 @@ fn pump(
         drop(writer_conn);
     });
 
-    let reader = tokio::spawn(async move {
+    let reader = n0_future::task::spawn(async move {
         while let Ok(frame) = read_frame(&mut recv).await {
             if in_tx.send(frame).await.is_err() {
                 break;
@@ -328,7 +331,7 @@ fn pump(
     });
 
     let watcher_conn = conn.clone();
-    let watcher = tokio::spawn(async move {
+    let watcher = n0_future::task::spawn(async move {
         let mut events = watcher_conn.path_events();
         let mut churn = 0u32;
         while let Some(event) = events.next().await {

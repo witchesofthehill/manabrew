@@ -18,13 +18,20 @@ FROM rust:1.94-slim AS base
 # layer caches. The version/corepack check makes that failure mode impossible.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl ca-certificates build-essential pkg-config libssl-dev && \
+        curl ca-certificates build-essential pkg-config libssl-dev \
+        clang llvm && \
     curl -fsSL -o /tmp/nodesource-setup.sh https://deb.nodesource.com/setup_20.x && \
     bash /tmp/nodesource-setup.sh && \
     rm /tmp/nodesource-setup.sh && \
     apt-get install -y --no-install-recommends nodejs && \
     node --version | grep -q '^v20\.' && command -v corepack && \
     rm -rf /var/lib/apt/lists/*
+
+# `ring`, under iroh, compiles C for wasm32, which Debian's gcc cannot target
+# and clang can. Without these the direct data plane's browser bundle fails with
+# "No available targets are compatible with triple wasm32-unknown-unknown".
+ENV CC_wasm32_unknown_unknown=clang \
+    AR_wasm32_unknown_unknown=llvm-ar
 
 # Install wasm32 target and wasm-pack (pinned; newer versions track latest rustc)
 RUN rustup target add wasm32-unknown-unknown && \

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.26.2](https://github.com/witchesofthehill/manabrew/compare/v3.26.1...v3.26.2) (2026-08-31)
+
+### Fixes
+
+* remove leftover asset localstorage caches ([#792](https://github.com/witchesofthehill/manabrew/issues/792)) ([91a4d33](https://github.com/witchesofthehill/manabrew/commit/91a4d33a098648df41229c3213596069960b8483))
+
 ## [3.26.1](https://github.com/witchesofthehill/manabrew/compare/v3.26.0...v3.26.1) (2026-08-31)
 
 ### Fixes

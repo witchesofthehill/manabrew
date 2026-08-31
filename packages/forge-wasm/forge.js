@@ -174,3 +174,17 @@ export async function createForgeEngine(options = {}) {
 /** The published version, written in from package.json when the package is
  *  built. A checkout that has not been through that build reads as dev. */
 export const VERSION = "0.0.0-dev";
+
+/**
+ * The `forge-cardset-archive` release whose card-script selector is compiled
+ * into this package. `cargo add forge-cardset-archive@<this>` gets the same
+ * selection rules on the Rust side.
+ *
+ * It is the last *released* version, so a package built between releases
+ * carries source the crate has not shipped yet. BUILD_COMMIT is what names
+ * the exact tree, and is what a bug report should quote.
+ */
+export const CARDSET_ARCHIVE_VERSION = "0.0.0-dev";
+
+/** The manabrew commit this package was built from. */
+export const BUILD_COMMIT = "unknown";

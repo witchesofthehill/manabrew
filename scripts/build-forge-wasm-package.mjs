@@ -141,16 +141,35 @@ if (expectedVersion && manifest.version !== expectedVersion) {
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
 // package.json is the only place the version is written by hand. Stamp the
-// runtime export from it here rather than asking a release to keep three
-// files in step, which is how @manabrew/protocol shipped a stale one.
+// runtime exports from it and the tree here, rather than asking a release to
+// keep several files in step, which is how @manabrew/protocol shipped a stale
+// one.
+//
+// The selector compiled into this package comes from forge-cardset-archive,
+// which releases on its own cadence, so a bug report needs to say which one it
+// got. The crate version names a release a Rust consumer can install; the
+// commit names the tree, which is the only exact answer between releases.
+const cardsetArchiveVersion = readFileSync(
+  join(root, "manabrew-rs", "crates", "forge-cardset-archive", "Cargo.toml"),
+  "utf8",
+).match(/^version\s*=\s*"(.+)"$/m)?.[1];
+if (!cardsetArchiveVersion) throw new Error("forge-cardset-archive has no version to stamp.");
+
+const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" });
+const buildCommit = head.status === 0 ? head.stdout.trim() : "unknown";
+
 const entryPath = join(output, "forge.js");
-const entry = readFileSync(entryPath, "utf8");
-const versionExport = /^export const VERSION = ".*";$/m;
-if (!versionExport.test(entry)) throw new Error("forge.js has no VERSION export to stamp.");
-writeFileSync(
-  entryPath,
-  entry.replace(versionExport, `export const VERSION = ${JSON.stringify(manifest.version)};`),
-);
+let entry = readFileSync(entryPath, "utf8");
+for (const [name, value] of [
+  ["VERSION", manifest.version],
+  ["CARDSET_ARCHIVE_VERSION", cardsetArchiveVersion],
+  ["BUILD_COMMIT", buildCommit],
+]) {
+  const declaration = new RegExp(`^export const ${name} = ".*";$`, "m");
+  if (!declaration.test(entry)) throw new Error(`forge.js has no ${name} export to stamp.`);
+  entry = entry.replace(declaration, `export const ${name} = ${JSON.stringify(value)};`);
+}
+writeFileSync(entryPath, entry);
 
 console.log(
   `Built ${manifest.name}@${manifest.version} in ${output}` +

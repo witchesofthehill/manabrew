@@ -82,3 +82,5 @@ export declare class ForgeEngine {
 
 export declare function createForgeEngine(options?: ForgeEngineOptions): Promise<ForgeEngine>;
 export declare const VERSION: string;
+export declare const CARDSET_ARCHIVE_VERSION: string;
+export declare const BUILD_COMMIT: string;

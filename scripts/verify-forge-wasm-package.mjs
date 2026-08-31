@@ -65,14 +65,31 @@ if (statSync(join(packageDir, "cardset.rkyv")).size < 30_000_000) {
   throw new Error("Forge cardset is unexpectedly small.");
 }
 
-// The runtime VERSION is stamped from package.json at build time; a mismatch
-// means the stamp did not run and consumers would read a stale number.
+// The runtime exports are stamped at build time; a mismatch means the stamp
+// did not run and consumers would read stale numbers.
+const entry = readFileSync(join(packageDir, "forge.js"), "utf8");
+const stampOf = (name) => entry.match(new RegExp(`^export const ${name} = "(.*)";$`, "m"))?.[1];
+
 const manifestVersion = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8")).version;
-const stamped = readFileSync(join(packageDir, "forge.js"), "utf8").match(
-  /^export const VERSION = "(.*)";$/m,
-)?.[1];
-if (stamped !== manifestVersion) {
-  throw new Error(`forge.js exports VERSION ${stamped}, manifest says ${manifestVersion}.`);
+if (stampOf("VERSION") !== manifestVersion) {
+  throw new Error(
+    `forge.js exports VERSION ${stampOf("VERSION")}, manifest says ${manifestVersion}.`,
+  );
+}
+
+// The selector in the package has to name the crate release it came from, or a
+// bug report cannot say which selection rules it hit.
+const cardsetArchiveVersion = readFileSync(
+  join(root, "manabrew-rs", "crates", "forge-cardset-archive", "Cargo.toml"),
+  "utf8",
+).match(/^version\s*=\s*"(.+)"$/m)?.[1];
+if (stampOf("CARDSET_ARCHIVE_VERSION") !== cardsetArchiveVersion) {
+  throw new Error(
+    `forge.js exports CARDSET_ARCHIVE_VERSION ${stampOf("CARDSET_ARCHIVE_VERSION")}, the crate is ${cardsetArchiveVersion}.`,
+  );
+}
+if (!/^[0-9a-f]{40}$/.test(stampOf("BUILD_COMMIT") ?? "")) {
+  throw new Error(`forge.js exports BUILD_COMMIT ${stampOf("BUILD_COMMIT")}, expected a commit.`);
 }
 
 const packed = JSON.parse(
@@ -117,9 +134,11 @@ writeFileSync(
     // The subpath exports carry their own types, and a deck object with every
     // zone filled has to satisfy ForgeDeck — the zones are what the selector
     // reads, so dropping one from the type would silently narrow a bundle.
-    'import { ForgeEngine } from "@manabrew/forge-wasm";',
+    'import { ForgeEngine, VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";',
     'import { deckCardNames } from "@manabrew/forge-wasm/deckCards";',
     'import { createSeat, SAB_SIZE } from "@manabrew/forge-wasm/seat";',
+    "const build: string[] = [VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT];",
+    "void build;",
     'const deck = { cards: [{ identity: { name: "Lightning Bolt" } }], sideboard: [], attractions: [],',
     "  contraptions: [], schemes: [], planes: [], commanders: [], companion: undefined };",
     'const engine = new ForgeEngine({ assets: "" });',

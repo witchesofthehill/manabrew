@@ -118,6 +118,16 @@ await createForgeEngine({
 
 The launcher, worker, engine WASM, asset-selector WASM and cardset URLs can all be overridden. Their defaults are module-relative URLs that Vite and other modern bundlers emit as static assets.
 
+## Which build is this
+
+The package exports three strings, stamped in when it is built:
+
+```js
+import { VERSION, CARDSET_ARCHIVE_VERSION, BUILD_COMMIT } from "@manabrew/forge-wasm";
+```
+
+`CARDSET_ARCHIVE_VERSION` is the `forge-cardset-archive` release whose card-script selector is compiled in. It releases on its own cadence, so it names a crate a Rust consumer can install to get the same selection rules, and it is the last released version rather than the exact source. `BUILD_COMMIT` names the tree. Quote all three in a bug report.
+
 ## Subpath exports
 
 Two internals are exported because a host that overrides `assets` still needs them, and because Manabrew's own client imports them rather than keeping a second copy:

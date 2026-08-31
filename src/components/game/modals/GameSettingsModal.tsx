@@ -75,7 +75,7 @@ export function GameSettingsModal({ onClose }: { onClose: () => void }) {
 
         <SettingRow
           label="Priority windows"
-          hint="Autopass skips windows where you can only tap for mana, after a short delay — click the sweeping Pass button to hold. Full control stops at every window."
+          hint="Autopass skips windows where you can only tap for mana, after a short delay. Full control stops at every window."
         >
           <div className="flex items-center gap-2">
             <Button

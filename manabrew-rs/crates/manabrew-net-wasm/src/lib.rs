@@ -30,11 +30,16 @@ fn err(error: impl std::fmt::Display) -> JsValue {
 
 #[wasm_bindgen]
 impl WasmSeat {
-    /// Binds an endpoint against the relay the control plane named. There is no
-    /// default: without a relay a browser has no path to anything.
+    /// Binds an endpoint against the relay the control plane named, or with no
+    /// relay at all. There is never a default: an absent relay means direct
+    /// only, which is what a LAN game with no internet looks like, and a
+    /// browser there simply finds no path and stays on the manabrew relay.
     #[wasm_bindgen(js_name = bindSeat)]
-    pub async fn bind(username: String, relay_url: String) -> Result<WasmSeat, JsValue> {
-        let config = NetConfig::with_relay(&relay_url).map_err(err)?;
+    pub async fn bind(username: String, relay_url: Option<String>) -> Result<WasmSeat, JsValue> {
+        let config = match relay_url.as_deref().filter(|url| !url.is_empty()) {
+            Some(url) => NetConfig::with_relay(url).map_err(err)?,
+            None => NetConfig::default(),
+        };
         let (endpoint, _seats) = NetEndpoint::bind(config).await.map_err(err)?;
         Ok(WasmSeat {
             endpoint,

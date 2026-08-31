@@ -19,7 +19,7 @@ import type { StateEnvelope } from "@/types/server";
 interface NetModule {
   default: (input?: unknown) => Promise<unknown>;
   WasmSeat: {
-    bindSeat(username: string, relayUrl: string): Promise<WasmSeat>;
+    bindSeat(username: string, relayUrl: string | null): Promise<WasmSeat>;
   };
 }
 
@@ -53,12 +53,12 @@ export class DirectSeat {
   private reading = false;
 
   private readonly username: string;
-  private readonly relayUrl: string;
+  private readonly relayUrl: string | null;
   private readonly deliver: (envelope: StateEnvelope, fromPlayer: string) => void;
 
   constructor(
     username: string,
-    relayUrl: string,
+    relayUrl: string | null,
     deliver: (envelope: StateEnvelope, fromPlayer: string) => void,
   ) {
     this.username = username;

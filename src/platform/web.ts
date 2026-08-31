@@ -1279,8 +1279,11 @@ class WebServerApi implements IServerApi {
   /// without an `iroh_relay_url` from the control plane this seat stays on the
   /// relay, which is also what an older relay produces.
   private async onRoomTransport(msg: Record<string, unknown>): Promise<void> {
-    const relayUrl = msg.iroh_relay_url;
-    if (typeof relayUrl !== "string" || !this.authedUsername) return;
+    // No relay url means direct only, which is exactly a LAN game with no
+    // internet. The topic secret is what says the relay knows about a data
+    // plane at all; an older relay sends neither and nothing happens.
+    const relayUrl = typeof msg.iroh_relay_url === "string" ? msg.iroh_relay_url : null;
+    if (typeof msg.topic_secret !== "string" || !this.authedUsername) return;
     if (!this.directSeat) {
       this.directSeat = new DirectSeat(
         this.authedUsername,

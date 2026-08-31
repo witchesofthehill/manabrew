@@ -8,7 +8,7 @@ declare module "@/wasm-net/net" {
   export default function init(input?: unknown): Promise<unknown>;
 
   export class WasmSeat {
-    static bindSeat(username: string, relayUrl: string): Promise<WasmSeat>;
+    static bindSeat(username: string, relayUrl?: string | null): Promise<WasmSeat>;
     localEndpoint(): Promise<unknown>;
     endpointId(): string;
     connectToHost(roomId: string, topicSecret: string, members: unknown): Promise<unknown>;

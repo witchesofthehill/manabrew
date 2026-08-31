@@ -4,6 +4,7 @@ mod asset_server;
 mod card_db;
 mod commands;
 mod forge_room;
+mod lan_discovery;
 mod limited_bootstrap;
 mod limited_commands;
 mod limited_dto;
@@ -82,6 +83,7 @@ pub fn run() {
             local_relay::start_local_relay,
             local_relay::local_relay_running,
             local_relay::stop_local_relay,
+            lan_discovery::discover_lan_rooms,
             limited_commands::limited_start_sealed,
             limited_commands::limited_get_sealed_pool,
             limited_commands::limited_get_edition_info,

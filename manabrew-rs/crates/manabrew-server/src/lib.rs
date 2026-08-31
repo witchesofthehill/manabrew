@@ -6,6 +6,7 @@ pub mod connection;
 pub mod deck_play_events;
 pub mod error;
 pub mod identity;
+pub mod iroh_relay;
 pub mod lobby;
 pub mod metrics;
 pub mod protocol;

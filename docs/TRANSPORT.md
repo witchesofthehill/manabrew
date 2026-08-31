@@ -276,6 +276,23 @@ from the roster. Gossip dials by endpoint id alone, so the roster is also loaded
 configured. That keeps the control plane the single origin of addressing and means nothing is
 published to a third-party DNS or DHT.
 
+## A LAN with no internet
+
+One desktop hosts the whole session. `start_local_relay(shareOnLan)` binds the embedded relay to
+the network instead of loopback, hosts an iroh relay in the same process, and advertises the room
+over mDNS (`_manabrew._tcp.local.`); the others find it with `discover_lan_rooms` and join through
+the ordinary room flow. Nothing about the room model changes, which is the point: the same
+`RoomTransport` names the same data plane, and the only difference is that every address in it is
+a private one.
+
+Two seats are worth separating. The host's own engine and its bots are native on both ends, so
+they get a genuinely direct path. A guest desktop's client runs in a webview, so its iroh is
+`wasm_browser` and **relay-only** exactly like a browser; it reaches the host through the host's
+iroh relay. That is one hop across a switch and nothing leaves the network, but it is not
+peer-to-peer and should not be described as such.
+
+Card art is the one thing still missing offline; there is no image cache today (#811).
+
 ## Manual test, two machines on one LAN
 
 Phase 1 exercises the primitives, not production game traffic, so this checks the transport

@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
-forge-room = ["dep:self-hosted-node", "dep:manabrew-server"]
+forge-room = ["dep:self-hosted-node", "dep:manabrew-server", "dep:mdns-sd"]
 
 [lib]
 name = "manabrew_lib"
@@ -29,6 +29,9 @@ forge-carddb = { path = "../manabrew-rs/crates/forge-carddb" }
 forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive" }
 memmap2 = "0.9"
 rand = "0.8"
+# Finding a LAN room without typing an IP. No async runtime of its own, which
+# keeps it out of tauri's.
+mdns-sd = { version = "0.21", optional = true }
 tiny_http = "0.12"
 tokio = { version = "1", features = ["rt", "sync", "macros", "time", "net"] }
 manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interface" }

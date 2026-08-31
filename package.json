@@ -1,7 +1,7 @@
 {
   "name": "manabrew",
   "private": true,
-  "version": "3.26.0",
+  "version": "3.26.1",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {

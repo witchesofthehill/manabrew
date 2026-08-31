@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.26.1](https://github.com/witchesofthehill/manabrew/compare/v3.26.0...v3.26.1) (2026-08-31)
+
+### Fixes
+
+* phyrexian revoker ([#791](https://github.com/witchesofthehill/manabrew/issues/791)) ([beb48bb](https://github.com/witchesofthehill/manabrew/commit/beb48bb7080db545f7c5a5de16851150a0622ce3))
+
 ## [3.26.0](https://github.com/witchesofthehill/manabrew/compare/v3.25.0...v3.26.0) (2026-08-31)
 
 ### Features

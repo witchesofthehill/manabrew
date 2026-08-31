@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.32.4](https://github.com/witchesofthehill/manabrew/compare/v3.32.3...v3.32.4) (2026-08-31)
+
+### Fixes
+
+* **editor:** strip draft flag before saving a deck to the account ([4f63f8d](https://github.com/witchesofthehill/manabrew/commit/4f63f8dfce6e4819cbc0145dac2316b6451d6715))
+
 ## [3.32.3](https://github.com/witchesofthehill/manabrew/compare/v3.32.2...v3.32.3) (2026-08-31)
 
 ### Fixes

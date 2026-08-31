@@ -117,6 +117,7 @@ export function TableSeatChip({
         ) : avatarUrl ? (
           <img
             src={avatarUrl}
+            crossOrigin="anonymous"
             alt=""
             aria-hidden="true"
             className="absolute inset-0 h-full w-full rounded-full object-cover"

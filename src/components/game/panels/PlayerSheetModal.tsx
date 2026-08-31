@@ -29,6 +29,7 @@ export function PlayerSheetModal({ spec, onClose }: PlayerSheetModalProps) {
             {spec.avatarUrl ? (
               <img
                 src={spec.avatarUrl}
+                crossOrigin="anonymous"
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover"
               />

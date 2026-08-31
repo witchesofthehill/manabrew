@@ -92,7 +92,12 @@ export function DeckHero({ onNameCommit }: { onNameCommit: (name: string) => voi
             )}
           >
             {playmat ? (
-              <img src={playmat} alt="Deck playmat" className="h-6 w-10 rounded object-cover" />
+              <img
+                src={playmat}
+                crossOrigin="anonymous"
+                alt="Deck playmat"
+                className="h-6 w-10 rounded object-cover"
+              />
             ) : playmatColor ? (
               <span
                 className="h-6 w-10 rounded border"

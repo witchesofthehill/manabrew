@@ -9,15 +9,20 @@ use manabrew_net::{GameReceiver, GameSender, NetConfig, NetEndpoint, Roster, Ses
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
-const DIAL_ATTEMPTS: usize = 3;
-const DIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(400);
+const DIAL_ATTEMPTS: usize = 2;
+const DIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
+/// Dialling happens inline in the session loop, so it must not hold the relay
+/// socket for long.
+const DIAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 pub struct DirectSeat {
     endpoint: NetEndpoint,
     username: String,
+    has_relay: bool,
     sender: Option<GameSender>,
     receiver: Option<GameReceiver>,
     announced: bool,
+    seq: u64,
     /// Set at `GameStarted`, cleared when the game ends. The host freezes its
     /// own seat list at the same moment, so both ends agree on which transport
     /// carries this game without any extra negotiation.
@@ -40,9 +45,11 @@ impl DirectSeat {
             Ok((endpoint, _seats)) => Some(Self {
                 endpoint,
                 username: username.to_string(),
+                has_relay: iroh_relay_url.is_some(),
                 sender: None,
                 receiver: None,
                 announced: false,
+                seq: 0,
                 active: false,
             }),
             Err(error) => {
@@ -58,9 +65,11 @@ impl DirectSeat {
 
     pub async fn announce(&mut self) -> TransportEndpoint {
         self.announced = true;
-        self.endpoint
-            .wait_online(std::time::Duration::from_secs(5))
-            .await;
+        if self.has_relay {
+            self.endpoint
+                .wait_online(std::time::Duration::from_secs(5))
+                .await;
+        }
         self.endpoint.local()
     }
 
@@ -95,7 +104,12 @@ impl DirectSeat {
         // The host may not have applied the same roster yet. A short retry
         // covers that ordering, and a later roster retries anyway.
         for attempt in 0..DIAL_ATTEMPTS {
-            match self.endpoint.connect_to_host(&self.username).await {
+            let dial =
+                tokio::time::timeout(DIAL_TIMEOUT, self.endpoint.connect_to_host(&self.username))
+                    .await;
+            match dial
+                .unwrap_or_else(|_| Err(manabrew_net::NetError::Rejected("dial timed out".into())))
+            {
                 Ok(channel) => {
                     let status = channel.status();
                     info!(
@@ -119,6 +133,7 @@ impl DirectSeat {
     }
 
     pub fn freeze(&mut self) {
+        self.seq = 0;
         self.active = self.sender.is_some();
         if self.active {
             info!("playing this game on the direct plane");
@@ -133,11 +148,12 @@ impl DirectSeat {
         if !self.active {
             return false;
         }
-        let Some(sender) = &self.sender else {
+        let Some(sender) = self.sender.clone() else {
             return false;
         };
+        self.seq += 1;
         let frame = SessionFrame::Game {
-            seq: 0,
+            seq: self.seq,
             payload: envelope.clone(),
         };
         if sender.try_send(frame).is_ok() {

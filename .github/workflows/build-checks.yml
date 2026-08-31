@@ -305,6 +305,7 @@ jobs:
         with:
           path: |
             src/wasm
+            src/wasm-net
             public/wasm
           key: ${{ steps.wasm-key.outputs.key }}
 
@@ -321,6 +322,7 @@ jobs:
           name: wasm-dist
           path: |
             src/wasm
+            src/wasm-net
             public/wasm
           if-no-files-found: error
           retention-days: 1

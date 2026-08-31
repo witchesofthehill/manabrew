@@ -195,9 +195,13 @@ Two build constraints found while checking this, both real:
 `manabrew-net-wasm` wraps it for JavaScript. It is a **separate module**, not part of the main
 wasm bundle: iroh costs 3.0MB raw and 1.19MB gzipped, and a player who never joins a room that
 offers a direct transport should not download it, so `src/game/directSeat.ts` imports it only
-when `RoomTransport` arrives carrying a relay url. The image build needs `clang` and `llvm`
-(`CC_wasm32_unknown_unknown=clang`); a machine without a wasm-capable clang skips the module and
-builds everything else, which keeps the plain `yarn build:wasm` working on stock macOS.
+when `RoomTransport` arrives carrying a relay url. The module is genuinely optional, in both directions. `ring` compiles C for wasm32, so building
+it needs a clang that can *target* wasm32 — and Apple's clang, which is on every mac, cannot, so
+`scripts/build-wasm.mjs` asks a candidate clang to compile for the target rather than trusting
+that one exists. When none does it skips the module, and `vite.config.ts` then resolves
+`@/wasm-net/net` to a stub that reports itself; `DirectSeat` catches the throw and the seat stays
+on the relay. `src/types/wasmNet.d.ts` declares the module so `tsc` never needs the generated
+files. That alias must sit **before** the `@` alias or the broader one claims the specifier.
 
 A browser seat sends only its own answers over the channel (`response` and `directive`); a
 browser *hosting* a room still serves its seats over the relay. Hosting from the browser is the

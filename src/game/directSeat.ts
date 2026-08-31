@@ -12,8 +12,10 @@
  */
 import type { StateEnvelope } from "@/types/server";
 
-/** The slice of `manabrew-net-wasm` this uses, typed here so `tsc` does not
- *  depend on generated files that a checkout may not have built yet. */
+/** The slice of `manabrew-net-wasm` this uses. Named here rather than taken
+ *  from the generated `.d.ts` so this file reads on its own; the import is a
+ *  plain one so the bundler code-splits it into a chunk nobody fetches until a
+ *  room offers a direct transport. */
 interface NetModule {
   default: (input?: unknown) => Promise<unknown>;
   WasmSeat: {
@@ -70,7 +72,7 @@ export class DirectSeat {
     if (this.announced) return null;
     this.announced = true;
     try {
-      this.module ??= (await import(/* @vite-ignore */ "../wasm-net/net")) as NetModule;
+      this.module ??= (await import("@/wasm-net/net")) as unknown as NetModule;
       await this.module.default();
       this.seat = await this.module.WasmSeat.bindSeat(this.username, this.relayUrl);
       return await this.seat.localEndpoint();

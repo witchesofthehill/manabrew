@@ -1,5 +1,5 @@
 import path from "path";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -46,6 +46,12 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      // The direct data plane is optional: it needs a clang that targets
+      // wasm32, so a build without one resolves to a stub that reports itself
+      // rather than failing the whole bundle.
+      "@/wasm-net/net": existsSync(path.resolve(__dirname, "./src/wasm-net/net.js"))
+        ? path.resolve(__dirname, "./src/wasm-net/net.js")
+        : path.resolve(__dirname, "./src/game/wasmNetUnavailable.ts"),
       "@": path.resolve(__dirname, "./src"),
       // The client shares the Forge seat and card-selection modules with the
       // published @manabrew/forge-wasm package rather than keeping a copy.

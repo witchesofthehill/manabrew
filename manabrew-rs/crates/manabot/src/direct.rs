@@ -126,7 +126,9 @@ impl DirectSeat {
                 }
                 Err(error) => {
                     debug!(%error, attempt, "no direct path to the host yet");
-                    tokio::time::sleep(DIAL_RETRY_DELAY).await;
+                    if attempt + 1 < DIAL_ATTEMPTS {
+                        tokio::time::sleep(DIAL_RETRY_DELAY).await;
+                    }
                 }
             }
         }

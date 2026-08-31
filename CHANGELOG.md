@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.31.0](https://github.com/witchesofthehill/manabrew/compare/v3.30.0...v3.31.0) (2026-08-31)
+
+### Features
+
+* **forge-wasm:** publish the browser engine as an npm package ([#796](https://github.com/witchesofthehill/manabrew/issues/796)) ([ab8c0ba](https://github.com/witchesofthehill/manabrew/commit/ab8c0bafc0ee87bca9cfd7271744046abe6ea434))
+
 ## [3.30.0](https://github.com/witchesofthehill/manabrew/compare/v3.29.0...v3.30.0) (2026-08-31)
 
 ### Features
